@@ -81,7 +81,9 @@ class IssabelDbService {
                 FROM cdr 
                 WHERE calldate >= CURDATE() 
                   AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%';
+                  AND channel NOT LIKE 'Local/%'
+                  AND (dcontext IS NULL OR dcontext != 'from-internal')
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT '===SUMMARY_OUT===' as marker;
                 SELECT 
@@ -103,6 +105,8 @@ class IssabelDbService {
                 WHERE calldate >= CURDATE() 
                   AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
                   AND channel NOT LIKE 'Local/%'
+                  AND (dcontext IS NULL OR dcontext != 'from-internal')
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                   AND HOUR(calldate) BETWEEN 8 AND 21
                 GROUP BY hr ORDER BY hr ASC;
 
@@ -244,7 +248,7 @@ class IssabelDbService {
             redisService.set('callcenter:hourly', this.cache.hourly, 60);
             redisService.set('callcenter:operators', this.cache.operators, 60);
         } catch (err) {
-            console.error('⚠️ Issabel syncAllData xatosi:', err.message);
+            console.error('вљ пёЏ Issabel syncAllData xatosi:', err.message);
         }
     }
 
@@ -386,6 +390,8 @@ class IssabelDbService {
                 WHERE calldate >= CURDATE() 
                   AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
                   AND channel NOT LIKE 'Local/%'
+                  AND (dcontext IS NULL OR dcontext != 'from-internal')
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                   AND HOUR(calldate) BETWEEN 8 AND 21
                 GROUP BY hr
                 ORDER BY hr ASC;
@@ -446,7 +452,9 @@ class IssabelDbService {
                 FROM cdr 
                 WHERE calldate >= CURDATE()
                   AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%';
+                  AND channel NOT LIKE 'Local/%'
+                  AND (dcontext IS NULL OR dcontext != 'from-internal')
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT 
                     COUNT(*) as total_outbound,
@@ -497,7 +505,7 @@ class IssabelDbService {
                 denyRate
             };
         } catch (err) {
-            console.error('⚠️ Issabel fetchTodaySummary xatolik:', err.message);
+            console.error('вљ пёЏ Issabel fetchTodaySummary xatolik:', err.message);
             return null;
         }
     }
@@ -582,7 +590,7 @@ class IssabelDbService {
 
             return { total, page: Math.min(page, totalPages), totalPages, limit, data: calls };
         } catch (err) {
-            console.error('⚠️ Issabel fetchCallsPaginated xatolik:', err.message);
+            console.error('вљ пёЏ Issabel fetchCallsPaginated xatolik:', err.message);
             return { total: 0, page: 1, totalPages: 1, limit, data: [] };
         }
     }
@@ -596,6 +604,9 @@ class IssabelDbService {
             page = Math.max(1, parseInt(page, 10) || 1);
             const offset = (page - 1) * limit;
             let whereClause = `calldate >= CURDATE()`;
+            // 'abandoned' turi uchun: guruhlangan qo'ng'iroq bo'yicha hech qachon javob berilmaganligini tekshirish
+            let isAbandoned = false;
+            const abandonedHaving = `HAVING SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 0`;
 
             if (type === 'denied') {
                 const raw = dbService.getRejectEventsPaginated(page, limit, search);
@@ -648,11 +659,16 @@ class IssabelDbService {
             if (type === 'outbound') {
                 whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)`;
             } else if (type === 'inbound') {
-                whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%'`;
+                whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
             } else if (type === 'answered') {
                 whereClause += ` AND disposition = 'ANSWERED' AND billsec > 0 AND ((dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-'))`;
             } else if (type === 'abandoned') {
-                whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (disposition != 'ANSWERED' OR billsec = 0)`;
+                // Faqat haqiqiy kiruvchi (navbat) qo'ng'iroqlari.
+                // MUHIM: "javob berilmagan" sharti bu yerda qator darajasida qo'yilmaydi,
+                // chunki keyinchalik javob berilgan qo'ng'iroqning navbat urinishlari (NO ANSWER
+                // qatorlari) ham shu filtrga tushib qolardi. Buning o'rniga HAVING ishlatiladi.
+                whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
+                isAbandoned = true;
             } else if (type === 'operator' && operatorExt) {
                 // Faqat operator haqiqatda ishtirok etgan qo'ng'iroqlar (javob bergan yoki chiqargan)
                 // Local/% kanallarini o'tkazib yuborish - bular faqat navbat tranzitlari
@@ -672,7 +688,11 @@ class IssabelDbService {
             }
 
             let total = 0;
-            if (!search && this.cache.summary) {
+            // 'abandoned' uchun cache'dagi taxminiy son emas, aniq hisob ishlatiladi
+            // (navbat urinishlari channel bo'yicha birlashtirilgani uchun cache bilan farq qiladi)
+            if (type === 'abandoned') {
+                // pastda hisoblanadi
+            } else if (!search && this.cache.summary) {
                 if (type === 'all') total = this.cache.summary.totalCalls;
                 else if (type === 'inbound') total = this.cache.summary.inboundCalls;
                 else if (type === 'outbound') total = this.cache.summary.outboundCalls;
@@ -681,10 +701,21 @@ class IssabelDbService {
                 else if (type === 'denied') total = this.cache.summary.deniedCalls;
             }
             if (!total) {
-                const countSql = `
+                const countSql = isAbandoned
+                    ? `
                     USE asteriskcdrdb;
-                    SELECT COUNT(DISTINCT uniqueid) 
-                    FROM cdr 
+                    SELECT COUNT(*) FROM (
+                        SELECT channel
+                        FROM cdr
+                        WHERE ${whereClause}
+                        GROUP BY channel
+                        ${abandonedHaving}
+                    ) as t;
+                `
+                    : `
+                    USE asteriskcdrdb;
+                    SELECT COUNT(DISTINCT uniqueid)
+                    FROM cdr
                     WHERE ${whereClause};
                 `;
                 const countRaw = await this.execQuery(countSql);
@@ -694,10 +725,10 @@ class IssabelDbService {
 
             const dataSql = `
                 USE asteriskcdrdb;
-                SELECT 
-                    DATE_FORMAT(calldate, '%Y-%m-%d %H:%i:%s') as call_time,
-                    src,
-                    dst,
+                SELECT
+                    DATE_FORMAT(MIN(calldate), '%Y-%m-%d %H:%i:%s') as call_time,
+                    MIN(src) as src,
+                    MIN(dst) as dst,
                     MAX(CASE 
                         WHEN channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
                         WHEN src REGEXP '^[0-9]{2,4}$' THEN src
@@ -707,8 +738,7 @@ class IssabelDbService {
                         WHEN disposition='ANSWERED' AND billsec > 0 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
                         WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst 
                         WHEN dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
-                        WHEN dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
-                        ELSE '' 
+                        ELSE ''
                     END) as op_ext,
                     MAX(CASE 
                         WHEN disposition='ANSWERED' AND billsec > 0 THEN 'ANSWERED' 
@@ -718,11 +748,13 @@ class IssabelDbService {
                     END) as final_disp,
                     MAX(billsec) as talk_sec,
                     MAX(duration) as wait_sec,
-                    MAX(recordingfile) as rec
-                FROM cdr 
+                    MAX(recordingfile) as rec,
+                    MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
+                FROM cdr
                 WHERE ${whereClause}
-                GROUP BY uniqueid
-                ORDER BY call_time DESC 
+                GROUP BY ${isAbandoned ? 'channel' : 'uniqueid'}
+                ${isAbandoned ? abandonedHaving : ''}
+                ORDER BY call_time DESC
                 LIMIT ${limit} OFFSET ${offset};
             `;
             const dataRaw = await this.execQuery(dataSql);
@@ -731,11 +763,14 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, rec] = line.split('\t');
+                const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, rec, isOutFlag] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
                 const waitSec = parseInt(waitSecStr, 10) || 0;
                 const isAns = disp === 'ANSWERED' && talkSec > 0;
-                const isOut = type === 'outbound' || (src && src.length <= 4) || (opExt && opExt.length <= 4 && dst && dst.length >= 7);
+                // Yo'nalish: SQL tomonidan aniq hisoblanadi (dcontext='from-internal' + operator kanali = chiquvchi).
+                // Eski taxminiy heuristikani (opExt.length<=4 && dst.length>=7) olib tashlangan -
+                // u kiruvchi navbat qo'ng'iroqlarini (dst=DID raqami) "chiquvchi" deb noto'g'ri belgilab qo'yardi.
+                const isOut = type === 'outbound' || isOutFlag === '1';
                 
                 let realOpName = this.operatorNames.get(opExt);
                 if (opExt === '114') realOpName = 'Maxmudbek';
@@ -756,7 +791,7 @@ class IssabelDbService {
 
             return { total, page, totalPages, limit, data: calls };
         } catch (err) {
-            console.error('⚠️ Issabel fetchCallsDetail xatolik:', err.message);
+            console.error('вљ пёЏ Issabel fetchCallsDetail xatolik:', err.message);
             return { total: 0, page: 1, totalPages: 1, limit, data: [] };
         }
     }
