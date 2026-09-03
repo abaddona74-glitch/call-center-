@@ -1,0 +1,13 @@
+{
+  "watch": ["app.js", "config.js", "swaggerSpec.js", "services/"],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/**",
+    "data/**",
+    "*.db",
+    "*.db-journal",
+    "3cx-desktop-agent/**",
+    "public/**"
+  ],
+  "delay": "500"
+}

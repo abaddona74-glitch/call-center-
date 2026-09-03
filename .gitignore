@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment (maxfiy parollar - public repoga tashlanmaydi)
+.env
+
+# Ma'lumotlar bazasi
+data/
+
+# Qurilgan / yuklab olingan fayllar
+public/downloads/
+3cx-desktop-agent/dist/
+
+# Ish muhiti (workspace) tooling
+.agents/
+skills-lock.json
+
+# Loglar
+*.log
+logs/

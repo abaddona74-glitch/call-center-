@@ -1,0 +1,7 @@
+{
+  "serverUrl": "http://192.168.0.16:3000",
+  "operatorId": "101",
+  "autoDetectOperator": true,
+  "heartbeatIntervalSec": 30,
+  "customLogPath": ""
+}

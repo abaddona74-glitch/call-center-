@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <title>Call Center AI | Issabel Real-time Monitoring</title>
+    <!-- Favicon Icon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232563eb'/><path d='M30 42c0-11 9-20 20-20s20 9 20 20v10c0 4.4-3.6 8-8 8h-4v-14h8v-4c0-8.8-7.2-16-16-16s-16 7.2-16 16v4h8v14h-4c-4.4 0-8-3.6-8-8V42z' fill='%23ffffff'/><circle cx='34' cy='50' r='5' fill='%2338bdf8'/><circle cx='66' cy='50' r='5' fill='%2338bdf8'/><path d='M64 56c0 6-5 11-12 11h-4' stroke='%23ffffff' stroke-width='4' stroke-linecap='round' fill='none'/><circle cx='48' cy='67' r='4.5' fill='%2310b981'/></svg>">
+    <!-- Google Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- WaveSurfer.js for Audio Waveform Rendering -->
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <link rel="stylesheet" href="/css/style.css?v=2.3">
+
+    <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
+    <script>
+        (function() {
+            var path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
+            var map = { '/': 'dashboard', '/dashboard': 'dashboard', '/operators': 'operators', '/history': 'history', '/explorer': 'explorer', '/audio': 'explorer' };
+            var activeTab = map[path] || 'dashboard';
+            document.documentElement.setAttribute('data-tab', activeTab);
+        })();
+    </script>
+    <style>
+        /* Sahifa yuklanishining 0-millisekundidanoq to'g'ri tabni ko'rsatish */
+        [data-tab="dashboard"] #tab-dashboard,
+        [data-tab="operators"] #tab-operators,
+        [data-tab="history"] #tab-history,
+        [data-tab="explorer"] #tab-explorer {
+            display: block !important;
+        }
+
+        /* Boshqa sahifalarni boshidanoq yashirish (Dashboard miltillamasligi uchun) */
+        [data-tab="operators"] #tab-dashboard,
+        [data-tab="history"] #tab-dashboard,
+        [data-tab="explorer"] #tab-dashboard {
+            display: none !important;
+        }
+
+        /* Tepadagi menyu tugmasini darhol to'g'ri faollashtirish */
+        [data-tab] .nav-tabs .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: transparent;
+        }
+        [data-tab="dashboard"] .nav-tabs .tab-btn[data-tab="dashboard"],
+        [data-tab="operators"] .nav-tabs .tab-btn[data-tab="operators"],
+        [data-tab="history"] .nav-tabs .tab-btn[data-tab="history"],
+        [data-tab="explorer"] .nav-tabs .tab-btn[data-tab="explorer"] {
+            background: rgba(59, 130, 246, 0.15) !important;
+            color: var(--primary-light) !important;
+            border-color: rgba(59, 130, 246, 0.4) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Application Area -->
+        <main class="main-area">
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="brand-section">
+                    <div class="logo-badge">📞</div>
+                    <div class="brand-info">
+                        <h1>Issabel Call Center AI</h1>
+                        <p>Real-time Monitoring, Audio Explorer & Operator Analytics</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="nav-tabs">
+                    <a href="/" class="tab-btn" data-tab="dashboard">
+                        <span>📊</span> Dashboard
+                    </a>
+                    <a href="/operators" class="tab-btn" data-tab="operators">
+                        <span>👥</span> Operatorlar Nazorati
+                    </a>
+                    <a href="/history" class="tab-btn" data-tab="history">
+                        <span>📜</span> Qo'ng'iroqlar Tarixi
+                    </a>
+                    <a href="/explorer" class="tab-btn" data-tab="explorer">
+                        <span>📂</span> Audio Explorer
+                    </a>
+                </nav>
+
+                <!-- Status Pills -->
+                <div class="status-pill-group">
+                    <div class="status-pill online" id="amiStatusBadge">
+                        <span class="status-dot"></span>
+                        <span id="amiStatusText">AMI: Ulangan</span>
+                    </div>
+                    <div class="status-pill" id="sftpStatusBadge">
+                        <span class="status-dot"></span>
+                        <span id="sftpStatusText">SFTP: Tekshirilmoqda</span>
+                    </div>
+                    <button class="settings-nav-btn" id="openSettingsBtn" onclick="if(window.openAgentSettingsModal){window.openAgentSettingsModal()}else{document.getElementById('agentSettingsModal').style.display='flex';if(window.loadAgentSettings)window.loadAgentSettings();}" title="Desktop Agentlar Nazorati va Versiyalar">
+                        <span>⚙️</span>
+                        <span>Sozlamalar</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- TAB 1: DASHBOARD -->
+            <section class="page-content" id="tab-dashboard">
+                <!-- KPI Cards (Clickable Drill-down) -->
+                <div class="kpi-grid">
+                    <div class="kpi-card blue clickable-kpi" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-icon"><img src="/images/total-calls-icon.png" alt="Jami"></div>
+                        <div class="kpi-details">
+                            <p>Jami Qo'ng'iroqlar</p>
+                            <h3 id="kpiTotalCalls">0</h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card cyan clickable-kpi" onclick="openCallsDetail('inbound', 'Kiruvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-icon"><img src="/images/inbound-calls-icon.png" alt="Kiruvchi"></div>
+                        <div class="kpi-details">
+                            <p>Kiruvchi Qo'ng'iroqlar</p>
+                            <h3><span id="kpiInbound">0</span> ta</h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card purple clickable-kpi" onclick="openCallsDetail('outbound', 'Chiquvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-icon"><img src="/images/outbound-calls-icon.png" alt="Chiquvchi"></div>
+                        <div class="kpi-details">
+                            <p>Chiquvchi Qo'ng'iroqlar</p>
+                            <h3><span id="kpiOutbound">0</span> ta</h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card green clickable-kpi" onclick="openCallsDetail('answered', 'Muvaffaqiyatli (Javob berilgan) Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-icon"><img src="/images/answered-calls-icon.png" alt="Muvaffaqiyatli"></div>
+                        <div class="kpi-details">
+                            <p>Muvaffaqiyatli (Javob berilgan)</p>
+                            <h3><span id="kpiAnswered">0</span> <span class="kpi-badge success" id="kpiAnswerRate">0%</span></h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('abandoned', 'Navbatdan chiqdi (Kutishdan bosh tortdi)')" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-icon">⏳</div>
+                        <div class="kpi-details">
+                            <p>Navbatdan chiqdi (Kutishdan bosh tortdi)</p>
+                            <h3><span id="kpiAbandoned">0</span> <span class="kpi-badge warning" id="kpiAbandonedRate">0%</span></h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card blue clickable-kpi" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
+                        <div class="kpi-icon">👥</div>
+                        <div class="kpi-details">
+                            <p>Navbatda kutayotganlar</p>
+                            <h3 id="kpiQueueWaiting">0 ta</h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card red clickable-kpi" onclick="openCallsDetail('denied', 'Rad etilgan (Deny)')" title="Operator rad etgan qo'ng'iroqlar">
+                        <div class="kpi-icon"><img src="/images/denied-calls-icon.png" alt="Rad etilgan"></div>
+                        <div class="kpi-details">
+                            <p>Rad etilgan (Deny)</p>
+                            <h3><span id="kpiDenied">0</span> <span class="kpi-badge danger" id="kpiDenyRate">0%</span></h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan (Missed)')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
+                        <div class="kpi-icon">⚠️</div>
+                        <div class="kpi-details">
+                            <p>O'tkazib yuborilgan (Missed)</p>
+                            <h3><span id="kpiMissed">0</span> <span class="kpi-badge warning" id="kpiMissedRate">0%</span></h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Layout -->
+                <div class="charts-grid">
+                    <!-- Left: Dynamics Chart -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">📈 Qo'ng'iroqlar Dinamikasi (Bugungi faollik)</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="callVolumeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Right: Inbound vs Outbound Pie -->
+                    <div class="glass-panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">🍩 Qo'ng'iroqlar Taqsimoti</h3>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="callDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OPERATORLAR HOLATI VA INTIZOMI (3CX & AMI) - CHARTS TAGIDA -->
+                <div class="glass-panel" style="margin-bottom: 24px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h3 class="panel-title">👥 Operatorlar Holati va Intizomi (3CX & AMI)</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                                Kim call qabul qilishga tayyor (On-hook), kim suhbatda va kimning 3CX dasturi offline ligini nazorat qiling.
+                            </p>
+                        </div>
+
+                        <!-- Presence Summary Badges -->
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <span class="badge badge-success" style="padding: 6px 12px; font-size: 12px;">
+                                🟢 Tayyor (On-hook): <b id="opCountReady" style="margin-left: 4px;">0</b>
+                            </span>
+                            <span class="badge badge-info" style="padding: 6px 12px; font-size: 12px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">
+                                🔵 Suhbatda: <b id="opCountTalking" style="margin-left: 4px;">0</b>
+                            </span>
+                            <span class="badge badge-danger" style="padding: 6px 12px; font-size: 12px;">
+                                🔴 Offline (3CX): <b id="opCountOffline" style="margin-left: 4px;">0</b>
+                            </span>
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; cursor: pointer;" onclick="openAgentLogsModal()" title="3CX Agent jurnali uchun bosing">
+                                🖥️ Desktop Agent: <b id="opCountAgentOnline" style="margin-left: 4px;">0</b>
+                            </span>
+                            <button class="btn-action" onclick="openAgentLogsModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #34d399; cursor: pointer; border-radius: var(--radius-sm);" title="3CX Desktop Agent to'plagan qo'ng'iroqlar jurnali">
+                                📜 3CX Jurnali
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="operator-grid" id="operatorsGrid">
+                        <!-- Operator cards rendered here -->
+                    </div>
+                </div>
+
+                <!-- Recent Calls Table -->
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">⚡ So'nggi Qo'ng'iroqlar Oqimi (Real-time)</h3>
+                    </div>
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Vaqt</th>
+                                    <th>Raqam / Mijoz</th>
+                                    <th>Yo'nalish</th>
+                                    <th>Operator</th>
+                                    <th>Davomiyligi</th>
+                                    <th>Holat</th>
+                                    <th>Kim tugatdi?</th>
+                                    <th>Amal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardCallsTable">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Hozircha qo'ng'iroqlar yo'q</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: AUDIO EXPLORER (/var/spool/asterisk/monitor/) -->
+            <section class="page-content" id="tab-explorer">
+                <div class="glass-panel" style="margin-bottom: 24px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
+                        <div>
+                            <h3 class="panel-title">📂 Audio Yozuvlar Explorer (Issabel PBX)</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                                Sanalar bo'yicha papkalarga kiring, fayllarni qidiring va suhbat audiosini to'g'ridan-to'g'ri tinglang.
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge badge-info" style="padding: 6px 12px; font-size: 12px;">
+                                📁 Monitor: /var/spool/asterisk/monitor
+                            </span>
+                            <button class="btn-action" id="btnRefreshExplorer" style="padding: 6px 14px;">
+                                <span>🔄</span> Yangilash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+
+                    <!-- CUSTOM AUDIO PLAYER WITH WAVESURFER.JS WAVEFORM -->
+                    <div class="glass-panel" style="margin-bottom: 24px; padding: 18px 24px;">
+                        <div class="player-top">
+                            <div class="player-title">
+                                <span>🎧</span> Ovoz Pleyeri: <span id="playerFileName" style="color: var(--text-main); font-family: monospace; font-weight: 500; margin-left: 6px;">Fayl tanlanmagan (Jadvaldan "▶ Eshitish"ni bosing)</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span id="audioTagBadge" class="badge" style="display: none; font-size: 11px;">🎧 Suhbat</span>
+                                <div class="player-time-display">
+                                    <span id="playerCurrentTime">00:00</span> / <span id="playerDuration">00:00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- WaveSurfer Waveform Canvas -->
+                        <div id="waveform-container" style="background: rgba(0, 0, 0, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--border-color); padding: 10px 14px; margin: 12px 0; position: relative;">
+                            <div id="waveform" style="width: 100%; min-height: 60px;"></div>
+                            <div id="waveLoadingText" style="display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; font-size: 12px; color: var(--text-muted);">
+                                🌊 Ovoz to'lqini chizilmoqda...
+                            </div>
+                        </div>
+
+                        <div class="player-controls" style="justify-content: flex-start; gap: 12px;">
+                            <button class="btn-play" id="btnPlayPause">▶</button>
+                            <button class="btn-action" id="btnRewind10" title="10 soniya orqaga">⏪ -10s</button>
+                            <button class="btn-action" id="btnForward10" title="10 soniya oldinga">+10s ⏩</button>
+                            
+                            <select class="rate-select" id="playbackRateSelect" title="Ijro tezligi" style="margin-left: auto;">
+                                <option value="1">Tezlik: 1.0x</option>
+                                <option value="1.25">Tezlik: 1.25x</option>
+                                <option value="1.5">Tezlik: 1.5x</option>
+                                <option value="2">Tezlik: 2.0x</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="explorer-container">
+                        <!-- Toolbar & Breadcrumb & Audio Type Filter -->
+                        <div class="explorer-toolbar" style="flex-wrap: wrap; gap: 12px;">
+                            <div class="breadcrumb-nav" id="explorerBreadcrumbs">
+                                <span class="breadcrumb-item active" data-path="">📁 root (monitor)</span>
+                            </div>
+
+                            <!-- Audio Type Filter Buttons -->
+                            <div style="display: flex; gap: 6px;">
+                                <button class="btn-action active-filter" id="filterAudioAll" style="padding: 4px 10px; font-size: 12px;">Barchasi</button>
+                                <button class="btn-action" id="filterAudioTalk" style="padding: 4px 10px; font-size: 12px;">🎧 Faqat Suhbatlar</button>
+                                <button class="btn-action" id="filterAudioRobot" style="padding: 4px 10px; font-size: 12px;">🤖 Faqat Navbat (Robot)</button>
+                            </div>
+
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="explorerSearchInput" placeholder="Raqam yoki fayl nomi bo'yicha qidirish...">
+                            </div>
+                        </div>
+
+                        <!-- Sub-Directories (Folders Grid) -->
+                        <div class="explorer-grid" id="explorerFoldersGrid">
+                            <!-- Folders populated via JS -->
+                        </div>
+
+                        <!-- Audio Files Table -->
+                        <div class="data-table-wrapper">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fayl Nomi</th>
+                                        <th>Hajmi</th>
+                                        <th>Sana / Vaqt</th>
+                                        <th>Amallar</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="explorerFilesTable">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; color: var(--text-dim); padding: 20px;">Papka yuklanmoqda...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: OPERATORLAR VA 3CX LOGLARI TAHLILI & SOLISHTIRISH -->
+            <section class="page-content" id="tab-operators">
+                <div class="glass-panel" style="margin-bottom: 24px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h3 class="panel-title">👥 Operatorlar 3CX Loglari & Taqqoslash Markazi</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                                Har bir operatorning 3CX Desktop Agent jurnali va Issabel PBX (CDR) bilan yonma-yon solishtirish
+                            </p>
+                        </div>
+
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <span class="badge badge-success" style="padding: 6px 12px; font-size: 12px;">
+                                🟢 Liniya Tayyor: <b id="tabOpCountReady">0</b>
+                            </span>
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
+                                🖥️ Desktop Agent: <b id="tabOpCountAgent">0</b>
+                            </span>
+                            <button class="btn-action" onclick="refreshOperatorsTabLogs()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
+                                🔄 Yangilash
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Operator Select Filter Chips -->
+                    <div style="margin-bottom: 18px;">
+                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 600;">
+                            Operatorni tanlang (Ustiga bosing):
+                        </label>
+                        <div id="operatorChipsContainer" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Comparison KPI Summary -->
+                    <div id="operatorCompareBox" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                        <!-- Comparison cards rendered dynamically -->
+                    </div>
+
+                    <!-- 3CX Desktop Agent Call Logs Table -->
+                    <div class="panel-header" style="padding-top: 12px; border-top: 1px solid var(--border-color); margin-bottom: 12px;">
+                        <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                            🖥️ <span id="operatorSelectedTitle">Barcha Operatorlar</span> — 3CX Desktop Agent Qo'ng'iroqlar Jurnali
+                        </h4>
+                        <span id="tabOperatorLogsTotal" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta</span>
+                    </div>
+
+                    <div id="tabOperatorLogsContainer" style="max-height: 480px; overflow-y: auto;">
+                        <!-- Table rendered dynamically -->
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <h3 class="panel-title">📊 Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="operatorChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: QO'NG'IROQLAR TARIXI (CDR) -->
+            <section class="page-content" id="tab-history">
+                <div class="glass-panel" style="margin-bottom: 24px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
+                        <div>
+                            <h3 class="panel-title">📜 Qo'ng'iroqlar Jurnali (Barcha CDR Tarixi)</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
+                                Issabel Asterisk bazasidagi barcha kiruvchi, chiquvchi va o'tkazilgan qo'ng'iroqlar jurnali.
+                            </p>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="historySearchInput" placeholder="Raqam, operator yoki holat bo'yicha filter..." style="width: 260px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel">
+
+                    <div class="data-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID / Vaqt</th>
+                                    <th>Mijoz Raqami</th>
+                                    <th>Operator / Exten</th>
+                                    <th>Yo'nalish</th>
+                                    <th>Davomiyligi</th>
+                                    <th>Holati</th>
+                                    <th>Tugatish sababi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Controls -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 0 8px;">
+                        <div style="font-size: 12px; color: var(--text-muted);" id="historyCountInfo">
+                            Jami: 0 ta yozuv
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn-action" id="btnPrevPage" style="padding: 6px 14px;">⬅ Oldingi</button>
+                            <span style="font-size: 12px; font-weight: 600; color: var(--text-main);" id="pageNumberDisplay">Sahifa 1 / 1</span>
+                            <button class="btn-action" id="btnNextPage" style="padding: 6px 14px;">Keyingi ➡</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- RIGHT STICKY SIDEBAR (MAXIMIZED FOR REAL-TIME LINES & QUEUE) -->
+        <aside class="right-sidebar">
+            <div class="sidebar-header">
+                <h2><span>🔴</span> Jonli Monitor</h2>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-success" style="font-size: 10px;">Auto-sync (5s)</span>
+                    <button class="btn-action" id="btnRefreshChannels" title="Yangilash" style="padding: 4px 8px;">🔄</button>
+                </div>
+            </div>
+
+            <div class="sidebar-body">
+                <!-- 1. Queue (Navbatda kutayotganlar) -->
+                <div class="queue-panel" id="queueSection">
+                    <div class="queue-panel-head">
+                        <span>👥 NAVBATDA KUTAYOTGANLAR</span>
+                        <span class="badge badge-warning" id="queueCountBadge">0 ta</span>
+                    </div>
+                    <div class="queue-items-list" id="queueItemsList">
+                        <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 4px;">
+                            Hozircha navbatda kutayotganlar yo'q
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Active Live Conversations (Grouped / Clean) -->
+                <div>
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>FAOL SUHBATLAR (<span id="activeLineCount">0</span>)</span>
+                        <span style="font-size: 11px; color: var(--text-dim);">Liniyalar</span>
+                    </div>
+
+                    <div id="activeChannelsContainer" style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">
+                            Hozircha faol suhbatlar yo'q
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- CALL TRANSFER MODAL (POPOVER) -->
+    <div id="transferModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-glow); border-radius: var(--radius-lg); padding: 24px; width: 420px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    <span>🔄</span> Qo'ng'iroqni Yo'naltirish (Transfer)
+                </h3>
+                <button id="btnCloseTransferModal" style="background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer;">✕</button>
+            </div>
+
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+                Mijoz <b id="transferCallerDisplay" style="color: #fff;"></b> bilan suhbatni qaysi onlayn operatorga o'tkazmoqchisiz?
+            </p>
+
+            <div style="margin-bottom: 18px;">
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Tayyor Operatorni Tanlang:</label>
+                <select id="transferOperatorSelect" style="width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; outline: none;">
+                    <!-- Populated dynamically with ready operators -->
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-action" id="btnCancelTransfer" style="padding: 8px 16px;">Bekor qilish</button>
+                <button class="btn-action" id="btnConfirmTransfer" style="background: var(--primary); border-color: var(--primary); padding: 8px 18px; font-weight: 600;">
+                    ✓ O'tkazish
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNIVERSAL DRILL-DOWN DETAIL MODAL (KPI & OPERATOR DRILL-DOWN) -->
+    <div id="detailModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 900px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8);">
+                <div>
+                    <h3 id="detailModalTitle" style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        📊 Qo'ng'iroqlar Tafsiloti
+                    </h3>
+                    <p id="detailModalSubtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                        Bugungi kun bo'yicha batafsil yozuvlar ro'yxati
+                    </p>
+                </div>
+                <button id="btnCloseDetailModal" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
+
+            <!-- Optional Operator Summary Header -->
+            <div id="detailOperatorSummary" style="display: none; padding: 14px 24px; background: rgba(30, 41, 59, 0.6); border-bottom: 1px solid var(--border-color); display: flex; gap: 20px; flex-wrap: wrap;">
+                <!-- Filled dynamically -->
+            </div>
+
+            <!-- Modal Filter & Pagination Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; color: var(--text-muted);">Qidirish:</span>
+                    <input type="text" id="detailSearchInput" placeholder="Raqam yoki operator..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: #fff; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none; width: 180px;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Sahifada:</span>
+                        <select id="detailLimitSelect" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
+                            <option value="50">50 ta</option>
+                            <option value="100" selected>100 ta</option>
+                            <option value="200">200 ta</option>
+                            <option value="500">500 ta (Barchasi)</option>
+                        </select>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <button class="btn-action" id="detailPrevPage" style="padding: 4px 10px; font-size: 12px;">◀</button>
+                        <span id="detailPageIndicator" style="font-size: 12px; color: var(--text-muted); min-width: 60px; text-align: center;">1 / 1</span>
+                        <button class="btn-action" id="detailNextPage" style="padding: 4px 10px; font-size: 12px;">▶</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Content (Table / List) -->
+            <div id="detailModalBody" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 3CX DESKTOP AGENT LOGS MODAL -->
+    <div id="agentLogsModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 1000px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.3); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.85);">
+                <div>
+                    <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        🖥️ 3CX Desktop Agent — Qo'ng'iroqlar Jurnali
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                        Operatorlar kompyuteridagi 3CX dasturi orqali to'plangan real qo'ng'iroqlar tarixi
+                    </p>
+                </div>
+                <button onclick="closeAgentLogsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
+
+            <!-- Filter Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 12px; color: var(--text-muted);">Operator:</span>
+                    <select id="agentLogsOperatorFilter" onchange="loadAgentLogs(1)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
+                        <option value="">Barcha Operatorlar</option>
+                        <option value="101">Oybek (101)</option>
+                        <option value="103">Feruza (103)</option>
+                        <option value="106">Gulchehra (106)</option>
+                        <option value="111">Nozima (111)</option>
+                        <option value="114">Maxmudbek (114)</option>
+                        <option value="116">Ibrohim (116)</option>
+                        <option value="119">Muattar (119)</option>
+                        <option value="120">Navruzoy (120)</option>
+                    </select>
+                    <button class="btn-action" onclick="loadAgentLogs(1)" style="padding: 4px 10px; font-size: 12px;">🔄 Yangilash</button>
+                </div>
+
+                <!-- Pagination -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="btn-action" id="agentLogsPrevBtn" onclick="changeAgentLogsPage(-1)" style="padding: 4px 10px; font-size: 12px;">◀</button>
+                    <span id="agentLogsPageIndicator" style="font-size: 12px; color: var(--text-muted); min-width: 60px; text-align: center;">1 / 1</span>
+                    <button class="btn-action" id="agentLogsNextBtn" onclick="changeAgentLogsPage(1)" style="padding: 4px 10px; font-size: 12px;">▶</button>
+                </div>
+            </div>
+
+            <!-- Table Body -->
+            <div id="agentLogsModalBody" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+                <!-- Filled dynamically -->
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 12px 24px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9); display: flex; justify-content: space-between; align-items: center;">
+                <span id="agentLogsTotalCount" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta hodisa</span>
+                <button class="btn-action" onclick="closeAgentLogsModal()" style="padding: 6px 16px;">Yopish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS & AGENT OTA UPDATE MODAL -->
+    <div id="agentSettingsModal" onclick="if(event.target === this) closeAgentSettingsModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 1050px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.35); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9);">
+                <div>
+                    <h3 style="font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                        ⚙️ Sozlamalar: 3CX Desktop Agent & OTA Update
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                        Barcha operator kompyuterlaridagi agentlar monitoringi va markaziy versiya yangilanishi
+                    </p>
+                </div>
+                <button onclick="closeAgentSettingsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
+
+            <!-- Body -->
+            <div style="flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px;">
+                <!-- Release Info & Trigger Card -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <!-- Card 1: Server Status -->
+                    <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
+                        <h4 style="font-size: 14px; font-weight: 600; color: #93c5fd; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                            <span>📦</span> Serverdagi Rasmiy Versiya
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <span style="font-size: 12px; color: var(--text-muted);">Hozirgi Versiya:</span>
+                            <span id="settingsCurrentVersionBadge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px;">v1.0.0</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
+                            Yuklab olish manzili: <code id="settingsUpdateUrl" style="color: #60a5fa; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">/downloads/agent.exe</code>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-muted);">
+                            Holati: <span style="color: #10b981;">● Avto-yangilanish faol (Over-the-Air)</span>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Release New Version Form -->
+                    <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
+                        <h4 style="font-size: 14px; font-weight: 600; color: #a78bfa; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                            <span>🚀</span> Yangi Versiya E'lon Qilish
+                        </h4>
+                        <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+                            <input type="text" id="newReleaseVersionInput" placeholder="Versiya (masalan: 1.0.1)" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: #fff; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
+                            <button onclick="submitNewRelease()" class="btn-primary" style="padding: 7px 16px; font-size: 12px; background: linear-gradient(135deg, #3b82f6, #6366f1); border: none; border-radius: var(--radius-sm); color: #fff; cursor: pointer; font-weight: 600;">
+                                E'lon Qilish
+                            </button>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-dim);">
+                            * Versiya e'lon qilinganda, barcha onlayn operatorlar agenti fon rejimida avtomatik yangilanadi.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Operators Agent Status Table -->
+                <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
+                    <div style="padding: 12px 16px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="font-size: 14px; font-weight: 600; color: #fff;">
+                            👥 Operatorlar Agent Holati va Versiyalari
+                        </h4>
+                        <button onclick="loadAgentSettings()" class="btn-action" style="padding: 4px 12px; font-size: 12px;">
+                            🔄 Yangilash
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                            <thead>
+                                <tr style="background: rgba(15, 23, 42, 0.8); color: var(--text-muted); border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 10px 14px;">Operator</th>
+                                    <th style="padding: 10px 14px;">Exten / IP</th>
+                                    <th style="padding: 10px 14px;">Desktop Agent</th>
+                                    <th style="padding: 10px 14px;">Kompyuter (Host)</th>
+                                    <th style="padding: 10px 14px;">Versiya</th>
+                                    <th style="padding: 10px 14px;">Holati</th>
+                                </tr>
+                            </thead>
+                            <tbody id="agentSettingsTableBody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9); display: flex; justify-content: flex-end;">
+                <button class="btn-action" onclick="closeAgentSettingsModal()" style="padding: 7px 20px;">Yopish</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Logic Script -->
+    <script src="/js/dashboard.js?v=2.3"></script>
+</body>
+</html>
