@@ -82,73 +82,17 @@ if (Test-Path $agentExe) {
 # Chiqish tugmasi bosilganda
 $exitItem.add_Click({
     $tray.Visible = $false
-    if ($timer) { $timer.Stop() }
     if ($agentProc -and -not $agentProc.HasExited) {
         try { $agentProc.Kill() } catch {}
-    }
-    # Ushbu papkadagi boshqa agent jarayonlarini ham yopish
-    Get-Process -Name "agent" -ErrorAction SilentlyContinue | ForEach-Object {
-        try { if ($_.Path -eq $agentExe) { Stop-Process -Id $_.Id -Force } } catch {}
     }
     [System.Windows.Forms.Application]::Exit()
 })
 
 $tray.ContextMenuStrip = $menu
 
-# Watchdog timer - agent.exe ni doimiy nazorat qilish va versiyani yangilab turish
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 3000
-$timer.add_Tick({
-    # Versiyani yangilash
-    if (Test-Path $verPath) {
-        try {
-            $rawVer = [System.IO.File]::ReadAllText($verPath, [System.Text.Encoding]::UTF8).Trim()
-            if ($rawVer) {
-                $curVer = if ($rawVer.StartsWith("v")) { $rawVer } else { "v$rawVer" }
-                if ($versionItem.Text -ne "Versiya: $curVer") {
-                    $versionItem.Text = "Versiya: $curVer"
-                    $tray.Text = "3CX Agent: $opName ($opId) [$curVer]"
-                }
-            }
-        } catch {}
-    }
-
-    # Agent exe ishlab turganini tekshirish
-    $isRunning = $false
-    if ($agentProc -and -not $agentProc.HasExited) {
-        $isRunning = $true
-    } else {
-        $found = Get-Process -Name "agent" -ErrorAction SilentlyContinue | Where-Object {
-            try { $_.Path -eq $agentExe } catch { $false }
-        }
-        if ($found) {
-            $agentProc = $found[0]
-            $isRunning = $true
-        }
-    }
-
-    if (-not $isRunning) {
-        $statusItem.Text = "Holati: Qayta ulanmoqda..."
-        if (Test-Path $agentExe) {
-            try {
-                $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-                $pinfo.FileName = $agentExe
-                $pinfo.WorkingDirectory = $scriptDir
-                $pinfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-                $pinfo.UseShellExecute = $true
-                $agentProc = [System.Diagnostics.Process]::Start($pinfo)
-                $statusItem.Text = "Holati: Faol (Ishlamoqda)"
-            } catch {}
-        }
-    } else {
-        $statusItem.Text = "Holati: Faol (Ishlamoqda)"
-    }
-})
-$timer.Start()
-
 # Bildirishnoma (Balloon)
 $tray.BalloonTipTitle = "3CX Agent"
-$tray.BalloonTipText  = "$opName ($opId) - Ishga tushdi [$agentVer]"
+$tray.BalloonTipText  = "$opName ($opId) - Ishga tushdi"
 $tray.BalloonTipIcon  = [System.Windows.Forms.ToolTipIcon]::Info
 $tray.ShowBalloonTip(3000)
 

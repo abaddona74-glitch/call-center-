@@ -1,37 +1,47 @@
 # ==============================================================================
-# 3CX Desktop Reject Monitor Agent (PowerShell)
+# 3CX Desktop Agent (PowerShell)
 # Ushbu skript operator kompyuterida fonda ishlaydi va 3CX jurnalini kuzatib,
-# operator "Reject / Qizil tugma" bosganda asosiy dashboardga xabar yuboradi.
+# qo'ng'iroqlar (qabul qilingan, o'tkazib yuborilgan, davomiyligi) bo'yicha ma'lumotlarni
+# real-vaqtda asosiy Call Center Dashboard serveriga uzatadi.
 # ==============================================================================
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configFile = Join-Path $scriptDir "config.json"
 
 if (Test-Path $configFile) {
-    $config = Get-Content $configFile -Raw | ConvertFrom-Json
+    $raw = Get-Content $configFile -Raw -Encoding UTF8
+    $config = $raw.TrimStart([char]0xFEFF) | ConvertFrom-Json
 } else {
     $config = @{
-        serverUrl = "http://localhost:3000"
+        serverUrl = "http://192.168.0.16:3000"
         operatorId = "101"
         heartbeatIntervalSec = 30
     }
 }
 
 $serverUrl = $config.serverUrl.TrimEnd('/')
-$operatorId = $config.operatorId
+$operatorId = [string]($config.operatorId)
 
-Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host "🚀 3CX Desktop Agent ishga tushdi!" -ForegroundColor Green
-Write-Host "🖥️ Operator: $operatorId" -ForegroundColor Yellow
-Write-Host "🌐 Server: $serverUrl" -ForegroundColor Yellow
-Write-Host "======================================================" -ForegroundColor Cyan
+# 3CX Log va Tarix fayllarini izlash
+$possibleLogs = @()
+if (![string]::IsNullOrEmpty($config.customLogPath)) {
+    $possibleLogs += $config.customLogPath
+}
 
-# 3CX Log fayllarini izlash
-$possibleLogs = @(
-    $config.customLogPath,
+# 3CX VoIP Phone History fayllari (callHistory*.txt)
+$voipHistoryDir = "$env:LOCALAPPDATA\3CX VoIP Phone\History"
+if (Test-Path $voipHistoryDir) {
+    $histFiles = Get-ChildItem -Path $voipHistoryDir -Filter "callHistory*.txt" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+    foreach ($hf in $histFiles) {
+        $possibleLogs += $hf.FullName
+    }
+}
+
+$possibleLogs += @(
     "$env:APPDATA\3CXPhone for Windows\Logs\3CXWin8Phone.log",
     "$env:APPDATA\3CX Desktop App\logs\app.log",
     "$env:LOCALAPPDATA\3CX Desktop App\logs\app.log",
+    "$env:LOCALAPPDATA\3CXPhone for Windows\Logs\3CXWin8Phone.log",
     "$env:PROGRAMDATA\3CXPhone for Windows\Logs\3CXWin8Phone.log"
 )
 
@@ -43,47 +53,67 @@ foreach ($path in $possibleLogs) {
     }
 }
 
+if ($targetLog -and ($targetLog -match 'callHistory(\d+)@')) {
+    $operatorId = $Matches[1]
+    Write-Host "🎯 Operator raqami fayldan avtomatik aniqlandi: $operatorId" -ForegroundColor Cyan
+}
+
+Write-Host "======================================================" -ForegroundColor Cyan
+Write-Host "🚀 3CX Desktop Agent ishga tushdi!" -ForegroundColor Green
+Write-Host "🖥️ Operator: $operatorId" -ForegroundColor Yellow
+Write-Host "🌐 Server  : $serverUrl" -ForegroundColor Yellow
 if ($targetLog) {
     Write-Host "📄 3CX Jurnali topildi: $targetLog" -ForegroundColor Green
 } else {
-    Write-Host "⚠️ Aniq 3CX log fayli topilmadi. Standart papka kuzatiladi." -ForegroundColor DarkYellow
+    Write-Host "⚠️ 3CX log fayli topilmadi. Qayta qidirilmoqda..." -ForegroundColor DarkYellow
 }
+Write-Host "======================================================" -ForegroundColor Cyan
 
 # Heartbeat yuborish funksiyasi
 function Send-Heartbeat {
     try {
         $body = @{
             operatorId = $operatorId
-            hostname = $env:COMPUTERNAME
+            hostname   = $env:COMPUTERNAME
             appVersion = "1.0.0"
         } | ConvertTo-Json
         Invoke-RestMethod -Uri "$serverUrl/api/agent/heartbeat" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 }
 
-# Reject hodisasini serverga jo'natish
-function Send-RejectEvent($callerId, $reason) {
+# Qo'ng'iroq hodisasini serverga jo'natish
+function Send-CallEvent($eventType, $callerId, $durationSec = 0, $details = "", $startTime = $null) {
     try {
         $body = @{
-            operatorId = $operatorId
-            callerId = $callerId
-            reason = $reason
-            timestamp = (Get-Date).ToString("o")
+            operatorId  = $operatorId
+            eventType   = $eventType
+            callerId    = if ($callerId) { $callerId } else { "Yashirin raqam" }
+            durationSec = [int]$durationSec
+            startTime   = if ($startTime) { $startTime } else { (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") }
+            hostname    = $env:COMPUTERNAME
+            details     = $details
+            timestamp   = (Get-Date).ToString("o")
         } | ConvertTo-Json
 
-        $res = Invoke-RestMethod -Uri "$serverUrl/api/agent/reject" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 5
-        Write-Host "🚫 [REJECT] Operator $operatorId rad etdi! Raqam: $callerId | Server javobi: $($res.success)" -ForegroundColor Red
+        Invoke-RestMethod -Uri "$serverUrl/api/agent/call-event" -Method Post -Body $body -ContentType "application/json; charset=utf-8" -TimeoutSec 5 -ErrorAction SilentlyContinue | Out-Null
+        Write-Host "📡 [$eventType] $callerId | Davomiyligi: ${durationSec}s | $details" -ForegroundColor Green
     } catch {
-        Write-Host "❌ Serverga jo'natishda xatolik: $($_.Exception.Message)" -ForegroundColor DarkRed
+        # xatolik e'tiborsiz qoldiriladi
     }
 }
 
 Send-Heartbeat
 $lastHeartbeat = [DateTime]::UtcNow
 $lastPosition = 0
+$processedKeys = New-Object System.Collections.Generic.HashSet[string]
 
+# Agar fayl callHistory*.txt bo'lsa, mavjud yozuvlarni ham o'qib olish uchun 0 dan boshlaymiz
 if ($targetLog -and (Test-Path $targetLog)) {
-    $lastPosition = (Get-Item $targetLog).Length
+    if ($targetLog.ToLower().EndsWith(".txt")) {
+        $lastPosition = 0
+    } else {
+        $lastPosition = (Get-Item $targetLog).Length
+    }
 }
 
 $ringingCaller = $null
@@ -93,7 +123,7 @@ Write-Host "👀 Qo'ng'iroqlar jurnali kuzatilmoqda... (Tayyor)" -ForegroundColo
 while ($true) {
     Start-Sleep -Milliseconds 500
 
-    # Heartbeat tekshiruvi
+    # Heartbeat tekshiruvi (har 30s)
     if (([DateTime]::UtcNow - $lastHeartbeat).TotalSeconds -ge 30) {
         Send-Heartbeat
         $lastHeartbeat = [DateTime]::UtcNow
@@ -104,7 +134,10 @@ while ($true) {
         foreach ($path in $possibleLogs) {
             if (![string]::IsNullOrEmpty($path) -and (Test-Path $path)) {
                 $targetLog = $path
-                $lastPosition = (Get-Item $targetLog).Length
+                if ($targetLog -match 'callHistory(\d+)@') {
+                    $operatorId = $Matches[1]
+                }
+                $lastPosition = if ($targetLog.ToLower().EndsWith(".txt")) { 0 } else { (Get-Item $targetLog).Length }
                 Write-Host "📄 3CX Jurnali topildi: $targetLog" -ForegroundColor Green
                 break
             }
@@ -117,43 +150,79 @@ while ($true) {
         $currentLength = $fileItem.Length
 
         if ($currentLength -lt $lastPosition) {
-            # Log aylandi (rotated)
             $lastPosition = 0
         }
 
         if ($currentLength -gt $lastPosition) {
-            $stream = [System.IO.File]::Open($targetLog, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-            $stream.Seek($lastPosition, [System.IO.SeekOrigin]::Begin) | Out-Null
-            $reader = New-Object System.IO.StreamReader($stream)
-            $newText = $reader.ReadToEnd()
-            $lastPosition = $stream.Position
-            $reader.Close()
-            $stream.Close()
+            $bytesToRead = $currentLength - $lastPosition
+            $fs = [System.IO.File]::Open($targetLog, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            $fs.Seek($lastPosition, [System.IO.SeekOrigin]::Begin) | Out-Null
+            $buffer = New-Object byte[] $bytesToRead
+            $fs.Read($buffer, 0, $bytesToRead) | Out-Null
+            $lastPosition = $fs.Position
+            $fs.Close()
+
+            $isUtf16 = $targetLog.ToLower().EndsWith(".txt")
+            $encoding = if ($isUtf16) { [System.Text.Encoding]::Unicode } else { [System.Text.Encoding]::UTF8 }
+            $newText = $encoding.GetString($buffer).TrimStart([char]0xFEFF)
 
             $lines = $newText -split "`r?`n"
             foreach ($line in $lines) {
                 if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
-                # 1. Kiruvchi qo'ng'iroq / Jiringlashni aniqlash
+                # 3CX VoIP Phone History (tab-separated: 0\t950460242\t2026/09/03 12:16:37\t...)
+                if ($line.Contains("`t")) {
+                    $parts = $line.Split("`t")
+                    if ($parts.Length -ge 3) {
+                        $statusCode = $parts[0].Trim()
+                        $caller = if ($parts[1].Trim()) { $parts[1].Trim() } else { "Yashirin raqam" }
+                        $timeStr = $parts[2].Trim()
+                        $dur = 0
+                        if ($parts.Length -ge 4) { [int]::TryParse($parts[3].Trim(), [ref]$dur) | Out-Null }
+
+                        $key = "${caller}_${timeStr}"
+                        if ($processedKeys.Contains($key)) { continue }
+                        $processedKeys.Add($key) | Out-Null
+
+                        # Faqat bugungi qo'ng'iroqlarni serverga yuborish
+                        $todayPrefix = (Get-Date).ToString("yyyy/MM/dd")
+                        if ($timeStr -and !$timeStr.StartsWith($todayPrefix)) {
+                            continue
+                        }
+
+                        if ($statusCode -eq "2" -or ($dur -gt 0 -and $statusCode -ne "1")) {
+                            Send-CallEvent "ANSWERED" $caller $dur "3CX Qabul qilindi: $timeStr" $timeStr
+                        } elseif ($statusCode -eq "0") {
+                            Send-CallEvent "MISSED" $caller 0 "3CX O'tkazib yuborildi: $timeStr" $timeStr
+                        } elseif ($statusCode -eq "1") {
+                            Send-CallEvent "DIALLED" $caller $dur "3CX Chiquvchi: $timeStr" $timeStr
+                        } else {
+                            Send-CallEvent "ANSWERED" $caller $dur "3CX Qabul qilindi: $timeStr" $timeStr
+                        }
+                        continue
+                    }
+                }
+
+                # 1. Kiruvchi qo'ng'iroq / Jiringlash
                 if ($line -match "Incoming call|Ringing|Call from\s+([0-9\+]+)|caller:\s*([0-9\+]+)") {
                     if ($Matches[1]) { $ringingCaller = $Matches[1] }
                     elseif ($Matches[2]) { $ringingCaller = $Matches[2] }
+                    Send-CallEvent "RINGING" $ringingCaller 0 "Jiringlayapti"
                 }
 
-                # 2. Operator Reject / Decline / Qizil tugma bosilganini aniqlash
-                if ($line -match "Reject|Declined|UserBusy|CallRejected|BusyHere|EndCall.*Ringing|486 Busy") {
-                    $caller = if ($ringingCaller) { $ringingCaller } else { "3CX Jurnali" }
-                    Send-RejectEvent -callerId $caller -reason "User Rejected in 3CX"
-                    $ringingCaller = $null
+                # 2. Suhbat boshlandi
+                if ($line -match "Connected|Answered|Established") {
+                    Send-CallEvent "ANSWERED" $ringingCaller 0 "Suhbat boshlandi"
                 }
 
-                # 3. Agar javob berilgan bo'lsa yoki normal tugagan bo'lsa
-                if ($line -match "Connected|Answered|Established|Call ended") {
+                # 3. Qo'ng'iroq yakunlandi
+                if ($line -match "Call ended|Hangup|Terminated") {
+                    Send-CallEvent "ENDED" $ringingCaller 0 "Suhbat tugadi"
                     $ringingCaller = $null
                 }
             }
         }
     } catch {
-        # File lock bo'lsa e'tiborsiz qoldirish
+        # xatolik e'tiborsiz qoldiriladi
     }
 }

@@ -36,7 +36,13 @@ try {
 }
 
 const serverUrl  = new URL(config.serverUrl || 'http://192.168.0.16:3000');
-const operatorId = String(config.operatorId || '101');
+let operatorId = String(config.operatorId || '101');
+
+function detectOperatorFromPath(filePath) {
+    if (!filePath) return null;
+    const m = path.basename(filePath).match(/callHistory(\d+)@/i);
+    return m ? m[1] : null;
+}
 
 console.log('======================================================');
 console.log('3CX Desktop Agent ishga tushdi!');
@@ -72,8 +78,12 @@ function postJson(pathname, data) {
 }
 
 // --- Versiya va Auto-Update ---
-const CURRENT_VERSION = '1.0.0';
+const CURRENT_VERSION = '1.0.4';
 let isUpdating = false;
+
+try {
+    fs.writeFileSync(path.join(configDir, 'version.txt'), CURRENT_VERSION, 'utf8');
+} catch (e) {}
 
 function compareVersions(v1, v2) {
     const p1 = String(v1 || '0').split('.').map(Number);
@@ -87,10 +97,27 @@ function compareVersions(v1, v2) {
     return 0;
 }
 
+function reportUpdateStep(step, message, targetVer = null) {
+    postJson('/api/agent/update-log', {
+        operatorId,
+        hostname: os.hostname(),
+        version: CURRENT_VERSION,
+        targetVersion: targetVer || CURRENT_VERSION,
+        step,
+        message
+    }).catch(() => {});
+}
+
+// Agent ishga tushganda serverga muvaffaqiyatli ulanganini bildirish
+setTimeout(() => {
+    reportUpdateStep('SUCCESS', `3CX Agent v${CURRENT_VERSION} muvaffaqiyatli ishga tushdi va faol!`);
+}, 3000);
+
 function performAutoUpdate(updateUrlPath, newVer) {
     if (isUpdating) return;
     isUpdating = true;
     console.log(`🚀 [Auto-Update] Yangi versiya e'lon qilindi: v${newVer} (Hozirgi: v${CURRENT_VERSION})`);
+    reportUpdateStep('DOWNLOADING', `v${newVer} yuklab olinmoqda... (Hozirgi: v${CURRENT_VERSION})`, newVer);
     
     // Faqat compiled .exe rejimida faylni almashtiramiz
     const isPkg = typeof process.pkg !== 'undefined';
@@ -117,6 +144,7 @@ function performAutoUpdate(updateUrlPath, newVer) {
     client.get(downloadUrl, (res) => {
         if (res.statusCode !== 200) {
             console.error(`❌ Yuklab olishda xatolik: HTTP ${res.statusCode}`);
+            reportUpdateStep('ERROR', `Yuklab olishda xatolik: HTTP ${res.statusCode}`, newVer);
             fileStream.close();
             try { fs.unlinkSync(tempExe); } catch (e) {}
             isUpdating = false;
@@ -128,17 +156,28 @@ function performAutoUpdate(updateUrlPath, newVer) {
         fileStream.on('finish', () => {
             fileStream.close(() => {
                 console.log('✅ Yangi versiya muvaffaqiyatli yuklab olindi!');
+                reportUpdateStep('DOWNLOADED', `v${newVer} to'liq yuklab olindi (37 MB), o'rnatishga tayyorlanmoqda`, newVer);
                 
                 // Updater bat faylini yaratish
                 const batScript = `@echo off
+cd /d "%~dp0"
 timeout /t 2 /nobreak >nul
-move /y "${tempExe}" "${finalExe}" >nul
-start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "${launcherPs1}"
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*tray_launcher*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }" >nul 2>&1
+taskkill /f /im agent.exe >nul 2>&1
+timeout /t 1 /nobreak >nul
+move /y "agent_update.exe" "agent.exe" >nul
+echo ${newVer}> "version.txt"
+if exist "start.vbs" (
+    start "" wscript.exe "%~dp0start.vbs"
+) else (
+    start "" "%~dp0agent.exe"
+)
 del "%~f0"
 `;
                 try {
                     fs.writeFileSync(updaterBat, batScript);
                     console.log('🔄 Yangi versiya ishga tushirilmoqda...');
+                    reportUpdateStep('INSTALLING', `Yangi v${newVer} o'rnatilmoqda va qayta ishga tushirilmoqda...`, newVer);
                     const { spawn } = require('child_process');
                     const child = spawn('cmd.exe', ['/c', updaterBat], {
                         detached: true,
@@ -146,15 +185,17 @@ del "%~f0"
                         windowsHide: true
                     });
                     child.unref();
-                    process.exit(0);
+                    setTimeout(() => process.exit(0), 500);
                 } catch (err) {
                     console.error('❌ Updater ishga tushirishda xatolik:', err.message);
+                    reportUpdateStep('ERROR', `Updater ishga tushirishda xatolik: ${err.message}`, newVer);
                     isUpdating = false;
                 }
             });
         });
     }).on('error', (err) => {
         console.error('❌ Yuklab olish xatoligi:', err.message);
+        reportUpdateStep('ERROR', `Yuklab olish tarmoq xatoligi: ${err.message}`, newVer);
         fileStream.close();
         try { fs.unlinkSync(tempExe); } catch (e) {}
         isUpdating = false;
@@ -178,39 +219,21 @@ function sendHeartbeat() {
     }).catch(() => {});
 }
 
-// --- Qo'ng'iroq hodisalarini yuborish (Issabel bilan solishtirish uchun) ---
-function sendCallEvent(eventType, callerId, durationSec = 0, details = '') {
+// --- Qo'ng'iroq hodisalarini yuborish (Dashboard serveriga) ---
+function sendCallEvent(eventType, callerId, durationSec = 0, details = '', startTime = null) {
     const caller = callerId || 'Yashirin raqam';
+    const localNow = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
     postJson('/api/agent/call-event', {
         operatorId,
         eventType,
         callerId: caller,
         durationSec: parseInt(durationSec || 0, 10),
+        startTime: startTime || localNow,
         hostname: os.hostname(),
         details,
-        timestamp: new Date().toISOString()
+        timestamp: localNow
     }).catch(() => {});
 }
-
-// --- Reject yuborish ---
-function sendReject(callerId, reason) {
-    const caller = callerId || 'Yashirin raqam';
-    console.log('[REJECT] Operator ' + operatorId + ' rad etdi! Raqam: ' + caller);
-    postJson('/api/agent/reject', {
-        operatorId,
-        callerId:  caller,
-        reason:    reason || 'Operator Reject',
-        timestamp: new Date().toISOString()
-    }).then(() => {
-        console.log('Server ga yuborildi');
-    }).catch(err => {
-        console.error('Serverga yuborishda xatolik:', err.message);
-    });
-}
-
-// --- Dastlabki heartbeat ---
-sendHeartbeat();
-setInterval(sendHeartbeat, (config.heartbeatIntervalSec || 30) * 1000);
 
 // --- 3CX Log va Tarix fayllarini qidirish ---
 const appData      = process.env.APPDATA      || '';
@@ -226,11 +249,21 @@ function findPossibleLogPaths() {
     ].filter(Boolean);
 
     // 3CX VoIP Phone (v6 / v12) History fayllari (callHistory*.txt)
+    // Eng so'nggi yangilangan (oxirgi o'zgartirilgan) fayl birinchi o'ringa qo'yiladi
     const voipHistoryDir = path.join(localAppData, '3CX VoIP Phone', 'History');
     try {
         if (fs.existsSync(voipHistoryDir)) {
-            const files = fs.readdirSync(voipHistoryDir).filter(f => f.startsWith('callHistory') && f.endsWith('.txt'));
-            files.forEach(f => list.push(path.join(voipHistoryDir, f)));
+            const files = fs.readdirSync(voipHistoryDir)
+                .filter(f => f.startsWith('callHistory') && f.endsWith('.txt'))
+                .map(f => {
+                    const fullPath = path.join(voipHistoryDir, f);
+                    let mtime = 0;
+                    try { mtime = fs.statSync(fullPath).mtimeMs; } catch (e) {}
+                    return { fullPath, mtime };
+                })
+                .sort((a, b) => b.mtime - a.mtime);
+
+            files.forEach(f => list.push(f.fullPath));
         }
     } catch (e) {}
 
@@ -241,17 +274,27 @@ const possibleLogPaths = findPossibleLogPaths();
 let targetLogPath = possibleLogPaths.find(p => {
     try { return fs.existsSync(p); } catch (e) { return false; }
 });
-// Boshlanishda fayldan boshlab o'qish (mavjud bugungi yozuvlarni ham o'qib olish)
+
+if (targetLogPath) {
+    const autoOp = detectOperatorFromPath(targetLogPath);
+    if (autoOp) {
+        operatorId = autoOp;
+        console.log('🎯 Operator raqami fayldan avtomatik aniqlandi: ' + operatorId);
+    }
+    console.log('3CX Jurnali topildi: ' + targetLogPath);
+} else {
+    console.log('3CX log fayli topilmadi. Har 5 soniyada qayta qidiriladi...');
+}
+
+// Boshlanishda fayldan boshlab o'qish (mavjud yozuvlarni ham o'qib olish)
 let fileOffset    = 0;
 let ringingCaller = null;
 let currentCall   = null;
 const processedHistoryKeys = new Set();
 
-if (targetLogPath) {
-    console.log('3CX Jurnali topildi: ' + targetLogPath);
-} else {
-    console.log('3CX log fayli topilmadi. Har 5 soniyada qayta qidiriladi...');
-}
+// --- Dastlabki heartbeat ---
+sendHeartbeat();
+setInterval(sendHeartbeat, (config.heartbeatIntervalSec || 30) * 1000);
 
 // --- Log monitoring (har 500ms) ---
 setInterval(() => {
@@ -262,6 +305,11 @@ setInterval(() => {
         });
         if (found) {
             targetLogPath = found;
+            const autoOp = detectOperatorFromPath(found);
+            if (autoOp && autoOp !== operatorId) {
+                operatorId = autoOp;
+                console.log('🎯 Operator raqami fayldan avtomatik aniqlandi: ' + operatorId);
+            }
             // callHistory.txt bo'lsa - 0 dan boshlab bugungi yozuvlarni oladi
             fileOffset = found.toLowerCase().endsWith('.txt') ? 0 : fs.statSync(found).size;
             console.log('3CX Jurnali topildi: ' + found);
@@ -288,6 +336,8 @@ setInterval(() => {
             const rawText = buffer.toString(encoding).replace(/^\uFEFF/, '').replace(/\0/g, '');
 
             const lines = rawText.split(/\r?\n/);
+            const batchToSync = [];
+
             for (const line of lines) {
                 if (!line.trim()) continue;
 
@@ -306,14 +356,30 @@ setInterval(() => {
                         }
                         processedHistoryKeys.add(key);
 
-                        if (dur > 0) {
-                            sendCallEvent('ANSWERED', caller, dur, `3CX Qabul qilindi: ${timeStr}`);
-                        } else if (statusCode === '0') {
-                            // 3CX Call History: Missed (O'tkazib yuborilgan)!
-                            sendCallEvent('MISSED', caller, 0, `3CX O'tkazib yuborildi: ${timeStr}`);
+                        let eventType = 'MISSED';
+                        let detailText = `3CX O'tkazib yuborildi: ${timeStr}`;
+
+                        if (statusCode === '1') {
+                            eventType = 'DIALLED';
+                            detailText = `3CX Chiquvchi: ${timeStr}`;
+                        } else if ((statusCode === '2' || !statusCode) && dur > 0) {
+                            eventType = 'ANSWERED';
+                            detailText = `3CX Qabul qilindi: ${timeStr}`;
+                        } else if (dur > 0) {
+                            eventType = 'ANSWERED';
+                            detailText = `3CX Qabul qilindi: ${timeStr}`;
                         } else {
-                            sendCallEvent('DIALLED', caller, dur, `3CX Chiquvchi: ${timeStr}`);
+                            eventType = 'MISSED';
+                            detailText = `3CX O'tkazib yuborildi: ${timeStr}`;
                         }
+
+                        batchToSync.push({
+                            eventType,
+                            callerId: caller,
+                            durationSec: dur,
+                            startTime: timeStr,
+                            details: detailText
+                        });
                         continue;
                     }
                 }
@@ -333,15 +399,7 @@ setInterval(() => {
                     sendCallEvent('RINGING', caller, 0, 'Jiringlayapti');
                 }
 
-                // 2. Rad etish / Qizil tugma
-                if (/(?:Reject|Declined|UserBusy|CallRejected|BusyHere|486 Busy)/i.test(line)) {
-                    sendReject(ringingCaller, '3CX User Reject');
-                    sendCallEvent('REJECT', ringingCaller, 0, 'Operator qizil tugma bilan rad etdi');
-                    ringingCaller = null;
-                    currentCall = null;
-                }
-
-                // 3. Suhbat boshlandi (Javob berildi)
+                // 2. Suhbat boshlandi (Javob berildi)
                 if (/(?:Connected|Answered|Established)/i.test(line)) {
                     if (currentCall) {
                         currentCall.answerTime = new Date();
@@ -361,6 +419,20 @@ setInterval(() => {
                     }
                     ringingCaller = null;
                     currentCall = null;
+                }
+            }
+
+            // Agar yangi/tarixiy yozuvlar bo'lsa, to'plam (batch) qilib serverga yuborish
+            if (batchToSync.length > 0) {
+                console.log(`📦 [3CX History Sync] ${batchToSync.length} ta qo'ng'iroq serverga yuborilmoqda...`);
+                const chunkSize = 100;
+                for (let i = 0; i < batchToSync.length; i += chunkSize) {
+                    const chunk = batchToSync.slice(i, i + chunkSize);
+                    postJson('/api/agent/sync-batch', {
+                        operatorId,
+                        hostname: os.hostname(),
+                        calls: chunk
+                    }).catch(() => {});
                 }
             }
         }

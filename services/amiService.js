@@ -522,6 +522,7 @@ class AmiService {
             this.activeConversations.delete(key);
 
             // Tarixga yozish
+            const localTimeStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
             const historyRecord = {
                 id: Date.now() + Math.random().toString(36).substr(2, 4),
                 channel: evt.channel,
@@ -533,7 +534,7 @@ class AmiService {
                 hangupParty: `${hangupParty} tugatdi`,
                 duration: talkTime,
                 cause: 'AgentComplete (' + (evt.reason || 'Normal') + ')',
-                time: now.toISOString()
+                time: localTimeStr
             };
 
             this.callHistory.unshift(historyRecord);

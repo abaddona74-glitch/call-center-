@@ -267,40 +267,22 @@ app.post('/api/action/originate', (req, res) => {
 
 // --- 3CX DESKTOP AGENT API ENDPOINTLARI ---
 
-// 3CX Desktop Agentdan rad etish (Reject) hodisasini qabul qilish
+// 3CX Desktop Agentdan rad etish (Reject) - bekor qilingan
 app.post('/api/agent/reject', (req, res) => {
-    const { operatorId, callerId, duration, reason } = req.body;
-    if (!operatorId) {
-        return res.status(400).json({ error: 'operatorId parametri talab qilinadi' });
-    }
-    const opId = String(operatorId);
-    amiService.ensureOperatorExists(opId);
-    const op = amiService.operators.get(opId);
-
-    const isWorkTime = dbService.isWorkingHours();
-
-    if (isWorkTime) {
-        if (op) {
-            op.denied = (op.denied || 0) + 1;
-            op.totalCalls = (op.totalCalls || 0) + 1;
-        }
-        dbService.recordOperatorReject(opId, callerId || '3CX Desktop Reject', '3CX-Agent', true);
-        amiService.stats.deniedCalls = (amiService.stats.deniedCalls || 0) + 1;
-        amiService.broadcast('operators_update', amiService.getOperatorList());
-        amiService.broadcast('stats_update', amiService.getSummaryStats());
-        console.log(`🚫 [3CX Agent] Operator ${opId} rad etdi! Raqam: ${callerId || 'Yashirin'}`);
-    } else {
-        // Ish vaqtidan tashqari (08:00 dan oldin yoki 21:00 dan keyin)
-        dbService.recordOperatorReject(opId, callerId || '3CX Desktop Reject', '3CX-Agent (Ish vaqtidan tashqari)', false);
-        console.log(`ℹ️ [3CX Agent] Operator ${opId} ish vaqtidan tashqari (08:00-21:00) rad etdi. KPI ga qo'shilmadi.`);
-    }
-
-    res.json({ success: true, operatorId: opId, inWorkingHours: isWorkTime, deniedCount: op ? op.denied : 0 });
+    res.json({ success: true, message: 'Reject monitoring disabled' });
 });
 
 // 3CX Desktop Agent Markaziy Versiya Boshqaruvi (OTA Update)
+let initialVer = '1.0.4';
+try {
+    const vPath = path.join(__dirname, '3cx-desktop-agent', 'dist', 'version.txt');
+    if (fs.existsSync(vPath)) {
+        initialVer = fs.readFileSync(vPath, 'utf8').trim() || '1.0.4';
+    }
+} catch (e) {}
+
 let agentReleaseConfig = {
-    latestVersion: '1.0.0',
+    latestVersion: initialVer,
     updateUrl: '/downloads/agent.exe',
     releaseNotes: 'Boshlang\'ich barqaror versiya',
     minVersion: '1.0.0',
@@ -322,10 +304,14 @@ app.post('/api/agent/heartbeat', (req, res) => {
             op.lastAgentPing = Date.now();
             op.agentHostname = hostname || '';
             op.agentVersion = currentVer;
+            if (opId === '101') {
+                console.log(`💓 [Heartbeat 101] ver: ${currentVer}, latest: ${agentReleaseConfig.latestVersion}, host: ${hostname}`);
+            }
 
             if (wasOffline) {
                 console.log(`🟢 [3CX Desktop Agent] Operator ${opId} (${op.realName || 'Noma\'lum'}) ulandi! PC: ${hostname || 'Noma\'lum'} [v${currentVer}]`);
                 amiService.broadcast('operators_update', amiService.getOperatorList());
+                amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
             }
         }
     }
@@ -364,6 +350,50 @@ app.post('/api/agent/release', (req, res) => {
     res.json({ success: true, message: `v${agentReleaseConfig.latestVersion} muvaffaqiyatli e'lon qilindi`, config: agentReleaseConfig });
 });
 
+// Agent OTA Update Loglari tarixi (xotirada oxirgi 100 ta logni saqlash)
+const agentUpdateLogsHistory = [];
+
+app.post('/api/agent/update-log', (req, res) => {
+    const { operatorId, hostname, version, targetVersion, step, message } = req.body;
+    const opId = String(operatorId || '???');
+    const op = amiService.operators.get(opId);
+    const opName = op ? (op.realName || op.name || opId) : `Operator ${opId}`;
+    const timeStr = new Date().toLocaleTimeString('sv-SE', { timeZone: 'Asia/Tashkent' });
+
+    let icon = 'ℹ️';
+    if (step === 'DOWNLOADING') icon = '📥';
+    else if (step === 'DOWNLOADED') icon = '📦';
+    else if (step === 'INSTALLING') icon = '🔄';
+    else if (step === 'SUCCESS') icon = '🎉';
+    else if (step === 'ERROR') icon = '❌';
+
+    const logEntry = {
+        id: Date.now() + Math.random().toString(36).slice(2, 6),
+        time: timeStr,
+        operatorId: opId,
+        operatorName: opName,
+        hostname: hostname || '',
+        version: version || '',
+        targetVersion: targetVersion || '',
+        step: step || 'INFO',
+        message: message || '',
+        icon
+    };
+
+    agentUpdateLogsHistory.unshift(logEntry);
+    if (agentUpdateLogsHistory.length > 100) agentUpdateLogsHistory.pop();
+
+    console.log(`${icon} [OTA Log] ${timeStr} | ${opName} (${opId}) [PC: ${hostname || '?'}] | ${message || step}`);
+
+    amiService.broadcast('agent_ota_log', logEntry);
+
+    res.json({ success: true });
+});
+
+app.get('/api/agent/update-logs', (req, res) => {
+    res.json({ success: true, logs: agentUpdateLogsHistory });
+});
+
 // Barcha operatorlar agent holatlari va versiyalari (Settings paneli uchun)
 app.get('/api/agent/status-all', (req, res) => {
     const list = amiService.getOperatorList().map(op => {
@@ -391,7 +421,37 @@ app.get('/api/agent/status-all', (req, res) => {
     });
 });
 
-// 3CX Agent to'liq qo'ng'iroq hodisalari (RINGING, ANSWERED, ENDED, REJECT)
+// 3CX Desktop Agent ma'lumotlari asosidagi operatorlar statistikasi (/operators sahifasi uchun)
+function getAgentOperatorStatsList() {
+    const agentStatsMap = dbService.getTodayAgentOperatorStats();
+    const allOps = amiService.getOperatorList();
+    
+    return allOps.map(op => {
+        const stats = agentStatsMap[op.id] || { answered: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
+        return {
+            id: op.id,
+            name: op.name,
+            realName: op.realName,
+            presence: op.presence,
+            agentConnected: !!op.agentConnected,
+            agentHostname: op.agentHostname || '',
+            agentVersion: op.agentVersion || null,
+            lastAgentPing: op.lastAgentPing || null,
+            answered: stats.answered || 0,
+            missed: stats.missed || 0,
+            totalDurationSec: stats.totalDurationSec || 0,
+            avgDurationSec: stats.avgDurationSec || 0,
+            totalCalls: (stats.answered || 0) + (stats.missed || 0)
+        };
+    });
+}
+
+// /operators sahifasi uchun faqat 3CX Desktop Agent to'plagan operatorlar statistikasi
+app.get('/api/agent/operator-stats', (req, res) => {
+    res.json(getAgentOperatorStatsList());
+});
+
+// 3CX Agent to'liq qo'ng'iroq hodisalari (RINGING, ANSWERED, ENDED, MISSED)
 app.post('/api/agent/call-event', (req, res) => {
     const { operatorId, eventType, callerId, durationSec, startTime, endTime, hostname, details } = req.body;
     if (!operatorId) {
@@ -414,43 +474,40 @@ app.post('/api/agent/call-event', (req, res) => {
         details
     });
 
-    // 2. Agar rad etilgan bo'lsa - hisoblagichlarni yangilash
-    if (eventType === 'REJECT') {
-        const isWorkTime = dbService.isWorkingHours();
-        if (isWorkTime) {
-            if (op) {
-                op.denied = (op.denied || 0) + 1;
-                op.totalCalls = (op.totalCalls || 0) + 1;
-            }
-            dbService.recordOperatorReject(opId, callerId || '3CX Desktop Reject', '3CX-Agent', true);
-            amiService.stats.deniedCalls = (amiService.stats.deniedCalls || 0) + 1;
-            amiService.broadcast('operators_update', amiService.getOperatorList());
-            amiService.broadcast('stats_update', amiService.getSummaryStats());
-            console.log(`🚫 [3CX Agent REJECT] Operator ${opId} rad etdi! Raqam: ${callerId}`);
-        } else {
-            dbService.recordOperatorReject(opId, callerId || '3CX Desktop Reject', '3CX-Agent (Ish vaqtidan tashqari)', false);
-            console.log(`ℹ️ [3CX Agent REJECT] Operator ${opId} ish vaqtidan tashqari (08:00-21:00) rad etdi. KPI ga qo'shilmadi.`);
-        }
-    } else if (eventType === 'MISSED') {
-        const isWorkTime = dbService.isWorkingHours();
-        if (isWorkTime) {
-            if (op) {
-                op.missed = (op.missed || 0) + 1;
-            }
-            dbService.recordOperatorMissed(opId, callerId || '3CX Missed', '3CX-Agent', true);
-            amiService.broadcast('operators_update', amiService.getOperatorList());
-            amiService.broadcast('stats_update', amiService.getSummaryStats());
-            console.log(`⚠️ [3CX Agent MISSED] Operator ${opId} ko'tarmadi (Missed): ${callerId}`);
-        } else {
-            dbService.recordOperatorMissed(opId, callerId || '3CX Missed', '3CX-Agent (Ish vaqtidan tashqari)', false);
-        }
+    // 3CX Desktop Agent ma'lumotlari faqat agent_3cx_call_logs jadvalida va /operators sahifasida aks etadi.
+    // Asosiy dashboarddagi Issabel PBX ma'lumotlariga (op.missed yoki recordOperatorMissed) aralashmaydi!
+    if (eventType === 'MISSED') {
+        console.log(`⚠️ [3CX Agent MISSED] Operator ${opId} (3CX History): ${callerId}`);
     } else if (eventType === 'ANSWERED') {
         console.log(`📞 [3CX Agent ANSWER] Operator ${opId} javob berdi! Raqam: ${callerId}`);
     } else if (eventType === 'ENDED') {
         console.log(`📴 [3CX Agent END] Operator ${opId} suhbat yakunlandi! Raqam: ${callerId}, Vaqt: ${durationSec || 0}s`);
     }
 
+    // /operators sahifasi uchun yangilangan agent statistikasini real-vaqtda broadcast qilish
+    amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+
     res.json({ success: true });
+});
+
+// 3CX Agent to'plamli tarixni sinxronizatsiya qilish (1 oy, 1 yil yoki butun tarix)
+app.post('/api/agent/sync-batch', (req, res) => {
+    const { operatorId, hostname, calls } = req.body;
+    if (!operatorId || !Array.isArray(calls)) {
+        return res.status(400).json({ error: 'operatorId va calls massivi talab qilinadi' });
+    }
+
+    const opId = String(operatorId);
+    amiService.ensureOperatorExists(opId);
+
+    const inserted = dbService.recordAgentCallLogsBatch(opId, hostname, calls);
+    console.log(`📥 [3CX Sync Batch] Operator ${opId} (${hostname}): ${calls.length} ta yozuv yuborildi, ${inserted} ta yangi saqlandi.`);
+
+    if (inserted > 0) {
+        amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+    }
+
+    res.json({ success: true, count: inserted });
 });
 
 // 3CX Agent jurnali API (Issabel bilan solishtirish uchun - doim Pretty Print)
@@ -458,7 +515,8 @@ app.get('/api/agent/logs', (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 50;
     const operatorId = req.query.operatorId || null;
-    const result = dbService.getAgentCallLogsPaginated(page, limit, operatorId);
+    const date = req.query.date || 'today';
+    const result = dbService.getAgentCallLogsPaginated(page, limit, operatorId, date);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.send(JSON.stringify(result, null, 2));
 });

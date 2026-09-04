@@ -108,21 +108,21 @@
                 <!-- KPI Cards (Clickable Drill-down) -->
                 <div class="kpi-grid">
                     <div class="kpi-card blue clickable-kpi" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
-                        <div class="kpi-icon"><img src="/images/total-calls-icon.png" alt="Jami"></div>
+                        <div class="kpi-icon"><img src="/images/totalcalls.png" alt="Jami"></div>
                         <div class="kpi-details">
                             <p>Jami Qo'ng'iroqlar</p>
                             <h3 id="kpiTotalCalls">0</h3>
                         </div>
                     </div>
                     <div class="kpi-card cyan clickable-kpi" onclick="openCallsDetail('inbound', 'Kiruvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
-                        <div class="kpi-icon"><img src="/images/inbound-calls-icon.png" alt="Kiruvchi"></div>
+                        <div class="kpi-icon"><img src="/images/incomingcall.png" alt="Kiruvchi"></div>
                         <div class="kpi-details">
                             <p>Kiruvchi Qo'ng'iroqlar</p>
                             <h3><span id="kpiInbound">0</span> ta</h3>
                         </div>
                     </div>
                     <div class="kpi-card purple clickable-kpi" onclick="openCallsDetail('outbound', 'Chiquvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
-                        <div class="kpi-icon"><img src="/images/outbound-calls-icon.png" alt="Chiquvchi"></div>
+                        <div class="kpi-icon"><img src="/images/outgoingcall.png" alt="Chiquvchi"></div>
                         <div class="kpi-details">
                             <p>Chiquvchi Qo'ng'iroqlar</p>
                             <h3><span id="kpiOutbound">0</span> ta</h3>
@@ -136,31 +136,24 @@
                         </div>
                     </div>
                     <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('abandoned', 'Navbatdan chiqdi (Kutishdan bosh tortdi)')" title="Tafsilotlarni ko'rish uchun bosing">
-                        <div class="kpi-icon">⏳</div>
+                        <div class="kpi-icon"><img src="/images/queue.png" alt="Navbatdan chiqdi"></div>
                         <div class="kpi-details">
                             <p>Navbatdan chiqdi (Kutishdan bosh tortdi)</p>
                             <h3><span id="kpiAbandoned">0</span> <span class="kpi-badge warning" id="kpiAbandonedRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card blue clickable-kpi" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
-                        <div class="kpi-icon">👥</div>
+                    <div class="kpi-card indigo clickable-kpi" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
+                        <div class="kpi-icon"><img src="/images/stillinqueue.png" alt="Navbatda kutayotganlar"></div>
                         <div class="kpi-details">
                             <p>Navbatda kutayotganlar</p>
                             <h3 id="kpiQueueWaiting">0 ta</h3>
                         </div>
                     </div>
-                    <div class="kpi-card red clickable-kpi" onclick="openCallsDetail('denied', 'Rad etilgan (Deny)')" title="Operator rad etgan qo'ng'iroqlar">
-                        <div class="kpi-icon"><img src="/images/denied-calls-icon.png" alt="Rad etilgan"></div>
-                        <div class="kpi-details">
-                            <p>Rad etilgan (Deny)</p>
-                            <h3><span id="kpiDenied">0</span> <span class="kpi-badge danger" id="kpiDenyRate">0%</span></h3>
-                        </div>
-                    </div>
-                    <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan (Missed)')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
-                        <div class="kpi-icon">⚠️</div>
+                    <div class="kpi-card red clickable-kpi" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan (Missed)')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
+                        <div class="kpi-icon"><img src="/images/missedcall.png" alt="O'tkazib yuborilgan"></div>
                         <div class="kpi-details">
                             <p>O'tkazib yuborilgan (Missed)</p>
-                            <h3><span id="kpiMissed">0</span> <span class="kpi-badge warning" id="kpiMissedRate">0%</span></h3>
+                            <h3><span id="kpiMissed">0</span> ta</h3>
                         </div>
                     </div>
                 </div>
@@ -232,6 +225,7 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 45px; text-align: center;">№</th>
                                     <th>Vaqt</th>
                                     <th>Raqam / Mijoz</th>
                                     <th>Yo'nalish</th>
@@ -358,14 +352,14 @@
                 </div>
             </section>
 
-            <!-- TAB 3: OPERATORLAR VA 3CX LOGLARI TAHLILI & SOLISHTIRISH -->
+            <!-- TAB 3: OPERATORLAR NAZORATI (3CX DESKTOP AGENT) -->
             <section class="page-content" id="tab-operators">
                 <div class="glass-panel" style="margin-bottom: 24px;">
                     <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
                         <div>
-                            <h3 class="panel-title">👥 Operatorlar 3CX Loglari & Taqqoslash Markazi</h3>
+                            <h3 class="panel-title">👥 Operatorlar Nazorati (3CX Desktop Agent)</h3>
                             <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
-                                Har bir operatorning 3CX Desktop Agent jurnali va Issabel PBX (CDR) bilan yonma-yon solishtirish
+                                Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq ko'rsatkichlar (Qabul qilingan, O'tkazib yuborilgan, Davomiylik, Yulduzlar va NPC unvoni)
                             </p>
                         </div>
 
@@ -376,33 +370,43 @@
                             <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
                                 🖥️ Desktop Agent: <b id="tabOpCountAgent">0</b>
                             </span>
-                            <button class="btn-action" onclick="refreshOperatorsTabLogs()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                                📞 Qabul qilingan: <b id="tabOpTotalAnswered">0 ta</b>
+                            </span>
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                                ⚠️ O'tkazib yuborilgan: <b id="tabOpTotalMissed">0 ta</b>
+                            </span>
+                            <button class="btn-action" onclick="loadTabAgentOperators(true)" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
                                 🔄 Yangilash
                             </button>
                         </div>
                     </div>
 
-                    <!-- Operator Select Filter Chips -->
-                    <div style="margin-bottom: 18px;">
-                        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 8px; font-weight: 600;">
-                            Operatorni tanlang (Ustiga bosing):
-                        </label>
-                        <div id="operatorChipsContainer" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
-
-                    <!-- Comparison KPI Summary -->
-                    <div id="operatorCompareBox" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px;">
-                        <!-- Comparison cards rendered dynamically -->
+                    <!-- 3CX Desktop Agent Operator Cards Grid -->
+                    <div class="operator-grid" id="tabOperatorsGrid" style="margin-bottom: 24px;">
+                        <!-- Rendered dynamically from /api/agent/operator-stats -->
                     </div>
 
                     <!-- 3CX Desktop Agent Call Logs Table -->
-                    <div class="panel-header" style="padding-top: 12px; border-top: 1px solid var(--border-color); margin-bottom: 12px;">
-                        <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                            🖥️ <span id="operatorSelectedTitle">Barcha Operatorlar</span> — 3CX Desktop Agent Qo'ng'iroqlar Jurnali
-                        </h4>
-                        <span id="tabOperatorLogsTotal" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta</span>
+                    <div class="panel-header" style="padding-top: 16px; border-top: 1px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                🖥️ <span id="operatorSelectedTitle">Barcha Operatorlar</span> — 3CX Desktop Agent Qo'ng'iroqlar Jurnali
+                            </h4>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                                3CX dasturi faylidan real-vaqtda o'qib olingan qo'ng'iroqlar
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <select id="tabAgentLogDateSelect" onchange="filterTabAgentLogsByDate(this.value)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #38bdf8; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none; font-weight: 600;">
+                                <option value="today" selected>📅 Faqat Bugun</option>
+                                <option value="all">📅 Barcha kunlar (Tarix)</option>
+                            </select>
+                            <select id="tabAgentLogOpSelect" onchange="filterTabAgentLogsByOperator(this.value)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
+                                <option value="">Barcha Operatorlar</option>
+                            </select>
+                            <span id="tabOperatorLogsTotal" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta</span>
+                        </div>
                     </div>
 
                     <div id="tabOperatorLogsContainer" style="max-height: 480px; overflow-y: auto;">
@@ -412,7 +416,7 @@
 
                 <div class="glass-panel">
                     <div class="panel-header">
-                        <h3 class="panel-title">📊 Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti</h3>
+                        <h3 class="panel-title">📊 Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti (3CX Agent)</h3>
                     </div>
                     <div class="chart-wrapper">
                         <canvas id="operatorChart"></canvas>
@@ -446,6 +450,7 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th style="width: 45px; text-align: center;">№</th>
                                     <th>ID / Vaqt</th>
                                     <th>Mijoz Raqami</th>
                                     <th>Operator / Exten</th>
@@ -708,6 +713,19 @@
                         <p style="font-size: 11px; color: var(--text-dim);">
                             * Versiya e'lon qilinganda, barcha onlayn operatorlar agenti fon rejimida avtomatik yangilanadi.
                         </p>
+                    </div>
+                </div>
+
+                <!-- Live OTA Update Logs Card -->
+                <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <h4 style="font-size: 13px; font-weight: 600; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                            <span>📡</span> Jonli OTA Yangilanish Loglari (Kim yangilanmoqda?)
+                        </h4>
+                        <span id="otaLogStatus" style="font-size: 11px; color: #10b981;">● Jonli kuzatuv faol</span>
+                    </div>
+                    <div id="otaLogsContainer" style="max-height: 140px; overflow-y: auto; font-family: monospace; font-size: 11px; background: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 4px;">
+                        <div style="color: var(--text-dim); text-align: center; padding: 10px;">Hozircha yangilanish loglari yo'q. Yangi versiya e'lon qilinganda bu yerda real-vaqtda ko'rinadi.</div>
                     </div>
                 </div>
 

@@ -117,7 +117,8 @@ function switchRoute(tabName, pushState = true) {
         if (typeof callDistributionChart !== 'undefined' && callDistributionChart) callDistributionChart.resize();
     } else if (target === 'operators') {
         if (typeof operatorChart !== 'undefined' && operatorChart) operatorChart.resize();
-        if (typeof initOperatorsTabComparison === 'function') initOperatorsTabComparison();
+        loadTabAgentOperators();
+        loadTabOperatorLogs(selectedTabAgentOpId, 1);
     }
 }
 
@@ -317,6 +318,11 @@ function handleWsMessage(msg) {
         renderQueues(msg.data);
     } else if (msg.type === 'operators_update') {
         renderOperators(msg.data);
+    } else if (msg.type === 'agent_operators_update') {
+        tabAgentOperatorsData = msg.data;
+        renderTabAgentOperators(tabAgentOperatorsData);
+    } else if (msg.type === 'agent_ota_log') {
+        appendOtaLog(msg.data);
     } else if (msg.type === 'call_hangup') {
         addRecentDashboardRow(msg.data);
         const histTab = document.getElementById('tab-history');
@@ -324,6 +330,41 @@ function handleWsMessage(msg) {
             loadHistoryPage(historyCurrentPage, historySearchQuery);
         }
     }
+}
+
+function appendOtaLog(log) {
+    const container = document.getElementById('otaLogsContainer');
+    if (!container) return;
+
+    if (container.children.length === 1 && container.children[0].innerText.includes('Hozircha')) {
+        container.innerHTML = '';
+    }
+
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '8px';
+    row.style.padding = '4px 8px';
+    row.style.borderRadius = '4px';
+    row.style.background = log.step === 'SUCCESS' ? 'rgba(16, 185, 129, 0.15)' : (log.step === 'ERROR' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.03)');
+
+    let color = '#94a3b8';
+    if (log.step === 'SUCCESS') color = '#34d399';
+    else if (log.step === 'ERROR') color = '#f87171';
+    else if (log.step === 'DOWNLOADING') color = '#38bdf8';
+    else if (log.step === 'INSTALLING') color = '#fbbf24';
+    else if (log.step === 'DOWNLOADED') color = '#a78bfa';
+
+    row.innerHTML = `
+        <span style="color: var(--text-dim); min-width: 60px;">[${log.time}]</span>
+        <span>${log.icon || 'ℹ️'}</span>
+        <span style="font-weight: 700; color: #fff;">${log.operatorName} (${log.operatorId}):</span>
+        <span style="color: ${color}; font-weight: 500;">${log.message}</span>
+        ${log.hostname ? `<span style="color: var(--text-dim); font-size: 10px; margin-left: auto;">[${log.hostname}]</span>` : ''}
+    `;
+
+    container.appendChild(row);
+    container.scrollTop = container.scrollHeight;
 }
 
 function updateAmiStatus(connected) {
@@ -377,7 +418,6 @@ function updateStatsUI(stats) {
     const elDenied = document.getElementById('kpiDenied');
     const elDenyRate = document.getElementById('kpiDenyRate');
     const elMissed = document.getElementById('kpiMissed');
-    const elMissedRate = document.getElementById('kpiMissedRate');
 
     if (elTotal) elTotal.innerText = totalCalls;
     if (elInbound) elInbound.innerText = inboundCalls;
@@ -389,7 +429,6 @@ function updateStatsUI(stats) {
     if (elDenied) elDenied.innerText = deniedCalls;
     if (elDenyRate) elDenyRate.innerText = `${denyRate}%`;
     if (elMissed) elMissed.innerText = missedCalls;
-    if (elMissedRate) elMissedRate.innerText = `${missedRate}%`;
     
     const queueWaiting = stats.queueWaitingTotal || 0;
     const kpiQueue = document.getElementById('kpiQueueWaiting');
@@ -903,14 +942,12 @@ function renderOperators(operators) {
         });
     const grid = document.getElementById('operatorsGrid');
 
-    // Eng faol operatorlarni aniqlash (MVP reyting)
+    // Eng faol operatorni aniqlash (MVP reyting)
     const sortedByScore = [...currentOperators]
         .filter(op => (op.answered || 0) > 0 || (op.totalDurationSec || 0) > 0)
         .sort((a, b) => (b.answered || 0) - (a.answered || 0) || (b.totalDurationSec || 0) - (a.totalDurationSec || 0));
 
     const top1Id = sortedByScore[0] ? sortedByScore[0].id : null;
-    const top2Id = sortedByScore[1] ? sortedByScore[1].id : null;
-    const top3Id = sortedByScore[2] ? sortedByScore[2].id : null;
 
     let countReady = 0;
     let countTalking = 0;
@@ -974,28 +1011,24 @@ function renderOperators(operators) {
 
         // Yulduzlar soni (Qabul qilingan qo'ng'iroqlar soniga qarab)
         let stars = '';
-        if (answered >= 25) {
+        if (answered > 35) {
             stars = '⭐⭐⭐⭐⭐';
-        } else if (answered >= 15) {
+        } else if (answered >= 25) {
             stars = '⭐⭐⭐⭐';
-        } else if (answered >= 8) {
+        } else if (answered >= 16) {
             stars = '⭐⭐⭐';
-        } else if (answered >= 3) {
+        } else if (answered >= 11) {
             stars = '⭐⭐';
         } else if (answered >= 1) {
             stars = '⭐';
         }
 
         if (op.id === top1Id && answered > 0) {
-            mvpBadge = `<span class="mvp-badge gold" title="Bugungi eng faol yetakchi operator">👑 MVP Lider</span>`;
+            mvpBadge = `<span class="mvp-badge gold" title="Bugungi eng faol yetakchi operator">👑 MVP</span>`;
             cardClass += ' mvp-gold';
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
-        } else if (op.id === top2Id && answered > 0) {
-            mvpBadge = `<span class="mvp-badge silver" title="2-o'rindagi chempion">🥈 Chempion</span>`;
-            cardClass += ' mvp-silver';
-        } else if (op.id === top3Id && answered > 0) {
-            mvpBadge = `<span class="mvp-badge bronze" title="3-o'rindagi usta">🥉 Usta</span>`;
-            cardClass += ' mvp-bronze';
+        } else if (stars === '⭐') {
+            mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
         }
 
         return `
@@ -1033,10 +1066,6 @@ function renderOperators(operators) {
                 <div class="op-stat-row">
                     <span>Qabul qilingan:</span>
                     <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${op.answered} ta</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>Rad etilgan:</span>
-                    <span class="op-stat-val" style="color: ${(op.denied || 0) > 0 ? 'var(--danger)' : 'var(--text-dim)'}; font-weight: 700;">${op.denied || 0} ta</span>
                 </div>
                 <div class="op-stat-row">
                     <span>O'tkazib yuborilgan:</span>
@@ -1149,11 +1178,12 @@ function formatOperatorDisplayName(opStr) {
 function renderHistoryTable(data) {
     const tbody = document.getElementById('historyTableBody');
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = data.map(item => {
+    tbody.innerHTML = data.map((item, index) => {
+        const rowNum = (historyCurrentPage - 1) * 20 + index + 1;
         const isOut = item.direction === 'outbound';
         const isAns = item.status === 'ANSWERED';
         const statusBadge = isAns 
@@ -1165,6 +1195,7 @@ function renderHistoryTable(data) {
 
         return `
             <tr>
+                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td style="font-family: monospace; color: var(--text-muted);">${new Date(item.time).toLocaleTimeString()}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
@@ -1186,7 +1217,8 @@ function renderDashboardRecentTable(data) {
     const tbody = document.getElementById('dashboardCallsTable');
     if (!data || data.length === 0) return;
 
-    tbody.innerHTML = data.map(item => {
+    tbody.innerHTML = data.map((item, index) => {
+        const rowNum = index + 1;
         const isOut = item.direction === 'outbound';
         const isAns = item.status === 'ANSWERED';
         const statusBadge = isAns 
@@ -1198,6 +1230,7 @@ function renderDashboardRecentTable(data) {
 
         return `
             <tr>
+                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td>${new Date(item.time).toLocaleTimeString()}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
@@ -1428,6 +1461,7 @@ async function fetchAndRenderDetailCalls() {
             <table class="detail-table">
                 <thead>
                     <tr>
+                        <th style="width: 45px; text-align: center;">№</th>
                         <th>Vaqt</th>
                         <th>Mijoz Raqami</th>
                         <th>Yo'nalish</th>
@@ -1438,7 +1472,8 @@ async function fetchAndRenderDetailCalls() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${calls.map(c => {
+                    ${calls.map((c, index) => {
+                        const rowNum = (detailState.page - 1) * detailState.limit + index + 1;
                         const isAns = c.status === 'ANSWERED';
                         const isOut = c.direction === 'outbound';
 
@@ -1478,6 +1513,7 @@ async function fetchAndRenderDetailCalls() {
 
                         return `
                             <tr>
+                                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                                 <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString()}</td>
                                 <td style="white-space: nowrap;">
                                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
@@ -1786,26 +1822,34 @@ async function loadAgentLogs(page = 1) {
             '120': 'Navruzoy'
         };
 
-        const rowsHtml = json.data.map(r => {
+        const rowsHtml = json.data.map((r, index) => {
+            const rowNum = (json.page - 1) * 50 + index + 1;
             const opName = opNames[String(r.operator_id)] || `Operator ${r.operator_id}`;
             const opDisplay = `${opName} (${r.operator_id})`;
             
             let typeBadge = '';
             const t = (r.event_type || '').toUpperCase();
-            if (t === 'ANSWERED') {
-                typeBadge = `<span class="status-badge answered">🟢 Javob berildi</span>`;
-            } else if (t === 'REJECT') {
+            const dur = parseInt(r.duration_sec || 0, 10);
+
+            if (t === 'REJECT') {
                 typeBadge = `<span class="status-badge failed">🚫 Rad etildi</span>`;
+            } else if (t === 'MISSED' || (dur === 0 && t !== 'DIALLED' && t !== 'OUTBOUND')) {
+                typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi</span>`;
+            } else if ((t === 'ANSWERED' || dur > 0) && dur > 0) {
+                typeBadge = `<span class="status-badge answered">🟢 Javob berildi</span>`;
+            } else if (t === 'DIALLED' || t === 'OUTBOUND') {
+                typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">📤 Chiquvchi</span>`;
             } else if (t === 'RINGING' || t === 'INCOMING') {
                 typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);">📥 Kiruvchi</span>`;
             } else {
                 typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3);">📴 Tugadi</span>`;
             }
 
-            const durFormatted = formatSeconds(r.duration_sec || 0);
+            const durFormatted = formatSeconds(dur);
 
             return `
                 <tr>
+                    <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                     <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${r.event_time || ''}</td>
                     <td style="font-weight: 600; color: var(--text-main); white-space: nowrap;">${opDisplay}</td>
                     <td style="white-space: nowrap;">
@@ -1827,6 +1871,7 @@ async function loadAgentLogs(page = 1) {
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 45px; text-align: center;">№</th>
                             <th>Qayd Vaqti</th>
                             <th>Operator</th>
                             <th>Mijoz Raqami</th>
@@ -1852,206 +1897,200 @@ async function loadAgentLogs(page = 1) {
 }
 
 /* ==========================================================================
-   12. Operators Tab — 3CX Loglar & Issabel Solishtirish Markazi
+   12. Operators Tab — 3CX Desktop Agent Operatorlar Nazorati (/operators)
    ========================================================================== */
-let selectedCompareOpId = null; // null = Barcha operatorlar
+let tabAgentOperatorsData = [];
+let selectedTabAgentOpId = null;
+let selectedTabAgentDate = 'today';
 let tabOperatorLogsPage = 1;
 const tabOperatorLogsLimit = 50;
 
-function initOperatorsTabComparison() {
-    renderOperatorChips();
-    if (selectedCompareOpId === null && currentOperators.length > 0) {
-        // Default to first active operator or all
-        selectCompareOperator(null);
-    } else {
-        selectCompareOperator(selectedCompareOpId);
+function filterTabAgentLogsByDate(val) {
+    selectedTabAgentDate = val || 'today';
+    loadTabOperatorLogs(selectedTabAgentOpId, 1);
+}
+window.filterTabAgentLogsByDate = filterTabAgentLogsByDate;
+
+async function loadTabAgentOperators(force = false) {
+    try {
+        const res = await fetch('/api/agent/operator-stats');
+        tabAgentOperatorsData = await res.json();
+        renderTabAgentOperators(tabAgentOperatorsData);
+    } catch (e) {
+        console.error('loadTabAgentOperators error:', e.message);
     }
 }
 
-function renderOperatorChips() {
-    const container = document.getElementById('operatorChipsContainer');
-    if (!container) return;
+function filterTabAgentLogsByOperator(opId) {
+    selectedTabAgentOpId = opId ? String(opId) : null;
+    const titleEl = document.getElementById('operatorSelectedTitle');
+    const selectEl = document.getElementById('tabAgentLogOpSelect');
+    if (selectEl && selectEl.value !== (selectedTabAgentOpId || '')) {
+        selectEl.value = selectedTabAgentOpId || '';
+    }
+    if (titleEl) {
+        if (!selectedTabAgentOpId) {
+            titleEl.innerText = 'Barcha Operatorlar';
+        } else {
+            const op = tabAgentOperatorsData.find(o => String(o.id) === selectedTabAgentOpId);
+            titleEl.innerText = op ? `${op.name}` : `Operator ${selectedTabAgentOpId}`;
+        }
+    }
+    if (tabAgentOperatorsData && tabAgentOperatorsData.length > 0) {
+        renderTabAgentOperators(tabAgentOperatorsData);
+    }
+    loadTabOperatorLogs(selectedTabAgentOpId, 1);
+}
 
-    // Update presence badges in tab header
+function renderTabAgentOperators(operators) {
+    const grid = document.getElementById('tabOperatorsGrid');
+    if (!grid) return;
+
+    if (!operators || operators.length === 0) {
+        grid.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 16px;">Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.</div>`;
+        return;
+    }
+
+    // Top 1 operatorni aniqlash (MVP reyting) agent answered soni bo'yicha
+    const sortedByScore = [...operators]
+        .filter(op => (op.answered || 0) > 0 || (op.totalDurationSec || 0) > 0)
+        .sort((a, b) => (b.answered || 0) - (a.answered || 0) || (b.totalDurationSec || 0) - (a.totalDurationSec || 0));
+
+    const top1Id = sortedByScore[0] ? sortedByScore[0].id : null;
+
+    let countReady = 0;
+    let countAgentOnline = 0;
+    let totalAns = 0;
+    let totalMissed = 0;
+
+    // Operator select dropdown
+    const selectEl = document.getElementById('tabAgentLogOpSelect');
+    if (selectEl && selectEl.options.length <= 1) {
+        operators.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op.id;
+            opt.innerText = `${op.name || op.realName || op.id}`;
+            selectEl.appendChild(opt);
+        });
+    }
+
+    grid.innerHTML = operators.map(op => {
+        const pres = op.presence || 'ready';
+        if (pres === 'ready') countReady++;
+        if (op.agentConnected) countAgentOnline++;
+        const answered = op.answered || 0;
+        const missed = op.missed || 0;
+        totalAns += answered;
+        totalMissed += missed;
+
+        let statusBadge = '';
+        let avatarBg = '';
+        if (pres === 'talking') {
+            statusBadge = `<span class="badge badge-info" style="font-size: 11px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">🔵 Suhbatda</span>`;
+            avatarBg = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+        } else if (pres === 'offline') {
+            statusBadge = `<span class="badge badge-danger" style="font-size: 11px;">🔴 Offline</span>`;
+            avatarBg = 'linear-gradient(135deg, #ef4444, #991b1b)';
+        } else {
+            statusBadge = `<span class="badge badge-success" style="font-size: 11px;">🟢 Tayyor</span>`;
+            avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
+        }
+
+        let stars = '';
+        if (answered > 35) {
+            stars = '⭐⭐⭐⭐⭐';
+        } else if (answered >= 25) {
+            stars = '⭐⭐⭐⭐';
+        } else if (answered >= 16) {
+            stars = '⭐⭐⭐';
+        } else if (answered >= 11) {
+            stars = '⭐⭐';
+        } else if (answered >= 1) {
+            stars = '⭐';
+        }
+
+        let mvpBadge = '';
+        let cardClass = 'operator-card clickable-card';
+        if (pres === 'offline') cardClass += ' status-offline';
+        else if (pres === 'talking') cardClass += ' status-talking status-active';
+        else cardClass += ' status-ready status-active';
+
+        if (op.id === top1Id && answered > 0) {
+            mvpBadge = `<span class="mvp-badge gold" title="3CX Agent bo'yicha yetakchi operator">👑 MVP</span>`;
+            cardClass += ' mvp-gold';
+            avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        } else if (stars === '⭐') {
+            mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
+        }
+
+        const isSelected = selectedTabAgentOpId === String(op.id);
+        const selectedBorder = isSelected ? 'border: 2px solid var(--primary); box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);' : '';
+
+        return `
+            <div class="${cardClass}" style="${selectedBorder}" onclick="filterTabAgentLogsByOperator('${op.id}')" title="${op.name} tafsilotlarini va 3CX jurnallarini ko'rish uchun bosing">
+                <div class="operator-head">
+                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id.slice(-2)}</div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <h4 style="font-size: 15px; font-weight: 700;">${op.name}</h4>
+                                ${mvpBadge}
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
+                            <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id}</span>
+                            ${stars ? `<span class="star-rating-box" title="${answered} ta qabul qilingan">${stars}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-stat-row">
+                    <span>Desktop Agent:</span>
+                    <span class="op-stat-val" style="font-weight: 600; font-size: 11px; color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'}; display: inline-flex; align-items: center; gap: 5px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
+                        ${op.agentConnected ? `🟢 Faol ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : `⚪ O'chiq`}
+                    </span>
+                </div>
+                <div class="op-stat-row">
+                    <span>Qabul qilingan:</span>
+                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${answered} ta</span>
+                </div>
+                <div class="op-stat-row">
+                    <span>O'tkazib yuborilgan:</span>
+                    <span class="op-stat-val" style="color: ${missed > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${missed} ta</span>
+                </div>
+                <div class="op-stat-row">
+                    <span>Umumiy suhbat:</span>
+                    <span class="op-stat-val" style="font-weight: 700; color: ${op.totalDurationSec > 7200 ? '#fcd34d' : 'var(--text-main)'};">
+                        ${formatSeconds(op.totalDurationSec || 0)} ${op.totalDurationSec > 7200 ? '🔥' : ''}
+                    </span>
+                </div>
+                <div class="op-stat-row">
+                    <span>O'rtacha suhbat:</span>
+                    <span class="op-stat-val">${formatSeconds(op.avgDurationSec || 0)}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Update Summary badges
     const elReady = document.getElementById('tabOpCountReady');
     const elAgent = document.getElementById('tabOpCountAgent');
-    if (elReady) elReady.innerText = currentOperators.filter(o => o.presence === 'ready').length;
-    if (elAgent) elAgent.innerText = `${currentOperators.filter(o => o.agentConnected).length} / ${currentOperators.length} ta faol`;
+    const elAns = document.getElementById('tabOpTotalAnswered');
+    const elMiss = document.getElementById('tabOpTotalMissed');
 
-    const isAll = !selectedCompareOpId;
-    let html = `
-        <button class="btn-action ${isAll ? 'active-filter' : ''}" onclick="selectCompareOperator(null)" style="padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; ${isAll ? 'background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 0 12px rgba(59,130,246,0.5);' : ''}">
-            <span>👥</span>
-            <span>Barcha Operatorlar (Umumiy Taqqoslash)</span>
-        </button>
-    `;
+    if (elReady) elReady.innerText = countReady;
+    if (elAgent) elAgent.innerText = `${countAgentOnline} ta`;
+    if (elAns) elAns.innerText = `${totalAns} ta`;
+    if (elMiss) elMiss.innerText = `${totalMissed} ta`;
 
-    currentOperators.forEach(op => {
-        const isSelected = selectedCompareOpId === String(op.id);
-        const presDot = op.presence === 'ready' ? '🟢' : (op.presence === 'talking' ? '🔵' : '🔴');
-        
-        // Desktop Agent Onlayn/Oflayn indikatori — bosmasdan turib ko'rinadigan qilib
-        const agentBadge = op.agentConnected 
-            ? `<span style="display: inline-flex; align-items: center; gap: 5px; background: rgba(16, 185, 129, 0.25); color: #34d399; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid rgba(16, 185, 129, 0.5);"><span style="width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 6px #34d399;"></span>🖥️ Agent Faol</span>` 
-            : `<span style="display: inline-flex; align-items: center; gap: 4px; background: rgba(148, 163, 184, 0.1); color: var(--text-dim); padding: 3px 8px; border-radius: 12px; font-size: 11px; border: 1px solid rgba(148, 163, 184, 0.2);">🖥️ O'chiq</span>`;
-
-        const activeStyle = isSelected ? 'border: 2px solid var(--primary); background: rgba(59, 130, 246, 0.2); box-shadow: 0 0 14px rgba(59, 130, 246, 0.4);' : '';
-
-        html += `
-            <button class="btn-action" onclick="selectCompareOperator('${op.id}')" style="padding: 7px 12px; font-size: 13px; border-radius: 12px; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; ${activeStyle}">
-                <span title="Liniya holati">${presDot}</span>
-                <span style="font-weight: 600;">${op.name} (${op.id})</span>
-                ${agentBadge}
-            </button>
-        `;
-    });
-
-    container.innerHTML = html;
-}
-
-async function selectCompareOperator(opId) {
-    selectedCompareOpId = opId ? String(opId) : null;
-    renderOperatorChips();
-
-    const titleEl = document.getElementById('operatorSelectedTitle');
-    const compareBox = document.getElementById('operatorCompareBox');
-
-    if (!selectedCompareOpId) {
-        if (titleEl) titleEl.innerText = 'Barcha Operatorlar';
-        if (compareBox) {
-            const totalAns = currentOperators.reduce((sum, o) => sum + (o.answered || 0), 0);
-            const totalDen = currentOperators.reduce((sum, o) => sum + (o.denied || 0), 0);
-            const totalSec = currentOperators.reduce((sum, o) => sum + (o.totalDurationSec || 0), 0);
-            const onlineAgents = currentOperators.filter(o => o.agentConnected).length;
-
-            const tableRows = currentOperators.map(op => {
-                const presText = op.presence === 'ready' ? '🟢 Tayyor' : (op.presence === 'talking' ? '🔵 Suhbatda' : '🔴 Oflayn');
-                const agentText = op.agentConnected 
-                    ? `<span style="color: var(--success); font-weight: 700; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>🟢 Onlayn ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span></span>`
-                    : `<span style="color: var(--text-dim);">⚪ O'chiq</span>`;
-
-                return `
-                    <tr style="cursor: pointer;" onclick="selectCompareOperator('${op.id}')" title="${op.name} ning 3CX jurnali va tahlilini ko'rish uchun bosing">
-                        <td style="font-weight: 700; color: #fff;">${op.name} (${op.id})</td>
-                        <td>${presText}</td>
-                        <td>${agentText}</td>
-                        <td style="font-weight: 600; color: var(--success);">${op.answered || 0} ta</td>
-                        <td style="font-weight: 600; color: ${(op.denied || 0) > 0 ? 'var(--danger)' : 'var(--text-dim)'};">${op.denied || 0} ta</td>
-                        <td style="font-weight: 600; color: ${(op.missed || 0) > 0 ? '#f59e0b' : 'var(--text-dim)'};">${op.missed || 0} ta</td>
-                        <td>${formatSeconds(op.totalDurationSec || 0)}</td>
-                        <td>
-                            <button class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4); color: #60a5fa;">
-                                📜 Jurnal & Solishtirish
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            compareBox.innerHTML = `
-                <div style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 12px;">
-                    <div class="kpi-card blue" style="border-left: 4px solid #3b82f6;">
-                        <div class="kpi-icon">📊</div>
-                        <div class="kpi-details">
-                            <p>1. Issabel PBX (Umumiy)</p>
-                            <h3 style="font-size: 20px;">${totalAns} ta qabul <span style="font-size: 13px; color: var(--danger); margin-left: 8px;">🚫 ${totalDen} rad</span></h3>
-                            <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">Jami suhbat: <b>${formatSeconds(totalSec)}</b></div>
-                        </div>
-                    </div>
-                    <div class="kpi-card cyan" style="border-left: 4px solid #06b6d4;">
-                        <div class="kpi-icon">🖥️</div>
-                        <div class="kpi-details">
-                            <p>2. Desktop Agentlar Holati</p>
-                            <h3 style="font-size: 20px;">${onlineAgents} / ${currentOperators.length} ta Onlayn</h3>
-                            <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">Kompyuterlardan real-time monitoring</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="grid-column: 1 / -1; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 12px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📋 Operatorlar Monitoring Matritsasi (Bosmasdan turib ko'rinadigan holat)</span>
-                        <span style="font-size: 12px; color: var(--text-muted); font-weight: normal;">Qator ustiga bosib alohida tahlilga o'tishingiz mumkin</span>
-                    </div>
-                    <div class="table-container" style="overflow-x: auto;">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Operator</th>
-                                    <th>Issabel Liniyasi</th>
-                                    <th>Desktop Agent (Kompyuter)</th>
-                                    <th>Qabul Qilingan</th>
-                                    <th>Rad Etilgan (Deny)</th>
-                                    <th>O'tkazib Yuborilgan (Missed)</th>
-                                    <th>Suhbat Vaqti</th>
-                                    <th>Amal</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${tableRows}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-        }
-    } else {
-        const op = currentOperators.find(o => String(o.id) === selectedCompareOpId) || { id: selectedCompareOpId, name: `Operator ${selectedCompareOpId}` };
-        if (titleEl) titleEl.innerText = `${op.name} (${op.id})`;
-        renderCompareStats(op);
+    // Operatorlar bo'yicha grafikni ham 3CX agent ma'lumotlari bilan yangilash
+    if (operatorChart && operators.length > 0) {
+        operatorChart.data.labels = operators.map(o => o.realName || o.name || o.id);
+        operatorChart.data.datasets[0].data = operators.map(o => o.answered || 0);
+        operatorChart.update();
     }
-
-    loadTabOperatorLogs(selectedCompareOpId, 1);
-}
-
-function renderCompareStats(op) {
-    const compareBox = document.getElementById('operatorCompareBox');
-    if (!compareBox) return;
-
-    const issabelAns = op.answered || 0;
-    const issabelDen = op.denied || 0;
-    const issabelMissed = op.missed || 0;
-    const issabelSec = formatSeconds(op.totalDurationSec || 0);
-    const avgSec = formatSeconds(op.avgDurationSec || 0);
-
-    const agentStatus = op.agentConnected 
-        ? `<span style="color: var(--success); font-weight: 700;">🟢 Faol ${op.agentHostname ? `(${op.agentHostname})` : ''}</span>` 
-        : `<span style="color: var(--text-muted); font-weight: 600;">⚪ Hali ulanmagan</span>`;
-
-    compareBox.innerHTML = `
-        <div class="kpi-card blue" style="border-left: 4px solid #3b82f6;">
-            <div class="kpi-icon">📊</div>
-            <div class="kpi-details">
-                <p>1. Issabel PBX (CDR Ma'lumotlari)</p>
-                <h3 style="font-size: 19px;">${issabelAns} ta qabul <span style="font-size: 12px; color: var(--danger); margin-left: 6px;">🚫 ${issabelDen} rad</span> <span style="font-size: 12px; color: #f59e0b; margin-left: 6px;">⚠️ ${issabelMissed} missed</span></h3>
-                <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;">
-                    ⏱️ Suhbat: <b>${issabelSec}</b> • O'rtacha: <b>${avgSec}</b>
-                </div>
-            </div>
-        </div>
-
-        <div class="kpi-card cyan" style="border-left: 4px solid #06b6d4;">
-            <div class="kpi-icon">🖥️</div>
-            <div class="kpi-details">
-                <p>2. 3CX Desktop Agent (Kompyuter)</p>
-                <h3 style="font-size: 16px; margin-top: 4px;">${agentStatus}</h3>
-                <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;" id="compareAgentStatsText">
-                    ⏳ 3CX jurnali hisoblanmoqda...
-                </div>
-            </div>
-        </div>
-
-        <div class="kpi-card amber" style="border-left: 4px solid #f59e0b;" id="compareVerdictCard">
-            <div class="kpi-icon">⚖️</div>
-            <div class="kpi-details">
-                <p>3. Solishtirish & Intizom Xulosasi</p>
-                <h3 style="font-size: 15px; margin-top: 4px;" id="compareVerdictTitle">Tahlil qilinmoqda...</h3>
-                <div style="font-size: 12px; color: var(--text-dim); margin-top: 6px;" id="compareVerdictDesc">
-                    3CX tarixi va Issabel qo'ng'iroqlari solishtirilmoqda.
-                </div>
-            </div>
-        </div>
-    `;
 }
 
 async function loadTabOperatorLogs(opId, page = 1) {
@@ -2068,41 +2107,13 @@ async function loadTabOperatorLogs(opId, page = 1) {
     `;
 
     try {
-        let url = `/api/agent/logs?page=${page}&limit=${tabOperatorLogsLimit}`;
+        let url = `/api/agent/logs?page=${page}&limit=${tabOperatorLogsLimit}&date=${encodeURIComponent(selectedTabAgentDate || 'today')}`;
         if (opId) url += `&operatorId=${encodeURIComponent(opId)}`;
 
         const res = await fetch(url);
         const json = await res.json();
 
         if (totalEl) totalEl.innerText = `Jami qaydlar: ${json.total || 0} ta`;
-
-        // Update comparison cards with 3CX counts
-        const agentStatsText = document.getElementById('compareAgentStatsText');
-        const verdictTitle = document.getElementById('compareVerdictTitle');
-        const verdictDesc = document.getElementById('compareVerdictDesc');
-
-        if (opId && agentStatsText) {
-            const op = currentOperators.find(o => String(o.id) === String(opId));
-            const totalLogs = json.total || 0;
-            const records = json.data || [];
-            const rejectCount = records.filter(r => r.event_type === 'REJECT').length;
-            const answeredCount = records.filter(r => r.event_type === 'ANSWERED' || (r.duration_sec && r.duration_sec > 0)).length;
-
-            agentStatsText.innerHTML = `📁 3CX Jurnali: <b>${totalLogs} ta qayd</b> • 📞 Suhbat: <b>${answeredCount} ta</b> • 🚫 Rad: <b>${rejectCount} ta</b>`;
-
-            if (verdictTitle && verdictDesc) {
-                if (!op || !op.agentConnected) {
-                    verdictTitle.innerHTML = `<span style="color: #cbd5e1;">⚪ Agent hali yoqilmagan</span>`;
-                    verdictDesc.innerText = `Ushbu operator kompyuterida 3cx-desktop-agent hali ishga tushirilmagan.`;
-                } else if (op.denied === rejectCount) {
-                    verdictTitle.innerHTML = `<span style="color: var(--success);">✅ 100% Mos keldi</span>`;
-                    verdictDesc.innerText = `Issabel va 3CX dagi rad etilgan va qabul qilingan ma'lumotlar to'liq mos keladi.`;
-                } else {
-                    verdictTitle.innerHTML = `<span style="color: #fcd34d;">ℹ️ Issabel: ${op.denied || 0} rad | 3CX: ${rejectCount} rad</span>`;
-                    verdictDesc.innerText = `3CX dasturining haqiqiy qo'ng'iroqlar tarixi pastdagi jadvalda to'liq keltirilgan.`;
-                }
-            }
-        }
 
         if (!json.data || json.data.length === 0) {
             container.innerHTML = `
@@ -2114,28 +2125,35 @@ async function loadTabOperatorLogs(opId, page = 1) {
             return;
         }
 
-        const rowsHtml = json.data.map(r => {
+        const rowsHtml = json.data.map((r, index) => {
+            const rowNum = (page - 1) * tabOperatorLogsLimit + index + 1;
             const op = currentOperators.find(o => String(o.id) === String(r.operator_id));
-            const opDisplay = op ? `${op.name} (${op.id})` : `Ext: ${r.operator_id}`;
+            // op.name serverdan allaqachon "Ibrohim (116)" shaklida keladi —
+            // ustiga yana (${op.id}) qo'shilsa "Ibrohim (116) (116)" bo'lib qoladi.
+            // Shuning uchun toza ismni (realName) ishlatamiz.
+            const opDisplay = op ? `${op.realName || op.name}` : `Ext: ${r.operator_id}`;
 
             let typeBadge = '';
             const statusKey = r.status || r.event_type;
+            const dur = parseInt(r.duration_sec || 0, 10);
+
             if (statusKey === 'REJECT') {
                 typeBadge = `<span class="status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-weight: 700;">🚫 Rad etildi (Deny)</span>`;
-            } else if (statusKey === 'MISSED') {
+            } else if (statusKey === 'MISSED' || (dur === 0 && statusKey !== 'OUTBOUND' && statusKey !== 'DIALLED')) {
                 typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi (Missed)</span>`;
-            } else if (statusKey === 'ANSWERED' || r.duration_sec > 0) {
-                typeBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700;">📞 Javob berildi</span>`;
+            } else if ((statusKey === 'ANSWERED' || dur > 0) && dur > 0) {
+                typeBadge = `<span class="status-badge" style="background: rgba(160, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700;">📞 Javob berildi</span>`;
             } else if (statusKey === 'OUTBOUND' || statusKey === 'DIALLED') {
                 typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">📤 Chiquvchi (Dialled)</span>`;
             } else {
                 typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);">📥 Kiruvchi</span>`;
             }
 
-            const durFormatted = formatSeconds(r.duration_sec || 0);
+            const durFormatted = formatSeconds(dur);
 
             return `
                 <tr>
+                    <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                     <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${r.event_time || ''}</td>
                     <td style="font-weight: 600; color: var(--text-main); white-space: nowrap;">${opDisplay}</td>
                     <td style="white-space: nowrap;">
@@ -2172,6 +2190,7 @@ async function loadTabOperatorLogs(opId, page = 1) {
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 45px; text-align: center;">№</th>
                             <th>Qayd Vaqti</th>
                             <th>Operator</th>
                             <th>Mijoz Raqami</th>
@@ -2290,6 +2309,19 @@ async function loadAgentSettings() {
         }).join('');
 
         tbody.innerHTML = rows;
+
+        // OTA Yangilanish Loglarini ham yuklab ko'rsatish
+        try {
+            const logsRes = await fetch('/api/agent/update-logs');
+            const logsData = await logsRes.json();
+            if (logsData.logs && logsData.logs.length > 0) {
+                const otaContainer = document.getElementById('otaLogsContainer');
+                if (otaContainer) {
+                    otaContainer.innerHTML = '';
+                    logsData.logs.slice().reverse().forEach(appendOtaLog);
+                }
+            }
+        } catch (e) {}
 
     } catch (err) {
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">Xatolik: ${err.message}</td></tr>`;

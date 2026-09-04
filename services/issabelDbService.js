@@ -797,7 +797,11 @@ class IssabelDbService {
     }
 
     getOperatorName(ext) {
-        return this.operatorNames.get(String(ext)) || `Operator ${ext}`;
+        const raw = this.operatorNames.get(String(ext)) || `Operator ${ext}`;
+        // Agar nom allaqachon "(ext)" bilan tugagan bo'lsa (masalan Issabel DB'da
+        // "Ibrohim (116)" deb yozilgan bo'lsa) — takrorlanishning oldini olish uchun tozalash.
+        const cleaned = String(raw).replace(new RegExp(`\\s*\\(${ext}\\)\\s*$`), '').trim();
+        return cleaned || `Operator ${ext}`;
     }
 }
 

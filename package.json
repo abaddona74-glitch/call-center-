@@ -12,6 +12,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",
+    "pngjs": "^7.0.0",
     "ssh2-sftp-client": "^12.1.1",
     "swagger-ui-express": "^5.0.1",
     "ws": "^8.21.3"

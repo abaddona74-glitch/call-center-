@@ -92,6 +92,7 @@ class DbService {
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_time ON agent_3cx_call_logs (event_time);
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_op ON agent_3cx_call_logs (operator_id);
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_type ON agent_3cx_call_logs (event_type);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_3cx_unique_call ON agent_3cx_call_logs (operator_id, caller_id, start_time);
 
             -- 5. Operator tomonidan o'tkazib yuborilgan (ko'tarilmagan / ring timeout) hodisalar
             CREATE TABLE IF NOT EXISTS operator_missed_events (
@@ -405,6 +406,8 @@ class DbService {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
+            const localTime = call.time || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+
             stmt.run(
                 String(call.id || Date.now()),
                 String(call.channel || ''),
@@ -416,12 +419,12 @@ class DbService {
                 String(call.hangupParty || 'Noma\'lum'),
                 parseInt(call.duration || '0', 10),
                 String(call.cause || 'Normal'),
-                call.time || new Date().toISOString()
+                localTime
             );
 
             // Kunlik operator statistikasini yangilash
             if (call.operatorExten) {
-                const today = (call.time ? new Date(call.time) : new Date()).toISOString().slice(0, 10);
+                const today = localTime.slice(0, 10);
                 this.incrementOperatorDaily(today, call.operatorExten, call.status === 'ANSWERED', call.duration || 0, call.hangupParty);
             }
         } catch (err) {
@@ -578,6 +581,12 @@ class DbService {
             const opId = String(data.operatorId || '');
             const caller = String(data.callerId || 'Yashirin raqam');
             const details = String(data.details || '');
+            
+            // Vaqtni ISO / YYYY-MM-DD HH:mm:ss formatga keltirish
+            let eventTime = nowLocal;
+            if (data.startTime) {
+                eventTime = String(data.startTime).replace(/\//g, '-').trim();
+            }
 
             // Takroriy yozuvlarni oldini olish
             if (details) {
@@ -589,18 +598,18 @@ class DbService {
             }
 
             const insert = this.db.prepare(`
-                INSERT INTO agent_3cx_call_logs (
+                INSERT OR IGNORE INTO agent_3cx_call_logs (
                     event_time, operator_id, caller_id, event_type, duration_sec, start_time, end_time, hostname, details
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             return insert.run(
-                nowLocal,
+                eventTime,
                 opId,
                 caller,
                 String(data.eventType || 'UNKNOWN'),
                 parseInt(data.durationSec || 0, 10),
-                String(data.startTime || nowLocal),
-                String(data.endTime || nowLocal),
+                String(data.startTime || eventTime),
+                String(data.endTime || eventTime),
                 String(data.hostname || ''),
                 details
             );
@@ -611,28 +620,148 @@ class DbService {
     }
 
     /**
-     * 3CX Agent jurnali bo'yicha sahifalab olish
+     * 3CX Desktop Agent tomonidan yuborilgan to'plamli (batch) qo'ng'iroqlarni saqlash
      */
-    getAgentCallLogsPaginated(page = 1, limit = 50, operatorId = null) {
+    recordAgentCallLogsBatch(operatorId, hostname, calls) {
+        if (!Array.isArray(calls) || calls.length === 0) return 0;
+        try {
+            const insert = this.db.prepare(`
+                INSERT OR IGNORE INTO agent_3cx_call_logs (
+                    event_time, operator_id, caller_id, event_type, duration_sec, start_time, end_time, hostname, details
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            const opId = String(operatorId || '');
+            const host = String(hostname || '');
+            const nowLocal = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+
+            this.db.exec('BEGIN TRANSACTION');
+            let count = 0;
+            for (const c of calls) {
+                const caller = String(c.callerId || 'Yashirin raqam');
+                const startTime = c.startTime ? String(c.startTime).replace(/\//g, '-').trim() : nowLocal;
+                const endTime = c.endTime ? String(c.endTime).replace(/\//g, '-').trim() : startTime;
+                const eventTime = startTime;
+                const dur = parseInt(c.durationSec || 0, 10);
+                let evType = String(c.eventType || 'UNKNOWN');
+                let details = String(c.details || '');
+
+                if (evType === 'ANSWERED' && dur === 0) {
+                    evType = 'MISSED';
+                    if (details.includes('3CX Qabul qilindi')) {
+                        details = details.replace('3CX Qabul qilindi', '3CX O\'tkazib yuborildi');
+                    }
+                }
+
+                const res = insert.run(
+                    eventTime,
+                    opId,
+                    caller,
+                    evType,
+                    dur,
+                    startTime,
+                    endTime,
+                    host,
+                    details
+                );
+                if (res.changes > 0) count++;
+            }
+            this.db.exec('COMMIT');
+            return count;
+        } catch (err) {
+            try { this.db.exec('ROLLBACK'); } catch (e) {}
+            console.error('❌ recordAgentCallLogsBatch xatolik:', err.message);
+            return 0;
+        }
+    }
+
+    /**
+     * 3CX Desktop Agent tomonidan to'plangan kunlik operatorlar statistikasi
+     * (Bugungi ANSWERED, MISSED, davomiyligi va o'rtacha suhbat vaqti)
+     */
+    getTodayAgentOperatorStats(targetDate = null) {
+        try {
+            const todayStr = targetDate || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            
+            // Faqat 3CX Desktop Agent maxsus jurnali (0 soniyaliklar javob berilgan deb hisoblanmaydi)
+            const agentRows = this.db.prepare(`
+                SELECT 
+                    operator_id,
+                    COUNT(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 THEN 1 END) as answered,
+                    COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type != 'DIALLED') THEN 1 END) as missed,
+                    SUM(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 THEN duration_sec ELSE 0 END) as total_duration_sec
+                FROM agent_3cx_call_logs
+                WHERE date(event_time) = ?
+                GROUP BY operator_id
+            `).all(todayStr);
+
+            const map = {};
+            for (const r of agentRows) {
+                const opId = String(r.operator_id);
+                const ans = r.answered || 0;
+                const totDur = r.total_duration_sec || 0;
+                map[opId] = {
+                    operatorId: opId,
+                    answered: ans,
+                    missed: r.missed || 0,
+                    totalDurationSec: totDur,
+                    avgDurationSec: ans > 0 ? Math.round(totDur / ans) : 0
+                };
+            }
+
+            return map;
+        } catch (err) {
+            console.error('❌ getTodayAgentOperatorStats error:', err.message);
+            return {};
+        }
+    }
+
+    /**
+     * 3CX Agent jurnali bo'yicha sahifalab olish (Faqat 3CX Desktop Agent yozuvlari)
+     */
+    getAgentCallLogsPaginated(page = 1, limit = 50, operatorId = null, dateFilter = 'today') {
         try {
             page = Math.max(1, parseInt(page, 10) || 1);
             limit = Math.min(Math.max(10, parseInt(limit, 10) || 50), 500);
             const offset = (page - 1) * limit;
 
-            let countSql = `SELECT COUNT(*) as total FROM agent_3cx_call_logs`;
-            let dataSql = `SELECT * FROM agent_3cx_call_logs`;
+            let dateStr = null;
+            if (dateFilter === 'today' || !dateFilter) {
+                dateStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            } else if (dateFilter !== 'all' && /^\d{4}-\d{2}-\d{2}/.test(dateFilter)) {
+                dateStr = String(dateFilter).slice(0, 10);
+            }
+
+            let countSql = `SELECT COUNT(*) as total FROM agent_3cx_call_logs WHERE 1=1`;
+            let dataSql = `SELECT * FROM agent_3cx_call_logs WHERE 1=1`;
             const params = [];
 
+            if (dateStr) {
+                countSql += ` AND event_time LIKE ?`;
+                dataSql += ` AND event_time LIKE ?`;
+                params.push(`${dateStr}%`);
+            }
+
             if (operatorId) {
-                countSql += ` WHERE operator_id = ?`;
-                dataSql += ` WHERE operator_id = ?`;
+                countSql += ` AND operator_id = ?`;
+                dataSql += ` AND operator_id = ?`;
                 params.push(String(operatorId));
             }
 
-            dataSql += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+            dataSql += ` ORDER BY event_time DESC, id DESC LIMIT ? OFFSET ?`;
 
-            const total = this.db.prepare(countSql).get(...params).total;
-            const rows = this.db.prepare(dataSql).all(...params, limit, offset);
+            let total = this.db.prepare(countSql).get(...params).total;
+            let rows = this.db.prepare(dataSql).all(...params, limit, offset);
+
+            if (total === 0) {
+                return {
+                    total: 0,
+                    page,
+                    limit,
+                    totalPages: 1,
+                    data: []
+                };
+            }
 
             const data = rows.map(r => {
                 let status = r.event_type || 'UNKNOWN';
@@ -646,8 +775,14 @@ class DbService {
                     category3cx = 'Missed';
                     statusName = 'O\'tkazib yuborilgan (Missed)';
                 } else if (status === 'ANSWERED') {
-                    category3cx = 'Answered';
-                    statusName = 'Qabul qilingan (Answered)';
+                    if (r.duration_sec === 0) {
+                        status = 'MISSED';
+                        category3cx = 'Missed';
+                        statusName = 'O\'tkazib yuborilgan (Missed)';
+                    } else {
+                        category3cx = 'Answered';
+                        statusName = 'Qabul qilingan (Answered)';
+                    }
                 } else if (status === 'OUTBOUND' || status === 'DIALLED') {
                     category3cx = 'Dialled';
                     statusName = 'Chiquvchi (Dialled)';

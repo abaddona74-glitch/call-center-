@@ -18,3 +18,5 @@ skills-lock.json
 # Loglar
 *.log
 logs/
+
+*.zip
