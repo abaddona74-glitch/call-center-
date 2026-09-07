@@ -7,6 +7,8 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
+const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110']);
+
 class DbService {
     constructor() {
         const dbDir = path.join(__dirname, '..', 'data');
@@ -274,7 +276,7 @@ class DbService {
     }
 
     /**
-     * Operatorlar qancha qo'ng'iroqni o'tkazib yuborganini (Missed) bazadan olish (Faqat ish vaqti: 08:00 - 21:00)
+     * Operatorlar qancha qo'ng'iroqni o'tkazib yuborganini (Missed) bazadan olish (3CX Desktop Agent jurnali asosida)
      * @param {string} [dateParam] - YYYY-MM-DD
      * @returns {Object} { [opId]: count }
      */
@@ -283,20 +285,49 @@ class DbService {
             const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
                 ? dateParam
                 : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-            const rows = this.db.prepare(`
-                SELECT operator_id, COUNT(DISTINCT event_time) as count 
-                FROM operator_missed_events 
-                WHERE event_time LIKE ? 
-                  AND channel LIKE '3CX%'
-                  AND time(event_time) >= '08:00:00' 
-                  AND time(event_time) <= '21:00:00'
-                GROUP BY operator_id
-            `).all(`${dateStr}%`);
 
             const map = {};
-            for (const r of rows) {
-                map[r.operator_id] = r.count || 0;
+
+            // 1. 3CX Desktop Agent jurnali bo'yicha operatorlar o'tkazib yuborgan (Missed) qo'ng'iroqlari
+            try {
+                const agentRows = this.db.prepare(`
+                    SELECT 
+                        operator_id,
+                        COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')) THEN 1 END) as count
+                    FROM agent_3cx_call_logs
+                    WHERE event_time >= ? AND event_time <= ?
+                    GROUP BY operator_id
+                `).all(`${dateStr} 00:00:00`, `${dateStr} 23:59:59`);
+
+                for (const r of agentRows) {
+                    const opId = String(r.operator_id);
+                    if (EXCLUDED_OPERATORS.has(opId)) continue;
+                    map[opId] = (map[opId] || 0) + (r.count || 0);
+                }
+            } catch (e) {
+                console.error('❌ DB getTodayOperatorMissed agent_3cx xatolik:', e.message);
             }
+
+            // 2. Agar operator_missed_events da ham yozuvlar bo'lsa (qo'shimcha)
+            try {
+                const rows = this.db.prepare(`
+                    SELECT operator_id, COUNT(DISTINCT event_time) as count 
+                    FROM operator_missed_events 
+                    WHERE event_time LIKE ? 
+                      AND time(event_time) >= '08:00:00' 
+                      AND time(event_time) <= '21:00:00'
+                    GROUP BY operator_id
+                `).all(`${dateStr}%`);
+
+                for (const r of rows) {
+                    const opId = String(r.operator_id);
+                    if (EXCLUDED_OPERATORS.has(opId)) continue;
+                    if (!map[opId]) {
+                        map[opId] = r.count || 0;
+                    }
+                }
+            } catch (e) {}
+
             return map;
         } catch (err) {
             console.error('❌ DB getTodayOperatorMissed xatolik:', err.message);
@@ -371,22 +402,34 @@ class DbService {
             const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
                 ? dateParam
                 : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-            let countSql = `SELECT COUNT(*) as total FROM operator_missed_events WHERE event_time LIKE ? AND channel LIKE '3CX%'`;
-            let dataSql = `SELECT * FROM operator_missed_events WHERE event_time LIKE ? AND channel LIKE '3CX%'`;
-            const countParams = [`${dateStr}%`];
-            const dataParams = [`${dateStr}%`];
 
-            if (search) {
+            let countSql = `
+                SELECT COUNT(*) as total 
+                FROM agent_3cx_call_logs 
+                WHERE (event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')))
+                  AND event_time >= ? AND event_time <= ?
+            `;
+            let dataSql = `
+                SELECT * 
+                FROM agent_3cx_call_logs 
+                WHERE (event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')))
+                  AND event_time >= ? AND event_time <= ?
+            `;
+            const countParams = [`${dateStr} 00:00:00`, `${dateStr} 23:59:59`];
+            const dataParams = [`${dateStr} 00:00:00`, `${dateStr} 23:59:59`];
+
+            if (search && search.trim()) {
+                const s = `%${search.trim()}%`;
                 countSql += ` AND (operator_id LIKE ? OR caller_id LIKE ?)`;
                 dataSql += ` AND (operator_id LIKE ? OR caller_id LIKE ?)`;
-                countParams.push(`%${search}%`, `%${search}%`);
-                dataParams.push(`%${search}%`, `%${search}%`);
+                countParams.push(s, s);
+                dataParams.push(s, s);
             }
 
-            const total = this.db.prepare(countSql).get(...countParams)?.total || 0;
+            let total = this.db.prepare(countSql).get(...countParams)?.total || 0;
             const offset = (Math.max(1, page) - 1) * limit;
 
-            dataSql += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
+            dataSql += ` ORDER BY event_time DESC, id DESC LIMIT ? OFFSET ?`;
             dataParams.push(limit, offset);
             const rows = this.db.prepare(dataSql).all(...dataParams);
 

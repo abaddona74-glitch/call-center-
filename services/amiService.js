@@ -748,7 +748,41 @@ class AmiService {
                 this.channelToOperator.delete(evt.uniqueid);
             }
 
+            // Operator SIP kanali yopilganda (masalan boshqa operatorga transfer qilinganda yoki suhbat tugaganda)
+            const hangupOpId = this.extractOperatorExten(channelId);
+            if (hangupOpId && !channelId.startsWith('Local/') && this.operators.has(hangupOpId)) {
+                const op = this.operators.get(hangupOpId);
+                const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)';
+                op.presence = hasValidIp ? 'ready' : 'offline';
+                this.operators.set(hangupOpId, op);
+            }
+
             this.recalculateConversations();
+            this.broadcast('active_conversations_update', Array.from(this.activeConversations.values()));
+            this.broadcast('operators_update', this.getOperatorList());
+        }
+
+        // 11. AttendedTransfer / BlindTransfer (Qo'ng'iroq boshqa operatorga o'tkazilganda)
+        if (evt.event === 'AttendedTransfer' || evt.event === 'BlindTransfer') {
+            const transfererChan = evt.origtransfererchannel || evt.transfererchannel || '';
+            const fromOp = this.extractOperatorExten(transfererChan);
+            const targetChan = evt.targetchannel || '';
+            const targetExt = evt.extension || this.extractOperatorExten(targetChan);
+
+            if (fromOp && this.operators.has(fromOp)) {
+                const op = this.operators.get(fromOp);
+                const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)';
+                op.presence = hasValidIp ? 'ready' : 'offline';
+                this.operators.set(fromOp, op);
+            }
+            if (targetExt && this.operators.has(targetExt)) {
+                const op = this.operators.get(targetExt);
+                op.presence = 'talking';
+                this.operators.set(targetExt, op);
+            }
+
+            this.recalculateConversations();
+            this.broadcast('operators_update', this.getOperatorList());
             this.broadcast('active_conversations_update', Array.from(this.activeConversations.values()));
         }
     }
@@ -765,7 +799,7 @@ class AmiService {
         const externalChannels = [];
 
         for (const [chanId, chan] of this.activeChannels.entries()) {
-            if (chanId.startsWith('Local/') && (chanId.includes('@from-queue') || chanId.includes(';2'))) {
+            if (chanId.startsWith('Local/')) {
                 continue;
             }
 
@@ -886,8 +920,13 @@ class AmiService {
 
     getOperatorList() {
         // Hozirgi faol suhbatlarni tekshirib, gaplashayotgan operatorlarni 'talking' deb belgilash
+        // MUHIM: Local/ kanallar (masalan: Local/103@from-queue...;1) Asterisk navbatining ichki kanallari bo'lib,
+        // qo'ng'iroq boshqa operatorga (masalan 101 ga) transfer qilinganda ham Asteriskda eski operator
+        // nomidagi Local/ kanali saqlanib turadi. Haqiqiy jismoniy suhbat faqat operatorning SIP/PJSIP kanalida bo'ladi!
         const activeOpIds = new Set();
         for (const [chanId, chan] of this.activeChannels.entries()) {
+            if (chanId.startsWith('Local/')) continue;
+
             const op = this.extractOperatorExten(chan.operator) || this.extractOperatorExten(chan.extension) || this.extractOperatorExten(chan.callerId);
             if (op && (chan.state.toLowerCase().includes('up') || chan.state.toLowerCase().includes('talk'))) {
                 activeOpIds.add(op);
@@ -912,12 +951,12 @@ class AmiService {
 
                 const hasValidIp = copy.ip && copy.ip !== '-none-' && copy.ip !== '' && copy.ip !== '(null)' && !String(copy.latency || '').toUpperCase().includes('UNREACHABLE');
 
-                if (activeOpIds.has(op.id)) {
-                    copy.presence = 'talking';
-                    copy.ringingCaller = null;
-                } else if (!hasValidIp) {
+                if (!hasValidIp) {
                     // Agar Asteriskda SIP IP registratsiya bo'lmagan bo'lsa (3CX o'chiq) - operator mutlaqo offline!
                     copy.presence = 'offline';
+                    copy.ringingCaller = null;
+                } else if (activeOpIds.has(op.id)) {
+                    copy.presence = 'talking';
                     copy.ringingCaller = null;
                 } else if (copy.presence === 'talking' || !copy.presence) {
                     copy.presence = 'ready';

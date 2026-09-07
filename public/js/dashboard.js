@@ -1551,6 +1551,9 @@ async function loadInitialData() {
             updateAmiStatus(statusRes.amiConnected);
             updateSftpStatus(statusRes.sftpConnected);
         }
+        if (typeof loadTabAgentOperators === 'function') {
+            loadTabAgentOperators();
+        }
     } catch (e) {
         console.warn('Dastlabki yuklash xatosi:', e);
     }
@@ -2158,6 +2161,7 @@ async function loadTabAgentOperators(targetDate = null) {
     }
 }
 
+
 function filterTabAgentLogsByOperator(opId) {
     selectedTabAgentOpId = opId ? String(opId) : null;
     const titleEl = document.getElementById('operatorSelectedTitle');
@@ -2321,6 +2325,12 @@ function renderTabAgentOperators(operators) {
     if (elAns) elAns.innerText = `${totalAns} ta`;
     if (elOut) elOut.innerText = `${totalOutbound} ta`;
     if (elMiss) elMiss.innerText = `${totalMissed} ta`;
+
+    // Asosiy sahifadagi (Dashboard) O'tkazib yuborilgan (Missed) KPI kartochkasini ham sinxronlashtirish
+    const elKpiMissed = document.getElementById('kpiMissed');
+    if (elKpiMissed) {
+        elKpiMissed.innerText = totalMissed;
+    }
 
     // Operatorlar bo'yicha grafikni 3CX agent ma'lumotlari bilan yangilash (animatsiyasiz tezkor)
     if (operatorChart && sortedOps.length > 0) {

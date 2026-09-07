@@ -517,8 +517,9 @@ app.post('/api/agent/call-event', (req, res) => {
         console.log(`📴 [3CX Agent END] Operator ${opId} suhbat yakunlandi! Raqam: ${callerId}, Vaqt: ${durationSec || 0}s`);
     }
 
-    // /operators sahifasi uchun yangilangan agent statistikasini real-vaqtda broadcast qilish
+    // /operators va asosiy Dashboard uchun yangilangan statistikalarni real-vaqtda broadcast qilish
     amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+    amiService.broadcast('stats_update', amiService.getSummaryStats());
 
     res.json({ success: true });
 });
@@ -538,6 +539,7 @@ app.post('/api/agent/sync-batch', (req, res) => {
 
     if (inserted > 0) {
         amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+        amiService.broadcast('stats_update', amiService.getSummaryStats());
     }
 
     res.json({ success: true, count: inserted });
@@ -554,6 +556,7 @@ app.get('/api/agent/logs', (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.send(JSON.stringify(result, null, 2));
 });
+
 
 // SPA Navigation Routes
 ['/', '/dashboard', '/explorer', '/audio', '/operators', '/history'].forEach(route => {

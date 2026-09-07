@@ -608,7 +608,14 @@ setInterval(() => {
                         operatorId,
                         hostname: os.hostname(),
                         calls: chunk
-                    }).catch(() => {});
+                    }).catch(() => {
+                        // Server restart yoki tarmoq uzilishida yozuvlar yo'qolmasligi uchun
+                        // processedHistoryKeys dan o'chirib, keyingi aylanmada qayta jo'natilishini ta'minlaymiz
+                        chunk.forEach(c => {
+                            const key = `${c.callerId}_${c.startTime}`;
+                            processedHistoryKeys.delete(key);
+                        });
+                    });
                 }
             }
         }

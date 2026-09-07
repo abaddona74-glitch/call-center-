@@ -617,6 +617,9 @@ class IssabelDbService {
         try {
             const redisCached = await redisService.get(redisKey);
             if (redisCached && typeof redisCached === 'object' && redisCached.totalCalls !== undefined) {
+                const dateMissed = dbService.getTodayOperatorMissed(targetDate);
+                const totalOpMissed = Object.values(dateMissed).reduce((a, b) => a + b, 0);
+                redisCached.missedCalls = totalOpMissed;
                 return redisCached;
             }
         } catch (e) {}
@@ -625,6 +628,9 @@ class IssabelDbService {
         const cacheKey = `full_stats:${targetDate}`;
         const cached = this.historicalCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < 300000) {
+            const dateMissed = dbService.getTodayOperatorMissed(targetDate);
+            const totalOpMissed = Object.values(dateMissed).reduce((a, b) => a + b, 0);
+            cached.data.missedCalls = totalOpMissed;
             return cached.data;
         }
 
