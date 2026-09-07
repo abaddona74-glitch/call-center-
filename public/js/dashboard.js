@@ -329,7 +329,31 @@ function handleWsMessage(msg) {
     } else if (msg.type === 'queue_update') {
         renderQueues(msg.data);
     } else if (msg.type === 'operators_update') {
-        renderOperators(msg.data);
+        const todayStr = getTodayDateString();
+        const isArchive = currentSelectedDate && currentSelectedDate !== todayStr;
+        if (isArchive) {
+            // Arxiv sanada turganda, operatorlarning tanlangan sanadagi answered/missed/duration statistikalarini
+            // bugungi jonli hisoblagichlar bilan ustiga yozmaslik kerak!
+            // Faqat real-vaqtdagi ulanish (presence, ringingCaller, ip, agentConnected) yangilanadi:
+            if (currentOperators && currentOperators.length > 0 && Array.isArray(msg.data)) {
+                const freshMap = new Map(msg.data.map(o => [String(o.id), o]));
+                currentOperators.forEach(op => {
+                    const fresh = freshMap.get(String(op.id));
+                    if (fresh) {
+                        op.presence = fresh.presence;
+                        op.ringingCaller = fresh.ringingCaller;
+                        op.agentConnected = fresh.agentConnected;
+                        op.agentHostname = fresh.agentHostname;
+                        op.agentVersion = fresh.agentVersion;
+                        op.lastAgentPing = fresh.lastAgentPing;
+                        if (fresh.ip) op.ip = fresh.ip;
+                    }
+                });
+                renderOperators(currentOperators);
+            }
+        } else {
+            renderOperators(msg.data);
+        }
     } else if (msg.type === 'agent_operators_update') {
         const todayStr = getTodayDateString();
         const isArchive = currentSelectedDate && currentSelectedDate !== todayStr;
