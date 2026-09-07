@@ -13,7 +13,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- WaveSurfer.js for Audio Waveform Rendering -->
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <link rel="stylesheet" href="/css/style.css?v=2.3">
+    <link rel="stylesheet" href="/css/style.css?v=3.6">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -85,26 +85,94 @@
                         <span>📂</span> Audio Explorer
                     </a>
                 </nav>
-
-                <!-- Status Pills -->
-                <div class="status-pill-group">
-                    <div class="status-pill online" id="amiStatusBadge">
-                        <span class="status-dot"></span>
-                        <span id="amiStatusText">AMI: Ulangan</span>
-                    </div>
-                    <div class="status-pill" id="sftpStatusBadge">
-                        <span class="status-dot"></span>
-                        <span id="sftpStatusText">SFTP: Tekshirilmoqda</span>
-                    </div>
-                    <button class="settings-nav-btn" id="openSettingsBtn" onclick="if(window.openAgentSettingsModal){window.openAgentSettingsModal()}else{document.getElementById('agentSettingsModal').style.display='flex';if(window.loadAgentSettings)window.loadAgentSettings();}" title="Desktop Agentlar Nazorati va Versiyalar">
-                        <span>⚙️</span>
-                        <span>Sozlamalar</span>
-                    </button>
-                </div>
             </header>
 
-            <!-- TAB 1: DASHBOARD -->
-            <section class="page-content" id="tab-dashboard">
+            <!-- GLOBAL DATE FILTER SUB-BAR (Barcha sahifalar / routelar uchun umumiy filtr) -->
+            <div class="date-filter-bar" id="globalDateFilterBar">
+                <div class="date-filter-left">
+                        <!-- Calendar Dropdown Container -->
+                        <div class="cal-dropdown-container">
+                            <button type="button" class="cal-trigger-btn" id="calTriggerBtn" onclick="toggleCalendarPopup(event)" title="Kalendarni ochish">
+                                <span class="cal-trigger-icon">📅</span>
+                                <span class="cal-selected-label" id="calSelectedLabel">Bugun</span>
+                                <span class="cal-trigger-arrow">▼</span>
+                            </button>
+
+                            <!-- Fluent / Windows 11 Dark Calendar Popup Widget -->
+                            <div class="fluent-calendar-popup" id="fluentCalendarPopup" style="display: none;">
+                                <div class="cal-popup-header">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                        <div>
+                                            <div class="cal-header-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 3px;">Tanlangan sana:</div>
+                                            <div class="cal-selected-display" id="calSelectedDisplay" style="font-size: 16px; font-weight: 700; color: #60a5fa;">Bugun</div>
+                                        </div>
+                                        <div class="cal-live-clock-pill" id="calLiveClockPill" style="font-size: 12px; font-weight: 600; color: #34d399; background: rgba(52, 211, 153, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(52, 211, 153, 0.25);">
+                                            🕒 <span id="calClock">--:--:--</span>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 10px;">
+                                        <input type="date" id="calDateNativeInput" class="cal-native-date-input" onchange="onNativeDateChanged(this.value, event)" title="Sanani to'g'ridan-to'g'ri tanlash">
+                                    </div>
+                                </div>
+
+                                <div class="cal-month-bar">
+                                    <div class="cal-month-title" id="calMonthTitle">--</div>
+                                    <div class="cal-nav-buttons">
+                                        <button type="button" class="cal-nav-btn" id="calPrevMonth" onclick="changeCalendarMonth(-1, event)" title="Oldingi oy">▲</button>
+                                        <button type="button" class="cal-nav-btn" id="calNextMonth" onclick="changeCalendarMonth(1, event)" title="Keyingi oy">▼</button>
+                                    </div>
+                                </div>
+
+                                <div class="cal-weekdays-grid">
+                                    <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                                </div>
+
+                                <div class="cal-days-matrix" id="calDaysMatrix">
+                                    <!-- Populated dynamically by JS -->
+                                </div>
+
+                                <div class="cal-popup-footer">
+                                    <button type="button" class="cal-footer-btn" id="calJumpToday" onclick="quickSelectDate('today', event)">Bugun</button>
+                                    <button type="button" class="cal-footer-btn cal-close-btn" id="calClosePopup" onclick="closeCalendarPopup(event)">Yopish</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Filter Buttons -->
+                        <div class="cal-quick-group">
+                            <button type="button" class="cal-quick-pill active" id="btnQuickToday" onclick="quickSelectDate('today', event)">Bugun</button>
+                            <button type="button" class="cal-quick-pill" id="btnQuickYesterday" onclick="quickSelectDate('yesterday', event)">Kecha</button>
+                        </div>
+
+                        <!-- Live / Archive Mode Badges -->
+                        <div class="cal-mode-badge" id="calModeBadge">
+                            <span class="cal-mode-dot"></span>
+                            <span id="calModeText">Jonli (Real-time)</span>
+                        </div>
+
+                        <!-- Reset to Today button -->
+                        <button type="button" class="btn-back-today" id="btnBackToday" onclick="resetToToday(event)" style="display: none;" title="Bugungi jonli monitoringga qaytish">
+                            ✕ Bugunga qaytish
+                        </button>
+                    </div>
+
+                    <div class="date-filter-right">
+                        <span class="cal-status-hint" id="calStatusHint">
+                            ⚡ Serverdan sanaga mos ma'lumotlar yuklanadi
+                        </span>
+                        <button type="button" class="btn-action cal-refresh-btn" id="calRefreshBtn" onclick="refreshCurrentDateData(event)" title="Ma'lumotlarni yangilash">
+                            <span class="cal-spin-icon" id="calRefreshIcon">🔄</span>
+                            <span id="calRefreshText">Yangilash</span>
+                        </button>
+                    </div>
+
+                    <!-- Progress Bar Animation along the bottom of the date filter bar -->
+                    <div class="date-filter-progress" id="calProgressBar"></div>
+                </div>
+
+                <!-- TAB 1: DASHBOARD (ASOSIY MONITORING) -->
+                <section class="page-content active" id="tab-dashboard">
+
                 <!-- KPI Cards (Clickable Drill-down) -->
                 <div class="kpi-grid">
                     <div class="kpi-card blue clickable-kpi" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
@@ -364,14 +432,17 @@
                         </div>
 
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <span class="badge badge-success" style="padding: 6px 12px; font-size: 12px;">
-                                🟢 Liniya Tayyor: <b id="tabOpCountReady">0</b>
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;">
+                                👥 Jami: <b id="tabOpCountReady">0 ta</b>
                             </span>
                             <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
                                 🖥️ Desktop Agent: <b id="tabOpCountAgent">0</b>
                             </span>
                             <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;">
                                 📞 Qabul qilingan: <b id="tabOpTotalAnswered">0 ta</b>
+                            </span>
+                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); color: #38bdf8;">
+                                📤 Chiquvchi: <b id="tabOpTotalOutbound">0 ta</b>
                             </span>
                             <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">
                                 ⚠️ O'tkazib yuborilgan: <b id="tabOpTotalMissed">0 ta</b>
@@ -398,10 +469,6 @@
                             </p>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <select id="tabAgentLogDateSelect" onchange="filterTabAgentLogsByDate(this.value)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #38bdf8; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none; font-weight: 600;">
-                                <option value="today" selected>📅 Faqat Bugun</option>
-                                <option value="all">📅 Barcha kunlar (Tarix)</option>
-                            </select>
                             <select id="tabAgentLogOpSelect" onchange="filterTabAgentLogsByOperator(this.value)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
                                 <option value="">Barcha Operatorlar</option>
                             </select>
@@ -425,20 +492,34 @@
             </section>
 
             <!-- TAB 4: QO'NG'IROQLAR TARIXI (CDR) -->
+            <!-- TAB 4: QO'NG'IROQLAR TARIXI (3CX DESKTOP AGENT & CDR) -->
             <section class="page-content" id="tab-history">
-                <div class="glass-panel" style="margin-bottom: 24px;">
-                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
+                <div class="glass-panel" style="margin-bottom: 20px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 14px; margin-bottom: 0;">
                         <div>
-                            <h3 class="panel-title">📜 Qo'ng'iroqlar Jurnali (Barcha CDR Tarixi)</h3>
-                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
-                                Issabel Asterisk bazasidagi barcha kiruvchi, chiquvchi va o'tkazilgan qo'ng'iroqlar jurnali.
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h3 class="panel-title" id="historyPanelTitle">📜 Qo'ng'iroqlar Jurnali</h3>
+                                <span id="historySourceBadge" class="badge" style="font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">⚡ 3CX Desktop Agent (Tezkor)</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="historyPanelDesc">
+                                Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq qo'ng'iroqlar jurnali (Lokal tezkor baza).
                             </p>
                         </div>
 
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                            <!-- Source Switch Toggle (3CX Agent vs Issabel Server) -->
+                            <div style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 4px;">
+                                <button type="button" id="btnHistorySourceAgent" onclick="setHistorySource('agent')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                                    <span>🖥️</span> 3CX Desktop Agent
+                                </button>
+                                <button type="button" id="btnHistorySourceServer" onclick="setHistorySource('server')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                    <span>🌐</span> Issabel Server (CDR)
+                                </button>
+                            </div>
+
                             <div class="search-box">
                                 <span class="search-icon">🔍</span>
-                                <input type="text" id="historySearchInput" placeholder="Raqam, operator yoki holat bo'yicha filter..." style="width: 260px;">
+                                <input type="text" id="historySearchInput" placeholder="Raqam, operator..." style="width: 200px;">
                             </div>
                         </div>
                     </div>
@@ -449,20 +530,20 @@
                     <div class="data-table-wrapper">
                         <table class="data-table">
                             <thead>
-                                <tr>
+                                <tr id="historyTableHeaderRow">
                                     <th style="width: 45px; text-align: center;">№</th>
-                                    <th>ID / Vaqt</th>
+                                    <th>Vaqt</th>
                                     <th>Mijoz Raqami</th>
                                     <th>Operator / Exten</th>
                                     <th>Yo'nalish</th>
                                     <th>Davomiyligi</th>
                                     <th>Holati</th>
-                                    <th>Tugatish sababi</th>
+                                    <th id="historyThLast">Kompyuter (Host)</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody">
                                 <tr>
-                                    <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
+                                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -520,6 +601,24 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- JONLI MONITOR FOOTER: Status Pills & Sozlamalar -->
+            <div class="sidebar-footer" style="padding: 12px 16px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.85); display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
+                    <div class="status-pill online" id="amiStatusBadge" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 10px;">
+                        <span class="status-dot"></span>
+                        <span id="amiStatusText">AMI: Ulangan</span>
+                    </div>
+                    <div class="status-pill" id="sftpStatusBadge" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 10px;">
+                        <span class="status-dot"></span>
+                        <span id="sftpStatusText">SFTP: Tekshirilmoqda</span>
+                    </div>
+                </div>
+                <button class="settings-nav-btn" id="openSettingsBtn" onclick="if(window.openAgentSettingsModal){window.openAgentSettingsModal()}else{document.getElementById('agentSettingsModal').style.display='flex';if(window.loadAgentSettings)window.loadAgentSettings();}" title="Desktop Agentlar Nazorati va Versiyalar" style="width: 100%; justify-content: center; padding: 7px 12px; font-size: 12px;">
+                    <span>⚙️</span>
+                    <span>Sozlamalar</span>
+                </button>
             </div>
         </aside>
     </div>
@@ -767,6 +866,6 @@
     </div>
 
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=2.3"></script>
+    <script src="/js/dashboard.js?v=3.6"></script>
 </body>
 </html>

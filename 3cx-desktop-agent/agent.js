@@ -35,8 +35,30 @@ try {
     console.error("config.json o'qishda xatolik:", e.message);
 }
 
-const serverUrl  = new URL(config.serverUrl || 'http://192.168.0.16:3000');
-let operatorId = String(config.operatorId || '101');
+// Target serverlarni aniqlash (Production + Dev / Backup)
+function parseTargetServers(cfg) {
+    const list = [];
+    if (Array.isArray(cfg.serverUrls) && cfg.serverUrls.length > 0) {
+        cfg.serverUrls.forEach(u => {
+            try { list.push(new URL(u)); } catch (e) {}
+        });
+    } else {
+        if (cfg.serverUrl) {
+            try { list.push(new URL(cfg.serverUrl)); } catch (e) {}
+        }
+        if (cfg.devServerUrl) {
+            try { list.push(new URL(cfg.devServerUrl)); } catch (e) {}
+        }
+    }
+    if (list.length === 0) {
+        list.push(new URL('http://192.168.0.2:3000'));
+    }
+    return list;
+}
+
+const targetServers = parseTargetServers(config);
+const serverUrl     = targetServers[0];
+let operatorId      = String(config.operatorId || '101');
 
 function detectOperatorFromPath(filePath) {
     if (!filePath) return null;
@@ -47,17 +69,17 @@ function detectOperatorFromPath(filePath) {
 console.log('======================================================');
 console.log('3CX Desktop Agent ishga tushdi!');
 console.log('Operator ID : ' + operatorId);
-console.log('Server      : ' + serverUrl.origin);
+console.log('Serverlar   : ' + targetServers.map(s => s.origin).join(', '));
 console.log('Config      : ' + configPath);
 console.log('======================================================');
 
-// --- HTTP POST yordamchi ---
-function postJson(pathname, data) {
+// --- HTTP POST yordamchi (bitta serverga) ---
+function postJsonSingle(srv, pathname, data) {
     return new Promise((resolve, reject) => {
         const payload = JSON.stringify(data);
         const req = http.request({
-            hostname: serverUrl.hostname,
-            port:     parseInt(serverUrl.port) || 3000,
+            hostname: srv.hostname,
+            port:     parseInt(srv.port) || 3000,
             path:     pathname,
             method:   'POST',
             headers: {
@@ -75,6 +97,18 @@ function postJson(pathname, data) {
         req.write(payload);
         req.end();
     });
+}
+
+// Barcha sozlangan serverlarga (Production + Dev) parallel yuborish
+function postJson(pathname, data) {
+    // Agar ikkilamchi serverlar bo'lsa (masalan dev), fonda uzatish
+    if (targetServers.length > 1) {
+        for (let i = 1; i < targetServers.length; i++) {
+            postJsonSingle(targetServers[i], pathname, data).catch(() => {});
+        }
+    }
+    // Asosiy (Production) server natijasini qaytarish
+    return postJsonSingle(targetServers[0], pathname, data);
 }
 
 // --- Versiya va Auto-Update ---
@@ -202,6 +236,132 @@ del "%~f0"
     });
 }
 
+let isServerOnline = false;
+let consecutiveFailures = 0;
+let isDiscovering = false;
+let isFullSyncInProgress = false;
+
+// Subnet / candidate IP larni tekshirib serverni avtomatik topish (Auto-Discovery)
+async function discoverServer() {
+    if (isDiscovering) return;
+    isDiscovering = true;
+    try {
+        const currentHost = serverUrl.hostname;
+        const baseMatch = currentHost.match(/^(\d+\.\d+\.\d+)\.\d+$/);
+        const subnet = baseMatch ? baseMatch[1] : '192.168.0';
+
+        const priorityCandidates = ['192.168.0.16', '192.168.0.21', currentHost];
+        const scanList = [...new Set([...priorityCandidates, ...Array.from({ length: 40 }, (_, i) => `${subnet}.${i + 1}`)])];
+
+        const checkHost = (ip) => new Promise(resolve => {
+            const req = http.get({
+                hostname: ip,
+                port: parseInt(serverUrl.port) || 3000,
+                path: '/api/status',
+                timeout: 800
+            }, res => {
+                let d = '';
+                res.on('data', chunk => d += chunk);
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(d);
+                        if (json && typeof json.amiConnected !== 'undefined') {
+                            return resolve(ip);
+                        }
+                    } catch (e) {}
+                    resolve(null);
+                });
+            });
+            req.on('error', () => resolve(null));
+            req.on('timeout', () => { req.destroy(); resolve(null); });
+        });
+
+        for (let i = 0; i < scanList.length; i += 10) {
+            const batch = scanList.slice(i, i + 10);
+            const results = await Promise.all(batch.map(checkHost));
+            const found = results.find(Boolean);
+            if (found) {
+                if (serverUrl.hostname !== found) {
+                    console.log(`🎯 [Auto-Discovery] Server yangi IP da topildi: http://${found}:${serverUrl.port}`);
+                    serverUrl.hostname = found;
+                    consecutiveFailures = 0;
+                }
+                break;
+            }
+        }
+    } catch (e) {
+    } finally {
+        isDiscovering = false;
+    }
+}
+
+// callHistory.txt dan bugungi barcha yozuvlarni to'liq tekshirib serverga yetkazish (Catch-up sync)
+function performFullHistoryResync() {
+    if (!targetLogPath || isFullSyncInProgress || !fs.existsSync(targetLogPath)) return;
+    isFullSyncInProgress = true;
+    try {
+        const isTxt = targetLogPath.toLowerCase().endsWith('.txt');
+        if (!isTxt) {
+            isFullSyncInProgress = false;
+            return;
+        }
+
+        const buffer = fs.readFileSync(targetLogPath);
+        const isUtf16 = (buffer.length >= 2 && buffer[0] === 0xFF && buffer[1] === 0xFE) || isTxt;
+        const encoding = isUtf16 ? 'utf16le' : 'utf8';
+        const rawText = buffer.toString(encoding).replace(/^\uFEFF/, '').replace(/\0/g, '');
+        const lines = rawText.split(/\r?\n/);
+
+        const allCalls = [];
+        for (const line of lines) {
+            if (!line.trim() || !line.includes('\t')) continue;
+            const parts = line.split('\t');
+            if (parts.length >= 3) {
+                const statusCode = parts[0].trim();
+                const caller = parts[1].trim() || 'Yashirin raqam';
+                const timeStr = parts[2].trim();
+                const dur = parseInt(parts[3] || 0, 10);
+
+                let eventType = 'MISSED';
+                let detailText = `3CX O'tkazib yuborildi: ${timeStr}`;
+
+                if (statusCode === '1') {
+                    eventType = 'DIALLED';
+                    detailText = `3CX Chiquvchi: ${timeStr}`;
+                } else if ((statusCode === '2' || !statusCode || dur > 0) && dur > 0) {
+                    eventType = 'ANSWERED';
+                    detailText = `3CX Qabul qilindi: ${timeStr}`;
+                }
+
+                allCalls.push({
+                    eventType,
+                    callerId: caller,
+                    durationSec: dur,
+                    startTime: timeStr,
+                    details: detailText
+                });
+            }
+        }
+
+        if (allCalls.length > 0) {
+            console.log(`🔄 [Auto-Catchup] Server bilan aloqa tiklandi. ${allCalls.length} ta yozuv to'liq sinxronizatsiya qilinmoqda...`);
+            const chunkSize = 100;
+            for (let i = 0; i < allCalls.length; i += chunkSize) {
+                const chunk = allCalls.slice(i, i + chunkSize);
+                postJson('/api/agent/sync-batch', {
+                    operatorId,
+                    hostname: os.hostname(),
+                    calls: chunk
+                }).catch(() => {});
+            }
+        }
+    } catch (e) {
+        console.error('Catchup sync xatoligi:', e.message);
+    } finally {
+        setTimeout(() => { isFullSyncInProgress = false; }, 5000);
+    }
+}
+
 // --- Heartbeat ---
 function sendHeartbeat() {
     postJson('/api/agent/heartbeat', {
@@ -210,13 +370,25 @@ function sendHeartbeat() {
         version:    CURRENT_VERSION,
         appVersion: CURRENT_VERSION
     }).then(resStr => {
+        if (!isServerOnline) {
+            isServerOnline = true;
+            console.log('✅ Server bilan aloqa faol!');
+            performFullHistoryResync();
+        }
+        consecutiveFailures = 0;
         try {
             const data = typeof resStr === 'string' ? JSON.parse(resStr) : resStr;
             if (data && data.latestVersion && compareVersions(data.latestVersion, CURRENT_VERSION) > 0) {
                 performAutoUpdate(data.updateUrl || '/downloads/agent.exe', data.latestVersion);
             }
         } catch (e) {}
-    }).catch(() => {});
+    }).catch(() => {
+        isServerOnline = false;
+        consecutiveFailures++;
+        if (consecutiveFailures >= 2) {
+            discoverServer();
+        }
+    });
 }
 
 // --- Qo'ng'iroq hodisalarini yuborish (Dashboard serveriga) ---
@@ -353,6 +525,10 @@ setInterval(() => {
                         const key = `${caller}_${timeStr}`;
                         if (processedHistoryKeys.has(key)) {
                             continue; // Allaqachon jo'natilgan, qayta sanalmaydi!
+                        }
+                        if (processedHistoryKeys.size > 2000) {
+                            const oldKeys = Array.from(processedHistoryKeys).slice(0, 500);
+                            oldKeys.forEach(k => processedHistoryKeys.delete(k));
                         }
                         processedHistoryKeys.add(key);
 

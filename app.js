@@ -99,8 +99,19 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// Asosiy statistika
-app.get('/api/stats', (req, res) => {
+// Asosiy statistika (Sana bo'yicha yoki Jonli bugungi)
+app.get('/api/stats', async (req, res) => {
+    const dateStr = req.query.date;
+    const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr !== todayStr) {
+        try {
+            const stats = await issabelDbService.fetchFullStatsByDate(dateStr);
+            return res.json(stats);
+        } catch (e) {
+            console.error('Stats by date error:', e.message);
+            return res.status(500).json({ error: e.message });
+        }
+    }
     res.json(amiService.getSummaryStats());
 });
 
@@ -114,37 +125,49 @@ app.get('/api/channels', (req, res) => {
     res.json(amiService.getActiveChannelsList());
 });
 
-// Operatorlar ro'yxati va ularning unumdorligi
-app.get('/api/operators', (req, res) => {
+// Operatorlar ro'yxati va ularning unumdorligi (Sana bo'yicha yoki bugungi)
+app.get('/api/operators', async (req, res) => {
+    const dateStr = req.query.date;
+    const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr !== todayStr) {
+        try {
+            const ops = await issabelDbService.fetchOperatorStats(dateStr);
+            return res.json(ops);
+        } catch (e) {
+            return res.status(500).json({ error: e.message });
+        }
+    }
     res.json(amiService.getOperatorList());
 });
 
 const issabelDbService = require('./services/issabelDbService');
 
-// So'nggi qo'ng'iroqlar tarixi (Paginated & Lazy Loading - To'g'ridan-to'g'ri Issabel CDR dan)
+// So'nggi qo'ng'iroqlar tarixi (Paginated & Lazy Loading - To'g'ridan-to'g'ri Issabel CDR dan, sana bo'yicha)
 app.get('/api/history', async (req, res) => {
     const page = parseInt(req.query.page || '1', 10);
     const limit = parseInt(req.query.limit || '20', 10);
     const search = req.query.search || '';
+    const dateStr = req.query.date || '';
     
     try {
-        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search);
+        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search, dateStr);
         res.json(paginatedData);
     } catch (e) {
         res.json({ total: 0, page: 1, totalPages: 1, limit, data: [] });
     }
 });
 
-// Kartochkalar yoki Operator bosilganda uning bugungi barcha qo'ng'iroqlari tafsiloti
+// Kartochkalar yoki Operator bosilganda uning tanlangan sana bo'yicha barcha qo'ng'iroqlari tafsiloti
 app.get('/api/calls/details', async (req, res) => {
     const type = req.query.type || 'all';
     const operatorExt = req.query.operator || '';
     const page = parseInt(req.query.page || '1', 10);
     const limit = parseInt(req.query.limit || '50', 10);
     const search = req.query.search || '';
+    const dateStr = req.query.date || '';
 
     try {
-        const paginatedData = await issabelDbService.fetchCallsDetail({ type, operatorExt, page, limit, search });
+        const paginatedData = await issabelDbService.fetchCallsDetail({ type, operatorExt, page, limit, search, dateStr });
         res.json({ success: true, ...paginatedData });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message, total: 0, page: 1, totalPages: 1, limit, data: [] });
@@ -153,10 +176,11 @@ app.get('/api/calls/details', async (req, res) => {
 
 // --- MA'LUMOTLAR BAZASI (DATABASE) API ENDPOINTLARI ---
 
-// Bugungi kunlik CDR umumiy hisoboti (MariaDB)
+// Kunlik CDR umumiy hisoboti (MariaDB)
 app.get('/api/db/summary', async (req, res) => {
+    const dateStr = req.query.date || '';
     try {
-        const summary = await issabelDbService.fetchTodaySummary();
+        const summary = await issabelDbService.fetchSummaryByDate(dateStr);
         res.json({ success: true, data: summary });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -165,8 +189,9 @@ app.get('/api/db/summary', async (req, res) => {
 
 // Operatorlar kunlik bazaviy ko'rsatkichlari (MariaDB)
 app.get('/api/db/operators', async (req, res) => {
+    const dateStr = req.query.date || '';
     try {
-        const ops = await issabelDbService.fetchTodayOperatorStats();
+        const ops = await issabelDbService.fetchOperatorStats(dateStr);
         res.json({ success: true, data: ops });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
@@ -422,33 +447,41 @@ app.get('/api/agent/status-all', (req, res) => {
 });
 
 // 3CX Desktop Agent ma'lumotlari asosidagi operatorlar statistikasi (/operators sahifasi uchun)
-function getAgentOperatorStatsList() {
-    const agentStatsMap = dbService.getTodayAgentOperatorStats();
+function getAgentOperatorStatsList(targetDate = null) {
+    const agentStatsMap = dbService.getTodayAgentOperatorStats(targetDate);
     const allOps = amiService.getOperatorList();
     
     return allOps.map(op => {
-        const stats = agentStatsMap[op.id] || { answered: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
+        const stats = agentStatsMap[op.id] || { answered: 0, outbound: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
         return {
             id: op.id,
             name: op.name,
             realName: op.realName,
             presence: op.presence,
+            ringingCaller: op.ringingCaller || null,
             agentConnected: !!op.agentConnected,
             agentHostname: op.agentHostname || '',
             agentVersion: op.agentVersion || null,
             lastAgentPing: op.lastAgentPing || null,
             answered: stats.answered || 0,
+            outbound: stats.outbound || 0,
             missed: stats.missed || 0,
             totalDurationSec: stats.totalDurationSec || 0,
             avgDurationSec: stats.avgDurationSec || 0,
-            totalCalls: (stats.answered || 0) + (stats.missed || 0)
+            totalCalls: (stats.answered || 0) + (stats.outbound || 0) + (stats.missed || 0)
         };
     });
 }
 
+// Agent online/offline o'zgarganda /operators sahifasiga real-vaqtda broadcast qilish
+amiService.onAgentStateChange = () => {
+    amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+};
+
 // /operators sahifasi uchun faqat 3CX Desktop Agent to'plagan operatorlar statistikasi
 app.get('/api/agent/operator-stats', (req, res) => {
-    res.json(getAgentOperatorStatsList());
+    const dateStr = req.query.date || null;
+    res.json(getAgentOperatorStatsList(dateStr));
 });
 
 // 3CX Agent to'liq qo'ng'iroq hodisalari (RINGING, ANSWERED, ENDED, MISSED)
@@ -516,7 +549,8 @@ app.get('/api/agent/logs', (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 50;
     const operatorId = req.query.operatorId || null;
     const date = req.query.date || 'today';
-    const result = dbService.getAgentCallLogsPaginated(page, limit, operatorId, date);
+    const search = req.query.search || '';
+    const result = dbService.getAgentCallLogsPaginated(page, limit, operatorId, date, search);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.send(JSON.stringify(result, null, 2));
 });

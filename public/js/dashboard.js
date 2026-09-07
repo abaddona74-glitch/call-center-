@@ -38,7 +38,8 @@ const audioTagBadge = document.getElementById('audioTagBadge');
 const waveLoadingText = document.getElementById('waveLoadingText');
 
 // DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
+function runInit() {
+    initDateFilter();
     initTabs();
     initCharts();
     initWebSocket();
@@ -54,7 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.send(JSON.stringify({ action: 'refresh_channels' }));
         }
     }, 5000);
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runInit);
+} else {
+    runInit();
+}
 
 /* ==========================================================================
    1. Tab Navigation & SPA Client Routing
@@ -225,19 +232,19 @@ function initCharts() {
             labels: [],
             datasets: [
                 {
-                    label: 'Qabul qilingan',
+                    label: 'Qabul qilingan (Answered)',
                     data: [],
                     backgroundColor: '#10b981',
                     borderRadius: 6
                 },
                 {
-                    label: 'Mijoz qo\'ydi (Client)',
+                    label: 'Chiquvchi (Outbound)',
                     data: [],
-                    backgroundColor: '#06b6d4',
+                    backgroundColor: '#38bdf8',
                     borderRadius: 6
                 },
                 {
-                    label: 'Operator qo\'ydi (Op Hangup)',
+                    label: 'O\'tkazib yuborilgan (Missed)',
                     data: [],
                     backgroundColor: '#f59e0b',
                     borderRadius: 6
@@ -290,11 +297,14 @@ function initWebSocket() {
         console.error('WebSocket xatosi:', err);
     };
 
-    document.getElementById('btnSync').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ action: 'sync' }));
-        }
-    });
+    const btnSync = document.getElementById('btnSync');
+    if (btnSync) {
+        btnSync.addEventListener('click', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ action: 'sync' }));
+            }
+        });
+    }
 }
 
 function handleWsMessage(msg) {
@@ -311,7 +321,9 @@ function handleWsMessage(msg) {
     } else if (msg.type === 'sftp_status') {
         updateSftpStatus(msg.data.connected);
     } else if (msg.type === 'stats_update') {
-        updateStatsUI(msg.data);
+        if (!currentSelectedDate || currentSelectedDate === getTodayDateString()) {
+            updateStatsUI(msg.data);
+        }
     } else if (msg.type === 'active_conversations_update') {
         renderActiveConversations(msg.data);
     } else if (msg.type === 'queue_update') {
@@ -319,8 +331,31 @@ function handleWsMessage(msg) {
     } else if (msg.type === 'operators_update') {
         renderOperators(msg.data);
     } else if (msg.type === 'agent_operators_update') {
-        tabAgentOperatorsData = msg.data;
-        renderTabAgentOperators(tabAgentOperatorsData);
+        const todayStr = getTodayDateString();
+        const isArchive = currentSelectedDate && currentSelectedDate !== todayStr;
+        if (isArchive) {
+            // Arxiv sanada turganda, Desktop Agent answered/missed/duration statistikalari saqlanadi.
+            // Faqat jonli ulanish va statuslar (presence, agentConnected, versiya) yangilanadi.
+            if (tabAgentOperatorsData && tabAgentOperatorsData.length > 0 && Array.isArray(msg.data)) {
+                const freshMap = new Map(msg.data.map(o => [String(o.id), o]));
+                tabAgentOperatorsData.forEach(tabOp => {
+                    const fresh = freshMap.get(String(tabOp.id));
+                    if (fresh) {
+                        tabOp.presence = fresh.presence;
+                        tabOp.ringingCaller = fresh.ringingCaller;
+                        tabOp.agentConnected = fresh.agentConnected;
+                        tabOp.agentHostname = fresh.agentHostname;
+                        tabOp.agentVersion = fresh.agentVersion;
+                        tabOp.lastAgentPing = fresh.lastAgentPing;
+                        if (fresh.ip) tabOp.ip = fresh.ip;
+                    }
+                });
+                renderTabAgentOperators(tabAgentOperatorsData);
+            }
+        } else {
+            tabAgentOperatorsData = msg.data;
+            renderTabAgentOperators(tabAgentOperatorsData);
+        }
     } else if (msg.type === 'agent_ota_log') {
         appendOtaLog(msg.data);
     } else if (msg.type === 'call_hangup') {
@@ -394,14 +429,13 @@ function updateSftpStatus(connected) {
 function updateStatsUI(stats) {
     if (!stats) return;
     
-    const opTotalAnswered = (currentOperators && currentOperators.length > 0) ? currentOperators.reduce((sum, o) => sum + (o.answered || 0), 0) : 0;
-    const answeredCalls = (stats.answeredCalls && stats.answeredCalls > 0) ? stats.answeredCalls : opTotalAnswered;
-    const inboundCalls = stats.inboundCalls || stats.totalCalls || 0;
-    const outboundCalls = stats.outboundCalls || 0;
-    const totalCalls = stats.totalCalls || (inboundCalls + outboundCalls);
-    const abandonedCalls = stats.abandonedCalls || 0;
-    const deniedCalls = stats.deniedCalls || 0;
-    const missedCalls = stats.missedCalls !== undefined ? stats.missedCalls : currentOperators.reduce((sum, o) => sum + (o.missed || 0), 0);
+    const totalCalls = stats.totalCalls !== undefined ? stats.totalCalls : ((stats.inboundCalls || 0) + (stats.outboundCalls || 0));
+    const inboundCalls = stats.inboundCalls !== undefined ? stats.inboundCalls : totalCalls;
+    const outboundCalls = stats.outboundCalls !== undefined ? stats.outboundCalls : 0;
+    const answeredCalls = stats.answeredCalls !== undefined ? stats.answeredCalls : 0;
+    const abandonedCalls = stats.abandonedCalls !== undefined ? stats.abandonedCalls : 0;
+    const deniedCalls = stats.deniedCalls !== undefined ? stats.deniedCalls : 0;
+    const missedCalls = stats.missedCalls !== undefined ? stats.missedCalls : 0;
     
     const answerRate = totalCalls > 0 ? Math.round((answeredCalls / totalCalls) * 100) : 0;
     const abandonedRate = inboundCalls > 0 ? Math.round((abandonedCalls / inboundCalls) * 100) : 0;
@@ -456,10 +490,19 @@ function updateStatsUI(stats) {
 // Background Auto-Refresh Polling (Har 5 soniyada yangilab turadi)
 setInterval(async () => {
     try {
+        if (currentSelectedDate && currentSelectedDate !== getTodayDateString()) {
+            return;
+        }
         const res = await fetch('/api/stats');
         const stats = await res.json();
         if (stats && !stats.error) {
             updateStatsUI(stats);
+        }
+
+        // Agar Operatorlar (3CX Desktop Agent) tabi ochiq bo'lsa, uni ham har 5 soniyada yangilab turish
+        const tabOps = document.getElementById('tab-operators');
+        if (tabOps && tabOps.classList.contains('active') && typeof loadTabAgentOperators === 'function') {
+            loadTabAgentOperators();
         }
     } catch (e) {
         // Silent fail
@@ -930,14 +973,30 @@ const EXCLUDED_OPERATOR_IDS = new Set(['1111', '1324', '1001', '1000', '402', '4
 /* ==========================================================================
    6. Operator Performance Section (Sorted: Online -> Talking -> Offline + Gamified MVP Stars)
    ========================================================================== */
+function getCleanOperatorName(name, id) {
+    if (!name) return `Operator ${id}`;
+    let cleaned = String(name).replace(/\s*\(\d+\)\s*/g, '').trim();
+    return cleaned || `Operator ${id}`;
+}
+
+function getPresenceRank(op) {
+    const pres = op.presence || 'offline';
+    const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+    const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+    if (isRinging) return 1; // 1. Ringing (Jiringlayotganlar)
+    if (pres === 'ready') return 2; // 2. Onlayn / Qabul qilishga tayyor
+    if (pres === 'talking') return 3; // 3. Suhbatda
+    if (pres === 'paused') return 4; // 4. Tanaffusda
+    return 5; // 5. Offline
+}
+
 function renderOperators(operators) {
-    const weight = { 'ready': 1, 'talking': 2, 'paused': 3, 'offline': 4 };
     currentOperators = (operators || [])
         .filter(op => !EXCLUDED_OPERATOR_IDS.has(String(op.id)))
         .slice().sort((a, b) => {
-            const wA = weight[a.presence] || 5;
-            const wB = weight[b.presence] || 5;
-            if (wA !== wB) return wA - wB;
+            const rA = getPresenceRank(a);
+            const rB = getPresenceRank(b);
+            if (rA !== rB) return rA - rB;
             return parseInt(a.id, 10) - parseInt(b.id, 10);
         });
     const grid = document.getElementById('operatorsGrid');
@@ -983,10 +1042,16 @@ function renderOperators(operators) {
 
     grid.innerHTML = currentOperators.map(op => {
         const pres = op.presence || 'ready';
+        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+        const ringingNow = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+
         let statusBadge = '';
         let avatarBg = '';
 
-        if (pres === 'talking') {
+        if (ringingNow) {
+            statusBadge = `<span class="badge badge-warning" style="font-size: 11px; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; animation: pulse 1.5s infinite;">📞 Jiringlanmoqda</span>`;
+            avatarBg = 'linear-gradient(135deg, #f59e0b, #ea580c)';
+        } else if (pres === 'talking') {
             statusBadge = `<span class="badge badge-info" style="font-size: 11px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">🔵 Suhbatda</span>`;
             avatarBg = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
         } else if (pres === 'offline') {
@@ -1002,8 +1067,10 @@ function renderOperators(operators) {
         let cardClass = 'operator-card clickable-card';
         if (pres === 'offline') {
             cardClass += ' status-offline';
+        } else if (ringingNow) {
+            cardClass += ' status-ringing status-active call-ringing';
         } else if (pres === 'talking') {
-            cardClass += ' status-talking status-active';
+            cardClass += ' status-talking status-active call-talking';
         } else {
             cardClass += ' status-ready status-active';
         }
@@ -1031,14 +1098,17 @@ function renderOperators(operators) {
             mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
         }
 
+        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+
         return `
-            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${op.name} tafsilotlarini va suhbatlarini ko'rish uchun bosing">
+            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${cleanName} tafsilotlarini va suhbatlarini ko'rish uchun bosing">
+                ${ringingNow ? '<div class="call-live-strip ringing"></div>' : (pres === 'talking' ? '<div class="call-live-strip talking"></div>' : '')}
                 <div class="operator-head">
-                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id.slice(-2)}</div>
+                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id}</div>
                     <div style="flex: 1;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <h4 style="font-size: 15px; font-weight: 700;">${op.name}</h4>
+                                <h4 style="font-size: 15px; font-weight: 700;">${cleanName}</h4>
                                 ${mvpBadge}
                             </div>
                             ${statusBadge}
@@ -1050,12 +1120,6 @@ function renderOperators(operators) {
                     </div>
                 </div>
 
-                <div class="op-stat-row">
-                    <span>Liniya holati:</span>
-                    <span class="op-stat-val" style="font-weight: 700; color: ${pres === 'ready' ? 'var(--success)' : (pres === 'talking' ? '#38bdf8' : 'var(--danger)')};">
-                        ${pres === 'ready' ? '✅ Qabul qilishga tayyor' : (pres === 'talking' ? '🔵 Hozir gaplashmoqda' : '❌ 3CX ulanmagan')}
-                    </span>
-                </div>
                 <div class="op-stat-row">
                     <span>Desktop Agent:</span>
                     <span class="op-stat-val" style="font-weight: 600; font-size: 11px; color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'}; display: inline-flex; align-items: center; gap: 5px;">
@@ -1085,15 +1149,6 @@ function renderOperators(operators) {
         `;
     }).join('');
 
-    // Update Operator Chart
-    if (operatorChart && currentOperators.length > 0) {
-        operatorChart.data.labels = currentOperators.map(o => o.name);
-        operatorChart.data.datasets[0].data = currentOperators.map(o => o.answered || 0);
-        operatorChart.data.datasets[1].data = currentOperators.map(o => o.clientHangup || 0);
-        operatorChart.data.datasets[2].data = currentOperators.map(o => o.operatorHangup || 0);
-        operatorChart.update();
-    }
-
     if (typeof renderOperatorChips === 'function') {
         renderOperatorChips();
         if (typeof selectedCompareOpId !== 'undefined' && selectedCompareOpId) {
@@ -1104,52 +1159,158 @@ function renderOperators(operators) {
 }
 
 /* ==========================================================================
-   7. Call History & SQLite Pagination
+   7. Call History & Dual-Source Pagination (3CX Agent Default + Server CDR)
    ========================================================================== */
+let historyDataSource = 'agent'; // Default: 'agent' (3CX Desktop Agent), 'server' (Issabel Asterisk CDR)
+
+function setHistorySource(source) {
+    historyDataSource = (source === 'server') ? 'server' : 'agent';
+    
+    const btnAgent = document.getElementById('btnHistorySourceAgent');
+    const btnServer = document.getElementById('btnHistorySourceServer');
+    const badge = document.getElementById('historySourceBadge');
+    const desc = document.getElementById('historyPanelDesc');
+    const thLast = document.getElementById('historyThLast');
+
+    if (historyDataSource === 'agent') {
+        if (btnAgent) {
+            btnAgent.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            btnAgent.style.color = '#fff';
+            btnAgent.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+        }
+        if (btnServer) {
+            btnServer.style.background = 'transparent';
+            btnServer.style.color = 'var(--text-muted)';
+            btnServer.style.boxShadow = 'none';
+        }
+        if (badge) {
+            badge.innerText = '⚡ 3CX Desktop Agent (Tezkor)';
+            badge.style.background = 'rgba(16, 185, 129, 0.15)';
+            badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            badge.style.color = '#34d399';
+        }
+        if (desc) {
+            desc.innerText = "Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq qo'ng'iroqlar jurnali (Lokal tezkor baza).";
+        }
+        if (thLast) {
+            thLast.innerText = 'Kompyuter (Host)';
+        }
+    } else {
+        if (btnAgent) {
+            btnAgent.style.background = 'transparent';
+            btnAgent.style.color = 'var(--text-muted)';
+            btnAgent.style.boxShadow = 'none';
+        }
+        if (btnServer) {
+            btnServer.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+            btnServer.style.color = '#fff';
+            btnServer.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+        }
+        if (badge) {
+            badge.innerText = '🌐 Issabel Server (Asterisk CDR)';
+            badge.style.background = 'rgba(59, 130, 246, 0.15)';
+            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+            badge.style.color = '#60a5fa';
+        }
+        if (desc) {
+            desc.innerText = "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.";
+        }
+        if (thLast) {
+            thLast.innerText = 'Tugatish sababi';
+        }
+    }
+
+    loadHistoryPage(1, historySearchQuery);
+}
+window.setHistorySource = setHistorySource;
+
 function initHistoryPagination() {
     const input = document.getElementById('historySearchInput');
     let searchTimeout = null;
 
-    input.addEventListener('input', (e) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            historySearchQuery = e.target.value.trim();
-            loadHistoryPage(1, historySearchQuery);
-        }, 300);
-    });
+    if (input) {
+        input.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                historySearchQuery = e.target.value.trim();
+                loadHistoryPage(1, historySearchQuery);
+            }, 300);
+        });
+    }
 
-    document.getElementById('btnPrevPage').addEventListener('click', () => {
-        if (historyCurrentPage > 1) {
-            loadHistoryPage(historyCurrentPage - 1, historySearchQuery);
-        }
-    });
+    const prevBtn = document.getElementById('btnPrevPage');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (historyCurrentPage > 1) {
+                loadHistoryPage(historyCurrentPage - 1, historySearchQuery);
+            }
+        });
+    }
 
-    document.getElementById('btnNextPage').addEventListener('click', () => {
-        if (historyCurrentPage < historyTotalPages) {
-            loadHistoryPage(historyCurrentPage + 1, historySearchQuery);
-        }
-    });
+    const nextBtn = document.getElementById('btnNextPage');
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (historyCurrentPage < historyTotalPages) {
+                loadHistoryPage(historyCurrentPage + 1, historySearchQuery);
+            }
+        });
+    }
 }
 
 async function loadHistoryPage(page = 1, search = '') {
     const tbody = document.getElementById('historyTableBody');
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 20px;">Yuklanmoqda...</td></tr>`;
+    if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
+    }
 
     try {
-        const res = await fetch(`/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}`);
-        const result = await res.json();
+        if (historyDataSource === 'agent') {
+            // 1. 3CX Desktop Agent lokal bazasidan (bir zumda yuklanadi)
+            const todayStr = getTodayDateString();
+            const activeDate = currentSelectedDate || todayStr;
+            const dateParam = (activeDate === todayStr) ? 'today' : activeDate;
+            const res = await fetch(`/api/agent/logs?page=${page}&limit=20&date=${encodeURIComponent(dateParam)}&search=${encodeURIComponent(search)}`);
+            const result = await res.json();
 
-        historyCurrentPage = result.page || 1;
-        historyTotalPages = result.totalPages || 1;
+            historyCurrentPage = result.page || 1;
+            historyTotalPages = result.totalPages || 1;
 
-        document.getElementById('pageNumberDisplay').innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
-        document.getElementById('historyCountInfo').innerText = `Jami: ${result.total || 0} ta yozuv (SQLite)`;
-        document.getElementById('btnPrevPage').disabled = historyCurrentPage <= 1;
-        document.getElementById('btnNextPage').disabled = historyCurrentPage >= historyTotalPages;
+            const pageDisp = document.getElementById('pageNumberDisplay');
+            const countInfo = document.getElementById('historyCountInfo');
+            const prevBtn = document.getElementById('btnPrevPage');
+            const nextBtn = document.getElementById('btnNextPage');
 
-        renderHistoryTable(result.data || []);
+            if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
+            if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv (🖥️ 3CX Agent)`;
+            if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
+            if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
+
+            renderAgentHistoryTable(result.data || []);
+        } else {
+            // 2. Issabel Asterisk CDR Server bazasidan
+            const dateParam = currentSelectedDate ? `&date=${encodeURIComponent(currentSelectedDate)}` : '';
+            const res = await fetch(`/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}${dateParam}`);
+            const result = await res.json();
+
+            historyCurrentPage = result.page || 1;
+            historyTotalPages = result.totalPages || 1;
+
+            const pageDisp = document.getElementById('pageNumberDisplay');
+            const countInfo = document.getElementById('historyCountInfo');
+            const prevBtn = document.getElementById('btnPrevPage');
+            const nextBtn = document.getElementById('btnNextPage');
+
+            if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
+            if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv (🌐 Issabel CDR)`;
+            if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
+            if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
+
+            renderServerHistoryTable(result.data || []);
+        }
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik: ${e.message}</td></tr>`;
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
+        }
     }
 }
 
@@ -1175,10 +1336,65 @@ function formatOperatorDisplayName(opStr) {
     return opStr;
 }
 
-function renderHistoryTable(data) {
+function renderAgentHistoryTable(data) {
     const tbody = document.getElementById('historyTableBody');
+    if (!tbody) return;
     if (!data || data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data.map((item, index) => {
+        const rowNum = (historyCurrentPage - 1) * 20 + index + 1;
+        const isOut = item.category_3cx === 'Dialled' || item.status === 'OUTBOUND' || item.status === 'DIALLED';
+        const isAns = item.category_3cx === 'Answered' || item.status === 'ANSWERED';
+        
+        let statusBadge = '';
+        if (isAns) {
+            statusBadge = '<span class="badge badge-success">✅ Qabul qilingan</span>';
+        } else if (item.status === 'REJECT') {
+            statusBadge = '<span class="badge badge-danger">🚫 Rad etilgan</span>';
+        } else if (item.category_3cx === 'Missed' || item.status === 'MISSED') {
+            statusBadge = '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 O\'tkazib yuborilgan</span>';
+        } else {
+            statusBadge = `<span class="badge badge-warning">${item.status_name || item.status}</span>`;
+        }
+
+        const dirBadge = isOut 
+            ? '<span class="badge badge-purple">📤 Chiquvchi</span>' 
+            : '<span class="badge badge-info">📥 Kiruvchi</span>';
+
+        const timeStr = item.event_time ? item.event_time.split(' ')[1] || item.event_time : '-';
+
+        return `
+            <tr>
+                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+                <td style="font-family: monospace; color: var(--text-muted); font-size: 12px;" title="${item.event_time || ''}">${timeStr}</td>
+                <td>
+                    <div class="phone-cell ${isOut ? 'outbound' : ''}">
+                        <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
+                        <span style="font-weight: 600;">${item.caller_id || '-'}</span>
+                    </div>
+                </td>
+                <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
+                <td>${dirBadge}</td>
+                <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(item.duration_sec || 0)}</td>
+                <td>${statusBadge}</td>
+                <td style="color: var(--text-muted); font-size: 12px;">
+                    <span style="display: inline-flex; align-items: center; gap: 4px;">
+                        <span>💻</span> ${item.hostname || 'Desktop'}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderServerHistoryTable(data) {
+    const tbody = document.getElementById('historyTableBody');
+    if (!tbody) return;
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         return;
     }
 
@@ -1212,6 +1428,8 @@ function renderHistoryTable(data) {
         `;
     }).join('');
 }
+
+const renderHistoryTable = renderServerHistoryTable;
 
 function renderDashboardRecentTable(data) {
     const tbody = document.getElementById('dashboardCallsTable');
@@ -1266,6 +1484,7 @@ function addRecentDashboardRow(record) {
         : '<span class="badge badge-info">📥 kiruvchi</span>';
 
     row.innerHTML = `
+        <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">1</td>
         <td>${new Date(record.time).toLocaleTimeString()}</td>
         <td>
             <div class="phone-cell ${isOut ? 'outbound' : ''}">
@@ -1289,6 +1508,13 @@ function addRecentDashboardRow(record) {
     }
     tbody.insertBefore(row, tbody.firstChild);
     if (tbody.children.length > 10) tbody.removeChild(tbody.lastChild);
+
+    // Qatorlar tartib raqamini (1, 2, 3...) har safar to'g'ri yangilash
+    Array.from(tbody.children).forEach((r, idx) => {
+        if (r.children && r.children[0]) {
+            r.children[0].innerText = idx + 1;
+        }
+    });
 }
 
 /* ==========================================================================
@@ -1422,9 +1648,9 @@ async function fetchAndRenderDetailCalls() {
     const nextBtn = document.getElementById('detailNextPage');
 
     bodyEl.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: var(--text-dim);">
-            <div class="spinner" style="margin: 0 auto 12px; width: 28px; height: 28px; border: 3px solid rgba(59, 130, 246, 0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-            Ma'lumotlar yuklanmoqda...
+        <div class="modal-loading-box">
+            <div class="modal-spinner-ring"></div>
+            <div class="modal-loading-text">Ma'lumotlar yuklanmoqda...</div>
         </div>
     `;
 
@@ -1436,6 +1662,9 @@ async function fetchAndRenderDetailCalls() {
             limit: detailState.limit,
             search: detailState.search
         });
+        if (currentSelectedDate) {
+            queryParams.set('date', currentSelectedDate);
+        }
 
         const res = await fetch(`/api/calls/details?${queryParams.toString()}`);
         const json = await res.json();
@@ -1522,7 +1751,12 @@ async function fetchAndRenderDetailCalls() {
                                     </div>
                                 </td>
                                 <td style="white-space: nowrap;">${directionBadge}</td>
-                                <td style="font-weight: 600; color: var(--text-main); white-space: nowrap;">${c.operator}</td>
+                                <td style="white-space: nowrap;">
+                                    ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob') 
+                                        ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">🤖 ${c.operator}</span>`
+                                        : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
+                                    }
+                                </td>
                                 <td style="white-space: nowrap;">${durText}</td>
                                 <td style="white-space: nowrap;">${statusBadge}</td>
                                 <td style="white-space: nowrap;">
@@ -1558,8 +1792,9 @@ async function openCallsDetail(type, title) {
 
     if (searchInput) searchInput.value = '';
 
+    const isToday = !currentSelectedDate || currentSelectedDate === getTodayDateString();
     titleEl.innerHTML = `📊 ${title}`;
-    subTitleEl.innerText = `Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti`;
+    subTitleEl.innerText = isToday ? `Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti` : `${currentSelectedDate} sanasi bo'yicha saralangan qo'ng'iroqlar tafsiloti`;
     summaryEl.style.display = 'none';
     summaryEl.innerHTML = '';
 
@@ -1582,19 +1817,20 @@ async function openOperatorDetail(operatorId) {
     if (searchInput) searchInput.value = '';
 
     const op = currentOperators.find(o => String(o.id) === String(operatorId)) || { id: operatorId, name: `Operator ${operatorId}` };
+    const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
-    titleEl.innerHTML = `👤 ${op.name} — Tafsilotlar & Bugungi Suhbatlar`;
+    titleEl.innerHTML = `👤 ${cleanName} — Tafsilotlar & Bugungi Suhbatlar`;
     subTitleEl.innerText = `Operatorning kunlik faolligi, intizomi va audio yozuvlari`;
 
     // Operator Summary Header
     summaryEl.style.display = 'flex';
     summaryEl.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px; margin-right: 20px;">
-            <div class="operator-avatar" style="width: 48px; height: 48px; font-size: 18px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);">
-                ${String(op.id).slice(-2)}
+            <div class="operator-avatar" style="width: 48px; height: 48px; font-size: 15px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);">
+                ${op.id}
             </div>
             <div>
-                <h4 style="font-size: 16px; font-weight: 700; color: #fff;">${op.name}</h4>
+                <h4 style="font-size: 16px; font-weight: 700; color: #fff;">${cleanName}</h4>
                 <span style="font-size: 12px; color: var(--text-dim);">Ichki raqam: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
             </div>
         </div>
@@ -1901,23 +2137,24 @@ async function loadAgentLogs(page = 1) {
    ========================================================================== */
 let tabAgentOperatorsData = [];
 let selectedTabAgentOpId = null;
-let selectedTabAgentDate = 'today';
 let tabOperatorLogsPage = 1;
 const tabOperatorLogsLimit = 50;
 
-function filterTabAgentLogsByDate(val) {
-    selectedTabAgentDate = val || 'today';
-    loadTabOperatorLogs(selectedTabAgentOpId, 1);
-}
-window.filterTabAgentLogsByDate = filterTabAgentLogsByDate;
-
-async function loadTabAgentOperators(force = false) {
+async function loadTabAgentOperators(targetDate = null) {
+    const grid = document.getElementById('tabOperatorsGrid');
     try {
-        const res = await fetch('/api/agent/operator-stats');
+        const todayStr = getTodayDateString();
+        const activeDate = (typeof targetDate === 'string' && targetDate) ? targetDate : (currentSelectedDate || todayStr);
+        const urlDateParam = (activeDate === todayStr) ? '' : `?date=${encodeURIComponent(activeDate)}`;
+        if (grid) grid.classList.add('is-loading');
+
+        const res = await fetch(`/api/agent/operator-stats${urlDateParam}`);
         tabAgentOperatorsData = await res.json();
         renderTabAgentOperators(tabAgentOperatorsData);
     } catch (e) {
         console.error('loadTabAgentOperators error:', e.message);
+    } finally {
+        if (grid) grid.classList.remove('is-loading');
     }
 }
 
@@ -1958,9 +2195,9 @@ function renderTabAgentOperators(operators) {
 
     const top1Id = sortedByScore[0] ? sortedByScore[0].id : null;
 
-    let countReady = 0;
     let countAgentOnline = 0;
     let totalAns = 0;
+    let totalOutbound = 0;
     let totalMissed = 0;
 
     // Operator select dropdown
@@ -1974,27 +2211,22 @@ function renderTabAgentOperators(operators) {
         });
     }
 
-    grid.innerHTML = operators.map(op => {
-        const pres = op.presence || 'ready';
-        if (pres === 'ready') countReady++;
+    // Stabil tartib: faqat raqam (id) bo'yicha, kartochkalar sakrab joyini o'zgartirmaydi
+    const sortedOps = (operators || [])
+        .slice().sort((a, b) => {
+            const idA = parseInt(a.id, 10) || 0;
+            const idB = parseInt(b.id, 10) || 0;
+            return idA - idB;
+        });
+
+    grid.innerHTML = sortedOps.map(op => {
         if (op.agentConnected) countAgentOnline++;
         const answered = op.answered || 0;
+        const outbound = op.outbound || 0;
         const missed = op.missed || 0;
         totalAns += answered;
+        totalOutbound += outbound;
         totalMissed += missed;
-
-        let statusBadge = '';
-        let avatarBg = '';
-        if (pres === 'talking') {
-            statusBadge = `<span class="badge badge-info" style="font-size: 11px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">🔵 Suhbatda</span>`;
-            avatarBg = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
-        } else if (pres === 'offline') {
-            statusBadge = `<span class="badge badge-danger" style="font-size: 11px;">🔴 Offline</span>`;
-            avatarBg = 'linear-gradient(135deg, #ef4444, #991b1b)';
-        } else {
-            statusBadge = `<span class="badge badge-success" style="font-size: 11px;">🟢 Tayyor</span>`;
-            avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
-        }
 
         let stars = '';
         if (answered > 35) {
@@ -2009,34 +2241,32 @@ function renderTabAgentOperators(operators) {
             stars = '⭐';
         }
 
+        const isMvp = op.id === top1Id && answered > 0;
         let mvpBadge = '';
-        let cardClass = 'operator-card clickable-card';
-        if (pres === 'offline') cardClass += ' status-offline';
-        else if (pres === 'talking') cardClass += ' status-talking status-active';
-        else cardClass += ' status-ready status-active';
-
-        if (op.id === top1Id && answered > 0) {
+        let avatarBg = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
+        if (isMvp) {
             mvpBadge = `<span class="mvp-badge gold" title="3CX Agent bo'yicha yetakchi operator">👑 MVP</span>`;
-            cardClass += ' mvp-gold';
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
         } else if (stars === '⭐') {
             mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
         }
 
         const isSelected = selectedTabAgentOpId === String(op.id);
-        const selectedBorder = isSelected ? 'border: 2px solid var(--primary); box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);' : '';
+        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
         return `
-            <div class="${cardClass}" style="${selectedBorder}" onclick="filterTabAgentLogsByOperator('${op.id}')" title="${op.name} tafsilotlarini va 3CX jurnallarini ko'rish uchun bosing">
+            <div class="operator-card clickable-card static-operator-card ${isSelected ? 'is-selected' : ''}" 
+                 onclick="filterTabAgentLogsByOperator('${op.id}')" 
+                 title="${cleanName} tafsilotlarini va 3CX jurnallarini ko'rish uchun bosing">
                 <div class="operator-head">
-                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id.slice(-2)}</div>
-                    <div style="flex: 1;">
+                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id}</div>
+                    <div style="flex: 1; min-width: 0;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
                             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <h4 style="font-size: 15px; font-weight: 700;">${op.name}</h4>
+                                <h4 style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${cleanName}</h4>
                                 ${mvpBadge}
                             </div>
-                            ${statusBadge}
+                            <span class="badge" style="font-size: 11px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-dim);">#${op.id}</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
                             <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id}</span>
@@ -2048,14 +2278,19 @@ function renderTabAgentOperators(operators) {
                 <div class="op-stat-row">
                     <span>Desktop Agent:</span>
                     <span class="op-stat-val" style="font-weight: 600; font-size: 11px; color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'}; display: inline-flex; align-items: center; gap: 5px;">
-                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
-                        ${op.agentConnected ? `🟢 Faol ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : `⚪ O'chiq`}
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'};"></span>
+                        ${op.agentConnected ? `Faol ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : `O'chiq`}
                     </span>
                 </div>
                 <div class="op-stat-row">
                     <span>Qabul qilingan:</span>
                     <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${answered} ta</span>
                 </div>
+                ${outbound > 0 ? `
+                <div class="op-stat-row">
+                    <span>Chiquvchi:</span>
+                    <span class="op-stat-val" style="color: #38bdf8; font-weight: 700;">${outbound} ta</span>
+                </div>` : ''}
                 <div class="op-stat-row">
                     <span>O'tkazib yuborilgan:</span>
                     <span class="op-stat-val" style="color: ${missed > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${missed} ta</span>
@@ -2078,18 +2313,26 @@ function renderTabAgentOperators(operators) {
     const elReady = document.getElementById('tabOpCountReady');
     const elAgent = document.getElementById('tabOpCountAgent');
     const elAns = document.getElementById('tabOpTotalAnswered');
+    const elOut = document.getElementById('tabOpTotalOutbound');
     const elMiss = document.getElementById('tabOpTotalMissed');
 
-    if (elReady) elReady.innerText = countReady;
+    if (elReady) elReady.innerText = `${operators.length} ta`;
     if (elAgent) elAgent.innerText = `${countAgentOnline} ta`;
     if (elAns) elAns.innerText = `${totalAns} ta`;
+    if (elOut) elOut.innerText = `${totalOutbound} ta`;
     if (elMiss) elMiss.innerText = `${totalMissed} ta`;
 
-    // Operatorlar bo'yicha grafikni ham 3CX agent ma'lumotlari bilan yangilash
-    if (operatorChart && operators.length > 0) {
-        operatorChart.data.labels = operators.map(o => o.realName || o.name || o.id);
-        operatorChart.data.datasets[0].data = operators.map(o => o.answered || 0);
-        operatorChart.update();
+    // Operatorlar bo'yicha grafikni 3CX agent ma'lumotlari bilan yangilash (animatsiyasiz tezkor)
+    if (operatorChart && sortedOps.length > 0) {
+        operatorChart.data.labels = sortedOps.map(o => getCleanOperatorName(o.realName || o.name, o.id));
+        operatorChart.data.datasets[0].data = sortedOps.map(o => o.answered || 0);
+        if (operatorChart.data.datasets[1]) {
+            operatorChart.data.datasets[1].data = sortedOps.map(o => o.outbound || 0);
+        }
+        if (operatorChart.data.datasets[2]) {
+            operatorChart.data.datasets[2].data = sortedOps.map(o => o.missed || 0);
+        }
+        operatorChart.update('none');
     }
 }
 
@@ -2107,7 +2350,10 @@ async function loadTabOperatorLogs(opId, page = 1) {
     `;
 
     try {
-        let url = `/api/agent/logs?page=${page}&limit=${tabOperatorLogsLimit}&date=${encodeURIComponent(selectedTabAgentDate || 'today')}`;
+        const todayStr = getTodayDateString();
+        const activeDate = currentSelectedDate || todayStr;
+        const dateParam = (activeDate === todayStr) ? 'today' : activeDate;
+        let url = `/api/agent/logs?page=${page}&limit=${tabOperatorLogsLimit}&date=${encodeURIComponent(dateParam)}`;
         if (opId) url += `&operatorId=${encodeURIComponent(opId)}`;
 
         const res = await fetch(url);
@@ -2360,6 +2606,435 @@ async function submitNewRelease() {
         }
     } catch (err) {
         alert(`Server bilan aloqa xatoligi: ${err.message}`);
+    }
+}
+
+/* ==========================================================================
+   Date Filtering & Interactive Windows/Fluent Dark Calendar Logic
+   ========================================================================== */
+let currentSelectedDate = ''; // 'YYYY-MM-DD' or '' for today
+let calViewYear = 2026;
+let calViewMonth = 8; // 0-based, 8 = September
+let calClockTimer = null;
+
+const UZ_MONTHS = [
+    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+];
+
+function getTodayDateString() {
+    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+}
+
+function formatDateDisplay(dateStr) {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const monthName = UZ_MONTHS[m - 1] || '';
+    return `${d}-${monthName}, ${y}`;
+}
+
+function toggleCalendarPopup(e) {
+    if (e) e.stopPropagation();
+    const popup = document.getElementById('fluentCalendarPopup');
+    const triggerBtn = document.getElementById('calTriggerBtn');
+    if (!popup) return;
+    const isHidden = popup.style.display === 'none' || !popup.style.display;
+    popup.style.display = isHidden ? 'block' : 'none';
+    if (triggerBtn) triggerBtn.classList.toggle('active', isHidden);
+    if (isHidden) {
+        updateCalendarClock();
+        const todayStr = getTodayDateString();
+        const activeDate = currentSelectedDate || todayStr;
+        const nativeInput = document.getElementById('calDateNativeInput');
+        if (nativeInput) nativeInput.value = activeDate;
+        const displayEl = document.getElementById('calSelectedDisplay');
+        if (displayEl) {
+            displayEl.innerText = (activeDate === todayStr)
+                ? `Bugun (${formatDateDisplay(todayStr)})`
+                : formatDateDisplay(activeDate);
+        }
+        renderCalendarMatrix();
+    }
+}
+window.toggleCalendarPopup = toggleCalendarPopup;
+
+function onNativeDateChanged(val, e) {
+    if (e) e.stopPropagation();
+    if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        selectDate(val);
+    }
+}
+window.onNativeDateChanged = onNativeDateChanged;
+
+function closeCalendarPopup(e) {
+    if (e) e.stopPropagation();
+    const popup = document.getElementById('fluentCalendarPopup');
+    const triggerBtn = document.getElementById('calTriggerBtn');
+    if (popup) popup.style.display = 'none';
+    if (triggerBtn) triggerBtn.classList.remove('active');
+}
+window.closeCalendarPopup = closeCalendarPopup;
+
+function changeCalendarMonth(delta, e) {
+    if (e) e.stopPropagation();
+    calViewMonth += delta;
+    if (calViewMonth < 0) {
+        calViewMonth = 11;
+        calViewYear--;
+    } else if (calViewMonth > 11) {
+        calViewMonth = 0;
+        calViewYear++;
+    }
+    renderCalendarMatrix();
+}
+window.changeCalendarMonth = changeCalendarMonth;
+
+function quickSelectDate(preset, e) {
+    if (e) e.stopPropagation();
+    if (preset === 'today') {
+        const today = getTodayDateString();
+        const [y, m] = today.split('-').map(Number);
+        calViewYear = y;
+        calViewMonth = m - 1;
+        selectDate(today);
+    } else if (preset === 'yesterday') {
+        const now = new Date();
+        now.setDate(now.getDate() - 1);
+        const yesterdayStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+        const [y, m] = yesterdayStr.split('-').map(Number);
+        calViewYear = y;
+        calViewMonth = m - 1;
+        selectDate(yesterdayStr);
+    }
+}
+window.quickSelectDate = quickSelectDate;
+
+function resetToToday(e) {
+    if (e) e.stopPropagation();
+    selectDate(getTodayDateString());
+}
+window.resetToToday = resetToToday;
+
+function refreshCurrentDateData(e) {
+    if (e) e.stopPropagation();
+    loadDateData(currentSelectedDate || getTodayDateString());
+}
+window.refreshCurrentDateData = refreshCurrentDateData;
+
+function initDateFilter() {
+    const todayStr = getTodayDateString();
+    currentSelectedDate = todayStr;
+
+    const [curY, curM] = todayStr.split('-').map(Number);
+    calViewYear = curY;
+    calViewMonth = curM - 1;
+
+    // Elements
+    const triggerBtn = document.getElementById('calTriggerBtn');
+    const popup = document.getElementById('fluentCalendarPopup');
+
+    // Live clock update
+    updateCalendarClock();
+    if (calClockTimer) clearInterval(calClockTimer);
+    calClockTimer = setInterval(updateCalendarClock, 1000);
+
+    // Initial label
+    const labelEl = document.getElementById('calSelectedLabel');
+    if (labelEl) {
+        labelEl.innerText = `Bugun (${formatDateDisplay(todayStr)})`;
+    }
+
+    // Render initial calendar matrix
+    renderCalendarMatrix();
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (popup && triggerBtn && !popup.contains(e.target) && !triggerBtn.contains(e.target)) {
+            popup.style.display = 'none';
+            triggerBtn.classList.remove('active');
+        }
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && popup && triggerBtn) {
+            popup.style.display = 'none';
+            triggerBtn.classList.remove('active');
+        }
+    });
+}
+
+function updateCalendarClock() {
+    const clockEl = document.getElementById('calClock');
+    if (!clockEl) return;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ru-RU', { timeZone: 'Asia/Tashkent', hour12: false });
+    clockEl.innerText = timeStr;
+}
+
+function renderCalendarMatrix() {
+    const titleEl = document.getElementById('calMonthTitle');
+    const gridEl = document.getElementById('calDaysMatrix');
+    if (!titleEl || !gridEl) return;
+
+    titleEl.innerText = `${UZ_MONTHS[calViewMonth]} ${calViewYear}`;
+    gridEl.innerHTML = '';
+
+    const todayStr = getTodayDateString();
+    const activeDateStr = currentSelectedDate || todayStr;
+
+    const firstDay = new Date(calViewYear, calViewMonth, 1);
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek < 0) startDayOfWeek = 6; // Monday = 0
+
+    const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(calViewYear, calViewMonth, 0).getDate();
+
+    // 1. Previous month trailing days
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const dayNum = daysInPrevMonth - i;
+        const prevMonth = calViewMonth === 0 ? 11 : calViewMonth - 1;
+        const prevYear = calViewMonth === 0 ? calViewYear - 1 : calViewYear;
+        const fullDateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+
+        const cell = createDayCell(dayNum, fullDateStr, true, todayStr, activeDateStr);
+        gridEl.appendChild(cell);
+    }
+
+    // 2. Current month days
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+        const fullDateStr = `${calViewYear}-${String(calViewMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        const cell = createDayCell(dayNum, fullDateStr, false, todayStr, activeDateStr);
+        gridEl.appendChild(cell);
+    }
+
+    // 3. Next month leading days (fill up grid to complete weeks)
+    const totalCellsSoFar = startDayOfWeek + daysInMonth;
+    const remainingCells = (totalCellsSoFar <= 35 ? 35 : 42) - totalCellsSoFar;
+    for (let dayNum = 1; dayNum <= remainingCells; dayNum++) {
+        const nextMonth = calViewMonth === 11 ? 0 : calViewMonth + 1;
+        const nextYear = calViewMonth === 11 ? calViewYear + 1 : calViewYear;
+        const fullDateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+
+        const cell = createDayCell(dayNum, fullDateStr, true, todayStr, activeDateStr);
+        gridEl.appendChild(cell);
+    }
+}
+
+function createDayCell(dayNum, fullDateStr, isOtherMonth, todayStr, activeDateStr) {
+    const cell = document.createElement('div');
+    cell.className = 'cal-day-cell';
+    cell.innerText = dayNum;
+    cell.dataset.date = fullDateStr;
+
+    if (isOtherMonth) cell.classList.add('other-month');
+    if (fullDateStr === todayStr) cell.classList.add('is-today');
+    if (fullDateStr === activeDateStr) cell.classList.add('is-selected');
+
+    cell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectDate(fullDateStr);
+    });
+
+    return cell;
+}
+
+function selectDate(dateStr) {
+    currentSelectedDate = dateStr;
+    const todayStr = getTodayDateString();
+    const isToday = !dateStr || dateStr === todayStr;
+
+    // Close popup
+    const popup = document.getElementById('fluentCalendarPopup');
+    const triggerBtn = document.getElementById('calTriggerBtn');
+    if (popup) popup.style.display = 'none';
+    if (triggerBtn) triggerBtn.classList.remove('active');
+
+    // Update label and popup display
+    const labelEl = document.getElementById('calSelectedLabel');
+    const displayEl = document.getElementById('calSelectedDisplay');
+    const nativeInput = document.getElementById('calDateNativeInput');
+    const formattedText = isToday ? `Bugun (${formatDateDisplay(dateStr)})` : formatDateDisplay(dateStr);
+
+    if (labelEl) labelEl.innerText = formattedText;
+    if (displayEl) displayEl.innerText = formattedText;
+    if (nativeInput) nativeInput.value = dateStr;
+
+    // Update quick buttons
+    const todayBtn = document.getElementById('btnQuickToday');
+    const yestBtn = document.getElementById('btnQuickYesterday');
+    const now = new Date();
+    now.setDate(now.getDate() - 1);
+    const yesterdayStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+
+    if (todayBtn) todayBtn.classList.toggle('active', isToday);
+    if (yestBtn) yestBtn.classList.toggle('active', dateStr === yesterdayStr);
+
+    // Update mode badge
+    const badgeEl = document.getElementById('calModeBadge');
+    const modeText = document.getElementById('calModeText');
+    const backTodayBtn = document.getElementById('btnBackToday');
+    const hintEl = document.getElementById('calStatusHint');
+
+    if (badgeEl && modeText) {
+        if (isToday) {
+            badgeEl.className = 'cal-mode-badge live';
+            modeText.innerText = 'Jonli (Real-time)';
+            if (backTodayBtn) backTodayBtn.style.display = 'none';
+            if (hintEl) hintEl.innerText = '⚡ Real-time jonli monitoring faol';
+        } else {
+            badgeEl.className = 'cal-mode-badge archive';
+            modeText.innerText = `Arxiv: ${dateStr}`;
+            if (backTodayBtn) backTodayBtn.style.display = 'inline-block';
+            if (hintEl) hintEl.innerText = `⚡ ${dateStr} sanasi hisoboti ko'rsatilmoqda`;
+        }
+    }
+
+    // Sync view year/month
+    const [y, m] = dateStr.split('-').map(Number);
+    calViewYear = y;
+    calViewMonth = m - 1;
+    renderCalendarMatrix();
+
+    // Load data for this date
+    loadDateData(dateStr);
+}
+window.selectDate = selectDate;
+
+let dateFilterLoadingTimer = null;
+
+function setDateFilterLoading(isLoading, targetDate = '') {
+    const progressBar = document.getElementById('calProgressBar');
+    const refreshBtn = document.getElementById('calRefreshBtn');
+    const refreshText = document.getElementById('calRefreshText');
+    const statusHint = document.getElementById('calStatusHint');
+    const kpiGrid = document.querySelector('.kpi-grid');
+    const tabOpGrid = document.getElementById('tabOperatorsGrid');
+    const tabOpBadges = [
+        document.getElementById('tabOpCountReady'),
+        document.getElementById('tabOpCountAgent'),
+        document.getElementById('tabOpTotalAnswered'),
+        document.getElementById('tabOpTotalMissed')
+    ];
+
+    if (dateFilterLoadingTimer) {
+        clearTimeout(dateFilterLoadingTimer);
+        dateFilterLoadingTimer = null;
+    }
+
+    if (isLoading) {
+        if (progressBar) progressBar.style.display = 'block';
+        if (refreshBtn) {
+            refreshBtn.classList.add('is-loading');
+            refreshBtn.disabled = true;
+        }
+        if (refreshText) refreshText.innerText = 'Yuklanmoqda...';
+        if (statusHint) {
+            statusHint.innerHTML = `<span class="cal-loading-badge"><span class="fluent-spinner"></span> Serverdan ma'lumot yuklanmoqda...</span>`;
+        }
+        if (kpiGrid) kpiGrid.classList.add('is-loading');
+        if (tabOpGrid) tabOpGrid.classList.add('is-loading');
+
+        // Watchdog xavfsizlik: hech qanday holatda 5 soniyadan ortiq qotib qolmasligi uchun
+        dateFilterLoadingTimer = setTimeout(() => {
+            setDateFilterLoading(false, targetDate);
+        }, 5000);
+    } else {
+        if (progressBar) progressBar.style.display = 'none';
+        if (refreshBtn) {
+            refreshBtn.classList.remove('is-loading');
+            refreshBtn.disabled = false;
+        }
+        if (refreshText) refreshText.innerText = 'Yangilash';
+        if (kpiGrid) {
+            kpiGrid.classList.remove('is-loading');
+            kpiGrid.querySelectorAll('h3').forEach(el => {
+                el.classList.remove('number-pop');
+                void el.offsetWidth; // trigger reflow
+                el.classList.add('number-pop');
+            });
+        }
+        if (tabOpGrid) {
+            tabOpGrid.classList.remove('is-loading');
+            tabOpGrid.querySelectorAll('.op-stat-val, h4, .operator-avatar').forEach(el => {
+                el.classList.remove('number-pop');
+                void el.offsetWidth; // trigger reflow
+                el.classList.add('number-pop');
+            });
+        }
+        tabOpBadges.forEach(el => {
+            if (el) {
+                el.classList.remove('number-pop');
+                void el.offsetWidth;
+                el.classList.add('number-pop');
+            }
+        });
+        if (statusHint) {
+            const isToday = !targetDate || targetDate === getTodayDateString();
+            statusHint.innerHTML = `<span style="color: #34d399; font-size: 12px; font-weight: 500;">✅ Ma'lumotlar yuklandi (${isToday ? 'Bugun' : targetDate})</span>`;
+            setTimeout(() => {
+                if (statusHint && statusHint.innerText.includes('yuklandi')) {
+                    statusHint.innerHTML = isToday ? '⚡ Real-time jonli monitoring faol' : `⚡ ${targetDate} sanasi hisoboti`;
+                }
+            }, 3000);
+        }
+    }
+}
+window.setDateFilterLoading = setDateFilterLoading;
+
+async function loadDateData(dateStr) {
+    const isToday = !dateStr || dateStr === getTodayDateString();
+    const urlDateParam = isToday ? '' : `?date=${encodeURIComponent(dateStr)}`;
+
+    setDateFilterLoading(true, dateStr);
+
+    try {
+        const activeTab = document.documentElement.getAttribute('data-tab') || 'dashboard';
+
+        if (activeTab === 'operators') {
+            // 1. Agar Operatorlar tabi ochiq bo'lsa, faqat 3CX Desktop Agent ma'lumotlarini yuklash (juda tez)
+            if (typeof loadTabAgentOperators === 'function') {
+                await loadTabAgentOperators(dateStr);
+            }
+            if (typeof loadTabOperatorLogs === 'function') {
+                await loadTabOperatorLogs(selectedTabAgentOpId, 1);
+            }
+            // Asosiy sahifa statistikasini esa fonda kutmasdan yuklab qo'yish
+            Promise.all([
+                fetch(`/api/stats${urlDateParam}`).then(r => r.json()).catch(() => null),
+                fetch(`/api/operators${urlDateParam}`).then(r => r.json()).catch(() => [])
+            ]).then(([statsRes, opRes]) => {
+                if (statsRes) updateStatsUI(statsRes);
+                if (opRes) renderOperators(opRes);
+            }).catch(() => {});
+        } else if (activeTab === 'history') {
+            // 2. Qo'ng'iroqlar tarixi tabi
+            if (typeof loadHistoryPage === 'function') {
+                await loadHistoryPage(1, historySearchQuery);
+            }
+        } else if (activeTab === 'explorer') {
+            // 3. Audio Explorer
+            if (typeof loadExplorerPath === 'function') {
+                loadExplorerPath(typeof currentPath !== 'undefined' ? currentPath : '');
+            }
+        } else {
+            // 4. Asosiy Dashboard
+            const [statsRes, opRes] = await Promise.all([
+                fetch(`/api/stats${urlDateParam}`).then(r => r.json()).catch(() => null),
+                fetch(`/api/operators${urlDateParam}`).then(r => r.json()).catch(() => [])
+            ]);
+            if (statsRes) updateStatsUI(statsRes);
+            if (opRes) renderOperators(opRes);
+
+            if (typeof loadTabAgentOperators === 'function') {
+                loadTabAgentOperators(dateStr).catch(() => {});
+            }
+        }
+    } catch (err) {
+        console.error('loadDateData xatolik:', err);
+    } finally {
+        setDateFilterLoading(false, dateStr);
     }
 }
 

@@ -33,25 +33,14 @@ class AmiService {
 
         this.channelToOperator = new Map(); // channel / uniqueid -> operator extension (e.g. '103')
         this.pollingInterval = null;
+        this.onAgentStateChange = null;
 
-        // Bazadagi bugungi statistikani yuklash
-        try {
-            const dbSummary = dbService.getTodaySummary();
-            if (dbSummary && dbSummary.totalCalls > 0) {
-                this.stats.totalCalls = dbSummary.totalCalls || 0;
-                this.stats.inboundCalls = dbSummary.inboundCalls || 0;
-                this.stats.outboundCalls = dbSummary.outboundCalls || 0;
-                this.stats.answeredCalls = dbSummary.answeredCalls || 0;
-                this.stats.clientHangupCalls = dbSummary.clientHangupCalls || 0;
-                this.stats.operatorHangupCalls = dbSummary.operatorHangupCalls || 0;
-                this.stats.deniedCalls = dbSummary.deniedCalls || 0;
-                this.stats.totalDurationSec = dbSummary.totalDurationSec || 0;
-            }
-        } catch (e) {}
+        // Issabel MariaDB bilan darhol sinxronizatsiyani ishga tushirish (MariaDB - asosiy CDR manbai)
+        setTimeout(() => this.syncIssabelData(), 300);
+        setInterval(() => this.syncIssabelData(), 15000);
 
-        // Issabel MariaDB bilan sinxronizatsiyani ishga tushirish
-        setTimeout(() => this.syncIssabelData(), 1000);
-        setInterval(() => this.syncIssabelData(), 30000);
+        // 3CX Desktop Agent ping vaqtlarini har 3 soniyada tekshirib turish (Tezkor Timeout Watchdog)
+        setInterval(() => this.checkAgentTimeouts(), 3000);
     }
 
     async syncIssabelData() {
@@ -87,6 +76,7 @@ class AmiService {
             if (summary) {
                 this.stats.totalCalls = summary.totalCalls;
                 this.stats.inboundCalls = summary.inboundCalls;
+                this.stats.outboundCalls = summary.outboundCalls || 0;
                 this.stats.answeredCalls = summary.answeredCalls;
                 this.stats.abandonedCalls = summary.abandonedCalls;
                 this.stats.deniedCalls = summary.deniedCalls;
@@ -176,6 +166,15 @@ class AmiService {
         this.ami.action({ action: 'SIPpeers' }, () => {});
     }
 
+    setChannelOperator(key, opId) {
+        if (!key || !opId) return;
+        if (this.channelToOperator.size > 2000) {
+            const oldKeys = Array.from(this.channelToOperator.keys()).slice(0, 500);
+            oldKeys.forEach(k => this.channelToOperator.delete(k));
+        }
+        this.channelToOperator.set(key, opId);
+    }
+
     /**
      * Operator raqamini tozalab ajratib olish (e.g. 'SIP/114-0000a', 'Local/103@from-queue', 'Operator 106' -> '103')
      */
@@ -249,7 +248,8 @@ class AmiService {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
                 if (isOnline) {
-                    if (op.presence !== 'talking') {
+                    // 'talking' va 'ringing' holatlarni PeerEntry poll bosib yubormasin
+                    if (op.presence !== 'talking' && op.presence !== 'ringing') {
                         op.presence = 'ready'; // On-hook, qo'ng'iroq kutmoqda
                     }
                 } else {
@@ -416,10 +416,10 @@ class AmiService {
         if (evt.event === 'DialBegin' || evt.event === 'DialState' || evt.event === 'DialEnd') {
             const opId = this.extractOperatorExten(evt.destchannel, evt.connectedlinenum, evt.destcalleridnum, evt.dialstring);
             if (opId) {
-                if (evt.channel) this.channelToOperator.set(evt.channel, opId);
-                if (evt.destchannel) this.channelToOperator.set(evt.destchannel, opId);
-                if (evt.uniqueid) this.channelToOperator.set(evt.uniqueid, opId);
-                if (evt.destuniqueid) this.channelToOperator.set(evt.destuniqueid, opId);
+                if (evt.channel) this.setChannelOperator(evt.channel, opId);
+                if (evt.destchannel) this.setChannelOperator(evt.destchannel, opId);
+                if (evt.uniqueid) this.setChannelOperator(evt.uniqueid, opId);
+                if (evt.destuniqueid) this.setChannelOperator(evt.destuniqueid, opId);
             }
         }
 
@@ -428,6 +428,49 @@ class AmiService {
         // liniya band bo'lsa yoki navbat aylanayotganda Asterisk avtomatik BUSY va RingNoAnswer hodisalarini hosil qiladi
         // (operatorlar umuman ko'rmagan bo'lsa ham yoki 3CX ulanmagan bo'lsa ham).
         // Shuning uchun Rad etish (Reject) va O'tkazib yuborish (Missed) faqat va faqat operator kompyuteridagi 3CX Desktop Agent orqali olinadi!
+
+        // Navbat operatorga qo'ng'iroqni uzatganda (Operator telefoni chalinmoqda / Ringing)
+        if (evt.event === 'AgentCalled') {
+            const opId = this.extractOperatorExten(
+                evt.agentcalled,
+                evt.agentname,
+                evt.interface,
+                evt.member,
+                evt.destchannel,
+                evt.channelcalling
+            );
+            const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, evt.channelcalling);
+            if (opId) {
+                this.ensureOperatorExists(opId);
+                const op = this.operators.get(opId);
+                if (op.presence !== 'talking') {
+                    op.presence = 'ringing';
+                }
+                op.ringingCaller = callerId;
+                this.operators.set(opId, op);
+                this.broadcast('operators_update', this.getOperatorList());
+            }
+        }
+
+        // Operator javob bermasdan navbat keyingisiga o'tganda (AgentRingNoAnswer)
+        if (evt.event === 'AgentRingNoAnswer') {
+            const opId = this.extractOperatorExten(
+                evt.agentcalled,
+                evt.agentname,
+                evt.interface,
+                evt.member,
+                evt.destchannel
+            );
+            if (opId && this.operators.has(opId)) {
+                const op = this.operators.get(opId);
+                if (op.presence === 'ringing') {
+                    op.presence = 'ready';
+                }
+                op.ringingCaller = null;
+                this.operators.set(opId, op);
+                this.broadcast('operators_update', this.getOperatorList());
+            }
+        }
 
         // 4. Queue real hodisalari: AgentConnect (Operator javob berdi)
         if (evt.event === 'AgentConnect') {
@@ -444,11 +487,12 @@ class AmiService {
             const holdTime = parseInt(evt.holdtime || '0', 10);
 
             if (opId) {
-                if (evt.channel) this.channelToOperator.set(evt.channel, opId);
-                if (evt.destchannel) this.channelToOperator.set(evt.destchannel, opId);
+                if (evt.channel) this.setChannelOperator(evt.channel, opId);
+                if (evt.destchannel) this.setChannelOperator(evt.destchannel, opId);
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
                 op.presence = 'talking';
+                op.ringingCaller = null;
                 op.totalCalls++;
                 op.answered++;
                 this.operators.set(opId, op);
@@ -557,11 +601,14 @@ class AmiService {
 
             if (opId) {
                 this.ensureOperatorExists(opId);
-                this.channelToOperator.set(destChan, opId);
-                if (evt.channel) this.channelToOperator.set(evt.channel, opId);
+                this.setChannelOperator(destChan, opId);
+                if (evt.channel) this.setChannelOperator(evt.channel, opId);
 
                 // Ushbu operator hozir jiringlamoqda
                 const op = this.operators.get(opId);
+                if (op.presence !== 'talking') {
+                    op.presence = 'ringing';
+                }
                 op.ringingCaller = callerId;
                 this.operators.set(opId, op);
                 this.broadcast('operators_update', this.getOperatorList());
@@ -575,6 +622,9 @@ class AmiService {
 
             if (opId && this.operators.has(opId)) {
                 const op = this.operators.get(opId);
+                if (op.presence === 'ringing') {
+                    op.presence = 'ready';
+                }
                 op.ringingCaller = null;
                 this.operators.set(opId, op);
                 this.broadcast('operators_update', this.getOperatorList());
@@ -690,6 +740,12 @@ class AmiService {
             let callData = this.activeChannels.get(channelId);
             if (callData) {
                 this.activeChannels.delete(channelId);
+            }
+            if (channelId) {
+                this.channelToOperator.delete(channelId);
+            }
+            if (evt.uniqueid) {
+                this.channelToOperator.delete(evt.uniqueid);
             }
 
             this.recalculateConversations();
@@ -839,7 +895,7 @@ class AmiService {
         }
 
         const excluded = issabelDbService.getExcludedOperators();
-        const weight = { 'ready': 1, 'talking': 2, 'paused': 3, 'offline': 4 };
+        const weight = { 'ringing': 1, 'ready': 2, 'talking': 3, 'paused': 4, 'offline': 5 };
         return Array.from(this.operators.values())
             .filter(op => !excluded.has(String(op.id)))
             .map(op => {
@@ -848,15 +904,22 @@ class AmiService {
                 copy.realName = realName;
                 copy.name = realName && realName !== `Operator ${op.id}` ? `${realName} (${op.id})` : `Operator ${op.id}`;
                 
-                // 3CX Desktop Agent holati (oxirgi 60 soniyada ping kelganmi)
-                const isAgentActive = !!(op.lastAgentPing && (Date.now() - op.lastAgentPing < 60000));
+                // 3CX Desktop Agent holati (oxirgi 38 soniyada ping kelganmi - 30s interval + 8s bufer)
+                const isAgentActive = !!(op.lastAgentPing && (Date.now() - op.lastAgentPing < 38000));
                 copy.agentConnected = isAgentActive;
                 copy.agentHostname  = op.agentHostname || '';
                 copy.lastAgentPing  = op.lastAgentPing || null;
 
+                const hasValidIp = copy.ip && copy.ip !== '-none-' && copy.ip !== '' && copy.ip !== '(null)' && !String(copy.latency || '').toUpperCase().includes('UNREACHABLE');
+
                 if (activeOpIds.has(op.id)) {
                     copy.presence = 'talking';
-                } else if (copy.presence === 'talking') {
+                    copy.ringingCaller = null;
+                } else if (!hasValidIp) {
+                    // Agar Asteriskda SIP IP registratsiya bo'lmagan bo'lsa (3CX o'chiq) - operator mutlaqo offline!
+                    copy.presence = 'offline';
+                    copy.ringingCaller = null;
+                } else if (copy.presence === 'talking' || !copy.presence) {
                     copy.presence = 'ready';
                 }
                 return copy;
@@ -983,6 +1046,37 @@ class AmiService {
 
     getCallHistoryPaginated(page = 1, limit = 20, search = '') {
         return dbService.getCallsPaginated(page, limit, search);
+    }
+
+    /**
+     * 3CX Desktop Agent ping vaqtlarini har 3 soniyada tekshirish (Timeout Watchdog).
+     * Agar operator 38 soniya davomida ping yubormagan bo'lsa, darhol O'chiq (Offline) qiladi
+     * va brauzerlarga jonli yangilanishni (WebSocket broadcast) tarqatadi.
+     */
+    checkAgentTimeouts() {
+        let stateChanged = false;
+        const now = Date.now();
+        const TIMEOUT_MS = 38000; // Agent har 30s da ping jo'natadi, 38s - eng optimal tezkor chegara
+
+        for (const [opId, op] of this.operators.entries()) {
+            const isPingActive = !!(op.lastAgentPing && (now - op.lastAgentPing < TIMEOUT_MS));
+            if (op.agentConnected && !isPingActive) {
+                op.agentConnected = false;
+                stateChanged = true;
+                const secAgo = Math.round((now - (op.lastAgentPing || now)) / 1000);
+                console.log(`🔴 [3CX Desktop Agent] Operator ${opId} (${op.realName || ''}) ping to'xtadi (${secAgo}s oldin) -> O'chiq (Offline)`);
+            } else if (!op.agentConnected && isPingActive) {
+                op.agentConnected = true;
+                stateChanged = true;
+            }
+        }
+
+        if (stateChanged) {
+            this.broadcast('operators_update', this.getOperatorList());
+            if (typeof this.onAgentStateChange === 'function') {
+                this.onAgentStateChange();
+            }
+        }
     }
 }
 

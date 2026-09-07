@@ -19,7 +19,15 @@ if (Test-Path $configFile) {
     }
 }
 
-$serverUrl = $config.serverUrl.TrimEnd('/')
+$targetServers = @()
+if ($config.serverUrls) {
+    foreach ($u in $config.serverUrls) { if ($u) { $targetServers += [string]($u).TrimEnd('/') } }
+} else {
+    if ($config.serverUrl) { $targetServers += [string]($config.serverUrl).TrimEnd('/') }
+    if ($config.devServerUrl) { $targetServers += [string]($config.devServerUrl).TrimEnd('/') }
+}
+if ($targetServers.Count -eq 0) { $targetServers += "http://192.168.0.2:3000" }
+$serverUrl = $targetServers[0]
 $operatorId = [string]($config.operatorId)
 
 # 3CX Log va Tarix fayllarini izlash
@@ -71,35 +79,37 @@ Write-Host "======================================================" -ForegroundC
 
 # Heartbeat yuborish funksiyasi
 function Send-Heartbeat {
-    try {
-        $body = @{
-            operatorId = $operatorId
-            hostname   = $env:COMPUTERNAME
-            appVersion = "1.0.0"
-        } | ConvertTo-Json
-        Invoke-RestMethod -Uri "$serverUrl/api/agent/heartbeat" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    $body = @{
+        operatorId = $operatorId
+        hostname   = $env:COMPUTERNAME
+        appVersion = "1.0.0"
+    } | ConvertTo-Json
+    foreach ($srv in $targetServers) {
+        try {
+            Invoke-RestMethod -Uri "$srv/api/agent/heartbeat" -Method Post -Body $body -ContentType "application/json" -TimeoutSec 3 -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
+    }
 }
 
-# Qo'ng'iroq hodisasini serverga jo'natish
+# Qo'ng'iroq hodisasini serverga jo'natish (Production va Dev ga parallel)
 function Send-CallEvent($eventType, $callerId, $durationSec = 0, $details = "", $startTime = $null) {
-    try {
-        $body = @{
-            operatorId  = $operatorId
-            eventType   = $eventType
-            callerId    = if ($callerId) { $callerId } else { "Yashirin raqam" }
-            durationSec = [int]$durationSec
-            startTime   = if ($startTime) { $startTime } else { (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") }
-            hostname    = $env:COMPUTERNAME
-            details     = $details
-            timestamp   = (Get-Date).ToString("o")
-        } | ConvertTo-Json
+    $body = @{
+        operatorId  = $operatorId
+        eventType   = $eventType
+        callerId    = if ($callerId) { $callerId } else { "Yashirin raqam" }
+        durationSec = [int]$durationSec
+        startTime   = if ($startTime) { $startTime } else { (Get-Date).ToString("yyyy-MM-dd HH:mm:ss") }
+        hostname    = $env:COMPUTERNAME
+        details     = $details
+        timestamp   = (Get-Date).ToString("o")
+    } | ConvertTo-Json
 
-        Invoke-RestMethod -Uri "$serverUrl/api/agent/call-event" -Method Post -Body $body -ContentType "application/json; charset=utf-8" -TimeoutSec 5 -ErrorAction SilentlyContinue | Out-Null
-        Write-Host "📡 [$eventType] $callerId | Davomiyligi: ${durationSec}s | $details" -ForegroundColor Green
-    } catch {
-        # xatolik e'tiborsiz qoldiriladi
+    foreach ($srv in $targetServers) {
+        try {
+            Invoke-RestMethod -Uri "$srv/api/agent/call-event" -Method Post -Body $body -ContentType "application/json; charset=utf-8" -TimeoutSec 5 -ErrorAction SilentlyContinue | Out-Null
+        } catch {}
     }
+    Write-Host "📡 [$eventType] $callerId | Davomiyligi: ${durationSec}s | $details" -ForegroundColor Green
 }
 
 Send-Heartbeat

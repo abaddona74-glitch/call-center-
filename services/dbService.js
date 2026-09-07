@@ -92,6 +92,7 @@ class DbService {
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_time ON agent_3cx_call_logs (event_time);
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_op ON agent_3cx_call_logs (operator_id);
             CREATE INDEX IF NOT EXISTS idx_3cx_logs_type ON agent_3cx_call_logs (event_type);
+            CREATE INDEX IF NOT EXISTS idx_3cx_logs_op_time ON agent_3cx_call_logs (operator_id, event_time);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_3cx_unique_call ON agent_3cx_call_logs (operator_id, caller_id, start_time);
 
             -- 5. Operator tomonidan o'tkazib yuborilgan (ko'tarilmagan / ring timeout) hodisalar
@@ -190,12 +191,15 @@ class DbService {
     }
 
     /**
-     * Bugun operatorlar qancha qo'ng'iroqni rad etganini bazadan olish (Faqat ish vaqti: 08:00 - 21:00)
+     * Operatorlar qancha qo'ng'iroqni rad etganini bazadan olish (Faqat ish vaqti: 08:00 - 21:00)
+     * @param {string} [dateParam] - YYYY-MM-DD
      * @returns {Object} { [opId]: count }
      */
-    getTodayOperatorRejects() {
+    getTodayOperatorRejects(dateParam) {
         try {
-            const dateStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
+                ? dateParam
+                : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             const rows = this.db.prepare(`
                 SELECT operator_id, COUNT(DISTINCT event_time) as count 
                 FROM operator_reject_events 
@@ -270,12 +274,15 @@ class DbService {
     }
 
     /**
-     * Bugun operatorlar qancha qo'ng'iroqni o'tkazib yuborganini (Missed) bazadan olish (Faqat ish vaqti: 08:00 - 21:00)
+     * Operatorlar qancha qo'ng'iroqni o'tkazib yuborganini (Missed) bazadan olish (Faqat ish vaqti: 08:00 - 21:00)
+     * @param {string} [dateParam] - YYYY-MM-DD
      * @returns {Object} { [opId]: count }
      */
-    getTodayOperatorMissed() {
+    getTodayOperatorMissed(dateParam) {
         try {
-            const dateStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
+                ? dateParam
+                : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             const rows = this.db.prepare(`
                 SELECT operator_id, COUNT(DISTINCT event_time) as count 
                 FROM operator_missed_events 
@@ -299,10 +306,16 @@ class DbService {
 
     /**
      * Rad etilgan qo'ng'iroqlar ro'yxatini sahifalab olish (Modal uchun)
+     * @param {number} page
+     * @param {number} limit
+     * @param {string} search
+     * @param {string} [dateParam]
      */
-    getRejectEventsPaginated(page = 1, limit = 50, search = '') {
+    getRejectEventsPaginated(page = 1, limit = 50, search = '', dateParam = '') {
         try {
-            const dateStr = new Date().toISOString().slice(0, 10);
+            const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
+                ? dateParam
+                : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             let countSql = `SELECT COUNT(*) as total FROM operator_reject_events WHERE event_time LIKE ?`;
             let dataSql = `SELECT * FROM operator_reject_events WHERE event_time LIKE ?`;
             const countParams = [`${dateStr}%`];
@@ -348,10 +361,16 @@ class DbService {
 
     /**
      * O'tkazib yuborilgan (Missed) qo'ng'iroqlar ro'yxatini sahifalab olish (Modal uchun)
+     * @param {number} page
+     * @param {number} limit
+     * @param {string} search
+     * @param {string} [dateParam]
      */
-    getMissedEventsPaginated(page = 1, limit = 50, search = '') {
+    getMissedEventsPaginated(page = 1, limit = 50, search = '', dateParam = '') {
         try {
-            const dateStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
+                ? dateParam
+                : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             let countSql = `SELECT COUNT(*) as total FROM operator_missed_events WHERE event_time LIKE ? AND channel LIKE '3CX%'`;
             let dataSql = `SELECT * FROM operator_missed_events WHERE event_time LIKE ? AND channel LIKE '3CX%'`;
             const countParams = [`${dateStr}%`];
@@ -682,30 +701,36 @@ class DbService {
     getTodayAgentOperatorStats(targetDate = null) {
         try {
             const todayStr = targetDate || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const startDay = `${todayStr} 00:00:00`;
+            const endDay = `${todayStr} 23:59:59`;
             
             // Faqat 3CX Desktop Agent maxsus jurnali (0 soniyaliklar javob berilgan deb hisoblanmaydi)
             const agentRows = this.db.prepare(`
                 SELECT 
                     operator_id,
                     COUNT(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 THEN 1 END) as answered,
-                    COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type != 'DIALLED') THEN 1 END) as missed,
-                    SUM(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 THEN duration_sec ELSE 0 END) as total_duration_sec
+                    COUNT(CASE WHEN (event_type = 'DIALLED' OR event_type = '1') AND duration_sec > 0 THEN 1 END) as outbound,
+                    COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')) THEN 1 END) as missed,
+                    SUM(CASE WHEN (event_type IN ('ANSWERED', '2', 'DIALLED', '1')) AND duration_sec > 0 THEN duration_sec ELSE 0 END) as total_duration_sec
                 FROM agent_3cx_call_logs
-                WHERE date(event_time) = ?
+                WHERE event_time >= ? AND event_time <= ?
                 GROUP BY operator_id
-            `).all(todayStr);
+            `).all(startDay, endDay);
 
             const map = {};
             for (const r of agentRows) {
                 const opId = String(r.operator_id);
                 const ans = r.answered || 0;
+                const out = r.outbound || 0;
                 const totDur = r.total_duration_sec || 0;
+                const spoken = ans + out;
                 map[opId] = {
                     operatorId: opId,
                     answered: ans,
+                    outbound: out,
                     missed: r.missed || 0,
                     totalDurationSec: totDur,
-                    avgDurationSec: ans > 0 ? Math.round(totDur / ans) : 0
+                    avgDurationSec: spoken > 0 ? Math.round(totDur / spoken) : 0
                 };
             }
 
@@ -719,7 +744,7 @@ class DbService {
     /**
      * 3CX Agent jurnali bo'yicha sahifalab olish (Faqat 3CX Desktop Agent yozuvlari)
      */
-    getAgentCallLogsPaginated(page = 1, limit = 50, operatorId = null, dateFilter = 'today') {
+    getAgentCallLogsPaginated(page = 1, limit = 50, operatorId = null, dateFilter = 'today', search = '') {
         try {
             page = Math.max(1, parseInt(page, 10) || 1);
             limit = Math.min(Math.max(10, parseInt(limit, 10) || 50), 500);
@@ -737,15 +762,22 @@ class DbService {
             const params = [];
 
             if (dateStr) {
-                countSql += ` AND event_time LIKE ?`;
-                dataSql += ` AND event_time LIKE ?`;
-                params.push(`${dateStr}%`);
+                countSql += ` AND event_time >= ? AND event_time <= ?`;
+                dataSql += ` AND event_time >= ? AND event_time <= ?`;
+                params.push(`${dateStr} 00:00:00`, `${dateStr} 23:59:59`);
             }
 
             if (operatorId) {
                 countSql += ` AND operator_id = ?`;
                 dataSql += ` AND operator_id = ?`;
                 params.push(String(operatorId));
+            }
+
+            if (search && typeof search === 'string' && search.trim()) {
+                const s = `%${search.trim()}%`;
+                countSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
+                dataSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
+                params.push(s, s, s, s);
             }
 
             dataSql += ` ORDER BY event_time DESC, id DESC LIMIT ? OFFSET ?`;

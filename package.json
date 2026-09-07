@@ -4,7 +4,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js"
+    "dev": "nodemon app.js",
+    "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
     "asterisk-manager": "^0.2.0",
