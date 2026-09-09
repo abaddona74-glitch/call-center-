@@ -1552,6 +1552,14 @@ select option:hover {
     transform: translateY(-1px);
 }
 
+/* Export tugmasi FAQAT /operators sahifasida ko'rinadi */
+html:not([data-tab="operators"]) #btnExportExcel {
+    display: none !important;
+}
+html[data-tab="operators"] #btnExportExcel {
+    display: inline-flex !important;
+}
+
 .cal-status-hint {
     font-size: 12px;
     color: var(--text-muted);

@@ -18,7 +18,7 @@
     <script src="https://code.highcharts.com/highcharts-3d.js"></script>
     <!-- WaveSurfer.js for Audio Waveform Rendering -->
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <link rel="stylesheet" href="/css/style.css?v=9.0">
+    <link rel="stylesheet" href="/css/style.css?v=10.0">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -76,6 +76,11 @@
         /* Top Bar Sana filterini barcha sahifalarda ko'rsatish */
         .date-filter-bar {
             display: flex !important;
+        }
+
+        /* Export tugmasi FAQAT /operators sahifasida ko'rinadi, boshqa barcha sahifalarda (/, /history, /explorer) yashiriladi */
+        html:not([data-tab="operators"]) #btnExportExcel {
+            display: none !important;
         }
         html[data-tab="operators"] #btnExportExcel {
             display: inline-flex !important;
@@ -297,7 +302,7 @@
                     </div>
 
                     <div class="date-filter-right">
-                        <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
+                        <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
                                 <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
                                 <polyline points="16 6 12 2 8 6"></polyline>
@@ -1140,6 +1145,6 @@
     </div>
 
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=9.0"></script>
+    <script src="/js/dashboard.js?v=10.0"></script>
 </body>
 </html>
