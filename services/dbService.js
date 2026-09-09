@@ -860,7 +860,7 @@ class DbService {
                     }
                 } else if (status === 'OUTBOUND' || status === 'DIALLED') {
                     category3cx = 'Dialled';
-                    statusName = 'Chiquvchi (Dialled)';
+                    statusName = (r.duration_sec === 0) ? 'Chiquvchi (Ulanmagan)' : 'Chiquvchi (Dialled)';
                 } else if (status === 'INCOMING') {
                     if (r.duration_sec === 0) {
                         status = 'MISSED';

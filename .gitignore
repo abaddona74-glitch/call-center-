@@ -19,4 +19,14 @@ skills-lock.json
 *.log
 logs/
 
+# Arxiv va vaqtinchalik testlar
 *.zip
+*.tar
+*.tar.gz
+scratch/
+
+# Maxfiy SSL sertifikatlari
+ssl/
+
+# Katta Excel va eksport fayllari
+*.xlsx

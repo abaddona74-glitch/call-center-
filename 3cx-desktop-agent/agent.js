@@ -21,7 +21,7 @@ const configPath = path.join(configDir, 'config.json');
 let config = {
     serverUrl:           'http://192.168.0.16:3000',
     operatorId:          '101',
-    heartbeatIntervalSec: 30,
+    heartbeatIntervalSec: 5,
     customLogPath:       ''
 };
 

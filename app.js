@@ -7,6 +7,9 @@ process.on('unhandledRejection', (reason, promise) => {
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
+const net = require('net');
+const fs = require('fs');
 const WebSocket = require('ws');
 const path = require('path');
 const cors = require('cors');
@@ -14,14 +17,68 @@ const config = require('./config');
 const amiService = require('./services/amiService');
 const sftpService = require('./services/sftpService');
 const dbService = require('./services/dbService');
+const syncService = require('./services/syncService');
+const exportService = require('./services/exportService');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
 
 const app = express();
 app.set('json spaces', 2);
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+
+// SSL Sertifikatlari (Self-Signed yoki Custom SSL)
+const sslKeyPath = path.join(__dirname, 'ssl', 'server.key');
+const sslCertPath = path.join(__dirname, 'ssl', 'server.crt');
+const hasSsl = fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath);
+
+let server;
+let isMultiplexed = false;
+const wss = new WebSocket.Server({ noServer: true });
+
+const handleUpgrade = (request, socket, head) => {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+    });
+};
+
+if (hasSsl) {
+    try {
+        const httpsOptions = {
+            key: fs.readFileSync(sslKeyPath),
+            cert: fs.readFileSync(sslCertPath)
+        };
+        const httpServer = http.createServer(app);
+        const httpsServer = https.createServer(httpsOptions, app);
+
+        httpServer.on('upgrade', handleUpgrade);
+        httpsServer.on('upgrade', handleUpgrade);
+
+        // HTTP va HTTPS ni bitta portda birgalikda qabul qiluvchi multiplexer:
+        // Agar birinchi bayt 22 (0x16 TLS Handshake) bo'lsa -> HTTPS
+        // Aks holda (GET, POST va h.k.) -> HTTP
+        server = net.createServer((socket) => {
+            socket.once('data', (buffer) => {
+                socket.pause();
+                socket.unshift(buffer);
+                if (buffer[0] === 22) {
+                    httpsServer.emit('connection', socket);
+                } else {
+                    httpServer.emit('connection', socket);
+                }
+                process.nextTick(() => socket.resume());
+            });
+        });
+        server.on('error', (err) => console.error('Server multiplexer xatosi:', err));
+        isMultiplexed = true;
+    } catch (sslErr) {
+        console.error('⚠️ SSL yuklashda xatolik yuz berdi, oddiy HTTP ga qaytilmoqda:', sslErr.message);
+        server = http.createServer(app);
+        server.on('upgrade', handleUpgrade);
+    }
+} else {
+    server = http.createServer(app);
+    server.on('upgrade', handleUpgrade);
+}
 
 app.use(cors());
 app.use(express.json());
@@ -60,9 +117,14 @@ sftpService.connect().then(connected => {
 });
 
 // WebSocket yangi mijoz ulanganda
-wss.on('connection', (ws) => {
+wss.on('connection', async (ws) => {
     console.log('🔗 Yangi Web dashboard mijozi ulandi');
     
+    // Birinchi sinxronizatsiya yakunlanishini kutamiz (bo'sh yoki 0 ma'lumot ketmasligi uchun)
+    try {
+        await amiService.ensureInitialSync();
+    } catch (e) {}
+
     // Dastlabki ma'lumotlarni yuboramiz
     ws.send(JSON.stringify({
         type: 'initial_state',
@@ -112,6 +174,7 @@ app.get('/api/stats', async (req, res) => {
             return res.status(500).json({ error: e.message });
         }
     }
+    await amiService.ensureInitialSync();
     res.json(amiService.getSummaryStats());
 });
 
@@ -137,6 +200,7 @@ app.get('/api/operators', async (req, res) => {
             return res.status(500).json({ error: e.message });
         }
     }
+    await amiService.ensureInitialSync();
     res.json(amiService.getOperatorList());
 });
 
@@ -478,6 +542,14 @@ amiService.onAgentStateChange = () => {
     amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
 };
 
+// 21:00 yoki qo'lda CDR sinxronizatsiyasi yakunlanganda barcha brauzerlarga yangi statistikani yuborish
+syncService.onSyncComplete = (res) => {
+    console.log('🔄 [syncService] Sinxronizatsiya yakunlandi, veb sahifalarga tarqatilmoqda...');
+    amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+    amiService.broadcast('stats_update', amiService.getSummaryStats());
+    amiService.broadcast('operators_update', amiService.getOperatorList());
+};
+
 // /operators sahifasi uchun faqat 3CX Desktop Agent to'plagan operatorlar statistikasi
 app.get('/api/agent/operator-stats', (req, res) => {
     const dateStr = req.query.date || null;
@@ -557,6 +629,47 @@ app.get('/api/agent/logs', (req, res) => {
     res.send(JSON.stringify(result, null, 2));
 });
 
+// Asterisk CDR dan 3CX Agent jurnali (agent_3cx_call_logs) ga tushmay qolgan qo'ng'iroqlarni sinxron qilish
+app.post('/api/agent/sync-from-cdr', async (req, res) => {
+    const { date } = req.body || {};
+    try {
+        const result = await syncService.syncDailyCdrToAgentLogs(date);
+        if (result.success && result.addedCount > 0) {
+            amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+            amiService.broadcast('stats_update', amiService.getSummaryStats());
+            amiService.broadcast('operators_update', amiService.getOperatorList());
+        }
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/agent/sync-status', (req, res) => {
+    res.json(syncService.getLastSyncInfo());
+});
+
+// Excel hisoboti eksporti ("cal stat" andozasi bo'yicha - Oylik yoki Sana oralig'i)
+app.get('/api/export/excel', async (req, res) => {
+    const month = req.query.month || null;
+    const startDate = req.query.startDate || null;
+    const endDate = req.query.endDate || null;
+    try {
+        const { buffer, fileName } = await exportService.generateReportBuffer({
+            targetMonth: month,
+            startDate,
+            endDate
+        });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Length', buffer.length);
+        res.send(buffer);
+    } catch (err) {
+        console.error('❌ Excel export xatosi:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 
 // SPA Navigation Routes
 ['/', '/dashboard', '/explorer', '/audio', '/operators', '/history'].forEach(route => {
@@ -573,9 +686,15 @@ app.use((req, res) => {
 server.listen(config.PORT, () => {
     console.log(`\n======================================================`);
     console.log(`🚀 Call Center Dashboard ishga tushdi!`);
-    console.log(`🌐 Manzil: http://localhost:${config.PORT}`);
-    console.log(`📖 Swagger API Docs: http://localhost:${config.PORT}/api-docs`);
+    if (isMultiplexed) {
+        console.log(`🔒 Xavfsiz HTTPS Manzil: https://localhost:${config.PORT}`);
+        console.log(`🌐 Oddiy HTTP Manzil:   http://localhost:${config.PORT}`);
+        console.log(`📖 Swagger API Docs:    https://localhost:${config.PORT}/api-docs`);
+    } else {
+        console.log(`🌐 Manzil: http://localhost:${config.PORT}`);
+        console.log(`📖 Swagger API Docs: http://localhost:${config.PORT}/api-docs`);
+    }
     console.log(`📊 AMI Server: ${config.AMI.host}:${config.AMI.port}`);
     console.log(`📁 SFTP Monitor Path: ${config.SFTP.monitorPath}`);
     console.log(`======================================================\n`);
-});
+}); 

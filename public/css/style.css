@@ -99,12 +99,21 @@ body {
     width: 42px;
     height: 42px;
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: rgba(15, 23, 42, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    box-shadow: 0 4px 14px var(--primary-glow);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.logo-badge img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
 }
 
 .brand-info h1 {
@@ -198,6 +207,23 @@ body {
     100% { transform: scale(0.95); opacity: 0.8; }
 }
 
+/* Global Select & Option Dropdown Dark Styling */
+select, 
+select option {
+    background-color: #0f172a !important;
+    color: #ffffff !important;
+}
+
+select option {
+    padding: 8px 12px;
+}
+
+select option:checked, 
+select option:hover {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+}
+
 /* Nav Tabs */
 .nav-tabs {
     display: flex;
@@ -276,7 +302,10 @@ body {
     backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    padding: 20px;
+    padding: 26px 22px;
+    min-height: 145px;
+    height: 145px;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -291,9 +320,9 @@ body {
 }
 
 .kpi-icon {
-    width: 54px;
-    height: 54px;
-    min-width: 54px;
+    width: 62px;
+    height: 62px;
+    min-width: 62px;
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
@@ -302,8 +331,8 @@ body {
 }
 
 .kpi-icon img {
-    width: 48px;
-    height: 48px;
+    width: 54px;
+    height: 54px;
     object-fit: contain;
     filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -360,18 +389,31 @@ body {
 .kpi-card.red .kpi-icon { color: var(--danger); }
 .kpi-card.amber .kpi-icon { color: var(--warning); }
 
+.kpi-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+}
+
 .kpi-details p {
     font-size: 12px;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 600;
+    line-height: 1.35;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
 }
 
 .kpi-details h3 {
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 700;
-    margin-top: 2px;
+    margin-top: 0;
+    line-height: 1.2;
 }
 
 .kpi-badge {
@@ -383,6 +425,8 @@ body {
 
 .kpi-badge.success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
 .kpi-badge.danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.kpi-badge.warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.kpi-badge.purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
 
 /* Charts Layout */
 .charts-grid {
@@ -499,8 +543,11 @@ body {
     left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-dim);
+    pointer-events: none;
 }
 
 /* Explorer Grid / Table */
@@ -815,6 +862,67 @@ body {
 .btn-mini-hangup:hover {
     background: var(--danger);
     color: #fff;
+}
+
+/* ==========================================================================
+   Active Conversations Swipe-Right & Swipe-In Animations
+   ========================================================================== */
+@keyframes swipeOutRight {
+    0% {
+        transform: translateX(0);
+        opacity: 1;
+        max-height: 80px;
+        margin-bottom: 0px;
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    }
+    30% {
+        transform: translateX(35px);
+        opacity: 0.95;
+        border-color: rgba(239, 68, 68, 0.45);
+        background: rgba(239, 68, 68, 0.1);
+        box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
+    }
+    70% {
+        transform: translateX(115%);
+        opacity: 0.2;
+        max-height: 80px;
+        margin-bottom: 0px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+    }
+    100% {
+        transform: translateX(140%);
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+        margin-bottom: -6px;
+        border-width: 0;
+        border: none;
+    }
+}
+
+.compact-channel-card.swiping-out {
+    animation: swipeOutRight 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+    will-change: transform, opacity, max-height;
+}
+
+@keyframes swipeInLeft {
+    0% {
+        transform: translateX(-25px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.compact-channel-card.swiping-in {
+    animation: swipeInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Dedicated Audio Player Box */

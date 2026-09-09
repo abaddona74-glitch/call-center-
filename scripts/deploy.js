@@ -40,7 +40,7 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="scratch" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
-    `app.js config.js swaggerSpec.js package.json package-lock.json .env services public`;
+    `app.js config.js swaggerSpec.js package.json package-lock.json .env services public ssl`;
 
 try {
     execSync(tarCmd, { stdio: 'inherit' });

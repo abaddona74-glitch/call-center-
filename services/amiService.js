@@ -34,13 +34,24 @@ class AmiService {
         this.channelToOperator = new Map(); // channel / uniqueid -> operator extension (e.g. '103')
         this.pollingInterval = null;
         this.onAgentStateChange = null;
+        this.isInitialSyncDone = false;
 
         // Issabel MariaDB bilan darhol sinxronizatsiyani ishga tushirish (MariaDB - asosiy CDR manbai)
-        setTimeout(() => this.syncIssabelData(), 300);
+        this.initialSyncPromise = this.syncIssabelData();
         setInterval(() => this.syncIssabelData(), 15000);
 
         // 3CX Desktop Agent ping vaqtlarini har 3 soniyada tekshirib turish (Tezkor Timeout Watchdog)
         setInterval(() => this.checkAgentTimeouts(), 3000);
+    }
+
+    async ensureInitialSync() {
+        if (!this.isInitialSyncDone && this.initialSyncPromise) {
+            try {
+                await this.initialSyncPromise;
+            } catch (e) {
+                console.warn('ensureInitialSync xatolik:', e.message);
+            }
+        }
     }
 
     async syncIssabelData() {
@@ -52,21 +63,77 @@ class AmiService {
                 issabelDbService.fetchTodaySummary()
             ]);
             
+            const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            if (this.currentDate && this.currentDate !== todayStr) {
+                console.log(`🌅 Yangi kun boshlandi (${todayStr}). Operatorlar statistikasi qayta nollanmoqda...`);
+                for (const op of this.operators.values()) {
+                    op.totalCalls = 0;
+                    op.answered = 0;
+                    op.clientHangup = 0;
+                    op.operatorHangup = 0;
+                    op.denied = 0;
+                    op.missed = 0;
+                    op.totalDurationSec = 0;
+                    op.avgDurationSec = 0;
+                }
+                this.stats.clientHangupCalls = 0;
+                this.stats.operatorHangupCalls = 0;
+            }
+            this.currentDate = todayStr;
+
             const todayRejects = dbService.getTodayOperatorRejects();
             const todayMissed = dbService.getTodayOperatorMissed();
+            const todayAgentStats = dbService.getTodayAgentOperatorStats();
+            const statsMap = new Map(stats.map(s => [String(s.id), s]));
+
+            // Barcha mavjud operatorlarni bugungi sana bo'yicha tozalash va yangilash
+            for (const [id, op] of this.operators.entries()) {
+                const st = statsMap.get(id);
+                const agentOp = todayAgentStats[id];
+                const agentOutbound = agentOp ? (agentOp.outbound || 0) : 0;
+                const cdrOutbound = st ? (st.outbound || 0) : 0;
+                const finalOutbound = Math.max(cdrOutbound, agentOutbound);
+
+                if (st) {
+                    op.name = st.name;
+                    op.realName = st.realName;
+                    op.answered = st.answered || 0;
+                    op.outbound = finalOutbound;
+                    op.totalDurationSec = Math.max(st.totalDurationSec || 0, (agentOp && agentOp.totalDurationSec) || 0);
+                    op.avgDurationSec = st.avgDurationSec || 0;
+                } else {
+                    op.answered = 0;
+                    op.outbound = finalOutbound;
+                    op.totalDurationSec = 0;
+                    op.avgDurationSec = 0;
+                }
+                op.denied = todayRejects[id] || 0;
+                op.missed = todayMissed[id] || 0;
+                op.totalCalls = op.answered + (op.outbound || 0) + op.denied;
+                this.operators.set(id, op);
+            }
+
+            // Stats dagi yangi operatorlar bo'lsa qo'shish
             for (const st of stats) {
-                this.ensureOperatorExists(st.id);
-                const op = this.operators.get(st.id);
-                op.name = st.name;
-                op.realName = st.realName;
-                op.answered = st.answered;
-                const dbDenied = todayRejects[st.id] !== undefined ? todayRejects[st.id] : (st.denied || 0);
-                op.denied = Math.max(op.denied || 0, dbDenied);
-                op.missed = todayMissed[st.id] || op.missed || 0;
-                op.totalCalls = op.answered + op.denied;
-                op.totalDurationSec = st.totalDurationSec;
-                op.avgDurationSec = st.avgDurationSec;
-                this.operators.set(st.id, op);
+                const id = String(st.id);
+                if (!this.operators.has(id)) {
+                    this.ensureOperatorExists(id);
+                    const op = this.operators.get(id);
+                    if (op) {
+                        const agentOp = todayAgentStats[id];
+                        const agentOutbound = agentOp ? (agentOp.outbound || 0) : 0;
+                        op.name = st.name;
+                        op.realName = st.realName;
+                        op.answered = st.answered || 0;
+                        op.outbound = Math.max(st.outbound || 0, agentOutbound);
+                        op.denied = todayRejects[id] || 0;
+                        op.missed = todayMissed[id] || 0;
+                        op.totalCalls = op.answered + (op.outbound || 0) + op.denied;
+                        op.totalDurationSec = st.totalDurationSec || 0;
+                        op.avgDurationSec = st.avgDurationSec || 0;
+                        this.operators.set(id, op);
+                    }
+                }
             }
 
             if (hourly) {
@@ -87,6 +154,8 @@ class AmiService {
             this.broadcast('stats_update', this.getSummaryStats());
         } catch (err) {
             console.error('syncIssabelData xatolik:', err.message);
+        } finally {
+            this.isInitialSyncDone = true;
         }
     }
 
@@ -935,10 +1004,26 @@ class AmiService {
 
         const excluded = issabelDbService.getExcludedOperators();
         const weight = { 'ringing': 1, 'ready': 2, 'talking': 3, 'paused': 4, 'offline': 5 };
+        const todayRejects = dbService.getTodayOperatorRejects();
+        const todayMissed = dbService.getTodayOperatorMissed();
+        const todayAgentStats = dbService.getTodayAgentOperatorStats();
+
         return Array.from(this.operators.values())
             .filter(op => !excluded.has(String(op.id)))
             .map(op => {
                 const copy = { ...op };
+                const agentOp = todayAgentStats[op.id];
+                const agentOutbound = agentOp ? (agentOp.outbound || 0) : 0;
+                copy.outbound = Math.max(op.outbound || 0, agentOutbound);
+                copy.denied = todayRejects[op.id] || 0;
+                copy.missed = todayMissed[op.id] || 0;
+                copy.totalCalls = (copy.answered || 0) + copy.outbound + copy.denied;
+
+                const agentDur = agentOp ? (agentOp.totalDurationSec || 0) : 0;
+                copy.totalDurationSec = Math.max(op.totalDurationSec || 0, agentDur);
+                const spoken = (copy.answered || 0) + copy.outbound;
+                copy.avgDurationSec = spoken > 0 ? Math.round(copy.totalDurationSec / spoken) : 0;
+
                 const realName = op.id === '114' ? 'Maxmudbek' : (issabelDbService.getOperatorName(op.id) || op.realName || `Operator ${op.id}`);
                 copy.realName = realName;
                 copy.name = realName && realName !== `Operator ${op.id}` ? `${realName} (${op.id})` : `Operator ${op.id}`;
@@ -1045,6 +1130,7 @@ class AmiService {
             operatorHangupCalls: this.stats.operatorHangupCalls,
             answerRate: total > 0 ? Math.round((answered / total) * 100) : 0,
             abandonedRate: inbound > 0 ? Math.round((abandoned / inbound) * 100) : 0,
+            outboundRate: total > 0 ? Math.round((outbound / total) * 100) : 0,
             denyRate: total > 0 ? Math.round((denied / total) * 100) : 0,
             missedRate: total > 0 ? Math.round((missed / total) * 100) : 0,
             totalDurationSec: dbSummary ? dbSummary.totalDurationSec : this.stats.totalDurationSec,

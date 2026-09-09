@@ -87,13 +87,13 @@ class IssabelDbService {
 
                 SELECT '===SUMMARY_OUT===' as marker;
                 SELECT 
-                    COUNT(*) as total_outbound,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
                 FROM cdr 
                 WHERE calldate >= CURDATE() 
-                  AND dcontext = 'from-internal'
-                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
+                  AND dcontext = 'from-internal' 
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-' 
                   AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7);
 
                 SELECT '===HOURLY===' as marker;
@@ -118,6 +118,18 @@ class IssabelDbService {
                 FROM cdr 
                 WHERE calldate >= CURDATE() AND dst REGEXP '^[0-9]{2,4}$'
                 GROUP BY dst;
+
+                SELECT '===OP_OUTBOUND===' as marker;
+                SELECT 
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1) as op_ext,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as outbound_answered,
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as outbound_duration
+                FROM cdr 
+                WHERE calldate >= CURDATE()
+                  AND dcontext = 'from-internal'
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
+                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+                GROUP BY op_ext;
             `;
 
             const raw = await this.execQuery(multiSql);
@@ -160,7 +172,7 @@ class IssabelDbService {
             }
             if (sectionMap['SUMMARY_OUT']) {
                 const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
-                outTotal = parseInt(ot, 10) || 0;
+                outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
             }
@@ -168,11 +180,12 @@ class IssabelDbService {
             const todayRejects = dbService.getTodayOperatorRejects();
             const totalOpDenied = Object.values(todayRejects).reduce((a, b) => a + b, 0);
             const total = inTotal + outTotal;
-            const answered = inAns + outAns;
+            const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
-            const answerRate = total > 0 ? Math.round((answered / total) * 100) : 0;
+            const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
+            const outboundRate = total > 0 ? Math.round((outTotal / total) * 100) : 0;
             const denyRate = total > 0 ? Math.round((totalOpDenied / total) * 100) : 0;
 
             this.cache.summary = {
@@ -185,6 +198,7 @@ class IssabelDbService {
                 totalDurationSec: durationSec,
                 answerRate,
                 abandonedRate,
+                outboundRate,
                 denyRate
             };
 
@@ -212,8 +226,26 @@ class IssabelDbService {
             }
             this.cache.hourly = { labels, inbound: inboundData, answered: answeredData };
 
-            // 4. Operator Stats
+            // 4. Operator Outbound Map
+            const outMap = new Map();
+            if (sectionMap['OP_OUTBOUND']) {
+                const lines = sectionMap['OP_OUTBOUND'].split('\n');
+                for (const l of lines) {
+                    if (!l) continue;
+                    const [opId, ansStr, durStr] = l.split('\t');
+                    const cleanOp = (opId || '').trim();
+                    if (cleanOp) {
+                        outMap.set(cleanOp, {
+                            answered: parseInt(ansStr, 10) || 0,
+                            duration: parseInt(durStr, 10) || 0
+                        });
+                    }
+                }
+            }
+
+            // 5. Operator Stats (Inbound + Outbound)
             const opStats = [];
+            const processedExts = new Set();
             if (sectionMap['OPERATORS']) {
                 const lines = sectionMap['OPERATORS'].split('\n');
                 for (const l of lines) {
@@ -221,10 +253,14 @@ class IssabelDbService {
                     const [extRaw, ansStr, durStr] = l.split('\t');
                     const ext = extRaw ? extRaw.trim() : '';
                     if (!ext || EXCLUDED_OPERATORS.has(ext)) continue;
+                    processedExts.add(ext);
 
-                    const ans = parseInt(ansStr, 10) || 0;
-                    const dur = parseInt(durStr, 10) || 0;
-                    const avg = ans > 0 ? Math.round(dur / ans) : 0;
+                    const inAns = parseInt(ansStr, 10) || 0;
+                    const inDur = parseInt(durStr, 10) || 0;
+                    const outInfo = outMap.get(ext) || { answered: 0, duration: 0 };
+                    const totalDur = inDur + outInfo.duration;
+                    const spokenCalls = inAns + outInfo.answered;
+                    const avg = spokenCalls > 0 ? Math.round(totalDur / spokenCalls) : 0;
                     const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
                     const opDenied = todayRejects[ext] || 0;
 
@@ -232,10 +268,31 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: ans + opDenied,
-                        answered: ans,
+                        totalCalls: inAns + outInfo.answered + opDenied,
+                        answered: inAns,
+                        outbound: outInfo.answered,
                         denied: opDenied,
-                        totalDurationSec: dur,
+                        totalDurationSec: totalDur,
+                        avgDurationSec: avg
+                    });
+                }
+            }
+
+            for (const [ext, outInfo] of outMap.entries()) {
+                if (!processedExts.has(ext) && !EXCLUDED_OPERATORS.has(ext) && /^[0-9]{2,4}$/.test(ext)) {
+                    const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
+                    const opDenied = todayRejects[ext] || 0;
+                    const spokenCalls = outInfo.answered;
+                    const avg = spokenCalls > 0 ? Math.round(outInfo.duration / spokenCalls) : 0;
+                    opStats.push({
+                        id: ext,
+                        name: `${name} (${ext})`,
+                        realName: name,
+                        totalCalls: outInfo.answered + opDenied,
+                        answered: 0,
+                        outbound: outInfo.answered,
+                        denied: opDenied,
+                        totalDurationSec: outInfo.duration,
                         avgDurationSec: avg
                     });
                 }
@@ -322,6 +379,9 @@ class IssabelDbService {
     }
 
     getDateCondition(dateStr) {
+        if (dateStr === 'all' || dateStr === 'all_time') {
+            return '1=1';
+        }
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             return `calldate >= '${dateStr} 00:00:00' AND calldate <= '${dateStr} 23:59:59'`;
         }
@@ -362,40 +422,103 @@ class IssabelDbService {
                     dst,
                     COUNT(*) as total_offered,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as total_duration
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN billsec ELSE 0 END) as total_duration
                 FROM cdr 
                 WHERE ${dateCond} AND dst REGEXP '^[0-9]{3,4}$'
                 GROUP BY dst;
+
+                SELECT '===OP_OUTBOUND===';
+                SELECT 
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1) as op_id,
+                    COUNT(*) as total_outbound,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN billsec ELSE 0 END) as out_duration
+                FROM cdr 
+                WHERE ${dateCond}
+                  AND dcontext = 'from-internal'
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
+                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+                GROUP BY op_id;
             `;
             const raw = await this.execQuery(sql);
-            const lines = (raw || '').trim().split('\n');
+            const [inPart, outPart] = (raw || '').split('===OP_OUTBOUND===');
+
+            const outMap = new Map();
+            if (outPart) {
+                for (const line of outPart.trim().split('\n')) {
+                    if (!line) continue;
+                    const parts = line.split('\t');
+                    const opId = (parts[0] || '').trim();
+                    if (opId) {
+                        outMap.set(opId, {
+                            totalOut: parseInt(parts[1], 10) || 0,
+                            ansOut: parseInt(parts[2], 10) || 0,
+                            outDur: parseInt(parts[3], 10) || 0
+                        });
+                    }
+                }
+            }
+
+            const inLines = (inPart || '').trim().split('\n');
             const stats = [];
             const rejects = dbService.getTodayOperatorRejects(targetDate);
             const missed = dbService.getTodayOperatorMissed(targetDate);
+            const processedExts = new Set();
 
-            for (const line of lines) {
+            for (const line of inLines) {
                 if (!line) continue;
                 const parts = line.split('\t');
                 if (parts.length >= 4) {
                     const ext = parts[0].trim();
                     if (EXCLUDED_OPERATORS.has(ext)) continue;
+                    processedExts.add(ext);
 
                     const ans = parseInt(parts[2], 10) || 0;
-                    const durationSec = parseInt(parts[3], 10) || 0;
+                    const inDuration = parseInt(parts[3], 10) || 0;
+                    const outInfo = outMap.get(ext) || { ansOut: 0, outDur: 0 };
+                    const outbound = outInfo.ansOut;
+                    const totalDurationSec = inDuration + outInfo.outDur;
+                    const spoken = ans + outbound;
+
                     const opDenied = rejects[ext] || 0;
                     const opMissed = missed[ext] || 0;
-                    const avgSec = ans > 0 ? Math.round(durationSec / ans) : 0;
+                    const avgSec = spoken > 0 ? Math.round(totalDurationSec / spoken) : 0;
                     const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
 
                     stats.push({
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: ans + opDenied + opMissed,
+                        totalCalls: ans + outbound + opDenied,
                         answered: ans,
+                        outbound: outbound,
                         denied: opDenied,
                         missed: opMissed,
-                        totalDurationSec: durationSec,
+                        totalDurationSec: totalDurationSec,
+                        avgDurationSec: avgSec
+                    });
+                }
+            }
+
+            for (const [ext, outInfo] of outMap.entries()) {
+                if (!processedExts.has(ext) && !EXCLUDED_OPERATORS.has(ext) && /^[0-9]{2,4}$/.test(ext)) {
+                    const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
+                    const outbound = outInfo.ansOut;
+                    const totalDurationSec = outInfo.outDur;
+                    const opDenied = rejects[ext] || 0;
+                    const opMissed = missed[ext] || 0;
+                    const avgSec = outbound > 0 ? Math.round(totalDurationSec / outbound) : 0;
+
+                    stats.push({
+                        id: ext,
+                        name: `${name} (${ext})`,
+                        realName: name,
+                        totalCalls: outbound + opDenied,
+                        answered: 0,
+                        outbound: outbound,
+                        denied: opDenied,
+                        missed: opMissed,
+                        totalDurationSec: totalDurationSec,
                         avgDurationSec: avgSec
                     });
                 }
@@ -538,7 +661,7 @@ class IssabelDbService {
                   AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT 
-                    COUNT(*) as total_outbound,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
                 FROM cdr 
@@ -557,7 +680,7 @@ class IssabelDbService {
             const inDen = parseInt(inDenStr, 10) || 0;
 
             const [outTotalStr, outAnsStr, outDurStr] = (blocks[1] || '').split('\t');
-            const outTotal = parseInt(outTotalStr, 10) || 0;
+            const outTotal = parseInt(outAnsStr, 10) || parseInt(outTotalStr, 10) || 0;
             const outAns = parseInt(outAnsStr, 10) || 0;
             const outDur = parseInt(outDurStr, 10) || 0;
 
@@ -565,13 +688,14 @@ class IssabelDbService {
             const totalOpDenied = Object.values(dateRejects).reduce((a, b) => a + b, 0);
 
             const total = inTotal + outTotal;
-            const answered = inAns + outAns;
+            const answered = inAns;
             const durationSec = inDur + outDur;
             const denied = totalOpDenied;
             const abandoned = Math.max(0, inTotal - inAns);
 
-            const answerRate = total > 0 ? Math.round((answered / total) * 100) : 0;
+            const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
+            const outboundRate = total > 0 ? Math.round((outTotal / total) * 100) : 0;
             const denyRate = total > 0 ? Math.round((denied / total) * 100) : 0;
 
             const result = {
@@ -584,6 +708,7 @@ class IssabelDbService {
                 totalDurationSec: durationSec,
                 answerRate,
                 abandonedRate,
+                outboundRate,
                 denyRate
             };
 
@@ -653,7 +778,7 @@ class IssabelDbService {
 
                 SELECT '===SUMMARY_OUT===' as marker;
                 SELECT 
-                    COUNT(*) as total_outbound,
+                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
                 FROM cdr 
@@ -696,7 +821,7 @@ class IssabelDbService {
             }
             if (sectionMap['SUMMARY_OUT']) {
                 const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
-                outTotal = parseInt(ot, 10) || 0;
+                outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
             }
@@ -708,11 +833,12 @@ class IssabelDbService {
             const totalOpMissed = Object.values(dateMissed).reduce((a, b) => a + b, 0);
 
             const total = inTotal + outTotal;
-            const answered = inAns + outAns;
+            const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
-            const answerRate = total > 0 ? Math.round((answered / total) * 100) : 0;
+            const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
+            const outboundRate = total > 0 ? Math.round((outTotal / total) * 100) : 0;
             const denyRate = total > 0 ? Math.round((totalOpDenied / total) * 100) : 0;
             const missedRate = total > 0 ? Math.round((totalOpMissed / total) * 100) : 0;
 
@@ -750,6 +876,7 @@ class IssabelDbService {
                 totalDurationSec: durationSec,
                 answerRate,
                 abandonedRate,
+                outboundRate,
                 denyRate,
                 missedRate,
                 hourlyChart,
@@ -776,11 +903,12 @@ class IssabelDbService {
      */
     async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '') {
         try {
-            const targetDate = (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate();
-            const isPastDate = targetDate < this.getTodayDate();
+            const isAll = dateStr === 'all' || dateStr === 'all_time';
+            const targetDate = isAll ? 'all' : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate());
+            const isPastDate = !isAll && targetDate < this.getTodayDate();
             const redisKey = `callcenter:hist:calls:${targetDate}:${page}:${limit}:${search || '_'}`;
 
-            // 1. Redis dan tayyor sahifa keshini tekshirish (Bugun uchun ham 15 soniya, arxiv uchun 7 kun)
+            // 1. Redis dan tayyor sahifa keshini tekshirish (Bugun uchun ham 15 soniya, arxiv uchun 7 kun, all uchun 30s)
             try {
                 const cached = await redisService.get(redisKey);
                 if (cached && typeof cached === 'object' && cached.data) {
@@ -797,7 +925,7 @@ class IssabelDbService {
             }
 
             let total = 0;
-            const isToday = !dateStr || dateStr === this.getTodayDate();
+            const isToday = !isAll && (!dateStr || dateStr === this.getTodayDate());
             const countRedisKey = `callcenter:hist:count:${targetDate}:${search || '_'}`;
 
             let cachedCount = null;
@@ -813,7 +941,7 @@ class IssabelDbService {
                 const countSql = `USE asteriskcdrdb; SELECT COUNT(1) FROM cdr ${filter};`;
                 const countRaw = await this.execQuery(countSql);
                 total = parseInt((countRaw || '').trim(), 10) || 0;
-                await redisService.set(countRedisKey, total, isPastDate ? 604800 : 45);
+                await redisService.set(countRedisKey, total, isPastDate ? 604800 : (isAll ? 60 : 45));
             }
             const totalPages = Math.ceil(total / limit) || 1;
 
@@ -867,7 +995,7 @@ class IssabelDbService {
             }
 
             const result = { total, page: Math.min(page, totalPages), totalPages, limit, data: calls };
-            await redisService.set(redisKey, result, isPastDate ? 604800 : 15);
+            await redisService.set(redisKey, result, isPastDate ? 604800 : (isAll ? 30 : 15));
             return result;
         } catch (err) {
             console.error('⚠️ Issabel fetchCallsPaginated xatolik:', err.message);
@@ -951,11 +1079,11 @@ class IssabelDbService {
             }
 
             if (type === 'outbound') {
-                whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)`;
+                whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7) AND disposition = 'ANSWERED' AND billsec > 0`;
             } else if (type === 'inbound') {
                 whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
             } else if (type === 'answered') {
-                whereClause += ` AND disposition = 'ANSWERED' AND billsec > 0 AND ((dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-'))`;
+                whereClause += ` AND disposition = 'ANSWERED' AND billsec > 0 AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')`;
             } else if (type === 'abandoned') {
                 whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
                 isAbandoned = true;

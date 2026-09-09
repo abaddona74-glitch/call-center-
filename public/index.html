@@ -4,16 +4,21 @@
     <meta charset="UTF-8">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%232563eb'/><path d='M30 42c0-11 9-20 20-20s20 9 20 20v10c0 4.4-3.6 8-8 8h-4v-14h8v-4c0-8.8-7.2-16-16-16s-16 7.2-16 16v4h8v14h-4c-4.4 0-8-3.6-8-8V42z' fill='%23ffffff'/><circle cx='34' cy='50' r='5' fill='%2338bdf8'/><circle cx='66' cy='50' r='5' fill='%2338bdf8'/><path d='M64 56c0 6-5 11-12 11h-4' stroke='%23ffffff' stroke-width='4' stroke-linecap='round' fill='none'/><circle cx='48' cy='67' r='4.5' fill='%2310b981'/></svg>">
+    <link rel="icon" type="image/png" href="/images/title-icon.png?v=2.0">
+    <link rel="shortcut icon" type="image/png" href="/images/title-icon.png?v=2.0">
+    <link rel="apple-touch-icon" href="/images/title-icon.png?v=2.0">
     <!-- Google Font Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Highcharts 3D for 3D Pie Chart -->
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts-3d.js"></script>
     <!-- WaveSurfer.js for Audio Waveform Rendering -->
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <link rel="stylesheet" href="/css/style.css?v=3.6">
+    <link rel="stylesheet" href="/css/style.css?v=7.0">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -40,19 +45,87 @@
             display: none !important;
         }
 
-        /* Tepadagi menyu tugmasini darhol to'g'ri faollashtirish */
-        [data-tab] .nav-tabs .tab-btn {
-            background: transparent;
-            color: var(--text-muted);
-            border-color: transparent;
+        [data-tab="dashboard"] #tab-operators,
+        [data-tab="history"] #tab-operators,
+        [data-tab="explorer"] #tab-operators {
+            display: none !important;
         }
-        [data-tab="dashboard"] .nav-tabs .tab-btn[data-tab="dashboard"],
-        [data-tab="operators"] .nav-tabs .tab-btn[data-tab="operators"],
-        [data-tab="history"] .nav-tabs .tab-btn[data-tab="history"],
-        [data-tab="explorer"] .nav-tabs .tab-btn[data-tab="explorer"] {
-            background: rgba(59, 130, 246, 0.15) !important;
-            color: var(--primary-light) !important;
+
+        [data-tab="dashboard"] #tab-history,
+        [data-tab="operators"] #tab-history,
+        [data-tab="explorer"] #tab-history {
+            display: none !important;
+        }
+
+        [data-tab="dashboard"] #tab-explorer,
+        [data-tab="operators"] #tab-explorer,
+        [data-tab="history"] #tab-explorer {
+            display: none !important;
+        }
+
+        /* Faol tab tugmasini belgilash */
+        [data-tab="dashboard"] .nav-tabs a[data-tab="dashboard"],
+        [data-tab="operators"] .nav-tabs a[data-tab="operators"],
+        [data-tab="history"] .nav-tabs a[data-tab="history"],
+        [data-tab="explorer"] .nav-tabs a[data-tab="explorer"] {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.15)) !important;
+            color: #60a5fa !important;
             border-color: rgba(59, 130, 246, 0.4) !important;
+        }
+
+        /* Top Bar Sana filterini barcha sahifalarda ko'rsatish */
+        .date-filter-bar {
+            display: flex !important;
+        }
+        html[data-tab="operators"] #btnExportExcel {
+            display: inline-flex !important;
+        }
+
+        /* KPI Cards Keng, Baland va Chiroyli Tiklangan Ko'rinishi */
+        .kpi-card {
+            min-height: 145px !important;
+            height: 145px !important;
+            padding: 26px 22px !important;
+            box-sizing: border-box !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        .kpi-icon {
+            width: 62px !important;
+            height: 62px !important;
+            min-width: 62px !important;
+        }
+        .kpi-icon img {
+            width: 54px !important;
+            height: 54px !important;
+        }
+        .kpi-details p {
+            min-height: 34px !important;
+            display: flex !important;
+            align-items: center !important;
+            margin-bottom: 6px !important;
+            line-height: 1.35 !important;
+        }
+        .kpi-details h3 {
+            font-size: 32px !important;
+            margin-top: 0 !important;
+            line-height: 1.15 !important;
+        }
+
+        /* Select Dropdown Dark Theme & Option styling */
+        select, 
+        select option {
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+        }
+        select option {
+            padding: 8px 12px !important;
+        }
+        select option:hover, 
+        select option:focus, 
+        select option:checked {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
         }
     </style>
 </head>
@@ -63,26 +136,63 @@
             <!-- Top Navbar -->
             <header class="top-navbar">
                 <div class="brand-section">
-                    <div class="logo-badge">📞</div>
-                    <div class="brand-info">
-                        <h1>Issabel Call Center AI</h1>
-                        <p>Real-time Monitoring, Audio Explorer & Operator Analytics</p>
+                    <div class="logo-badge" style="background: rgba(15, 23, 42, 0.7); padding: 2px; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);">
+                        <img src="/images/title-icon.png?v=2.0" alt="Call Center Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block;">
+                    </div>
+                    <div class="brand-info" style="display: flex; align-items: center; gap: 14px;">
+                        <h1 style="margin: 0; white-space: nowrap;">Call Center</h1>
+                        <div class="header-live-clock" id="headerLiveClock" title="Hozirgi aniq vaqt" style="display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px; background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; font-family: 'Inter', monospace; font-size: 13px; font-weight: 700; color: #38bdf8; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35); letter-spacing: 0.8px;">
+                            <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                            <span id="liveClockDisplay">--:--:--</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Navigation Tabs -->
                 <nav class="nav-tabs">
-                    <a href="/" class="tab-btn" data-tab="dashboard">
-                        <span>📊</span> Dashboard
+                    <a href="/" class="tab-btn" data-tab="dashboard" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                            <path d="M4 3h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-9"/>
+                            <polyline points="2 9 6 6 11 10 16 5"/>
+                            <circle cx="2" cy="9" r="0.75" fill="currentColor"/>
+                            <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
+                            <circle cx="11" cy="10" r="0.75" fill="currentColor"/>
+                            <circle cx="16" cy="5" r="0.75" fill="currentColor"/>
+                            <line x1="13" y1="16" x2="13" y2="12"/>
+                            <line x1="16" y1="16" x2="16" y2="9"/>
+                            <line x1="19" y1="16" x2="19" y2="11"/>
+                            <circle cx="6.5" cy="16.5" r="3.5"/>
+                            <path d="M6.5 13v3.5h3.5"/>
+                        </svg>
+                        <span>Dashboard</span>
                     </a>
-                    <a href="/operators" class="tab-btn" data-tab="operators">
-                        <span>👥</span> Operatorlar Nazorati
+                    <a href="/operators" class="tab-btn" data-tab="operators" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                            <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
+                            <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
+                            <circle cx="12" cy="10" r="3.2"/>
+                            <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
+                        </svg>
+                        <span>Operatorlar</span>
                     </a>
-                    <a href="/history" class="tab-btn" data-tab="history">
-                        <span>📜</span> Qo'ng'iroqlar Tarixi
+                    <a href="/history" class="tab-btn" data-tab="history" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                            <path d="M12 7v5l4 2"/>
+                        </svg>
+                        <span>Qo'ng'iroqlar Tarixi</span>
                     </a>
-                    <a href="/explorer" class="tab-btn" data-tab="explorer">
-                        <span>📂</span> Audio Explorer
+                    <a href="/explorer" class="tab-btn" data-tab="explorer" style="display: inline-flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                            <rect x="2" y="8" width="2.4" height="8" rx="1.2"/>
+                            <rect x="5.8" y="5" width="2.4" height="14" rx="1.2"/>
+                            <rect x="9.6" y="7" width="2.4" height="10" rx="1.2"/>
+                            <rect x="13.4" y="2.5" width="2.4" height="19" rx="1.2"/>
+                            <rect x="17.2" y="5" width="2.4" height="14" rx="1.2"/>
+                            <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
+                        </svg>
+                        <span>Audio Explorer</span>
                     </a>
                 </nav>
             </header>
@@ -93,7 +203,28 @@
                         <!-- Calendar Dropdown Container -->
                         <div class="cal-dropdown-container">
                             <button type="button" class="cal-trigger-btn" id="calTriggerBtn" onclick="toggleCalendarPopup(event)" title="Kalendarni ochish">
-                                <span class="cal-trigger-icon">📅</span>
+                                <span class="cal-trigger-icon">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                                        <rect x="6" y="1" width="2.4" height="5" rx="1.2"/>
+                                        <rect x="15.6" y="1" width="2.4" height="5" rx="1.2"/>
+                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4 3.5 C2.6 3.5 1.5 4.6 1.5 6 V20 C1.5 21.4 2.6 22.5 4 22.5 H20 C21.4 22.5 22.5 21.4 22.5 20 V6 C22.5 4.6 21.4 3.5 20 3.5 H4 Z M3.5 8.5 H20.5 V20 C20.5 20.6 20.1 21 19.5 21 H4.5 C3.9 21 3.5 20.6 3.5 20 V8.5 Z"/>
+                                        <circle cx="7.2" cy="5" r="1.1" fill="#0f172a"/>
+                                        <circle cx="16.8" cy="5" r="1.1" fill="#0f172a"/>
+                                        <circle cx="7.2" cy="5" r="0.5" fill="currentColor"/>
+                                        <circle cx="16.8" cy="5" r="0.5" fill="currentColor"/>
+                                        <rect x="4.8" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="16.5" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="4.8" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="16.5" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="4.8" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                    </svg>
+                                </span>
                                 <span class="cal-selected-label" id="calSelectedLabel">Bugun</span>
                                 <span class="cal-trigger-arrow">▼</span>
                             </button>
@@ -157,12 +288,13 @@
                     </div>
 
                     <div class="date-filter-right">
-                        <span class="cal-status-hint" id="calStatusHint">
-                            ⚡ Serverdan sanaga mos ma'lumotlar yuklanadi
-                        </span>
-                        <button type="button" class="btn-action cal-refresh-btn" id="calRefreshBtn" onclick="refreshCurrentDateData(event)" title="Ma'lumotlarni yangilash">
-                            <span class="cal-spin-icon" id="calRefreshIcon">🔄</span>
-                            <span id="calRefreshText">Yangilash</span>
+                        <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+                                <polyline points="16 6 12 2 8 6"></polyline>
+                                <line x1="12" y1="2" x2="12" y2="15"></line>
+                            </svg>
+                            <span id="txtExportExcel" style="color: #ffffff;">Export</span>
                         </button>
                     </div>
 
@@ -174,54 +306,54 @@
                 <section class="page-content active" id="tab-dashboard">
 
                 <!-- KPI Cards (Clickable Drill-down) -->
-                <div class="kpi-grid">
-                    <div class="kpi-card blue clickable-kpi" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                <div class="kpi-grid is-loading">
+                    <div class="kpi-card blue clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/totalcalls.png" alt="Jami"></div>
                         <div class="kpi-details">
                             <p>Jami Qo'ng'iroqlar</p>
                             <h3 id="kpiTotalCalls">0</h3>
                         </div>
                     </div>
-                    <div class="kpi-card cyan clickable-kpi" onclick="openCallsDetail('inbound', 'Kiruvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card cyan clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('inbound', 'Kiruvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/incomingcall.png" alt="Kiruvchi"></div>
                         <div class="kpi-details">
                             <p>Kiruvchi Qo'ng'iroqlar</p>
-                            <h3><span id="kpiInbound">0</span> ta</h3>
+                            <h3><span id="kpiInbound">0</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card purple clickable-kpi" onclick="openCallsDetail('outbound', 'Chiquvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card purple clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('outbound', 'Chiquvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/outgoingcall.png" alt="Chiquvchi"></div>
                         <div class="kpi-details">
                             <p>Chiquvchi Qo'ng'iroqlar</p>
-                            <h3><span id="kpiOutbound">0</span> ta</h3>
+                            <h3><span id="kpiOutbound">0</span> <span class="kpi-badge purple" id="kpiOutboundRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card green clickable-kpi" onclick="openCallsDetail('answered', 'Muvaffaqiyatli (Javob berilgan) Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card green clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('answered', 'Muvaffaqiyatli Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/answered-calls-icon.png" alt="Muvaffaqiyatli"></div>
                         <div class="kpi-details">
-                            <p>Muvaffaqiyatli (Javob berilgan)</p>
+                            <p>Muvaffaqiyatli</p>
                             <h3><span id="kpiAnswered">0</span> <span class="kpi-badge success" id="kpiAnswerRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('abandoned', 'Navbatdan chiqdi (Kutishdan bosh tortdi)')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card amber clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('abandoned', 'Navbatdan chiqdi')" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/queue.png" alt="Navbatdan chiqdi"></div>
                         <div class="kpi-details">
-                            <p>Navbatdan chiqdi (Kutishdan bosh tortdi)</p>
+                            <p>Navbatdan chiqdi</p>
                             <h3><span id="kpiAbandoned">0</span> <span class="kpi-badge warning" id="kpiAbandonedRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card indigo clickable-kpi" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
+                    <div class="kpi-card indigo clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
                         <div class="kpi-icon"><img src="/images/stillinqueue.png" alt="Navbatda kutayotganlar"></div>
                         <div class="kpi-details">
                             <p>Navbatda kutayotganlar</p>
-                            <h3 id="kpiQueueWaiting">0 ta</h3>
+                            <h3 id="kpiQueueWaiting">0</h3>
                         </div>
                     </div>
-                    <div class="kpi-card red clickable-kpi" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan (Missed)')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
+                    <div class="kpi-card red clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
                         <div class="kpi-icon"><img src="/images/missedcall.png" alt="O'tkazib yuborilgan"></div>
                         <div class="kpi-details">
-                            <p>O'tkazib yuborilgan (Missed)</p>
-                            <h3><span id="kpiMissed">0</span> ta</h3>
+                            <p>O'tkazib yuborilgan</p>
+                            <h3><span id="kpiMissed">0</span></h3>
                         </div>
                     </div>
                 </div>
@@ -231,7 +363,7 @@
                     <!-- Left: Dynamics Chart -->
                     <div class="glass-panel">
                         <div class="panel-header">
-                            <h3 class="panel-title">📈 Qo'ng'iroqlar Dinamikasi (Bugungi faollik)</h3>
+                            <h3 class="panel-title">📈 Qo'ng'iroqlar Dinamikasi</h3>
                         </div>
                         <div class="chart-wrapper">
                             <canvas id="callVolumeChart"></canvas>
@@ -240,43 +372,38 @@
 
                     <!-- Right: Inbound vs Outbound Pie -->
                     <div class="glass-panel">
-                        <div class="panel-header">
-                            <h3 class="panel-title">🍩 Qo'ng'iroqlar Taqsimoti</h3>
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3 class="panel-title">🥧 Qo'ng'iroqlar Taqsimoti</h3>
+                            <div class="chart-mode-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 2px; gap: 2px;">
+                                <button type="button" id="btnChartMode2D" onclick="setChartMode('2d')" title="2D Tekis Donut diagramma" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                    2D
+                                </button>
+                                <button type="button" id="btnChartMode3D" onclick="setChartMode('3d')" title="3D Hajmdor diagramma" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);">
+                                    3D
+                                </button>
+                            </div>
                         </div>
-                        <div class="chart-wrapper">
-                            <canvas id="callDistributionChart"></canvas>
+                        <div class="chart-wrapper" style="position: relative; height: 280px; width: 100%;">
+                            <div id="callDistributionChartContainer" style="position: absolute; inset: 0; width: 100%; height: 280px; z-index: 2; transition: opacity 0.2s ease;"></div>
+                            <div id="callDistribution2DContainer" style="position: absolute; inset: 0; width: 100%; height: 280px; z-index: 1; opacity: 0; pointer-events: none; visibility: hidden; transition: opacity 0.2s ease;">
+                                <canvas id="callDistributionChart2D"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- OPERATORLAR HOLATI VA INTIZOMI (3CX & AMI) - CHARTS TAGIDA -->
+                <!-- OPERATORLAR - CHARTS TAGIDA -->
                 <div class="glass-panel" style="margin-bottom: 24px;">
-                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
-                        <div>
-                            <h3 class="panel-title">👥 Operatorlar Holati va Intizomi (3CX & AMI)</h3>
-                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
-                                Kim call qabul qilishga tayyor (On-hook), kim suhbatda va kimning 3CX dasturi offline ligini nazorat qiling.
-                            </p>
-                        </div>
-
-                        <!-- Presence Summary Badges -->
-                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <span class="badge badge-success" style="padding: 6px 12px; font-size: 12px;">
-                                🟢 Tayyor (On-hook): <b id="opCountReady" style="margin-left: 4px;">0</b>
-                            </span>
-                            <span class="badge badge-info" style="padding: 6px 12px; font-size: 12px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">
-                                🔵 Suhbatda: <b id="opCountTalking" style="margin-left: 4px;">0</b>
-                            </span>
-                            <span class="badge badge-danger" style="padding: 6px 12px; font-size: 12px;">
-                                🔴 Offline (3CX): <b id="opCountOffline" style="margin-left: 4px;">0</b>
-                            </span>
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; cursor: pointer;" onclick="openAgentLogsModal()" title="3CX Agent jurnali uchun bosing">
-                                🖥️ Desktop Agent: <b id="opCountAgentOnline" style="margin-left: 4px;">0</b>
-                            </span>
-                            <button class="btn-action" onclick="openAgentLogsModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4); color: #34d399; cursor: pointer; border-radius: var(--radius-sm);" title="3CX Desktop Agent to'plagan qo'ng'iroqlar jurnali">
-                                📜 3CX Jurnali
-                            </button>
-                        </div>
+                    <div class="panel-header">
+                        <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; color: var(--primary-light);">
+                                <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
+                                <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
+                                <circle cx="12" cy="10" r="3.2"/>
+                                <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
+                            </svg>
+                            <span>Operatorlar</span>
+                        </h3>
                     </div>
 
                     <div class="operator-grid" id="operatorsGrid">
@@ -319,7 +446,17 @@
                 <div class="glass-panel" style="margin-bottom: 24px;">
                     <div class="panel-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
                         <div>
-                            <h3 class="panel-title">📂 Audio Yozuvlar Explorer (Issabel PBX)</h3>
+                            <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; color: var(--primary-light);">
+                                    <rect x="2" y="8" width="2.4" height="8" rx="1.2"/>
+                                    <rect x="5.8" y="5" width="2.4" height="14" rx="1.2"/>
+                                    <rect x="9.6" y="7" width="2.4" height="10" rx="1.2"/>
+                                    <rect x="13.4" y="2.5" width="2.4" height="19" rx="1.2"/>
+                                    <rect x="17.2" y="5" width="2.4" height="14" rx="1.2"/>
+                                    <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
+                                </svg>
+                                <span>Audio Yozuvlar Explorer (Issabel PBX)</span>
+                            </h3>
                             <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
                                 Sanalar bo'yicha papkalarga kiring, fayllarni qidiring va suhbat audiosini to'g'ridan-to'g'ri tinglang.
                             </p>
@@ -388,7 +525,13 @@
                             </div>
 
                             <div class="search-box">
-                                <span class="search-icon">🔍</span>
+                                <span class="search-icon">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                        <circle cx="11" cy="11" r="7.5"/>
+                                        <path d="M11 5.5 C 13.2 5.8 15 7.5 15.3 9.7" stroke-width="2.2"/>
+                                        <line x1="16.5" y1="16.5" x2="21.5" y2="21.5" stroke-width="2.8"/>
+                                    </svg>
+                                </span>
                                 <input type="text" id="explorerSearchInput" placeholder="Raqam yoki fayl nomi bo'yicha qidirish...">
                             </div>
                         </div>
@@ -420,36 +563,31 @@
                 </div>
             </section>
 
-            <!-- TAB 3: OPERATORLAR NAZORATI (3CX DESKTOP AGENT) -->
+            <!-- TAB 3: OPERATORLAR -->
             <section class="page-content" id="tab-operators">
                 <div class="glass-panel" style="margin-bottom: 24px;">
                     <div class="panel-header" style="flex-wrap: wrap; gap: 12px;">
                         <div>
-                            <h3 class="panel-title">👥 Operatorlar Nazorati (3CX Desktop Agent)</h3>
-                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">
-                                Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq ko'rsatkichlar (Qabul qilingan, O'tkazib yuborilgan, Davomiylik, Yulduzlar va NPC unvoni)
-                            </p>
+                            <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; color: var(--primary-light);">
+                                    <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
+                                    <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
+                                    <circle cx="12" cy="10" r="3.2"/>
+                                    <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
+                                </svg>
+                                <span>Operatorlar</span>
+                            </h3>
                         </div>
 
-                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;">
-                                👥 Jami: <b id="tabOpCountReady">0 ta</b>
-                            </span>
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">
-                                🖥️ Desktop Agent: <b id="tabOpCountAgent">0</b>
-                            </span>
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;">
-                                📞 Qabul qilingan: <b id="tabOpTotalAnswered">0 ta</b>
-                            </span>
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.4); color: #38bdf8;">
-                                📤 Chiquvchi: <b id="tabOpTotalOutbound">0 ta</b>
-                            </span>
-                            <span class="badge" style="padding: 6px 12px; font-size: 12px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">
-                                ⚠️ O'tkazib yuborilgan: <b id="tabOpTotalMissed">0 ta</b>
-                            </span>
-                            <button class="btn-action" onclick="loadTabAgentOperators(true)" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 12px;">
-                                🔄 Yangilash
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="btn-action" id="btnCdrSync" onclick="triggerCdrSync()" title="Asterisk PBX CDR dagi barcha qo'ng'iroqlarni server bazasiga tiklash va yangilash" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 15px; font-size: 12px; font-weight: 500; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.45); color: #c7d2fe; border-radius: 8px;">
+                                <span>⚡</span> Serverdan tiklash
                             </button>
+                            <div class="last-sync-badge" id="syncStatusBadge" title="Avtomatik sinxronizatsiya har kuni soat 21:00 da amalga oshiriladi" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-muted);">
+                                <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></span>
+                                <span>Last sync:</span>
+                                <strong id="lastSyncTimeText" style="color: #ffffff; font-weight: 600;">21:00</strong>
+                            </div>
                         </div>
                     </div>
 
@@ -461,18 +599,14 @@
                     <!-- 3CX Desktop Agent Call Logs Table -->
                     <div class="panel-header" style="padding-top: 16px; border-top: 1px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
                         <div>
-                            <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                                🖥️ <span id="operatorSelectedTitle">Barcha Operatorlar</span> — 3CX Desktop Agent Qo'ng'iroqlar Jurnali
+                            <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
+                                🖥️ <span id="operatorSelectedTitle">Agent ma'lumotlari</span>
                             </h4>
-                            <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                                3CX dasturi faylidan real-vaqtda o'qib olingan qo'ng'iroqlar
-                            </p>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <select id="tabAgentLogOpSelect" onchange="filterTabAgentLogsByOperator(this.value)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 5px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
-                                <option value="">Barcha Operatorlar</option>
+                            <select id="tabAgentLogOpSelect" onchange="filterTabAgentLogsByOperator(this.value)" style="background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.4); color: #fff; padding: 6px 14px; border-radius: var(--radius-sm); font-size: 12px; outline: none; cursor: pointer; font-weight: 600;">
+                                <option value="" style="background: #0f172a; color: #fff;">Barcha Operatorlar</option>
                             </select>
-                            <span id="tabOperatorLogsTotal" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta</span>
                         </div>
                     </div>
 
@@ -497,29 +631,88 @@
                 <div class="glass-panel" style="margin-bottom: 20px;">
                     <div class="panel-header" style="flex-wrap: wrap; gap: 14px; margin-bottom: 0;">
                         <div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <h3 class="panel-title" id="historyPanelTitle">📜 Qo'ng'iroqlar Jurnali</h3>
-                                <span id="historySourceBadge" class="badge" style="font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">⚡ 3CX Desktop Agent (Tezkor)</span>
-                            </div>
-                            <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="historyPanelDesc">
-                                Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq qo'ng'iroqlar jurnali (Lokal tezkor baza).
-                            </p>
+                            <h3 class="panel-title" id="historyPanelTitle" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle; color: var(--primary-light);">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                    <path d="M3 3v5h5"/>
+                                    <path d="M12 7v5l4 2"/>
+                                </svg>
+                                <span>Qo'ng'iroqlar Jurnali</span>
+                            </h3>
                         </div>
 
                         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                            <!-- Source Switch Toggle (3CX Agent vs Issabel Server) -->
-                            <div style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 4px;">
-                                <button type="button" id="btnHistorySourceAgent" onclick="setHistorySource('agent')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
-                                    <span>🖥️</span> 3CX Desktop Agent
+                            <!-- Sana qamrovi Switch: [ Faqat bugun | Barcha kunlar ] -->
+                            <div class="history-scope-group" style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 4px;">
+                                <button type="button" id="btnHistoryScopeToday" onclick="setHistoryScope('today')" title="Faqat bugungi qo'ng'iroqlar (yoki tanlangan sana)" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                                        <rect x="6" y="1" width="2.4" height="5" rx="1.2"/>
+                                        <rect x="15.6" y="1" width="2.4" height="5" rx="1.2"/>
+                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M4 3.5 C2.6 3.5 1.5 4.6 1.5 6 V20 C1.5 21.4 2.6 22.5 4 22.5 H20 C21.4 22.5 22.5 21.4 22.5 20 V6 C22.5 4.6 21.4 3.5 20 3.5 H4 Z M3.5 8.5 H20.5 V20 C20.5 20.6 20.1 21 19.5 21 H4.5 C3.9 21 3.5 20.6 3.5 20 V8.5 Z"/>
+                                        <circle cx="7.2" cy="5" r="1.1" fill="#0f172a"/>
+                                        <circle cx="16.8" cy="5" r="1.1" fill="#0f172a"/>
+                                        <circle cx="7.2" cy="5" r="0.5" fill="currentColor"/>
+                                        <circle cx="16.8" cy="5" r="0.5" fill="currentColor"/>
+                                        <rect x="4.8" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="16.5" y="10.2" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="4.8" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="16.5" y="13.8" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="4.8" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="8.7" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                        <rect x="12.6" y="17.4" width="2.6" height="2.4" rx="0.6"/>
+                                    </svg>
+                                    <span>Faqat bugun</span>
                                 </button>
-                                <button type="button" id="btnHistorySourceServer" onclick="setHistorySource('server')" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
-                                    <span>🌐</span> Issabel Server (CDR)
+                                <button type="button" id="btnHistoryScopeAll" onclick="setHistoryScope('all')" title="Barcha kunlar / butun arxiv bo'yicha qidirish" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                    <span>♾️</span> Barcha kunlar
+                                </button>
+                            </div>
+
+                            <!-- Source Switch Toggle (Agent vs Server) -->
+                            <div style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 3px; gap: 4px;">
+                                <button type="button" id="btnHistorySourceAgent" onclick="setHistorySource('agent')" style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);">
+                                    <svg width="17" height="17" viewBox="0 0 100 100" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                                        <path d="M35 24 C36 12 43 5 50 6 C57 5 64 12 65 24 Z"/>
+                                        <path d="M19 33 C28 27 72 27 81 33 C86 36 77 40 50 41 C23 40 14 36 19 33 Z"/>
+                                        <path fill-rule="evenodd" d="M33 42 C33 55 43 66 56 67 C69 68 79 58 80 42 C84 42.5 84 43 84 44 C84 60 72 73 56 73 C40 73 28 60 28 44 C28 43 28 42.5 33 42 Z"/>
+                                        <path d="M63 60 C69 58 74 53 76 48" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                                        <circle cx="60.5" cy="61" r="2"/>
+                                        <line x1="41" y1="64" x2="35" y2="70" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+                                        <rect x="8" y="73" width="28" height="9" rx="4" transform="rotate(45 22 77.5)"/>
+                                    </svg>
+                                    <span>Agent</span>
+                                </button>
+                                <button type="button" id="btnHistorySourceServer" onclick="setHistorySource('server')" style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                    <svg width="17" height="17" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                        <ellipse cx="44" cy="20" rx="23" ry="12"/>
+                                        <path d="M21 20 V72 C21 82 28 89 34 91"/>
+                                        <path d="M67 20 V56"/>
+                                        <path d="M21 37 C21 47 40 50 67 37"/>
+                                        <path d="M21 53 C21 63 32 66 38 66"/>
+                                        <rect x="35" y="61" width="44" height="14" rx="4" fill="var(--bg-card, #1e293b)" stroke="currentColor" stroke-width="6"/>
+                                        <circle cx="42" cy="68" r="1.8" fill="currentColor" stroke="none"/>
+                                        <rect x="61" y="66.5" width="11" height="3" rx="1.5" fill="currentColor" stroke="none"/>
+                                        <rect x="35" y="79" width="44" height="14" rx="4" fill="var(--bg-card, #1e293b)" stroke="currentColor" stroke-width="6"/>
+                                        <circle cx="42" cy="86" r="1.8" fill="currentColor" stroke="none"/>
+                                        <rect x="61" y="84.5" width="11" height="3" rx="1.5" fill="currentColor" stroke="none"/>
+                                    </svg>
+                                    <span>Server</span>
                                 </button>
                             </div>
 
                             <div class="search-box">
-                                <span class="search-icon">🔍</span>
-                                <input type="text" id="historySearchInput" placeholder="Raqam, operator..." style="width: 200px;">
+                                <span class="search-icon">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                        <circle cx="11" cy="11" r="7.5"/>
+                                        <path d="M11 5.5 C 13.2 5.8 15 7.5 15.3 9.7" stroke-width="2.2"/>
+                                        <line x1="16.5" y1="16.5" x2="21.5" y2="21.5" stroke-width="2.8"/>
+                                    </svg>
+                                </span>
+                                <input type="text" id="historySearchInput" placeholder="Mijoz raqami, operator..." style="width: 220px;">
                             </div>
                         </div>
                     </div>
@@ -595,8 +788,8 @@
                         <span style="font-size: 11px; color: var(--text-dim);">Liniyalar</span>
                     </div>
 
-                    <div id="activeChannelsContainer" style="display: flex; flex-direction: column; gap: 6px;">
-                        <div style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">
+                    <div id="activeChannelsContainer" style="display: flex; flex-direction: column; gap: 6px; overflow-x: hidden;">
+                        <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">
                             Hozircha faol suhbatlar yo'q
                         </div>
                     </div>
@@ -615,10 +808,6 @@
                         <span id="sftpStatusText">SFTP: Tekshirilmoqda</span>
                     </div>
                 </div>
-                <button class="settings-nav-btn" id="openSettingsBtn" onclick="if(window.openAgentSettingsModal){window.openAgentSettingsModal()}else{document.getElementById('agentSettingsModal').style.display='flex';if(window.loadAgentSettings)window.loadAgentSettings();}" title="Desktop Agentlar Nazorati va Versiyalar" style="width: 100%; justify-content: center; padding: 7px 12px; font-size: 12px;">
-                    <span>⚙️</span>
-                    <span>Sozlamalar</span>
-                </button>
             </div>
         </aside>
     </div>
@@ -865,7 +1054,83 @@
         </div>
     </div>
 
+    <!-- EXPORT DATE RANGE MODAL -->
+    <div id="exportModal" onclick="if(event.target === this) closeExportModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 1050; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 520px; max-width: 95vw; background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.4); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+                            <polyline points="16 6 12 2 8 6"></polyline>
+                            <line x1="12" y1="2" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Hisobotni Export Qilish</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Excel (XLSX) formatida sana oralig'i bo'yicha</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeExportModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 22px 24px;">
+                <!-- Presets buttons -->
+                <div style="margin-bottom: 18px;">
+                    <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500;">⚡ Tezkor sana oralig'i:</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-action" onclick="setExportPreset('today')" style="font-size: 12px; padding: 5px 12px;">Bugun</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('last7')" style="font-size: 12px; padding: 5px 12px;">Oxirgi 7 kun</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('thisMonth')" style="font-size: 12px; padding: 5px 12px;">Shu oy</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('prevMonth')" style="font-size: 12px; padding: 5px 12px;">O'tgan oy</button>
+                    </div>
+                </div>
+
+                <!-- Date Inputs (Start and End) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+                    <div>
+                        <label for="exportStartDate" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;">
+                            📅 Boshlanish sanasi (Start):
+                        </label>
+                        <input type="date" id="exportStartDate" onchange="onExportDateChange()" style="width: 100%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.4); color: #fff; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 13px; outline: none; box-sizing: border-box; cursor: pointer;">
+                    </div>
+                    <div>
+                        <label for="exportEndDate" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;">
+                            📅 Tugash sanasi (End):
+                        </label>
+                        <input type="date" id="exportEndDate" onchange="onExportDateChange()" style="width: 100%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.4); color: #fff; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 13px; outline: none; box-sizing: border-box; cursor: pointer;">
+                    </div>
+                </div>
+
+                <!-- Range Info Badge -->
+                <div id="exportRangeInfo" style="padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 8px; margin-bottom: 22px;">
+                    <span style="font-size: 15px;">📊</span>
+                    <span id="exportRangeText">Tanlangan oraliq: Hisoblanmoqda...</span>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn-action" onclick="closeExportModal()" style="padding: 9px 18px; font-size: 13px;">
+                        Bekor qilish
+                    </button>
+                    <button type="button" id="btnSubmitExport" onclick="submitRangeExport()" class="btn-action" style="padding: 9px 22px; font-size: 13px; font-weight: 600; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); cursor: pointer;">
+                        <span id="exportBtnIcon" style="display: inline-flex; align-items: center;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+                                <polyline points="16 6 12 2 8 6"></polyline>
+                                <line x1="12" y1="2" x2="12" y2="15"></line>
+                            </svg>
+                        </span>
+                        <span id="exportBtnText">Excel hisobotni yuklash</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=3.6"></script>
+    <script src="/js/dashboard.js?v=7.0"></script>
 </body>
 </html>
