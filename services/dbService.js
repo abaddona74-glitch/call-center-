@@ -484,8 +484,8 @@ class DbService {
                 localTime
             );
 
-            // Kunlik operator statistikasini yangilash
-            if (call.operatorExten) {
+            // Kunlik operator statistikasini yangilash (istisno qilingan raqamlar hisobotga kirmaydi)
+            if (call.operatorExten && !EXCLUDED_OPERATORS.has(String(call.operatorExten))) {
                 const today = localTime.slice(0, 10);
                 this.incrementOperatorDaily(today, call.operatorExten, call.status === 'ANSWERED', call.duration || 0, call.hangupParty);
             }

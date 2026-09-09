@@ -150,6 +150,28 @@ class AmiService {
                 this.stats.totalDurationSec = summary.totalDurationSec;
             }
 
+            // Real-time oqimi uchun so'nggi qo'ng'iroqlarni dastlabki yuklash
+            if (this.callHistory.length === 0) {
+                try {
+                    const paginated = await issabelDbService.fetchCallsPaginated(1, 15);
+                    if (paginated && paginated.data && paginated.data.length > 0) {
+                        this.callHistory = paginated.data.map(c => ({
+                            id: c.id,
+                            channel: '',
+                            callerId: c.callerId,
+                            operator: c.operator,
+                            operatorExten: c.operatorExten,
+                            direction: c.direction,
+                            status: c.status,
+                            hangupParty: c.hangupParty || 'Mijoz tugatdi',
+                            duration: c.duration,
+                            cause: 'CDR',
+                            time: c.time
+                        }));
+                    }
+                } catch (e) {}
+            }
+
             this.broadcast('operators_update', this.getOperatorList());
             this.broadcast('stats_update', this.getSummaryStats());
         } catch (err) {
@@ -316,17 +338,19 @@ class AmiService {
                 
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                if (isOnline) {
-                    // 'talking' va 'ringing' holatlarni PeerEntry poll bosib yubormasin
-                    if (op.presence !== 'talking' && op.presence !== 'ringing') {
-                        op.presence = 'ready'; // On-hook, qo'ng'iroq kutmoqda
+                if (op) {
+                    if (isOnline) {
+                        // 'talking' va 'ringing' holatlarni PeerEntry poll bosib yubormasin
+                        if (op.presence !== 'talking' && op.presence !== 'ringing') {
+                            op.presence = 'ready'; // On-hook, qo'ng'iroq kutmoqda
+                        }
+                    } else {
+                        op.presence = 'offline'; // 3CX yoki softphone ulanmagan
                     }
-                } else {
-                    op.presence = 'offline'; // 3CX yoki softphone ulanmagan
+                    op.ip = ip;
+                    op.latency = latency;
+                    this.operators.set(opId, op);
                 }
-                op.ip = ip;
-                op.latency = latency;
-                this.operators.set(opId, op);
             }
         }
 
@@ -343,13 +367,15 @@ class AmiService {
                 const status = (evt.peerstatus || '').toLowerCase();
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                if (status === 'registered' || status === 'reachable') {
-                    if (op.presence !== 'talking') op.presence = 'ready';
-                } else if (status === 'unregistered' || status === 'unreachable') {
-                    op.presence = 'offline';
+                if (op) {
+                    if (status === 'registered' || status === 'reachable') {
+                        if (op.presence !== 'talking') op.presence = 'ready';
+                    } else if (status === 'unregistered' || status === 'unreachable') {
+                        op.presence = 'offline';
+                    }
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
                 }
-                this.operators.set(opId, op);
-                this.broadcast('operators_update', this.getOperatorList());
             }
         }
 
@@ -383,21 +409,23 @@ class AmiService {
             if (opId) {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                const memberStatus = parseInt(evt.status || '0', 10);
-                const paused = parseInt(evt.paused || '0', 10);
+                if (op) {
+                    const memberStatus = parseInt(evt.status || '0', 10);
+                    const paused = parseInt(evt.paused || '0', 10);
 
-                if (paused === 1) {
-                    op.presence = 'paused'; // Tanaffusda
-                } else if (memberStatus === 1) {
-                    op.presence = 'ready';  // On-hook / Bo'sh / Qo'ng'iroq kutmoqda
-                } else if (memberStatus === 2 || memberStatus === 3) {
-                    op.presence = 'talking'; // Suhbatda / In use
-                } else if (memberStatus === 4 || memberStatus === 5) {
-                    op.presence = 'offline'; // Ulanmagan / Offline
-                } else if (memberStatus === 6) {
-                    op.presence = 'ringing'; // Telefon chalinmoqda
+                    if (paused === 1) {
+                        op.presence = 'paused'; // Tanaffusda
+                    } else if (memberStatus === 1) {
+                        op.presence = 'ready';  // On-hook / Bo'sh / Qo'ng'iroq kutmoqda
+                    } else if (memberStatus === 2 || memberStatus === 3) {
+                        op.presence = 'talking'; // Suhbatda / In use
+                    } else if (memberStatus === 4 || memberStatus === 5) {
+                        op.presence = 'offline'; // Ulanmagan / Offline
+                    } else if (memberStatus === 6) {
+                        op.presence = 'ringing'; // Telefon chalinmoqda
+                    }
+                    this.operators.set(opId, op);
                 }
-                this.operators.set(opId, op);
 
                 if (this.queues.has(qName)) {
                     const q = this.queues.get(qName);
@@ -419,13 +447,15 @@ class AmiService {
             if (opId) {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                const status = parseInt(evt.status || '0', 10);
-                if (status === 0) op.presence = 'ready'; // Idle / On-hook
-                else if (status === 1) op.presence = 'talking'; // In use
-                else if (status === 8) op.presence = 'ringing';
-                else if (status === 4 || status === -1) op.presence = 'offline';
-                this.operators.set(opId, op);
-                this.broadcast('operators_update', this.getOperatorList());
+                if (op) {
+                    const status = parseInt(evt.status || '0', 10);
+                    if (status === 0) op.presence = 'ready'; // Idle / On-hook
+                    else if (status === 1) op.presence = 'talking'; // In use
+                    else if (status === 8) op.presence = 'ringing';
+                    else if (status === 4 || status === -1) op.presence = 'offline';
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
+                }
             }
         }
 
@@ -512,12 +542,14 @@ class AmiService {
             if (opId) {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                if (op.presence !== 'talking') {
-                    op.presence = 'ringing';
+                if (op) {
+                    if (op.presence !== 'talking') {
+                        op.presence = 'ringing';
+                    }
+                    op.ringingCaller = callerId;
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
                 }
-                op.ringingCaller = callerId;
-                this.operators.set(opId, op);
-                this.broadcast('operators_update', this.getOperatorList());
             }
         }
 
@@ -560,11 +592,13 @@ class AmiService {
                 if (evt.destchannel) this.setChannelOperator(evt.destchannel, opId);
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                op.presence = 'talking';
-                op.ringingCaller = null;
-                op.totalCalls++;
-                op.answered++;
-                this.operators.set(opId, op);
+                if (op) {
+                    op.presence = 'talking';
+                    op.ringingCaller = null;
+                    op.totalCalls++;
+                    op.answered++;
+                    this.operators.set(opId, op);
+                }
             }
 
             this.stats.answeredCalls++;
@@ -619,23 +653,38 @@ class AmiService {
             if (opId) {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
-                op.presence = 'ready';
-                op.totalDurationSec += talkTime;
-                op.avgDurationSec = op.answered > 0 ? Math.round(op.totalDurationSec / op.answered) : 0;
-                if (hangupParty === 'Operator') {
-                    op.operatorHangup++;
-                } else {
-                    op.clientHangup++;
+                if (op) {
+                    op.presence = 'ready';
+                    op.totalDurationSec += talkTime;
+                    op.avgDurationSec = op.answered > 0 ? Math.round(op.totalDurationSec / op.answered) : 0;
+                    if (hangupParty === 'Operator') {
+                        op.operatorHangup++;
+                    } else {
+                        op.clientHangup++;
+                    }
+                    this.operators.set(opId, op);
                 }
-                this.operators.set(opId, op);
             }
 
             // Conversationdan o'chirish
             const key = callerId !== 'Noma\'lum' ? callerId : (opId ? `OP_${opId}` : evt.channel);
             this.activeConversations.delete(key);
 
-            // Tarixga yozish
-            const localTimeStr = now.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+            // Tarixga yozish - Qo'ng'iroq boshlangan aniq vaqtni hisoblash (Start Time / calldate)
+            let callStartTime = null;
+            if (evt.uniqueid && !isNaN(parseFloat(evt.uniqueid))) {
+                const epochSec = parseFloat(evt.uniqueid);
+                if (epochSec > 1500000000) {
+                    callStartTime = new Date(epochSec * 1000);
+                }
+            }
+            if (!callStartTime) {
+                const holdTime = parseInt(evt.holdtime || '0', 10);
+                const totalSec = (talkTime || 0) + holdTime;
+                callStartTime = new Date(now.getTime() - (totalSec * 1000));
+            }
+
+            const localTimeStr = callStartTime.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
             const historyRecord = {
                 id: Date.now() + Math.random().toString(36).substr(2, 4),
                 channel: evt.channel,
@@ -675,12 +724,14 @@ class AmiService {
 
                 // Ushbu operator hozir jiringlamoqda
                 const op = this.operators.get(opId);
-                if (op.presence !== 'talking') {
-                    op.presence = 'ringing';
+                if (op) {
+                    if (op.presence !== 'talking') {
+                        op.presence = 'ringing';
+                    }
+                    op.ringingCaller = callerId;
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
                 }
-                op.ringingCaller = callerId;
-                this.operators.set(opId, op);
-                this.broadcast('operators_update', this.getOperatorList());
             }
         }
 
@@ -703,6 +754,36 @@ class AmiService {
         // 8. QueueCallerAbandon (Mijoz navbatda kutishdan bosh tortib qo'yganda)
         if (evt.event === 'QueueCallerAbandon') {
             this.stats.abandonedCalls++;
+            const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, evt.channel);
+            const holdTime = parseInt(evt.holdtime || '0', 10);
+            let callStartTime = null;
+            if (evt.uniqueid && !isNaN(parseFloat(evt.uniqueid))) {
+                const epochSec = parseFloat(evt.uniqueid);
+                if (epochSec > 1500000000) {
+                    callStartTime = new Date(epochSec * 1000);
+                }
+            }
+            if (!callStartTime) {
+                callStartTime = new Date(now.getTime() - (holdTime * 1000));
+            }
+            const localTimeStr = callStartTime.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+            const historyRecord = {
+                id: Date.now() + Math.random().toString(36).substr(2, 4),
+                channel: evt.channel || '',
+                callerId: callerId,
+                operator: 'Navbat (Kutishda uzildi)',
+                operatorExten: '',
+                direction: 'inbound',
+                status: 'ABANDONED',
+                hangupParty: 'Mijoz tugatdi',
+                duration: holdTime,
+                cause: 'QueueCallerAbandon',
+                time: localTimeStr
+            };
+            this.callHistory.unshift(historyRecord);
+            if (this.callHistory.length > 500) this.callHistory.pop();
+            dbService.saveCall(historyRecord);
+            this.broadcast('call_hangup', historyRecord);
             this.broadcast('stats_update', this.getSummaryStats());
         }
 
@@ -786,8 +867,10 @@ class AmiService {
             if (operator) {
                 this.ensureOperatorExists(operator);
                 const op = this.operators.get(operator);
-                op.presence = 'talking';
-                this.operators.set(operator, op);
+                if (op) {
+                    op.presence = 'talking';
+                    this.operators.set(operator, op);
+                }
             }
 
             this.recalculateConversations();
@@ -959,6 +1042,9 @@ class AmiService {
     ensureOperatorExists(operatorId) {
         if (!operatorId) return;
         const id = String(operatorId);
+        const excluded = issabelDbService.getExcludedOperators();
+        if (excluded && excluded.has(id)) return;
+
         const realName = issabelDbService.getOperatorName(id);
         const displayName = realName && realName !== `Operator ${id}` ? `${realName} (${id})` : `Operator ${id}`;
 

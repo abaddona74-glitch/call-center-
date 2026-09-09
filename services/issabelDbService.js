@@ -906,7 +906,7 @@ class IssabelDbService {
             const isAll = dateStr === 'all' || dateStr === 'all_time';
             const targetDate = isAll ? 'all' : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate());
             const isPastDate = !isAll && targetDate < this.getTodayDate();
-            const redisKey = `callcenter:hist:calls:${targetDate}:${page}:${limit}:${search || '_'}`;
+            const redisKey = `callcenter:hist:calls:v2:${targetDate}:${page}:${limit}:${search || '_'}`;
 
             // 1. Redis dan tayyor sahifa keshini tekshirish (Bugun uchun ham 15 soniya, arxiv uchun 7 kun, all uchun 30s)
             try {
@@ -926,7 +926,7 @@ class IssabelDbService {
 
             let total = 0;
             const isToday = !isAll && (!dateStr || dateStr === this.getTodayDate());
-            const countRedisKey = `callcenter:hist:count:${targetDate}:${search || '_'}`;
+            const countRedisKey = `callcenter:hist:count:v2:${targetDate}:${search || '_'}`;
 
             let cachedCount = null;
             try {
@@ -938,7 +938,7 @@ class IssabelDbService {
             } else if (!search && isToday && this.cache.summary && this.cache.summary.totalCalls) {
                 total = this.cache.summary.totalCalls;
             } else {
-                const countSql = `USE asteriskcdrdb; SELECT COUNT(1) FROM cdr ${filter};`;
+                const countSql = `USE asteriskcdrdb; SELECT COUNT(DISTINCT uniqueid) FROM cdr ${filter};`;
                 const countRaw = await this.execQuery(countSql);
                 total = parseInt((countRaw || '').trim(), 10) || 0;
                 await redisService.set(countRedisKey, total, isPastDate ? 604800 : (isAll ? 60 : 45));
@@ -949,17 +949,34 @@ class IssabelDbService {
                 USE asteriskcdrdb;
                 SELECT 
                     uniqueid,
-                    calldate,
-                    src,
-                    dst,
-                    dstchannel,
-                    disposition,
-                    billsec,
-                    recordingfile
+                    DATE_FORMAT(MIN(calldate), '%Y-%m-%d %H:%i:%s') as call_time,
+                    MIN(src) as src,
+                    MIN(dst) as dst,
+                    MAX(CASE 
+                        WHEN channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
+                        WHEN src REGEXP '^[0-9]{2,4}$' THEN src
+                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
+                        WHEN disposition='ANSWERED' AND billsec > 0 AND channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                        WHEN disposition='ANSWERED' AND billsec > 0 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
+                        WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst 
+                        WHEN dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                        ELSE ''
+                    END) as op_ext,
+                    CASE 
+                        WHEN MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
+                        WHEN MAX(CASE WHEN disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
+                        WHEN MAX(CASE WHEN disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
+                        ELSE 'ABANDONED' 
+                    END as final_disp,
+                    MAX(billsec) as talk_sec,
+                    MAX(duration) as wait_sec,
+                    MAX(recordingfile) as rec,
+                    MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
                 FROM cdr 
                 ${filter}
                 GROUP BY uniqueid
-                ORDER BY calldate DESC 
+                ORDER BY call_time DESC 
                 LIMIT ${limit} OFFSET ${offset};
             `;
             const dataRaw = await this.execQuery(dataSql);
@@ -968,27 +985,27 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [uid, calldate, src, dst, dstchannel, disp, billsecStr, rec] = line.split('\t');
-                const sec = parseInt(billsecStr, 10) || 0;
-                const isAns = disp === 'ANSWERED' && sec > 0;
+                const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, rec, isOutFlag] = line.split('\t');
+                const talkSec = parseInt(talkSecStr, 10) || 0;
+                const isAns = disp === 'ANSWERED' || talkSec > 0;
                 
-                // Operatorni aniqlash
-                let opExt = '';
-                const match = (dstchannel || '').match(/SIP\/([0-9]{3,4})/i) || (dst || '').match(/^([0-9]{3,4})$/) || (src || '').match(/^([0-9]{3,4})$/);
-                if (match) opExt = match[1];
+                const opExt = (opExtRaw || '').trim();
                 let realName = this.operatorNames.get(opExt);
                 if (opExt === '114') realName = 'Maxmudbek';
                 const opName = opExt ? (realName ? `${realName} (${opExt})` : `Operator ${opExt}`) : 'Navbat';
 
+                const isOut = (isOutFlag === '1' || (src && src.length <= 4));
+                const callerNumber = isOut ? (dst || 'Yashirin') : (src || 'Yashirin');
+
                 calls.push({
                     id: uid,
                     time: calldate,
-                    callerId: src || 'Yashirin',
+                    callerId: callerNumber,
                     operator: opName,
                     operatorExten: opExt,
-                    direction: (src && src.length <= 4) ? 'outbound' : 'inbound',
-                    duration: sec,
-                    status: isAns ? 'ANSWERED' : 'DENIED / NO ANSWER',
+                    direction: isOut ? 'outbound' : 'inbound',
+                    duration: talkSec,
+                    status: isAns ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'DENIED / NO ANSWER'),
                     hangupParty: isAns ? 'Mijoz' : 'Ko\'tarilmadi',
                     recording: rec || ''
                 });
@@ -1154,12 +1171,12 @@ class IssabelDbService {
                         WHEN dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
                         ELSE ''
                     END) as op_ext,
-                    MAX(CASE 
-                        WHEN disposition='ANSWERED' AND billsec > 0 THEN 'ANSWERED' 
-                        WHEN disposition='FAILED' THEN 'DENIED'
-                        WHEN disposition='BUSY' THEN 'BUSY'
+                    CASE 
+                        WHEN MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
+                        WHEN MAX(CASE WHEN disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
+                        WHEN MAX(CASE WHEN disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
                         ELSE 'ABANDONED' 
-                    END) as final_disp,
+                    END as final_disp,
                     MAX(billsec) as talk_sec,
                     MAX(duration) as wait_sec,
                     MAX(recordingfile) as rec,
@@ -1182,9 +1199,9 @@ class IssabelDbService {
                 const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, rec, isOutFlag, dcontext, lastdata] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
                 const waitSec = parseInt(waitSecStr, 10) || 0;
-                const isAns = disp === 'ANSWERED' && talkSec > 0;
+                const isAns = disp === 'ANSWERED' || talkSec > 0;
                 // Yo'nalish: SQL tomonidan aniq hisoblanadi (dcontext='from-internal' + operator kanali = chiquvchi).
-                const isOut = type === 'outbound' || isOutFlag === '1';
+                const isOut = type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4);
                 
                 let realOpName = this.operatorNames.get(opExt);
                 if (opExt === '114') realOpName = 'Maxmudbek';

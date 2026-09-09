@@ -1665,11 +1665,13 @@ async function loadHistoryPage(page = 1, search = '') {
             const countInfo = document.getElementById('historyCountInfo');
             const prevBtn = document.getElementById('btnPrevPage');
             const nextBtn = document.getElementById('btnNextPage');
+            const pagControls = document.getElementById('historyPaginationControls');
 
             if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
             if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv`;
             if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
+            if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
             renderAgentHistoryTable(result.data || []);
         } else {
@@ -1684,11 +1686,13 @@ async function loadHistoryPage(page = 1, search = '') {
             const countInfo = document.getElementById('historyCountInfo');
             const prevBtn = document.getElementById('btnPrevPage');
             const nextBtn = document.getElementById('btnNextPage');
+            const pagControls = document.getElementById('historyPaginationControls');
 
             if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
             if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv`;
             if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
+            if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
             renderServerHistoryTable(result.data || []);
         }
