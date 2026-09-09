@@ -1184,7 +1184,7 @@ function renderQueues(queues) {
     listEl.innerHTML = allWaiters.map(w => `
         <div class="queue-caller-pill">
             <span style="font-weight: 600; color: #fff;">📞 ${w.callerId}</span>
-            <span style="color: #fbbf24; font-size: 10px;">Navbatda #${w.position || 1}</span>
+            <span style="color: #818cf8; font-size: 10px; font-weight: 600;">Navbatda #${w.position || 1}</span>
         </div>
     `).join('');
 }
