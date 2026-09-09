@@ -389,6 +389,15 @@ select option:hover {
 .kpi-card.red .kpi-icon { color: var(--danger); }
 .kpi-card.amber .kpi-icon { color: var(--warning); }
 
+/* Card ichidagi text rangi borderiga mos ravishda */
+.kpi-card.blue .kpi-details p { color: #60a5fa; }
+.kpi-card.cyan .kpi-details p { color: #22d3ee; }
+.kpi-card.purple .kpi-details p { color: #c084fc; }
+.kpi-card.green .kpi-details p { color: #34d399; }
+.kpi-card.amber .kpi-details p { color: #fbbf24; }
+.kpi-card.indigo .kpi-details p { color: #818cf8; }
+.kpi-card.red .kpi-details p { color: #f87171; }
+
 .kpi-details {
     display: flex;
     flex-direction: column;

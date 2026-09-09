@@ -1170,7 +1170,7 @@ function renderQueues(queues) {
 
     countBadge.innerText = `${totalWaiters} ta`;
     const kpiQueue = document.getElementById('kpiQueueWaiting');
-    if (kpiQueue) kpiQueue.innerText = `${totalWaiters} ta`;
+    if (kpiQueue) kpiQueue.innerText = totalWaiters;
 
     if (allWaiters.length === 0) {
         listEl.innerHTML = `
