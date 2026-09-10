@@ -2298,7 +2298,7 @@ function setHistorySource(source) {
             desc.innerText = "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.";
         }
         if (thLast) {
-            thLast.innerText = 'Tugatish sababi';
+            thLast.innerText = 'Kim tugatdi?';
         }
     }
 
@@ -2344,7 +2344,7 @@ let currentHistoryData = [];
 async function loadHistoryPage(page = 1, search = '') {
     const tbody = document.getElementById('historyTableBody');
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
     }
 
     try {
@@ -2374,7 +2374,7 @@ async function loadHistoryPage(page = 1, search = '') {
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
             currentHistoryData = result.data || [];
-            renderAgentHistoryTable(currentHistoryData);
+            applyHistoryFilters();
         } else {
             // 2. Issabel Asterisk CDR Server bazasidan
             const res = await fetch(`/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}&date=${encodeURIComponent(dateParam)}`);
@@ -2396,11 +2396,11 @@ async function loadHistoryPage(page = 1, search = '') {
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
             currentHistoryData = result.data || [];
-            renderServerHistoryTable(currentHistoryData);
+            applyHistoryFilters();
         }
     } catch (e) {
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
         }
     }
 }
@@ -2415,6 +2415,61 @@ const OPERATOR_NAMES_MAP = {
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
+
+// History jadvalini client-side filtrlash (serverga qayta murojaat qilmasdan)
+function applyHistoryFilters() {
+    if (!currentHistoryData || currentHistoryData.length === 0) {
+        if (historyDataSource === 'agent') {
+            renderAgentHistoryTable([]);
+        } else {
+            renderServerHistoryTable([]);
+        }
+        return;
+    }
+
+    const statusVal = (document.getElementById('historyFilterStatus') || {}).value || 'all';
+    const dirVal = (document.getElementById('historyFilterDirection') || {}).value || 'all';
+
+    // Clear tugmasi ko'rinishini boshqarish
+    const hasFilter = statusVal !== 'all' || dirVal !== 'all';
+    const clearBtn = document.getElementById('btnClearHistoryFilters');
+    if (clearBtn) clearBtn.style.display = hasFilter ? 'inline-flex' : 'none';
+
+    const filtered = currentHistoryData.filter(item => {
+        // Holat filtri
+        if (statusVal !== 'all') {
+            const isAns = item.status === 'ANSWERED' || item.category_3cx === 'Answered';
+            if (statusVal === 'answered' && !isAns) return false;
+            if (statusVal === 'missed' && isAns) return false;
+        }
+        // Yo'nalish filtri
+        if (dirVal !== 'all') {
+            const isOut = item.direction === 'outbound' ||
+                          item.category_3cx === 'Dialled' ||
+                          item.status === 'OUTBOUND' ||
+                          item.status === 'DIALLED';
+            if (dirVal === 'inbound' && isOut) return false;
+            if (dirVal === 'outbound' && !isOut) return false;
+        }
+        return true;
+    });
+
+    if (historyDataSource === 'agent') {
+        renderAgentHistoryTable(filtered);
+    } else {
+        renderServerHistoryTable(filtered);
+    }
+}
+
+function resetHistoryFilters() {
+    const s = document.getElementById('historyFilterStatus');
+    const d = document.getElementById('historyFilterDirection');
+    if (s) s.value = 'all';
+    if (d) d.value = 'all';
+    applyHistoryFilters();
+}
+window.applyHistoryFilters = applyHistoryFilters;
+window.resetHistoryFilters = resetHistoryFilters;
 
 function formatOperatorDisplayName(opStr) {
     if (!opStr || opStr === 'Navbat' || opStr === '-') return 'Navbat';
@@ -2434,7 +2489,7 @@ function renderAgentHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
@@ -2445,7 +2500,7 @@ function renderAgentHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         }
         return;
     }
@@ -2532,6 +2587,7 @@ function renderAgentHistoryTable(data) {
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
                 <td>${dirBadge}</td>
                 <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(durSec)}</td>
+                <td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="3CX Agent jurnalida navbatda kutish vaqti mavjud emas">—</td>
                 <td>${statusBadge}</td>
                 <td style="color: var(--text-muted); font-size: 12px;">
                     <span style="display: inline-flex; align-items: center; gap: 4px;">
@@ -2551,7 +2607,7 @@ function renderServerHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
@@ -2562,7 +2618,7 @@ function renderServerHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         }
         return;
     }
@@ -2573,6 +2629,13 @@ function renderServerHistoryTable(data) {
         const rowNum = (historyCurrentPage - 1) * 20 + index + 1;
         const isOut = item.direction === 'outbound';
         const isAns = item.status === 'ANSWERED';
+
+        // "Operatorga ulanmadi / Navbatdan chiqdi" qatorlarini ajratib ko'rsatish (olovrang fon)
+        const isUnconnected = !isAns && !isOut && (item.status === 'ABANDONED' || item.status === 'NO ANSWER' || (item.operator && item.operator.includes('Operatorga ulanmadi')));
+        const rowStyle = isUnconnected
+            ? 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;'
+            : (item.status === 'BUSY' ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;' : '');
+
         const statusBadge = isAns 
             ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
             : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
@@ -2637,7 +2700,7 @@ function renderServerHistoryTable(data) {
                </span>`;
 
         return `
-            <tr>
+            <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td style="text-align: left;">${timeHtml}</td>
                 <td>
@@ -2649,6 +2712,7 @@ function renderServerHistoryTable(data) {
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
                 <td>${dirBadge}</td>
                 <td>${formatSeconds(durSec)}</td>
+                <td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish vaqti${item.waitSec ? ': ' + formatSeconds(item.waitSec) : ' mavjud emas'}">${item.waitSec ? formatSeconds(item.waitSec) : '—'}</td>
                 <td>${statusBadge}</td>
                 <td style="color: var(--text-muted); font-size: 12px;">${item.hangupParty || item.cause || 'Normal'}</td>
                 <td>${audioCell}</td>
@@ -2809,6 +2873,10 @@ function applyDashboardRecentFilters() {
                 valA = parseInt(a.duration || 0, 10);
                 valB = parseInt(b.duration || 0, 10);
                 break;
+            case 'waitSec':
+                valA = parseInt(a.waitSec || 0, 10);
+                valB = parseInt(b.waitSec || 0, 10);
+                break;
             case 'status':
                 valA = String(a.status || '');
                 valB = String(b.status || '');
@@ -2851,7 +2919,7 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
     if (!data || data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 16px; font-size: 13px;">
+                <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 16px; font-size: 13px;">
                     ${hasActiveFilter ? '🔍 Tanlangan filtrlar bo\'yicha qo\'ng\'iroqlar topilmadi' : 'Hozircha qo\'ng\'iroqlar yo\'q'}
                 </td>
             </tr>
@@ -2878,10 +2946,20 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
             ? '<span style="color: #f59e0b; font-size: 12px; font-weight: 500;">⏳ Operatorga ulanmadi</span>'
             : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
 
+        // "Operatorga ulanmadi / Navbatdan chiqdi" qatorlarini ajratib ko'rsatish (olovrang fon)
+        const isUnconnected = isQueueOnly && !isOut;
+        const rowStyle = isUnconnected
+            ? 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;'
+            : (item.status === 'BUSY' ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;' : '');
+
         const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
         const safeRec = (item.recording || '').replace(/'/g, "\\'");
         const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
         const durSec = item.duration || 0;
+        const waitSecVal = item.waitSec || 0;
+        const waitCellHtml = isOut || !waitSecVal
+            ? '<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="Navbatda kutish vaqti mavjud emas">—</td>'
+            : `<td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish: ${formatSeconds(waitSecVal)}">${formatSeconds(waitSecVal)}</td>`;
 
         const callKey = `${item.callerId || ''}_${durSec}`;
         const isThisPlaying = currentlyPlayingCallKey === callKey;
@@ -2913,7 +2991,7 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
                </span>`;
 
         return `
-            <tr>
+            <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td>${new Date(item.time).toLocaleTimeString()}</td>
                 <td>
@@ -2925,6 +3003,7 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
                 <td>${dirBadge}</td>
                 <td>${opCellHtml}</td>
                 <td>${formatSeconds(item.duration || 0)}</td>
+                ${waitCellHtml}
                 <td>${statusBadge}</td>
                 <td style="font-weight: 500; font-size: 12px; color: ${item.hangupParty?.includes('Operator') ? 'var(--warning)' : (item.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)')};">
                     ${item.hangupParty || 'Noma\'lum'}
@@ -3256,6 +3335,7 @@ async function fetchAndRenderDetailCalls() {
                         <th>Operator</th>
                         <th>Suhbat / Kutish Vaqti</th>
                         <th>Holati</th>
+                        <th>Kim tugatdi?</th>
                         <th>Audio</th>
                     </tr>
                 </thead>
@@ -3318,6 +3398,7 @@ async function fetchAndRenderDetailCalls() {
                                 </td>
                                 <td style="white-space: nowrap;">${durText}</td>
                                 <td style="white-space: nowrap;">${statusBadge}</td>
+                                <td style="white-space: nowrap; font-size: 12px; font-weight: 500; color: ${c.hangupParty === 'Operator' ? 'var(--warning)' : (c.hangupParty === 'Mijoz' ? '#38bdf8' : 'var(--text-dim)')}">${c.hangupParty || '-'}</td>
                                 <td style="white-space: nowrap;">
                                     ${c.recording ? `
                                         <button class="btn-action" style="padding: 3px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="playCallAudio('${c.recording}', this)">

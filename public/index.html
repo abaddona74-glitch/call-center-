@@ -492,6 +492,9 @@
                                     <th class="sortable-th" onclick="sortDashboardTable('duration')" title="Davomiyligi bo'yicha saralash">
                                         Davomiyligi <span class="sort-icon" id="sort-icon-duration">↕</span>
                                     </th>
+                                    <th class="sortable-th" onclick="sortDashboardTable('waitSec')" title="Navbatda kutish vaqti bo'yicha saralash">
+                                        Navbatda kutish <span class="sort-icon" id="sort-icon-waitSec">↕</span>
+                                    </th>
                                     <th class="sortable-th" onclick="sortDashboardTable('status')" title="Holat bo'yicha saralash">
                                         Holat <span class="sort-icon" id="sort-icon-status">↕</span>
                                     </th>
@@ -503,7 +506,7 @@
                             </thead>
                             <tbody id="dashboardCallsTable">
                                 <tr>
-                                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">Hozircha qo'ng'iroqlar yo'q</td>
+                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Hozircha qo'ng'iroqlar yo'q</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -895,6 +898,28 @@
                                 </span>
                                 <input type="text" id="historySearchInput" placeholder="Mijoz raqami, operator..." style="width: 220px;">
                             </div>
+
+                            <!-- History Filter Toolbar -->
+                            <div id="historyFilterToolbar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <!-- Holat filtri -->
+                                <select id="historyFilterStatus" onchange="applyHistoryFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
+                                    <option value="all" style="background: #0f172a;">Barcha holatlar</option>
+                                    <option value="answered" style="background: #0f172a; color: #34d399;">✅ Javob berilgan</option>
+                                    <option value="missed" style="background: #0f172a; color: #f87171;">📵 Javobsiz / Chiqdi</option>
+                                </select>
+
+                                <!-- Yo'nalish filtri -->
+                                <select id="historyFilterDirection" onchange="applyHistoryFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
+                                    <option value="all" style="background: #0f172a;">Barcha yo'nalishlar</option>
+                                    <option value="inbound" style="background: #0f172a; color: #38bdf8;">📥 Kiruvchi</option>
+                                    <option value="outbound" style="background: #0f172a; color: #c084fc;">📤 Chiquvchi</option>
+                                </select>
+
+                                <!-- Tozalash tugmasi -->
+                                <button id="btnClearHistoryFilters" onclick="resetHistoryFilters()" title="Filtrlarni tozalash" style="display: none; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 5px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                                    <span>✕</span> Tozalash
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -911,14 +936,15 @@
                                     <th>Operator / Exten</th>
                                     <th>Yo'nalish</th>
                                     <th>Davomiyligi</th>
+                                    <th title="Navbatda kutish vaqti">Navbatda kutish</th>
                                     <th>Holati</th>
-                                    <th id="historyThLast">Kompyuter (Host)</th>
+                                    <th id="historyThLast">Kim tugatdi? / Host</th>
                                     <th>Audio / Amal</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody">
                                 <tr>
-                                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
+                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
                                 </tr>
                             </tbody>
                         </table>

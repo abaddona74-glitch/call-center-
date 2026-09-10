@@ -165,6 +165,7 @@ class AmiService {
                             status: c.status,
                             hangupParty: c.hangupParty || 'Mijoz tugatdi',
                             duration: c.duration,
+                            waitSec: c.waitSec || 0,
                             cause: 'CDR',
                             time: c.time,
                             recording: c.recording || ''
@@ -696,6 +697,7 @@ class AmiService {
                 status: 'ANSWERED',
                 hangupParty: `${hangupParty} tugatdi`,
                 duration: talkTime,
+                waitSec: parseInt(evt.holdtime || '0', 10),
                 cause: 'AgentComplete (' + (evt.reason || 'Normal') + ')',
                 time: localTimeStr
             };
@@ -777,7 +779,8 @@ class AmiService {
                 direction: 'inbound',
                 status: 'ABANDONED',
                 hangupParty: 'Mijoz tugatdi',
-                duration: holdTime,
+                duration: 0,
+                waitSec: holdTime,
                 cause: 'QueueCallerAbandon',
                 time: localTimeStr
             };

@@ -989,6 +989,7 @@ class IssabelDbService {
                     END as final_disp,
                     MAX(billsec) as talk_sec,
                     MAX(duration) as wait_sec,
+                    TIMESTAMPDIFF(SECOND, MIN(calldate), MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN calldate END)) as ans_lag_sec,
                     MAX(recordingfile) as rec,
                     MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
                 FROM cdr 
@@ -1003,8 +1004,10 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, rec, isOutFlag] = line.split('\t');
+                const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
+                const waitSecVal = parseInt(waitSecStr, 10) || 0;
+                const ansLagSec = parseInt(ansLagStr, 10) || 0;
                 const opExt = (opExtRaw || '').trim();
                 const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159');
                 let realName = hasRealOp ? this.operatorNames.get(opExt) : null;
@@ -1028,7 +1031,8 @@ class IssabelDbService {
                     operator: opName,
                     operatorExten: hasRealOp ? opExt : '',
                     direction: isOut ? 'outbound' : 'inbound',
-                    duration: isRealAnswered ? talkSec : (parseInt(waitSecStr, 10) || talkSec),
+                    duration: isRealAnswered ? talkSec : 0,
+                    waitSec: isRealAnswered ? Math.max(0, ansLagSec) : waitSecVal,
                     status: isRealAnswered ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'ABANDONED'),
                     hangupParty: isRealAnswered ? 'Mijoz' : (disp === 'BUSY' ? 'Band' : 'Ko\'tarilmadi'),
                     recording: isRealAnswered ? (rec || '') : ''
@@ -1232,6 +1236,7 @@ class IssabelDbService {
                     END as final_disp,
                     MAX(billsec) as talk_sec,
                     MAX(duration) as wait_sec,
+                    TIMESTAMPDIFF(SECOND, MIN(calldate), MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN calldate END)) as ans_lag_sec,
                     MAX(recordingfile) as rec,
                     MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out,
                     MAX(dcontext) as dcontext,
@@ -1249,9 +1254,11 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, rec, isOutFlag, dcontext, lastdata] = line.split('\t');
+                const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, dcontext, lastdata] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
                 const waitSec = parseInt(waitSecStr, 10) || 0;
+                const ansLagSec = parseInt(ansLagStr, 10) || 0;
+                const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159');
                 const isAns = disp === 'ANSWERED' || talkSec > 0;
                 // Yo'nalish: SQL tomonidan aniq hisoblanadi (dcontext='from-internal' + operator kanali = chiquvchi).
                 const isOut = type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4);
@@ -1279,10 +1286,11 @@ class IssabelDbService {
                     direction: isOut ? 'outbound' : 'inbound',
                     operator: opName,
                     operatorExten: opExt || '',
-                    duration: isAns ? talkSec : waitSec,
-                    waitSec: waitSec,
+                    duration: isAns ? talkSec : 0,
+                    waitSec: (isAns && hasRealOp) ? Math.max(0, ansLagSec) : waitSec,
                     status: isAns ? 'ANSWERED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED')),
-                    recording: rec || ''
+                    recording: rec || '',
+                    hangupParty: isAns ? (isOut ? 'Operator' : 'Mijoz') : (isOut ? 'Javobsiz' : 'Ko\'tarilmadi')
                 });
             }
 
