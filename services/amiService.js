@@ -153,7 +153,7 @@ class AmiService {
             // Real-time oqimi uchun so'nggi qo'ng'iroqlarni dastlabki yuklash
             if (this.callHistory.length === 0) {
                 try {
-                    const paginated = await issabelDbService.fetchCallsPaginated(1, 15);
+                    const paginated = await issabelDbService.fetchCallsPaginated(1, 30);
                     if (paginated && paginated.data && paginated.data.length > 0) {
                         this.callHistory = paginated.data.map(c => ({
                             id: c.id,
@@ -166,7 +166,8 @@ class AmiService {
                             hangupParty: c.hangupParty || 'Mijoz tugatdi',
                             duration: c.duration,
                             cause: 'CDR',
-                            time: c.time
+                            time: c.time,
+                            recording: c.recording || ''
                         }));
                     }
                 } catch (e) {}

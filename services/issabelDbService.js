@@ -921,7 +921,25 @@ class IssabelDbService {
             let filter = ` WHERE ${dateCond} AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%' OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-')) AND channel NOT LIKE 'Local/%' `;
             if (search) {
                 const s = search.replace(/'/g, "\\'");
-                filter += ` AND (src LIKE '%${s}%' OR dst LIKE '%${s}%' OR dstchannel LIKE '%${s}%' OR disposition LIKE '%${s}%') `;
+                const searchLower = search.trim().toLowerCase();
+                const matchedExts = [];
+                for (const [ext, name] of this.operatorNames.entries()) {
+                    if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
+                        matchedExts.push(ext);
+                    }
+                }
+                for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
+                    if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
+                        matchedExts.push(ext);
+                    }
+                }
+
+                let searchCond = `(src LIKE '%${s}%' OR dst LIKE '%${s}%' OR dstchannel LIKE '%${s}%' OR disposition LIKE '%${s}%' OR channel LIKE '%${s}%')`;
+                if (matchedExts.length > 0) {
+                    const extConds = matchedExts.map(ext => `((disposition = 'ANSWERED' AND billsec > 0 AND (dstchannel LIKE '%/${ext}-%' OR channel LIKE '%/${ext}-%' OR dstchannel LIKE '%Local/${ext}@%' OR channel LIKE '%Local/${ext}@%' OR dst = '${ext}')) OR src = '${ext}')`).join(' OR ');
+                    searchCond = `(${searchCond} OR (${extConds}))`;
+                }
+                filter += ` AND ${searchCond} `;
             }
 
             let total = 0;
@@ -987,12 +1005,18 @@ class IssabelDbService {
                 if (!line) continue;
                 const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, rec, isOutFlag] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
-                const isAns = disp === 'ANSWERED' || talkSec > 0;
-                
                 const opExt = (opExtRaw || '').trim();
-                let realName = this.operatorNames.get(opExt);
+                const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159');
+                let realName = hasRealOp ? this.operatorNames.get(opExt) : null;
                 if (opExt === '114') realName = 'Maxmudbek';
-                const opName = opExt ? (realName ? `${realName} (${opExt})` : `Operator ${opExt}`) : 'Navbat';
+
+                // Haqiqiy javob berilgan faqat operatorga ulanib suhbat bo'lganda hisoblanadi
+                const isRealAnswered = hasRealOp && (disp === 'ANSWERED' || talkSec > 0);
+
+                let opName = 'Operatorga ulanmadi';
+                if (hasRealOp) {
+                    opName = realName ? `${realName} (${opExt})` : `Operator ${opExt}`;
+                }
 
                 const isOut = (isOutFlag === '1' || (src && src.length <= 4));
                 const callerNumber = isOut ? (dst || 'Yashirin') : (src || 'Yashirin');
@@ -1002,12 +1026,12 @@ class IssabelDbService {
                     time: calldate,
                     callerId: callerNumber,
                     operator: opName,
-                    operatorExten: opExt,
+                    operatorExten: hasRealOp ? opExt : '',
                     direction: isOut ? 'outbound' : 'inbound',
-                    duration: talkSec,
-                    status: isAns ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'DENIED / NO ANSWER'),
-                    hangupParty: isAns ? 'Mijoz' : 'Ko\'tarilmadi',
-                    recording: rec || ''
+                    duration: isRealAnswered ? talkSec : (parseInt(waitSecStr, 10) || talkSec),
+                    status: isRealAnswered ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'ABANDONED'),
+                    hangupParty: isRealAnswered ? 'Mijoz' : (disp === 'BUSY' ? 'Band' : 'Ko\'tarilmadi'),
+                    recording: isRealAnswered ? (rec || '') : ''
                 });
             }
 
@@ -1116,8 +1140,34 @@ class IssabelDbService {
             }
 
             if (search) {
-                const s = search.replace(/'/g, '');
-                whereClause += ` AND (src LIKE '%${s}%' OR dst LIKE '%${s}%')`;
+                const s = search.replace(/'/g, '').trim();
+                const searchLower = s.toLowerCase();
+                const matchedExts = [];
+                for (const [ext, name] of this.operatorNames.entries()) {
+                    if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
+                        matchedExts.push(ext);
+                    }
+                }
+                for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
+                    if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
+                        matchedExts.push(ext);
+                    }
+                }
+
+                const isPhone = /^[0-9+]{6,15}$/.test(s);
+                let sCond = '';
+                if (isPhone) {
+                    const cleanPhone = s.replace(/^\+/, '');
+                    sCond = `(src = '${cleanPhone}' OR dst = '${cleanPhone}' OR src LIKE '%${cleanPhone}' OR dst LIKE '%${cleanPhone}')`;
+                } else {
+                    sCond = `(src LIKE '%${s}%' OR dst LIKE '%${s}%' OR dstchannel LIKE '%${s}%' OR channel LIKE '%${s}%')`;
+                }
+
+                if (matchedExts.length > 0) {
+                    const extConds = matchedExts.map(ext => `dstchannel LIKE '%/${ext}-%' OR channel LIKE '%/${ext}-%' OR dstchannel LIKE '%Local/${ext}@%' OR channel LIKE '%Local/${ext}@%' OR dst = '${ext}' OR src = '${ext}'`).join(' OR ');
+                    sCond = `(${sCond} OR (${extConds}))`;
+                }
+                whereClause += ` AND ${sCond}`;
             }
 
             let total = 0;
@@ -1131,7 +1181,10 @@ class IssabelDbService {
                 else if (type === 'abandoned') total = this.cache.summary.abandonedCalls;
                 else if (type === 'denied') total = this.cache.summary.deniedCalls;
             }
-            if (!total) {
+
+            // Tezkor qidiruv optimizatsiyasi: agar limit kichik bo'lsa (<= 10) va 1-sahifa bo'lsa, og'ir COUNT(DISTINCT) qilinmaydi!
+            const skipCount = (page === 1 && limit <= 10 && Boolean(search));
+            if (!total && !skipCount) {
                 const countSql = isAbandoned
                     ? `
                     USE asteriskcdrdb;
@@ -1233,7 +1286,11 @@ class IssabelDbService {
                 });
             }
 
-            const result = { total, page, totalPages, limit, data: calls };
+            if (skipCount) {
+                total = calls.length;
+            }
+
+            const result = { total, page, totalPages: Math.ceil(total / limit) || 1, limit, data: calls };
             if (isPastDate) {
                 await redisService.set(redisKey, result, 604800); // 7 kun
             }

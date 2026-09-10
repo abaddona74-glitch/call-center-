@@ -9,6 +9,29 @@ const fs = require('fs');
 
 const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110']);
 
+const KNOWN_OPERATORS = {
+    '101': 'Oybek',
+    '103': 'Feruza',
+    '106': 'Gulchehra',
+    '111': 'Nozima',
+    '114': 'Maxmudbek',
+    '116': 'Ibrohim',
+    '119': 'Muattar',
+    '120': 'Navruzoy'
+};
+
+function findOperatorIdsByQuery(query) {
+    if (!query || typeof query !== 'string') return [];
+    const q = query.trim().toLowerCase();
+    const matched = new Set();
+    for (const [id, name] of Object.entries(KNOWN_OPERATORS)) {
+        if (name.toLowerCase().includes(q) || q.includes(name.toLowerCase())) {
+            matched.add(id);
+        }
+    }
+    return Array.from(matched);
+}
+
 class DbService {
     constructor() {
         const dbDir = path.join(__dirname, '..', 'data');
@@ -549,11 +572,24 @@ class DbService {
             const params = [];
 
             if (search) {
-                const q = `%${search.toLowerCase()}%`;
-                const filter = ` WHERE LOWER(caller_id) LIKE ? OR LOWER(operator) LIKE ? OR LOWER(status) LIKE ? OR LOWER(hangup_party) LIKE ? OR operator_exten LIKE ?`;
+                const term = search.trim();
+                const q = `%${term.toLowerCase()}%`;
+                const matchedOpIds = findOperatorIdsByQuery(term);
+
+                let filter = ` WHERE (LOWER(caller_id) LIKE ? OR LOWER(operator) LIKE ? OR LOWER(status) LIKE ? OR LOWER(hangup_party) LIKE ? OR operator_exten LIKE ?`;
+                const filterParams = [q, q, q, q, `%${term}%`];
+
+                if (matchedOpIds.length > 0) {
+                    const placeholders = matchedOpIds.map(() => '?').join(',');
+                    filter += ` OR operator_exten IN (${placeholders}))`;
+                    filterParams.push(...matchedOpIds);
+                } else {
+                    filter += `)`;
+                }
+
                 countSql += filter;
                 dataSql += filter;
-                params.push(q, q, q, q, `%${search}%`);
+                params.push(...filterParams);
             }
 
             dataSql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
@@ -817,10 +853,20 @@ class DbService {
             }
 
             if (search && typeof search === 'string' && search.trim()) {
-                const s = `%${search.trim()}%`;
-                countSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
-                dataSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
-                params.push(s, s, s, s);
+                const term = search.trim();
+                const s = `%${term}%`;
+                const matchedOpIds = findOperatorIdsByQuery(term);
+
+                if (matchedOpIds.length > 0) {
+                    const placeholders = matchedOpIds.map(() => '?').join(',');
+                    countSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ? OR operator_id IN (${placeholders}))`;
+                    dataSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ? OR operator_id IN (${placeholders}))`;
+                    params.push(s, s, s, s, ...matchedOpIds);
+                } else {
+                    countSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
+                    dataSql += ` AND (caller_id LIKE ? OR operator_id LIKE ? OR details LIKE ? OR hostname LIKE ?)`;
+                    params.push(s, s, s, s);
+                }
             }
 
             dataSql += ` ORDER BY event_time DESC, id DESC LIMIT ? OFFSET ?`;

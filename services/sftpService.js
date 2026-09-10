@@ -137,6 +137,7 @@ class SftpService {
                             size: item.size,
                             sizeFormatted: this.formatBytes(item.size),
                             modifyTime: item.modifyTime,
+                            isEmpty: (item.size || 0) <= 44,
                             url: `/api/recordings/stream?file=${encodeURIComponent(path.posix.join(subPath, item.name))}`
                         });
                     }
@@ -225,6 +226,16 @@ class SftpService {
                 const resolved = await this.resolveRemoteAudioPath(filePath);
                 if (resolved) {
                     const { fullPath, size: fileSize } = resolved;
+
+                    // 44 bayt - bu faqat bo'sh WAV sarlavhasi (suhbat bo'lmagan, 0 soniya)
+                    if (fileSize <= 44) {
+                        return res.status(400).json({
+                            error: 'Ushbu qo\'ng\'iroqda suhbat bo\'lmagan (ovoz yozuvi bo\'sh: 0 soniya)',
+                            emptyAudio: true,
+                            fileSize
+                        });
+                    }
+
                     const range = req.headers.range;
                     const contentType = fullPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
 
@@ -242,6 +253,13 @@ class SftpService {
                         });
 
                         const stream = this.sftp.createReadStream(fullPath, { start, end });
+                        stream.on('error', (err) => {
+                            console.warn('SFTP stream xatosi:', err.message);
+                            if (!res.headersSent) res.status(500).end();
+                        });
+                        req.on('close', () => {
+                            try { stream.destroy(); } catch (e) {}
+                        });
                         stream.pipe(res);
                     } else {
                         res.writeHead(200, {
@@ -249,6 +267,13 @@ class SftpService {
                             'Content-Type': contentType,
                         });
                         const stream = this.sftp.createReadStream(fullPath);
+                        stream.on('error', (err) => {
+                            console.warn('SFTP stream xatosi:', err.message);
+                            if (!res.headersSent) res.status(500).end();
+                        });
+                        req.on('close', () => {
+                            try { stream.destroy(); } catch (e) {}
+                        });
                         stream.pipe(res);
                     }
                     return;

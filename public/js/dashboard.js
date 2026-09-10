@@ -157,6 +157,100 @@ function switchRoute(tabName, pushState = true) {
     }
 }
 
+/* ==========================================================================
+   Sound FX: Realistic Book Page Flip / Paper Flutter ("Shiq" ovozi)
+   ========================================================================== */
+let sfxAudioCtx = null;
+let pageFlipFallbackAudio = null;
+
+function playPageFlipSound() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+            if (!sfxAudioCtx) {
+                sfxAudioCtx = new AudioContextClass();
+            }
+            if (sfxAudioCtx.state === 'suspended') {
+                sfxAudioCtx.resume();
+            }
+
+            const ctx = sfxAudioCtx;
+            const now = ctx.currentTime;
+            const duration = 0.15; // 150ms natural page turn
+            const sampleRate = ctx.sampleRate;
+            const frameCount = Math.floor(sampleRate * duration);
+
+            // 1. Synthetic textured noise buffer for realistic paper friction
+            const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+            const data = buffer.getChannelData(0);
+            let b0 = 0, b1 = 0, b2 = 0;
+
+            for (let i = 0; i < frameCount; i++) {
+                const t = i / sampleRate;
+                const white = Math.random() * 2 - 1;
+                // Pinkish noise for organic paper texture
+                b0 = 0.99765 * b0 + white * 0.0990460;
+                b1 = 0.96300 * b1 + white * 0.2965164;
+                b2 = 0.57000 * b2 + white * 1.0526913;
+                const pink = (b0 + b1 + b2 + white * 0.5362) * 0.15;
+                // Subtle aerodynamic flutter as page cuts air
+                const flutter = 1.0 + 0.3 * Math.sin(2 * Math.PI * 45 * t);
+                data[i] = (pink * 0.65 + white * 0.35) * flutter;
+            }
+
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = buffer;
+
+            // 2. Dynamic bandpass filter (paper flutter sweep: 3400Hz -> 1100Hz)
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.Q.setValueAtTime(2.2, now);
+            filter.frequency.setValueAtTime(3400, now);
+            filter.frequency.exponentialRampToValueAtTime(1100, now + duration);
+
+            // 3. Amplitude envelope: fast crisp attack (14ms), natural decay
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(0.24, now + 0.014);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+            // 4. Subtle micro-tactile thumb flick (very subtle spine flex)
+            const osc = ctx.createOscillator();
+            const oscGain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.exponentialRampToValueAtTime(60, now + 0.035);
+            oscGain.gain.setValueAtTime(0.06, now);
+            oscGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+
+            // Routing
+            noiseSource.connect(filter);
+            filter.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.connect(oscGain);
+            oscGain.connect(ctx.destination);
+
+            noiseSource.start(now);
+            noiseSource.stop(now + duration);
+            osc.start(now);
+            osc.stop(now + 0.04);
+            return;
+        }
+    } catch (e) {
+        // Fallback below
+    }
+
+    try {
+        if (!pageFlipFallbackAudio) {
+            pageFlipFallbackAudio = new Audio('/sounds/page-flip.wav');
+        }
+        const snd = pageFlipFallbackAudio.cloneNode();
+        snd.volume = 0.35;
+        snd.play().catch(() => {});
+    } catch (err) {}
+}
+
 function initTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
 
@@ -164,6 +258,10 @@ function initTabs() {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const target = btn.getAttribute('data-tab');
+            const current = document.documentElement.getAttribute('data-tab');
+            if (target !== current) {
+                playPageFlipSound();
+            }
             switchRoute(target, true);
         });
     });
@@ -171,6 +269,10 @@ function initTabs() {
     window.addEventListener('popstate', () => {
         const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
         const target = ROUTE_MAP[path] || 'dashboard';
+        const current = document.documentElement.getAttribute('data-tab');
+        if (target !== current) {
+            playPageFlipSound();
+        }
         switchRoute(target, false);
     });
 
@@ -516,7 +618,11 @@ function handleWsMessage(msg) {
         if (msg.data.conversations) renderActiveConversations(msg.data.conversations);
         if (msg.data.queues) renderQueues(msg.data.queues);
         if (msg.data.operators) renderOperators(msg.data.operators);
-        if (msg.data.callHistory) renderDashboardRecentTable(msg.data.callHistory.slice(0, 12));
+        if (msg.data.callHistory) {
+            dashboardRecentCallsList = Array.isArray(msg.data.callHistory) ? [...msg.data.callHistory] : [];
+            updateRecentOperatorsDataList();
+            applyDashboardRecentFilters();
+        }
     } else if (msg.type === 'ami_status') {
         updateAmiStatus(msg.data.connected);
     } else if (msg.type === 'sftp_status') {
@@ -755,66 +861,202 @@ setInterval(async () => {
 /* ==========================================================================
    4. Audio Explorer & WaveSurfer Waveform
    ========================================================================== */
+let activeAudioFilePath = '';
+let activeAudioFileName = '';
+let isAudioLooped = false;
+
+function formatBytes(bytes, decimals = 1) {
+    if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const idx = Math.min(i, sizes.length - 1);
+    return parseFloat((bytes / Math.pow(k, idx)).toFixed(dm)) + ' ' + sizes[idx];
+}
+window.formatBytes = formatBytes;
+
+function formatDuration(totalSeconds) {
+    const sec = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) {
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+window.formatDuration = formatDuration;
+
+function formatSeconds(totalSeconds) {
+    const sec = Math.max(0, Math.round(Number(totalSeconds) || 0));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) {
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+window.formatSeconds = formatSeconds;
+
+let currentlyPlayingCallKey = null;
+let pausedCallKey = null;
+let currentlyPlayingBtn = null;
+let activeRecordingSearchController = null;
+let activeSearchingCallerId = null;
+let activeRecordingSearchBtn = null;
+const knownRecordingsCache = new Map();
+
+function updatePlayerPlayState(isPlaying) {
+    const playerEl = document.getElementById('modernMusicPlayer');
+    const iconPlay = document.getElementById('heroIconPlay');
+    const iconPause = document.getElementById('heroIconPause');
+    const subtitle = document.getElementById('playerStatusSubtitle');
+
+    if (isPlaying) {
+        if (playerEl) playerEl.classList.add('is-playing');
+        if (iconPlay) iconPlay.style.display = 'none';
+        if (iconPause) iconPause.style.display = 'block';
+        if (subtitle) subtitle.innerText = 'Ijro etilmoqda...';
+        pausedCallKey = null;
+    } else {
+        if (playerEl) playerEl.classList.remove('is-playing');
+        if (iconPlay) iconPlay.style.display = 'block';
+        if (iconPause) iconPause.style.display = 'none';
+        if (subtitle && activeAudioFileName) subtitle.innerText = 'To\x27xtatildi (Pauza)';
+        if (currentlyPlayingCallKey) {
+            pausedCallKey = currentlyPlayingCallKey;
+        }
+        currentlyPlayingCallKey = null;
+        currentlyPlayingBtn = null;
+    }
+}
+
 function initWaveSurfer() {
-    if (typeof WaveSurfer === 'undefined') return;
-
-    try {
-        wavesurfer = WaveSurfer.create({
-            container: '#waveform',
-            waveColor: '#6366f1',
-            progressColor: '#a855f7',
-            cursorColor: '#38bdf8',
-            barWidth: 3,
-            barGap: 2,
-            barRadius: 3,
-            height: 60,
-            normalize: true
-        });
-
-        wavesurfer.on('ready', () => {
-            if (waveLoadingText) waveLoadingText.style.display = 'none';
-            playerDuration.innerText = formatDuration(wavesurfer.getDuration());
-            btnPlayPause.innerText = '⏸';
-            wavesurfer.play();
-        });
-
-        wavesurfer.on('timeupdate', (time) => {
-            playerCurrentTime.innerText = formatDuration(time);
-        });
-
-        wavesurfer.on('finish', () => {
-            btnPlayPause.innerText = '▶';
-        });
-
-        btnPlayPause.addEventListener('click', () => {
-            if (!wavesurfer) return;
-            if (wavesurfer.isPlaying()) {
-                wavesurfer.pause();
-                btnPlayPause.innerText = '▶';
+    // Hero Play / Pause Button
+    const heroBtn = document.getElementById('btnPlayPause');
+    if (heroBtn) {
+        heroBtn.addEventListener('click', () => {
+            const aud = getNativeAudio();
+            if (aud.paused) {
+                aud.play().catch(() => {});
             } else {
-                wavesurfer.play();
-                btnPlayPause.innerText = '⏸';
+                aud.pause();
             }
         });
+    }
 
-        document.getElementById('btnRewind10').addEventListener('click', () => {
-            if (wavesurfer) wavesurfer.skip(-10);
+    // Restart Audio (0:00)
+    const btnRestart = document.getElementById('btnRestartAudio');
+    if (btnRestart) {
+        btnRestart.addEventListener('click', () => {
+            const aud = getNativeAudio();
+            aud.currentTime = 0;
+            aud.play().catch(() => {});
         });
+    }
 
-        document.getElementById('btnForward10').addEventListener('click', () => {
-            if (wavesurfer) wavesurfer.skip(10);
+    // -10s Rewind
+    const btnRewind = document.getElementById('btnRewind10');
+    if (btnRewind) {
+        btnRewind.addEventListener('click', () => {
+            const aud = getNativeAudio();
+            aud.currentTime = Math.max(0, aud.currentTime - 10);
         });
+    }
 
-        playbackRateSelect.addEventListener('change', (e) => {
-            if (wavesurfer) wavesurfer.setPlaybackRate(parseFloat(e.target.value));
+    // +10s Forward
+    const btnForward = document.getElementById('btnForward10');
+    if (btnForward) {
+        btnForward.addEventListener('click', () => {
+            const aud = getNativeAudio();
+            aud.currentTime = Math.min(aud.duration || 999999, aud.currentTime + 10);
         });
-    } catch (e) {
-        console.warn('WaveSurfer init xatolik:', e);
+    }
+
+    // Loop Toggle
+    const btnLoop = document.getElementById('btnLoopAudio');
+    if (btnLoop) {
+        btnLoop.addEventListener('click', () => {
+            isAudioLooped = !isAudioLooped;
+            btnLoop.classList.toggle('active', isAudioLooped);
+            getNativeAudio().loop = isAudioLooped;
+        });
+    }
+
+    // Volume Slider & Mute
+    const volSlider = document.getElementById('audioVolumeSlider');
+    const volLabel = document.getElementById('volumeValueLabel');
+    const btnMute = document.getElementById('btnVolumeMute');
+    const volIconHigh = document.getElementById('volIconHigh');
+    const volIconMuted = document.getElementById('volIconMuted');
+
+    if (volSlider) {
+        volSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            if (volLabel) volLabel.innerText = `${val}%`;
+            const aud = getNativeAudio();
+            aud.volume = val / 100;
+            isAudioMuted = val === 0;
+            if (volIconHigh && volIconMuted) {
+                volIconHigh.style.display = isAudioMuted ? 'none' : 'block';
+                volIconMuted.style.display = isAudioMuted ? 'block' : 'none';
+            }
+        });
+    }
+
+    if (btnMute) {
+        btnMute.addEventListener('click', () => {
+            const aud = getNativeAudio();
+            isAudioMuted = !isAudioMuted;
+            if (isAudioMuted) {
+                aud.volume = 0;
+                if (volSlider) volSlider.value = 0;
+                if (volLabel) volLabel.innerText = '0%';
+            } else {
+                aud.volume = 1;
+                if (volSlider) volSlider.value = 100;
+                if (volLabel) volLabel.innerText = '100%';
+            }
+            if (volIconHigh && volIconMuted) {
+                volIconHigh.style.display = isAudioMuted ? 'none' : 'block';
+                volIconMuted.style.display = isAudioMuted ? 'block' : 'none';
+            }
+        });
+    }
+
+    // Speed Selector Pills
+    const speedPills = document.querySelectorAll('.speed-pill');
+    speedPills.forEach(pill => {
+        pill.addEventListener('click', () => {
+            speedPills.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            const rate = parseFloat(pill.getAttribute('data-rate'));
+            const aud = getNativeAudio();
+            aud.playbackRate = rate;
+            if (playbackRateSelect) playbackRateSelect.value = rate.toString();
+        });
+    });
+
+    // Download Button in player
+    const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
+    if (btnDownloadCurrent) {
+        btnDownloadCurrent.addEventListener('click', () => {
+            if (!activeAudioFilePath) return;
+            const a = document.createElement('a');
+            a.href = `/api/recordings/stream?file=${encodeURIComponent(activeAudioFilePath)}`;
+            a.download = activeAudioFileName || 'recording.wav';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
     }
 }
 
 function initExplorer() {
-    document.getElementById('btnRefreshExplorer').addEventListener('click', () => {
+    const btnRefreshExp = document.getElementById('btnRefreshExplorer');
+    if (btnRefreshExp) btnRefreshExp.addEventListener('click', () => {
         loadExplorerPath(currentPath);
     });
 
@@ -847,9 +1089,11 @@ async function loadExplorerPath(subPath) {
 
     const foldersGrid = document.getElementById('explorerFoldersGrid');
     const filesTbody = document.getElementById('explorerFilesTable');
+    const tableWrapper = document.getElementById('explorerFilesTableWrapper');
 
     foldersGrid.innerHTML = '';
-    filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 20px;">Yuklanmoqda...</td></tr>`;
+    if (tableWrapper) tableWrapper.style.display = 'none';
+    if (filesTbody) filesTbody.innerHTML = '';
 
     try {
         const res = await fetch(`/api/recordings/tree?path=${encodeURIComponent(subPath)}`);
@@ -896,6 +1140,18 @@ function updateBreadcrumbs(subPath) {
  */
 function classifyAudioFile(fileName, sizeBytes) {
     const name = fileName.toLowerCase();
+
+    // 0. 44 bayt yoki 0 bayt - faqat bo'sh WAV sarlavhasi (suhbat bo'lmagan, 0 soniya)
+    if (!sizeBytes || sizeBytes <= 44) {
+        return {
+            isEmpty: true,
+            isRobot: true,
+            label: '🚫 Bo\'sh (0 soniya)',
+            badgeClass: 'badge-danger',
+            desc: 'Qo\'ng\'iroq ulanmasdan uzilgan, ovoz yozilmagan'
+        };
+    }
+
     // 1. Agar hajmi juda kichik bo'lsa (< 250 KB ~ 15 soniya) yoki nomida q- va abandon bo'lsa
     const isSmall = sizeBytes && sizeBytes < 280000;
     const isQueuePrefix = name.startsWith('q-') || name.includes('-queue-') || name.includes('ext-queues');
@@ -903,6 +1159,7 @@ function classifyAudioFile(fileName, sizeBytes) {
 
     if (name.includes('abandon') || (isQueuePrefix && (isSmall || hasNoOp))) {
         return {
+            isEmpty: false,
             isRobot: true,
             label: '🤖 Faqat Navbat (Robot)',
             badgeClass: 'badge-warning',
@@ -911,6 +1168,7 @@ function classifyAudioFile(fileName, sizeBytes) {
     }
 
     return {
+        isEmpty: false,
         isRobot: false,
         label: '🎧 Suhbat (Human Talk)',
         badgeClass: 'badge-success',
@@ -918,16 +1176,45 @@ function classifyAudioFile(fileName, sizeBytes) {
     };
 }
 
+function estimateAudioDuration(sizeBytes) {
+    if (!sizeBytes || sizeBytes <= 44) return "00:00 (Bo'sh)";
+    // Asterisk WAV formati: 8000 Hz, 16-bit Mono = sekundiga 16,000 bayt
+    const sec = Math.max(0, Math.round((sizeBytes - 44) / 16000));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) {
+        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 function renderExplorerFilesTable(files) {
+    const tableWrapper = document.getElementById('explorerFilesTableWrapper');
     const filesTbody = document.getElementById('explorerFilesTable');
+    if (!filesTbody) return;
+
     if (!files || files.length === 0) {
-        filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 24px;">Ushbu papkada audio yozuvlar yo'q</td></tr>`;
+        // Agar ushbu papkada (masalan root papkada) umuman audio fayllar bo'lmasa, jadval ko'rsatilmaydi
+        if (!explorerFilesData || explorerFilesData.length === 0) {
+            if (tableWrapper) tableWrapper.style.display = 'none';
+            filesTbody.innerHTML = '';
+            return;
+        }
+        // Agar qidiruv natijasida 0 ta topilgan bo'lsa:
+        if (tableWrapper) tableWrapper.style.display = 'block';
+        filesTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Qidiruv bo'yicha audio fayllar topilmadi</td></tr>`;
         return;
+    }
+
+    if (tableWrapper) {
+        tableWrapper.style.display = 'block';
     }
 
     filesTbody.innerHTML = files.map(file => {
         const fileDate = file.modifyTime ? new Date(file.modifyTime).toLocaleString() : 'Bugun';
         const analysis = classifyAudioFile(file.name, file.size);
+        const durationText = estimateAudioDuration(file.size);
 
         return `
             <tr>
@@ -943,11 +1230,22 @@ function renderExplorerFilesTable(files) {
                     </span>
                 </td>
                 <td><span class="badge badge-info">${file.sizeFormatted || '1 MB'}</span></td>
+                <td>
+                    <span style="font-family: monospace; font-weight: 600; color: ${analysis.isEmpty ? 'var(--text-muted)' : '#38bdf8'}; font-size: 13px;">
+                        ⏱ ${durationText}
+                    </span>
+                </td>
                 <td style="color: var(--text-muted); font-size: 12px;">${fileDate}</td>
                 <td>
-                    <button class="btn-action" onclick="playAudioFile('${file.name}', '${file.path.replace(/\\/g, '/')}', ${file.size || 0})">
-                        ▶ Eshitish
-                    </button>
+                    ${analysis.isEmpty ? `
+                        <button class="btn-action" style="opacity: 0.5; cursor: not-allowed;" onclick="alert('Ushbu audio fayl bo\\'sh (0 soniya, suhbat bo\\'lmagan)')" title="Yozuv bo'sh">
+                            🚫 Bo'sh
+                        </button>
+                    ` : `
+                        <button class="btn-action" onclick="playAudioFile('${file.name}', '${file.path.replace(/\\\\/g, '/')}', ${file.size || 0})">
+                            ▶ Eshitish
+                        </button>
+                    `}
                     <a class="btn-action" href="/api/recordings/stream?file=${encodeURIComponent(file.path)}" download="${file.name}" style="text-decoration: none;">
                         ⬇ Yuklab olish
                     </a>
@@ -973,29 +1271,426 @@ function filterExplorerFiles(query) {
     renderExplorerFilesTable(filtered);
 }
 
-function playAudioFile(fileName, filePath, sizeBytes = 0) {
-    playerFileName.innerText = fileName;
-    const streamUrl = `/api/recordings/stream?file=${encodeURIComponent(filePath)}`;
-    
-    const analysis = classifyAudioFile(fileName, sizeBytes);
-    if (audioTagBadge) {
-        audioTagBadge.style.display = 'inline-block';
-        audioTagBadge.className = `badge ${analysis.badgeClass}`;
-        audioTagBadge.innerText = analysis.label;
-        audioTagBadge.title = analysis.desc;
-    }
+let nativeAudio = null;
+let fallbackWaveAnim = null;
+let currentWaveBars = [];
 
-    if (waveLoadingText) waveLoadingText.style.display = 'flex';
-
-    if (wavesurfer) {
-        wavesurfer.load(streamUrl);
-        wavesurfer.setPlaybackRate(parseFloat(playbackRateSelect.value || '1'));
+function getNativeAudio() {
+    if (!nativeAudio) {
+        nativeAudio = document.getElementById('nativeAudioPlayer');
+        if (!nativeAudio) {
+            nativeAudio = document.createElement('audio');
+            nativeAudio.id = 'nativeAudioPlayer';
+            nativeAudio.preload = 'auto';
+            nativeAudio.style.display = 'none';
+            document.body.appendChild(nativeAudio);
+        }
     }
+    return nativeAudio;
 }
 
-/* ==========================================================================
-   5. Compact Conversations, Queues & Call Transfer (Sidebar)
-   ========================================================================== */
+function closeAudioPlayer() {
+    const aud = getNativeAudio();
+    aud.pause();
+    aud.currentTime = 0;
+    if (fallbackWaveAnim) {
+        clearInterval(fallbackWaveAnim);
+        fallbackWaveAnim = null;
+    }
+    const playerCard = document.getElementById('modernMusicPlayer');
+    if (playerCard) {
+        playerCard.style.display = 'none';
+    }
+    updatePlayerPlayState(false);
+}
+
+/**
+ * Visualizer Waveform Canvas: 100% ishonchli, darhol ishga tushadigan interaktiv to'lqin
+ */
+function renderInteractiveWaveform(audio, fileName, sizeBytes) {
+    const waveContainer = document.getElementById('waveform');
+    if (!waveContainer) return;
+
+    waveContainer.innerHTML = '';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'waveform-interactive-canvas';
+    canvas.style.width = '100%';
+    canvas.style.height = '72px';
+    canvas.style.cursor = 'pointer';
+    canvas.style.display = 'block';
+    waveContainer.appendChild(canvas);
+
+    // Canvas o'lchamlari
+    const rect = waveContainer.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(300, rect.width || waveContainer.clientWidth || 800);
+    const height = 72;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    const barWidth = 3;
+    const barGap = 2;
+    const totalBarWidth = barWidth + barGap;
+    const barCount = Math.floor(width / totalBarWidth);
+
+    // Fayl nomi va hajmiga asoslangan organik nutq to'lqini
+    let seed = 0;
+    for (let i = 0; i < fileName.length; i++) {
+        seed = (seed * 31 + fileName.charCodeAt(i)) & 0xFFFFFFFF;
+    }
+    if (sizeBytes) seed = (seed ^ sizeBytes) & 0xFFFFFFFF;
+
+    function pseudoRandom() {
+        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF;
+        return (seed >>> 0) / 4294967296;
+    }
+
+    currentWaveBars = [];
+    let prevHeight = 0.35;
+    for (let i = 0; i < barCount; i++) {
+        const raw = pseudoRandom();
+        const speechEnvelope = 0.25 + 0.65 * Math.sin((i / barCount) * Math.PI * 4.5);
+        let h = (prevHeight * 0.45 + raw * 0.55) * Math.abs(speechEnvelope);
+        h = Math.max(0.08, Math.min(0.95, h));
+        prevHeight = h;
+        currentWaveBars.push(h);
+    }
+
+    function drawWave() {
+        ctx.clearRect(0, 0, width, height);
+
+        const curTime = audio.currentTime || 0;
+        const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
+            ? audio.duration
+            : Math.max(1, (sizeBytes - 44) / 16000);
+        
+        const progress = Math.max(0, Math.min(1, curTime / totalDur));
+        const playedIndex = Math.floor(progress * barCount);
+        const midY = height / 2;
+
+        for (let i = 0; i < barCount; i++) {
+            const x = i * totalBarWidth;
+            const barH = Math.max(4, currentWaveBars[i] * (height - 8));
+            const y = midY - barH / 2;
+
+            const isPlayed = i <= playedIndex;
+            ctx.fillStyle = isPlayed ? '#38bdf8' : '#334155';
+
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(x, y, barWidth, barH, 1.5);
+            } else {
+                ctx.rect(x, y, barWidth, barH);
+            }
+            ctx.fill();
+        }
+
+        // Ko'rsatkich (cursor chizig'i)
+        const cursorX = progress * width;
+        ctx.fillStyle = '#818cf8';
+        ctx.fillRect(Math.min(width - 2, cursorX), 0, 2, height);
+    }
+
+    drawWave();
+
+    // To'lqinni bosganda o'sha soniyaga sakrash (Seek)
+    canvas.onclick = (e) => {
+        const clickRect = canvas.getBoundingClientRect();
+        const clickX = e.clientX - clickRect.left;
+        const ratio = Math.max(0, Math.min(1, clickX / clickRect.width));
+        const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
+            ? audio.duration
+            : (sizeBytes - 44) / 16000;
+        if (totalDur > 0) {
+            audio.currentTime = ratio * totalDur;
+            drawWave();
+        }
+    };
+
+    if (fallbackWaveAnim) {
+        clearInterval(fallbackWaveAnim);
+    }
+    fallbackWaveAnim = setInterval(() => {
+        drawWave();
+    }, 60);
+}
+
+function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
+    if (sizeBytes > 0 && sizeBytes <= 44) {
+        alert("⚠️ Ushbu audio fayl bo'sh (suhbat bo'lmagan yoki qo'ng'iroq operatorga ulanmasdan uzilgan).");
+        return;
+    }
+
+    activeAudioFilePath = filePath;
+    activeAudioFileName = fileName;
+
+    // 1. Agar switchTab rost bo'lsagina Audio Explorer tabiga o'tkazamiz (Dashboardda turgan odam shu sahifada qoladi)
+    if (switchTab) {
+        const expBtn = document.querySelector('.nav-tabs a[data-tab="explorer"]');
+        if (expBtn) expBtn.click();
+    }
+
+    // 2. Pleyer kartochkasini ko'rsatish (Faqat switchTab yoki hozir Explorer tabida bo'lsak)
+    const currentTab = document.documentElement.getAttribute('data-tab') || 'dashboard';
+    const playerCard = document.getElementById('modernMusicPlayer');
+    if (playerCard) {
+        if (switchTab || currentTab === 'explorer') {
+            playerCard.style.display = 'block';
+            setTimeout(() => {
+                playerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+        }
+    }
+
+    if (playerFileName) playerFileName.innerText = fileName;
+
+    const subtitle = document.getElementById('playerStatusSubtitle');
+    if (subtitle) {
+        const sz = (typeof formatBytes === 'function' && sizeBytes) ? formatBytes(sizeBytes) : (sizeBytes ? (Math.round(sizeBytes / 1024) + ' KB') : '');
+        subtitle.innerText = sz ? `Fayl hajmi: ${sz} • Yuklanmoqda...` : 'Audio yuklanmoqda...';
+        subtitle.style.color = '';
+    }
+
+    const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
+    if (btnDownloadCurrent) {
+        btnDownloadCurrent.style.display = 'inline-flex';
+        btnDownloadCurrent.onclick = () => {
+            const a = document.createElement('a');
+            a.href = `/api/recordings/stream?file=${encodeURIComponent(filePath)}`;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+    }
+
+    // 2. Davomiylikni DARHOL hisoblab chiqarish (Asterisk 8kHz 16-bit mono WAV = 16,000 bayt/soniya)
+    let estimatedSec = 0;
+    if (sizeBytes > 44) {
+        estimatedSec = Math.round((sizeBytes - 44) / 16000);
+        if (playerDuration && estimatedSec > 0) {
+            playerDuration.innerText = typeof formatDuration === 'function' ? formatDuration(estimatedSec) : (estimatedSec + 's');
+        }
+    }
+    if (playerCurrentTime) playerCurrentTime.innerText = '00:00';
+
+    // 3. Native audio oqimini ulash va ijro etish
+    const streamUrl = `/api/recordings/stream?file=${encodeURIComponent(filePath)}`;
+    const audio = getNativeAudio();
+
+    try {
+        audio.pause();
+    } catch (e) {}
+    audio.currentTime = 0;
+    audio.src = streamUrl;
+
+    const activeSpeedPill = document.querySelector('.speed-pill.active');
+    const rate = activeSpeedPill ? parseFloat(activeSpeedPill.getAttribute('data-rate')) : 1.0;
+    audio.playbackRate = rate;
+
+    // Ovoz balandligi (Default 100% eshitiladigan bo'lishi shart)
+    const volSlider = document.getElementById('audioVolumeSlider');
+    let currentVol = 1.0;
+    if (volSlider) {
+        const v = parseInt(volSlider.value || '100', 10);
+        if (v > 0) {
+            currentVol = v / 100;
+        } else {
+            volSlider.value = 100;
+            const volLabel = document.getElementById('volumeValueLabel');
+            if (volLabel) volLabel.innerText = '100%';
+            currentVol = 1.0;
+        }
+    }
+    audio.volume = currentVol;
+    audio.muted = false;
+
+    audio.onloadedmetadata = () => {
+        if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+            if (playerDuration) playerDuration.innerText = formatDuration(audio.duration);
+        }
+    };
+
+    audio.ontimeupdate = () => {
+        if (playerCurrentTime) playerCurrentTime.innerText = formatDuration(audio.currentTime);
+    };
+
+    audio.onerror = () => {
+        updatePlayerPlayState(false);
+        if (subtitle) {
+            subtitle.innerText = '⚠️ Ovoz faylini ochib bo\'lmadi yoki suhbat yozuvi mavjud emas';
+            subtitle.style.color = '#f87171';
+        }
+    };
+
+    audio.onplay = () => {
+        updatePlayerPlayState(true);
+        if (subtitle) {
+            subtitle.innerText = 'Audio ijro etilmoqda';
+            subtitle.style.color = '';
+        }
+    };
+    audio.onpause = () => updatePlayerPlayState(false);
+    audio.onended = () => {
+        if (isAudioLooped) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        } else {
+            updatePlayerPlayState(false);
+            if (subtitle) subtitle.innerText = 'Ijro yakunlandi';
+        }
+    };
+
+    // Darhol ijro etishni boshlash
+    audio.play().then(() => {
+        updatePlayerPlayState(true);
+        if (subtitle) subtitle.style.color = '';
+    }).catch(e => {
+        console.warn('Audio play xato yoki ruxsat talab:', e);
+        updatePlayerPlayState(false);
+        if (subtitle) {
+            subtitle.innerText = '⚠️ Ovozni ijro etib bo\'lmadi (Fayl topilmadi yoki bo\'sh)';
+            subtitle.style.color = '#f87171';
+        }
+    });
+
+    // 4. Interaktiv to'lqinni (waveform) render qilish
+    renderInteractiveWaveform(audio, fileName, sizeBytes);
+}
+window.playAudioFile = playAudioFile;
+
+async function openInExplorerStudio(recFile, callerId, duration, btn) {
+    const expBtn = document.querySelector('.nav-tabs a[data-tab="explorer"]');
+    if (expBtn) expBtn.click();
+
+    const playerCard = document.getElementById('modernMusicPlayer');
+    const audio = getNativeAudio();
+
+    // 1. Avvalgi ijro etilayotgan audioni darhol to'xtatamiz
+    try {
+        audio.pause();
+    } catch (e) {}
+
+    // 2. Eskisi ko'rinib qolmasligi uchun DARHOL loading rejimiga o'tkazamiz
+    if (playerCard) {
+        playerCard.style.display = 'block';
+        setTimeout(() => {
+            playerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+    }
+
+    if (playerFileName) {
+        playerFileName.innerText = callerId ? `📞 ${callerId} (Yuklanmoqda...)` : 'Audio yuklanmoqda...';
+    }
+    if (playerCurrentTime) playerCurrentTime.innerText = '00:00';
+    if (playerDuration) playerDuration.innerText = duration ? formatDuration(duration) : '--:--';
+
+    const subtitle = document.getElementById('playerStatusSubtitle');
+    if (subtitle) {
+        subtitle.innerText = '⏳ Audio serverdan qidirilmoqda va tayyorlanmoqda...';
+        subtitle.style.color = '#38bdf8';
+    }
+
+    const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
+    if (btnDownloadCurrent) btnDownloadCurrent.style.display = 'none';
+
+    // To'lqinni tozalab turamiz (eski grafik qolib ketmasligi uchun)
+    const waveCanvas = document.getElementById('interactiveWaveformCanvas');
+    if (waveCanvas && waveCanvas.getContext) {
+        const ctx = waveCanvas.getContext('2d');
+        ctx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+    }
+
+    updatePlayerPlayState(false);
+
+    if (btn) {
+        btn.innerHTML = '<span>⏳...</span>';
+        btn.disabled = true;
+    }
+
+    if (!callerId) {
+        if (btn) {
+            btn.innerHTML = '<span>🔍 Detal</span>';
+            btn.disabled = false;
+        }
+        return;
+    }
+
+    const callKey = `${callerId}_${duration}`;
+    let resolvedRec = recFile || knownRecordingsCache.get(callKey);
+
+    try {
+        if (resolvedRec) {
+            const displayName = `📞 ${callerId} (${formatSeconds(duration || 0)})`;
+            playAudioFile(displayName, resolvedRec, (duration || 0) * 16000, true);
+            return;
+        }
+
+        let matchedRecording = null;
+        let matchedDuration = duration;
+
+        // 1-bosqich: Fast-Index tekshiruvi (0.2 millisekundda RAM xotiradan topadi!)
+        try {
+            const fastRes = await fetch(`/api/recordings/fast-find?callerId=${encodeURIComponent(callerId)}&duration=${duration || 0}`).then(r => r.json());
+            if (fastRes && fastRes.found && fastRes.recording) {
+                matchedRecording = fastRes.recording;
+                matchedDuration = fastRes.duration || duration;
+            }
+        } catch (fastErr) {}
+
+        // 2-bosqich: Agar tezkor indeksda bo'lmasa, CDR bazasidan qidirish
+        if (!matchedRecording) {
+            const targetItem = dashboardRecentCallsList.find(i => i.callerId === callerId);
+            let dateParam = '';
+            if (targetItem && targetItem.time) {
+                const d = String(targetItem.time).slice(0, 10);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                    dateParam = `&date=${d}`;
+                }
+            }
+            const res = await fetch(`/api/calls/details?search=${encodeURIComponent(callerId)}&limit=5${dateParam}`);
+            const data = await res.json();
+            const matched = data && data.data && data.data.find(c => c.recording && c.recording.length > 0);
+            if (matched && matched.recording) {
+                matchedRecording = matched.recording;
+                matchedDuration = matched.duration || duration;
+            }
+        }
+
+        if (matchedRecording) {
+            knownRecordingsCache.set(callKey, matchedRecording);
+            const targetItem = dashboardRecentCallsList.find(i => i.callerId === callerId);
+            if (targetItem) targetItem.recording = matchedRecording;
+
+            const displayName = `📞 ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
+            playAudioFile(displayName, matchedRecording, (matchedDuration || duration || 0) * 16000, true);
+        } else {
+            if (subtitle) {
+                subtitle.innerText = '⚠️ Ushbu suhbat uchun audio yozuv topilmadi';
+                subtitle.style.color = '#f87171';
+            }
+            if (playerFileName) playerFileName.innerText = `📞 ${callerId} (Yozuv yo'q)`;
+            alert(`⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi.`);
+        }
+    } catch (e) {
+        if (subtitle) {
+            subtitle.innerText = '⚠️ Yuklashda xatolik yuz berdi';
+            subtitle.style.color = '#f87171';
+        }
+        alert('Audio ochishda xatolik: ' + e.message);
+    } finally {
+        if (btn) {
+            btn.innerHTML = '<span>🔍 Detal</span>';
+            btn.disabled = false;
+        }
+    }
+}
+window.openInExplorerStudio = openInExplorerStudio;
+
+
 function getConversationKey(c) {
     return c.channel || (c.callerId + '_' + (c.operatorExten || c.operator || ''));
 }
@@ -1492,6 +2187,9 @@ function renderOperators(operators) {
             if (op && typeof renderCompareStats === 'function') renderCompareStats(op);
         }
     }
+    if (typeof updateRecentOperatorsDataList === 'function') {
+        updateRecentOperatorsDataList();
+    }
 }
 
 /* ==========================================================================
@@ -1641,10 +2339,12 @@ function initHistoryPagination() {
     }
 }
 
+let currentHistoryData = [];
+
 async function loadHistoryPage(page = 1, search = '') {
     const tbody = document.getElementById('historyTableBody');
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
     }
 
     try {
@@ -1673,7 +2373,8 @@ async function loadHistoryPage(page = 1, search = '') {
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
-            renderAgentHistoryTable(result.data || []);
+            currentHistoryData = result.data || [];
+            renderAgentHistoryTable(currentHistoryData);
         } else {
             // 2. Issabel Asterisk CDR Server bazasidan
             const res = await fetch(`/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}&date=${encodeURIComponent(dateParam)}`);
@@ -1694,11 +2395,12 @@ async function loadHistoryPage(page = 1, search = '') {
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
-            renderServerHistoryTable(result.data || []);
+            currentHistoryData = result.data || [];
+            renderServerHistoryTable(currentHistoryData);
         }
     } catch (e) {
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
         }
     }
 }
@@ -1732,7 +2434,7 @@ function renderAgentHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
@@ -1743,7 +2445,7 @@ function renderAgentHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         }
         return;
     }
@@ -1784,6 +2486,39 @@ function renderAgentHistoryTable(data) {
             timeHtml = '-';
         }
 
+        // --- Audio / Amal ustuni ---
+        const durSec = item.duration_sec || 0;
+        const hasAudio = isAns && durSec > 0;
+        const safeCaller = (item.caller_id || '').replace(/'/g, "\\'");
+        const callKey = `${item.caller_id || ''}_${durSec}`;
+        const isThisPlaying = currentlyPlayingCallKey === callKey;
+        const isThisPaused = pausedCallKey === callKey;
+        const isThisSearching = activeSearchingCallerId === (item.caller_id || '');
+
+        const playBtnText = isThisSearching 
+            ? '⏳ Qidirilmoqda...' 
+            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+
+        const audioCell = hasAudio 
+            ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
+                   <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                           ${isThisSearching ? 'disabled' : ''} 
+                           onclick="playDashboardRecording('', '${safeCaller}', ${durSec}, this)" 
+                           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
+                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
+                       <span>${playBtnText}</span>
+                   </button>
+                   <button class="btn-action" 
+                           onclick="openInExplorerStudio('', '${safeCaller}', ${durSec}, this)" 
+                           style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
+                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
+                       <span>🔍 Detal</span>
+                   </button>
+               </div>`
+            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
+                   🚫 Audio yo'q
+               </span>`;
+
         return `
             <tr>
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
@@ -1796,13 +2531,14 @@ function renderAgentHistoryTable(data) {
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
                 <td>${dirBadge}</td>
-                <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(item.duration_sec || 0)}</td>
+                <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(durSec)}</td>
                 <td>${statusBadge}</td>
                 <td style="color: var(--text-muted); font-size: 12px;">
                     <span style="display: inline-flex; align-items: center; gap: 4px;">
                         <span>💻</span> ${item.hostname || 'Desktop'}
                     </span>
                 </td>
+                <td>${audioCell}</td>
             </tr>
         `;
     }).join('');
@@ -1815,7 +2551,7 @@ function renderServerHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
@@ -1826,7 +2562,7 @@ function renderServerHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
         }
         return;
     }
@@ -1866,6 +2602,40 @@ function renderServerHistoryTable(data) {
             timeHtml = '-';
         }
 
+        // --- Audio / Amal ustuni ---
+        const durSec = item.duration || 0;
+        const hasAudio = isAns && (durSec > 0 || Boolean(item.recording));
+        const safeRec = (item.recording || '').replace(/'/g, "\\'");
+        const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+        const callKey = `${item.callerId || ''}_${durSec}`;
+        const isThisPlaying = currentlyPlayingCallKey === callKey;
+        const isThisPaused = pausedCallKey === callKey;
+        const isThisSearching = activeSearchingCallerId === (item.callerId || '');
+
+        const playBtnText = isThisSearching 
+            ? '⏳ Qidirilmoqda...' 
+            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+
+        const audioCell = hasAudio 
+            ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
+                   <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                           ${isThisSearching ? 'disabled' : ''} 
+                           onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
+                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
+                       <span>${playBtnText}</span>
+                   </button>
+                   <button class="btn-action" 
+                           onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
+                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
+                       <span>🔍 Detal</span>
+                   </button>
+               </div>`
+            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
+                   🚫 Audio yo'q
+               </span>`;
+
         return `
             <tr>
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
@@ -1878,9 +2648,10 @@ function renderServerHistoryTable(data) {
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
                 <td>${dirBadge}</td>
-                <td>${formatSeconds(item.duration || 0)}</td>
+                <td>${formatSeconds(durSec)}</td>
                 <td>${statusBadge}</td>
                 <td style="color: var(--text-muted); font-size: 12px;">${item.hangupParty || item.cause || 'Normal'}</td>
+                <td>${audioCell}</td>
             </tr>
         `;
     }).join('');
@@ -1888,20 +2659,258 @@ function renderServerHistoryTable(data) {
 
 const renderHistoryTable = renderServerHistoryTable;
 
-function renderDashboardRecentTable(data) {
+let dashboardRecentCallsList = [];
+
+function updateRecentOperatorsDataList() {
+    const dl = document.getElementById('recentOperatorsList');
+    if (!dl) return;
+
+    // Har bir operator uchun faqat bitta toza variant (masalan: "Oybek (101)")
+    const opMap = new Map(); // opId -> "Ism (ID)"
+
+    // 1. Jonli currentOperators dan olamiz
+    if (Array.isArray(currentOperators)) {
+        currentOperators.forEach(op => {
+            const opId = String(op.id || '').trim();
+            if (!opId) return;
+            const clean = typeof getCleanOperatorName === 'function' 
+                ? getCleanOperatorName(op.realName || op.name, opId) 
+                : (op.realName || op.name || `Operator ${opId}`);
+            opMap.set(opId, `${clean} (${opId})`);
+        });
+    }
+
+    // 2. Mavjud qo'ng'iroqlar buferidan ham operatorlarni to'ldiramiz (agar ro'yxatda bo'lmasa)
+    if (Array.isArray(dashboardRecentCallsList)) {
+        dashboardRecentCallsList.forEach(c => {
+            if (c.operator) {
+                const formatted = typeof formatOperatorDisplayName === 'function' 
+                    ? formatOperatorDisplayName(c.operator) 
+                    : String(c.operator);
+                const m = formatted.match(/\((\d+)\)/);
+                const opId = m ? m[1] : String(c.operator).trim();
+                if (!opMap.has(opId)) {
+                    opMap.set(opId, formatted);
+                }
+            }
+        });
+    }
+
+    // Har bir operatordan faqat 1 ta yozuv, alifbo tartibida
+    const uniqueDisplayNames = Array.from(opMap.values()).sort((a, b) => a.localeCompare(b));
+    dl.innerHTML = uniqueDisplayNames.map(name => `<option value="${name}">`).join('');
+}
+
+let currentRecentSortColumn = 'time';
+let currentRecentSortDirection = 'desc';
+
+function sortDashboardTable(column) {
+    if (currentRecentSortColumn === column) {
+        currentRecentSortDirection = currentRecentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentRecentSortColumn = column;
+        currentRecentSortDirection = (column === 'time' || column === 'duration') ? 'desc' : 'asc';
+    }
+
+    updateSortIcons();
+    applyDashboardRecentFilters();
+}
+
+function updateSortIcons() {
+    const columns = ['time', 'callerId', 'direction', 'operator', 'duration', 'status', 'hangupParty'];
+    columns.forEach(col => {
+        const iconEl = document.getElementById(`sort-icon-${col}`);
+        if (!iconEl) return;
+
+        if (col === currentRecentSortColumn) {
+            iconEl.innerHTML = currentRecentSortDirection === 'asc' ? '▲' : '▼';
+            iconEl.style.opacity = '1';
+            iconEl.style.color = '#38bdf8';
+        } else {
+            iconEl.innerHTML = '↕';
+            iconEl.style.opacity = '0.35';
+            iconEl.style.color = 'inherit';
+        }
+    });
+}
+
+function applyDashboardRecentFilters() {
+    const opInput = document.getElementById('recentFilterOperator');
+    const statusSelect = document.getElementById('recentFilterStatus');
+    const dirSelect = document.getElementById('recentFilterDirection');
+    const clearBtn = document.getElementById('btnClearRecentFilters');
+
+    const opVal = opInput ? opInput.value.trim().toLowerCase() : '';
+    const statusVal = statusSelect ? statusSelect.value : 'all';
+    const dirVal = dirSelect ? dirSelect.value : 'all';
+
+    const hasActiveFilter = Boolean(opVal || statusVal !== 'all' || dirVal !== 'all');
+    if (clearBtn) {
+        clearBtn.style.display = hasActiveFilter ? 'inline-flex' : 'none';
+    }
+
+    const filtered = dashboardRecentCallsList.filter(item => {
+        // 1. Operator / Raqam qidiruvi (Ism, raqam yoki "Ism (101)" bo'yicha)
+        if (opVal) {
+            const opRaw = String(item.operator || '').toLowerCase();
+            const opFormatted = String(typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(item.operator) : '').toLowerCase();
+            const callerRaw = String(item.callerId || '').toLowerCase();
+
+            const match = opRaw.includes(opVal) || 
+                          opFormatted.includes(opVal) || 
+                          callerRaw.includes(opVal) ||
+                          opVal.includes(opRaw) || 
+                          (opFormatted && opVal.includes(opFormatted));
+            if (!match) {
+                return false;
+            }
+        }
+
+        // 2. Holati (answered vs missed/busy/etc)
+        if (statusVal !== 'all') {
+            const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
+            const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
+            if (statusVal === 'answered' && !isAns) return false;
+            if (statusVal === 'missed' && isAns) return false;
+        }
+
+        // 3. Yo'nalishi (inbound vs outbound)
+        if (dirVal !== 'all') {
+            const isOut = item.direction === 'outbound';
+            if (dirVal === 'inbound' && isOut) return false;
+            if (dirVal === 'outbound' && !isOut) return false;
+        }
+
+        return true;
+    });
+
+    // Saralash (Ustun bo'yicha sorting)
+    filtered.sort((a, b) => {
+        let valA, valB;
+
+        switch (currentRecentSortColumn) {
+            case 'time':
+                valA = new Date(a.time || 0).getTime();
+                valB = new Date(b.time || 0).getTime();
+                break;
+            case 'callerId':
+                valA = String(a.callerId || '');
+                valB = String(b.callerId || '');
+                break;
+            case 'direction':
+                valA = String(a.direction || '');
+                valB = String(b.direction || '');
+                break;
+            case 'operator':
+                valA = String(formatOperatorDisplayName(a.operator || '')).toLowerCase();
+                valB = String(formatOperatorDisplayName(b.operator || '')).toLowerCase();
+                break;
+            case 'duration':
+                valA = parseInt(a.duration || 0, 10);
+                valB = parseInt(b.duration || 0, 10);
+                break;
+            case 'status':
+                valA = String(a.status || '');
+                valB = String(b.status || '');
+                break;
+            case 'hangupParty':
+                valA = String(a.hangupParty || '');
+                valB = String(b.hangupParty || '');
+                break;
+            default:
+                valA = new Date(a.time || 0).getTime();
+                valB = new Date(b.time || 0).getTime();
+        }
+
+        if (valA < valB) return currentRecentSortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return currentRecentSortDirection === 'asc' ? 1 : -1;
+        return 0;
+    });
+
+    const limit = hasActiveFilter ? 40 : 20;
+    renderDashboardRecentTable(filtered.slice(0, limit), hasActiveFilter);
+}
+
+function resetDashboardRecentFilters() {
+    const opInput = document.getElementById('recentFilterOperator');
+    const statusSelect = document.getElementById('recentFilterStatus');
+    const dirSelect = document.getElementById('recentFilterDirection');
+    if (opInput) opInput.value = '';
+    if (statusSelect) statusSelect.value = 'all';
+    if (dirSelect) dirSelect.value = 'all';
+    currentRecentSortColumn = 'time';
+    currentRecentSortDirection = 'desc';
+    updateSortIcons();
+    applyDashboardRecentFilters();
+}
+
+function renderDashboardRecentTable(data, hasActiveFilter = false) {
     const tbody = document.getElementById('dashboardCallsTable');
-    if (!data || data.length === 0) return;
+    if (!tbody) return;
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-dim); padding: 32px 16px; font-size: 13px;">
+                    ${hasActiveFilter ? '🔍 Tanlangan filtrlar bo\'yicha qo\'ng\'iroqlar topilmadi' : 'Hozircha qo\'ng\'iroqlar yo\'q'}
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
     tbody.innerHTML = data.map((item, index) => {
         const rowNum = index + 1;
         const isOut = item.direction === 'outbound';
-        const isAns = item.status === 'ANSWERED';
+        
+        const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
+        const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
+
         const statusBadge = isAns 
             ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
             : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
         const dirBadge = isOut 
             ? '<span class="badge badge-purple">📤 chiquvchi</span>' 
             : '<span class="badge badge-info">📥 kiruvchi</span>';
+
+        const opDisplayName = formatOperatorDisplayName(item.operator);
+        const opCellHtml = isQueueOnly
+            ? '<span style="color: #f59e0b; font-size: 12px; font-weight: 500;">⏳ Operatorga ulanmadi</span>'
+            : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
+
+        const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
+        const safeRec = (item.recording || '').replace(/'/g, "\\'");
+        const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+        const durSec = item.duration || 0;
+
+        const callKey = `${item.callerId || ''}_${durSec}`;
+        const isThisPlaying = currentlyPlayingCallKey === callKey;
+        const isThisPaused = pausedCallKey === callKey;
+        const isThisSearching = activeSearchingCallerId === item.callerId;
+
+        const playBtnText = isThisSearching 
+            ? '⏳ Qidirilmoqda...' 
+            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+
+        const audioCell = hasAudio 
+            ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
+                   <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                           ${isThisSearching ? 'disabled' : ''} 
+                           onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
+                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
+                       <span>${playBtnText}</span>
+                   </button>
+                   <button class="btn-action" 
+                           onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
+                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
+                       <span>🔍 Detal</span>
+                   </button>
+               </div>`
+            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
+                   🚫 Audio yo'q
+               </span>`;
 
         return `
             <tr>
@@ -1914,83 +2923,170 @@ function renderDashboardRecentTable(data) {
                     </div>
                 </td>
                 <td>${dirBadge}</td>
-                <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
+                <td>${opCellHtml}</td>
                 <td>${formatSeconds(item.duration || 0)}</td>
                 <td>${statusBadge}</td>
                 <td style="font-weight: 500; font-size: 12px; color: ${item.hangupParty?.includes('Operator') ? 'var(--warning)' : (item.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)')};">
                     ${item.hangupParty || 'Noma\'lum'}
                 </td>
                 <td>
-                    <button class="btn-action" onclick="document.querySelector('[data-tab=explorer]').click()">📂 Audio</button>
+                    ${audioCell}
                 </td>
             </tr>
         `;
     }).join('');
 }
 
-function addRecentDashboardRow(record) {
-    const tbody = document.getElementById('dashboardCallsTable');
-    const row = document.createElement('tr');
-    const isOut = record.direction === 'outbound';
-    const isAns = record.status === 'ANSWERED';
-    const statusBadge = isAns 
-        ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
-        : (record.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
-    const dirBadge = isOut 
-        ? '<span class="badge badge-purple">📤 chiquvchi</span>' 
-        : '<span class="badge badge-info">📥 kiruvchi</span>';
-
-    row.innerHTML = `
-        <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">1</td>
-        <td>${new Date(record.time).toLocaleTimeString()}</td>
-        <td>
-            <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                <span>${record.callerId}</span>
-            </div>
-        </td>
-        <td>${dirBadge}</td>
-        <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(record.operator)}</td>
-        <td>${formatSeconds(record.duration || 0)}</td>
-        <td>${statusBadge}</td>
-        <td style="font-weight: 500; font-size: 12px; color: ${record.hangupParty?.includes('Operator') ? 'var(--warning)' : (record.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)')};">
-            ${record.hangupParty || 'Noma\'lum'}
-        </td>
-        <td>
-            <button class="btn-action" onclick="document.querySelector('[data-tab=explorer]').click()">📂 Audio</button>
-        </td>
-    `;
-    if (tbody.children.length > 0 && tbody.children[0].children.length === 1) {
-        tbody.innerHTML = '';
-    }
-    tbody.insertBefore(row, tbody.firstChild);
-    if (tbody.children.length > 12) tbody.removeChild(tbody.lastChild);
-
-    // Qatorlar tartib raqamini (1, 2, 3...) har safar to'g'ri yangilash
-    Array.from(tbody.children).forEach((r, idx) => {
-        if (r.children && r.children[0]) {
-            r.children[0].innerText = idx + 1;
+// Barcha ochiq jadvallarni bir zumda yangilash (dashboard + history)
+function refreshAllActiveTables() {
+    applyDashboardRecentFilters();
+    // History tab ham ochiq bo'lsa, u yerdagi audio tugmalarni ham yangilaymiz
+    if (currentHistoryData && currentHistoryData.length > 0) {
+        if (historyDataSource === 'agent') {
+            renderAgentHistoryTable(currentHistoryData);
+        } else {
+            renderServerHistoryTable(currentHistoryData);
         }
-    });
+    }
+}
+
+async function playDashboardRecording(recFile, callerId, duration, btn) {
+    const callKey = `${callerId}_${duration}`;
+    const audio = getNativeAudio();
+
+    // 0. Keshda oldin topilgan bo'lsa, o'shandan foydalanamiz
+    recFile = recFile || knownRecordingsCache.get(callKey) || '';
+
+    // 1. Agar aynan shu audio hozir ijro etilayotgan bo'lsa -> Pauza qilamiz
+    if (currentlyPlayingCallKey === callKey && !audio.paused) {
+        audio.pause();
+        pausedCallKey = callKey;
+        currentlyPlayingCallKey = null;
+        currentlyPlayingBtn = null;
+        refreshAllActiveTables();
+        return;
+    }
+
+    // 2. Agar aynan shu audio pauzada turgan bo'lsa -> Qaytadan qidirmasdan DAVOM ETTIRAMIZ (Resume)
+    if (pausedCallKey === callKey && audio.src && !audio.ended && audio.currentTime > 0) {
+        pausedCallKey = null;
+        currentlyPlayingCallKey = callKey;
+        currentlyPlayingBtn = btn;
+        audio.play().then(() => {
+            updatePlayerPlayState(true);
+        }).catch(() => {});
+        refreshAllActiveTables();
+        return;
+    }
+
+    // 3. Agar boshqa audio bosilgan bo'lsa -> avvalgisini to'liq to'xtatamiz (STOP)
+    pausedCallKey = null;
+    try {
+        audio.pause();
+        audio.currentTime = 0;
+    } catch (e) {}
+
+    // Avvalgi qidiruvni bekor qilish (Abort)
+    if (activeRecordingSearchController) {
+        try {
+            activeRecordingSearchController.abort();
+        } catch (e) {}
+        activeRecordingSearchController = null;
+    }
+    activeSearchingCallerId = null;
+
+    if (recFile) {
+        currentlyPlayingCallKey = callKey;
+        currentlyPlayingBtn = btn;
+        knownRecordingsCache.set(callKey, recFile);
+        refreshAllActiveTables();
+        const displayName = `📞 ${callerId} (${formatSeconds(duration || 0)})`;
+        playAudioFile(displayName, recFile, (duration || 0) * 16000, false);
+        return;
+    }
+
+    // 4. Serverdan qidirish (faqat birinchi marta 1 ta qidiruv bo'ladi, keyin keshlanadi)
+    activeSearchingCallerId = callerId;
+    activeRecordingSearchBtn = btn;
+    activeRecordingSearchController = new AbortController();
+    const currentController = activeRecordingSearchController;
+    refreshAllActiveTables();
+
+    try {
+        let matchedRecording = null;
+        let matchedDuration = duration;
+
+        // 1-bosqich: Fast-Index tekshiruvi (RAM dagi indeksdan 0.2ms da topadi!)
+        try {
+            const fastRes = await fetch(`/api/recordings/fast-find?callerId=${encodeURIComponent(callerId)}&duration=${duration || 0}`, {
+                signal: currentController.signal
+            }).then(r => r.json());
+            if (fastRes && fastRes.found && fastRes.recording) {
+                matchedRecording = fastRes.recording;
+                matchedDuration = fastRes.duration || duration;
+            }
+        } catch (fastErr) {}
+
+        // 2-bosqich: Agar tezkor indeksdan topilmasa, CDR bazasidan qidirish
+        if (!matchedRecording) {
+            const targetItem = dashboardRecentCallsList.find(i => i.callerId === callerId);
+            let dateParam = '';
+            if (targetItem && targetItem.time) {
+                const d = String(targetItem.time).slice(0, 10);
+                if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                    dateParam = `&date=${d}`;
+                }
+            }
+            const res = await fetch(`/api/calls/details?search=${encodeURIComponent(callerId)}&limit=5${dateParam}`, {
+                signal: currentController.signal
+            });
+            const data = await res.json();
+            const matched = data && data.data && data.data.find(c => c.recording && c.recording.length > 0);
+            if (matched && matched.recording) {
+                matchedRecording = matched.recording;
+                matchedDuration = matched.duration || duration;
+            }
+        }
+
+        if (matchedRecording) {
+            knownRecordingsCache.set(callKey, matchedRecording);
+            const targetItem = dashboardRecentCallsList.find(i => i.callerId === callerId);
+            if (targetItem) targetItem.recording = matchedRecording;
+
+            currentlyPlayingCallKey = callKey;
+            currentlyPlayingBtn = btn;
+            refreshAllActiveTables();
+            const displayName = `📞 ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
+            playAudioFile(displayName, matchedRecording, (matchedDuration || duration || 0) * 16000, false);
+        } else {
+            alert(`⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi yoki suhbat amalga oshmagan (0 soniya).`);
+        }
+    } catch (e) {
+        if (e.name === 'AbortError') return;
+        alert('Audio yozuvni yuklashda xatolik yuz berdi: ' + e.message);
+    } finally {
+        if (activeSearchingCallerId === callerId) {
+            activeSearchingCallerId = null;
+            activeRecordingSearchBtn = null;
+            activeRecordingSearchController = null;
+            refreshAllActiveTables();
+        }
+    }
+}
+
+function addRecentDashboardRow(record) {
+    if (!record) return;
+    dashboardRecentCallsList.unshift(record);
+    if (dashboardRecentCallsList.length > 200) {
+        dashboardRecentCallsList.pop();
+    }
+    updateRecentOperatorsDataList();
+    applyDashboardRecentFilters();
 }
 
 /* ==========================================================================
-   Helper Functions
+   Helper Functions (formatSeconds & formatDuration defined at top)
    ========================================================================== */
-function formatSeconds(sec) {
-    sec = Math.round(sec);
-    const hrs = Math.floor(sec / 3600);
-    const mins = Math.floor((sec % 3600) / 60);
-    const secs = sec % 60;
-    return `${hrs > 0 ? String(hrs).padStart(2, '0') + ':' : ''}${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
-
-function formatDuration(sec) {
-    if (isNaN(sec) || !isFinite(sec)) return '00:00';
-    const mins = Math.floor(sec / 60);
-    const secs = Math.floor(sec % 60);
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
 
 async function loadInitialData() {
     setDateFilterLoading(true);
@@ -2393,56 +3489,13 @@ function openQueueDetail() {
 let currentDetailBtn = null;
 
 function playCallAudio(recordingFile, btn) {
-    if (!recordingFile) return;
-
-    // Agar ayni shu tugma bosilgan bo'lsa va audio yangrayotgan bo'lsa -> To'xtatish (Toggle Pause)
-    if (currentDetailAudio && currentDetailBtn === btn) {
-        currentDetailAudio.pause();
-        currentDetailAudio = null;
-        currentDetailBtn = null;
-        btn.classList.remove('btn-playing-audio');
-        btn.innerHTML = '▶ Tinglash';
+    if (!recordingFile) {
+        alert('Ushbu qo\'ng\'iroqda audio yozuv mavjud emas (suhbat bo\'lmagan)');
         return;
     }
 
-    // Boshqa audio yangrayotgan bo'lsa to'xtatish
-    if (currentDetailAudio) {
-        try {
-            currentDetailAudio.pause();
-        } catch (e) {}
-        currentDetailAudio = null;
-    }
-    document.querySelectorAll('.btn-playing-audio').forEach(b => {
-        b.classList.remove('btn-playing-audio');
-        b.innerHTML = '▶ Tinglash';
-    });
-
-    const audioUrl = `/api/recordings/stream?file=${encodeURIComponent(recordingFile)}`;
-    const audio = new Audio(audioUrl);
-    currentDetailAudio = audio;
-    currentDetailBtn = btn;
-
-    btn.classList.add('btn-playing-audio');
-    btn.innerHTML = '⏹ To\'xtatish';
-
-    audio.play().catch(e => {
-        // Agar foydalanuvchi to'xtatgan bo'lsa yoki abort bo'lsa, alert chiqarmaslik
-        if (e.name === 'AbortError' || (e.message && e.message.includes('interrupted'))) {
-            return;
-        }
-        alert('Audio faylni ochib bo\'lmadi: ' + e.message);
-        btn.innerHTML = '▶ Tinglash';
-        btn.classList.remove('btn-playing-audio');
-        if (currentDetailAudio === audio) currentDetailAudio = null;
-        if (currentDetailBtn === btn) currentDetailBtn = null;
-    });
-
-    audio.onended = () => {
-        btn.innerHTML = '▶ Tinglash';
-        btn.classList.remove('btn-playing-audio');
-        if (currentDetailAudio === audio) currentDetailAudio = null;
-        if (currentDetailBtn === btn) currentDetailBtn = null;
-    };
+    const recBase = recordingFile.split('/').pop();
+    playAudioFile(recBase, recordingFile, 0);
 }
 
 /* ==========================================================================
@@ -2618,15 +3671,11 @@ async function loadTabAgentOperators(targetDate = null) {
         const todayStr = getTodayDateString();
         const activeDate = (typeof targetDate === 'string' && targetDate) ? targetDate : (currentSelectedDate || todayStr);
         const urlDateParam = (activeDate === todayStr) ? '' : `?date=${encodeURIComponent(activeDate)}`;
-        if (grid) grid.classList.add('is-loading');
-
         const res = await fetch(`/api/agent/operator-stats${urlDateParam}`);
         tabAgentOperatorsData = await res.json();
         renderTabAgentOperators(tabAgentOperatorsData);
     } catch (e) {
         console.error('loadTabAgentOperators error:', e.message);
-    } finally {
-        if (grid) grid.classList.remove('is-loading');
     }
 }
 
@@ -2846,14 +3895,22 @@ function filterTabAgentLogsByOperator(opId) {
     loadTabOperatorLogs(selectedTabAgentOpId, 1);
 }
 
+let lastTabOpsFingerprint = '';
 function renderTabAgentOperators(operators) {
     const grid = document.getElementById('tabOperatorsGrid');
     if (!grid) return;
 
     if (!operators || operators.length === 0) {
         grid.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 16px;">Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.</div>`;
+        lastTabOpsFingerprint = '';
         return;
     }
+
+    const currentFingerprint = JSON.stringify(operators) + '_' + selectedTabAgentOpId;
+    if (currentFingerprint === lastTabOpsFingerprint && grid.children.length > 0) {
+        return; // Ma'lumotlar o'zgarmagan bo'lsa DOM qayta chizilmaydi, kartochkalar mutlaqo statik turadi
+    }
+    lastTabOpsFingerprint = currentFingerprint;
 
     // Top 1 operatorni aniqlash (MVP reyting) agent answered soni bo'yicha
     const sortedByScore = [...operators]
@@ -3627,7 +4684,6 @@ function setDateFilterLoading(isLoading, targetDate = '') {
             statusHint.innerHTML = `<span class="cal-loading-badge"><span class="fluent-spinner"></span> Serverdan ma'lumot yuklanmoqda...</span>`;
         }
         if (kpiGrid) kpiGrid.classList.add('is-loading');
-        if (tabOpGrid) tabOpGrid.classList.add('is-loading');
 
         // Watchdog xavfsizlik: tarmoq qotib qolganda ham cheksiz qolmasligi uchun (30 soniya)
         dateFilterLoadingTimer = setTimeout(() => {
@@ -3650,11 +4706,6 @@ function setDateFilterLoading(isLoading, targetDate = '') {
         }
         if (tabOpGrid) {
             tabOpGrid.classList.remove('is-loading');
-            tabOpGrid.querySelectorAll('.op-stat-val, h4, .operator-avatar').forEach(el => {
-                el.classList.remove('number-pop');
-                void el.offsetWidth; // trigger reflow
-                el.classList.add('number-pop');
-            });
         }
         tabOpBadges.forEach(el => {
             if (el) {
@@ -3717,6 +4768,143 @@ async function loadDateData(dateStr) {
         console.error('loadDateData xatolik:', err);
     } finally {
         setDateFilterLoading(false, dateStr);
+    }
+}
+
+/* =========================================================================
+   SERVER STATUS MODAL & MONITORING
+   ========================================================================= */
+let srvStatusInterval = null;
+
+function openServerStatusModal() {
+    const modal = document.getElementById('serverStatusModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    fetchServerStatus();
+
+    // Har 5 soniyada jonli yangilab turish (modal ochiqligida)
+    if (srvStatusInterval) clearInterval(srvStatusInterval);
+    srvStatusInterval = setInterval(() => {
+        if (modal.style.display === 'flex') {
+            fetchServerStatus(true);
+        } else {
+            clearInterval(srvStatusInterval);
+        }
+    }, 5000);
+}
+
+function closeServerStatusModal() {
+    const modal = document.getElementById('serverStatusModal');
+    if (modal) modal.style.display = 'none';
+    if (srvStatusInterval) {
+        clearInterval(srvStatusInterval);
+        srvStatusInterval = null;
+    }
+}
+
+async function fetchServerStatus(isBackgroundRefresh = false) {
+    const loadingState = document.getElementById('srvLoadingState');
+    const loadedState = document.getElementById('srvLoadedState');
+    const headerSub = document.getElementById('srvHeaderSub');
+
+    if (!isBackgroundRefresh && loadingState && loadedState) {
+        loadingState.style.display = 'block';
+        loadedState.style.display = 'none';
+    }
+
+    try {
+        const res = await fetch('/api/system/status');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (headerSub && data.os) {
+            headerSub.textContent = `${data.os.hostname} • ${data.os.platform} (${data.os.arch}) • Uptime: ${data.os.uptimeFormatted}`;
+        }
+
+        // PM2
+        const pm2El = document.getElementById('srvPm2Badge');
+        if (pm2El && data.pm2) {
+            if (data.pm2.isManagedByPm2) {
+                pm2El.innerHTML = `<span style="color: #10b981;">🟢 PM2 (${data.pm2.name} #${data.pm2.pmId})</span>`;
+            } else {
+                pm2El.innerHTML = `<span style="color: #f59e0b;" title="Lokalda to'g'ridan-to'g'ri ishlamoqda. Productionda PM2 ishlatiladi">🟡 Direct / Dev</span>`;
+            }
+        }
+
+        // PID, Uptime, Node
+        const pidEl = document.getElementById('srvPid');
+        if (pidEl && data.process) pidEl.textContent = `PID ${data.process.pid}`;
+
+        const uptimeEl = document.getElementById('srvUptime');
+        if (uptimeEl && data.process) uptimeEl.textContent = data.process.uptimeFormatted || '--';
+
+        const nodeEl = document.getElementById('srvNodeVer');
+        if (nodeEl && data.process) nodeEl.textContent = data.process.nodeVersion || '--';
+
+        // CPU
+        const cpuPercentEl = document.getElementById('srvCpuPercent');
+        const cpuBarEl = document.getElementById('srvCpuBar');
+        const cpuModelEl = document.getElementById('srvCpuModel');
+        if (data.os && data.os.cpu) {
+            const cpuPct = data.os.cpu.usagePercent || 0;
+            if (cpuPercentEl) cpuPercentEl.textContent = `${cpuPct}%`;
+            if (cpuBarEl) cpuBarEl.style.width = `${Math.min(100, Math.max(2, cpuPct))}%`;
+            if (cpuModelEl) cpuModelEl.textContent = `(${data.os.cpu.cores} yadro, ${data.os.cpu.speedMHz}MHz)`;
+        }
+
+        // RAM
+        const ramPercentEl = document.getElementById('srvRamPercent');
+        const ramBarEl = document.getElementById('srvRamBar');
+        const ramDetailEl = document.getElementById('srvRamDetail');
+        if (data.os && data.os.memory) {
+            const ramPct = data.os.memory.usedPercent || 0;
+            if (ramPercentEl) ramPercentEl.textContent = `${ramPct}%`;
+            if (ramBarEl) ramBarEl.style.width = `${Math.min(100, Math.max(2, ramPct))}%`;
+            if (ramDetailEl) ramDetailEl.textContent = `(${data.os.memory.usedFormatted} / ${data.os.memory.totalFormatted})`;
+        }
+
+        // DISK
+        const diskPercentEl = document.getElementById('srvDiskPercent');
+        const diskBarEl = document.getElementById('srvDiskBar');
+        const diskDetailEl = document.getElementById('srvDiskDetail');
+        if (data.disk) {
+            const diskPct = data.disk.usedPercent || 0;
+            if (diskPercentEl) diskPercentEl.textContent = `${diskPct}%`;
+            if (diskBarEl) diskBarEl.style.width = `${Math.min(100, Math.max(2, diskPct))}%`;
+            if (diskDetailEl) diskDetailEl.textContent = `(${data.disk.usedFormatted} band / ${data.disk.freeFormatted} bo'sh - Jami ${data.disk.totalFormatted})`;
+        }
+
+        // SERVICES
+        const servicesList = document.getElementById('srvServicesList');
+        if (servicesList && data.services) {
+            servicesList.innerHTML = Object.entries(data.services).map(([key, srv]) => {
+                const isOnline = srv.connected;
+                const statusColor = isOnline ? '#10b981' : '#ef4444';
+                const statusText = isOnline ? 'ONLINE' : 'OFFLINE';
+                const icon = isOnline ? '🟢' : '🔴';
+
+                return `
+                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 12px; font-weight: 600; color: #fff;">${srv.name}</div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${key.toUpperCase()} protokol</div>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 700; color: ${statusColor}; background: ${isOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; padding: 3px 8px; border-radius: 6px; border: 1px solid ${statusColor}44;">
+                            ${icon} ${statusText}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        if (loadingState) loadingState.style.display = 'none';
+        if (loadedState) loadedState.style.display = 'flex';
+    } catch (err) {
+        console.error('Server status olishda xatolik:', err);
+        if (headerSub) headerSub.textContent = `Xatolik: ${err.message}`;
+        if (loadingState) {
+            loadingState.innerHTML = `<div style="color: #ef4444; padding: 20px;">Server holatini olib bo'lmadi: ${err.message}</div>`;
+        }
     }
 }
 

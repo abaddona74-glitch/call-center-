@@ -35,6 +35,52 @@
     --transition-speed: 0.25s;
 }
 
+/* ==========================================================================
+   Global Custom Dark Theme Scrollbars
+   Oq rangli fon (scrollbar-track) to'liq fonga mos qorong'i qilindi
+   ========================================================================== */
+html, body, div, table, tbody, * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.22) #0b1120;
+}
+
+/* WebKit (Chrome, Edge, Safari, Brave, Opera) */
+::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0b1120 !important; /* Qorong'i fon, oq rang yo'qotildi */
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px;
+    border: 1px solid #0b1120;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #3b82f6 !important; /* Hoverda neon ko'k */
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: #2563eb !important;
+}
+
+::-webkit-scrollbar-corner {
+    background: #0b1120 !important;
+}
+
+/* Specific scroll containers */
+#tabOperatorLogsContainer::-webkit-scrollbar-track,
+.data-table-wrapper::-webkit-scrollbar-track,
+.fluent-calendar-popup::-webkit-scrollbar-track {
+    background: #0b1120 !important;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -707,6 +753,18 @@ select option:hover {
     background: var(--primary);
     border-color: var(--primary);
     box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+.btn-action.btn-audio-playing {
+    background: rgba(16, 185, 129, 0.25) !important;
+    border-color: rgba(16, 185, 129, 0.6) !important;
+    color: #34d399 !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3) !important;
+}
+
+.btn-action:disabled {
+    opacity: 0.6;
+    cursor: wait;
 }
 
 .btn-danger {
@@ -1638,9 +1696,8 @@ html[data-tab="operators"] #btnExportExcel {
     animation: fadeIn 0.2s ease;
 }
 
-/* KPI & Tab Operator Cards loading pulse state */
-.kpi-grid.is-loading .kpi-card,
-#tabOperatorsGrid.is-loading .operator-card {
+/* KPI Cards loading pulse state */
+.kpi-grid.is-loading .kpi-card {
     opacity: 0.65;
     filter: brightness(0.9);
     transition: opacity 0.2s ease, filter 0.2s ease;
@@ -1648,8 +1705,7 @@ html[data-tab="operators"] #btnExportExcel {
     pointer-events: none;
 }
 
-.kpi-grid.is-loading .kpi-card::after,
-#tabOperatorsGrid.is-loading .operator-card::after {
+.kpi-grid.is-loading .kpi-card::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -1657,6 +1713,24 @@ html[data-tab="operators"] #btnExportExcel {
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
     background-size: 200% 100%;
     animation: calShimmer 1.3s infinite;
+}
+
+/* Operator cards are strictly static - no shimmer, no pulses, no animations */
+#tabOperatorsGrid .operator-card,
+#tabOperatorsGrid.is-loading .operator-card,
+.operator-card.static-operator-card {
+    opacity: 1 !important;
+    filter: none !important;
+    animation: none !important;
+    pointer-events: auto !important;
+}
+
+#tabOperatorsGrid .operator-card::after,
+#tabOperatorsGrid.is-loading .operator-card::after,
+.operator-card.static-operator-card::after {
+    display: none !important;
+    content: none !important;
+    animation: none !important;
 }
 
 @keyframes calShimmer {
@@ -1898,3 +1972,587 @@ html[data-tab="operators"] #btnExportExcel {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.08);
 }
+
+/* ==========================================================================
+   MODERN STUDIO MUSIC PLAYER (Audio Explorer)
+   Ultra-modern, cyberpunk/studio DAW aesthetics with interactive controls
+   ========================================================================== */
+.modern-music-player-card {
+    animation: playerSlideFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    min-height: fit-content;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.96) 0%, rgba(26, 36, 56, 0.92) 50%, rgba(15, 23, 42, 0.98) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 16px;
+    padding: 22px 26px;
+    margin-bottom: 24px;
+    box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.modern-music-player-card:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 20px 45px -8px rgba(0, 0, 0, 0.8), 0 0 25px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.modern-music-player-card.is-playing {
+    border-color: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 20px 50px -8px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.player-ambient-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.08), transparent 45%);
+    z-index: 0;
+}
+
+/* Header row */
+.player-top-header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.player-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.player-studio-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 11px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #38bdf8;
+    letter-spacing: 0.8px;
+}
+
+/* Dynamic Equalizer Bars Animation */
+.equalizer-icon-anim {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 14px;
+}
+
+.eq-bar {
+    width: 2.5px;
+    height: 4px;
+    border-radius: 1px;
+    background: #38bdf8;
+    transition: height 0.2s ease;
+}
+
+.modern-music-player-card.is-playing .eq-bar.eq-1 { animation: eqJump 0.6s ease-in-out infinite alternate; }
+.modern-music-player-card.is-playing .eq-bar.eq-2 { animation: eqJump 0.4s ease-in-out 0.15s infinite alternate; }
+.modern-music-player-card.is-playing .eq-bar.eq-3 { animation: eqJump 0.7s ease-in-out 0.3s infinite alternate; }
+.modern-music-player-card.is-playing .eq-bar.eq-4 { animation: eqJump 0.5s ease-in-out 0.1s infinite alternate; }
+
+@keyframes eqJump {
+    0% { height: 3px; background: #38bdf8; }
+    50% { height: 13px; background: #818cf8; }
+    100% { height: 7px; background: #c084fc; }
+}
+
+.player-format-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+}
+
+.player-time-badge-box {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    font-family: 'Inter', monospace;
+    background: rgba(10, 15, 26, 0.75);
+    padding: 5px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.player-time-elapsed {
+    font-size: 16px;
+    font-weight: 700;
+    color: #38bdf8;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-time-divider {
+    color: #64748b;
+    font-size: 12px;
+}
+
+.player-time-total {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Track Information Bar with Vinyl Disc */
+.player-track-info-bar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.player-art-disk {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    border-radius: 50%;
+    background: repeating-radial-gradient(circle, #0b0f19, #0b0f19 3px, #1e293b 4px, #0b0f19 5px);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: box-shadow 0.3s ease;
+}
+
+.disk-center {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.modern-music-player-card.is-playing .player-art-disk {
+    animation: spinVinyl 5s linear infinite;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.5), 0 4px 14px rgba(0, 0, 0, 0.6);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+@keyframes spinVinyl {
+    100% { transform: rotate(360deg); }
+}
+
+.player-meta-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.player-track-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.player-file-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.2px;
+}
+
+.player-status-subtitle {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 3px;
+    font-weight: 500;
+}
+
+.btn-player-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #f1f5f9;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-player-download:hover {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+    box-shadow: 0 2px 10px rgba(56, 189, 248, 0.2);
+}
+
+/* WaveSurfer Deck */
+.player-waveform-deck {
+    position: relative;
+    z-index: 1;
+    background: rgba(8, 12, 22, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 16px 10px;
+    margin-bottom: 18px;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.7);
+    transition: border-color 0.25s ease;
+}
+
+.modern-music-player-card.is-playing .player-waveform-deck {
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.waveform-timeline-ruler {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-family: monospace;
+    color: #64748b;
+    margin-bottom: 6px;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+    padding-bottom: 4px;
+}
+
+.waveform-canvas {
+    width: 100%;
+    min-height: 72px;
+}
+
+.waveform-loading-overlay {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(10, 15, 26, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.wave-loading-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(56, 189, 248, 0.25);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: fluentSpin 0.75s linear infinite;
+}
+
+/* Controls Deck */
+.player-controls-deck {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.player-control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Volume controls */
+.volume-group {
+    min-width: 180px;
+}
+
+.volume-slider-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modern-range-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.modern-range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #38bdf8;
+    box-shadow: 0 0 8px #38bdf8;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.modern-range-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+}
+
+.volume-value-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    font-family: monospace;
+    width: 32px;
+}
+
+/* Primary Transport Buttons */
+.primary-transport {
+    gap: 12px;
+}
+
+.btn-control-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-control-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: scale(1.06);
+}
+
+.btn-control-icon.active {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #34d399;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.btn-transport-step {
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-transport-step:hover {
+    background: rgba(59, 130, 246, 0.18);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+    transform: translateY(-1px);
+}
+
+/* Hero Play/Pause Button */
+.btn-hero-play {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.55), 0 0 0 2px rgba(255, 255, 255, 0.15);
+    transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-hero-play:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 28px rgba(99, 102, 241, 0.75), 0 0 0 3px rgba(255, 255, 255, 0.25);
+}
+
+.btn-hero-play:active {
+    transform: scale(0.94);
+}
+
+.modern-music-player-card.is-playing .btn-hero-play {
+    box-shadow: 0 0 24px rgba(56, 189, 248, 0.65), 0 0 0 2px rgba(56, 189, 248, 0.4);
+}
+
+/* Speed Pills */
+.speed-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.speed-label {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.speed-pill-selector {
+    display: inline-flex;
+    background: rgba(10, 15, 26, 0.75);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 3px;
+}
+
+.speed-pill {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+
+.speed-pill:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.speed-pill.active {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.4);
+}
+
+.btn-player-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-player-close:hover {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: rgba(239, 68, 68, 0.55);
+    color: #f87171;
+    transform: scale(1.08);
+}
+
+@keyframes playerSlideFade {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==========================================================================
+   Recent Calls Real-time Filters (Dashboard)
+   ========================================================================== */
+.recent-filters-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.recent-filter-item {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.recent-filter-item input:focus,
+.recent-filter-item select:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.recent-filter-item select option {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 6px 10px;
+}
+
+#btnClearRecentFilters:hover {
+    background: rgba(239, 68, 68, 0.28) !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+    transform: translateY(-1px);
+}
+
+.sortable-th {
+    cursor: pointer !important;
+    user-select: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.sortable-th:hover {
+    color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.sort-icon {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 11px;
+    opacity: 0.4;
+    transition: all 0.2s ease;
+    vertical-align: middle;
+}
+
+

@@ -302,6 +302,60 @@ app.get('/api/recordings/stream', async (req, res) => {
     await sftpService.streamFile(filePath, req, res);
 });
 
+const audioIndexService = require('./services/audioIndexService');
+
+// Tezkor Audio Indeks API (RAM dagi xaritadan 0.2ms da topadi)
+app.get('/api/recordings/fast-find', (req, res) => {
+    const callerId = req.query.callerId || req.query.search || '';
+    const uniqueid = req.query.uniqueid || '';
+    const duration = parseInt(req.query.duration || '0', 10);
+
+    let match = null;
+    if (uniqueid) {
+        match = audioIndexService.findAudioByUniqueId(uniqueid);
+    }
+    if (!match && callerId) {
+        match = audioIndexService.findAudioForCaller(callerId, duration);
+    }
+
+    if (match) {
+        return res.json({
+            success: true,
+            found: true,
+            recording: match.path,
+            filename: match.filename,
+            duration: match.duration,
+            callerId: match.callerId
+        });
+    }
+
+    res.json({
+        success: true,
+        found: false,
+        message: 'Bugungi tezkor indeksdan topilmadi'
+    });
+});
+
+// Audio Indeks holati (Status)
+app.get('/api/recordings/index-status', (req, res) => {
+    res.json({
+        success: true,
+        ...audioIndexService.getStatus()
+    });
+});
+
+const systemService = require('./services/systemService');
+
+// Server va Tizim holati (CPU, RAM, Disk, PM2, Services)
+app.get('/api/system/status', async (req, res) => {
+    try {
+        const metrics = await systemService.getSystemMetrics();
+        res.json({ success: true, ...metrics });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Qo'ng'iroqni boshqa operatorga yo'naltirish (Transfer / Redirect)
 app.post('/api/action/transfer', (req, res) => {
     const { channel, targetExten } = req.body;
