@@ -113,9 +113,18 @@ class SystemService {
         const amiService = require('./amiService');
         const sftpService = require('./sftpService');
         const redisService = require('./redisService');
+        const proxmoxService = require('./proxmoxService');
+
+        let vms = [];
+        try {
+            vms = await proxmoxService.getVmsStatus();
+        } catch (e) {
+            vms = [];
+        }
 
         return {
             timestamp: new Date().toISOString(),
+            vms: vms,
             services: {
                 ami: {
                     name: 'Asterisk AMI (PBX)',

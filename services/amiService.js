@@ -640,9 +640,12 @@ class AmiService {
             const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, evt.channel);
             const talkTime = parseInt(evt.talktime || '0', 10);
             const reason = (evt.reason || '').toLowerCase(); // 'caller' | 'agent' | 'transfer'
+            const isTransfer = reason === 'transfer';
 
             let hangupParty = 'Mijoz';
-            if (reason === 'agent') {
+            if (isTransfer) {
+                hangupParty = 'Transfer (Operatorga)';
+            } else if (reason === 'agent') {
                 hangupParty = 'Operator';
                 this.stats.operatorHangupCalls++;
             } else {
@@ -661,7 +664,7 @@ class AmiService {
                     op.avgDurationSec = op.answered > 0 ? Math.round(op.totalDurationSec / op.answered) : 0;
                     if (hangupParty === 'Operator') {
                         op.operatorHangup++;
-                    } else {
+                    } else if (!isTransfer) {
                         op.clientHangup++;
                     }
                     this.operators.set(opId, op);
@@ -687,18 +690,21 @@ class AmiService {
             }
 
             const localTimeStr = callStartTime.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+            const realOpName = issabelDbService.getOperatorName(opId);
+            const opDisplay = opId ? (realOpName && realOpName !== `Operator ${opId}` ? `${realOpName} (${opId})` : `Operator ${opId}`) : 'Navbat / Operator';
+
             const historyRecord = {
                 id: Date.now() + Math.random().toString(36).substr(2, 4),
                 channel: evt.channel,
                 callerId: callerId,
-                operator: opId ? `Operator ${opId}` : 'Navbat / Operator',
+                operator: opDisplay,
                 operatorExten: opId || '',
-                direction: 'inbound',
+                direction: isTransfer ? 'transfer' : 'inbound',
                 status: 'ANSWERED',
-                hangupParty: `${hangupParty} tugatdi`,
+                hangupParty: isTransfer ? 'Transfer (Operatorga)' : `${hangupParty} tugatdi`,
                 duration: talkTime,
                 waitSec: parseInt(evt.holdtime || '0', 10),
-                cause: 'AgentComplete (' + (evt.reason || 'Normal') + ')',
+                cause: isTransfer ? 'Transfer' : ('AgentComplete (' + (evt.reason || 'Normal') + ')'),
                 time: localTimeStr
             };
 
