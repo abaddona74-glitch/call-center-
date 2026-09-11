@@ -6,6 +6,8 @@
 // Global State
 let socket = null;
 let currentPath = '';
+let explorerHistory = [''];
+let explorerHistoryIndex = 0;
 let explorerFilesData = [];
 let currentConversations = [];
 let currentQueues = [];
@@ -16,6 +18,21 @@ let currentAudioCategory = 'all'; // 'all' | 'talk' | 'robot'
 let historyCurrentPage = 1;
 let historyTotalPages = 1;
 let historySearchQuery = '';
+
+// Date Filter & Calendar State
+let currentSelectedDate = ''; // 'YYYY-MM-DD' or '' for today
+let calViewYear = 2026;
+let calViewMonth = 8; // 0-based, 8 = September
+let calClockTimer = null;
+
+const UZ_MONTHS = [
+    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
+];
+
+function getTodayDateString() {
+    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+}
 
 // Transfer Modal State
 let activeTransferChannel = null;
@@ -74,12 +91,6 @@ function initHeaderClock() {
     }
     tick();
     setInterval(tick, 1000);
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runInit);
-} else {
-    runInit();
 }
 
 /* ==========================================================================
@@ -384,11 +395,11 @@ function initCharts() {
             },
             plotOptions: {
                 pie: {
-                    allowPointSelect: true,
-                    cursor: 'pointer',
+                    allowPointSelect: false,
+                    cursor: 'default',
                     depth: 35,
                     size: '80%',
-                    slicedOffset: 20,
+                    slicedOffset: 0,
                     startAngle: -45,
                     center: ['50%', '48%'],
                     dataLabels: {
@@ -410,9 +421,9 @@ function initCharts() {
                 type: 'pie',
                 name: 'Qo\'ng\'iroqlar',
                 data: [
-                    { name: 'Muvaffaqiyatli', y: 1, color: '#10b981', sliced: true },
-                    { name: 'Navbatdan chiqdi', y: 0, color: '#f59e0b', sliced: true },
-                    { name: 'Chiquvchi', y: 0, color: '#a855f7', sliced: true }
+                    { name: 'Muvaffaqiyatli', y: 1, color: '#10b981', sliced: false, selected: false },
+                    { name: 'Navbatdan chiqdi', y: 0, color: '#f59e0b', sliced: false, selected: false },
+                    { name: 'Chiquvchi', y: 0, color: '#a855f7', sliced: false, selected: false }
                 ]
             }]
         });
@@ -815,16 +826,21 @@ function updateStatsUI(stats) {
 
     // Update 3D Pie Chart (Highcharts 3D)
     if (callDistributionChart && typeof callDistributionChart.series !== 'undefined' && callDistributionChart.series[0]) {
+        if (callDistributionChart.series[0].points) {
+            callDistributionChart.series[0].points.forEach(p => {
+                if (p && p.slice && p.sliced) p.slice(false);
+            });
+        }
         const total = answeredCalls + abandonedCalls + outboundCalls;
         if (total === 0) {
             callDistributionChart.series[0].setData([
-                { name: 'Kutilmoqda', y: 1, color: '#334155' }
+                { name: 'Kutilmoqda', y: 1, color: '#334155', sliced: false, selected: false }
             ]);
         } else {
             callDistributionChart.series[0].setData([
-                { name: 'Muvaffaqiyatli', y: answeredCalls, color: '#10b981', sliced: true },
-                { name: 'Navbatdan chiqdi', y: abandonedCalls, color: '#f59e0b', sliced: true },
-                { name: 'Chiquvchi', y: outboundCalls, color: '#a855f7', sliced: true }
+                { name: 'Muvaffaqiyatli', y: answeredCalls, color: '#10b981', sliced: false, selected: false },
+                { name: 'Navbatdan chiqdi', y: abandonedCalls, color: '#f59e0b', sliced: false, selected: false },
+                { name: 'Chiquvchi', y: outboundCalls, color: '#a855f7', sliced: false, selected: false }
             ], true, { duration: 600 });
         }
     }
@@ -1054,44 +1070,107 @@ function initWaveSurfer() {
     }
 }
 
+function updateExplorerNavButtons() {
+    const btnBack = document.getElementById('btnExplorerBack');
+    const btnForward = document.getElementById('btnExplorerForward');
+    const btnUp = document.getElementById('btnExplorerUp');
+
+    if (btnBack) {
+        btnBack.disabled = (explorerHistoryIndex <= 0);
+    }
+    if (btnForward) {
+        btnForward.disabled = (explorerHistoryIndex >= explorerHistory.length - 1);
+    }
+    if (btnUp) {
+        btnUp.disabled = (!currentPath || currentPath.trim() === '');
+    }
+}
+
+function explorerGoBack() {
+    if (explorerHistoryIndex > 0) {
+        explorerHistoryIndex--;
+        loadExplorerPath(explorerHistory[explorerHistoryIndex], false);
+    }
+}
+
+function explorerGoForward() {
+    if (explorerHistoryIndex < explorerHistory.length - 1) {
+        explorerHistoryIndex++;
+        loadExplorerPath(explorerHistory[explorerHistoryIndex], false);
+    }
+}
+
+function explorerGoUp() {
+    if (!currentPath) return;
+    const parts = currentPath.split('/').filter(Boolean);
+    parts.pop();
+    const parentPath = parts.join('/');
+    loadExplorerPath(parentPath, true);
+}
+
 function initExplorer() {
+    const btnBack = document.getElementById('btnExplorerBack');
+    const btnForward = document.getElementById('btnExplorerForward');
+    const btnUp = document.getElementById('btnExplorerUp');
     const btnRefreshExp = document.getElementById('btnRefreshExplorer');
+
+    if (btnBack) btnBack.addEventListener('click', explorerGoBack);
+    if (btnForward) btnForward.addEventListener('click', explorerGoForward);
+    if (btnUp) btnUp.addEventListener('click', explorerGoUp);
     if (btnRefreshExp) btnRefreshExp.addEventListener('click', () => {
-        loadExplorerPath(currentPath);
+        loadExplorerPath(currentPath, false);
+    });
+
+    // Klaviatura orqali boshqarish (Alt + Left/Right/Up, Backspace)
+    window.addEventListener('keydown', (e) => {
+        const explorerTab = document.getElementById('tab-explorer');
+        if (!explorerTab || !explorerTab.classList.contains('active')) return;
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+        if (e.altKey && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            explorerGoBack();
+        } else if (e.altKey && e.key === 'ArrowRight') {
+            e.preventDefault();
+            explorerGoForward();
+        } else if (e.altKey && e.key === 'ArrowUp') {
+            e.preventDefault();
+            explorerGoUp();
+        } else if (e.key === 'Backspace') {
+            e.preventDefault();
+            explorerGoBack();
+        }
     });
 
     const searchInput = document.getElementById('explorerSearchInput');
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        filterExplorerFiles(query);
-    });
-
-    // Audio Category Filters
-    const btnAll = document.getElementById('filterAudioAll');
-    const btnTalk = document.getElementById('filterAudioTalk');
-    const btnRobot = document.getElementById('filterAudioRobot');
-
-    const updateFilterActive = (activeBtn, category) => {
-        [btnAll, btnTalk, btnRobot].forEach(b => b.classList.remove('active-filter'));
-        activeBtn.classList.add('active-filter');
-        currentAudioCategory = category;
-        filterExplorerFiles(searchInput.value.toLowerCase().trim());
-    };
-
-    if (btnAll) btnAll.addEventListener('click', () => updateFilterActive(btnAll, 'all'));
-    if (btnTalk) btnTalk.addEventListener('click', () => updateFilterActive(btnTalk, 'talk'));
-    if (btnRobot) btnRobot.addEventListener('click', () => updateFilterActive(btnRobot, 'robot'));
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            filterExplorerFiles(query);
+        });
+    }
 }
 
-async function loadExplorerPath(subPath) {
+async function loadExplorerPath(subPath, pushHistory = true) {
+    subPath = (subPath || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     currentPath = subPath;
+
+    if (pushHistory) {
+        if (explorerHistory[explorerHistoryIndex] !== subPath) {
+            explorerHistory = explorerHistory.slice(0, explorerHistoryIndex + 1);
+            explorerHistory.push(subPath);
+            explorerHistoryIndex = explorerHistory.length - 1;
+        }
+    }
+
+    updateExplorerNavButtons();
     updateBreadcrumbs(subPath);
 
     const foldersGrid = document.getElementById('explorerFoldersGrid');
     const filesTbody = document.getElementById('explorerFilesTable');
     const tableWrapper = document.getElementById('explorerFilesTableWrapper');
 
-    foldersGrid.innerHTML = '';
+    if (foldersGrid) foldersGrid.innerHTML = '';
     if (tableWrapper) tableWrapper.style.display = 'none';
     if (filesTbody) filesTbody.innerHTML = '';
 
@@ -1101,35 +1180,40 @@ async function loadExplorerPath(subPath) {
 
         // Render Directories
         if (data.directories && data.directories.length > 0) {
-            foldersGrid.innerHTML = data.directories.map(d => `
-                <div class="folder-card" onclick="loadExplorerPath('${d.path.replace(/\\/g, '/')}')">
-                    <div class="folder-icon">📁</div>
-                    <div class="folder-name">${d.name}</div>
-                </div>
-            `).join('');
+            if (foldersGrid) {
+                foldersGrid.innerHTML = data.directories.map(d => `
+                    <div class="folder-card" onclick="loadExplorerPath('${d.path.replace(/\\/g, '/')}', true)">
+                        <div class="folder-icon">📁</div>
+                        <div class="folder-name">${d.name}</div>
+                    </div>
+                `).join('');
+            }
         } else {
-            foldersGrid.innerHTML = '';
+            if (foldersGrid) foldersGrid.innerHTML = '';
         }
 
         // Render Files
         explorerFilesData = data.files || [];
         renderExplorerFilesTable(explorerFilesData);
     } catch (err) {
-        filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik: ${err.message}</td></tr>`;
+        if (filesTbody) {
+            filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik: ${err.message}</td></tr>`;
+        }
     }
 }
 
 function updateBreadcrumbs(subPath) {
     const container = document.getElementById('explorerBreadcrumbs');
+    if (!container) return;
     const parts = subPath ? subPath.split('/').filter(Boolean) : [];
 
-    let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadExplorerPath('')">📁 monitor</span>`;
+    let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadExplorerPath('', true)">📁 monitor</span>`;
     
     let accumulated = '';
     parts.forEach((p, idx) => {
         accumulated = accumulated ? `${accumulated}/${p}` : p;
         const isLast = idx === parts.length - 1;
-        html += ` <span>/</span> <span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="loadExplorerPath('${accumulated}')">${p}</span>`;
+        html += ` <span>/</span> <span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="loadExplorerPath('${accumulated}', true)">${p}</span>`;
     });
 
     container.innerHTML = html;
@@ -1257,12 +1341,6 @@ function renderExplorerFilesTable(files) {
 
 function filterExplorerFiles(query) {
     let filtered = explorerFilesData;
-
-    if (currentAudioCategory === 'talk') {
-        filtered = filtered.filter(f => !classifyAudioFile(f.name, f.size).isRobot);
-    } else if (currentAudioCategory === 'robot') {
-        filtered = filtered.filter(f => classifyAudioFile(f.name, f.size).isRobot);
-    }
 
     if (query) {
         filtered = filtered.filter(f => f.name.toLowerCase().includes(query));
@@ -1796,7 +1874,7 @@ function renderActiveConversations(conversations) {
             cardEl.setAttribute('data-channel-key', key);
             cardEl.innerHTML = `
                 <div class="chan-left">
-                    <div class="chan-number">📞 ${c.callerId}</div>
+                    <div class="chan-number">📞 ${formatCallerNumberOrOperator(c.callerId)}</div>
                     <div class="chan-op">
                         <span>🎧 ${c.operator}</span>
                     </div>
@@ -1995,7 +2073,7 @@ function openTransferModal(channel, callerId) {
     modal.style.display = 'flex';
 }
 
-const EXCLUDED_OPERATOR_IDS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66']);
+const EXCLUDED_OPERATOR_IDS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 /* ==========================================================================
    6. Operator Performance Section (Sorted: Online -> Talking -> Offline + Gamified MVP Stars)
@@ -2015,6 +2093,85 @@ function getPresenceRank(op) {
     if (pres === 'talking') return 3; // 3. Suhbatda
     if (pres === 'paused') return 4; // 4. Tanaffusda
     return 5; // 5. Offline
+}
+
+function generateStarRatingHtml(answered, operatorName) {
+    if (!answered || answered < 1) {
+        return '';
+    }
+
+    let stars = '';
+    let currentLevel = 0;
+    let nextStarNeeded = 0;
+
+    if (answered > 35) {
+        stars = '⭐⭐⭐⭐⭐';
+        currentLevel = 5;
+    } else if (answered >= 25) {
+        stars = '⭐⭐⭐⭐';
+        currentLevel = 4;
+        nextStarNeeded = 36 - answered;
+    } else if (answered >= 16) {
+        stars = '⭐⭐⭐';
+        currentLevel = 3;
+        nextStarNeeded = 25 - answered;
+    } else if (answered >= 11) {
+        stars = '⭐⭐';
+        currentLevel = 2;
+        nextStarNeeded = 16 - answered;
+    } else if (answered >= 1) {
+        stars = '⭐';
+        currentLevel = 1;
+        nextStarNeeded = 11 - answered;
+    }
+
+    const progressText = nextStarNeeded > 0
+        ? `<div class="star-progress-note">Keyingi yulduzgacha: yana <b>${nextStarNeeded} ta</b> qo'ng'iroq kerak</div>`
+        : `<div class="star-progress-note" style="color: #10b981;">🏆 Maksimal daraja (TOP operator)!</div>`;
+
+    return `
+        <div class="star-rating-box" onclick="event.stopPropagation();">
+            <span>${stars}</span>
+            <div class="star-rating-tooltip">
+                <div class="star-tooltip-header">
+                    <span>⭐</span>
+                    <span>Operator darajasi tizimi</span>
+                </div>
+                <div class="star-tooltip-current">
+                    <b>${operatorName || 'Operator'}:</b> ${answered} ta qabul qilingan
+                    ${progressText}
+                </div>
+                <div class="star-tooltip-divider"></div>
+                <div class="star-tooltip-levels">
+                    <div class="star-level-row ${currentLevel === 5 ? 'current-level' : ''}">
+                        <span class="level-stars">⭐⭐⭐⭐⭐</span>
+                        <span class="level-range">&gt; 35 ta</span>
+                        <span class="level-desc">Super Elita</span>
+                    </div>
+                    <div class="star-level-row ${currentLevel === 4 ? 'current-level' : ''}">
+                        <span class="level-stars">⭐⭐⭐⭐</span>
+                        <span class="level-range">25 - 35 ta</span>
+                        <span class="level-desc">Yetakchi</span>
+                    </div>
+                    <div class="star-level-row ${currentLevel === 3 ? 'current-level' : ''}">
+                        <span class="level-stars">⭐⭐⭐</span>
+                        <span class="level-range">16 - 24 ta</span>
+                        <span class="level-desc">Tajribali</span>
+                    </div>
+                    <div class="star-level-row ${currentLevel === 2 ? 'current-level' : ''}">
+                        <span class="level-stars">⭐⭐</span>
+                        <span class="level-range">11 - 15 ta</span>
+                        <span class="level-desc">O'rta daraja</span>
+                    </div>
+                    <div class="star-level-row ${currentLevel === 1 ? 'current-level' : ''}">
+                        <span class="level-stars">⭐</span>
+                        <span class="level-range">1 - 10 ta</span>
+                        <span class="level-desc">Boshlang'ich</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function renderOperators(operators) {
@@ -2072,33 +2229,25 @@ function renderOperators(operators) {
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
         const ringingNow = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
 
+        let cardClass = 'operator-card clickable-card';
         let statusBadge = '';
         let avatarBg = '';
 
         if (ringingNow) {
-            statusBadge = `<span class="badge badge-warning" style="font-size: 11px; background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; animation: pulse 1.5s infinite;">📞 Jiringlanmoqda</span>`;
-            avatarBg = 'linear-gradient(135deg, #f59e0b, #ea580c)';
-        } else if (pres === 'talking') {
-            statusBadge = `<span class="badge badge-info" style="font-size: 11px; background: rgba(14, 165, 233, 0.2); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;">🔵 Suhbatda</span>`;
-            avatarBg = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
-        } else if (pres === 'offline') {
-            statusBadge = `<span class="badge badge-danger" style="font-size: 11px;">🔴 Offline</span>`;
-            avatarBg = 'linear-gradient(135deg, #ef4444, #991b1b)';
-        } else {
-            statusBadge = `<span class="badge badge-success" style="font-size: 11px;">🟢 Tayyor</span>`;
-            avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
-        }
-
-        // Yulduzlar va MVP reytingi
-        let mvpBadge = '';
-        let cardClass = 'operator-card clickable-card';
-        if (pres === 'offline') {
-            cardClass += ' status-offline';
-        } else if (ringingNow) {
+            statusBadge = '<span class="status-badge badge-ringing"><span class="badge-dot pulse-ring"></span> Jiringlamoqda</span>';
+            avatarBg = 'linear-gradient(135deg, #ec4899, #be185d)';
             cardClass += ' status-ringing status-active call-ringing';
         } else if (pres === 'talking') {
+            statusBadge = '<span class="status-badge badge-talking"><span class="badge-dot pulse"></span> Suhbatda</span>';
+            avatarBg = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
             cardClass += ' status-talking status-active call-talking';
+        } else if (pres === 'offline') {
+            statusBadge = '<span class="status-badge badge-offline"><span class="badge-dot"></span> Offline</span>';
+            avatarBg = 'linear-gradient(135deg, #64748b, #475569)';
+            cardClass += ' status-offline';
         } else {
+            statusBadge = '<span class="status-badge badge-ready"><span class="badge-dot"></span> Kutmoqda</span>';
+            avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
             cardClass += ' status-ready status-active';
         }
         const answered = op.answered || 0;
@@ -2117,6 +2266,7 @@ function renderOperators(operators) {
             stars = '⭐';
         }
 
+        let mvpBadge = '';
         if (op.id === top1Id && answered > 0) {
             mvpBadge = `<span class="mvp-badge gold" title="Bugungi eng faol yetakchi operator">👑 MVP</span>`;
             cardClass += ' mvp-gold';
@@ -2142,16 +2292,23 @@ function renderOperators(operators) {
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
                             <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
-                            ${stars ? `<span class="star-rating-box" title="${answered} ta qabul qilingan">${stars}</span>` : ''}
+                            ${generateStarRatingHtml(answered, cleanName)}
                         </div>
                     </div>
                 </div>
 
                 <div class="op-stat-row">
                     <span>Desktop Agent:</span>
-                    <span class="op-stat-val" style="font-weight: 600; font-size: 11px; color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'}; display: inline-flex; align-items: center; gap: 5px;">
+                    <span class="op-stat-val" style="font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
                         <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
-                        ${op.agentConnected ? `🟢 Faol ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : `⚪ O'chiq`}
+                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? 'Faol' : 'O\'chiq'}</span>
+                        ${op.agentConnected ? `<span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : ''}
+                    </span>
+                </div>
+                <div class="op-stat-row">
+                    <span>Desktop nomi:</span>
+                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || 'Aniqlanmagan'}">
+                        ${op.agentHostname || '—'}
                     </span>
                 </div>
                 <div class="op-stat-row">
@@ -2377,7 +2534,17 @@ async function loadHistoryPage(page = 1, search = '') {
             applyHistoryFilters();
         } else {
             // 2. Issabel Asterisk CDR Server bazasidan
-            const res = await fetch(`/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}&date=${encodeURIComponent(dateParam)}`);
+            const statusVal = (document.getElementById('historyFilterStatus') || {}).value || 'all';
+            const dirVal = (document.getElementById('historyFilterDirection') || {}).value || 'all';
+            const hasFilter = statusVal !== 'all' || dirVal !== 'all';
+            const clearBtn = document.getElementById('btnClearHistoryFilters');
+            if (clearBtn) clearBtn.style.display = hasFilter ? 'inline-flex' : 'none';
+
+            let url = `/api/history?page=${page}&limit=20&search=${encodeURIComponent(search)}&date=${encodeURIComponent(dateParam)}`;
+            if (dirVal !== 'all') url += `&direction=${encodeURIComponent(dirVal)}`;
+            if (statusVal !== 'all') url += `&status=${encodeURIComponent(statusVal)}`;
+
+            const res = await fetch(url);
             const result = await res.json();
 
             historyCurrentPage = result.page || 1;
@@ -2396,7 +2563,7 @@ async function loadHistoryPage(page = 1, search = '') {
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
 
             currentHistoryData = result.data || [];
-            applyHistoryFilters();
+            renderServerHistoryTable(currentHistoryData);
         }
     } catch (e) {
         if (tbody) {
@@ -2416,17 +2583,8 @@ const OPERATOR_NAMES_MAP = {
     '120': 'Navruzoy'
 };
 
-// History jadvalini client-side filtrlash (serverga qayta murojaat qilmasdan)
+// History jadvalini client-side yoki server-side filtrlash
 function applyHistoryFilters() {
-    if (!currentHistoryData || currentHistoryData.length === 0) {
-        if (historyDataSource === 'agent') {
-            renderAgentHistoryTable([]);
-        } else {
-            renderServerHistoryTable([]);
-        }
-        return;
-    }
-
     const statusVal = (document.getElementById('historyFilterStatus') || {}).value || 'all';
     const dirVal = (document.getElementById('historyFilterDirection') || {}).value || 'all';
 
@@ -2434,6 +2592,16 @@ function applyHistoryFilters() {
     const hasFilter = statusVal !== 'all' || dirVal !== 'all';
     const clearBtn = document.getElementById('btnClearHistoryFilters');
     if (clearBtn) clearBtn.style.display = hasFilter ? 'inline-flex' : 'none';
+
+    if (historyDataSource === 'server') {
+        loadHistoryPage(1, historySearchQuery);
+        return;
+    }
+
+    if (!currentHistoryData || currentHistoryData.length === 0) {
+        renderAgentHistoryTable([]);
+        return;
+    }
 
     const filtered = currentHistoryData.filter(item => {
         // Holat filtri
@@ -2444,21 +2612,19 @@ function applyHistoryFilters() {
         }
         // Yo'nalish filtri
         if (dirVal !== 'all') {
-            const isOut = item.direction === 'outbound' ||
+            const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+            const isOut = (item.direction === 'outbound' ||
                           item.category_3cx === 'Dialled' ||
                           item.status === 'OUTBOUND' ||
-                          item.status === 'DIALLED';
-            if (dirVal === 'inbound' && isOut) return false;
-            if (dirVal === 'outbound' && !isOut) return false;
+                          item.status === 'DIALLED') && !isXfer;
+            if (dirVal === 'transfer' && !isXfer) return false;
+            if (dirVal === 'inbound' && (isOut || isXfer)) return false;
+            if (dirVal === 'outbound' && (!isOut || isXfer)) return false;
         }
         return true;
     });
 
-    if (historyDataSource === 'agent') {
-        renderAgentHistoryTable(filtered);
-    } else {
-        renderServerHistoryTable(filtered);
-    }
+    renderAgentHistoryTable(filtered);
 }
 
 function resetHistoryFilters() {
@@ -2466,13 +2632,32 @@ function resetHistoryFilters() {
     const d = document.getElementById('historyFilterDirection');
     if (s) s.value = 'all';
     if (d) d.value = 'all';
-    applyHistoryFilters();
+    const clearBtn = document.getElementById('btnClearHistoryFilters');
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (historyDataSource === 'server') {
+        loadHistoryPage(1, historySearchQuery);
+    } else {
+        applyHistoryFilters();
+    }
 }
 window.applyHistoryFilters = applyHistoryFilters;
 window.resetHistoryFilters = resetHistoryFilters;
 
 function formatOperatorDisplayName(opStr) {
     if (!opStr || opStr === 'Navbat' || opStr === '-') return 'Navbat';
+    if (opStr.includes('➔')) {
+        const parts = opStr.split('➔').map(p => p.trim());
+        const formattedParts = parts.map(p => {
+            const match = p.match(/\b(10[1-9]|11[0-9]|120)\b/);
+            if (match) {
+                const ext = match[1];
+                const name = OPERATOR_NAMES_MAP[ext];
+                if (name && !p.includes(name)) return `${name} (${ext})`;
+            }
+            return p;
+        });
+        return formattedParts.join(' <span style="color: #38bdf8; font-weight: 700; margin: 0 3px;">➔</span> ');
+    }
     const match = String(opStr).match(/\b(10[1-9]|11[0-9]|120)\b/);
     if (match) {
         const ext = match[1];
@@ -2480,6 +2665,15 @@ function formatOperatorDisplayName(opStr) {
         if (name) return `${name} (${ext})`;
     }
     return opStr;
+}
+
+function formatCallerNumberOrOperator(callerId) {
+    if (!callerId) return '-';
+    const clean = String(callerId).trim();
+    if (OPERATOR_NAMES_MAP && OPERATOR_NAMES_MAP[clean]) {
+        return `${OPERATOR_NAMES_MAP[clean]} (${clean})`;
+    }
+    return clean;
 }
 
 function renderAgentHistoryTable(data) {
@@ -2524,8 +2718,8 @@ function renderAgentHistoryTable(data) {
         }
 
         const dirBadge = isOut 
-            ? '<span class="badge badge-purple">📤 Chiquvchi</span>' 
-            : '<span class="badge badge-info">📥 Kiruvchi</span>';
+            ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>' 
+            : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>';
 
         let timeHtml = '';
         if (item.event_time) {
@@ -2574,14 +2768,21 @@ function renderAgentHistoryTable(data) {
                    🚫 Audio yo'q
                </span>`;
 
+        let rowStyle = '';
+        if (isOut) {
+            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+        } else if (item.category_3cx === 'Missed' || item.status === 'MISSED' || item.status === 'REJECT') {
+            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
+        }
+
         return `
-            <tr>
+            <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td style="text-align: left;">${timeHtml}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
                         <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                        <span style="font-weight: 600;">${item.caller_id || '-'}</span>
+                        <span style="font-weight: 600;">${formatCallerNumberOrOperator(item.caller_id)}</span>
                     </div>
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
@@ -2627,21 +2828,31 @@ function renderServerHistoryTable(data) {
 
     tbody.innerHTML = data.map((item, index) => {
         const rowNum = (historyCurrentPage - 1) * 20 + index + 1;
-        const isOut = item.direction === 'outbound';
+        const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+        const isOut = item.direction === 'outbound' && !isXfer;
         const isAns = item.status === 'ANSWERED';
 
-        // "Operatorga ulanmadi / Navbatdan chiqdi" qatorlarini ajratib ko'rsatish (olovrang fon)
-        const isUnconnected = !isAns && !isOut && (item.status === 'ABANDONED' || item.status === 'NO ANSWER' || (item.operator && item.operator.includes('Operatorga ulanmadi')));
-        const rowStyle = isUnconnected
-            ? 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;'
-            : (item.status === 'BUSY' ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;' : '');
+        // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
+        const isUnconnected = !isAns && !isOut && !isXfer && (item.status === 'ABANDONED' || item.status === 'NO ANSWER' || (item.operator && item.operator.includes('Operatorga ulanmadi')));
+        let rowStyle = '';
+        if (isXfer) {
+            rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
+        } else if (isOut) {
+            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+        } else if (isUnconnected) {
+            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+        } else if (item.status === 'BUSY') {
+            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
+        }
 
         const statusBadge = isAns 
             ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
             : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
-        const dirBadge = isOut 
-            ? '<span class="badge badge-purple">📤 chiquvchi</span>' 
-            : '<span class="badge badge-info">📥 kiruvchi</span>';
+        const dirBadge = isXfer
+            ? '<span class="badge badge-cyan"><i class="fas fa-random"></i> 🔀 transfer</span>'
+            : (isOut 
+                ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>' 
+                : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>');
 
         let timeHtml = '';
         if (item.time) {
@@ -2699,14 +2910,18 @@ function renderServerHistoryTable(data) {
                    🚫 Audio yo'q
                </span>`;
 
+        const hangupDisplay = isXfer
+            ? '<span style="color: #38bdf8; font-weight: 600;">🔀 Transfer (Operatorga)</span>'
+            : (item.hangupParty || item.cause || 'Normal');
+
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td style="text-align: left;">${timeHtml}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                        <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                        <span>${item.callerId}</span>
+                        <span class="phone-icon">${isOut ? '📤' : (isXfer ? '🔀' : '📞')}</span>
+                        <span>${formatCallerNumberOrOperator(item.callerId)}</span>
                     </div>
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
@@ -2714,7 +2929,7 @@ function renderServerHistoryTable(data) {
                 <td>${formatSeconds(durSec)}</td>
                 <td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish vaqti${item.waitSec ? ': ' + formatSeconds(item.waitSec) : ' mavjud emas'}">${item.waitSec ? formatSeconds(item.waitSec) : '—'}</td>
                 <td>${statusBadge}</td>
-                <td style="color: var(--text-muted); font-size: 12px;">${item.hangupParty || item.cause || 'Normal'}</td>
+                <td style="color: var(--text-muted); font-size: 12px;">${hangupDisplay}</td>
                 <td>${audioCell}</td>
             </tr>
         `;
@@ -2838,11 +3053,13 @@ function applyDashboardRecentFilters() {
             if (statusVal === 'missed' && isAns) return false;
         }
 
-        // 3. Yo'nalishi (inbound vs outbound)
+        // 3. Yo'nalishi (inbound vs outbound vs transfer)
         if (dirVal !== 'all') {
-            const isOut = item.direction === 'outbound';
-            if (dirVal === 'inbound' && isOut) return false;
-            if (dirVal === 'outbound' && !isOut) return false;
+            const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+            const isOut = item.direction === 'outbound' && !isXfer;
+            if (dirVal === 'transfer' && !isXfer) return false;
+            if (dirVal === 'inbound' && (isOut || isXfer)) return false;
+            if (dirVal === 'outbound' && (!isOut || isXfer)) return false;
         }
 
         return true;
@@ -2929,7 +3146,8 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
 
     tbody.innerHTML = data.map((item, index) => {
         const rowNum = index + 1;
-        const isOut = item.direction === 'outbound';
+        const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+        const isOut = item.direction === 'outbound' && !isXfer;
         
         const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
         const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
@@ -2937,28 +3155,37 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
         const statusBadge = isAns 
             ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
             : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
-        const dirBadge = isOut 
-            ? '<span class="badge badge-purple">📤 chiquvchi</span>' 
-            : '<span class="badge badge-info">📥 kiruvchi</span>';
+        const dirBadge = isXfer
+            ? '<span class="badge badge-cyan">🔀 transfer</span>'
+            : (isOut
+                ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>'
+                : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>');
 
         const opDisplayName = formatOperatorDisplayName(item.operator);
         const opCellHtml = isQueueOnly
             ? '<span style="color: #f59e0b; font-size: 12px; font-weight: 500;">⏳ Operatorga ulanmadi</span>'
             : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
 
-        // "Operatorga ulanmadi / Navbatdan chiqdi" qatorlarini ajratib ko'rsatish (olovrang fon)
-        const isUnconnected = isQueueOnly && !isOut;
-        const rowStyle = isUnconnected
-            ? 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;'
-            : (item.status === 'BUSY' ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;' : '');
+        // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
+        const isUnconnected = isQueueOnly && !isOut && !isXfer;
+        let rowStyle = '';
+        if (isXfer) {
+            rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
+        } else if (isOut) {
+            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+        } else if (isUnconnected) {
+            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+        } else if (item.status === 'BUSY') {
+            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
+        }
 
         const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
         const safeRec = (item.recording || '').replace(/'/g, "\\'");
         const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
         const durSec = item.duration || 0;
         const waitSecVal = item.waitSec || 0;
-        const waitCellHtml = isOut || !waitSecVal
-            ? '<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="Navbatda kutish vaqti mavjud emas">—</td>'
+        const waitCellHtml = isOut
+            ? '<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="Chiquvchi qo\'ng\'iroqda navbat yo\'q">—</td>'
             : `<td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish: ${formatSeconds(waitSecVal)}">${formatSeconds(waitSecVal)}</td>`;
 
         const callKey = `${item.callerId || ''}_${durSec}`;
@@ -2990,14 +3217,18 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
                    🚫 Audio yo'q
                </span>`;
 
+        const hangupDisplay = isXfer
+            ? '<span style="color: #38bdf8; font-weight: 600;">🔀 Transfer (Operatorga)</span>'
+            : (item.hangupParty || 'Noma\'lum');
+
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td>${new Date(item.time).toLocaleTimeString()}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                        <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                        <span>${item.callerId}</span>
+                        <span class="phone-icon">${isXfer ? '🔀' : `<img src="/img/${isOut ? 'icon-chiquvchi' : 'icon-kiruvchi'}.png" alt="${isOut ? 'chiquvchi' : 'kiruvchi'}" style="width:14px;height:14px;object-fit:contain;">`}</span>
+                        <span>${formatCallerNumberOrOperator(item.callerId)}</span>
                     </div>
                 </td>
                 <td>${dirBadge}</td>
@@ -3005,8 +3236,8 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
                 <td>${formatSeconds(item.duration || 0)}</td>
                 ${waitCellHtml}
                 <td>${statusBadge}</td>
-                <td style="font-weight: 500; font-size: 12px; color: ${item.hangupParty?.includes('Operator') ? 'var(--warning)' : (item.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)')};">
-                    ${item.hangupParty || 'Noma\'lum'}
+                <td style="font-weight: 500; font-size: 12px; color: ${isXfer ? '#38bdf8' : (item.hangupParty?.includes('Operator') ? 'var(--warning)' : (item.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)'))};">
+                    ${hangupDisplay}
                 </td>
                 <td>
                     ${audioCell}
@@ -3218,7 +3449,18 @@ function closeDetailModal() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+let detailSearchTimeout = null;
+function handleDetailSearch(val) {
+    clearTimeout(detailSearchTimeout);
+    detailSearchTimeout = setTimeout(() => {
+        detailState.search = String(val || '').trim();
+        detailState.page = 1;
+        fetchAndRenderDetailCalls();
+    }, 250);
+}
+window.handleDetailSearch = handleDetailSearch;
+
+function initDetailModalEvents() {
     const btnClose = document.getElementById('btnCloseDetailModal');
     const btnCloseBtn = document.getElementById('btnCloseDetailModalBtn');
     const modal = document.getElementById('detailModal');
@@ -3227,56 +3469,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('detailPrevPage');
     const nextBtn = document.getElementById('detailNextPage');
 
-    if (btnClose) btnClose.addEventListener('click', closeDetailModal);
-    if (btnCloseBtn) btnCloseBtn.addEventListener('click', closeDetailModal);
+    if (btnClose) btnClose.onclick = closeDetailModal;
+    if (btnCloseBtn) btnCloseBtn.onclick = closeDetailModal;
     if (modal) {
-        modal.addEventListener('click', (e) => {
+        modal.onclick = (e) => {
             if (e.target === modal) closeDetailModal();
-        });
+        };
     }
 
     if (limitSelect) {
-        limitSelect.addEventListener('change', (e) => {
+        limitSelect.onchange = (e) => {
             detailState.limit = parseInt(e.target.value, 10) || 100;
             detailState.page = 1;
             fetchAndRenderDetailCalls();
-        });
+        };
     }
 
-    let searchTimeout = null;
     if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
+        searchInput.oninput = (e) => {
+            handleDetailSearch(e.target.value);
+        };
+        searchInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                clearTimeout(detailSearchTimeout);
                 detailState.search = e.target.value.trim();
                 detailState.page = 1;
                 fetchAndRenderDetailCalls();
-            }, 300);
-        });
+            }
+        };
     }
 
     if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
+        prevBtn.onclick = () => {
             if (detailState.page > 1) {
                 detailState.page--;
                 fetchAndRenderDetailCalls();
             }
-        });
+        };
     }
 
     if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
+        nextBtn.onclick = () => {
             if (detailState.page < detailState.totalPages) {
                 detailState.page++;
                 fetchAndRenderDetailCalls();
             }
-        });
+        };
     }
+}
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeDetailModal();
-    });
+// Global Escape listener
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDetailModal();
 });
+
+// Run initialization immediately or on DOMContentLoaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDetailModalEvents);
+} else {
+    initDetailModalEvents();
+}
 
 async function fetchAndRenderDetailCalls() {
     const bodyEl = document.getElementById('detailModalBody');
@@ -3293,16 +3545,17 @@ async function fetchAndRenderDetailCalls() {
     `;
 
     try {
+        const todayStr = getTodayDateString();
+        const activeDate = currentSelectedDate || todayStr;
+
         const queryParams = new URLSearchParams({
             type: detailState.type,
             operator: detailState.operatorExt,
             page: detailState.page,
             limit: detailState.limit,
-            search: detailState.search
+            search: detailState.search,
+            date: activeDate
         });
-        if (currentSelectedDate) {
-            queryParams.set('date', currentSelectedDate);
-        }
 
         const res = await fetch(`/api/calls/details?${queryParams.toString()}`);
         const json = await res.json();
@@ -3376,17 +3629,24 @@ async function fetchAndRenderDetailCalls() {
                         }
 
                         const directionBadge = isOut 
-                            ? `<span class="badge badge-purple" style="font-size: 10px;">📤 chiquvchi</span>`
-                            : `<span class="badge badge-info" style="font-size: 10px;">📥 kiruvchi</span>`;
+                            ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> chiquvchi</span>`
+                            : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> kiruvchi</span>`;
+
+                        let rowStyle = '';
+                        if (isOut) {
+                            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+                        } else if (!isAns) {
+                            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+                        }
 
                         return `
-                            <tr>
+                            <tr style="${rowStyle}">
                                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                                 <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString()}</td>
                                 <td style="white-space: nowrap;">
                                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
                                         <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                                        <span>${c.callerId}</span>
+                                        <span>${formatCallerNumberOrOperator(c.callerId)}</span>
                                     </div>
                                 </td>
                                 <td style="white-space: nowrap;">${directionBadge}</td>
@@ -3673,16 +3933,16 @@ async function loadAgentLogs(page = 1) {
                 typeBadge = `<span class="status-badge failed">🚫 Rad etildi</span>`;
             } else if (isDialled) {
                 if (dur > 0) {
-                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;">📤 Chiquvchi</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> Chiquvchi</span>`;
                 } else {
-                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">📤 Chiquvchi (Ulanmagan)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> Chiquvchi (Ulanmagan)</span>`;
                 }
             } else if (t === 'MISSED' || dur === 0) {
                 typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi</span>`;
             } else if (t === 'ANSWERED' || dur > 0) {
                 typeBadge = `<span class="status-badge answered">🟢 Javob berildi</span>`;
             } else if (t === 'RINGING' || t === 'INCOMING') {
-                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);">📥 Kiruvchi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> Kiruvchi</span>`;
             } else {
                 typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3);">📴 Tugadi</span>`;
             }
@@ -4007,7 +4267,7 @@ function renderTabAgentOperators(operators) {
 
     // Operator select dropdown
     const selectEl = document.getElementById('tabAgentLogOpSelect');
-    if (selectEl && selectEl.options.length <= 1) {
+    if (selectEl && (!selectEl.options || selectEl.options.length <= 1)) {
         operators.forEach(op => {
             const opt = document.createElement('option');
             opt.value = op.id;
@@ -4077,16 +4337,23 @@ function renderTabAgentOperators(operators) {
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
                             <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id}</span>
-                            ${stars ? `<span class="star-rating-box" title="${answered} ta qabul qilingan">${stars}</span>` : ''}
+                            ${generateStarRatingHtml(answered, cleanName)}
                         </div>
                     </div>
                 </div>
 
                 <div class="op-stat-row">
                     <span>Desktop Agent:</span>
-                    <span class="op-stat-val" style="font-weight: 600; font-size: 11px; color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'}; display: inline-flex; align-items: center; gap: 5px;">
-                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'};"></span>
-                        ${op.agentConnected ? `Faol ${op.agentHostname ? `(${op.agentHostname})` : ''} <span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : `O'chiq`}
+                    <span class="op-stat-val" style="font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
+                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? 'Faol' : 'O\'chiq'}</span>
+                        ${op.agentConnected ? `<span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : ''}
+                    </span>
+                </div>
+                <div class="op-stat-row">
+                    <span>Desktop nomi:</span>
+                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || 'Aniqlanmagan'}">
+                        ${op.agentHostname || '—'}
                     </span>
                 </div>
                 <div class="op-stat-row">
@@ -4204,16 +4471,16 @@ async function loadTabOperatorLogs(opId, page = 1) {
                 typeBadge = `<span class="status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-weight: 700;">🚫 Rad etildi (Deny)</span>`;
             } else if (isDialled) {
                 if (dur > 0) {
-                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;">📤 Chiquvchi (Dialled)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> Chiquvchi (Dialled)</span>`;
                 } else {
-                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);">📤 Chiquvchi (Ulanmagan)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> Chiquvchi (Ulanmagan)</span>`;
                 }
             } else if (statusKey === 'MISSED' || dur === 0) {
                 typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi</span>`;
             } else if (statusKey === 'ANSWERED' || dur > 0) {
                 typeBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700;">📞 Javob berildi</span>`;
             } else {
-                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);">📥 Kiruvchi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> Kiruvchi</span>`;
             }
 
             const durFormatted = formatSeconds(dur);
@@ -4443,19 +4710,6 @@ async function submitNewRelease() {
 /* ==========================================================================
    Date Filtering & Interactive Windows/Fluent Dark Calendar Logic
    ========================================================================== */
-let currentSelectedDate = ''; // 'YYYY-MM-DD' or '' for today
-let calViewYear = 2026;
-let calViewMonth = 8; // 0-based, 8 = September
-let calClockTimer = null;
-
-const UZ_MONTHS = [
-    'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
-    'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
-];
-
-function getTodayDateString() {
-    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-}
 
 function formatDateDisplay(dateStr) {
     if (!dateStr) return '';
@@ -4978,6 +5232,36 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
             }).join('');
         }
 
+        // PROXMOX VMS
+        const vmsList = document.getElementById('srvVmsList');
+        if (vmsList && Array.isArray(data.vms)) {
+            vmsList.innerHTML = data.vms.map(vm => {
+                const isRunning = vm.status === 'running';
+                const statusColor = isRunning ? '#10b981' : '#ef4444';
+                const statusText = isRunning ? 'ISHLAMOQDA' : (vm.status === 'stopped' ? 'TO\'XTATILGAN' : vm.status.toUpperCase());
+                const icon = isRunning ? '🟢' : '🔴';
+
+                const actionBtn = isRunning
+                    ? `<button onclick="triggerVmAction(${vm.id}, 'stop')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">⏹ To'xtatish</button>`
+                    : `<button onclick="triggerVmAction(${vm.id}, 'start')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #86efac;">▶ Yoqish</button>`;
+
+                return `
+                    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                        <div>
+                            <div style="font-size: 13px; font-weight: 700; color: #fff;">${vm.name} <span style="font-size: 11px; color: #60a5fa;">(VM ${vm.id})</span></div>
+                            <div style="font-size: 11px; color: var(--text-muted);">${vm.desc || ''}</div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 11px; font-weight: 700; color: ${statusColor}; background: ${isRunning ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; padding: 3px 8px; border-radius: 6px; border: 1px solid ${statusColor}44;">
+                                ${icon} ${statusText}
+                            </span>
+                            ${actionBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         if (loadingState) loadingState.style.display = 'none';
         if (loadedState) loadedState.style.display = 'flex';
     } catch (err) {
@@ -4987,5 +5271,72 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
             loadingState.innerHTML = `<div style="color: #ef4444; padding: 20px;">Server holatini olib bo'lmadi: ${err.message}</div>`;
         }
     }
+}
+
+async function triggerVmRecovery() {
+    const btn = document.getElementById('btnRecoverVms');
+    const logBox = document.getElementById('srvVmLogBox');
+    if (!confirm("Diqqat! Proxmox LVM thin pool tiklanadi va Kerio Control (200) hamda Issabel PBX (101) virtual mashinalari ishga tushiriladi.\n\nTasdiqlaysizmi?")) {
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span> Bajarilmoqda...`;
+    }
+    if (logBox) {
+        logBox.style.display = 'block';
+        logBox.textContent = `[${new Date().toLocaleTimeString()}] LVM tiklash va VMlarni yoqish so'rovi yuborildi. Iltimos, kuting (bu 5-15 soniya vaqt olishi mumkin)...`;
+    }
+
+    try {
+        const res = await fetch('/api/system/vms/recover', { method: 'POST' });
+        const data = await res.json();
+        if (logBox) {
+            logBox.textContent = data.output || JSON.stringify(data, null, 2);
+        }
+        if (data.success) {
+            if (typeof showNotification === 'function') {
+                showNotification('✅ Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!', 'success');
+            } else {
+                alert('✅ Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!');
+            }
+        } else {
+            alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+        }
+        await fetchServerStatus(true);
+    } catch (err) {
+        if (logBox) logBox.textContent += `\n❌ So'rov yuborishda xatolik: ${err.message}`;
+        alert('Serverga ulanishda xatolik: ' + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<span>⚡</span> Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish`;
+        }
+    }
+}
+
+async function triggerVmAction(vmid, action) {
+    const actName = action === 'start' ? 'ishga tushirish' : 'to\'xtatish';
+    if (!confirm(`VM ${vmid} ni ${actName}ni tasdiqlaysizmi?`)) return;
+
+    try {
+        const res = await fetch(`/api/system/vms/${vmid}/${action}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            await fetchServerStatus(true);
+        } else {
+            alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+        }
+    } catch (err) {
+        alert('Xatolik: ' + err.message);
+    }
+}
+
+// Initialize Application after all components and functions are loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runInit);
+} else {
+    runInit();
 }
 

@@ -212,9 +212,11 @@ app.get('/api/history', async (req, res) => {
     const limit = parseInt(req.query.limit || '20', 10);
     const search = req.query.search || '';
     const dateStr = req.query.date || '';
+    const direction = req.query.direction || '';
+    const status = req.query.status || '';
     
     try {
-        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search, dateStr);
+        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search, dateStr, direction, status);
         res.json(paginatedData);
     } catch (e) {
         res.json({ total: 0, page: 1, totalPages: 1, limit, data: [] });
@@ -351,6 +353,48 @@ app.get('/api/system/status', async (req, res) => {
     try {
         const metrics = await systemService.getSystemMetrics();
         res.json({ success: true, ...metrics });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+const proxmoxService = require('./services/proxmoxService');
+
+// Proxmox VM lar holati
+app.get('/api/system/vms', async (req, res) => {
+    try {
+        const vms = await proxmoxService.getVmsStatus();
+        res.json({ success: true, vms });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Proxmox LVM tiklash va Kerio + Issabel ni yoqish (Svet o'chib yonganda)
+app.post('/api/system/vms/recover', async (req, res) => {
+    try {
+        const result = await proxmoxService.recoverAndStartAll();
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Muayyan VMni yoqish
+app.post('/api/system/vms/:vmid/start', async (req, res) => {
+    try {
+        const result = await proxmoxService.startVm(req.params.vmid);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Muayyan VMni to'xtatish
+app.post('/api/system/vms/:vmid/stop', async (req, res) => {
+    try {
+        const result = await proxmoxService.stopVm(req.params.vmid);
+        res.json(result);
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }

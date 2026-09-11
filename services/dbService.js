@@ -7,7 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110']);
+const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',
@@ -314,13 +314,13 @@ class DbService {
             // 1. 3CX Desktop Agent jurnali bo'yicha operatorlar o'tkazib yuborgan (Missed) qo'ng'iroqlari
             try {
                 const agentRows = this.db.prepare(`
-                    SELECT 
+                    SELECT
                         operator_id,
-                        COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')) THEN 1 END) as count
+                        COUNT(CASE WHEN (event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1'))) AND LENGTH(caller_id) > 4 THEN 1 END) as count
                     FROM agent_3cx_call_logs
                     WHERE event_time >= ? AND event_time <= ?
                     GROUP BY operator_id
-                `).all(`${dateStr} 00:00:00`, `${dateStr} 23:59:59`);
+                `).all(`${dateStr} 08:00:00`, `${dateStr} 21:00:00`);
 
                 for (const r of agentRows) {
                     const opId = String(r.operator_id);
@@ -370,8 +370,8 @@ class DbService {
             const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
                 ? dateParam
                 : new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-            let countSql = `SELECT COUNT(*) as total FROM operator_reject_events WHERE event_time LIKE ?`;
-            let dataSql = `SELECT * FROM operator_reject_events WHERE event_time LIKE ?`;
+            let countSql = `SELECT COUNT(*) as total FROM operator_reject_events WHERE event_time LIKE ? AND time(event_time) >= '08:00:00' AND time(event_time) <= '21:00:00'`;
+            let dataSql = `SELECT * FROM operator_reject_events WHERE event_time LIKE ? AND time(event_time) >= '08:00:00' AND time(event_time) <= '21:00:00'`;
             const countParams = [`${dateStr}%`];
             const dataParams = [`${dateStr}%`];
 
@@ -438,8 +438,8 @@ class DbService {
                 WHERE (event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')))
                   AND event_time >= ? AND event_time <= ?
             `;
-            const countParams = [`${dateStr} 00:00:00`, `${dateStr} 23:59:59`];
-            const dataParams = [`${dateStr} 00:00:00`, `${dateStr} 23:59:59`];
+            const countParams = [`${dateStr} 08:00:00`, `${dateStr} 21:00:00`];
+            const dataParams = [`${dateStr} 08:00:00`, `${dateStr} 21:00:00`];
 
             if (search && search.trim()) {
                 const s = `%${search.trim()}%`;
@@ -507,8 +507,8 @@ class DbService {
                 localTime
             );
 
-            // Kunlik operator statistikasini yangilash (istisno qilingan raqamlar hisobotga kirmaydi)
-            if (call.operatorExten && !EXCLUDED_OPERATORS.has(String(call.operatorExten))) {
+            // Kunlik operator statistikasini yangilash (faqat ish vaqti 08:00 - 21:00 va istisno qilinmagan raqamlar)
+            if (call.operatorExten && !EXCLUDED_OPERATORS.has(String(call.operatorExten)) && this.isWorkingHours(localTime)) {
                 const today = localTime.slice(0, 10);
                 this.incrementOperatorDaily(today, call.operatorExten, call.status === 'ANSWERED', call.duration || 0, call.hangupParty);
             }
@@ -784,13 +784,16 @@ class DbService {
             const endDay = `${todayStr} 23:59:59`;
             
             // Faqat 3CX Desktop Agent maxsus jurnali (0 soniyaliklar javob berilgan deb hisoblanmaydi)
+            // Ichki (operatordan-operatorga) qo'ng'iroqlar chiqarib tashlanadi: caller_id 2-4 xonali
+            // bo'lsa, bu tashqi telefon raqami emas, balki boshqa operatorning ichki extensioni
+            // (masalan '106', '111'), shuning uchun statistikaga qo'shilmasligi kerak.
             const agentRows = this.db.prepare(`
-                SELECT 
+                SELECT
                     operator_id,
-                    COUNT(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 THEN 1 END) as answered,
-                    COUNT(CASE WHEN (event_type = 'DIALLED' OR event_type = '1') AND duration_sec > 0 THEN 1 END) as outbound,
-                    COUNT(CASE WHEN event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1')) THEN 1 END) as missed,
-                    SUM(CASE WHEN (event_type IN ('ANSWERED', '2', 'DIALLED', '1')) AND duration_sec > 0 THEN duration_sec ELSE 0 END) as total_duration_sec
+                    COUNT(CASE WHEN (event_type = 'ANSWERED' OR event_type = '2') AND duration_sec > 0 AND LENGTH(caller_id) > 4 THEN 1 END) as answered,
+                    COUNT(CASE WHEN (event_type = 'DIALLED' OR event_type = '1') AND duration_sec > 0 AND LENGTH(caller_id) > 4 THEN 1 END) as outbound,
+                    COUNT(CASE WHEN (event_type = 'MISSED' OR (duration_sec = 0 AND event_type NOT IN ('DIALLED', '1'))) AND LENGTH(caller_id) > 4 THEN 1 END) as missed,
+                    SUM(CASE WHEN (event_type IN ('ANSWERED', '2', 'DIALLED', '1')) AND duration_sec > 0 AND LENGTH(caller_id) > 4 THEN duration_sec ELSE 0 END) as total_duration_sec
                 FROM agent_3cx_call_logs
                 WHERE event_time >= ? AND event_time <= ?
                 GROUP BY operator_id

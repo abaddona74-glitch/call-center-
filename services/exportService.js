@@ -10,7 +10,7 @@ const ExcelJS = require('exceljs');
 const issabelDbService = require('./issabelDbService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110']);
+const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 const OPERATOR_DISPLAY_NAMES = {
     '101': 'Тухтасинов Ойбек',
@@ -153,10 +153,15 @@ class ExportService {
                 SUM(billsec) as total_talk_sec
             FROM cdr
             WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
+              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
               AND disposition = 'ANSWERED' AND billsec > 0
               AND (
-                  (dst REGEXP '^[0-9]{2,4}$' OR dstchannel REGEXP '^SIP/[0-9]{2,4}-' OR channel REGEXP 'Local/[0-9]{2,4}@')
-                  OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7))
+                  (
+                      (dst REGEXP '^[0-9]{2,4}$' OR dstchannel REGEXP '^SIP/[0-9]{2,4}-' OR channel REGEXP 'Local/[0-9]{2,4}@')
+                      AND (dcontext IS NULL OR dcontext != 'from-internal')
+                      AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
+                  )
+                  OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7)
               )
             GROUP BY call_date, op_id
             ORDER BY call_date ASC, op_id ASC;
