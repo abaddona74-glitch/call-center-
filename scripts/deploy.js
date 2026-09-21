@@ -80,7 +80,7 @@ async function deploy() {
                 `tar -xzf ${remoteArchive} -C ${REMOTE_DIR}`,
                 `rm -f ${remoteArchive}`,
                 `cd ${REMOTE_DIR} && npm install --omit=dev`,
-                `cd ${REMOTE_DIR} && (pm2 reload call-center || pm2 start app.js --name "call-center" --time)`,
+                `cd ${REMOTE_DIR} && (pm2 reload call-center --force || pm2 restart call-center --update-env || pm2 start app.js --name "call-center" --time)`,
                 `pm2 save`
             ].join(' && ');
 
@@ -112,7 +112,7 @@ async function deploy() {
     const checkConn = new Client();
     await new Promise((resolve, reject) => {
         checkConn.on('ready', () => {
-            checkConn.exec('curl -s -I http://localhost:3000 | head -n 3', (err, stream) => {
+            checkConn.exec('curl -s -I http://localhost:3535 | head -n 3', (err, stream) => {
                 if (err) return reject(err);
                 stream.on('close', () => {
                     checkConn.end();
@@ -131,8 +131,8 @@ async function deploy() {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log('====================================================');
     console.log(`🎉 DEPLOY MUVAFFAQIYATLI YAKUNLANDI! (${elapsed} soniya)`);
-    console.log(`🌐 Jonli Web Manzil: http://${SERVER_HOST}:3000`);
-    console.log(`👥 Operatorlar: http://${SERVER_HOST}:3000/operators`);
+    console.log(`🌐 Jonli Web Manzil: http://${SERVER_HOST}:3535`);
+    console.log(`👥 Operatorlar: http://${SERVER_HOST}:3535/operators`);
     console.log('====================================================');
 }
 

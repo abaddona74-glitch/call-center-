@@ -127,8 +127,10 @@ body {
     min-height: 74px;
     box-sizing: border-box;
     flex-shrink: 0;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(16px);
+    /* backdrop-filter olib tashlandi: sticky header ostida scroll qilinganda har freymda
+       qayta xiralashtirish (blur) kuchsiz GPU'larda scroll "tortishishi"ga sabab bo'lardi.
+       O'rniga deyarli qattiq fon bilan bir xil ko'rinish saqlanadi. */
+    background: rgba(15, 23, 42, 0.97);
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
@@ -346,7 +348,8 @@ select option:hover {
 
 .kpi-card {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
+    /* backdrop-filter olib tashlandi: --bg-card qattiq (opaque) rang bo'lgani uchun
+       blur hech qanday vizual ta'sir bermay, faqat GPU resursini isrof qilardi. */
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 26px 22px;
@@ -498,7 +501,8 @@ select option:hover {
 
 .glass-panel {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
+    /* backdrop-filter olib tashlandi: --bg-card qattiq rang, blur vizual farq bermaydi,
+       lekin modal/panel ochiq turgan har lahzada GPU'ni band qilib turardi. */
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 22px;
@@ -679,7 +683,7 @@ select option:hover {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    text-align: left;
+    text-align: center;
 }
 
 .data-table th {
@@ -692,6 +696,8 @@ select option:hover {
     letter-spacing: 0.6px;
     border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .data-table td {
@@ -700,10 +706,30 @@ select option:hover {
     color: var(--text-main);
     vertical-align: middle;
     white-space: nowrap;
+    text-align: center;
 }
 
+/* Hujayra ichidagi flex bloklar ham markazda tursin */
+.data-table td > div,
+.data-table th > div {
+    justify-content: center;
+}
+
+/* Chapga tekislash kerak bo'lgan ustunlar uchun yordamchi klass */
+.data-table th.cell-left,
+.data-table td.cell-left {
+    text-align: left;
+}
+
+.data-table td.cell-left > div {
+    justify-content: flex-start;
+}
+
+/* Barcha qatorlarda bir xil 3px chap chegara: rangli qatorlar
+   (chiquvchi / transfer / javobsiz) matnni 3px surib yubormasligi uchun */
 .data-table tbody tr {
     transition: background 0.15s ease, filter 0.15s ease;
+    border-left: 3px solid transparent;
 }
 
 .data-table tbody tr:hover {
@@ -1162,6 +1188,31 @@ tr.row-transfer {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 18px;
+    /* Ma'lumot fetch bo'lguncha ham joy band qilinadi (pastdagi skeleton kartalar orqali) —
+       aks holda karta yo'q paytda balandligi 0 bo'lib, keyin ma'lumot kelganda butun sahifa
+       pastga "sakraydi" (Cumulative Layout Shift). */
+    min-height: 210px;
+}
+
+/* Operatorlar hali yuklanmagan paytdagi skeleton (joy tutuvchi) karta */
+.operator-card.skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 210px;
+    pointer-events: none;
+}
+
+.operator-card.skeleton .skeleton-line {
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05) 25%, rgba(255, 255, 255, 0.1) 37%, rgba(255, 255, 255, 0.05) 63%);
+    background-size: 400% 100%;
+    animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeletonShimmer {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
 }
 
 .operator-card {
@@ -1370,9 +1421,90 @@ tr.row-transfer {
     font-size: 10px;
 }
 
+/* ==========================================================================
+   MVP Gold Operator Card & Laurel Frame (Classic Gold Edition)
+   ========================================================================== */
 .operator-card.mvp-gold {
-    border: 1px solid rgba(245, 158, 11, 0.5);
-    background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), #131d31);
+    position: relative;
+    background: radial-gradient(ellipse at 50% -10%, rgba(245, 158, 11, 0.18) 0%, rgba(17, 24, 39, 0.96) 80%) !important;
+    border: 1.5px solid rgba(245, 158, 11, 0.82) !important;
+    box-shadow: 0 6px 28px rgba(245, 158, 11, 0.24), 0 0 16px rgba(245, 158, 11, 0.16), inset 0 0 22px rgba(245, 158, 11, 0.08) !important;
+    animation: mvpCardGlowPulse 4s ease-in-out infinite;
+}
+
+/* Yuqori nozik oltin nur chizig'i */
+.operator-card.mvp-gold::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #fbbf24, #fffbeb, #fbbf24, transparent);
+    box-shadow: 0 0 12px #fbbf24;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.operator-card.mvp-gold:hover {
+    border-color: #fbbf24 !important;
+    box-shadow: 0 10px 36px rgba(245, 158, 11, 0.4), 0 0 24px rgba(245, 158, 11, 0.3), inset 0 0 28px rgba(245, 158, 11, 0.14) !important;
+    transform: translateY(-3px) scale(1.01) !important;
+}
+
+@keyframes mvpCardGlowPulse {
+    0%, 100% {
+        box-shadow: 0 6px 28px rgba(245, 158, 11, 0.22), 0 0 16px rgba(245, 158, 11, 0.16), inset 0 0 22px rgba(245, 158, 11, 0.08);
+        border-color: rgba(245, 158, 11, 0.78);
+    }
+    50% {
+        box-shadow: 0 8px 36px rgba(245, 158, 11, 0.36), 0 0 24px rgba(245, 158, 11, 0.28), inset 0 0 30px rgba(245, 158, 11, 0.14);
+        border-color: rgba(251, 191, 36, 0.98);
+    }
+}
+
+/* MVP Avatar - Gold Ring & Floating Crown */
+.operator-card.mvp-gold .operator-avatar {
+    background: linear-gradient(135deg, #f59e0b, #b45309) !important;
+    box-shadow: 0 0 0 2.5px rgba(251, 191, 36, 0.9), 0 0 16px rgba(245, 158, 11, 0.55) !important;
+    position: relative;
+}
+
+.operator-card.mvp-gold .operator-avatar::after {
+    content: '👑';
+    position: absolute;
+    top: -11px;
+    right: -7px;
+    font-size: 14px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    animation: mvpCrownBob 2.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes mvpCrownBob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-2.5px) rotate(6deg); }
+}
+
+/* MVP Laurel Wreath Badge (1-rasm: 3 yulduzli oltin lavr chambari) */
+.mvp-wreath-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.7));
+}
+
+.mvp-wreath-badge:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.98));
+}
+
+.mvp-wreath-svg {
+    display: block;
 }
 
 .operator-card.mvp-silver {
@@ -1422,6 +1554,115 @@ tr.row-transfer {
     border-color: #ef4444;
     box-shadow: 0 8px 26px rgba(239, 68, 68, 0.25);
     transform: translateY(-2px);
+}
+
+/* Operator karta holat pillari (Kutmoqda / Suhbatda / Jiringlamoqda / Offline) —
+   kartaning o'zidagi border/glow rangi bilan bir xil sxema ishlatiladi. */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.badge-dot.pulse {
+    animation: pulse 1.6s ease-in-out infinite;
+}
+
+.badge-dot.pulse-ring {
+    animation: pulse 0.7s ease-in-out infinite;
+}
+
+.status-badge.badge-ready {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+}
+
+.status-badge.badge-talking {
+    background: rgba(14, 165, 233, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+}
+
+.status-badge.badge-ringing {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #fbbf24;
+}
+
+.status-badge.badge-offline {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+/* Jonli suhbat taymeri (Suhbatda holati tagidagi taymer) */
+.talking-live-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace, sans-serif;
+    color: #60a5fa;
+    background: rgba(30, 58, 138, 0.45);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    padding: 2px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    white-space: nowrap;
+    animation: fadeIn 0.25s ease;
+}
+
+.talking-live-timer .timer-icon {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.talking-live-timer .timer-digits {
+    line-height: 1;
+}
+
+/* 3 daqiqadan oshgan suhbat (Ogohlantirish — sariq) */
+.talking-live-timer.timer-warning {
+    color: #fcd34d;
+    background: rgba(146, 64, 14, 0.45);
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+}
+
+/* 7 daqiqadan oshgan uzoq suhbat (Xavf/Diqqat — qizil pulsatsiya) */
+.talking-live-timer.timer-danger {
+    color: #fca5a5;
+    background: rgba(153, 27, 27, 0.55);
+    border-color: rgba(239, 68, 68, 0.7);
+    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4);
+    animation: talkingTimerPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes talkingTimerPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow: 0 2px 18px rgba(239, 68, 68, 0.7);
+    }
 }
 
 /* Red Circular End Call Button */
@@ -1524,15 +1765,36 @@ tr.row-transfer {
     animation: edgeStripPulse 1.8s ease-in-out infinite;
 }
 
-/* Jiringlanayotgan karta: orange glow puls */
+/* Jiringlanayotgan / suhbatdagi kartalarning porlashi (glow) endi statik box-shadow
+   bilan chizilgan ::after qatlamining faqat opacity'sini animatsiya qiladi — bu GPU
+   kompozitor darajasida ishlaydi va har freymda qayta chizishni (repaint) talab qilmaydi,
+   shuning uchun bir nechta karta bir vaqtda porlaganda ham protsessorni og'ir yuklamaydi. */
 .operator-card.call-ringing {
     border-color: rgba(245, 158, 11, 0.7) !important;
-    animation: callRingGlow 1s ease-in-out infinite;
 }
 
-/* Suhbatda turgan karta: sekin ko'k puls */
 .operator-card.call-talking {
-    animation: callTalkGlow 2.4s ease-in-out infinite;
+    border-color: rgba(14, 165, 233, 0.7) !important;
+}
+
+.operator-card.call-ringing::after,
+.operator-card.call-talking::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    will-change: opacity;
+}
+
+.operator-card.call-ringing::after {
+    box-shadow: 0 0 22px 2px rgba(245, 158, 11, 0.4), inset 0 0 18px rgba(245, 158, 11, 0.15);
+    animation: cardGlowPulse 1s ease-in-out infinite;
+}
+
+.operator-card.call-talking::after {
+    box-shadow: 0 0 18px 1px rgba(14, 165, 233, 0.28), inset 0 0 14px rgba(14, 165, 233, 0.1);
+    animation: cardGlowPulse 2.4s ease-in-out infinite;
 }
 
 /* Jiringlash badge (blink qiluvchi) */
@@ -1551,19 +1813,76 @@ tr.row-transfer {
     animation: callBadgeBlink 0.9s ease-in-out infinite;
 }
 
+/* ==========================================================================
+   Keyingi qo'ng'iroq bashorati (Next in Line - 100% Predict) Oltin burchak belgisi
+   ========================================================================== */
+.next-call-corner-badge {
+    position: absolute;
+    top: -11px;
+    right: 14px;
+    z-index: 15;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 9px rgba(245, 158, 11, 0.75));
+    animation: nextCallBadgeFloat 2.4s ease-in-out infinite;
+    pointer-events: auto;
+    transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.next-call-corner-badge:hover {
+    transform: scale(1.18);
+    filter: drop-shadow(0 4px 16px rgba(245, 158, 11, 0.98));
+}
+
+.next-call-corner-badge.is-ringing {
+    animation: nextCallRingingPulse 0.8s ease-in-out infinite;
+    filter: drop-shadow(0 0 12px rgba(245, 158, 11, 1));
+}
+
+@keyframes nextCallRingingPulse {
+    0%, 100% {
+        transform: scale(1.06) translateY(0);
+        filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8));
+    }
+    50% {
+        transform: scale(1.22) translateY(-3px);
+        filter: drop-shadow(0 0 18px rgba(245, 158, 11, 1));
+    }
+}
+
+@keyframes nextCallBadgeFloat {
+    0%, 100% {
+        transform: translateY(0);
+        filter: drop-shadow(0 2px 9px rgba(245, 158, 11, 0.75));
+    }
+    50% {
+        transform: translateY(-2px);
+        filter: drop-shadow(0 4px 15px rgba(245, 158, 11, 0.95));
+    }
+}
+
+.operator-card.next-in-line {
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    box-shadow: 0 4px 22px rgba(245, 158, 11, 0.18) !important;
+}
+
+.operator-card.next-in-line:hover {
+    border-color: rgba(245, 158, 11, 0.9) !important;
+    box-shadow: 0 6px 28px rgba(245, 158, 11, 0.32) !important;
+}
+
 @keyframes edgeStripPulse {
     0%, 100% { opacity: 1; transform: scaleY(1); }
     50%      { opacity: 0.45; transform: scaleY(0.82); }
 }
 
-@keyframes callRingGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0), inset 0 0 12px rgba(245, 158, 11, 0.08); }
-    50%      { box-shadow: 0 0 22px 2px rgba(245, 158, 11, 0.4), inset 0 0 18px rgba(245, 158, 11, 0.15); }
-}
-
-@keyframes callTalkGlow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0), inset 0 0 10px rgba(14, 165, 233, 0.06); }
-    50%      { box-shadow: 0 0 18px 1px rgba(14, 165, 233, 0.28), inset 0 0 14px rgba(14, 165, 233, 0.1); }
+/* callRingGlow/callTalkGlow (box-shadow animatsiyasi) o'rniga endi cardGlowPulse ishlatiladi —
+   pastga qarang. Faqat opacity animatsiya qilinadi, box-shadow qiymati statik. */
+@keyframes cardGlowPulse {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 1; }
 }
 
 @keyframes callBadgeBlink {
@@ -1576,10 +1895,12 @@ tr.row-transfer {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    text-align: center;
 }
 
 .detail-table th {
-    text-align: left;
+    text-align: center;
+    vertical-align: middle;
     padding: 12px 14px;
     background: rgba(30, 41, 59, 0.85);
     color: var(--text-muted);
@@ -1597,10 +1918,35 @@ tr.row-transfer {
     color: var(--text-main);
     vertical-align: middle;
     white-space: nowrap;
+    text-align: center;
+}
+
+.detail-table td > div,
+.detail-table th > div {
+    justify-content: center;
+}
+
+.detail-table th.cell-left,
+.detail-table td.cell-left {
+    text-align: left;
+}
+
+/* Ekrandan tashqaridagi qatorlarning layout/paint ishini brauzerga o'tkazib yuborish
+   (arzon "virtualizatsiya") — uzun jadval (yuzlab qator) scroll qilinganda kuchsiz
+   kompyuterlarda "tortishib qolish"ni kamaytiradi. Qo'llab-quvvatlamaydigan brauzerda
+   sodda ravishda e'tiborga olinmaydi, hech narsa buzilmaydi. */
+.detail-table tbody tr {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 42px;
 }
 
 .detail-table tr:hover td {
     background: rgba(59, 130, 246, 0.08);
+}
+
+.detail-table th[onclick]:hover {
+    color: #fff;
+    background: rgba(59, 130, 246, 0.18);
 }
 
 /* Spinner Animation */
@@ -1625,8 +1971,7 @@ tr.row-transfer {
     gap: 16px;
     padding: 10px 20px;
     margin-bottom: 22px;
-    background: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(16px);
+    background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
@@ -2160,7 +2505,6 @@ html[data-tab="operators"] #btnExportExcel {
     padding: 22px 26px;
     margin-bottom: 24px;
     box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
@@ -2717,11 +3061,35 @@ html[data-tab="operators"] #btnExportExcel {
 
 .sort-icon {
     display: inline-block;
+    width: 12px;
+    text-align: center;
     margin-left: 4px;
     font-size: 11px;
     opacity: 0.4;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, color 0.2s ease;
     vertical-align: middle;
 }
+
+/* Saralash belgisi sarlavha matnini chapga surmasligi uchun
+   chap tomonda xuddi shunday ko'rinmas bo'shliq qoldiramiz */
+.data-table th.sortable-th::before,
+.detail-table th.sortable-th::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+}
+
+/* Custom Date Box DD.MM.YYYY Display */
+.custom-date-box {
+    position: relative;
+}
+
+.custom-date-box:hover > div,
+.custom-date-box:focus-within > div {
+    border-color: #3b82f6 !important;
+    background: rgba(30, 41, 59, 1) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
 
 

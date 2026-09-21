@@ -7,7 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',
@@ -365,7 +365,7 @@ class DbService {
      * @param {string} search
      * @param {string} [dateParam]
      */
-    getRejectEventsPaginated(page = 1, limit = 50, search = '', dateParam = '') {
+    getRejectEventsPaginated(page = 1, limit = 50, search = '', dateParam = '', operatorId = '') {
         try {
             const dateStr = (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam))
                 ? dateParam
@@ -374,6 +374,13 @@ class DbService {
             let dataSql = `SELECT * FROM operator_reject_events WHERE event_time LIKE ? AND time(event_time) >= '08:00:00' AND time(event_time) <= '21:00:00'`;
             const countParams = [`${dateStr}%`];
             const dataParams = [`${dateStr}%`];
+
+            if (operatorId) {
+                countSql += ` AND operator_id = ?`;
+                dataSql += ` AND operator_id = ?`;
+                countParams.push(String(operatorId));
+                dataParams.push(String(operatorId));
+            }
 
             if (search) {
                 countSql += ` AND (operator_id LIKE ? OR caller_id LIKE ?)`;
@@ -671,6 +678,26 @@ class DbService {
     }
 
     /**
+     * Navbat bir mijozni operatorga qayta-qayta jiringlatib qo'ysa (retry), 3CX Desktop Agent
+     * har jiringlashni alohida "MISSED" deb yuborishi mumkin — natijada bitta chinakam
+     * o'tkazib yuborilgan qo'ng'iroq o'nlab marta hisoblanib ketadi. Shu bitta operator +
+     * bitta mijoz raqami uchun qisqa vaqt oralig'ida (90 soniya) faqat bittasini hisoblaymiz.
+     */
+    _hasRecentMissed(opId, caller, eventTime) {
+        try {
+            const row = this.db.prepare(`
+                SELECT id FROM agent_3cx_call_logs
+                WHERE operator_id = ? AND caller_id = ? AND event_type = 'MISSED'
+                  AND ABS(strftime('%s', ?) - strftime('%s', event_time)) <= 90
+                LIMIT 1
+            `).get(opId, caller, eventTime);
+            return !!row;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
      * 3CX Desktop Agent tomonidan yuborilgan to'liq qo'ng'iroq hodisasini saqlash
      */
     recordAgentCallLog(data) {
@@ -679,17 +706,24 @@ class DbService {
             const opId = String(data.operatorId || '');
             const caller = String(data.callerId || 'Yashirin raqam');
             const details = String(data.details || '');
-            
+            const eventType = String(data.eventType || 'UNKNOWN').toUpperCase();
+
             // Vaqtni ISO / YYYY-MM-DD HH:mm:ss formatga keltirish
             let eventTime = nowLocal;
             if (data.startTime) {
                 eventTime = String(data.startTime).replace(/\//g, '-').trim();
             }
 
+            // "MISSED" hodisalar uchun qayta-qayta jiringlash sabab kelib chiqadigan
+            // dublikatlarni to'xtatish (yuqoridagi izohga qarang)
+            if (eventType === 'MISSED' && this._hasRecentMissed(opId, caller, eventTime)) {
+                return null;
+            }
+
             // Takroriy yozuvlarni oldini olish
             if (details) {
                 const existing = this.db.prepare(`
-                    SELECT id FROM agent_3cx_call_logs 
+                    SELECT id FROM agent_3cx_call_logs
                     WHERE operator_id = ? AND caller_id = ? AND details = ?
                 `).get(opId, caller, details);
                 if (existing) return existing;
@@ -749,6 +783,14 @@ class DbService {
                     if (details.includes('3CX Qabul qilindi')) {
                         details = details.replace('3CX Qabul qilindi', '3CX O\'tkazib yuborildi');
                     }
+                }
+
+                // Qayta-qayta jiringlash (navbat retry) sabab kelib chiqadigan "MISSED"
+                // dublikatlarni o'tkazib yuborish (bir xil tranzaksiya ichida oldin
+                // qo'shilgan qatorlar ham ko'rinadi, shuning uchun bitta batch ichidagi
+                // "burst" ham to'xtatiladi)
+                if (evType === 'MISSED' && this._hasRecentMissed(opId, caller, eventTime)) {
+                    continue;
                 }
 
                 const res = insert.run(

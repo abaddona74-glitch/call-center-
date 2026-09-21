@@ -3,7 +3,7 @@ require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 const DEFAULT_OPERATOR_NAMES = {
     '101': 'Oybek',
@@ -28,6 +28,11 @@ class IssabelDbService {
         this.dbUser = 'asteriskuser';
         this.dbPass = 'ZAQ!2wsx123';
         this.operatorNames = new Map(Object.entries(DEFAULT_OPERATOR_NAMES));
+
+        // Doimiy (persistent) SSH ulanish — har so'rov uchun qayta ulanish o'rniga
+        // bitta ulanish qayta ishlatiladi (SSH handshake narxi faqat bir marta to'lanadi).
+        this._sshConn = null;
+        this._sshReady = null;
 
         // High-Speed In-Memory Cache (Redis muqobili)
         this.cache = {
@@ -122,9 +127,6 @@ class IssabelDbService {
                 WHERE calldate >= CURDATE()
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dst REGEXP '^[0-9]{2,4}$'
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
                   AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                 GROUP BY dst;
 
@@ -139,6 +141,33 @@ class IssabelDbService {
                   AND dcontext = 'from-internal'
                   AND channel REGEXP '^SIP/[0-9]{2,4}-'
                   AND LENGTH(dst) >= 7
+                GROUP BY op_ext;
+
+                SELECT '===TRANSFERS_OUT===' as marker;
+                SELECT 
+                    CASE 
+                        WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                        WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
+                        ELSE NULL 
+                    END AS op_ext,
+                    COUNT(*) as transferred_out
+                FROM cdr
+                WHERE calldate >= CURDATE()
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED'
+                GROUP BY op_ext;
+
+                SELECT '===TRANSFERS_IN===' as marker;
+                SELECT 
+                    dst as op_ext,
+                    COUNT(*) as transferred_in
+                FROM cdr
+                WHERE calldate >= CURDATE()
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED'
+                  AND dst REGEXP '^[0-9]{2,4}$'
                 GROUP BY op_ext;
             `;
 
@@ -253,7 +282,30 @@ class IssabelDbService {
                 }
             }
 
-            // 5. Operator Stats (Inbound + Outbound)
+            // 4b. Transfers Maps (Outward & Inward)
+            const xferOutMap = new Map();
+            if (sectionMap['TRANSFERS_OUT']) {
+                const lines = sectionMap['TRANSFERS_OUT'].split('\n');
+                for (const l of lines) {
+                    if (!l) continue;
+                    const [opId, cntStr] = l.split('\t');
+                    const cleanOp = (opId || '').trim();
+                    if (cleanOp) xferOutMap.set(cleanOp, parseInt(cntStr, 10) || 0);
+                }
+            }
+
+            const xferInMap = new Map();
+            if (sectionMap['TRANSFERS_IN']) {
+                const lines = sectionMap['TRANSFERS_IN'].split('\n');
+                for (const l of lines) {
+                    if (!l) continue;
+                    const [opId, cntStr] = l.split('\t');
+                    const cleanOp = (opId || '').trim();
+                    if (cleanOp) xferInMap.set(cleanOp, parseInt(cntStr, 10) || 0);
+                }
+            }
+
+            // 5. Operator Stats (Inbound + Outbound + Transfers)
             const opStats = [];
             const processedExts = new Set();
             if (sectionMap['OPERATORS']) {
@@ -281,6 +333,8 @@ class IssabelDbService {
                         totalCalls: inAns + outInfo.answered + opDenied,
                         answered: inAns,
                         outbound: outInfo.answered,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         totalDurationSec: totalDur,
                         avgDurationSec: avg
@@ -301,6 +355,8 @@ class IssabelDbService {
                         totalCalls: outInfo.answered + opDenied,
                         answered: 0,
                         outbound: outInfo.answered,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         totalDurationSec: outInfo.duration,
                         avgDurationSec: avg
@@ -320,34 +376,67 @@ class IssabelDbService {
     }
 
     /**
-     * SSH orqali MySQL so'rovini bajarish
+     * Doimiy SSH ulanishni qaytaradi (mavjud bo'lsa shuni, bo'lmasa yangi ochadi).
+     * Bir nechta so'rov bir vaqtda kelsa ham (SSH kanal multiplekslash orqali) bitta
+     * ulanishni baham ko'radi — har biri uchun alohida handshake kerak emas.
      */
-    execQuery(sql) {
-        return new Promise((resolve, reject) => {
+    _getSshConnection() {
+        if (this._sshReady) return this._sshReady;
+
+        this._sshReady = new Promise((resolve, reject) => {
             const conn = new Client();
             conn.on('ready', () => {
-                const cmd = `MYSQL_PWD='${this.dbPass}' mysql -u ${this.dbUser} -N -B -e "${sql.replace(/"/g, '\\"')}"`;
-                conn.exec(cmd, (err, stream) => {
-                    if (err) {
-                        conn.end();
-                        return reject(err);
-                    }
-                    let stdout = '';
-                    let stderr = '';
-                    stream.on('data', d => stdout += d.toString());
-                    stream.stderr.on('data', d => stderr += d.toString());
-                    stream.on('close', code => {
-                        conn.end();
-                        if (code !== 0 && stderr) {
-                            return reject(new Error(stderr));
-                        }
-                        resolve(stdout);
-                    });
-                });
+                this._sshConn = conn;
+                resolve(conn);
             }).on('error', err => {
-                try { conn.end(); } catch (e) {}
+                this._sshConn = null;
+                this._sshReady = null;
                 reject(err);
+            }).on('close', () => {
+                // Ulanish uzilsa, keyingi so'rov avtomatik qayta ulanadi
+                this._sshConn = null;
+                this._sshReady = null;
             }).connect(this.sshConfig);
+        });
+
+        return this._sshReady;
+    }
+
+    /**
+     * SSH orqali MySQL so'rovini bajarish.
+     * Endi har so'rovda yangi SSH ulanish ochilmaydi — mavjud doimiy ulanish qayta
+     * ishlatiladi (faqat masofaviy `mysql` CLI jarayoni qayta ishga tushadi). Bu SSH
+     * handshake narxini (odatda 200ms-2s) deyarli har bir so'rovdan olib tashlaydi.
+     */
+    async execQuery(sql) {
+        let conn;
+        try {
+            conn = await this._getSshConnection();
+        } catch (err) {
+            throw err;
+        }
+
+        return new Promise((resolve, reject) => {
+            const cmd = `MYSQL_PWD='${this.dbPass}' mysql -u ${this.dbUser} -N -B -e "${sql.replace(/"/g, '\\"')}"`;
+            conn.exec(cmd, (err, stream) => {
+                if (err) {
+                    // Ulanish "chirigan" (masalan tarmoq uzilishi) bo'lishi mumkin —
+                    // keyingi chaqiruv yangi ulanish ochishi uchun keshni tozalaymiz.
+                    this._sshConn = null;
+                    this._sshReady = null;
+                    return reject(err);
+                }
+                let stdout = '';
+                let stderr = '';
+                stream.on('data', d => stdout += d.toString());
+                stream.stderr.on('data', d => stderr += d.toString());
+                stream.on('close', code => {
+                    if (code !== 0 && stderr) {
+                        return reject(new Error(stderr));
+                    }
+                    resolve(stdout);
+                });
+            });
         });
     }
 
@@ -437,9 +526,6 @@ class IssabelDbService {
                 WHERE ${dateCond}
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dst REGEXP '^[0-9]{3,4}$'
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
                   AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                 GROUP BY dst;
 
@@ -456,13 +542,45 @@ class IssabelDbService {
                   AND channel REGEXP '^SIP/[0-9]{2,4}-'
                   AND LENGTH(dst) >= 7
                 GROUP BY op_id;
+
+                SELECT '===TRANSFERS_OUT===';
+                SELECT 
+                    CASE 
+                        WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                        WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
+                        ELSE NULL 
+                    END AS op_ext,
+                    COUNT(*) as transferred_out
+                FROM cdr
+                WHERE ${dateCond}
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED'
+                GROUP BY op_ext;
+
+                SELECT '===TRANSFERS_IN===';
+                SELECT 
+                    dst as op_ext,
+                    COUNT(*) as transferred_in
+                FROM cdr
+                WHERE ${dateCond}
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED'
+                  AND dst REGEXP '^[0-9]{2,4}$'
+                GROUP BY op_ext;
             `;
             const raw = await this.execQuery(sql);
-            const [inPart, outPart] = (raw || '').split('===OP_OUTBOUND===');
+            const sections = (raw || '').split('===');
+            const sectionMap = {};
+            for (let i = 1; i < sections.length; i += 2) {
+                sectionMap[sections[i].trim()] = (sections[i + 1] || '').trim();
+            }
+            const inPart = (sections[0] || '').trim();
 
             const outMap = new Map();
-            if (outPart) {
-                for (const line of outPart.trim().split('\n')) {
+            if (sectionMap['OP_OUTBOUND']) {
+                for (const line of sectionMap['OP_OUTBOUND'].split('\n')) {
                     if (!line) continue;
                     const parts = line.split('\t');
                     const opId = (parts[0] || '').trim();
@@ -476,7 +594,27 @@ class IssabelDbService {
                 }
             }
 
-            const inLines = (inPart || '').trim().split('\n');
+            const xferOutMap = new Map();
+            if (sectionMap['TRANSFERS_OUT']) {
+                for (const line of sectionMap['TRANSFERS_OUT'].split('\n')) {
+                    if (!line) continue;
+                    const parts = line.split('\t');
+                    const opId = (parts[0] || '').trim();
+                    if (opId) xferOutMap.set(opId, parseInt(parts[1], 10) || 0);
+                }
+            }
+
+            const xferInMap = new Map();
+            if (sectionMap['TRANSFERS_IN']) {
+                for (const line of sectionMap['TRANSFERS_IN'].split('\n')) {
+                    if (!line) continue;
+                    const parts = line.split('\t');
+                    const opId = (parts[0] || '').trim();
+                    if (opId) xferInMap.set(opId, parseInt(parts[1], 10) || 0);
+                }
+            }
+
+            const inLines = inPart.split('\n');
             const stats = [];
             const rejects = dbService.getTodayOperatorRejects(targetDate);
             const missed = dbService.getTodayOperatorMissed(targetDate);
@@ -509,6 +647,8 @@ class IssabelDbService {
                         totalCalls: ans + outbound + opDenied,
                         answered: ans,
                         outbound: outbound,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
@@ -533,6 +673,8 @@ class IssabelDbService {
                         totalCalls: outbound + opDenied,
                         answered: 0,
                         outbound: outbound,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
@@ -1172,7 +1314,7 @@ class IssabelDbService {
             const abandonedHaving = `HAVING SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 0`;
 
             if (type === 'denied') {
-                const raw = dbService.getRejectEventsPaginated(page, limit, search, targetDate);
+                const raw = dbService.getRejectEventsPaginated(page, limit, search, targetDate, operatorExt);
                 // operator nomini va caller_id ni to'g'irlash
                 raw.data = raw.data.map(r => {
                     const opId = r.dst;
@@ -1218,7 +1360,16 @@ class IssabelDbService {
                 return raw;
             }
 
-            if (type === 'outbound') {
+            if (type === 'transferred') {
+                whereClause += ` AND dcontext = 'from-internal-xfer' AND disposition = 'ANSWERED'`;
+                if (operatorExt) {
+                    whereClause += ` AND (
+                        dst = '${operatorExt}' OR
+                        channel LIKE 'Local/${operatorExt}@%' OR
+                        channel LIKE 'SIP/${operatorExt}-%'
+                    )`;
+                }
+            } else if (type === 'outbound') {
                 whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7 AND disposition = 'ANSWERED' AND billsec > 0`;
             } else if (type === 'inbound') {
                 whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;

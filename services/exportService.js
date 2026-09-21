@@ -10,17 +10,37 @@ const ExcelJS = require('exceljs');
 const issabelDbService = require('./issabelDbService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+
+function cyrillicToLatin(text) {
+    if (!text || typeof text !== 'string') return text;
+    const cyrToLatMap = {
+        'А': 'A', 'а': 'a', 'Б': 'B', 'б': 'b', 'В': 'V', 'в': 'v',
+        'Г': 'G', 'г': 'g', 'Д': 'D', 'д': 'd', 'Е': 'E', 'е': 'e',
+        'Ё': 'Yo', 'ё': 'yo', 'Ж': 'J', 'ж': 'j', 'З': 'Z', 'з': 'z',
+        'И': 'I', 'и': 'i', 'Й': 'Y', 'й': 'y', 'К': 'K', 'к': 'k',
+        'Л': 'L', 'л': 'l', 'М': 'M', 'м': 'm', 'Н': 'N', 'н': 'n',
+        'О': 'O', 'о': 'o', 'П': 'P', 'п': 'p', 'Р': 'R', 'р': 'r',
+        'С': 'S', 'с': 's', 'Т': 'T', 'т': 't', 'У': 'U', 'у': 'u',
+        'Ф': 'F', 'ф': 'f', 'Х': 'X', 'х': 'x', 'Ц': 'Ts', 'ц': 'ts',
+        'Ч': 'Ch', 'ч': 'ch', 'Ш': 'Sh', 'ш': 'sh', 'Щ': 'Sh', 'щ': 'sh',
+        'Ъ': "'", 'ъ': "'", 'Ы': 'I', 'ы': 'i', 'Ь': '', 'ь': '',
+        'Э': 'E', 'э': 'e', 'Ю': 'Yu', 'ю': 'yu', 'Я': 'Ya', 'я': 'ya',
+        'Ў': "O'", 'ў': "o'", 'Ғ': "G'", 'ғ': "g'", 'Қ': 'Q', 'қ': 'q',
+        'Ҳ': 'H', 'ҳ': 'h'
+    };
+    return text.replace(/[А-Яа-яЁёЎўҒғҚқҲҳ]/g, m => cyrToLatMap[m] !== undefined ? cyrToLatMap[m] : m);
+}
 
 const OPERATOR_DISPLAY_NAMES = {
-    '101': 'Тухтасинов Ойбек',
-    '103': 'Феруза (103)',
-    '106': 'Убайдуллаева Гулчехра',
-    '111': 'Жураева Нозима',
+    '101': 'Tuxtasinov Oybek',
+    '103': 'Feruza (103)',
+    '106': 'Ubaydullayeva Gulchehra',
+    '111': "Jo'rayeva Nozima",
     '114': 'Maxmudbek',
     '116': 'Ibrohim',
-    '119': 'Худойкулова Муаттар',
-    '120': 'Муродова Наврузой'
+    '119': 'Xudoyqulova Muattar',
+    '120': 'Murodova Navruzoy'
 };
 
 function formatDurationHms(seconds) {
@@ -33,7 +53,7 @@ function formatDurationHms(seconds) {
 
 const MONTH_NAMES_UZ = [
     'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
-    'iyul', 'avgust', 'sentyabr', 'oktyabr', 'noyabr', 'dekabr'
+    'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
 ];
 
 class ExportService {
@@ -137,37 +157,48 @@ class ExportService {
             fileName = `Call_Center_Statistika_${year}-${monthStr}.xlsx`;
         }
 
-        // 1. Asterisk PBX CDR dan ma'lumotlarni yig'ish
+        // 1. Asterisk PBX CDR dan ma'lumotlarni yig'ish (Kiruvchi navbat va chiquvchi barcha qo'ng'iroqlar)
         const cdrSql = `
             USE asteriskcdrdb;
             SELECT 
-                DATE(calldate) as call_date,
-                CASE 
-                    WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1)
-                    WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst
-                    WHEN dstchannel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '-', 1), 'SIP/', -1)
-                    WHEN channel REGEXP 'Local/[0-9]{2,4}@' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), 'Local/', -1)
-                    ELSE dst
-                END as op_id,
-                COUNT(*) as answered_count,
-                SUM(billsec) as total_talk_sec
-            FROM cdr
-            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
-              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-              AND disposition = 'ANSWERED' AND billsec > 0
-              AND (
-                  (
-                      (dst REGEXP '^[0-9]{2,4}$' OR dstchannel REGEXP '^SIP/[0-9]{2,4}-' OR channel REGEXP 'Local/[0-9]{2,4}@')
-                      AND (dcontext IS NULL OR dcontext != 'from-internal')
-                      AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
-                  )
-                  OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7)
-              )
+                call_date,
+                op_id,
+                SUM(answered_count) as total_count,
+                SUM(total_talk_sec) as total_sec
+            FROM (
+                -- 1. Operatorlar qabul qilgan kiruvchi va navbat (queue) qo'ng'iroqlari
+                SELECT 
+                    DATE(calldate) as call_date,
+                    dst as op_id,
+                    COUNT(*) as answered_count,
+                    SUM(billsec) as total_talk_sec
+                FROM cdr
+                WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dst REGEXP '^[0-9]{2,4}$'
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                GROUP BY call_date, op_id
+
+                UNION ALL
+
+                -- 2. Operatorlar amalga oshirgan chiquvchi qo'ng'iroqlar
+                SELECT 
+                    DATE(calldate) as call_date,
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1) as op_id,
+                    COUNT(*) as answered_count,
+                    SUM(billsec) as total_talk_sec
+                FROM cdr
+                WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal'
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
+                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                GROUP BY call_date, op_id
+            ) t
             GROUP BY call_date, op_id
             ORDER BY call_date ASC, op_id ASC;
         `;
-
-        const rawCdr = await issabelDbService.execQuery(cdrSql);
 
         // Map: dateStr -> { opId -> { count, talkSec } }
         const dataMap = new Map();
@@ -175,7 +206,50 @@ class ExportService {
             dataMap.set(dStr, new Map());
         }
 
-        const activeOpSet = new Set(['101', '103', '106', '111', '116', '119', '120']);
+        const activeOpSet = new Set(['101', '103', '106', '111', '114', '116', '119', '120']);
+
+        // 1. SQLite bazasidagi 3CX Desktop Agent to'liq jurnali (eng aniq va to'liq ma'lumot)
+        try {
+            const sqliteSql = `
+                SELECT 
+                    substr(event_time, 1, 10) as call_date,
+                    operator_id,
+                    COUNT(*) as answered_count,
+                    SUM(duration_sec) as total_talk_sec
+                FROM agent_3cx_call_logs
+                WHERE event_time >= ? AND event_time <= ?
+                  AND duration_sec > 0
+                  AND (event_type IN ('ANSWERED', '2', 'DIALLED', '1', 'OUTBOUND', 'INCOMING'))
+                  AND LENGTH(caller_id) > 4
+                GROUP BY call_date, operator_id
+                ORDER BY call_date ASC, operator_id ASC
+            `;
+            const sqliteRows = dbService.db.prepare(sqliteSql).all(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+            for (const row of sqliteRows) {
+                const callDate = row.call_date;
+                const opId = String(row.operator_id || '').trim();
+                if (!opId || EXCLUDED_OPERATORS.has(opId)) continue;
+                if (!/^[0-9]{2,4}$/.test(opId)) continue;
+
+                activeOpSet.add(opId);
+                if (dataMap.has(callDate)) {
+                    dataMap.get(callDate).set(opId, {
+                        count: parseInt(row.answered_count, 10) || 0,
+                        talkSec: parseInt(row.total_talk_sec, 10) || 0
+                    });
+                }
+            }
+        } catch (sqliteErr) {
+            console.error('❌ exportService SQLite agent_3cx_call_logs xatolik:', sqliteErr.message);
+        }
+
+        // 2. Asterisk PBX CDR dan ham ma'lumotlarni yig'ish va birlashtirish (eng to'liq qiymat Math.max)
+        let rawCdr = null;
+        try {
+            rawCdr = await issabelDbService.execQuery(cdrSql);
+        } catch (cdrErr) {
+            console.warn('⚠️ exportService Asterisk CDR so\'rovida ogohlantirish:', cdrErr.message);
+        }
 
         if (rawCdr) {
             for (const line of rawCdr.trim().split('\n')) {
@@ -189,9 +263,12 @@ class ExportService {
 
                 activeOpSet.add(cleanOp);
                 if (dataMap.has(callDate)) {
+                    const existing = dataMap.get(callDate).get(cleanOp) || { count: 0, talkSec: 0 };
+                    const cdrCount = parseInt(countStr, 10) || 0;
+                    const cdrTalkSec = parseInt(talkSecStr, 10) || 0;
                     dataMap.get(callDate).set(cleanOp, {
-                        count: parseInt(countStr, 10) || 0,
-                        talkSec: parseInt(talkSecStr, 10) || 0
+                        count: Math.max(existing.count, cdrCount),
+                        talkSec: Math.max(existing.talkSec, cdrTalkSec)
                     });
                 }
             }
@@ -212,14 +289,15 @@ class ExportService {
         });
 
         // 3. Sarlavhalarni (Headers) shakllantirish
-        // Chap qism: [Дата, Op1, Op2, ...]
+        // Chap qism: [Sana, Op1, Op2, ...]
         // Ajratuvchi: [Bo'sh ustun]
-        // O'ng qism: [Дата, Op1, Op2, ...]
-        const leftHeaders = ['Дата'];
-        const rightHeaders = ['Дата'];
+        // O'ng qism: [Sana, Op1, Op2, ...]
+        const leftHeaders = ['Sana'];
+        const rightHeaders = ['Sana'];
 
         for (const opId of operators) {
-            const name = OPERATOR_DISPLAY_NAMES[opId] || `Operator ${opId}`;
+            const rawName = OPERATOR_DISPLAY_NAMES[opId] || `Operator ${opId}`;
+            const name = cyrillicToLatin(rawName);
             leftHeaders.push(name);
             rightHeaders.push(name);
         }
@@ -263,7 +341,7 @@ class ExportService {
             }
 
             const isLeft = col <= totalLeftCols;
-            sheet.getColumn(col).width = (col === 1 || col === rightStartColIdx) ? 14 : 20;
+            sheet.getColumn(col).width = (col === 1 || col === rightStartColIdx) ? 18 : 20;
 
             cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = {
@@ -291,7 +369,10 @@ class ExportService {
             const dayOfWeek = dateObj.getUTCDay(); // 0 = Yakshanba, 6 = Shanba
             const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
             const isPastOrToday = dateStr <= todayTashkent;
-            const displayDate = `${d}.${m}.${y}`;
+            const dayNum = parseInt(d, 10);
+            const mNum = parseInt(m, 10);
+            const monthName = MONTH_NAMES_UZ[mNum - 1] || m;
+            const displayDate = `${dayNum}-${monthName} ${y}`;
 
             const dayData = dataMap.get(dateStr) || new Map();
             let totalDayCalls = 0;
@@ -311,11 +392,18 @@ class ExportService {
             };
 
             // Dam olish kuni yoki bayram:
-            // 1. Shanba yoki Yakshanba (agar qo'ng'iroq bo'lmasa yoki kelajakdagi kun bo'lsa)
-            // 2. Ish kuni (Dushanba-Juma) bo'lsa ham, o'tgan yoki bugungi kun bo'lib, hammada 0 ta bo'lsa (Bayramlar!)
-            const isDayOff = (isWeekend && totalDayCalls === 0) || 
-                             (isPastOrToday && totalDayCalls === 0) ||
-                             (!isPastOrToday && isWeekend);
+            // MUHIM: Bugungi kun (isToday) yoki birorta qo'ng'iroq bo'lgan kun HECH QACHON "ВЫХОДНОЙ" bo'lmaydi!
+            const isToday = (dateStr === todayTashkent);
+            let isDayOff = false;
+            if (!isToday && totalDayCalls === 0) {
+                if (isPastOrToday) {
+                    // O'tgan kunda umuman qo'ng'iroq bo'lmagan bo'lsa (Shanba/Yakshanba yoki bayram kuni)
+                    isDayOff = true;
+                } else if (isWeekend) {
+                    // Kelajakdagi shanba va yakshanba kunlari
+                    isDayOff = true;
+                }
+            }
 
             if (isDayOff) {
                 // Chap jadval: Sana
@@ -326,10 +414,10 @@ class ExportService {
                 dateCell1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
                 dateCell1.border = thinBorder;
 
-                // Chap jadval: Barcha operatorlar kataklarini birlashtirib "ВЫХОДНОЙ"
+                // Chap jadval: Barcha operatorlar kataklarini birlashtirib "Dam olish kuni"
                 sheet.mergeCells(currentRow, 2, currentRow, totalLeftCols);
                 const leftCell = sheet.getCell(currentRow, 2);
-                leftCell.value = 'ВЫХОДНОЙ';
+                leftCell.value = 'Dam olish kuni';
                 leftCell.alignment = { horizontal: 'center', vertical: 'middle' };
                 leftCell.font = { name: 'Calibri', size: 11, bold: true, italic: true, color: { argb: 'FF1D4ED8' } };
                 leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -350,11 +438,11 @@ class ExportService {
                 dateCell2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
                 dateCell2.border = thinBorder;
 
-                // O'ng jadval: Barcha operator vaqt kataklarini birlashtirib "ВЫХОДНОЙ"
+                // O'ng jadval: Barcha operator vaqt kataklarini birlashtirib "Dam olish kuni"
                 const rightEndCol = rightStartColIdx + totalRightCols - 1;
                 sheet.mergeCells(currentRow, rightStartColIdx + 1, currentRow, rightEndCol);
                 const rightCell = sheet.getCell(currentRow, rightStartColIdx + 1);
-                rightCell.value = 'ВЫХОДНОЙ';
+                rightCell.value = 'Dam olish kuni';
                 rightCell.alignment = { horizontal: 'center', vertical: 'middle' };
                 rightCell.font = { name: 'Calibri', size: 11, bold: true, italic: true, color: { argb: 'FF1D4ED8' } };
                 rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -413,14 +501,14 @@ class ExportService {
             currentRow++;
         }
 
-        // 6. Jami qatori (Row: Всего звонков / Всего времени)
+        // 6. Jami qatori (Row: Jami qo'ng'iroqlar / Jami suhbat vaqti)
         const totalRow1 = sheet.getRow(currentRow);
         totalRow1.height = 24;
 
-        const totalVals1 = ['Всего звонков:'];
+        const totalVals1 = ["Jami qo'ng'iroqlar:"];
         for (let i = 0; i < operators.length; i++) totalVals1.push(opTotalCalls[i]);
         totalVals1.push('');
-        totalVals1.push('Всего времени:');
+        totalVals1.push('Jami suhbat vaqti:');
         for (let i = 0; i < operators.length; i++) totalVals1.push(formatDurationHms(opTotalSecs[i]));
 
         totalRow1.values = totalVals1;
@@ -440,7 +528,7 @@ class ExportService {
         }
         currentRow++;
 
-        // 7. Umumiy jami qatori (Row: Всего)
+        // 7. Umumiy jami qatori (Row: Jami)
         const grandTotalCalls = opTotalCalls.reduce((s, c) => s + c, 0);
         const grandTotalSecs = opTotalSecs.reduce((s, c) => s + c, 0);
 
@@ -448,13 +536,13 @@ class ExportService {
         totalRow2.height = 24;
 
         const totalVals2 = new Array(totalLeftCols).fill('');
-        totalVals2[totalLeftCols - 2] = 'Всего:';
+        totalVals2[totalLeftCols - 2] = 'Jami:';
         totalVals2[totalLeftCols - 1] = grandTotalCalls;
 
         totalVals2.push(''); // spacer
 
         const rightVals2 = new Array(totalRightCols).fill('');
-        rightVals2[totalRightCols - 2] = 'Всего:';
+        rightVals2[totalRightCols - 2] = 'Jami:';
         rightVals2[totalRightCols - 1] = formatDurationHms(grandTotalSecs);
 
         totalRow2.values = [...totalVals2, ...rightVals2];

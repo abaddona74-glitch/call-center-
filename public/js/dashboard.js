@@ -148,6 +148,9 @@ function switchRoute(tabName, pushState = true) {
     if (target === 'explorer' && explorerFilesData.length === 0) {
         loadExplorerPath('');
     } else if (target === 'history') {
+        if (typeof updateHistoryScopeUI === 'function') {
+            updateHistoryScopeUI();
+        }
         loadHistoryPage(1, historySearchQuery);
     } else if (target === 'dashboard') {
         if (typeof callVolumeChart !== 'undefined' && callVolumeChart) callVolumeChart.resize();
@@ -852,11 +855,17 @@ function updateStatsUI(stats) {
     }
 }
 
-// Background Auto-Refresh Polling (Har 5 soniyada yangilab turadi)
+// Background Auto-Refresh Polling — faqat WebSocket uzilib qolgan holatlar uchun zaxira (fallback).
+// WebSocket ulangan bo'lsa, server statistikani ('stats_update', 'agent_operators_update') o'zi
+// jonli push qiladi — shuning uchun bu yerda qayta fetch qilish ortiqcha bo'lib, faqat CPU/tarmoqni
+// behuda band qilardi (ayniqsa kuchsiz kompyuterlarda har 5 soniyada butun statistikani qayta so'rash).
 setInterval(async () => {
     try {
         if (currentSelectedDate && currentSelectedDate !== getTodayDateString()) {
             return;
+        }
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            return; // WebSocket jonli — server o'zi yangilab turadi, qo'shimcha so'rov shart emas
         }
         const res = await fetch('/api/stats');
         const stats = await res.json();
@@ -864,7 +873,7 @@ setInterval(async () => {
             updateStatsUI(stats);
         }
 
-        // Agar Operatorlar (3CX Desktop Agent) tabi ochiq bo'lsa, uni ham har 5 soniyada yangilab turish
+        // Agar Operatorlar (3CX Desktop Agent) tabi ochiq bo'lsa, uni ham yangilab turish
         const tabOps = document.getElementById('tab-operators');
         if (tabOps && tabOps.classList.contains('active') && typeof loadTabAgentOperators === 'function') {
             loadTabAgentOperators();
@@ -1302,7 +1311,7 @@ function renderExplorerFilesTable(files) {
 
         return `
             <tr>
-                <td>
+                <td class="cell-left">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="color: var(--secondary);">🎵</span>
                         <span style="font-weight: 500; font-family: monospace;">${file.name}</span>
@@ -1641,13 +1650,88 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
 window.playAudioFile = playAudioFile;
 
 async function openInExplorerStudio(recFile, callerId, duration, btn) {
+    const audio = getNativeAudio();
+    const callKey = `${callerId || ''}_${duration || 0}`;
+    let resolvedRec = recFile || knownRecordingsCache.get(callKey) || '';
+
+    // 0. Agar aynan shu audio allaqachon ijro etilayotgan yoki pauzada bo'lsa -> Qaytadan boshlamaymiz, qolgan joyidan davom ettiramiz!
+    const isSameActiveCall = (
+        (currentlyPlayingCallKey && currentlyPlayingCallKey === callKey) ||
+        (pausedCallKey && pausedCallKey === callKey) ||
+        (resolvedRec && activeAudioFilePath && (resolvedRec === activeAudioFilePath || activeAudioFilePath.endsWith(resolvedRec) || resolvedRec.endsWith(activeAudioFilePath))) ||
+        (activeAudioFileName && callerId && activeAudioFileName.includes(callerId))
+    );
+
+    const isAudioActive = audio && audio.src && !audio.ended && (audio.currentTime > 0 || !audio.paused);
+
+    if (isSameActiveCall && isAudioActive) {
+        // Tabni Audio Explorer ga o'tkazamiz
+        if (typeof switchRoute === 'function') {
+            switchRoute('explorer', true);
+        } else {
+            const expBtn = document.querySelector('.nav-tabs a[data-tab="explorer"]');
+            if (expBtn) expBtn.click();
+        }
+
+        const playerCard = document.getElementById('modernMusicPlayer');
+        if (playerCard) {
+            playerCard.style.display = 'block';
+            setTimeout(() => {
+                playerCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
+
+        const realDuration = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
+            ? Math.round(audio.duration)
+            : (duration || 0);
+        const displayName = `📞 ${callerId} (${formatSeconds(realDuration)})`;
+        activeAudioFileName = displayName;
+        if (resolvedRec) {
+            activeAudioFilePath = resolvedRec;
+            knownRecordingsCache.set(callKey, resolvedRec);
+        }
+
+        if (playerFileName) playerFileName.innerText = displayName;
+
+        const subtitle = document.getElementById('playerStatusSubtitle');
+        if (subtitle) {
+            subtitle.innerText = audio.paused ? 'To\'xtatildi (Pauza)' : 'Audio ijro etilmoqda';
+            subtitle.style.color = '';
+        }
+
+        if (playerCurrentTime) playerCurrentTime.innerText = formatDuration(audio.currentTime);
+        if (playerDuration && realDuration > 0) {
+            playerDuration.innerText = formatDuration(realDuration);
+        }
+
+        const recToDownload = resolvedRec || activeAudioFilePath;
+        const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
+        if (btnDownloadCurrent && recToDownload) {
+            btnDownloadCurrent.style.display = 'inline-flex';
+            btnDownloadCurrent.onclick = () => {
+                const a = document.createElement('a');
+                a.href = `/api/recordings/stream?file=${encodeURIComponent(recToDownload)}`;
+                a.download = displayName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+        }
+
+        updatePlayerPlayState(!audio.paused);
+
+        // Waveformni joriy audio oqimi va vaqti bilan render qilish
+        renderInteractiveWaveform(audio, displayName, realDuration * 16000);
+
+        return;
+    }
+
+    // 1. Agar boshqa audio bo'lsa -> Avvalgi ijro etilayotgan audioni to'xtatamiz
     const expBtn = document.querySelector('.nav-tabs a[data-tab="explorer"]');
     if (expBtn) expBtn.click();
 
     const playerCard = document.getElementById('modernMusicPlayer');
-    const audio = getNativeAudio();
 
-    // 1. Avvalgi ijro etilayotgan audioni darhol to'xtatamiz
     try {
         audio.pause();
     } catch (e) {}
@@ -1696,9 +1780,6 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
         }
         return;
     }
-
-    const callKey = `${callerId}_${duration}`;
-    let resolvedRec = recFile || knownRecordingsCache.get(callKey);
 
     try {
         if (resolvedRec) {
@@ -2073,7 +2154,7 @@ function openTransferModal(channel, callerId) {
     modal.style.display = 'flex';
 }
 
-const EXCLUDED_OPERATOR_IDS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATOR_IDS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
 
 /* ==========================================================================
    6. Operator Performance Section (Sorted: Online -> Talking -> Offline + Gamified MVP Stars)
@@ -2104,25 +2185,25 @@ function generateStarRatingHtml(answered, operatorName) {
     let currentLevel = 0;
     let nextStarNeeded = 0;
 
-    if (answered > 35) {
+    if (answered >= 40) {
         stars = '⭐⭐⭐⭐⭐';
         currentLevel = 5;
-    } else if (answered >= 25) {
+    } else if (answered >= 30) {
         stars = '⭐⭐⭐⭐';
         currentLevel = 4;
-        nextStarNeeded = 36 - answered;
-    } else if (answered >= 16) {
+        nextStarNeeded = 40 - answered;
+    } else if (answered >= 20) {
         stars = '⭐⭐⭐';
         currentLevel = 3;
-        nextStarNeeded = 25 - answered;
-    } else if (answered >= 11) {
+        nextStarNeeded = 30 - answered;
+    } else if (answered >= 10) {
         stars = '⭐⭐';
         currentLevel = 2;
-        nextStarNeeded = 16 - answered;
+        nextStarNeeded = 20 - answered;
     } else if (answered >= 1) {
         stars = '⭐';
         currentLevel = 1;
-        nextStarNeeded = 11 - answered;
+        nextStarNeeded = 10 - answered;
     }
 
     const progressText = nextStarNeeded > 0
@@ -2145,32 +2226,138 @@ function generateStarRatingHtml(answered, operatorName) {
                 <div class="star-tooltip-levels">
                     <div class="star-level-row ${currentLevel === 5 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐⭐⭐</span>
-                        <span class="level-range">&gt; 35 ta</span>
+                        <span class="level-range">40+ ta</span>
                         <span class="level-desc">Super Elita</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 4 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐⭐</span>
-                        <span class="level-range">25 - 35 ta</span>
+                        <span class="level-range">30 - 39 ta</span>
                         <span class="level-desc">Yetakchi</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 3 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐</span>
-                        <span class="level-range">16 - 24 ta</span>
+                        <span class="level-range">20 - 29 ta</span>
                         <span class="level-desc">Tajribali</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 2 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐</span>
-                        <span class="level-range">11 - 15 ta</span>
+                        <span class="level-range">10 - 19 ta</span>
                         <span class="level-desc">O'rta daraja</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 1 ? 'current-level' : ''}">
                         <span class="level-stars">⭐</span>
-                        <span class="level-range">1 - 10 ta</span>
+                        <span class="level-range">1 - 9 ta</span>
                         <span class="level-desc">Boshlang'ich</span>
                     </div>
                 </div>
             </div>
         </div>
+    `;
+}
+
+// Operatorlar suhbati davomiyligini saqlash (WS yangilanganda vaqt sakrab ketmasligi uchun)
+const operatorTalkingSinceMap = new Map();
+const operatorReadySinceMap = new Map();
+
+function updateAllTalkingTimers() {
+    const timerEls = document.querySelectorAll('.talking-live-timer[data-talking-since]');
+    if (!timerEls.length) return;
+    const now = Date.now();
+    timerEls.forEach(el => {
+        const since = parseInt(el.getAttribute('data-talking-since'), 10);
+        if (!since || isNaN(since)) return;
+        const diffSec = Math.max(0, Math.floor((now - since) / 1000));
+        
+        const m = Math.floor(diffSec / 60);
+        const s = diffSec % 60;
+        const h = Math.floor(m / 60);
+        const display = h > 0 
+            ? `${h}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+            : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        
+        const digitsEl = el.querySelector('.timer-digits');
+        if (digitsEl) {
+            digitsEl.textContent = display;
+        } else {
+            el.textContent = `⏱️ ${display}`;
+        }
+
+        if (diffSec >= 420) { // >= 7 daqiqa: Qizil pulsatsiyalanuvchi ogohlantirish (uzoq suhbat)
+            el.classList.remove('timer-warning');
+            el.classList.add('timer-danger');
+        } else if (diffSec >= 180) { // >= 3 daqiqa: Sariq ogohlantirish
+            el.classList.remove('timer-danger');
+            el.classList.add('timer-warning');
+        } else {
+            el.classList.remove('timer-warning', 'timer-danger');
+        }
+    });
+}
+
+// 1-rasm: 3 yulduzli oltin lavr chambari + MVP SVG nishoni
+function getMvpWreathBadgeHtml() {
+    return `
+        <span class="mvp-wreath-badge" title="Bugungi eng faol yetakchi operator (MVP)">
+            <svg class="mvp-wreath-svg" viewBox="0 0 140 75" width="56" height="30" aria-hidden="true">
+                <defs>
+                    <linearGradient id="mvpGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fff8cc" />
+                        <stop offset="35%" stop-color="#fbbf24" />
+                        <stop offset="75%" stop-color="#f59e0b" />
+                        <stop offset="100%" stop-color="#b45309" />
+                    </linearGradient>
+                    <linearGradient id="mvpStarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="60%" stop-color="#fcd34d" />
+                        <stop offset="100%" stop-color="#f59e0b" />
+                    </linearGradient>
+                </defs>
+                <!-- 3 Oltin Yulduz -->
+                <polygon points="70,3 72.8,9.5 80,9.8 74.5,14.2 76.8,21 70,16.8 63.2,21 65.5,14.2 60,9.8 67.2,9.5" fill="url(#mvpStarGrad)" />
+                <polygon points="49,8 51,12.8 56.5,13 52.3,16.2 54,21 49,18 44,21 45.7,16.2 41.5,13 47,12.8" fill="url(#mvpStarGrad)" />
+                <polygon points="91,8 93,12.8 98.5,13 94.3,16.2 96,21 91,18 86,21 87.7,16.2 83.5,13 89,12.8" fill="url(#mvpStarGrad)" />
+                <!-- Chap Lavr Chambari -->
+                <g fill="url(#mvpGoldGrad)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpGoldGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- O'ng Lavr Chambari (Mirror) -->
+                <g fill="url(#mvpGoldGrad)" transform="translate(140, 0) scale(-1, 1)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpGoldGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- Pastki bog'lam / tugun -->
+                <circle cx="70" cy="69" r="2.5" fill="url(#mvpGoldGrad)" />
+                <path d="M 66 70 Q 70 74 74 70" fill="none" stroke="url(#mvpGoldGrad)" stroke-width="1.8" />
+                <!-- MVP Matni -->
+                <text x="70" y="52" 
+                      text-anchor="middle" 
+                      font-family="'Inter', -apple-system, sans-serif" 
+                      font-size="24" 
+                      font-weight="900" 
+                      letter-spacing="1.5"
+                      fill="url(#mvpGoldGrad)"
+                      style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));">MVP</text>
+            </svg>
+        </span>
     `;
 }
 
@@ -2224,6 +2411,58 @@ function renderOperators(operators) {
         return;
     }
 
+    // Navbatdagi keyingi qo'ng'iroqni qabul qiluvchi operatorni aniqlash (Fewest calls strategiyasi bo'yicha)
+    currentOperators.forEach(op => {
+        const pres = op.presence || 'ready';
+        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+        const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+        if (pres === 'ready' && !isRinging) {
+            if (!operatorReadySinceMap.has(op.id)) {
+                operatorReadySinceMap.set(op.id, Date.now());
+            }
+        } else {
+            operatorReadySinceMap.delete(op.id);
+        }
+    });
+
+    const readyOps = currentOperators.filter(op => {
+        const pres = op.presence || 'ready';
+        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+        const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+        return pres === 'ready' && !isRinging;
+    });
+
+    // Hozir jiringlayotgan operator bormi?
+    const ringingOp = currentOperators.find(op => {
+        const pres = op.presence || 'ready';
+        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+        return (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+    });
+
+    let predictedNextOpId = null;
+    if (ringingOp) {
+        // Jiringlash animatsiyasi tugaguncha (suhbat boshlanguncha) oltin belgi aynan shu operator kartasida qoladi
+        predictedNextOpId = ringingOp.id;
+    } else if (readyOps.length > 0) {
+        readyOps.sort((a, b) => {
+            // Asterisk QueueMember dan kelgan jonli callsTaken bo'lsa, o'shani olamiz (Asterisk RAM bilan 100% bir xil bo'ladi)
+            const callsA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : (Number(a.answered) || 0);
+            const callsB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : (Number(b.answered) || 0);
+            if (callsA !== callsB) return callsA - callsB;
+
+            // Asterisk fewestcalls tie-breaker: agar qo'ng'iroqlar soni teng bo'lsa, oxirgi qo'ng'irog'i eng eski (eng ko'p kutgan) operatorga tushadi
+            const lastA = (a.lastCall !== null && a.lastCall !== undefined) ? Number(a.lastCall) : 0;
+            const lastB = (b.lastCall !== null && b.lastCall !== undefined) ? Number(b.lastCall) : 0;
+            if (lastA > 0 && lastB > 0 && lastA !== lastB) return lastA - lastB;
+
+            const readySinceA = operatorReadySinceMap.get(a.id) || 0;
+            const readySinceB = operatorReadySinceMap.get(b.id) || 0;
+            if (readySinceA !== readySinceB) return readySinceA - readySinceB;
+            return parseInt(a.id, 10) - parseInt(b.id, 10);
+        });
+        predictedNextOpId = readyOps[0].id;
+    }
+
     grid.innerHTML = currentOperators.map(op => {
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
@@ -2232,8 +2471,10 @@ function renderOperators(operators) {
         let cardClass = 'operator-card clickable-card';
         let statusBadge = '';
         let avatarBg = '';
+        let talkingTimerHtml = '';
 
         if (ringingNow) {
+            operatorTalkingSinceMap.delete(op.id);
             statusBadge = '<span class="status-badge badge-ringing"><span class="badge-dot pulse-ring"></span> Jiringlamoqda</span>';
             avatarBg = 'linear-gradient(135deg, #ec4899, #be185d)';
             cardClass += ' status-ringing status-active call-ringing';
@@ -2241,26 +2482,48 @@ function renderOperators(operators) {
             statusBadge = '<span class="status-badge badge-talking"><span class="badge-dot pulse"></span> Suhbatda</span>';
             avatarBg = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
             cardClass += ' status-talking status-active call-talking';
+
+            // Suhbatda holati uchun aniq boshlangan vaqt
+            let talkingSince = op.talkingSince;
+            if (!talkingSince) {
+                if (operatorTalkingSinceMap.has(op.id)) {
+                    talkingSince = operatorTalkingSinceMap.get(op.id);
+                } else {
+                    talkingSince = Date.now();
+                    operatorTalkingSinceMap.set(op.id, talkingSince);
+                }
+            } else {
+                operatorTalkingSinceMap.set(op.id, talkingSince);
+            }
+
+            talkingTimerHtml = `
+                <div class="talking-live-timer" data-talking-since="${talkingSince}" title="Hozirgi suhbat davomiyligi">
+                    <span class="timer-icon">⏱️</span>
+                    <span class="timer-digits">00:00</span>
+                </div>
+            `;
         } else if (pres === 'offline') {
+            operatorTalkingSinceMap.delete(op.id);
             statusBadge = '<span class="status-badge badge-offline"><span class="badge-dot"></span> Offline</span>';
             avatarBg = 'linear-gradient(135deg, #64748b, #475569)';
             cardClass += ' status-offline';
         } else {
+            operatorTalkingSinceMap.delete(op.id);
             statusBadge = '<span class="status-badge badge-ready"><span class="badge-dot"></span> Kutmoqda</span>';
             avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
             cardClass += ' status-ready status-active';
         }
         const answered = op.answered || 0;
 
-        // Yulduzlar soni (Qabul qilingan qo'ng'iroqlar soniga qarab)
+        // Yulduzlar soni (1-9: 1★, 10-19: 2★, 20-29: 3★, 30-39: 4★, 40+: 5★)
         let stars = '';
-        if (answered > 35) {
+        if (answered >= 40) {
             stars = '⭐⭐⭐⭐⭐';
-        } else if (answered >= 25) {
+        } else if (answered >= 30) {
             stars = '⭐⭐⭐⭐';
-        } else if (answered >= 16) {
+        } else if (answered >= 20) {
             stars = '⭐⭐⭐';
-        } else if (answered >= 11) {
+        } else if (answered >= 10) {
             stars = '⭐⭐';
         } else if (answered >= 1) {
             stars = '⭐';
@@ -2268,18 +2531,45 @@ function renderOperators(operators) {
 
         let mvpBadge = '';
         if (op.id === top1Id && answered > 0) {
-            mvpBadge = `<span class="mvp-badge gold" title="Bugungi eng faol yetakchi operator">👑 MVP</span>`;
+            mvpBadge = getMvpWreathBadgeHtml();
             cardClass += ' mvp-gold';
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
         } else if (stars === '⭐') {
             mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
         }
 
+        const isNextInLine = (op.id === predictedNextOpId);
+        if (isNextInLine) {
+            cardClass += ' next-in-line';
+        }
+        const nextInLineBadgeHtml = isNextInLine ? `
+            <div class="next-call-corner-badge ${ringingNow ? 'is-ringing' : ''}" title="${ringingNow ? '🎯 Qo\'ng\'iroq tushdi! (Jiringlamoqda)' : '🎯 100% Keyingi qo\'ng\'iroq kutilmoqda (Fewest calls navbatida #1)'}">
+                <svg class="next-call-gold-icon" viewBox="0 0 100 100" width="24" height="24">
+                    <defs>
+                        <linearGradient id="goldRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fff099" />
+                            <stop offset="35%" stop-color="#f59e0b" />
+                            <stop offset="70%" stop-color="#d97706" />
+                            <stop offset="100%" stop-color="#78350f" />
+                        </linearGradient>
+                        <linearGradient id="goldArrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fff3b0" />
+                            <stop offset="100%" stop-color="#f59e0b" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="47" fill="url(#goldRimGrad)" stroke="#fef08a" stroke-width="2" />
+                    <circle cx="50" cy="50" r="33" fill="#1e2430" />
+                    <path d="M 50 23 L 69 42 L 58 42 L 58 73 L 42 73 L 42 42 L 31 42 Z" fill="none" stroke="url(#goldArrowGrad)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+                </svg>
+            </div>
+        ` : '';
+
         const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
         return `
             <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${cleanName} tafsilotlarini va suhbatlarini ko'rish uchun bosing">
                 ${ringingNow ? '<div class="call-live-strip ringing"></div>' : (pres === 'talking' ? '<div class="call-live-strip talking"></div>' : '')}
+                ${nextInLineBadgeHtml}
                 <div class="operator-head">
                     <div class="operator-avatar" style="background: ${avatarBg};">${op.id}</div>
                     <div style="flex: 1;">
@@ -2288,7 +2578,10 @@ function renderOperators(operators) {
                                 <h4 style="font-size: 15px; font-weight: 700;">${cleanName}</h4>
                                 ${mvpBadge}
                             </div>
-                            ${statusBadge}
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                                ${statusBadge}
+                                ${talkingTimerHtml}
+                            </div>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
                             <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
@@ -2320,6 +2613,14 @@ function renderOperators(operators) {
                     <span class="op-stat-val" style="color: ${(op.outbound || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.outbound || 0} ta</span>
                 </div>
                 <div class="op-stat-row">
+                    <span>Transfer:</span>
+                    <span class="op-stat-val" style="color: ${((op.transferredOut || 0) + (op.transferredIn || 0)) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">
+                        ${((op.transferredOut || 0) + (op.transferredIn || 0)) === 0 
+                            ? '0 ta' 
+                            : `${op.transferredOut || 0} ta <span style="font-size: 10px; color: #94a3b8; font-weight: 500;">(uzatgan)</span> / ${op.transferredIn || 0} ta <span style="font-size: 10px; color: #94a3b8; font-weight: 500;">(olgan)</span>`}
+                    </span>
+                </div>
+                <div class="op-stat-row">
                     <span>O'tkazib yuborilgan:</span>
                     <span class="op-stat-val" style="color: ${(op.missed || 0) > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${op.missed || 0} ta</span>
                 </div>
@@ -2337,6 +2638,9 @@ function renderOperators(operators) {
         `;
     }).join('');
 
+    // Yangi kartalardagi jonli taymerlarni darhol hisoblab ko'rsatish
+    updateAllTalkingTimers();
+
     if (typeof renderOperatorChips === 'function') {
         renderOperatorChips();
         if (typeof selectedCompareOpId !== 'undefined' && selectedCompareOpId) {
@@ -2353,51 +2657,38 @@ function renderOperators(operators) {
    7. Call History & Dual-Source Pagination (3CX Agent Default + Server CDR)
    ========================================================================== */
 let historyDataSource = 'agent'; // Default: 'agent' (3CX Desktop Agent), 'server' (Issabel Asterisk CDR)
-let historyDateScope = 'today'; // 'today' (Faqat bugun / tanlangan sana), 'all' (Barcha kunlar / butun arxiv)
+let historyDateScope = 'today'; // 'today' (Tanlangan sana), 'all' (Barcha kunlar / butun arxiv)
+
+function updateHistoryScopeUI() {
+    const btnAll = document.getElementById('btnHistoryScopeAll');
+    if (!btnAll) return;
+
+    if (historyDateScope === 'all') {
+        btnAll.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+        btnAll.style.color = '#fff';
+        btnAll.style.borderColor = '#3b82f6';
+        btnAll.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
+        btnAll.innerHTML = '<span>♾️</span> <span>Barcha kunlar (Faol)</span>';
+    } else {
+        btnAll.style.background = 'rgba(15, 23, 42, 0.8)';
+        btnAll.style.color = 'var(--text-muted)';
+        btnAll.style.borderColor = 'var(--border-color)';
+        btnAll.style.boxShadow = 'none';
+        btnAll.innerHTML = '<span>♾️</span> <span>Barcha kunlar</span>';
+    }
+}
+window.updateHistoryScopeUI = updateHistoryScopeUI;
+
+function toggleHistoryScopeAll() {
+    historyDateScope = (historyDateScope === 'all') ? 'today' : 'all';
+    updateHistoryScopeUI();
+    loadHistoryPage(1, historySearchQuery);
+}
+window.toggleHistoryScopeAll = toggleHistoryScopeAll;
 
 function setHistoryScope(scope) {
     historyDateScope = (scope === 'all') ? 'all' : 'today';
-
-    const btnToday = document.getElementById('btnHistoryScopeToday');
-    const btnAll = document.getElementById('btnHistoryScopeAll');
-    const badge = document.getElementById('historyScopeBadge');
-
-    if (historyDateScope === 'all') {
-        if (btnToday) {
-            btnToday.style.background = 'transparent';
-            btnToday.style.color = 'var(--text-muted)';
-            btnToday.style.boxShadow = 'none';
-        }
-        if (btnAll) {
-            btnAll.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-            btnAll.style.color = '#fff';
-            btnAll.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
-        }
-        if (badge) {
-            badge.innerText = '♾️ Barcha kunlar (Arxiv)';
-            badge.style.background = 'rgba(59, 130, 246, 0.15)';
-            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-            badge.style.color = '#60a5fa';
-        }
-    } else {
-        if (btnToday) {
-            btnToday.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-            btnToday.style.color = '#fff';
-            btnToday.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
-        }
-        if (btnAll) {
-            btnAll.style.background = 'transparent';
-            btnAll.style.color = 'var(--text-muted)';
-            btnAll.style.boxShadow = 'none';
-        }
-        if (badge) {
-            badge.innerText = '📅 Faqat bugun';
-            badge.style.background = 'rgba(59, 130, 246, 0.15)';
-            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
-            badge.style.color = '#60a5fa';
-        }
-    }
-
+    updateHistoryScopeUI();
     loadHistoryPage(1, historySearchQuery);
 }
 window.setHistoryScope = setHistoryScope;
@@ -2778,7 +3069,7 @@ function renderAgentHistoryTable(data) {
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                <td style="text-align: left;">${timeHtml}</td>
+                <td>${timeHtml}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
                         <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
@@ -2917,7 +3208,7 @@ function renderServerHistoryTable(data) {
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                <td style="text-align: left;">${timeHtml}</td>
+                <td>${timeHtml}</td>
                 <td>
                     <div class="phone-cell ${isOut ? 'outbound' : ''}">
                         <span class="phone-icon">${isOut ? '📤' : (isXfer ? '🔀' : '📞')}</span>
@@ -3434,10 +3725,15 @@ let detailState = {
     operatorExt: '',
     title: '',
     page: 1,
-    limit: 100,
+    limit: 50,
     search: '',
     totalPages: 1,
-    total: 0
+    total: 0,
+    rawCalls: [],
+    category: null,      // 'answered' | 'outbound' | null — operator modalidagi pill filtri
+    sortKey: null,        // 'time' | 'callerId' | 'operator' | 'duration' | 'status' | 'direction'
+    sortDir: 'asc',
+    currentOp: null
 };
 
 function closeDetailModal() {
@@ -3530,6 +3826,208 @@ if (document.readyState === 'loading') {
     initDetailModalEvents();
 }
 
+// Sahifadagi tafsilotlar jadvalini (yuklangan xom qatorlarga) pill-filtr va ustun-saralashni qo'llab render qiladi.
+// Tarmoqqa murojaat qilmaydi — faqat detailState.rawCalls ustida ishlaydi (tez, instant filtr/sort).
+function getFilteredSortedDetailCalls() {
+    let calls = detailState.rawCalls.slice();
+
+    if (detailState.category === 'answered') {
+        calls = calls.filter(c => c.direction !== 'outbound' && c.status === 'ANSWERED');
+    } else if (detailState.category === 'outbound') {
+        calls = calls.filter(c => c.direction === 'outbound' && c.status === 'ANSWERED');
+    }
+
+    if (detailState.sortKey) {
+        const key = detailState.sortKey;
+        const dir = detailState.sortDir === 'desc' ? -1 : 1;
+        calls.sort((a, b) => {
+            let va, vb;
+            if (key === 'time') {
+                va = new Date(a.time).getTime() || 0;
+                vb = new Date(b.time).getTime() || 0;
+            } else if (key === 'duration') {
+                va = a.duration || a.waitSec || 0;
+                vb = b.duration || b.waitSec || 0;
+            } else {
+                va = String(a[key] || '').toLowerCase();
+                vb = String(b[key] || '').toLowerCase();
+            }
+            if (va < vb) return -1 * dir;
+            if (va > vb) return 1 * dir;
+            return 0;
+        });
+    }
+
+    return calls;
+}
+
+function sortDetailTable(key) {
+    if (detailState.sortKey === key) {
+        detailState.sortDir = detailState.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        detailState.sortKey = key;
+        detailState.sortDir = 'asc';
+    }
+    renderDetailTableBody();
+}
+window.sortDetailTable = sortDetailTable;
+
+// Operator modalidagi "Qabul qilingan / Chiquvchi / Rad etilgan" pillarni bosganda filtr sifatida ishlaydi.
+function filterDetailByCategory(cat) {
+    if (cat === 'denied') {
+        // "Rad etilgan" ma'lumotlari boshqa manbadan keladi — haqiqiy qayta so'rov kerak
+        detailState.type = (detailState.type === 'denied') ? 'operator' : 'denied';
+        detailState.category = null;
+        detailState.page = 1;
+        fetchAndRenderDetailCalls();
+        return;
+    }
+    if (detailState.type === 'denied') {
+        // "Rad etilgan" rejimidan chiqib, operator ro'yxatiga qaytish va tanlangan kategoriyani qo'llash
+        detailState.type = 'operator';
+        detailState.category = cat;
+        detailState.page = 1;
+        fetchAndRenderDetailCalls();
+        return;
+    }
+    detailState.category = (detailState.category === cat) ? null : cat;
+    renderDetailTableBody();
+    renderOperatorSummaryPills();
+}
+window.filterDetailByCategory = filterDetailByCategory;
+
+function sortArrow(key) {
+    // Belgi doim chiqadi va kengligi o'zgarmaydi — saralanganda sarlavha matni siljimaydi
+    if (detailState.sortKey !== key) return '<span class="sort-icon">↕</span>';
+    return detailState.sortDir === 'asc'
+        ? '<span class="sort-icon" style="color: #38bdf8; opacity: 1;">▲</span>'
+        : '<span class="sort-icon" style="color: #38bdf8; opacity: 1;">▼</span>';
+}
+
+function sortableTh(label, key, extraStyle = '') {
+    return `<th class="sortable-th" style="${extraStyle}" onclick="sortDetailTable('${key}')" title="Saralash uchun bosing">${label}${sortArrow(key)}</th>`;
+}
+
+function renderDetailTableBody() {
+    const bodyEl = document.getElementById('detailModalBody');
+    const countBadge = document.getElementById('detailCountBadge');
+    if (!bodyEl) return;
+
+    const calls = getFilteredSortedDetailCalls();
+
+    if (countBadge) {
+        const filtered = calls.length !== detailState.rawCalls.length;
+        countBadge.innerText = filtered
+            ? `Jami: ${detailState.total} ta qo'ng'iroq (Filtr: ${calls.length} ta ko'rsatilmoqda)`
+            : `Jami: ${detailState.total} ta qo'ng'iroq (Ko'rsatilmoqda: ${calls.length} ta)`;
+    }
+
+    if (calls.length === 0) {
+        bodyEl.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: var(--text-dim);">
+                Ushbu turkum bo'yicha hech qanday qo'ng'iroq topilmadi.
+            </div>
+        `;
+        return;
+    }
+
+    bodyEl.innerHTML = `
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th style="width: 45px; text-align: center;">№</th>
+                    ${sortableTh('Vaqt', 'time')}
+                    ${sortableTh('Mijoz Raqami', 'callerId')}
+                    ${sortableTh("Yo'nalish", 'direction')}
+                    ${sortableTh('Operator', 'operator')}
+                    ${sortableTh('Suhbat / Kutish Vaqti', 'duration')}
+                    ${sortableTh('Holati', 'status')}
+                    <th>Kim tugatdi?</th>
+                    <th>Audio</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${calls.map((c, index) => {
+                    const rowNum = index + 1;
+                    const isAns = c.status === 'ANSWERED';
+                    const isOut = c.direction === 'outbound';
+
+                    let durText = '';
+                    if (isOut) {
+                        durText = isAns
+                            ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
+                            : `<span style="font-weight: 500; color: #f87171;">Chaqiruv: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                    } else {
+                        durText = isAns
+                            ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
+                            : `<span style="font-weight: 500; color: #fbbf24;">Kutgan: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                    }
+
+                    let statusBadge = '';
+                    if (isOut) {
+                        if (isAns) {
+                            statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Muvaffaqiyatli</span>`;
+                        } else if (c.status === 'BUSY') {
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
+                        } else {
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>`;
+                        }
+                    } else {
+                        if (isAns) {
+                            statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Javob berilgan</span>`;
+                        } else if (c.status === 'BUSY') {
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
+                        } else {
+                            statusBadge = `<span class="badge badge-warning" style="font-size: 10px;">⏳ Navbatdan chiqdi</span>`;
+                        }
+                    }
+
+                    const directionBadge = isOut
+                        ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> chiquvchi</span>`
+                        : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> kiruvchi</span>`;
+
+                    let rowStyle = '';
+                    if (isOut) {
+                        rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+                    } else if (!isAns) {
+                        rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+                    }
+
+                    return `
+                        <tr style="${rowStyle}">
+                            <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+                            <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString()}</td>
+                            <td style="white-space: nowrap;">
+                                <div class="phone-cell ${isOut ? 'outbound' : ''}">
+                                    <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
+                                    <span>${formatCallerNumberOrOperator(c.callerId)}</span>
+                                </div>
+                            </td>
+                            <td style="white-space: nowrap;">${directionBadge}</td>
+                            <td style="white-space: nowrap;">
+                                ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob')
+                                    ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">🤖 ${c.operator}</span>`
+                                    : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
+                                }
+                            </td>
+                            <td style="white-space: nowrap;">${durText}</td>
+                            <td style="white-space: nowrap;">${statusBadge}</td>
+                            <td style="white-space: nowrap; font-size: 12px; font-weight: 500; color: ${c.hangupParty === 'Operator' ? 'var(--warning)' : (c.hangupParty === 'Mijoz' ? '#38bdf8' : 'var(--text-dim)')}">${c.hangupParty || '-'}</td>
+                            <td style="white-space: nowrap;">
+                                ${c.recording ? `
+                                    <button class="btn-action" style="padding: 3px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="playCallAudio('${c.recording}', this)">
+                                        ▶ Tinglash
+                                    </button>
+                                ` : `<span style="color: var(--text-dim); font-size: 11px;">Mavjud emas</span>`}
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
 async function fetchAndRenderDetailCalls() {
     const bodyEl = document.getElementById('detailModalBody');
     const countBadge = document.getElementById('detailCountBadge');
@@ -3562,116 +4060,16 @@ async function fetchAndRenderDetailCalls() {
         const calls = json.data || [];
         detailState.totalPages = json.totalPages || 1;
         detailState.total = json.total || calls.length;
+        detailState.rawCalls = calls;
+        detailState.sortKey = null;
+        detailState.sortDir = 'asc';
 
-        if (countBadge) countBadge.innerText = `Jami: ${detailState.total} ta qo'ng'iroq (Ko'rsatilmoqda: ${calls.length} ta)`;
         if (pageInd) pageInd.innerText = `${json.page || detailState.page} / ${detailState.totalPages}`;
         if (prevBtn) prevBtn.disabled = detailState.page <= 1;
         if (nextBtn) nextBtn.disabled = detailState.page >= detailState.totalPages;
 
-        if (calls.length === 0) {
-            bodyEl.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: var(--text-dim);">
-                    Ushbu turkum bo'yicha hech qanday qo'ng'iroq topilmadi.
-                </div>
-            `;
-            return;
-        }
-
-        bodyEl.innerHTML = `
-            <table class="detail-table">
-                <thead>
-                    <tr>
-                        <th style="width: 45px; text-align: center;">№</th>
-                        <th>Vaqt</th>
-                        <th>Mijoz Raqami</th>
-                        <th>Yo'nalish</th>
-                        <th>Operator</th>
-                        <th>Suhbat / Kutish Vaqti</th>
-                        <th>Holati</th>
-                        <th>Kim tugatdi?</th>
-                        <th>Audio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${calls.map((c, index) => {
-                        const rowNum = (detailState.page - 1) * detailState.limit + index + 1;
-                        const isAns = c.status === 'ANSWERED';
-                        const isOut = c.direction === 'outbound';
-
-                        let durText = '';
-                        if (isOut) {
-                            durText = isAns 
-                                ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
-                                : `<span style="font-weight: 500; color: #f87171;">Chaqiruv: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
-                        } else {
-                            durText = isAns 
-                                ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
-                                : `<span style="font-weight: 500; color: #fbbf24;">Kutgan: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
-                        }
-
-                        let statusBadge = '';
-                        if (isOut) {
-                            if (isAns) {
-                                statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Muvaffaqiyatli</span>`;
-                            } else if (c.status === 'BUSY') {
-                                statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
-                            } else {
-                                statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>`;
-                            }
-                        } else {
-                            if (isAns) {
-                                statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Javob berilgan</span>`;
-                            } else if (c.status === 'BUSY') {
-                                statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
-                            } else {
-                                statusBadge = `<span class="badge badge-warning" style="font-size: 10px;">⏳ Navbatdan chiqdi</span>`;
-                            }
-                        }
-
-                        const directionBadge = isOut 
-                            ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> chiquvchi</span>`
-                            : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> kiruvchi</span>`;
-
-                        let rowStyle = '';
-                        if (isOut) {
-                            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
-                        } else if (!isAns) {
-                            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
-                        }
-
-                        return `
-                            <tr style="${rowStyle}">
-                                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                                <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString()}</td>
-                                <td style="white-space: nowrap;">
-                                    <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                                        <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                                        <span>${formatCallerNumberOrOperator(c.callerId)}</span>
-                                    </div>
-                                </td>
-                                <td style="white-space: nowrap;">${directionBadge}</td>
-                                <td style="white-space: nowrap;">
-                                    ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob') 
-                                        ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">🤖 ${c.operator}</span>`
-                                        : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
-                                    }
-                                </td>
-                                <td style="white-space: nowrap;">${durText}</td>
-                                <td style="white-space: nowrap;">${statusBadge}</td>
-                                <td style="white-space: nowrap; font-size: 12px; font-weight: 500; color: ${c.hangupParty === 'Operator' ? 'var(--warning)' : (c.hangupParty === 'Mijoz' ? '#38bdf8' : 'var(--text-dim)')}">${c.hangupParty || '-'}</td>
-                                <td style="white-space: nowrap;">
-                                    ${c.recording ? `
-                                        <button class="btn-action" style="padding: 3px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="playCallAudio('${c.recording}', this)">
-                                            ▶ Tinglash
-                                        </button>
-                                    ` : `<span style="color: var(--text-dim); font-size: 11px;">Mavjud emas</span>`}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('')}
-                </tbody>
-            </table>
-        `;
+        renderDetailTableBody();
+        renderOperatorSummaryPills();
     } catch (err) {
         bodyEl.innerHTML = `<div style="color: var(--danger); padding: 20px;">Yuklashda xatolik yuz berdi: ${err.message}</div>`;
     }
@@ -3689,6 +4087,10 @@ async function openCallsDetail(type, title) {
     detailState.title = title;
     detailState.page = 1;
     detailState.search = '';
+    detailState.category = null;
+    detailState.sortKey = null;
+    detailState.sortDir = 'asc';
+    detailState.currentOp = null;
 
     if (searchInput) searchInput.value = '';
 
@@ -3702,27 +4104,28 @@ async function openCallsDetail(type, title) {
     fetchAndRenderDetailCalls();
 }
 
-async function openOperatorDetail(operatorId) {
-    const modal = document.getElementById('detailModal');
-    const titleEl = document.getElementById('detailModalTitle');
-    const subTitleEl = document.getElementById('detailModalSubtitle');
+// Operatorlar modalidagi ustki pillarni (Qabul qilingan / Chiquvchi / Rad etilgan / ...) chizadi.
+// Bosiladigan pillar joriy filtrga qarab faol ko'rinishda (halqa) chiziladi.
+function renderOperatorSummaryPill(label, valueHtml, colorRgb, borderRgb, category) {
+    const isActive = category && ((category === 'denied' && detailState.type === 'denied') || (category !== 'denied' && detailState.category === category));
+    const clickable = !!category;
+    const activeStyle = isActive ? `box-shadow: 0 0 0 2px rgba(${colorRgb}, 0.7); background: rgba(${colorRgb}, 0.28);` : '';
+    return `
+        <div ${clickable ? `onclick="filterDetailByCategory('${category}')" title="Filtrlash uchun bosing"` : ''}
+             style="background: rgba(${colorRgb}, 0.15); border: 1px solid rgba(${borderRgb}, 0.3); padding: 6px 12px; border-radius: var(--radius-sm); ${clickable ? 'cursor: pointer;' : ''} transition: box-shadow 0.15s, background 0.15s; ${activeStyle}">
+            <span style="font-size: 11px; color: var(--text-muted); display: block;">${label}:</span>
+            ${valueHtml}
+        </div>
+    `;
+}
+
+function renderOperatorSummaryPills() {
     const summaryEl = document.getElementById('detailOperatorSummary');
-    const searchInput = document.getElementById('detailSearchInput');
+    const op = detailState.currentOp;
+    if (!summaryEl || !op) return;
 
-    detailState.type = 'operator';
-    detailState.operatorExt = operatorId;
-    detailState.page = 1;
-    detailState.search = '';
-
-    if (searchInput) searchInput.value = '';
-
-    const op = currentOperators.find(o => String(o.id) === String(operatorId)) || { id: operatorId, name: `Operator ${operatorId}` };
     const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
-    titleEl.innerHTML = `👤 ${cleanName} — Tafsilotlar & Bugungi Suhbatlar`;
-    subTitleEl.innerText = `Operatorning kunlik faolligi, intizomi va audio yozuvlari`;
-
-    // Operator Summary Header
     summaryEl.style.display = 'flex';
     summaryEl.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px; margin-right: 20px;">
@@ -3735,18 +4138,9 @@ async function openOperatorDetail(operatorId) {
             </div>
         </div>
         <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">Qabul qilingan:</span>
-                <b style="font-size: 14px; color: var(--success);">${op.answered || 0} ta</b>
-            </div>
-            <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">Chiquvchi:</span>
-                <b style="font-size: 14px; color: #38bdf8;">${op.outbound || 0} ta</b>
-            </div>
-            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">Rad etilgan:</span>
-                <b style="font-size: 14px; color: var(--danger);">${op.denied || 0} ta</b>
-            </div>
+            ${renderOperatorSummaryPill('Qabul qilingan', `<b style="font-size: 14px; color: var(--success);">${op.answered || 0} ta</b>`, '16, 185, 129', '16, 185, 129', 'answered')}
+            ${renderOperatorSummaryPill('Chiquvchi', `<b style="font-size: 14px; color: #38bdf8;">${op.outbound || 0} ta</b>`, '56, 189, 248', '56, 189, 248', 'outbound')}
+            ${renderOperatorSummaryPill('Rad etilgan', `<b style="font-size: 14px; color: var(--danger);">${op.denied || 0} ta</b>`, '239, 68, 68', '239, 68, 68', 'denied')}
             <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
                 <span style="font-size: 11px; color: var(--text-muted); display: block;">Umumiy suhbat:</span>
                 <b style="font-size: 14px; color: #fff;">${formatSeconds(op.totalDurationSec || 0)}</b>
@@ -3763,6 +4157,32 @@ async function openOperatorDetail(operatorId) {
             </div>
         </div>
     `;
+}
+
+async function openOperatorDetail(operatorId) {
+    const modal = document.getElementById('detailModal');
+    const titleEl = document.getElementById('detailModalTitle');
+    const subTitleEl = document.getElementById('detailModalSubtitle');
+    const searchInput = document.getElementById('detailSearchInput');
+
+    detailState.type = 'operator';
+    detailState.operatorExt = operatorId;
+    detailState.page = 1;
+    detailState.search = '';
+    detailState.category = null;
+    detailState.sortKey = null;
+    detailState.sortDir = 'asc';
+
+    if (searchInput) searchInput.value = '';
+
+    const op = currentOperators.find(o => String(o.id) === String(operatorId)) || { id: operatorId, name: `Operator ${operatorId}` };
+    detailState.currentOp = op;
+    const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+
+    titleEl.innerHTML = `👤 ${cleanName} — Tafsilotlar & Bugungi Suhbatlar`;
+    subTitleEl.innerText = `Operatorning kunlik faolligi, intizomi va audio yozuvlari`;
+
+    renderOperatorSummaryPills();
 
     modal.style.display = 'flex';
     fetchAndRenderDetailCalls();
@@ -4073,6 +4493,147 @@ async function triggerCdrSync() {
 
 // --- EXPORT MODAL & SANA ORALIG'I (RANGE) EXPORT LOGIKASI ---
 
+let exportCalYear = 2026;
+let exportCalMonth = 8; // Sentyabr (0-indexed)
+let exportRangeSelectionStep = 0; // 0 = start tanlanadi, 1 = end tanlanadi
+
+function triggerExportDatePicker(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    try {
+        if (typeof el.showPicker === 'function') {
+            el.showPicker();
+            return;
+        }
+    } catch(err) {}
+    el.focus();
+}
+
+function navExportCal(dir, e) {
+    if (e) e.stopPropagation();
+    exportCalMonth += dir;
+    if (exportCalMonth < 0) {
+        exportCalMonth = 11;
+        exportCalYear--;
+    } else if (exportCalMonth > 11) {
+        exportCalMonth = 0;
+        exportCalYear++;
+    }
+    renderExportRangeCalendar();
+}
+
+function onExportCalDateClick(clickedDate) {
+    const startInput = document.getElementById('exportStartDate');
+    const endInput = document.getElementById('exportEndDate');
+    if (!startInput || !endInput) return;
+
+    if (exportRangeSelectionStep === 0) {
+        startInput.value = clickedDate;
+        endInput.value = clickedDate;
+        exportRangeSelectionStep = 1;
+    } else {
+        if (clickedDate < startInput.value) {
+            startInput.value = clickedDate;
+        } else {
+            endInput.value = clickedDate;
+            exportRangeSelectionStep = 0;
+        }
+    }
+    updateExportRangeBadge();
+}
+
+function renderExportRangeCalendar() {
+    const titleEl = document.getElementById('exportCalMonthTitle');
+    const gridEl = document.getElementById('exportCalDaysGrid');
+    const startInput = document.getElementById('exportStartDate');
+    const endInput = document.getElementById('exportEndDate');
+    if (!titleEl || !gridEl || !startInput || !endInput) return;
+
+    const uzMonths = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
+    titleEl.innerText = `${uzMonths[exportCalMonth]} ${exportCalYear}`;
+    gridEl.innerHTML = '';
+
+    const startDate = startInput.value;
+    const endDate = endInput.value;
+    const todayStr = getTodayDateString();
+
+    const firstDay = new Date(exportCalYear, exportCalMonth, 1);
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek < 0) startDayOfWeek = 6;
+
+    const daysInMonth = new Date(exportCalYear, exportCalMonth + 1, 0).getDate();
+    const daysInPrevMonth = new Date(exportCalYear, exportCalMonth, 0).getDate();
+
+    // 1. Previous month trailing days
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        const d = daysInPrevMonth - i;
+        const cell = document.createElement('div');
+        cell.innerText = d;
+        cell.style.cssText = 'height: 28px; line-height: 28px; font-size: 11px; color: rgba(255,255,255,0.18); user-select: none;';
+        gridEl.appendChild(cell);
+    }
+
+    // 2. Current month days
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+        const fullDateStr = `${exportCalYear}-${String(exportCalMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        const cell = document.createElement('div');
+        cell.innerText = dayNum;
+        cell.dataset.date = fullDateStr;
+
+        const isStart = (startDate && fullDateStr === startDate);
+        const isEnd = (endDate && fullDateStr === endDate);
+        const isInRange = (startDate && endDate && fullDateStr > startDate && fullDateStr < endDate);
+        const isToday = (fullDateStr === todayStr);
+
+        let cellStyle = 'height: 28px; line-height: 28px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; position: relative; user-select: none;';
+
+        if (isStart && isEnd) {
+            cellStyle += 'background: linear-gradient(135deg, #2563eb, #10b981) !important; color: #ffffff !important; font-weight: 700; border-radius: 7px; box-shadow: 0 2px 8px rgba(37,99,235,0.45);';
+        } else if (isStart) {
+            cellStyle += 'background: #2563eb !important; color: #ffffff !important; font-weight: 700; border-radius: 7px 0 0 7px; box-shadow: 0 2px 8px rgba(37,99,235,0.4);';
+        } else if (isEnd) {
+            cellStyle += 'background: #10b981 !important; color: #ffffff !important; font-weight: 700; border-radius: 0 7px 7px 0; box-shadow: 0 2px 8px rgba(16,185,129,0.4);';
+        } else if (isInRange) {
+            cellStyle += 'background: rgba(59, 130, 246, 0.22) !important; color: #93c5fd !important; font-weight: 600; border-radius: 0;';
+        } else {
+            cellStyle += 'color: #e2e8f0; border-radius: 6px;';
+            if (isToday) {
+                cellStyle += 'border: 1px solid rgba(59, 130, 246, 0.6); font-weight: 700; color: #60a5fa;';
+            }
+        }
+
+        cell.style.cssText = cellStyle;
+
+        cell.addEventListener('mouseenter', () => {
+            if (!isStart && !isEnd && !isInRange) {
+                cell.style.background = 'rgba(255, 255, 255, 0.12)';
+            }
+        });
+        cell.addEventListener('mouseleave', () => {
+            if (!isStart && !isEnd && !isInRange) {
+                cell.style.background = 'transparent';
+            }
+        });
+
+        cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onExportCalDateClick(fullDateStr);
+        });
+
+        gridEl.appendChild(cell);
+    }
+
+    // 3. Trailing cells for next month
+    const totalCells = startDayOfWeek + daysInMonth;
+    const remaining = (totalCells <= 35 ? 35 : 42) - totalCells;
+    for (let dayNum = 1; dayNum <= remaining; dayNum++) {
+        const cell = document.createElement('div');
+        cell.innerText = dayNum;
+        cell.style.cssText = 'height: 28px; line-height: 28px; font-size: 11px; color: rgba(255,255,255,0.18); user-select: none;';
+        gridEl.appendChild(cell);
+    }
+}
+
 function openExportModal() {
     const modal = document.getElementById('exportModal');
     if (!modal) return;
@@ -4086,6 +4647,13 @@ function openExportModal() {
 
     if (startInput) startInput.value = startOfMonth;
     if (endInput) endInput.value = activeDate;
+
+    if (activeDate) {
+        const [ay, am] = activeDate.split('-').map(Number);
+        exportCalYear = ay;
+        exportCalMonth = am - 1;
+    }
+    exportRangeSelectionStep = 0;
 
     updateExportRangeBadge();
     modal.style.display = 'flex';
@@ -4106,6 +4674,8 @@ function setExportPreset(preset) {
     if (preset === 'today') {
         startInput.value = todayStr;
         endInput.value = todayStr;
+        exportCalYear = y;
+        exportCalMonth = m - 1;
     } else if (preset === 'last7') {
         const dt = new Date();
         dt.setDate(dt.getDate() - 6);
@@ -4114,9 +4684,13 @@ function setExportPreset(preset) {
         const d7 = String(dt.getDate()).padStart(2, '0');
         startInput.value = `${y7}-${m7}-${d7}`;
         endInput.value = todayStr;
+        exportCalYear = y;
+        exportCalMonth = m - 1;
     } else if (preset === 'thisMonth') {
         startInput.value = `${todayStr.slice(0, 7)}-01`;
         endInput.value = todayStr;
+        exportCalYear = y;
+        exportCalMonth = m - 1;
     } else if (preset === 'prevMonth') {
         const prevMonthDate = new Date(y, m - 2, 1);
         const py = prevMonthDate.getFullYear();
@@ -4124,22 +4698,48 @@ function setExportPreset(preset) {
         const lastDay = new Date(py, prevMonthDate.getMonth() + 1, 0).getDate();
         startInput.value = `${py}-${pm}-01`;
         endInput.value = `${py}-${pm}-${String(lastDay).padStart(2, '0')}`;
+        exportCalYear = py;
+        exportCalMonth = parseInt(pm, 10) - 1;
     }
+    exportRangeSelectionStep = 0;
     updateExportRangeBadge();
 }
 
 function onExportDateChange() {
+    const startInput = document.getElementById('exportStartDate');
+    if (startInput && startInput.value) {
+        const [y, m] = startInput.value.split('-').map(Number);
+        exportCalYear = y;
+        exportCalMonth = m - 1;
+    }
     updateExportRangeBadge();
+}
+
+function formatIsoToUzDate(isoStr) {
+    if (!isoStr || typeof isoStr !== 'string') return '--.--.----';
+    const parts = isoStr.split('-');
+    if (parts.length < 3) return isoStr;
+    const [y, m, d] = parts;
+    return `${d}.${m}.${y}`;
 }
 
 function updateExportRangeBadge() {
     const startInput = document.getElementById('exportStartDate');
     const endInput = document.getElementById('exportEndDate');
     const textEl = document.getElementById('exportRangeText');
-    if (!startInput || !endInput || !textEl) return;
+    const startText = document.getElementById('exportStartDateText');
+    const endText = document.getElementById('exportEndDateText');
+    if (!startInput || !endInput) return;
 
     const s = startInput.value;
     const e = endInput.value;
+
+    if (startText && s) startText.innerText = formatIsoToUzDate(s);
+    if (endText && e) endText.innerText = formatIsoToUzDate(e);
+
+    renderExportRangeCalendar();
+
+    if (!textEl) return;
     if (!s || !e) {
         textEl.innerText = 'Iltimos, ikkala sanani ham tanlang';
         return;
@@ -4296,13 +4896,13 @@ function renderTabAgentOperators(operators) {
         totalMissed += missed;
 
         let stars = '';
-        if (answered > 35) {
+        if (answered >= 40) {
             stars = '⭐⭐⭐⭐⭐';
-        } else if (answered >= 25) {
+        } else if (answered >= 30) {
             stars = '⭐⭐⭐⭐';
-        } else if (answered >= 16) {
+        } else if (answered >= 20) {
             stars = '⭐⭐⭐';
-        } else if (answered >= 11) {
+        } else if (answered >= 10) {
             stars = '⭐⭐';
         } else if (answered >= 1) {
             stars = '⭐';
@@ -4312,7 +4912,7 @@ function renderTabAgentOperators(operators) {
         let mvpBadge = '';
         let avatarBg = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
         if (isMvp) {
-            mvpBadge = `<span class="mvp-badge gold" title="3CX Agent bo'yicha yetakchi operator">👑 MVP</span>`;
+            mvpBadge = getMvpWreathBadgeHtml();
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
         } else if (stars === '⭐') {
             mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
@@ -4831,6 +5431,9 @@ function initDateFilter() {
 
     // Render initial calendar matrix
     renderCalendarMatrix();
+    if (typeof updateHistoryScopeUI === 'function') {
+        updateHistoryScopeUI();
+    }
 
     // Close on outside click
     document.addEventListener('click', (e) => {
@@ -4981,6 +5584,11 @@ function selectDate(dateStr) {
     calViewYear = y;
     calViewMonth = m - 1;
     renderCalendarMatrix();
+
+    if (typeof updateHistoryScopeUI === 'function') {
+        historyDateScope = 'today';
+        updateHistoryScopeUI();
+    }
 
     // Load data for this date
     loadDateData(dateStr);

@@ -626,7 +626,11 @@ function getAgentOperatorStatsList(targetDate = null) {
             agentVersion: op.agentVersion || null,
             lastAgentPing: op.lastAgentPing || null,
             answered: stats.answered || 0,
+            callsTaken: op.callsTaken !== undefined ? op.callsTaken : null,
+            lastCall: op.lastCall !== undefined ? op.lastCall : null,
             outbound: stats.outbound || 0,
+            transferredOut: (op.transferredOut !== undefined ? op.transferredOut : stats.transferredOut) || 0,
+            transferredIn: (op.transferredIn !== undefined ? op.transferredIn : stats.transferredIn) || 0,
             missed: stats.missed || 0,
             totalDurationSec: stats.totalDurationSec || 0,
             avgDurationSec: stats.avgDurationSec || 0,
@@ -795,4 +799,36 @@ server.listen(config.PORT, () => {
     console.log(`📊 AMI Server: ${config.AMI.host}:${config.AMI.port}`);
     console.log(`📁 SFTP Monitor Path: ${config.SFTP.monitorPath}`);
     console.log(`======================================================\n`);
+
+    // Agar asosiy port 3000 dan boshqa bo'lsa (masalan 3535),
+    // operator kompyuterlaridagi 3CX Desktop Agentlar uchun 3000-portda kompatibilitet tinglovchisi
+    if (Number(config.PORT) !== 3000) {
+        try {
+            const compatApp = express();
+            compatApp.use(cors());
+            compatApp.use(express.json({ limit: '15mb' }));
+            // 3CX Desktop Agent barcha so'rovlarini to'g'ridan-to'g'ri asosiy app ga beramiz
+            compatApp.use('/api/agent', (req, res) => {
+                req.url = '/api/agent' + req.url;
+                app.handle(req, res);
+            });
+            // Veb brauzerda 3000 ga kirganlarga hech narsa chiqarmaymiz (ulanishni darhol uzamiz - brauzerda sayt ochilmadi bo'ladi)
+            compatApp.use((req, res) => {
+                try {
+                    req.socket.destroy();
+                } catch (e) {
+                    res.end();
+                }
+            });
+            const compatServer = http.createServer(compatApp);
+            compatServer.listen(3000, () => {
+                console.log(`🔄 3000-portda 3CX Desktop Agentlar uchun kompatibilitet forwarder ishga tushdi (-> ${config.PORT})`);
+            });
+            compatServer.on('error', (err) => {
+                console.log('ℹ️ 3000-port forwarder xabari:', err.message);
+            });
+        } catch (compErr) {
+            console.error('Compat server xatosi:', compErr.message);
+        }
+    }
 }); 

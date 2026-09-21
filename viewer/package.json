@@ -1,0 +1,21 @@
+{
+  "name": "call-center-viewer",
+  "version": "1.0.0",
+  "description": "Call Center Limited Operator & Dashboard Viewer",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node app.js",
+    "deploy": "node scripts/deploy.js"
+  },
+  "dependencies": {
+    "asterisk-manager": "^0.2.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "ioredis": "^6.0.0",
+    "ssh2": "^1.16.0",
+    "ws": "^8.21.3"
+  }
+}
