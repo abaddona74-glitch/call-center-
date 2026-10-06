@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
+    "test": "node tests/test_ami_realtime.js && node tests/test_dashboard_recent_table.js",
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {

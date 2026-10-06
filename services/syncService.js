@@ -11,7 +11,7 @@
 const issabelDbService = require('./issabelDbService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
 
 class SyncService {
     constructor() {
@@ -120,6 +120,7 @@ class SyncService {
                 FROM cdr
                 WHERE calldate >= '${dateStr} 08:00:00' AND calldate <= '${dateStr} 21:00:00'
                   AND dst REGEXP '^[0-9]{2,4}$'
+                  AND dcontext != 'from-internal-xfer'
                   AND disposition = 'ANSWERED' AND billsec > 0
                 ORDER BY calldate ASC;
 

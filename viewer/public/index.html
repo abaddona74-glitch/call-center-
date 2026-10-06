@@ -8,11 +8,11 @@
     <link rel="icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="shortcut icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="apple-touch-icon" href="/images/title-icon.png?v=6.0">
-    <!-- Google Font Inter -->
+    <!-- Google Fonts: Inter & Golos Text -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css?v=20.0">
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css?v=25.0">
     <style>
         body {
             background-color: #0b1120 !important;
@@ -99,6 +99,75 @@
             align-items: center;
             gap: 10px;
         }
+
+        /* Operator Guruhi Switch / Tabs (Asosiy / 2-darajali / Barchasi) */
+        .operator-group-tabs {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 4px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+        }
+
+        .op-group-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .op-group-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .op-group-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(59, 130, 246, 0.28));
+            border-color: rgba(99, 102, 241, 0.55);
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+        }
+
+        .op-group-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .op-group-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            font-size: 10.5px;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+        }
+
+        .op-group-btn.active .op-group-count {
+            background: rgba(99, 102, 241, 0.45);
+            color: #fff;
+        }
+
         .online-viewers-wrapper {
             display: inline-flex;
             align-items: center;
@@ -364,16 +433,86 @@
     <header class="viewer-header">
         <div class="brand-block">
             <img src="/images/title-icon.png?v=6.0" alt="Logo">
-            <h1>Call Center</h1>
+            <h1 data-i18n="app_title">Call Center</h1>
         </div>
-        <div class="live-clock-badge" id="headerLiveClock" title="Hozirgi aniq vaqt">
-            <span class="live-clock-dot"></span>
-            <span id="liveClockDisplay">--:--:--</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Mijozlar bazasi (Telefon kitobi) tugmasi -->
+            <button type="button" class="header-contact-book-btn" onclick="openClientDirectoryModal()" title="Mijozlar bazasi va telefon kitobi">
+                <span>📇</span>
+                <span class="btn-text" data-i18n="header_client_directory">Mijozlar bazasi</span>
+                <span id="headerContactsCount" class="header-contact-count">0</span>
+            </button>
+            <!-- Language Switcher: O'zbekcha / Русский -->
+            <div class="lang-switch-container" id="langSwitchContainer" title="Tilni tanlash / Выбрать язык">
+                <button type="button" class="lang-btn active" data-lang="uz" onclick="switchLanguage('uz')" title="O'zbek tili">O'Z</button>
+                <span class="lang-separator">/</span>
+                <button type="button" class="lang-btn" data-lang="ru" onclick="switchLanguage('ru')" title="Русский язык">РУ</button>
+            </div>
+            <div class="live-clock-badge" id="headerLiveClock" data-i18n-title="live_clock_title" title="Hozirgi aniq vaqt">
+                <span class="live-clock-dot"></span>
+                <span id="liveClockDisplay">--:--:--</span>
+            </div>
         </div>
     </header>
 
     <!-- Main Content: ONLY OPERATORLAR -->
     <main class="viewer-container">
+        <!-- BOG'LANISHI KERAK BO'LGAN MIJOZLAR (OPERATORLAR UCHUN READ-ONLY) -->
+        <div id="viewerCallbackPanel" class="viewer-callback-panel" style="background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 14px; padding: 14px 18px; margin-bottom: 20px; backdrop-filter: blur(14px); box-shadow: 0 10px 30px rgba(0,0,0,0.35);">
+            <!-- Panel Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg style="width: 20px; height: 20px;" class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;" data-i18n="viewer_callback_title">Bog'lanishi kerak bo'lgan mijozlar</h3>
+                    <span id="viewerCallbackCount" class="badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 12px; padding: 2px 8px; border-radius: 6px; font-weight: 700;">0 ta</span>
+                </div>
+
+                <!-- Date Filter Pills: Bugun / Hammasi -->
+                <div class="callback-filter-pills" style="display: inline-flex; align-items: center; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 2px; gap: 2px;">
+                    <button type="button" class="cb-filter-btn active" id="btnFilterToday" onclick="switchCallbackDateFilter('today')" style="background: #3b82f6; color: #fff; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px;">
+                        <svg class="isax isax-calendar" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-calendar"></use></svg>
+                        <span data-i18n="filter_today">Bugun</span>
+                    </button>
+                    <button type="button" class="cb-filter-btn" id="btnFilterAll" onclick="switchCallbackDateFilter('all')" style="background: transparent; color: #94a3b8; border: none; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px;">
+                        <svg class="isax isax-global" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
+                        <span data-i18n="filter_all">Hammasi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category Tabs: Kutilmoqda (Yangi) / Bog'lanib bo'lmadi (Qayta terish) -->
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 10px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="tabPendingBtn" class="cb-tab-btn active" onclick="switchCallbackTab('pending')" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        <svg class="isax isax-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg>
+                        <span data-i18n="tab_callbacks_pending">Kutilmoqda (Yangi)</span>
+                        <span id="cbPendingCount" style="background: rgba(245, 158, 11, 0.3); padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
+                    </button>
+                    <button type="button" id="tabUnreachableBtn" class="cb-tab-btn" onclick="switchCallbackTab('unreachable')" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        <svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                        <span data-i18n="tab_callbacks_unreachable">Bog'lanib bo'lmadi</span>
+                        <span id="cbUnreachableCount" style="background: rgba(255, 255, 255, 0.1); padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
+                    </button>
+                    <button type="button" id="tabResolvedBtn" class="cb-tab-btn" onclick="switchCallbackTab('resolved')" style="display: inline-flex; align-items: center; gap: 6px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        <svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                        <span data-i18n="tab_callbacks_resolved">Gaplashildi</span>
+                        <span id="cbResolvedCount" style="background: rgba(255, 255, 255, 0.1); padding: 1px 6px; border-radius: 10px; font-size: 11px;">0</span>
+                    </button>
+                </div>
+
+                <div style="font-size: 11px; color: #94a3b8;" id="cbTabHint" data-i18n="viewer_callback_pending_hint">
+                    * Hali operatorlar bog'lanmagan yangi mijozlar
+                </div>
+            </div>
+
+            <!-- Callbacks Grid List -->
+            <div id="viewerCallbackList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px;">
+                <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 12px; font-size: 12px;" data-i18n="live_callbacks_empty">
+                    Hozircha bog'lanishi kerak bo'lgan mijozlar yo'q
+                </div>
+            </div>
+        </div>
+
         <div class="operators-panel">
             <div class="panel-heading">
                 <div class="panel-title-left">
@@ -383,20 +522,38 @@
                         <circle cx="12" cy="10" r="3.2"/>
                         <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
                     </svg>
-                    <span>Operatorlar</span>
+                    <span data-i18n="op_section_title">Operatorlar</span>
+                </div>
+
+                <!-- Operatorlar guruhi switch: Asosiy (100-199) / Zangiota 42 (200+) / Barchasi -->
+                <div class="operator-group-tabs" id="operatorGroupSwitch">
+                    <button type="button" class="op-group-btn active" data-group="main" onclick="switchOperatorGroup('main')" data-i18n-title="op_group_main_title" title="100 dan 199 gacha bo'lgan asosiy operatorlar">
+                        <span class="op-group-dot" style="background: #38bdf8;"></span>
+                        <span data-i18n="op_group_main">Asosiy (100-199)</span>
+                        <span class="op-group-count" id="countMainOps">0</span>
+                    </button>
+                    <button type="button" class="op-group-btn" data-group="secondary" onclick="switchOperatorGroup('secondary')" data-i18n-title="op_group_sec_title" title="Zangiota 42 operatorlari (200+)">
+                        <span class="op-group-dot" style="background: #a855f7;"></span>
+                        <span data-i18n="op_group_sec">Zangiota 42 (200+)</span>
+                        <span class="op-group-count" id="countSecondaryOps">0</span>
+                    </button>
+                    <button type="button" class="op-group-btn" data-group="all" onclick="switchOperatorGroup('all')" data-i18n-title="op_group_all_title" title="Barcha operatorlar">
+                        <span data-i18n="op_group_all">Barchasi</span>
+                        <span class="op-group-count" id="countAllOps">0</span>
+                    </button>
                 </div>
 
                 <!-- O'ng tarafda: Saytda faol kuzatuvchilar ro'yxati -->
                 <div class="online-viewers-wrapper" id="onlineViewersWrapper">
-                    <div class="online-viewers-badge" title="Hozirgi vaqtda sahifani ochib turgan foydalanuvchilar">
+                    <div class="online-viewers-badge" title="Hozirgi vaqtda sahifani ochib turgan foydalanuvchilar" data-i18n-title="online_active_title">
                         <span class="online-pulse-ring">
                             <span class="online-pulse-dot"></span>
                         </span>
-                        <span class="online-badge-title">Saytda faol:</span>
+                        <span class="online-badge-title" data-i18n="online_active">Saytda faol:</span>
                         <span class="online-badge-count" id="onlineViewersCount">0 ta</span>
                     </div>
                     <div class="online-viewers-pills" id="onlineViewersPills">
-                        <span class="viewer-empty-hint">Kuzatilmoqda...</span>
+                        <span class="viewer-empty-hint" data-i18n="viewer_watching">Kuzatilmoqda...</span>
                     </div>
                 </div>
             </div>
@@ -417,8 +574,8 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;">
                         <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
                     </svg>
-                    <span>Tools</span>
-                    <span class="tools-badge">Qo'shimcha vositalar</span>
+                    <span data-i18n="tools_title">Tools</span>
+                    <span class="tools-badge" data-i18n="tools_badge">Qo'shimcha vositalar</span>
                 </div>
             </div>
 
@@ -433,12 +590,12 @@
                     <div class="tool-card-content">
                         <div class="tool-card-top">
                             <h4 class="tool-card-title">Telegram Form Dashboard</h4>
-                            <span class="tool-status-pill">Faol</span>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
                         </div>
-                        <p class="tool-card-desc">Maʼlumot shakli va Telegram arizalarini to'ldirish hamda monitoring qilish paneli.</p>
+                        <p class="tool-card-desc" data-i18n="tool_tg_desc">Maʼlumot shakli va Telegram arizalarini to'ldirish hamda monitoring qilish paneli.</p>
                         <div class="tool-card-footer">
                             <a href="https://telegram-form-dashboard.vercel.app" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
-                                <span>Ochish</span>
+                                <span data-i18n="tool_open">Ochish</span>
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                                     <polyline points="15 3 21 3 21 9"></polyline>
@@ -446,7 +603,142 @@
                                 </svg>
                             </a>
                             <button onclick="openToolInModal('https://telegram-form-dashboard.vercel.app', 'Telegram Form Dashboard')" class="tool-action-btn secondary">
-                                <span>🖥️ Shu yerda ochish</span>
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Viloyat mas'ullari Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title" data-i18n="tool_regions_title">Viloyat mas'ullari</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc" data-i18n="tool_regions_desc">Viloyatlar bo'yicha mas'ul rahbarlar, ofis va telefon raqamlari jadvali.</p>
+                        <div class="tool-card-footer">
+                            <a href="/tools/managers.html?tab=regions" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('/tools/managers.html?tab=regions', 'tool_regions_title', 'iframe')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toshkent shahar mas'ullari Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21h18"></path>
+                            <path d="M5 21V7l8-4v18"></path>
+                            <path d="M19 21V11l-6-3"></path>
+                            <line x1="9" y1="9" x2="9" y2="9.01"></line>
+                            <line x1="9" y1="12" x2="9" y2="12.01"></line>
+                            <line x1="9" y1="15" x2="9" y2="15.01"></line>
+                            <line x1="9" y1="18" x2="9" y2="18.01"></line>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title" data-i18n="tool_tashkent_title">Toshkent shahar mas'ullari</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc" data-i18n="tool_tashkent_desc">Toshkent shahridagi tumanlarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.</p>
+                        <div class="tool-card-footer">
+                            <a href="/tools/managers.html?tab=tashkent" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('/tools/managers.html?tab=tashkent', 'tool_tashkent_title', 'iframe')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vazirlik mas'ullari Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 21h18"></path>
+                            <path d="M4 18h16"></path>
+                            <path d="M6 18v-7"></path>
+                            <path d="M10 18v-7"></path>
+                            <path d="M14 18v-7"></path>
+                            <path d="M18 18v-7"></path>
+                            <path d="M12 2L2 7h20L12 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title" data-i18n="tool_ministry_title">Vazirlik mas'ullari</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc" data-i18n="tool_ministry_desc">Vazirliklarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.</p>
+                        <div class="tool-card-footer">
+                            <a href="/tools/managers.html?tab=ministry" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('/tools/managers.html?tab=ministry', 'tool_ministry_title', 'iframe')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ijro ERI Xat Generatori Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Ijro ERI Xat Generatori</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc">Ijro.uz uchun rasmiy xat va bildirishnomalarni generatsiya qilish hamda ERI biriktirish tizimi.</p>
+                        <div class="tool-card-footer">
+                            <a href="https://xat-tayyorlash.vercel.app" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('https://xat-tayyorlash.vercel.app', 'Ijro ERI Xat Generatori')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
                         </div>
                     </div>
@@ -455,7 +747,7 @@
         </div>
     </main>
 
-    <!-- TOOL IFRAME MODAL (Shu yerda ochish uchun) -->
+    <!-- TOOL MODAL (Shu yerda ochish uchun - Saytlar va Rasmlar) -->
     <div id="toolIframeModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1000; align-items: center; justify-content: center; padding: 20px;">
         <div class="glass-panel" style="width: 96vw; max-width: 1750px; height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.3); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8); border-radius: var(--radius-lg); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9);">
@@ -464,15 +756,29 @@
                         🛠️ Tool
                     </h3>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <a id="toolModalExternalLink" href="#" target="_blank" class="tool-action-btn secondary" style="text-decoration: none; padding: 5px 12px; font-size: 12px;">
-                        Yangi oynada ochish ↗
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <!-- Zoom Controls Group (+, -, reset) -->
+                    <div id="toolImageZoomControls" style="display: none; align-items: center; gap: 4px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 2px 6px;">
+                        <button type="button" onclick="changeToolZoomStep(-0.25)" class="tool-action-btn secondary" style="padding: 4px 8px; font-size: 11px; min-width: 26px; justify-content: center;" title="Kichraytirish (-)">➖</button>
+                        <span id="toolZoomBadge" style="font-family: 'Inter', monospace; font-size: 11px; font-weight: 700; color: #38bdf8; min-width: 42px; text-align: center;">100%</span>
+                        <button type="button" onclick="changeToolZoomStep(0.25)" class="tool-action-btn secondary" style="padding: 4px 8px; font-size: 11px; min-width: 26px; justify-content: center;" title="Kattalashtirish (+)">➕</button>
+                        <button type="button" onclick="resetToolImageZoom()" class="tool-action-btn secondary" style="padding: 4px 8px; font-size: 11px;" title="Asl o'lcham (Moslashtirish)">↺ 100%</button>
+                    </div>
+
+                    <button id="toolModalZoomBtn" onclick="toggleToolImageZoom()" class="tool-action-btn secondary" style="display: none; padding: 5px 12px; font-size: 12px; align-items: center; gap: 6px;">
+                        <span data-i18n="tool_zoom_in">🔍 Kattalashtirish</span>
+                    </button>
+                    <a id="toolModalExternalLink" href="#" target="_blank" class="tool-action-btn secondary" style="text-decoration: none; padding: 5px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span data-i18n="tool_open_new_window">Yangi oynada ochish ↗</span>
                     </a>
-                    <button onclick="closeToolModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                    <button onclick="closeToolModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
                 </div>
             </div>
-            <div style="flex: 1; position: relative; background: #0b1120;">
-                <iframe id="toolIframe" src="" style="width: 100%; height: 100%; border: none; background: #fff;" allow="clipboard-read; clipboard-write"></iframe>
+            <div style="flex: 1; position: relative; background: #0b1120; overflow: auto; display: flex; align-items: center; justify-content: center;">
+                <iframe id="toolIframe" src="" style="width: 100%; height: 100%; border: none; background: #fff; display: none;" allow="clipboard-read; clipboard-write"></iframe>
+                <div id="toolImageContainer" onwheel="handleToolImageWheel(event)" style="display: none; width: 100%; height: 100%; overflow: auto; padding: 20px; box-sizing: border-box;">
+                    <img id="toolImage" src="" alt="Tool Preview" style="display: block; margin: auto; max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: zoom-in;" onclick="toggleToolImageZoom()" title="Kattalashtirish yoki kichraytirish uchun bosing (Ctrl + Sichqoncha g'ildiragi ham ishlaydi)" />
+                </div>
             </div>
         </div>
     </div>
@@ -484,13 +790,13 @@
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.85);">
                 <div>
                     <h3 id="detailModalTitle" style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
-                        👤 Operator Tafsilotlari
+                        <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg> <span data-i18n="detail_modal_title">Operator Tafsilotlari</span>
                     </h3>
                     <p id="detailModalSubtitle" style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">
-                        Operatorning kunlik faolligi va intizomi
+                        <span data-i18n="detail_modal_subtitle">Operatorning kunlik faolligi va intizomi</span>
                     </p>
                 </div>
-                <button id="btnCloseDetailModal" onclick="closeDetailModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button id="btnCloseDetailModal" onclick="closeDetailModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <!-- Operator Summary Header Pills -->
@@ -500,16 +806,16 @@
             <!-- Modal Filter & Pagination Toolbar -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); gap: 12px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: var(--text-muted);">Qidirish:</span>
-                    <input type="text" id="detailSearchInput" oninput="handleDetailSearch(this.value)" placeholder="Raqam yoki operator..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: #fff; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none; width: 180px;">
+                    <span style="font-size: 12px; color: var(--text-muted);" data-i18n="detail_search">Qidirish:</span>
+                    <input type="text" id="detailSearchInput" oninput="handleDetailSearch(this.value)" placeholder="Raqam yoki operator..." data-i18n-placeholder="detail_search_placeholder" style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: #fff; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none; width: 180px;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 12px; color: var(--text-muted);">Sahifada:</span>
+                        <span style="font-size: 12px; color: var(--text-muted);" data-i18n="detail_per_page">Sahifada:</span>
                         <select id="detailLimitSelect" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
-                            <option value="50" selected>50 ta</option>
-                            <option value="100">100 ta</option>
-                            <option value="200">200 ta</option>
+                            <option value="50" selected data-i18n="opt_50">50 ta</option>
+                            <option value="100" data-i18n="opt_100">100 ta</option>
+                            <option value="200" data-i18n="opt_200">200 ta</option>
                         </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
@@ -526,12 +832,119 @@
 
             <!-- Modal Footer -->
             <div style="display: flex; justify-content: flex-end; align-items: center; padding: 8px 24px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid var(--border-color); flex-shrink: 0;">
-                <span id="detailCountBadge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Yuklanmoqda...</span>
+                <span id="detailCountBadge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;" data-i18n="detail_loading">Yuklanmoqda...</span>
             </div>
         </div>
     </div>
 
+    <!-- MIJOZ MA'LUMOTINI QO'SHISH / TAHRIRLASH MODALI (CONTACT MODAL) -->
+    <div id="clientContactModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 1050; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px);">
+        <div class="glass-panel" style="width: 100%; max-width: 480px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85); border-radius: 16px; overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.9);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">📇</span>
+                    <div>
+                        <h3 id="contactModalTitle" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Mijoz ma'lumotlari</h3>
+                        <p style="font-size: 11.5px; color: #94a3b8; margin: 2px 0 0 0;">Qo'ng'iroqlarda avtomatik ko'rinadi</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeContactModal()" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
+            </div>
+            <form id="clientContactForm" onsubmit="handleSaveContactSubmit(event)" style="padding: 20px; display: flex; flex-direction: column; gap: 14px; margin: 0;">
+                <input type="hidden" id="contactOriginalPhone" value="">
+                
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg> Telefon raqami <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="contactPhoneInput" required placeholder="Masalan: 773254252 yoki 998901234567"
+                           style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-family: 'Inter', monospace; font-size: 14px; font-weight: 700; padding: 10px 14px; border-radius: 8px; outline: none;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg> Mijoz ismi / Kimligi <span style="font-size: 11px; color: #64748b; font-weight: normal;">(ixtiyoriy)</span>
+                    </label>
+                    <input type="text" id="contactNameInput" placeholder="Masalan: Alisher aka, Nozima (yoki bo'sh qoldiring)..."
+                           style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 13.5px; font-weight: 600; padding: 10px 14px; border-radius: 8px; outline: none;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <svg class="isax isax-location" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 13.43C13.7231 13.43 15.12 12.0331 15.12 10.31C15.12 8.58687 13.7231 7.19 12 7.19C10.2769 7.19 8.88 8.58687 8.88 10.31C8.88 12.0331 10.2769 13.43 12 13.43Z"/><path d="M3.62001 8.49C5.59001 -0.169998 18.42 -0.159998 20.38 8.5C21.53 13.58 18.37 17.88 15.6 20.54C13.59 22.48 10.41 22.48 8.39001 20.54C5.63001 17.88 2.47001 13.57 3.62001 8.49Z"/></svg> Qayerdan / Tashkilot / Hudud <span style="font-size: 11px; color: #38bdf8; font-weight: normal;">(Ism bo'lmasa, bu to'ldiriladi)</span>
+                    </label>
+                    <input type="text" id="contactOrgInput" placeholder="Masalan: Qimmatli qog'ozlar markaziy depozitariysi, Samarqand filial..."
+                           style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 13px; padding: 10px 14px; border-radius: 8px; outline: none;">
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        📝 Qo'shimcha izoh / Eslatma
+                    </label>
+                    <textarea id="contactNotesInput" rows="2" placeholder="Ixtiyoriy qo'shimcha ma'lumot..."
+                              style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 12.5px; padding: 8px 12px; border-radius: 8px; outline: none; resize: vertical;"></textarea>
+                </div>
+
+                <div id="contactFormStatus" style="display: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;"></div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; gap: 10px;">
+                    <button type="button" id="btnDeleteContact" onclick="handleDeleteContactClick()" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <svg class="isax isax-trash" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg> O'chirish
+                    </button>
+                    <div style="display: flex; gap: 8px; margin-left: auto;">
+                        <button type="button" onclick="closeContactModal()" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
+                            Bekor qilish
+                        </button>
+                        <button type="submit" id="btnSaveContact" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #ffffff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);">
+                            💾 Saqlash
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MIJOZLAR BAZASI (TELEFON KITOBI) TO'LIQ MODALI -->
+    <div id="clientDirectoryModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 1040; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px);">
+        <div class="glass-panel" style="width: 95vw; max-width: 980px; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85); border-radius: 16px; overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.9);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">📇</span>
+                    <div>
+                        <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin: 0;">Mijozlar bazasi (Telefon kitobi)</h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 2px 0 0 0;">Barcha saqlangan mijoz raqamlari va manzillari</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" onclick="openAddContactModal('', event)" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.4); color: #fff; padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 10px rgba(2,132,199,0.3);">
+                        ➕ Yangi mijoz qo'shish
+                    </button>
+                    <button type="button" onclick="closeClientDirectoryModal()" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
+                </div>
+            </div>
+            <!-- Search Toolbar -->
+            <div style="padding: 12px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; max-width: 400px;">
+                    <input type="text" id="directorySearchInput" oninput="handleDirectorySearch(this.value)" placeholder="🔍 Raqam, ism yoki tashkilot bo'yicha..."
+                           style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 12.5px; outline: none;">
+                </div>
+                <span id="directoryCountBadge" style="font-size: 12px; color: #94a3b8; font-weight: 600;">0 ta mijoz</span>
+            </div>
+            <!-- Table Body -->
+            <div id="directoryTableContainer" style="flex: 1; overflow-y: auto; padding: 16px 24px;">
+                <!-- Table rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Iconsax Linear Icons Engine -->
+    <script src="/js/iconsax.js?v=1.0"></script>
+    <!-- Multi-Language i18n Engine -->
+    <script src="/js/i18n.js?v=1.1"></script>
+    <!-- Blacklist (Qora ro'yxat) moduli -->
+    <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=2.1" defer></script>
+    <script src="/js/viewer.js?v=4.0" defer></script>
 </body>
 </html>

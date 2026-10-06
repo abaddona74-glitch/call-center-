@@ -19,6 +19,8 @@ const sftpService = require('./services/sftpService');
 const dbService = require('./services/dbService');
 const syncService = require('./services/syncService');
 const exportService = require('./services/exportService');
+const blacklistService = require('./services/blacklistService');
+const issabelDbService = require('./services/issabelDbService');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
@@ -116,6 +118,22 @@ sftpService.connect().then(connected => {
     }
 });
 
+// Build / Versiya ma'lumotlari (Deploy avtomatik aniqlanishi uchun)
+function getAppVersionInfo() {
+    try {
+        const vPath = path.join(__dirname, 'public', 'version.json');
+        if (fs.existsSync(vPath)) {
+            return JSON.parse(fs.readFileSync(vPath, 'utf8'));
+        }
+    } catch (e) {}
+    return {
+        buildId: 'dev',
+        buildTime: new Date().toISOString(),
+        version: '2.4.0',
+        app: 'call-center'
+    };
+}
+
 // WebSocket yangi mijoz ulanganda
 wss.on('connection', async (ws) => {
     console.log('🔗 Yangi Web dashboard mijozi ulandi');
@@ -125,10 +143,13 @@ wss.on('connection', async (ws) => {
         await amiService.ensureInitialSync();
     } catch (e) {}
 
+    const versionInfo = getAppVersionInfo();
+
     // Dastlabki ma'lumotlarni yuboramiz
     ws.send(JSON.stringify({
         type: 'initial_state',
         data: {
+            serverVersion: versionInfo,
             amiStatus: amiService.isConnected,
             sftpStatus: sftpService.isConnected,
             stats: amiService.getSummaryStats(),
@@ -136,8 +157,16 @@ wss.on('connection', async (ws) => {
             conversations: Array.from(amiService.activeConversations ? amiService.activeConversations.values() : []),
             queues: amiService.getQueueSummaryList(),
             operators: amiService.getOperatorList(),
-            callHistory: amiService.getCallHistory(50)
+            callHistory: amiService.getCallHistory(50),
+            callbacks: amiService.getCallbacksWithActiveCalls(),
+            contacts: dbService.getAllContacts()
         }
+    }));
+
+    // Versiya ma'lumotini alohida event sifatida ham yuboramiz
+    ws.send(JSON.stringify({
+        type: 'server_version',
+        data: versionInfo
     }));
 
     ws.on('message', (message) => {
@@ -151,6 +180,14 @@ wss.on('connection', async (ws) => {
 });
 
 // --- REST API ENDPOINTLARI ---
+
+// Build / Versiya tekshiruvi (Deploy va avtomatik yangilanish uchun)
+app.get('/api/version', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.json(getAppVersionInfo());
+});
 
 // Server holati
 app.get('/api/status', (req, res) => {
@@ -194,8 +231,47 @@ app.get('/api/operators', async (req, res) => {
     const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
     if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr !== todayStr) {
         try {
-            const ops = await issabelDbService.fetchOperatorStats(dateStr);
-            return res.json(ops);
+            const histOps = await issabelDbService.fetchOperatorStats(dateStr);
+            const liveOps = amiService.getOperatorList();
+            const liveMap = new Map(liveOps.map(o => [String(o.id), o]));
+            const histMap = new Map(histOps.map(o => [String(o.id), o]));
+
+            const allOpIds = new Set([...liveMap.keys(), ...histMap.keys()]);
+            const combined = Array.from(allOpIds).map(id => {
+                const live = liveMap.get(id) || {};
+                const hist = histMap.get(id) || {};
+                const ans = hist.answered !== undefined ? hist.answered : 0;
+                const out = hist.outbound !== undefined ? hist.outbound : 0;
+                const xIn = hist.transferredIn !== undefined ? hist.transferredIn : 0;
+                const grand = hist.grandTotal !== undefined ? hist.grandTotal : (ans + out + xIn);
+
+                return {
+                    id: String(id),
+                    name: hist.name || live.name || `Operator ${id}`,
+                    realName: hist.realName || live.realName || `Operator ${id}`,
+                    presence: live.presence || 'offline',
+                    ip: live.ip || '',
+                    latency: live.latency || '',
+                    totalCalls: hist.totalCalls !== undefined ? hist.totalCalls : grand,
+                    answered: ans,
+                    rawAnswered: hist.rawAnswered !== undefined ? hist.rawAnswered : ans,
+                    outbound: out,
+                    transferredOut: hist.transferredOut !== undefined ? hist.transferredOut : 0,
+                    transferredIn: xIn,
+                    transferResolved: hist.transferResolved !== undefined ? hist.transferResolved : xIn,
+                    denied: hist.denied !== undefined ? hist.denied : 0,
+                    missed: hist.missed !== undefined ? hist.missed : 0,
+                    totalDurationSec: hist.totalDurationSec !== undefined ? hist.totalDurationSec : 0,
+                    avgDurationSec: hist.avgDurationSec !== undefined ? hist.avgDurationSec : 0,
+                    grandTotal: grand,
+                    paused: !!live.paused,
+                    agentConnected: !!live.agentConnected,
+                    agentHostname: live.agentHostname || '',
+                    agentVersion: live.agentVersion || null,
+                    lastAgentPing: live.lastAgentPing || null
+                };
+            });
+            return res.json(combined);
         } catch (e) {
             return res.status(500).json({ error: e.message });
         }
@@ -203,8 +279,6 @@ app.get('/api/operators', async (req, res) => {
     await amiService.ensureInitialSync();
     res.json(amiService.getOperatorList());
 });
-
-const issabelDbService = require('./services/issabelDbService');
 
 // So'nggi qo'ng'iroqlar tarixi (Paginated & Lazy Loading - To'g'ridan-to'g'ri Issabel CDR dan, sana bo'yicha)
 app.get('/api/history', async (req, res) => {
@@ -223,6 +297,12 @@ app.get('/api/history', async (req, res) => {
     }
 });
 
+// So'nggi qo'ng'iroqlar oqimi buferi (Dashboard va zaxira yuklash uchun)
+app.get('/api/calls/recent', (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    res.json(amiService.getCallHistory(limit));
+});
+
 // Kartochkalar yoki Operator bosilganda uning tanlangan sana bo'yicha barcha qo'ng'iroqlari tafsiloti
 app.get('/api/calls/details', async (req, res) => {
     const type = req.query.type || 'all';
@@ -237,6 +317,141 @@ app.get('/api/calls/details', async (req, res) => {
         res.json({ success: true, ...paginatedData });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message, total: 0, page: 1, totalPages: 1, limit, data: [] });
+    }
+});
+
+// --- BOG'LANISHI KERAK BO'LGAN MIJOZLAR (CALLBACKS) API ---
+
+// 1. Bog'lanishi kerak bo'lgan mijozlar ro'yxati
+app.get('/api/callbacks', (req, res) => {
+    try {
+        const filter = req.query.filter || 'all';
+        const list = amiService.getCallbacksWithActiveCalls(filter);
+        res.json({ success: true, data: list });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message, data: [] });
+    }
+});
+
+// 2. Mijozni ro'yxatdan o'chirish (faqat Admin uchun)
+app.delete('/api/callbacks/:id', (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const ok = dbService.dismissCallback(id, 'admin');
+        if (ok) {
+            const updatedList = amiService.getCallbacksWithActiveCalls();
+            broadcastWs({
+                type: 'callbacks_update',
+                data: updatedList
+            });
+            res.json({ success: true, message: "Mijoz muvaffaqiyatli o'chirildi", data: updatedList });
+        } else {
+            res.status(404).json({ success: false, message: "Mijoz topilmadi" });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 2.1 Barcha bog'lanishi kerak bo'lgan mijozlarni tozalash (Clear all - faqat Admin uchun)
+app.delete('/api/callbacks', (req, res) => {
+    try {
+        const count = dbService.dismissAllCallbacks('admin');
+        const updatedList = amiService.getCallbacksWithActiveCalls();
+        broadcastWs({
+            type: 'callbacks_update',
+            data: updatedList
+        });
+        res.json({ success: true, message: `Barcha (${count} ta) mijozlar ro'yxatdan o'chirildi`, data: updatedList });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 3. Asterisk CDR dan majburiy qayta sinxronizatsiya qilish (Default: 30 kun)
+app.post('/api/callbacks/sync', async (req, res) => {
+    try {
+        const days = parseInt(req.query.days || req.body?.days || '30', 10);
+        await issabelDbService.syncPendingCallbacks(days);
+        const updatedList = amiService.getCallbacksWithActiveCalls();
+        broadcastWs({
+            type: 'callbacks_update',
+            data: updatedList
+        });
+        res.json({ success: true, data: updatedList });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// --- MIJOZLAR BAZASI / TELEFON KITOBI (CLIENT CONTACTS) API ---
+
+// 1. Barcha kontaktlar yoki qidiruv natijasi
+app.get('/api/contacts', (req, res) => {
+    try {
+        const query = req.query.q || req.query.search || '';
+        const list = query ? dbService.searchContacts(query) : dbService.getAllContacts();
+        res.json({ success: true, data: list });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message, data: [] });
+    }
+});
+
+// 2. Aniq bitta raqam bo'yicha kontaktni olish
+app.get('/api/contacts/:phone', (req, res) => {
+    try {
+        const contact = dbService.getContact(req.params.phone);
+        res.json({ success: true, data: contact || null });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 3. Kontaktni saqlash yoki yangilash (Upsert)
+app.post('/api/contacts', (req, res) => {
+    try {
+        const { phone, name, organization, notes } = req.body || {};
+        if (!phone || !String(phone).trim()) {
+            return res.status(400).json({ success: false, message: 'Telefon raqami kiritilmadi' });
+        }
+        const cleanName = String(name || '').trim();
+        const cleanOrg = String(organization || '').trim();
+        if (!cleanName && !cleanOrg) {
+            return res.status(400).json({ success: false, message: 'Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting' });
+        }
+
+        const saved = dbService.saveContact({ phone, name: cleanName, organization: cleanOrg, notes });
+        broadcastWs({
+            type: 'client_contacts_update',
+            data: {
+                action: 'upsert',
+                contact: saved
+            }
+        });
+        res.json({ success: true, message: "Mijoz ma'lumotlari saqlandi", data: saved });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 4. Kontaktni o'chirish
+app.delete('/api/contacts/:phone', (req, res) => {
+    try {
+        const ok = dbService.deleteContact(req.params.phone);
+        if (ok) {
+            broadcastWs({
+                type: 'client_contacts_update',
+                data: {
+                    action: 'delete',
+                    phone: req.params.phone
+                }
+            });
+            res.json({ success: true, message: "Mijoz muvaffaqiyatli o'chirildi" });
+        } else {
+            res.status(404).json({ success: false, message: "Mijoz topilmadi" });
+        }
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 
@@ -423,6 +638,12 @@ app.post('/api/action/hangup', (req, res) => {
         return res.status(400).json({ error: 'Kanal yoki AMI topilmadi' });
     }
 
+    if (amiService.activeChannels && amiService.activeChannels.has(channel)) {
+        amiService.activeChannels.delete(channel);
+        amiService.channelToOperator.delete(channel);
+        amiService.recalculateConversations();
+    }
+
     amiService.ami.action({
         action: 'Hangup',
         channel: channel
@@ -450,6 +671,142 @@ app.post('/api/action/originate', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, response });
     });
+});
+
+// Asterisk navbatidagi (fewestcalls) operator callsTaken sonini qo'lda o'zgartirish (+1, -1, yoki yangi qiymat)
+// reset=true — qo'lda belgilangan ofsetni bekor qilish (Asterisk haqiqiy hisobiga qaytish)
+app.post('/api/queue/adjust-calls', (req, res) => {
+    try {
+        const { operatorId, delta, value, reset } = req.body || {};
+        if (!operatorId) {
+            return res.status(400).json({ success: false, message: 'operatorId kiritilmadi' });
+        }
+        if (reset) {
+            const cleared = amiService.clearCallsTakenOverride(operatorId);
+            if (!cleared) {
+                return res.status(404).json({ success: false, message: 'Operator topilmadi' });
+            }
+            return res.json({ success: true, operator: cleared });
+        }
+        const deltaNum = delta !== undefined ? Number(delta) : 1;
+        const absVal = (value !== undefined && value !== null && value !== '') ? Number(value) : null;
+        const updated = amiService.adjustOperatorCallsTaken(operatorId, deltaNum, absVal);
+        if (!updated) {
+            return res.status(404).json({ success: false, message: 'Operator topilmadi' });
+        }
+        return res.json({ success: true, operator: updated });
+    } catch (err) {
+        console.error('Error in /api/queue/adjust-calls:', err);
+        return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// --- BLACKLIST (QORA RO'YXAT) BOSHQARUV API ---
+
+// 1. Parol tekshirish
+app.post('/api/blacklist/verify', (req, res) => {
+    const { password } = req.body || {};
+    if (blacklistService.verifyPassword(password)) {
+        return res.json({ success: true, message: 'Kirish muvaffaqiyatli' });
+    }
+    return res.status(401).json({ success: false, message: 'Noto\'g\'ri parol kiritildi' });
+});
+
+// Middleware: Blacklist ruxsatini tekshirish
+function requireBlacklistAuth(req, res, next) {
+    const authHeader = req.headers['x-blacklist-auth'] || req.headers['authorization'];
+    const authQuery = req.query.password;
+    const authBody = req.body?.password;
+    const pass = authHeader || authQuery || authBody;
+
+    if (blacklistService.verifyPassword(pass)) {
+        return next();
+    }
+    return res.status(401).json({ success: false, message: 'Ruxsat berilmadi: Parol noto\'g\'ri' });
+}
+
+// 2. Qora ro'yxatni olish
+app.get('/api/blacklist', requireBlacklistAuth, async (req, res) => {
+    try {
+        const list = await blacklistService.getAll();
+        res.json({ success: true, count: list.length, data: list });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 3. Yangi raqam qo'shish
+app.post('/api/blacklist', requireBlacklistAuth, async (req, res) => {
+    try {
+        const { number, note } = req.body || {};
+        if (!number) {
+            return res.status(400).json({ success: false, message: 'Telefon raqam kiritilmadi' });
+        }
+        const item = await blacklistService.add(number, note);
+        res.json({ success: true, message: 'Raqam qora ro\'yxatga qo\'shildi', data: item });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 4. Raqamni o'chirish
+app.delete('/api/blacklist/:number', requireBlacklistAuth, async (req, res) => {
+    try {
+        const num = req.params.number;
+        if (!num) {
+            return res.status(400).json({ success: false, message: 'Telefon raqam ko\'rsatilmadi' });
+        }
+        const result = await blacklistService.remove(num);
+        res.json({ success: true, message: 'Raqam qora ro\'yxatdan chiqarildi', data: result });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// --- OPERATORNI PAUZAGA QO'YISH / CHIQARISH (Navbat pauzasi) ---
+app.post('/api/operator/pause', async (req, res) => {
+    try {
+        const { extension, paused } = req.body || {};
+        if (!extension) {
+            return res.status(400).json({ success: false, message: 'Operator raqami (extension) ko\'rsatilmadi' });
+        }
+
+        const ext = String(extension).replace(/\D/g, '');
+        const shouldPause = Boolean(paused);
+        const action = shouldPause ? 'pause' : 'unpause';
+
+        // Asterisk navbatidagi a'zoni pauza qilish yoki unpause qilish
+        const cmd = `asterisk -rx "queue ${action} member Local/${ext}@from-queue/n"`;
+        await issabelDbService.execCommand(cmd);
+
+        // amiService dagi xotirani ham darhol yangilaymiz
+        if (amiService && amiService.operators && amiService.operators.has(ext)) {
+            const op = amiService.operators.get(ext);
+            op.paused = shouldPause;
+            if (shouldPause) {
+                if (op.presence !== 'talking') op.presence = 'paused';
+            } else {
+                if (op.presence === 'paused') op.presence = 'ready';
+            }
+            if (typeof amiService.broadcast === 'function') {
+                amiService.broadcast('operators_update', amiService.getOperatorList());
+            }
+        }
+
+        console.log(`⏸️ [Queue Pause] Operator ${ext} -> ${shouldPause ? 'PAUZADA' : 'FAOL (UNPAUSED)'}`);
+
+        res.json({
+            success: true,
+            extension: ext,
+            paused: shouldPause,
+            message: shouldPause 
+                ? `Operator ${ext} muvaffaqiyatli pauzaga (tanaffusga) qo'yildi` 
+                : `Operator ${ext} muvaffaqiyatli pauzadan chiqarildi (ishga qaytdi)`
+        });
+    } catch (err) {
+        console.error('⚠️ Operator pause xatolik:', err.message);
+        res.status(500).json({ success: false, message: err.message });
+    }
 });
 
 // --- 3CX DESKTOP AGENT API ENDPOINTLARI ---
@@ -615,26 +972,38 @@ function getAgentOperatorStatsList(targetDate = null) {
     
     return allOps.map(op => {
         const stats = agentStatsMap[op.id] || { answered: 0, outbound: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
+        const ans = stats.answered || 0;
+        const out = stats.outbound || 0;
+        const transResolved = targetDate ? 0 : ((op.transferResolved !== undefined ? op.transferResolved : (stats.transferResolved || 0)) || 0);
+        // Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan
+        const grandTotal = ans + out + transResolved;
         return {
             id: op.id,
             name: op.name,
             realName: op.realName,
             presence: op.presence,
+            talkingSince: op.talkingSince || null,
+            paused: !!op.paused,
+            grandTotal: grandTotal,
+            ip: op.ip || '',
+            latency: op.latency || '',
             ringingCaller: op.ringingCaller || null,
             agentConnected: !!op.agentConnected,
             agentHostname: op.agentHostname || '',
             agentVersion: op.agentVersion || null,
             lastAgentPing: op.lastAgentPing || null,
-            answered: stats.answered || 0,
-            callsTaken: op.callsTaken !== undefined ? op.callsTaken : null,
+            answered: ans,
+            callsTaken: (op.callsTaken !== undefined && op.callsTaken !== null) ? Number(op.callsTaken) : 0,
             lastCall: op.lastCall !== undefined ? op.lastCall : null,
-            outbound: stats.outbound || 0,
+            outbound: out,
             transferredOut: (op.transferredOut !== undefined ? op.transferredOut : stats.transferredOut) || 0,
             transferredIn: (op.transferredIn !== undefined ? op.transferredIn : stats.transferredIn) || 0,
+            transferResolved: transResolved,
             missed: stats.missed || 0,
             totalDurationSec: stats.totalDurationSec || 0,
             avgDurationSec: stats.avgDurationSec || 0,
-            totalCalls: (stats.answered || 0) + (stats.outbound || 0) + (stats.missed || 0)
+            // Jami = qabul + chiquvchi + rad + transfer oxirida hal qilgan (+1)
+            totalCalls: ans + out + (stats.missed || 0) + transResolved
         };
     });
 }
@@ -652,9 +1021,68 @@ syncService.onSyncComplete = (res) => {
     amiService.broadcast('operators_update', amiService.getOperatorList());
 };
 
-// /operators sahifasi uchun faqat 3CX Desktop Agent to'plagan operatorlar statistikasi
-app.get('/api/agent/operator-stats', (req, res) => {
+// /operators sahifasi uchun operatorlar statistikasi (Bugungi yoki tanlangan arxiv sana bo'yicha)
+app.get('/api/agent/operator-stats', async (req, res) => {
     const dateStr = req.query.date || null;
+    const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+    if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr !== todayStr) {
+        try {
+            const histStats = await issabelDbService.fetchOperatorStats(dateStr);
+            const agentStatsMap = dbService.getTodayAgentOperatorStats(dateStr);
+            const histMap = new Map(histStats.map(o => [String(o.id), o]));
+            const allOps = amiService.getOperatorList();
+
+            const result = allOps.map(op => {
+                const id = String(op.id);
+                const aStats = agentStatsMap[id] || {};
+                const hStats = histMap.get(id) || {};
+
+                // Agar 3CX Agent jurnali bo'lsa (yoki sinxron bo'lgan bo'lsa), undan; aks holda Asterisk CDR dan
+                const ans = (aStats.answered !== undefined && aStats.answered > 0) ? aStats.answered : (hStats.answered || 0);
+                const out = (aStats.outbound !== undefined && aStats.outbound > 0) ? aStats.outbound : (hStats.outbound || 0);
+                const xIn = hStats.transferredIn || 0;
+                const xOut = hStats.transferredOut || 0;
+                const xResolved = hStats.transferResolved || 0;
+                const missed = (aStats.missed !== undefined && aStats.missed > 0) ? aStats.missed : (hStats.missed || 0);
+                const totDur = (aStats.totalDurationSec !== undefined && aStats.totalDurationSec > 0) ? aStats.totalDurationSec : (hStats.totalDurationSec || 0);
+                const spoken = ans + out;
+                const avgDur = spoken > 0 ? Math.round(totDur / spoken) : (hStats.avgDurationSec || 0);
+                const grandTotal = ans + out + xResolved;
+
+                return {
+                    id: op.id,
+                    name: op.name,
+                    realName: op.realName,
+                    presence: op.presence,
+                    talkingSince: op.talkingSince || null,
+                    paused: !!op.paused,
+                    grandTotal: grandTotal,
+                    ip: op.ip || '',
+                    latency: op.latency || '',
+                    ringingCaller: op.ringingCaller || null,
+                    agentConnected: !!op.agentConnected,
+                    agentHostname: op.agentHostname || '',
+                    agentVersion: op.agentVersion || null,
+                    lastAgentPing: op.lastAgentPing || null,
+                    answered: ans,
+                    callsTaken: (op.callsTaken !== undefined && op.callsTaken !== null) ? Number(op.callsTaken) : 0,
+                    lastCall: op.lastCall !== undefined ? op.lastCall : null,
+                    outbound: out,
+                    transferredOut: xOut,
+                    transferredIn: xIn,
+                    transferResolved: xResolved,
+                    missed: missed,
+                    totalDurationSec: totDur,
+                    avgDurationSec: avgDur,
+                    totalCalls: ans + out + missed + xResolved
+                };
+            });
+            return res.json(result);
+        } catch (err) {
+            console.error('Error fetching historical agent operator stats:', err);
+            return res.json(getAgentOperatorStatsList(dateStr));
+        }
+    }
     res.json(getAgentOperatorStatsList(dateStr));
 });
 
@@ -687,13 +1115,40 @@ app.post('/api/agent/call-event', (req, res) => {
         console.log(`⚠️ [3CX Agent MISSED] Operator ${opId} (3CX History): ${callerId}`);
     } else if (eventType === 'ANSWERED') {
         console.log(`📞 [3CX Agent ANSWER] Operator ${opId} javob berdi! Raqam: ${callerId}`);
+        if (durationSec > 0 && callerId) {
+            dbService.resolveCallback(callerId, `3cx_answered_${opId}`);
+        }
     } else if (eventType === 'ENDED') {
         console.log(`📴 [3CX Agent END] Operator ${opId} suhbat yakunlandi! Raqam: ${callerId}, Vaqt: ${durationSec || 0}s`);
+        if (durationSec > 0 && callerId) {
+            dbService.resolveCallback(callerId, `3cx_ended_${opId}`);
+        }
+    } else if (eventType === 'DIALLED' || eventType === 'OUTBOUND') {
+        if (durationSec > 0 && callerId) {
+            dbService.resolveCallback(callerId, `3cx_outbound_${opId}`);
+        } else if (durationSec === 0 && callerId) {
+            const realOpName = issabelDbService.getOperatorName(opId);
+            const opDisplay = realOpName && realOpName !== `Operator ${opId}` ? `${realOpName} (${opId})` : `Operator ${opId}`;
+            dbService.recordFailedOutboundAttempt({
+                phone: callerId,
+                operator: opDisplay,
+                cause: 'Javob bermadi',
+                time: startTime
+            });
+        }
+    }
+
+    // 3CX Desktop Agent real-time qo'ng'irog'ini AmiService ga bildirish
+    if (typeof amiService.recordAgentCallEvent === 'function') {
+        amiService.recordAgentCallEvent(opId, eventType, callerId);
     }
 
     // /operators va asosiy Dashboard uchun yangilangan statistikalarni real-vaqtda broadcast qilish
     amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
     amiService.broadcast('stats_update', amiService.getSummaryStats());
+    if (eventType === 'ANSWERED' || eventType === 'RINGING' || eventType === 'ENDED' || eventType === 'MISSED' || eventType === 'DIALLED' || eventType === 'OUTBOUND') {
+        amiService.broadcast('callbacks_update', amiService.getCallbacksWithActiveCalls());
+    }
 
     res.json({ success: true });
 });
@@ -756,14 +1211,19 @@ app.get('/api/export/excel', async (req, res) => {
     const month = req.query.month || null;
     const startDate = req.query.startDate || null;
     const endDate = req.query.endDate || null;
+    const group = req.query.group || req.query.operatorGroup || 'all';
+    const lang = req.query.lang || req.query.language || 'uz';
     try {
         const { buffer, fileName } = await exportService.generateReportBuffer({
             targetMonth: month,
             startDate,
-            endDate
+            endDate,
+            operatorGroup: group,
+            lang
         });
+        const safeFileName = encodeURIComponent(fileName);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${safeFileName}"; filename*=UTF-8''${safeFileName}`);
         res.setHeader('Content-Length', buffer.length);
         res.send(buffer);
     } catch (err) {

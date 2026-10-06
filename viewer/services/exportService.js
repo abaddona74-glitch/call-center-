@@ -10,7 +10,7 @@ const ExcelJS = require('exceljs');
 const issabelDbService = require('./issabelDbService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
 
 function cyrillicToLatin(text) {
     if (!text || typeof text !== 'string') return text;
@@ -32,16 +32,27 @@ function cyrillicToLatin(text) {
     return text.replace(/[А-Яа-яЁёЎўҒғҚқҲҳ]/g, m => cyrToLatMap[m] !== undefined ? cyrToLatMap[m] : m);
 }
 
-const OPERATOR_DISPLAY_NAMES = {
+const OPERATOR_DISPLAY_NAMES_UZ = {
     '101': 'Tuxtasinov Oybek',
     '103': 'Feruza (103)',
     '106': 'Ubaydullayeva Gulchehra',
     '111': "Jo'rayeva Nozima",
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Xudoyqulova Muattar',
     '120': 'Murodova Navruzoy'
 };
+
+const OPERATOR_DISPLAY_NAMES_RU = {
+    '101': 'Тухтасинов Ойбек',
+    '103': 'Феруза (103)',
+    '106': 'Убайдуллаева Гульчехра',
+    '111': 'Жураева Нозима',
+    '114': 'Махмудбек',
+    '119': 'Худойкулова Муаттар',
+    '120': 'Муродова Наврузой'
+};
+
+const OPERATOR_DISPLAY_NAMES = OPERATOR_DISPLAY_NAMES_UZ;
 
 function formatDurationHms(seconds) {
     const sec = Math.max(0, parseInt(seconds || 0, 10));
@@ -54,6 +65,16 @@ function formatDurationHms(seconds) {
 const MONTH_NAMES_UZ = [
     'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
     'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'
+];
+
+const MONTH_NAMES_RU = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+];
+
+const MONTH_NAMES_RU_NOM = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
 ];
 
 class ExportService {
@@ -93,6 +114,8 @@ class ExportService {
         let targetMonth = null;
         let startDate = null;
         let endDate = null;
+        let operatorGroup = 'all';
+        let lang = 'uz';
 
         if (typeof options === 'string') {
             targetMonth = options;
@@ -100,7 +123,37 @@ class ExportService {
             targetMonth = options.targetMonth || null;
             startDate = options.startDate || null;
             endDate = options.endDate || null;
+            operatorGroup = options.operatorGroup || options.group || 'all';
+            lang = (options.lang || options.language || 'uz').toLowerCase();
+            if (lang !== 'ru' && lang !== 'uz') lang = 'uz';
         }
+
+        let groupSuffix = '';
+        let groupTitleText = '';
+        if (lang === 'ru') {
+            if (operatorGroup === 'main' || operatorGroup === '100') {
+                groupSuffix = '_Основные_100_199';
+                groupTitleText = ' (Основные 100-199)';
+            } else if (operatorGroup === 'secondary' || operatorGroup === '200') {
+                groupSuffix = '_Зангиота_42';
+                groupTitleText = ' (Зангиота 42 200+)';
+            } else {
+                groupSuffix = '_Общий';
+                groupTitleText = ' (Все операторы)';
+            }
+        } else {
+            if (operatorGroup === 'main' || operatorGroup === '100') {
+                groupSuffix = '_Asosiy';
+                groupTitleText = ' (Asosiy 100-199)';
+            } else if (operatorGroup === 'secondary' || operatorGroup === '200') {
+                groupSuffix = '_Zangiota_42';
+                groupTitleText = ' (Zangiota 42 200+)';
+            } else {
+                groupSuffix = '_Umumiy';
+                groupTitleText = ' (Barchasi)';
+            }
+        }
+        const langSuffix = lang === 'ru' ? '_RU' : '_UZ';
 
         const todayTashkent = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
         let dates = [];
@@ -124,14 +177,24 @@ class ExportService {
 
             if (startDate === endDate) {
                 sheetTitle = `${sd}.${sm}.${sy}`;
-                leftTitle = `📞 ${startDisplay} — QABUL QILINGAN QO'NG'IROQLAR SONI`;
-                rightTitle = `⏱️ ${startDisplay} — UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
-                fileName = `Call_Center_Export_${startDate}.xlsx`;
+                if (lang === 'ru') {
+                    leftTitle = `📞 ${startDisplay}${groupTitleText} — КОЛИЧЕСТВО ПРИНЯТЫХ ЗВОНКОВ`;
+                    rightTitle = `⏱️ ${startDisplay}${groupTitleText} — ОБЩЕЕ ВРЕМЯ РАЗГОВОРА (ЧЧ:ММ:СС)`;
+                } else {
+                    leftTitle = `📞 ${startDisplay}${groupTitleText} — QABUL QILINGAN QO'NG'IROQLAR SONI`;
+                    rightTitle = `⏱️ ${startDisplay}${groupTitleText} — UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
+                }
+                fileName = `Call_Center_Export_${startDate}${groupSuffix}${langSuffix}.xlsx`;
             } else {
                 sheetTitle = `${sd}.${sm} - ${ed}.${em}`;
-                leftTitle = `📞 ${startDisplay} — ${endDisplay} QABUL QILINGAN QO'NG'IROQLAR SONI`;
-                rightTitle = `⏱️ ${startDisplay} — ${endDisplay} UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
-                fileName = `Call_Center_Export_${startDate}_${endDate}.xlsx`;
+                if (lang === 'ru') {
+                    leftTitle = `📞 ${startDisplay} — ${endDisplay}${groupTitleText} КОЛИЧЕСТВО ПРИНЯТЫХ ЗВОНКОВ`;
+                    rightTitle = `⏱️ ${startDisplay} — ${endDisplay}${groupTitleText} ОБЩЕЕ ВРЕМЯ РАЗГОВОРА (ЧЧ:ММ:СС)`;
+                } else {
+                    leftTitle = `📞 ${startDisplay} — ${endDisplay}${groupTitleText} QABUL QILINGAN QO'NG'IROQLAR SONI`;
+                    rightTitle = `⏱️ ${startDisplay} — ${endDisplay}${groupTitleText} UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
+                }
+                fileName = `Call_Center_Export_${startDate}_${endDate}${groupSuffix}${langSuffix}.xlsx`;
             }
         } else {
             const [curYear, curMonth] = todayTashkent.split('-');
@@ -145,49 +208,87 @@ class ExportService {
             }
 
             const monthStr = String(month).padStart(2, '0');
-            const monthName = MONTH_NAMES_UZ[month - 1] || 'oy';
+            const monthNameUz = MONTH_NAMES_UZ[month - 1] || 'oy';
+            const monthNameRuNom = MONTH_NAMES_RU_NOM[month - 1] || 'месяц';
             const daysInMonth = new Date(year, month, 0).getDate();
             startDate = `${year}-${monthStr}-01`;
             endDate = `${year}-${monthStr}-${String(daysInMonth).padStart(2, '0')}`;
             dates = this.getDateList(startDate, endDate);
 
-            sheetTitle = `${monthName} ${year}`;
-            leftTitle = `📞 ${monthName.toUpperCase()} ${year} — QABUL QILINGAN QO'NG'IROQLAR SONI`;
-            rightTitle = `⏱️ ${monthName.toUpperCase()} ${year} — UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
-            fileName = `Call_Center_Statistika_${year}-${monthStr}.xlsx`;
+            if (lang === 'ru') {
+                sheetTitle = `${monthNameRuNom} ${year}`;
+                leftTitle = `📞 ${monthNameRuNom.toUpperCase()} ${year}${groupTitleText} — КОЛИЧЕСТВО ПРИНЯТЫХ ЗВОНКОВ`;
+                rightTitle = `⏱️ ${monthNameRuNom.toUpperCase()} ${year}${groupTitleText} — ОБЩЕЕ ВРЕМЯ РАЗГОВОРА (ЧЧ:ММ:СС)`;
+                fileName = `Call_Center_Statistika_${year}-${monthStr}${groupSuffix}${langSuffix}.xlsx`;
+            } else {
+                sheetTitle = `${monthNameUz} ${year}`;
+                leftTitle = `📞 ${monthNameUz.toUpperCase()} ${year}${groupTitleText} — QABUL QILINGAN QO'NG'IROQLAR SONI`;
+                rightTitle = `⏱️ ${monthNameUz.toUpperCase()} ${year}${groupTitleText} — UMUMIY SUHBAT VAQTI (HH:MM:SS)`;
+                fileName = `Call_Center_Statistika_${year}-${monthStr}${groupSuffix}${langSuffix}.xlsx`;
+            }
         }
 
-        // 1. Asterisk PBX CDR dan ma'lumotlarni yig'ish
+        // 1. Asterisk PBX CDR dan ma'lumotlarni yig'ish (Kiruvchi navbat va chiquvchi barcha qo'ng'iroqlar)
+        // Format (6 ustun): A-qatorlar = sana, op_id, soni, suhbat_vaqt, 'A', '' — allaqachon agregatlangan
+        //                   X-qatorlar = sana, from_op, to_op, channel, 'X', billsec — xom transfer zanjiri qatorlari
         const cdrSql = `
             USE asteriskcdrdb;
+            -- 1. Operatorlar qabul qilgan kiruvchi va navbat (queue) qo'ng'iroqlari
             SELECT 
                 DATE(calldate) as call_date,
-                CASE 
-                    WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1)
-                    WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst
-                    WHEN dstchannel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '-', 1), 'SIP/', -1)
-                    WHEN channel REGEXP 'Local/[0-9]{2,4}@' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), 'Local/', -1)
-                    ELSE dst
-                END as op_id,
+                dst as op_id,
                 COUNT(*) as answered_count,
-                SUM(billsec) as total_talk_sec
+                SUM(billsec) as total_talk_sec,
+                'A' as kind,
+                '' as extra
             FROM cdr
             WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
               AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+              AND dst REGEXP '^[0-9]{2,4}$'
+              AND dcontext != 'from-internal-xfer'
               AND disposition = 'ANSWERED' AND billsec > 0
-              AND (
-                  (
-                      (dst REGEXP '^[0-9]{2,4}$' OR dstchannel REGEXP '^SIP/[0-9]{2,4}-' OR channel REGEXP 'Local/[0-9]{2,4}@')
-                      AND (dcontext IS NULL OR dcontext != 'from-internal')
-                      AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
-                  )
-                  OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7)
-              )
             GROUP BY call_date, op_id
-            ORDER BY call_date ASC, op_id ASC;
-        `;
 
-        const rawCdr = await issabelDbService.execQuery(cdrSql);
+            UNION ALL
+
+            -- 2. Operatorlar amalga oshirgan chiquvchi qo'ng'iroqlar
+            SELECT 
+                DATE(calldate) as call_date,
+                SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1) as op_id,
+                COUNT(*) as answered_count,
+                SUM(billsec) as total_talk_sec,
+                'A' as kind,
+                '' as extra
+            FROM cdr
+            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
+              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+              AND dcontext = 'from-internal'
+              AND channel REGEXP '^SIP/[0-9]{2,4}-'
+              AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+              AND disposition = 'ANSWERED' AND billsec > 0
+            GROUP BY call_date, op_id
+
+            UNION ALL
+
+            -- 3. Transfer zanjirlari xom qatorlari (zanjir boshiga 0 yoki 1 ta -1 va 0 yoki 1 ta +1 beriladi, JS tomonda hisoblanadi)
+            SELECT 
+                DATE(calldate) as call_date,
+                CASE 
+                    WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                    WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
+                    ELSE '' 
+                END AS op_id,
+                dst as to_op,
+                channel,
+                'X' as kind,
+                billsec as extra
+            FROM cdr
+            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
+              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+              AND dcontext = 'from-internal-xfer'
+              AND disposition = 'ANSWERED' AND billsec > 0
+            ORDER BY 4 ASC, 1 ASC;
+        `;
 
         // Map: dateStr -> { opId -> { count, talkSec } }
         const dataMap = new Map();
@@ -195,23 +296,171 @@ class ExportService {
             dataMap.set(dStr, new Map());
         }
 
-        const activeOpSet = new Set(['101', '103', '106', '111', '116', '119', '120']);
+        const defaultMainOps = ['101', '103', '106', '111', '114', '119', '120'];
+        const defaultSecondaryOps = ['200', '203', '204', '205', '206', '208', '209'];
+
+        const activeOpSet = new Set();
+        if (operatorGroup === 'main' || operatorGroup === '100') {
+            defaultMainOps.forEach(id => activeOpSet.add(id));
+        } else if (operatorGroup === 'secondary' || operatorGroup === '200') {
+            defaultSecondaryOps.forEach(id => activeOpSet.add(id));
+        } else {
+            defaultMainOps.forEach(id => activeOpSet.add(id));
+            defaultSecondaryOps.forEach(id => activeOpSet.add(id));
+        }
+
+        // 1. SQLite bazasidagi 3CX Desktop Agent to'liq jurnali (eng aniq va to'liq ma'lumot)
+        try {
+            const sqliteSql = `
+                SELECT 
+                    substr(event_time, 1, 10) as call_date,
+                    operator_id,
+                    COUNT(*) as answered_count,
+                    SUM(duration_sec) as total_talk_sec
+                FROM agent_3cx_call_logs
+                WHERE event_time >= ? AND event_time <= ?
+                  AND duration_sec > 0
+                  AND (event_type IN ('ANSWERED', '2', 'DIALLED', '1', 'OUTBOUND', 'INCOMING'))
+                  AND LENGTH(caller_id) > 4
+                GROUP BY call_date, operator_id
+                ORDER BY call_date ASC, operator_id ASC
+            `;
+            const sqliteRows = dbService.db.prepare(sqliteSql).all(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+            for (const row of sqliteRows) {
+                const callDate = row.call_date;
+                const opId = String(row.operator_id || '').trim();
+                if (!opId || EXCLUDED_OPERATORS.has(opId)) continue;
+                if (!/^[0-9]{2,4}$/.test(opId)) continue;
+
+                const opNum = parseInt(opId, 10);
+                if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
+                if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
+
+                activeOpSet.add(opId);
+                if (dataMap.has(callDate)) {
+                    dataMap.get(callDate).set(opId, {
+                        count: parseInt(row.answered_count, 10) || 0,
+                        talkSec: parseInt(row.total_talk_sec, 10) || 0
+                    });
+                }
+            }
+        } catch (sqliteErr) {
+            console.error('❌ exportService SQLite agent_3cx_call_logs xatolik:', sqliteErr.message);
+        }
+
+        // 2. Asterisk PBX CDR dan ham ma'lumotlarni yig'ish va birlashtirish (eng to'liq qiymat Math.max)
+        let rawCdr = null;
+        try {
+            rawCdr = await issabelDbService.execQuery(cdrSql);
+        } catch (cdrErr) {
+            console.warn('⚠️ exportService Asterisk CDR so\'rovida ogohlantirish:', cdrErr.message);
+        }
 
         if (rawCdr) {
+            // Transfer tuzatishlari: sana -> operator -> delta (qabul qilinganlardan chiqarish / olganiga qo'shish)
+            const xferDelta = new Map(); // dateStr -> Map(opId -> delta)
+            const addDelta = (dStr, opId, delta) => {
+                if (!opId || !/^[0-9]{2,4}$/.test(opId)) return;
+                if (EXCLUDED_OPERATORS.has(opId)) return;
+                if (!xferDelta.has(dStr)) xferDelta.set(dStr, new Map());
+                const m = xferDelta.get(dStr);
+                m.set(opId, (m.get(opId) || 0) + delta);
+            };
+
+            // 1-o'tish: transfer xom qatorlarini zanjirlarga yig'ish (bir zanjirning barcha qadamlari bir xil channel)
+            const xferChains = new Map(); // dateStr -> Map(channel -> [{ from, to, billsec }])
+            const aggRows = [];
             for (const line of rawCdr.trim().split('\n')) {
                 if (!line) continue;
                 const parts = line.split('\t');
+                const [callDate, opId, c3, c4] = parts;
+                const kind = (parts[4] || '').trim();
+                if (kind === 'X') {
+                    const cleanChan = (c4 || '').trim();
+                    if (!cleanChan) continue;
+                    if (!xferChains.has(callDate)) xferChains.set(callDate, new Map());
+                    const dayChains = xferChains.get(callDate);
+                    if (!dayChains.has(cleanChan)) dayChains.set(cleanChan, []);
+                    dayChains.get(cleanChan).push({ from: (opId || '').trim(), to: (c3 || '').trim(), billsec: parseInt(parts[5], 10) || 0 });
+                } else {
+                    aggRows.push(parts);
+                }
+            }
+
+            // Suhbat vaqti tuzatishlari: qabul qilingan transfer qatorlarining billsec i qabul qiluvchiga qaytariladi
+            // (1-bo'limdan chiqarilgani uchun) — "o'zi gaplashgan vaqt" saqlanadi
+            const xferTalkDelta = new Map(); // dateStr -> Map(opId -> sec)
+            const addTalk = (dStr, opId, sec) => {
+                if (!opId || !/^[0-9]{2,4}$/.test(opId) || sec <= 0) return;
+                if (EXCLUDED_OPERATORS.has(opId)) return;
+                if (!xferTalkDelta.has(dStr)) xferTalkDelta.set(dStr, new Map());
+                const m = xferTalkDelta.get(dStr);
+                m.set(opId, (m.get(opId) || 0) + sec);
+            };
+
+            // 2-o'tish: zanjirlardan tuzatishlarni hisoblash
+            //   Olgan (+1) = zanjirning oxirgi operator qabulchisi (o'zi hal qilgan)
+            //   Qabul qilingandan chiqarish (-1) = har bir transfer qabul qatori
+            //   Zanjir boshiga -1 = navbatdan to'g'ri qabul qilib boshqaga uzatgan birinchi operator
+            for (const [dStr, dayChains] of xferChains.entries()) {
+                for (const rows of dayChains.values()) {
+                    if (!rows || rows.length === 0) continue;
+                    let lastTo = '';
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
+                    }
+                    if (lastTo) addDelta(dStr, lastTo, 1);
+                    const first = rows[0];
+                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) addDelta(dStr, first.from, -1);
+                    for (const r of rows) {
+                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
+                            if (r.to !== lastTo) addDelta(dStr, r.to, -1);
+                            addTalk(dStr, r.to, r.billsec);
+                        }
+                    }
+                }
+            }
+
+            // 3-o'tish: agregat qatorlar (qabul + chiquvchi)
+            for (const parts of aggRows) {
                 if (parts.length < 4) continue;
                 const [callDate, opId, countStr, talkSecStr] = parts;
                 const cleanOp = (opId || '').trim();
                 if (!cleanOp || EXCLUDED_OPERATORS.has(cleanOp)) continue;
                 if (!/^[0-9]{2,4}$/.test(cleanOp)) continue;
 
+                const opNum = parseInt(cleanOp, 10);
+                if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
+                if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
+
                 activeOpSet.add(cleanOp);
                 if (dataMap.has(callDate)) {
+                    const existing = dataMap.get(callDate).get(cleanOp) || { count: 0, talkSec: 0 };
+                    const cdrCount = parseInt(countStr, 10) || 0;
+                    const cdrTalkSec = parseInt(talkSecStr, 10) || 0;
                     dataMap.get(callDate).set(cleanOp, {
-                        count: parseInt(countStr, 10) || 0,
-                        talkSec: parseInt(talkSecStr, 10) || 0
+                        count: cdrCount,
+                        talkSec: Math.max(existing.talkSec, cdrTalkSec)
+                    });
+                }
+            }
+
+            // 4-o'tish: transfer tuzatishlarini qo'llash (soni + suhbat vaqti)
+            const talkDeltas = xferTalkDelta;
+            for (const [dStr, ops] of xferDelta.entries()) {
+                if (!dataMap.has(dStr)) continue;
+                const allOps = new Set([...ops.keys(), ...((talkDeltas.get(dStr) || new Map()).keys())]);
+                for (const opId of allOps) {
+                    const opNum = parseInt(opId, 10);
+                    if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
+                    if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
+                    activeOpSet.add(opId);
+                    const delta = ops.get(opId) || 0;
+                    const talkAdd = (talkDeltas.get(dStr) || new Map()).get(opId) || 0;
+                    const existing = dataMap.get(dStr).get(opId) || { count: 0, talkSec: 0 };
+                    dataMap.get(dStr).set(opId, {
+                        count: existing.count + delta,
+                        talkSec: existing.talkSec + talkAdd
                     });
                 }
             }
@@ -235,12 +484,18 @@ class ExportService {
         // Chap qism: [Sana, Op1, Op2, ...]
         // Ajratuvchi: [Bo'sh ustun]
         // O'ng qism: [Sana, Op1, Op2, ...]
-        const leftHeaders = ['Sana'];
-        const rightHeaders = ['Sana'];
+        const dateColTitle = lang === 'ru' ? 'Дата' : 'Sana';
+        const leftHeaders = [dateColTitle];
+        const rightHeaders = [dateColTitle];
+
+        const operatorNamesMap = (lang === 'ru') ? OPERATOR_DISPLAY_NAMES_RU : OPERATOR_DISPLAY_NAMES_UZ;
+        const opFallbackPrefix = (lang === 'ru') ? 'Оператор' : 'Operator';
 
         for (const opId of operators) {
-            const rawName = OPERATOR_DISPLAY_NAMES[opId] || `Operator ${opId}`;
-            const name = cyrillicToLatin(rawName);
+            let name = operatorNamesMap[opId] || `${opFallbackPrefix} ${opId}`;
+            if (lang !== 'ru') {
+                name = cyrillicToLatin(name);
+            }
             leftHeaders.push(name);
             rightHeaders.push(name);
         }
@@ -314,8 +569,14 @@ class ExportService {
             const isPastOrToday = dateStr <= todayTashkent;
             const dayNum = parseInt(d, 10);
             const mNum = parseInt(m, 10);
-            const monthName = MONTH_NAMES_UZ[mNum - 1] || m;
-            const displayDate = `${dayNum}-${monthName} ${y}`;
+            let displayDate = '';
+            if (lang === 'ru') {
+                const monthNameRu = MONTH_NAMES_RU[mNum - 1] || m;
+                displayDate = `${dayNum} ${monthNameRu} ${y} г.`;
+            } else {
+                const monthName = MONTH_NAMES_UZ[mNum - 1] || m;
+                displayDate = `${dayNum}-${monthName} ${y}`;
+            }
 
             const dayData = dataMap.get(dateStr) || new Map();
             let totalDayCalls = 0;
@@ -335,11 +596,18 @@ class ExportService {
             };
 
             // Dam olish kuni yoki bayram:
-            // 1. Shanba yoki Yakshanba (agar qo'ng'iroq bo'lmasa yoki kelajakdagi kun bo'lsa)
-            // 2. Ish kuni (Dushanba-Juma) bo'lsa ham, o'tgan yoki bugungi kun bo'lib, hammada 0 ta bo'lsa (Bayramlar!)
-            const isDayOff = (isWeekend && totalDayCalls === 0) || 
-                             (isPastOrToday && totalDayCalls === 0) ||
-                             (!isPastOrToday && isWeekend);
+            // MUHIM: Bugungi kun (isToday) yoki birorta qo'ng'iroq bo'lgan kun HECH QACHON "ВЫХОДНОЙ" bo'lmaydi!
+            const isToday = (dateStr === todayTashkent);
+            let isDayOff = false;
+            if (!isToday && totalDayCalls === 0) {
+                if (isPastOrToday) {
+                    // O'tgan kunda umuman qo'ng'iroq bo'lmagan bo'lsa (Shanba/Yakshanba yoki bayram kuni)
+                    isDayOff = true;
+                } else if (isWeekend) {
+                    // Kelajakdagi shanba va yakshanba kunlari
+                    isDayOff = true;
+                }
+            }
 
             if (isDayOff) {
                 // Chap jadval: Sana
@@ -351,9 +619,10 @@ class ExportService {
                 dateCell1.border = thinBorder;
 
                 // Chap jadval: Barcha operatorlar kataklarini birlashtirib "Dam olish kuni"
+                const dayOffLabel = lang === 'ru' ? 'Выходной день' : 'Dam olish kuni';
                 sheet.mergeCells(currentRow, 2, currentRow, totalLeftCols);
                 const leftCell = sheet.getCell(currentRow, 2);
-                leftCell.value = 'Dam olish kuni';
+                leftCell.value = dayOffLabel;
                 leftCell.alignment = { horizontal: 'center', vertical: 'middle' };
                 leftCell.font = { name: 'Calibri', size: 11, bold: true, italic: true, color: { argb: 'FF1D4ED8' } };
                 leftCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -378,7 +647,7 @@ class ExportService {
                 const rightEndCol = rightStartColIdx + totalRightCols - 1;
                 sheet.mergeCells(currentRow, rightStartColIdx + 1, currentRow, rightEndCol);
                 const rightCell = sheet.getCell(currentRow, rightStartColIdx + 1);
-                rightCell.value = 'Dam olish kuni';
+                rightCell.value = dayOffLabel;
                 rightCell.alignment = { horizontal: 'center', vertical: 'middle' };
                 rightCell.font = { name: 'Calibri', size: 11, bold: true, italic: true, color: { argb: 'FF1D4ED8' } };
                 rightCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -441,10 +710,12 @@ class ExportService {
         const totalRow1 = sheet.getRow(currentRow);
         totalRow1.height = 24;
 
-        const totalVals1 = ["Jami qo'ng'iroqlar:"];
+        const totalCallsLabel = lang === 'ru' ? 'Всего звонков:' : "Jami qo'ng'iroqlar:";
+        const totalDurationLabel = lang === 'ru' ? 'Общее время разговора:' : "Jami suhbat vaqti:";
+        const totalVals1 = [totalCallsLabel];
         for (let i = 0; i < operators.length; i++) totalVals1.push(opTotalCalls[i]);
         totalVals1.push('');
-        totalVals1.push('Jami suhbat vaqti:');
+        totalVals1.push(totalDurationLabel);
         for (let i = 0; i < operators.length; i++) totalVals1.push(formatDurationHms(opTotalSecs[i]));
 
         totalRow1.values = totalVals1;
@@ -471,14 +742,15 @@ class ExportService {
         const totalRow2 = sheet.getRow(currentRow);
         totalRow2.height = 24;
 
+        const grandTotalLabel = lang === 'ru' ? 'Итого:' : 'Jami:';
         const totalVals2 = new Array(totalLeftCols).fill('');
-        totalVals2[totalLeftCols - 2] = 'Jami:';
+        totalVals2[totalLeftCols - 2] = grandTotalLabel;
         totalVals2[totalLeftCols - 1] = grandTotalCalls;
 
         totalVals2.push(''); // spacer
 
         const rightVals2 = new Array(totalRightCols).fill('');
-        rightVals2[totalRightCols - 2] = 'Jami:';
+        rightVals2[totalRightCols - 2] = grandTotalLabel;
         rightVals2[totalRightCols - 1] = formatDurationHms(grandTotalSecs);
 
         totalRow2.values = [...totalVals2, ...rightVals2];
@@ -497,7 +769,7 @@ class ExportService {
         }
 
         // 8. Qo'shimcha varaq: Bugungi kunlik operatorlar hisoboti
-        await this.addDailySummarySheet(workbook, todayTashkent);
+        await this.addDailySummarySheet(workbook, todayTashkent, operatorGroup, lang);
 
         const buffer = await workbook.xlsx.writeBuffer();
         return { buffer, fileName };
@@ -506,21 +778,35 @@ class ExportService {
     /**
      * Ikkinchi varaq: Kunlik hisobot jadvali
      */
-    async addDailySummarySheet(workbook, todayStr) {
-        const sheet = workbook.addWorksheet('Bugungi hisobot', {
+    async addDailySummarySheet(workbook, todayStr, operatorGroup = 'all', lang = 'uz') {
+        const sheetTitle = lang === 'ru' ? 'Сегодняшний отчет' : 'Bugungi hisobot';
+        const sheet = workbook.addWorksheet(sheetTitle, {
             views: [{ showGridLines: true }]
         });
 
-        sheet.columns = [
-            { header: 'Operator ID', key: 'id', width: 14 },
-            { header: 'Operator Ismi', key: 'name', width: 24 },
-            { header: 'Qabul qilingan', key: 'answered', width: 16 },
-            { header: 'Chiquvchi', key: 'outbound', width: 16 },
-            { header: 'O\'tkazib yuborilgan', key: 'missed', width: 18 },
-            { header: 'Jami qo\'ng\'iroqlar', key: 'total', width: 18 },
-            { header: 'Jami suhbat vaqti', key: 'duration', width: 20 },
-            { header: 'O\'rtacha suhbat', key: 'avg', width: 18 }
-        ];
+        if (lang === 'ru') {
+            sheet.columns = [
+                { header: 'ID оператора', key: 'id', width: 14 },
+                { header: 'Имя оператора', key: 'name', width: 24 },
+                { header: 'Принято', key: 'answered', width: 16 },
+                { header: 'Исходящие', key: 'outbound', width: 16 },
+                { header: 'Пропущено', key: 'missed', width: 18 },
+                { header: 'Всего звонков', key: 'total', width: 18 },
+                { header: 'Общая длительность', key: 'duration', width: 20 },
+                { header: 'Среднее время', key: 'avg', width: 18 }
+            ];
+        } else {
+            sheet.columns = [
+                { header: 'Operator ID', key: 'id', width: 14 },
+                { header: 'Operator Ismi', key: 'name', width: 24 },
+                { header: 'Qabul qilingan', key: 'answered', width: 16 },
+                { header: 'Chiquvchi', key: 'outbound', width: 16 },
+                { header: 'O\'tkazib yuborilgan', key: 'missed', width: 18 },
+                { header: 'Jami qo\'ng\'iroqlar', key: 'total', width: 18 },
+                { header: 'Jami suhbat vaqti', key: 'duration', width: 20 },
+                { header: 'O\'rtacha suhbat', key: 'avg', width: 18 }
+            ];
+        }
 
         // Header stillari
         const headerRow = sheet.getRow(1);
@@ -533,16 +819,71 @@ class ExportService {
 
         // Bugungi agent statistikasi
         const statsMap = dbService.getTodayAgentOperatorStats(todayStr);
-        const operatorsList = [
+        const isRu = (lang === 'ru');
+        const defaultMainListUz = [
             { id: '101', name: 'Oybek' },
             { id: '103', name: 'Feruza' },
-            { id: '106', name: 'Gulchehra' },
+            { id: '106', name: 'Ubaydullayeva Gulchehra' },
             { id: '111', name: 'Nozima' },
             { id: '114', name: 'Maxmudbek' },
-            { id: '116', name: 'Ibrohim' },
             { id: '119', name: 'Muattar' },
             { id: '120', name: 'Navruzoy' }
         ];
+        const defaultSecondaryListUz = [
+            { id: '200', name: 'Operator 200' },
+            { id: '203', name: 'Operator 203' },
+            { id: '204', name: 'Operator 204' },
+            { id: '205', name: 'Operator 205' },
+            { id: '206', name: 'Operator 206' },
+            { id: '208', name: 'Operator 208' },
+            { id: '209', name: 'Operator 209' }
+        ];
+
+        const defaultMainListRu = [
+            { id: '101', name: 'Ойбек' },
+            { id: '103', name: 'Феруза' },
+            { id: '106', name: 'Убайдуллаева Гульчехра' },
+            { id: '111', name: 'Нозима' },
+            { id: '114', name: 'Махмудбек' },
+            { id: '119', name: 'Муаттар' },
+            { id: '120', name: 'Наврузой' }
+        ];
+        const defaultSecondaryListRu = [
+            { id: '200', name: 'Оператор 200' },
+            { id: '203', name: 'Оператор 203' },
+            { id: '204', name: 'Оператор 204' },
+            { id: '205', name: 'Оператор 205' },
+            { id: '206', name: 'Оператор 206' },
+            { id: '208', name: 'Оператор 208' },
+            { id: '209', name: 'Оператор 209' }
+        ];
+
+        const defaultMainList = isRu ? defaultMainListRu : defaultMainListUz;
+        const defaultSecondaryList = isRu ? defaultSecondaryListRu : defaultSecondaryListUz;
+        const opFallbackPrefix = isRu ? 'Оператор' : 'Operator';
+        const operatorNamesMap = isRu ? OPERATOR_DISPLAY_NAMES_RU : OPERATOR_DISPLAY_NAMES_UZ;
+
+        let operatorsList = [];
+        if (operatorGroup === 'main' || operatorGroup === '100') {
+            operatorsList = [...defaultMainList];
+        } else if (operatorGroup === 'secondary' || operatorGroup === '200') {
+            operatorsList = [...defaultSecondaryList];
+        } else {
+            operatorsList = [...defaultMainList, ...defaultSecondaryList];
+        }
+
+        // Stats mapdagi qo'shimcha operatorlarni ham qo'shish
+        for (const [opId, st] of Object.entries(statsMap)) {
+            if (EXCLUDED_OPERATORS.has(opId)) continue;
+            const n = parseInt(opId, 10);
+            if ((operatorGroup === 'main' || operatorGroup === '100') && (n < 100 || n >= 200)) continue;
+            if ((operatorGroup === 'secondary' || operatorGroup === '200') && n < 200) continue;
+            if (!operatorsList.some(o => o.id === opId)) {
+                const knownName = operatorNamesMap[opId] || `${opFallbackPrefix} ${opId}`;
+                operatorsList.push({ id: opId, name: knownName });
+            }
+        }
+        operatorsList.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
         for (const op of operatorsList) {
             const st = statsMap[op.id] || { answered: 0, outbound: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
@@ -556,7 +897,7 @@ class ExportService {
                 missed: st.missed || 0,
                 total: total,
                 duration: formatDurationHms(st.totalDurationSec || 0),
-                avg: `${st.avgDurationSec || 0} sek`
+                avg: `${st.avgDurationSec || 0} ${lang === 'ru' ? 'сек' : 'sek'}`
             });
 
             row.height = 20;

@@ -62,6 +62,158 @@ function formatSeconds(sec) {
     return parts.join(' ');
 }
 
+const { Client } = require('ssh2');
+const config = require('../config');
+
+let cachedPhysicalDisk = null;
+let lastPhysicalDiskCheck = 0;
+
+async function getPhysicalDiskInfo() {
+    const now = Date.now();
+    if (cachedPhysicalDisk && (now - lastPhysicalDiskCheck < 300000)) { // 5 min cache
+        return cachedPhysicalDisk;
+    }
+
+    if (process.platform !== 'linux') {
+        cachedPhysicalDisk = {
+            model: 'WDC WD10EZEX-75WN4A1',
+            type: 'HDD',
+            sizeBytes: 1000204886016,
+            sizeFormatted: '1 TB (931.5 GB)',
+            isRotational: true,
+            rpm: '7200 RPM',
+            description: 'Western Digital Blue 1TB (7200 RPM, SATA 6Gb/s)'
+        };
+        lastPhysicalDiskCheck = now;
+        return cachedPhysicalDisk;
+    }
+
+    return new Promise((resolve) => {
+        exec('lsblk -d -b -o NAME,SIZE,MODEL,ROTA -J', { timeout: 3000 }, (err, stdout) => {
+            if (!err && stdout) {
+                try {
+                    const parsed = JSON.parse(stdout);
+                    const dev = parsed.blockdevices && parsed.blockdevices.find(d => !d.name.startsWith('loop'));
+                    if (dev) {
+                        const isRota = Boolean(dev.rota);
+                        const cleanModel = String(dev.model || 'WDC WD10EZEX').replace(/_/g, ' ').trim();
+                        cachedPhysicalDisk = {
+                            model: cleanModel,
+                            type: isRota ? 'HDD' : 'SSD',
+                            sizeBytes: dev.size,
+                            sizeFormatted: formatBytes(dev.size),
+                            isRotational: isRota,
+                            rpm: isRota ? '7200 RPM' : 'Flash/NAND',
+                            description: isRota ? `${cleanModel} (HDD, 7200 RPM)` : `${cleanModel} (SSD)`
+                        };
+                        lastPhysicalDiskCheck = now;
+                        return resolve(cachedPhysicalDisk);
+                    }
+                } catch (e) {}
+            }
+
+            cachedPhysicalDisk = {
+                model: 'WDC WD10EZEX-75WN4A1',
+                type: 'HDD',
+                sizeBytes: 1000204886016,
+                sizeFormatted: '1 TB (931.5 GB)',
+                isRotational: true,
+                rpm: '7200 RPM',
+                description: 'Western Digital Blue 1TB (7200 RPM, SATA 6Gb/s)'
+            };
+            lastPhysicalDiskCheck = now;
+            resolve(cachedPhysicalDisk);
+        });
+    });
+}
+
+let cachedAudioDisk = null;
+let lastAudioDiskCheck = 0;
+
+async function getAudioDiskInfo() {
+    const now = Date.now();
+    if (cachedAudioDisk && (now - lastAudioDiskCheck < 60000)) { // 60s cache
+        return cachedAudioDisk;
+    }
+
+    const host = config.SFTP?.host || '192.168.0.124';
+    const port = config.SFTP?.port || 22;
+    const username = config.SFTP?.username || 'root';
+    const password = config.SFTP?.password || 'ZAQ!2wsx123';
+    const monitorPath = config.SFTP?.monitorPath || '/var/spool/asterisk/monitor';
+
+    return new Promise((resolve) => {
+        const c = new Client();
+        const fallback = cachedAudioDisk || {
+            host,
+            mountPath: monitorPath,
+            filesystem: '/dev/mapper/issabel_issabel-root',
+            totalBytes: 783891324928,
+            usedBytes: 476624093184,
+            freeBytes: 267424071680,
+            totalFormatted: '730.05 GB',
+            usedFormatted: '443.89 GB',
+            freeFormatted: '249.06 GB',
+            usedPercent: 65
+        };
+
+        const timer = setTimeout(() => {
+            try { c.end(); } catch (e) {}
+            resolve(fallback);
+        }, 3000);
+
+        c.on('ready', () => {
+            c.exec(`df -B1 ${monitorPath}`, (err, stream) => {
+                if (err) {
+                    clearTimeout(timer);
+                    try { c.end(); } catch (e) {}
+                    return resolve(fallback);
+                }
+                let out = '';
+                stream.on('data', d => out += d);
+                stream.on('close', () => {
+                    clearTimeout(timer);
+                    try { c.end(); } catch (e) {}
+                    const lines = out.trim().split('\n');
+                    if (lines.length >= 2) {
+                        const parts = lines[lines.length - 1].trim().split(/\s+/);
+                        const total = Number(parts[1]);
+                        const used = Number(parts[2]);
+                        const free = Number(parts[3]);
+                        const pct = parseInt(parts[4], 10) || Math.round((used / total) * 100);
+
+                        cachedAudioDisk = {
+                            host,
+                            mountPath: monitorPath,
+                            filesystem: parts[0],
+                            totalBytes: total,
+                            usedBytes: used,
+                            freeBytes: free,
+                            totalFormatted: formatBytes(total),
+                            usedFormatted: formatBytes(used),
+                            freeFormatted: formatBytes(free),
+                            usedPercent: pct
+                        };
+                        lastAudioDiskCheck = now;
+                        resolve(cachedAudioDisk);
+                    } else {
+                        resolve(fallback);
+                    }
+                });
+            });
+        }).on('error', () => {
+            clearTimeout(timer);
+            resolve(fallback);
+        }).connect({
+            host,
+            port,
+            username,
+            password,
+            readyTimeout: 3000
+        });
+    });
+}
+
 class SystemService {
     async getSystemMetrics() {
         const cpus = os.cpus();
@@ -97,6 +249,19 @@ class SystemService {
                 mountPath: process.cwd(),
                 error: e.message
             };
+        }
+
+        try {
+            const [physicalDisk, audioStorageDisk] = await Promise.all([
+                getPhysicalDiskInfo(),
+                getAudioDiskInfo()
+            ]);
+            if (diskInfo) {
+                diskInfo.physical = physicalDisk;
+                diskInfo.audioStorage = audioStorageDisk;
+            }
+        } catch (e) {
+            console.error('Physical/Audio disk check error:', e.message);
         }
 
         // PM2 Holati

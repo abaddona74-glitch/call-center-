@@ -1,4 +1,6 @@
 const AsteriskManager = require('asterisk-manager');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
 const dbService = require('./dbService');
 const issabelDbService = require('./issabelDbService');
@@ -21,6 +23,7 @@ class AmiService {
         // Asosiy ma'lumotlar ombori
         this.activeChannels = new Map();     // channelId -> channelInfo
         this.activeConversations = new Map(); // conversationKey -> { callerId, operator, state, startTime, duration, channel }
+        this.operatorOutboundCalls = new Map(); // opId -> { dialedNumber, targetPhone, channel, destChannel, startTime }
         this.queues = new Map();             // queueName -> { name, callersWaiting: [], agents: [] }
         this.operators = new Map();          // exten -> { id, name, status, totalCalls, answered, clientHangup, operatorHangup, denied, totalDurationSec, avgDurationSec }
         this.callHistory = [];               // finished calls buffer
@@ -45,6 +48,12 @@ class AmiService {
         this.pollingInterval = null;
         this.onAgentStateChange = null;
         this.isInitialSyncDone = false;
+        this.agentActiveCalls = new Map(); // opId -> { callerId, eventType, timestamp }
+
+        // Qo'lda belgilangan callsTaken ofsetlari (Asterisk xom qiymati USTIDAN farq).
+        // Faylda saqlanadi — server qayta ishga tushsa ham yo'qolmaydi va 5 soniyalik
+        // QueueStatus poll natijasi bu qiymatni hech qachon "yutib yubormaydi".
+        this.manualCallsTakenOverrides = this.loadCallsTakenOverrides();
 
         // Issabel MariaDB bilan darhol sinxronizatsiyani ishga tushirish (MariaDB - asosiy CDR manbai)
         this.initialSyncPromise = this.syncIssabelData();
@@ -52,6 +61,127 @@ class AmiService {
 
         // 3CX Desktop Agent ping vaqtlarini har 3 soniyada tekshirib turish (Tezkor Timeout Watchdog)
         setInterval(() => this.checkAgentTimeouts(), 3000);
+    }
+
+    recordAgentCallEvent(operatorId, eventType, callerId) {
+        if (!operatorId) return;
+        const opId = String(operatorId);
+        if (eventType === 'ANSWERED' || eventType === 'RINGING') {
+            this.agentActiveCalls.set(opId, {
+                callerId: callerId || '',
+                eventType: eventType,
+                timestamp: Date.now()
+            });
+        } else if (eventType === 'ENDED' || eventType === 'MISSED') {
+            this.agentActiveCalls.delete(opId);
+        }
+    }
+
+    getMatchablePhone9(phone) {
+        if (!phone) return null;
+        const digits = String(phone).replace(/\D/g, '');
+        return digits.length >= 9 ? digits.slice(-9) : null;
+    }
+
+    getActiveCallByPhone(phone) {
+        const target9 = this.getMatchablePhone9(phone);
+        if (!target9) return null;
+
+        // 1. Faol suhbatlar (talking)
+        if (this.activeConversations) {
+            for (const conv of this.activeConversations.values()) {
+                const c9 = this.getMatchablePhone9(conv.callerId);
+                if (c9 && c9 === target9) {
+                    const opExten = conv.operatorExten || '';
+                    const rawName = conv.operator || '';
+                    const cleanName = String(rawName).replace(/\s*\(\d+\)\s*/g, '').trim() || (opExten ? `Operator ${opExten}` : 'Operator');
+                    return {
+                        operator: cleanName,
+                        operatorExten: opExten,
+                        state: 'talking',
+                        stateLabel: 'gaplashmoqda',
+                        direction: conv.direction || 'outbound',
+                        duration: conv.duration || '00:00:00'
+                    };
+                }
+            }
+        }
+
+        // 2. Chiquvchi yoki kiruvchi qo'ng'iroq jiringlayotgan (ringing)
+        if (this.operators) {
+            for (const [opId, op] of this.operators.entries()) {
+                if (op.presence === 'ringing' && op.ringingCaller) {
+                    const r9 = this.getMatchablePhone9(op.ringingCaller);
+                    if (r9 && r9 === target9) {
+                        const cleanName = op.realName || op.name || `Operator ${opId}`;
+                        return {
+                            operator: cleanName,
+                            operatorExten: opId,
+                            state: 'ringing',
+                            stateLabel: 'qo\'ng\'iroq qilinmoqda',
+                            direction: (op.ringingCaller && op.ringingCaller.startsWith('📤')) ? 'outbound' : 'inbound',
+                            duration: '00:00:00'
+                        };
+                    }
+                }
+            }
+        }
+
+        // 3. Faol kanallar (activeChannels) ichidan tekshirish
+        if (this.activeChannels) {
+            for (const chan of this.activeChannels.values()) {
+                const ch9 = this.getMatchablePhone9(chan.callerId) || this.getMatchablePhone9(chan.extension);
+                if (ch9 && ch9 === target9 && chan.operator) {
+                    const op = this.operators ? this.operators.get(chan.operator) : null;
+                    const cleanName = op ? (op.realName || op.name || `Operator ${chan.operator}`) : `Operator ${chan.operator}`;
+                    const isTalking = (chan.state || '').toLowerCase().includes('talk') || (chan.state || '').toLowerCase().includes('up') || chan.state === '6';
+                    return {
+                        operator: cleanName,
+                        operatorExten: chan.operator,
+                        state: isTalking ? 'talking' : 'ringing',
+                        stateLabel: isTalking ? 'gaplashmoqda' : 'qo\'ng\'iroq qilinmoqda',
+                        direction: chan.direction || 'outbound',
+                        duration: chan.duration || '00:00:00'
+                    };
+                }
+            }
+        }
+
+        // 4. 3CX Desktop Agent real-time faol qo'ng'iroqlari
+        if (this.agentActiveCalls) {
+            for (const [opId, callInfo] of this.agentActiveCalls.entries()) {
+                const a9 = this.getMatchablePhone9(callInfo.callerId);
+                if (a9 && a9 === target9) {
+                    const op = this.operators ? this.operators.get(opId) : null;
+                    const cleanName = op ? (op.realName || op.name || `Operator ${opId}`) : `Operator ${opId}`;
+                    const isTalking = callInfo.eventType === 'ANSWERED';
+                    return {
+                        operator: cleanName,
+                        operatorExten: opId,
+                        state: isTalking ? 'talking' : 'ringing',
+                        stateLabel: isTalking ? 'gaplashmoqda' : 'qo\'ng\'iroq qilinmoqda',
+                        direction: 'outbound',
+                        duration: '00:00:00'
+                    };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    getCallbacksWithActiveCalls(filter = 'all') {
+        const list = (typeof dbService.getCallbacks === 'function') 
+            ? dbService.getCallbacks(filter, true) 
+            : dbService.getPendingCallbacks(filter);
+        if (!Array.isArray(list)) return [];
+        return list.map(item => {
+            const activeCall = this.getActiveCallByPhone(item.phone);
+            return {
+                ...item,
+                activeCall: activeCall || null
+            };
+        });
     }
 
     async ensureInitialSync() {
@@ -85,6 +215,7 @@ class AmiService {
                     op.missed = 0;
                     op.transferredOut = 0;
                     op.transferredIn = 0;
+                    op.transferResolved = 0;
                     op.totalDurationSec = 0;
                     op.avgDurationSec = 0;
                 }
@@ -113,6 +244,7 @@ class AmiService {
                     op.outbound = finalOutbound;
                     op.transferredOut = st.transferredOut || 0;
                     op.transferredIn = st.transferredIn || 0;
+                    op.transferResolved = st.transferResolved || Math.max(0, (st.transferredIn || 0) - (st.transferredOut || 0));
                     op.totalDurationSec = Math.max(st.totalDurationSec || 0, (agentOp && agentOp.totalDurationSec) || 0);
                     op.avgDurationSec = st.avgDurationSec || 0;
                 } else {
@@ -120,12 +252,14 @@ class AmiService {
                     op.outbound = finalOutbound;
                     op.transferredOut = 0;
                     op.transferredIn = 0;
+                    op.transferResolved = 0;
                     op.totalDurationSec = 0;
                     op.avgDurationSec = 0;
                 }
                 op.denied = todayRejects[id] || 0;
                 op.missed = todayMissed[id] || 0;
-                op.totalCalls = op.answered + (op.outbound || 0) + op.denied;
+                // Jami = qabul + chiquvchi + rad + transfer oxirida hal qilgan (+1)
+                op.totalCalls = op.answered + (op.outbound || 0) + op.denied + (op.transferResolved || 0);
                 this.operators.set(id, op);
             }
 
@@ -142,9 +276,12 @@ class AmiService {
                         op.realName = st.realName;
                         op.answered = st.answered || 0;
                         op.outbound = Math.max(st.outbound || 0, agentOutbound);
+                        op.transferredOut = st.transferredOut || 0;
+                        op.transferredIn = st.transferredIn || 0;
+                        op.transferResolved = st.transferResolved || 0;
                         op.denied = todayRejects[id] || 0;
                         op.missed = todayMissed[id] || 0;
-                        op.totalCalls = op.answered + (op.outbound || 0) + op.denied;
+                        op.totalCalls = op.answered + (op.outbound || 0) + op.denied + (op.transferResolved || 0);
                         op.totalDurationSec = st.totalDurationSec || 0;
                         op.avgDurationSec = st.avgDurationSec || 0;
                         this.operators.set(id, op);
@@ -166,32 +303,68 @@ class AmiService {
                 this.stats.totalDurationSec = summary.totalDurationSec;
             }
 
-            // Real-time oqimi uchun so'nggi qo'ng'iroqlarni dastlabki yuklash
-            if (this.callHistory.length === 0) {
-                try {
-                    const paginated = await issabelDbService.fetchCallsPaginated(1, 30);
-                    if (paginated && paginated.data && paginated.data.length > 0) {
-                        this.callHistory = paginated.data.map(c => ({
-                            id: c.id,
-                            channel: '',
-                            callerId: c.callerId,
-                            operator: c.operator,
-                            operatorExten: c.operatorExten,
-                            direction: c.direction,
-                            status: c.status,
-                            hangupParty: c.hangupParty || 'Mijoz tugatdi',
-                            duration: c.duration,
-                            waitSec: c.waitSec || 0,
-                            cause: 'CDR',
-                            time: c.time,
-                            recording: c.recording || ''
-                        }));
+            // Real-time oqimi uchun so'nggi qo'ng'iroqlarni doimiy ravishda CDR bilan sinxronlashtirish
+            try {
+                const paginated = await issabelDbService.fetchCallsPaginated(1, 30);
+                if (paginated && paginated.data && paginated.data.length > 0) {
+                    const cdrCalls = paginated.data.map(c => ({
+                        id: c.id,
+                        channel: '',
+                        callerId: c.callerId,
+                        operator: c.operator,
+                        operatorExten: c.operatorExten,
+                        direction: c.direction,
+                        status: c.status,
+                        hangupParty: c.hangupParty || 'Mijoz tugatdi',
+                        duration: c.duration,
+                        waitSec: c.waitSec || 0,
+                        cause: 'CDR',
+                        time: c.time,
+                        recording: c.recording || ''
+                    }));
+
+                    if (this.callHistory.length === 0) {
+                        this.callHistory = cdrCalls;
+                    } else {
+                        // Mavjud qo'ng'iroqlar bilan birlashtirish (time va callerId bo'yicha)
+                        const existingKeys = new Set(this.callHistory.map(c => `${c.time}_${c.callerId}`));
+                        let hasNew = false;
+                        for (let i = cdrCalls.length - 1; i >= 0; i--) {
+                            const cdrItem = cdrCalls[i];
+                            const key = `${cdrItem.time}_${cdrItem.callerId}`;
+                            if (!existingKeys.has(key)) {
+                                existingKeys.add(key);
+                                this.callHistory.unshift(cdrItem);
+                                hasNew = true;
+                            }
+                        }
+                        if (this.callHistory.length > 500) {
+                            this.callHistory = this.callHistory.slice(0, 500);
+                        }
+                        if (hasNew) {
+                            this.broadcast('call_history_sync', this.getCallHistory(50));
+                        }
                     }
-                } catch (e) {}
-            }
+                }
+            } catch (e) {}
 
             this.broadcast('operators_update', this.getOperatorList());
             this.broadcast('stats_update', this.getSummaryStats());
+
+            // Bog'lanishi kerak bo'lgan mijozlarni (Callbacks) Asterisk CDR dan sinxronlash
+            try {
+                const now = Date.now();
+                const needFullSync = !this._lastFullCbSync || (now - this._lastFullCbSync > 30 * 60 * 1000);
+                if (needFullSync) {
+                    this._lastFullCbSync = now;
+                    await issabelDbService.syncPendingCallbacks(30);
+                } else {
+                    await issabelDbService.syncPendingCallbacks(2);
+                }
+                this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+            } catch (cbErr) {
+                // Background quiet
+            }
         } catch (err) {
             console.error('syncIssabelData xatolik:', err.message);
         } finally {
@@ -259,6 +432,9 @@ class AmiService {
      */
     pollQueueAndChannels() {
         if (!this.ami || !this.isConnected) return;
+
+        // Asterisk faol kanallarini sinxronlash uchun yangi to'plam
+        this.pollChannelsBatch = new Set();
 
         // 1. Faol kanallarni olish
         this.ami.action({ action: 'CoreShowChannels' }, () => {});
@@ -332,10 +508,16 @@ class AmiService {
         for (const c of candidates) {
             if (!c) continue;
             const str = String(c);
-            // 7 dan 13 tagacha raqam bo'lsa - bu tashqi mijoz raqami
+            // Agar channel trank nomi bo'lsa (SIP/712020159-...), undan trank raqamini mijoz deb olmaslik kerak
+            if (c === channel && str.includes('2020159')) continue;
+
+            // 7 dan 12 tagacha raqam bo'lsa - bu tashqi mijoz raqami
             const m = str.match(/(?:998)?(\d{7,12})/);
             if (m && m[1].length >= 7 && !m[1].startsWith('000')) {
-                return m[0];
+                const found = m[0];
+                if (found !== '712020159' && !found.endsWith('2020159')) {
+                    return found;
+                }
             }
         }
         return 'Yashirin raqam (Hidden)';
@@ -360,7 +542,7 @@ class AmiService {
                     if (isOnline) {
                         // 'talking' va 'ringing' holatlarni PeerEntry poll bosib yubormasin
                         if (op.presence !== 'talking' && op.presence !== 'ringing') {
-                            op.presence = 'ready'; // On-hook, qo'ng'iroq kutmoqda
+                            op.presence = op.paused ? 'paused' : 'ready'; // On-hook yoki Pauzada
                         }
                     } else {
                         op.presence = 'offline'; // 3CX yoki softphone ulanmagan
@@ -387,7 +569,7 @@ class AmiService {
                 const op = this.operators.get(opId);
                 if (op) {
                     if (status === 'registered' || status === 'reachable') {
-                        if (op.presence !== 'talking') op.presence = 'ready';
+                        if (op.presence !== 'talking') op.presence = op.paused ? 'paused' : 'ready';
                     } else if (status === 'unregistered' || status === 'unreachable') {
                         op.presence = 'offline';
                     }
@@ -435,6 +617,9 @@ class AmiService {
                 this.ensureOperatorExists(opId);
                 const op = this.operators.get(opId);
                 if (op) {
+                    // Asteriskning XOM (haqiqiy) callsTaken qiymati — har doim shu yerda yangilanadi.
+                    // Qo'lda belgilangan ofset esa xom qiymat USTIGA getOperatorList() da qo'shiladi,
+                    // shuning uchun bu 5 soniyalik poll qo'lda belgilangan sonni bosib yubormaydi.
                     if (evt.callstaken !== undefined) op.callsTaken = parseInt(evt.callstaken || '0', 10);
                     if (evt.lastcall !== undefined) op.lastCall = parseInt(evt.lastcall || '0', 10);
                 }
@@ -448,9 +633,10 @@ class AmiService {
                 if (op && !hasActiveConversation) {
                     const memberStatus = parseInt(evt.status || '0', 10);
                     const paused = parseInt(evt.paused || '0', 10);
+                    op.paused = (paused === 1);
 
-                    if (paused === 1) {
-                        op.presence = 'paused'; // Tanaffusda
+                    if (op.paused) {
+                        op.presence = 'paused'; // Tanaffusda / Pauzada
                         op.talkingSince = null;
                     } else if (memberStatus === 1) {
                         op.presence = 'ready';  // On-hook / Bo'sh / Qo'ng'iroq kutmoqda
@@ -476,6 +662,34 @@ class AmiService {
             }
         }
 
+        // Navbat a'zosining pauza yoki statusi real vaqtda o'zgarganda (masalan *46 terilganda)
+        if (evt.event === 'QueueMemberPaused' || evt.event === 'QueueMemberStatus') {
+            const memberName = evt.membername || evt.location;
+            const opId = this.extractOperatorExten(memberName) || this.extractOperatorExten(evt.location);
+            if (opId) {
+                this.ensureOperatorExists(opId);
+                const op = this.operators.get(opId);
+                if (op) {
+                    if (evt.paused !== undefined) {
+                        const paused = parseInt(evt.paused || '0', 10);
+                        op.paused = (paused === 1);
+                        if (op.paused) {
+                            if (op.presence !== 'talking') {
+                                op.presence = 'paused';
+                                op.talkingSince = null;
+                            }
+                        } else {
+                            if (op.presence === 'paused') {
+                                op.presence = 'ready';
+                            }
+                        }
+                    }
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
+                }
+            }
+        }
+
         // Navbat statuslari to'liq olinganda broadcast qilish
         if (evt.event === 'QueueStatusComplete') {
             this.broadcast('queue_update', this.getQueueSummaryList());
@@ -492,7 +706,7 @@ class AmiService {
                 if (op) {
                     const status = parseInt(evt.status || '0', 10);
                     if (status === 0) {
-                        op.presence = 'ready'; // Idle / On-hook
+                        op.presence = op.paused ? 'paused' : 'ready'; // Idle / On-hook yoki Pauzada
                         op.talkingSince = null;
                     } else if (status === 1) {
                         if (op.presence !== 'talking' || !op.talkingSince) op.talkingSince = Date.now();
@@ -531,29 +745,40 @@ class AmiService {
 
         // Navbatga yangi mijoz kirdi
         if (evt.event === 'QueueCallerJoin') {
-            const qName = evt.queue;
+            const qName = evt.queue || '2020159';
             const callerId = evt.calleridnum || 'Mijoz';
-            if (this.queues.has(qName)) {
-                const q = this.queues.get(qName);
-                q.callersWaiting.push({
-                    callerId,
-                    position: evt.position || (q.callersWaiting.length + 1),
-                    waitSec: 0,
-                    channel: evt.channel,
-                    joinTime: now
+            if (!this.queues.has(qName)) {
+                this.queues.set(qName, {
+                    name: qName,
+                    strategy: 'fewestcalls',
+                    callsWaitingCount: 0,
+                    completedCalls: 0,
+                    abandonedCalls: 0,
+                    callersWaiting: [],
+                    agents: []
                 });
-                this.broadcast('queue_update', this.getQueueSummaryList());
             }
+            const q = this.queues.get(qName);
+            q.callersWaiting.push({
+                callerId,
+                position: evt.position || (q.callersWaiting.length + 1),
+                waitSec: 0,
+                channel: evt.channel,
+                joinTime: now
+            });
+            q.callsWaitingCount = q.callersWaiting.length;
+            this.recalculateConversations();
         }
 
         // Navbatdan mijoz chiqib ketdi / bog'landi
         if (evt.event === 'QueueCallerLeave') {
-            const qName = evt.queue;
+            const qName = evt.queue || '2020159';
             if (this.queues.has(qName)) {
                 const q = this.queues.get(qName);
                 q.callersWaiting = q.callersWaiting.filter(c => c.channel !== evt.channel);
-                this.broadcast('queue_update', this.getQueueSummaryList());
+                q.callsWaitingCount = q.callersWaiting.length;
             }
+            this.recalculateConversations();
         }
 
         // Navbatda kutolmay qo'yib yubordi (Abandon)
@@ -582,14 +807,62 @@ class AmiService {
             }
         }
 
-        // DialBegin / DialState / DialEnd - Operatorga qo'ng'iroq ulanganda
+        // DialBegin / DialState / DialEnd - Operatorga qo'ng'iroq ulanganda yoki operator tashqariga chiqqanda
         if (evt.event === 'DialBegin' || evt.event === 'DialState' || evt.event === 'DialEnd') {
-            const opId = this.extractOperatorExten(evt.destchannel, evt.connectedlinenum, evt.destcalleridnum, evt.dialstring);
+            const destOpId = this.extractOperatorExten(evt.destchannel, evt.connectedlinenum, evt.destcalleridnum, evt.dialstring);
+            const srcOpId = this.extractOperatorExten(evt.channel, evt.calleridnum) || this.channelToOperator.get(evt.channel);
+            const opId = destOpId || srcOpId;
+
             if (opId) {
-                if (evt.channel) this.setChannelOperator(evt.channel, opId);
-                if (evt.destchannel) this.setChannelOperator(evt.destchannel, opId);
-                if (evt.uniqueid) this.setChannelOperator(evt.uniqueid, opId);
-                if (evt.destuniqueid) this.setChannelOperator(evt.destuniqueid, opId);
+                // Agar operator tashqariga qo'ng'iroq qilayotgan bo'lsa (chiquvchi)
+                if (srcOpId && !destOpId) {
+                    if (evt.channel) this.setChannelOperator(evt.channel, srcOpId);
+                    if (evt.destchannel) this.setChannelOperator(evt.destchannel, srcOpId);
+                    if (evt.uniqueid) this.setChannelOperator(evt.uniqueid, srcOpId);
+                    if (evt.destuniqueid) this.setChannelOperator(evt.destuniqueid, srcOpId);
+
+                    const dialedCandidate = this.extractCallerNumber(evt.connectedlinenum, evt.dialstring, evt.destcalleridnum);
+                    if (dialedCandidate && dialedCandidate !== 'Yashirin raqam (Hidden)') {
+                        const targetPhone = (typeof dbService.normalizePhone === 'function' ? dbService.normalizePhone(dialedCandidate) : String(dialedCandidate).replace(/\D/g, '')) || dialedCandidate;
+                        this.operatorOutboundCalls.set(srcOpId, {
+                            dialedNumber: dialedCandidate,
+                            targetPhone: targetPhone,
+                            channel: evt.channel,
+                            destChannel: evt.destchannel || '',
+                            startTime: Date.now()
+                        });
+                    }
+
+                    if (this.activeChannels.has(evt.channel)) {
+                        const c = this.activeChannels.get(evt.channel);
+                        c.direction = 'outbound';
+                        c.operator = srcOpId;
+                        this.activeChannels.set(evt.channel, c);
+                    }
+                    if (evt.destchannel && this.activeChannels.has(evt.destchannel)) {
+                        const dc = this.activeChannels.get(evt.destchannel);
+                        dc.direction = 'outbound';
+                        dc.operator = srcOpId;
+                        this.activeChannels.set(evt.destchannel, dc);
+                    }
+                } else if (destOpId) {
+                    // Kiruvchi: Operatorga navbat yoki tashqi mijoz qo'ng'iroq qilmoqda (faqat destchannel operatorga tegishli)
+                    // Kiruvchi mijoz kanali (evt.channel) operator go'shakni ko'tarmaguncha (AgentConnect) operatorga biriktirilmaydi!
+                    if (evt.destchannel) this.setChannelOperator(evt.destchannel, destOpId);
+                    if (evt.destuniqueid) this.setChannelOperator(evt.destuniqueid, destOpId);
+
+                    if (this.activeChannels.has(evt.channel)) {
+                        const c = this.activeChannels.get(evt.channel);
+                        c.direction = 'inbound';
+                        this.activeChannels.set(evt.channel, c);
+                    }
+                    if (evt.destchannel && this.activeChannels.has(evt.destchannel)) {
+                        const dc = this.activeChannels.get(evt.destchannel);
+                        dc.direction = 'inbound';
+                        dc.operator = destOpId;
+                        this.activeChannels.set(evt.destchannel, dc);
+                    }
+                }
             }
         }
 
@@ -674,6 +947,19 @@ class AmiService {
                 }
             }
 
+            if (evt.channel && this.activeChannels.has(evt.channel)) {
+                const ac = this.activeChannels.get(evt.channel);
+                ac.direction = 'inbound';
+                if (opId) ac.operator = opId;
+                this.activeChannels.set(evt.channel, ac);
+            }
+            if (evt.destchannel && this.activeChannels.has(evt.destchannel)) {
+                const adc = this.activeChannels.get(evt.destchannel);
+                adc.direction = 'inbound';
+                if (opId) adc.operator = opId;
+                this.activeChannels.set(evt.destchannel, adc);
+            }
+
             this.stats.answeredCalls++;
 
             const realOpName = issabelDbService.getOperatorName(opId);
@@ -739,6 +1025,8 @@ class AmiService {
                     } else if (!isTransfer) {
                         op.clientHangup++;
                     }
+                    // Eslatma: transfer bilan tugagan qo'ng'iroq bu operatorning Jami siga bu yerda qo'shilmaydi -
+                    // +1 faqat transfer zanjirini OXIRGI bo'lib tugatgan operatorga beriladi (CDR TRANSFERS_OUT/IN orqali 15s sinxron bilan).
                     this.operators.set(opId, op);
                 }
             }
@@ -792,44 +1080,164 @@ class AmiService {
             this.broadcast('operators_update', this.getOperatorList());
         }
 
-        // 6. DialBegin (Navbat mijozni qaysi operatorga yo'naltirayotgani / Jiringlayotgani)
+        // 6. DialBegin (Navbat mijozni qaysi operatorga yo'naltirayotgani yoki operator tashqariga chiqqani)
         if (evt.event === 'DialBegin') {
             const destChan = evt.destchannel || '';
-            const opId = this.extractOperatorExten(destChan) || this.extractOperatorExten(evt.dialstring);
-            const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, evt.channel);
+            const srcChan = evt.channel || '';
+            const destOpId = this.extractOperatorExten(destChan) || this.extractOperatorExten(evt.dialstring);
+            const srcOpId = this.extractOperatorExten(srcChan) || this.channelToOperator.get(srcChan);
 
-            if (opId) {
-                this.ensureOperatorExists(opId);
-                this.setChannelOperator(destChan, opId);
-                if (evt.channel) this.setChannelOperator(evt.channel, opId);
+            if (destOpId) {
+                // KIRUVCHI: Navbat operatorga yo'naltirmoqda
+                this.ensureOperatorExists(destOpId);
+                this.setChannelOperator(destChan, destOpId);
+                if (this.activeChannels.has(destChan)) {
+                    this.activeChannels.get(destChan).direction = 'inbound';
+                }
+                if (srcChan && this.activeChannels.has(srcChan)) {
+                    this.activeChannels.get(srcChan).direction = 'inbound';
+                }
+                const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, srcChan);
 
-                // Ushbu operator hozir jiringlamoqda
-                const op = this.operators.get(opId);
+                const op = this.operators.get(destOpId);
                 if (op) {
                     if (op.presence !== 'talking') {
                         if (op.presence !== 'ringing') op.ringingSince = Date.now();
                         op.presence = 'ringing';
                     }
                     op.ringingCaller = callerId;
+                    this.operators.set(destOpId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
+                }
+            } else if (srcOpId) {
+                // CHIQUVCHI: Operator tashqi raqamga telefon qilmoqda (Oybek hodisasi)
+                this.ensureOperatorExists(srcOpId);
+                this.setChannelOperator(srcChan, srcOpId);
+                if (destChan) this.setChannelOperator(destChan, srcOpId);
+                // Terilgan raqamni aniqlash
+                const dialedNumber = this.extractCallerNumber(evt.connectedlinenum, evt.dialstring, evt.destcalleridnum);
+                const displayNum = (dialedNumber && dialedNumber !== 'Yashirin raqam (Hidden)') ? dialedNumber : (evt.dialstring || 'Tashqi raqam');
+                const rawTarget = dialedNumber || evt.dialstring || evt.destcalleridnum;
+                const targetPhone = (typeof dbService.normalizePhone === 'function' ? dbService.normalizePhone(rawTarget) : String(rawTarget || '').replace(/\D/g, '')) || displayNum;
+
+                this.operatorOutboundCalls.set(srcOpId, {
+                    dialedNumber: displayNum,
+                    targetPhone: targetPhone || displayNum,
+                    channel: srcChan,
+                    destChannel: destChan,
+                    startTime: Date.now()
+                });
+
+                if (this.activeChannels.has(srcChan)) {
+                    const sc = this.activeChannels.get(srcChan);
+                    sc.direction = 'outbound';
+                    if (targetPhone) sc.dialedPhone = targetPhone;
+                    if (destChan) sc.pairedChannel = destChan;
+                }
+                if (destChan && this.activeChannels.has(destChan)) {
+                    const dc = this.activeChannels.get(destChan);
+                    dc.direction = 'outbound';
+                    if (targetPhone) dc.dialedPhone = targetPhone;
+                    if (srcChan) dc.pairedChannel = srcChan;
+                }
+
+                const op = this.operators.get(srcOpId);
+                if (op) {
+                    if (op.presence !== 'talking') {
+                        if (op.presence !== 'ringing') op.ringingSince = Date.now();
+                        op.presence = 'ringing';
+                    }
+                    op.ringingCaller = `📤 ${displayNum}`;
+                    this.operators.set(srcOpId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
+                }
+            }
+        }
+
+        // 7. DialEnd (Jiringlash tugaganda holatni tozalash yoki javob berilganda suhbatni boshlash)
+        if (evt.event === 'DialEnd') {
+            const destChan = evt.destchannel || '';
+            const srcChan = evt.channel || '';
+            const opId = this.extractOperatorExten(destChan) || 
+                         this.extractOperatorExten(srcChan) || 
+                         this.channelToOperator.get(destChan) || 
+                         this.channelToOperator.get(srcChan) || 
+                         this.extractOperatorExten(evt.dialstring);
+
+            const dialStatus = (evt.dialstatus || '').toUpperCase();
+            if (dialStatus === 'ANSWER') {
+                // MIJOZ JAVOB BERDI! Suhbat boshlandi:
+                if (srcChan && this.activeChannels.has(srcChan)) {
+                    const sc = this.activeChannels.get(srcChan);
+                    sc.state = 'Talking';
+                    sc.answeredTime = now;
+                    this.activeChannels.set(srcChan, sc);
+                }
+                if (destChan && this.activeChannels.has(destChan)) {
+                    const dc = this.activeChannels.get(destChan);
+                    dc.state = 'Talking';
+                    dc.answeredTime = now;
+                    this.activeChannels.set(destChan, dc);
+                }
+                if (opId && this.operatorOutboundCalls.has(opId)) {
+                    const oCall = this.operatorOutboundCalls.get(opId);
+                    oCall.answeredTime = now;
+                    this.operatorOutboundCalls.set(opId, oCall);
+                }
+                if (opId && this.operators.has(opId)) {
+                    const op = this.operators.get(opId);
+                    op.presence = 'talking';
+                    if (!op.talkingSince) op.talkingSince = now.getTime();
+                    op.ringingCaller = null;
+                    op.ringingSince = null;
+                    this.operators.set(opId, op);
+                    this.broadcast('operators_update', this.getOperatorList());
+                }
+            } else {
+                // Javob berilmaganda (BUSY, NOANSWER, CANCEL, CONGESTION, CHANUNAVAIL)
+                if (opId && this.operatorOutboundCalls.has(opId)) {
+                    this.operatorOutboundCalls.delete(opId);
+                }
+                if (opId && this.operators.has(opId)) {
+                    const op = this.operators.get(opId);
+                    if (op.presence === 'ringing') {
+                        const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)';
+                        op.presence = hasValidIp ? 'ready' : 'offline';
+                    }
+                    op.ringingCaller = null; 
+                    op.ringingSince = null;
                     this.operators.set(opId, op);
                     this.broadcast('operators_update', this.getOperatorList());
                 }
             }
         }
 
-        // 7. DialEnd (Jiringlash tugaganda holatni tozalash)
-        if (evt.event === 'DialEnd') {
-            const destChan = evt.destchannel || evt.channel || '';
-            const opId = this.extractOperatorExten(destChan) || this.channelToOperator.get(destChan) || this.extractOperatorExten(evt.dialstring);
+        // 7.1. AgentConnect (Operator navbatdagi mijoz bilan ulanganda)
+        if (evt.event === 'AgentConnect') {
+            const rawCaller = this.extractCallerNumber(evt.calleridnum, evt.calleridname, evt.channel);
+            const opExt = this.extractOperatorExten(evt.destchannel, evt.membername, evt.interface);
 
-            if (opId && this.operators.has(opId)) {
-                const op = this.operators.get(opId);
-                if (op.presence === 'ringing') {
-                    op.presence = 'ready';
+            // Channel holatini 'Talking' va 'answeredTime' ga o'tkazish
+            if (evt.channel && this.activeChannels.has(evt.channel)) {
+                const chan = this.activeChannels.get(evt.channel);
+                chan.state = 'Talking';
+                chan.answeredTime = now;
+                if (opExt) chan.operator = opExt;
+                this.activeChannels.set(evt.channel, chan);
+            }
+            if (evt.destchannel && this.activeChannels.has(evt.destchannel)) {
+                const dChan = this.activeChannels.get(evt.destchannel);
+                dChan.state = 'Talking';
+                dChan.answeredTime = now;
+                if (opExt) dChan.operator = opExt;
+                this.activeChannels.set(evt.destchannel, dChan);
+            }
+
+            if (rawCaller && rawCaller !== 'Yashirin raqam (Hidden)') {
+                const resolved = dbService.resolveCallback(rawCaller, opExt ? `operator_${opExt}` : 'realtime_agent_connect', opExt);
+                if (resolved) {
+                    this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
                 }
-                op.ringingCaller = null; op.ringingSince = null;
-                this.operators.set(opId, op);
-                this.broadcast('operators_update', this.getOperatorList());
             }
         }
 
@@ -868,30 +1276,96 @@ class AmiService {
             dbService.saveCall(historyRecord);
             this.broadcast('call_hangup', historyRecord);
             this.broadcast('stats_update', this.getSummaryStats());
+
+            // Bog'lanishi kerak bo'lgan mijozlar ro'yxatiga qo'shish
+            if (callerId && callerId !== 'Yashirin raqam (Hidden)') {
+                const cleanPhone = dbService.normalizePhone(callerId);
+                if (cleanPhone) {
+                    dbService.upsertCallback({
+                        phone: cleanPhone,
+                        source: 'abandoned',
+                        callTime: localTimeStr
+                    });
+                    this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+                }
+            }
         }
 
         // 7. CoreShowChannel - Faol kanallarni qabul qilish
         if (evt.event === 'CoreShowChannel') {
             const channelId = evt.channel;
+            if (this.pollChannelsBatch) {
+                this.pollChannelsBatch.add(channelId);
+            }
+
             const callerId = evt.calleridnum || '';
             const callerName = evt.calleridname || '';
             const exten = evt.extension || evt.context || '';
             const state = evt.channelstatedesc || evt.channelstate || 'Active';
+            const context = evt.context || '';
+            const application = evt.application || '';
+
+            const existing = this.activeChannels.get(channelId);
+            const possibleOp = this.extractOperatorExten(callerId) || this.extractOperatorExten(exten) || this.extractOperatorExten(channelId) || this.channelToOperator.get(channelId);
+
+            const ctxLower = context.toLowerCase();
+            const isDialoutCtx = ctxLower.includes('dialout') || ctxLower.includes('outbound');
+            const isOpOutboundTracked = Boolean(possibleOp && this.operatorOutboundCalls.has(possibleOp));
+            const isQueueOrInbound = ctxLower.includes('queue') || ctxLower.includes('from-trunk') || ctxLower.includes('from-pstn') || ctxLower.includes('ivr') || ctxLower.includes('ext-queues') || application.toLowerCase().includes('queue');
+
+            let isOutbound = false;
+            if (isOpOutboundTracked) {
+                isOutbound = true;
+            } else if (existing && existing.direction === 'outbound' && !isQueueOrInbound) {
+                isOutbound = true;
+            } else {
+                // Yangi kanal: Faqat operator o'zi tashqi mijoz raqamiga tergan bo'lsa chiquvchi
+                const isOpCaller = callerId && callerId.length <= 4 && this.extractOperatorExten(callerId);
+                const isExternalDialed = exten && exten.length >= 7 && exten !== '2020159' && exten !== '712020159';
+                if (isOpCaller && isExternalDialed && !isQueueOrInbound) {
+                    isOutbound = true;
+                }
+            }
+
+            // Operatorga biriktirilgan chiquvchi kanal bo'lsa uni bog'lash
+            if (possibleOp && this.operatorOutboundCalls.has(possibleOp)) {
+                const ob = this.operatorOutboundCalls.get(possibleOp);
+                if (!ob.channel && channelId.includes(possibleOp)) ob.channel = channelId;
+                if (!ob.destChannel && !channelId.includes(possibleOp)) ob.destChannel = channelId;
+                this.setChannelOperator(channelId, possibleOp);
+            }
 
             this.activeChannels.set(channelId, {
                 channel: channelId,
                 callerId: callerId,
                 callerName: callerName,
                 extension: exten,
+                context: context,
+                application: application,
                 state: state,
-                duration: evt.duration || '00:00:00'
+                direction: isOutbound ? 'outbound' : 'inbound',
+                duration: evt.duration || '00:00:00',
+                operator: possibleOp || (existing && existing.operator) || null
             });
 
-            const possibleOp = this.extractOperatorExten(callerId) || this.extractOperatorExten(exten) || this.extractOperatorExten(channelId);
             if (possibleOp) {
                 this.ensureOperatorExists(possibleOp);
             }
+        }
 
+        // 7.1. CoreShowChannelsComplete - Asterisk kanallarni to'liq jo'natib bo'lganda (Zombi kanallarni tozalash)
+        if (evt.event === 'CoreShowChannelsComplete') {
+            if (this.pollChannelsBatch) {
+                let pruned = false;
+                for (const chanId of Array.from(this.activeChannels.keys())) {
+                    if (!this.pollChannelsBatch.has(chanId)) {
+                        this.activeChannels.delete(chanId);
+                        this.channelToOperator.delete(chanId);
+                        pruned = true;
+                    }
+                }
+                this.pollChannelsBatch = null;
+            }
             this.recalculateConversations();
         }
 
@@ -905,7 +1379,17 @@ class AmiService {
             }
 
             const callerId = evt.calleridnum || 'Yashirin';
-            const isOutbound = (evt.context && evt.context.includes('out')) || (channelId.toLowerCase().includes('out'));
+            const exten = evt.exten || evt.extension || evt.context || '';
+            const context = evt.context || '';
+            const opId = this.extractOperatorExten(channelId) || this.extractOperatorExten(callerId);
+            const isExternalNumber = (exten.length >= 7 || /^(?:998|0)?(?:71|78|90|91|93|94|95|97|98|99|33|88)\d{5,}/.test(exten)) && exten !== '2020159' && exten !== '712020159';
+            const isQueueOrTrunk = context.includes('queue') || context.includes('from-trunk') || context.includes('from-pstn') || context.includes('ivr');
+
+            const isOutbound = Boolean(opId && isExternalNumber && !isQueueOrTrunk);
+
+            if (opId && isOutbound) {
+                this.setChannelOperator(channelId, opId);
+            }
 
             this.stats.totalCalls++;
             const currentHour = now.getHours();
@@ -921,39 +1405,66 @@ class AmiService {
                 channel: channelId,
                 callerId: callerId,
                 callerName: evt.calleridname || '',
-                extension: evt.exten || evt.context || 'Linya',
+                extension: exten || 'Linya',
+                context: context,
+                application: '',
                 state: 'Ring',
                 direction: isOutbound ? 'outbound' : 'inbound',
                 startTime: now,
                 answeredTime: null,
-                operator: null
+                operator: opId || null
             });
 
             this.recalculateConversations();
             this.broadcast('stats_update', this.getSummaryStats());
         }
 
-        // 9. BridgeEnter (Oddiy to'g'ridan-to'g'ri qo'ng'iroq ulanganda)
-        if (evt.event === 'BridgeEnter') {
-            const channelId = evt.channel;
-            const rawOp = evt.connectedlinenum || evt.calleridnum || '';
-            const operator = this.extractOperatorExten(rawOp) || this.extractOperatorExten(channelId);
-            
-            if (this.activeChannels.has(channelId)) {
-                const chan = this.activeChannels.get(channelId);
-                chan.state = 'Talking';
-                chan.answeredTime = now;
-                if (operator) chan.operator = operator;
-                this.activeChannels.set(channelId, chan);
+        // 9. Bridge / BridgeEnter (Oddiy to'g'ridan-to'g'ri yoki tashqi qo'ng'iroq ulanganda)
+        if (evt.event === 'BridgeEnter' || (evt.event === 'Bridge' && (evt.bridgestate || '').toLowerCase() === 'link')) {
+            const channelsToUpdate = [];
+            if (evt.channel) channelsToUpdate.push(evt.channel);
+            if (evt.channel1) channelsToUpdate.push(evt.channel1);
+            if (evt.channel2) channelsToUpdate.push(evt.channel2);
+
+            let detectedOp = null;
+
+            for (const channelId of channelsToUpdate) {
+                const rawOp = evt.connectedlinenum || evt.calleridnum || evt.callerid1 || evt.callerid2 || '';
+                const operator = this.extractOperatorExten(rawOp) || this.extractOperatorExten(channelId) || this.channelToOperator.get(channelId);
+                if (operator && !detectedOp) detectedOp = operator;
+
+                if (this.activeChannels.has(channelId)) {
+                    const chan = this.activeChannels.get(channelId);
+                    chan.state = 'Talking';
+                    chan.answeredTime = now;
+                    if (operator) chan.operator = operator;
+                    this.activeChannels.set(channelId, chan);
+
+                    // Agar operator tashqi mijoz bilan gaplashishni boshlasa (outbound) -> ro'yxatdan yechish
+                    const dialed = chan.dialedPhone || (chan.pairedChannel && this.activeChannels.get(chan.pairedChannel) && this.activeChannels.get(chan.pairedChannel).dialedPhone);
+                    if (chan.direction === 'outbound' && dialed) {
+                        const resolved = dbService.resolveCallback(dialed, operator ? `operator_${operator}` : 'realtime_outbound_bridge', operator);
+                        if (resolved) {
+                            this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+                        }
+                    }
+                }
             }
 
-            if (operator) {
-                this.ensureOperatorExists(operator);
-                const op = this.operators.get(operator);
+            if (detectedOp) {
+                this.ensureOperatorExists(detectedOp);
+                const op = this.operators.get(detectedOp);
                 if (op) {
                     if (op.presence !== 'talking' || !op.talkingSince) op.talkingSince = Date.now();
                     op.presence = 'talking';
-                    this.operators.set(operator, op);
+                    op.ringingCaller = null;
+                    op.ringingSince = null;
+                    this.operators.set(detectedOp, op);
+                }
+                if (this.operatorOutboundCalls.has(detectedOp)) {
+                    const oCall = this.operatorOutboundCalls.get(detectedOp);
+                    oCall.answeredTime = now;
+                    this.operatorOutboundCalls.set(detectedOp, oCall);
                 }
             }
 
@@ -976,6 +1487,143 @@ class AmiService {
             let callData = this.activeChannels.get(channelId);
             if (callData) {
                 this.activeChannels.delete(channelId);
+
+                // Agar bu tashqi mijoz kanali bo'lsa va u hali callHistory ga kirmagan bo'lsa
+                // (masalan, navbatda kutib uzilgan yoki operatorga yetmasdan uzilgan qo'ng'iroq)
+                const isTrunkChannel = channelId.startsWith('SIP/712020159');
+                const isOutboundWithDialed = (callData.direction === 'outbound') && Boolean(callData.dialedPhone) && !callData.dialedPhone.endsWith('2020159');
+
+                // Outbound trunk kanali: agar dialedPhone bo'lmasa yoki trunk raqami bo'lsa, bu alohida qo'ng'iroq emas, PBX tranki
+                if (isTrunkChannel && callData.direction === 'outbound' && !isOutboundWithDialed) {
+                    return;
+                }
+
+                // Operator ichki kanali (masalan SIP/114-xxxx)
+                const isInternalOperatorChannel = Boolean(channelId.match(/^SIP\/[0-9]{2,4}-/));
+
+                const isExternal = isTrunkChannel || (callData.direction === 'inbound') || (callData.callerId && callData.callerId.length >= 7) || isOutboundWithDialed;
+                const isAlreadyInHistory = this.callHistory.some(c => c.channel === channelId || (evt.uniqueid && c.uniqueid === evt.uniqueid));
+
+                if (isExternal && !isAlreadyInHistory && !channelId.startsWith('Local/')) {
+                    let rawNum = this.extractCallerNumber(callData.callerId, callData.callerName, channelId);
+                    if (callData.direction === 'outbound' && callData.dialedPhone) {
+                        rawNum = callData.dialedPhone;
+                    }
+
+                    // 712020159 yoki trunk raqamlari hech qachon alohida mijoz qo'ng'irog'i sifatida saqlanmasin
+                    if (!rawNum || rawNum === '712020159' || rawNum.endsWith('2020159') || rawNum.length < 7 || rawNum === 'Yashirin raqam (Hidden)') {
+                        return;
+                    }
+                    if (rawNum && rawNum !== 'Yashirin raqam (Hidden)') {
+                        const callStartTime = callData.startTime || new Date();
+                        const localTimeStr = callStartTime.toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' });
+
+                        const evtBillSec = parseInt(evt.billsec || evt.billable_seconds || '0', 10);
+                        const evtDuration = parseInt(evt.duration || '0', 10);
+
+                        const opId = callData.operator || this.channelToOperator.get(channelId);
+                        const oCall = opId ? this.operatorOutboundCalls.get(opId) : null;
+
+                        const isAnswered = Boolean(
+                            evtBillSec > 0 ||
+                            callData.answeredTime || 
+                            (oCall && oCall.answeredTime) ||
+                            callData.state === 'Talking' || 
+                            (callData.operator && callData.operator !== 'Operatorga ulanmadi') || 
+                            this.channelToOperator.has(channelId)
+                        );
+
+                        let durationSec = 0;
+                        if (isAnswered) {
+                            if (evtBillSec > 0) {
+                                durationSec = evtBillSec;
+                            } else if (callData.answeredTime) {
+                                durationSec = Math.max(0, Math.round((now.getTime() - new Date(callData.answeredTime).getTime()) / 1000));
+                            } else if (oCall && oCall.answeredTime) {
+                                durationSec = Math.max(0, Math.round((now.getTime() - new Date(oCall.answeredTime).getTime()) / 1000));
+                            } else if (oCall && oCall.startTime) {
+                                durationSec = Math.max(0, Math.round((now.getTime() - new Date(oCall.startTime).getTime()) / 1000));
+                            } else if (callData.startTime) {
+                                durationSec = Math.max(0, Math.round((now.getTime() - new Date(callData.startTime).getTime()) / 1000));
+                            } else if (evtDuration > 0) {
+                                durationSec = evtDuration;
+                            }
+                        }
+
+                        const waitSec = Math.max(0, Math.round((now.getTime() - callStartTime.getTime()) / 1000) - durationSec);
+
+                        const realOpName = opId ? issabelDbService.getOperatorName(opId) : null;
+                        const opDisplay = opId ? (realOpName && realOpName !== `Operator ${opId}` ? `${realOpName} (${opId})` : `Operator ${opId}`) : 'Operatorga ulanmadi';
+
+                        const historyRecord = {
+                            id: Date.now() + Math.random().toString(36).substr(2, 4),
+                            channel: channelId,
+                            uniqueid: evt.uniqueid || '',
+                            callerId: rawNum,
+                            operator: opDisplay,
+                            operatorExten: opId || '',
+                            direction: callData.direction || 'inbound',
+                            status: isAnswered ? 'ANSWERED' : 'ABANDONED',
+                            hangupParty: isAnswered ? 'Mijoz tugatdi' : 'Ko\'tarilmadi',
+                            duration: durationSec,
+                            waitSec: waitSec,
+                            cause: 'Hangup (' + cause + ')',
+                            time: localTimeStr
+                        };
+
+                        this.callHistory.unshift(historyRecord);
+                        if (this.callHistory.length > 500) this.callHistory.pop();
+                        dbService.saveCall(historyRecord);
+                        this.broadcast('call_hangup', historyRecord);
+
+                        // Callback ro'yxatini yangilash:
+                        // Agar suhbat muvaffaqiyatli bo'lsa -> yechiladi (mijoz bilan gaplashildi)
+                        // Agar javobsiz/uzilgan FAQAT KIRUVCHI qo'ng'iroq bo'lsa -> ro'yxatga qo'shiladi/yangilanadi
+                        const cleanPhone = dbService.normalizePhone(rawNum);
+                        if (cleanPhone && cleanPhone !== '712020159' && !cleanPhone.endsWith('2020159')) {
+                            if (isAnswered) {
+                                const resolved = dbService.resolveCallback(cleanPhone, opId ? `operator_${opId}` : 'hangup_answered', opId);
+                                if (resolved) {
+                                    this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+                                }
+                            } else if (callData.direction === 'inbound') {
+                                // Ichki operator kanali (SIP/114) go'shakni ko'tarmasa, bu mijoz navbatdan chiqdi degani EMAS.
+                                // FAQAT tashqi trank kanali (isTrunkChannel) uzilsa va mijoz hozir hech kim bilan gaplashmayotgan bo'lsa:
+                                const isCallerStillActive = Boolean(this.getActiveCallByPhone(cleanPhone));
+                                const hadRecentAnsweredCall = Boolean(
+                                    Array.isArray(this.callHistory) && this.callHistory.slice(0, 30).find(h => 
+                                        h.direction === 'inbound' && 
+                                        h.status === 'ANSWERED' && 
+                                        dbService.normalizePhone(h.callerId) === cleanPhone &&
+                                        (Date.now() - new Date(h.time).getTime() < 90000)
+                                    )
+                                );
+                                if (isTrunkChannel && !isInternalOperatorChannel && !isCallerStillActive && !callData.isAnswered && !hadRecentAnsweredCall) {
+                                    const isWork = dbService.isWorkingHours(callStartTime);
+                                    const source = isWork ? 'abandoned' : 'ivr_non_working';
+                                    dbService.upsertCallback({
+                                        phone: cleanPhone,
+                                        source: source,
+                                        callTime: localTimeStr
+                                    });
+                                    this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+                                }
+                            } else if (callData.direction === 'outbound') {
+                                if (!isTrunkChannel) {
+                                    const updated = dbService.recordFailedOutboundAttempt({
+                                        phone: cleanPhone,
+                                        operator: opDisplay,
+                                        cause: cause,
+                                        time: localTimeStr
+                                    });
+                                    if (updated) {
+                                        this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             if (channelId) {
                 this.channelToOperator.delete(channelId);
@@ -984,12 +1632,26 @@ class AmiService {
                 this.channelToOperator.delete(evt.uniqueid);
             }
 
-            // Operator SIP kanali yopilganda (masalan boshqa operatorga transfer qilinganda yoki suhbat tugaganda)
-            const hangupOpId = this.extractOperatorExten(channelId);
+            // Operator SIP kanali yoki unga bog'langan kanal yopilganda (suhbat yoki chaqiruv tugaganda)
+            const hangupOpId = this.extractOperatorExten(channelId) || (callData && callData.operator) || this.channelToOperator.get(channelId);
+            if (hangupOpId) {
+                this.operatorOutboundCalls.delete(hangupOpId);
+            }
+            if (channelId) {
+                for (const [opKey, outCall] of this.operatorOutboundCalls.entries()) {
+                    if (outCall.channel === channelId || outCall.destChannel === channelId) {
+                        this.operatorOutboundCalls.delete(opKey);
+                    }
+                }
+            }
+
             if (hangupOpId && !channelId.startsWith('Local/') && this.operators.has(hangupOpId)) {
                 const op = this.operators.get(hangupOpId);
                 const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)';
                 op.presence = hasValidIp ? 'ready' : 'offline';
+                op.ringingCaller = null;
+                op.ringingSince = null;
+                op.talkingSince = null;
                 this.operators.set(hangupOpId, op);
             }
 
@@ -1092,35 +1754,164 @@ class AmiService {
                 duration = pairedChan.chan.duration || duration;
             }
 
+            // Yo'nalishni aniqlash (faqat haqiqiy operator tashqariga chiqqan bo'lsa outbound)
+            const opObj = this.operators.get(opId);
+            const savedOutbound = this.operatorOutboundCalls.get(opId);
+            const isDialedOutbound = Boolean((opObj && opObj.ringingCaller && opObj.ringingCaller.startsWith('📤')) || savedOutbound);
+            const isChanOutbound = (opData.chan.direction === 'outbound') || (pairedChan && pairedChan.chan.direction === 'outbound');
+
+            const pairedCtx = (pairedChan && pairedChan.chan.context) ? pairedChan.chan.context.toLowerCase() : '';
+            const opCtx = (opData.chan && opData.chan.context) ? opData.chan.context.toLowerCase() : '';
+
+            // DIALOUT kontekstlari (FAQAT tashqi chiquvchi tranklar / dialout yo'llari; from-internal ichki kontekst, chiquvchi emas!)
+            const isDialoutContext = pairedCtx.includes('dialout') || pairedCtx.includes('outbound') || opCtx.includes('dialout') || opCtx.includes('outbound');
+
+            const isInboundTrunkOrQueue = (
+                pairedCtx.includes('from-trunk') || 
+                pairedCtx.includes('from-pstn') || 
+                pairedCtx.includes('ext-queues') || 
+                (pairedCtx.includes('queue') && !pairedCtx.includes('dialout')) ||
+                opData.chan.direction === 'inbound' ||
+                (pairedChan && pairedChan.chan.direction === 'inbound')
+            );
+
+            // Qat'iy va barqaror yo'nalish:
+            // 1. Agar operator o'zi tergan bo'lsa (savedOutbound) -> outbound
+            // 2. Agar trank/navbat/inbound bo'lsa -> inbound (hech qachon chiquvchiga aylanmaydi!)
+            // 3. Aks holda faqat dialout kontekst yoki aniq belgilangan holatda -> outbound
+            let isOutbound = false;
+            if (savedOutbound) {
+                isOutbound = true;
+            } else if (isInboundTrunkOrQueue) {
+                isOutbound = false;
+            } else if (isDialoutContext || isDialedOutbound || isChanOutbound) {
+                isOutbound = true;
+            }
+
+            if (isOutbound) {
+                // Chiquvchi qo'ng'iroqda terilgan mijoz raqamini chiqarish (bizning trunk raqami o'rniga)
+                const dialedFromSaved = savedOutbound ? savedOutbound.dialedNumber : null;
+                const dialedFromRinging = opObj && opObj.ringingCaller ? opObj.ringingCaller.replace(/^📤\s*/, '') : null;
+                const dialedCandidate = this.extractCallerNumber(
+                    dialedFromSaved,
+                    dialedFromRinging,
+                    (pairedChan && pairedChan.chan.extension),
+                    opData.chan.extension,
+                    (pairedChan && pairedChan.chan.callerName)
+                );
+                if (dialedCandidate && dialedCandidate !== 'Yashirin raqam (Hidden)') {
+                    callerNum = dialedCandidate;
+                } else if (dialedFromSaved) {
+                    callerNum = dialedFromSaved;
+                } else if (dialedFromRinging && dialedFromRinging !== 'Tashqi raqam' && dialedFromRinging !== 'Chiquvchi qo\'ng\'iroq') {
+                    callerNum = dialedFromRinging;
+                }
+            }
+
             const realOpName = issabelDbService.getOperatorName(opId);
             const opDisplay = realOpName && realOpName !== `Operator ${opId}` ? `${realOpName} (${opId})` : `Operator ${opId}`;
+
+            const isClientAnswered = !isOutbound || (pairedChan && (pairedChan.chan.state.toLowerCase().includes('up') || pairedChan.chan.state === '6' || !!pairedChan.chan.answeredTime));
+            const convState = isOutbound ? (isClientAnswered ? 'Chiquvchi suhbat' : 'Chiquvchi chaqiruv...') : 'Suhbatda';
+            const stateType = isClientAnswered ? 'talking' : 'ringing';
+
+            if (isOutbound) {
+                const operatorObj = this.operators.get(opId);
+                if (operatorObj) {
+                    if (!isClientAnswered) {
+                        operatorObj.presence = 'ringing';
+                        operatorObj.ringingCaller = `📤 ${callerNum}`;
+                        operatorObj.talkingSince = null;
+                    } else {
+                        operatorObj.presence = 'talking';
+                        operatorObj.ringingCaller = null;
+                        operatorObj.ringingSince = null;
+                    }
+                    this.operators.set(opId, operatorObj);
+                }
+            }
+
+            const durSec = parseDurationSec(duration);
+            let convStartTime = (pairedChan && (pairedChan.chan.answeredTime || pairedChan.chan.startTime)) || opData.chan.answeredTime || opData.chan.startTime;
+            if (!convStartTime) {
+                if (durSec > 0) {
+                    convStartTime = new Date(Date.now() - durSec * 1000);
+                } else if (opObj && opObj.talkingSince) {
+                    convStartTime = new Date(opObj.talkingSince);
+                } else {
+                    convStartTime = new Date();
+                }
+            }
 
             talkingConversations.push({
                 key: `TALK_${opId}`,
                 callerId: callerNum,
                 operator: opDisplay,
                 operatorExten: opId,
-                state: 'Suhbatda',
-                stateType: 'talking',
-                direction: 'inbound',
+                state: convState,
+                stateType: stateType,
+                direction: isOutbound ? 'outbound' : 'inbound',
                 channel: channelToUse,
-                startTime: (pairedChan && (pairedChan.chan.answeredTime || pairedChan.chan.startTime)) || opData.chan.answeredTime || opData.chan.startTime || new Date(),
+                startTime: convStartTime,
                 duration: duration
             });
         }
 
-        // 3. Qolgan (hali operatorga ulanmagan) barcha tashqi kanallar -> NAVBATDA KUTAYOTGANLAR!
+        // 3. NAVBATDA KUTAYOTGANLAR (Queue Waiting List)
+        // Faqat haqiqiy Asterisk Queue (this.queues) navbatidagi mijozlar:
+        const seenWaitingCallers = new Set();
+
+        for (const [qName, qData] of this.queues.entries()) {
+            if (qData && qData.callersWaiting && qData.callersWaiting.length > 0) {
+                for (const waiter of qData.callersWaiting) {
+                    const cNum = waiter.callerId || 'Navbatdagi mijoz';
+                    const key = waiter.channel || cNum;
+                    if (!seenWaitingCallers.has(key)) {
+                        seenWaitingCallers.add(key);
+                        if (waiter.channel) usedExtChannels.add(waiter.channel);
+                        queueCallers.push({
+                            callerId: cNum,
+                            position: waiter.position || (queueCallers.length + 1),
+                            channel: waiter.channel || '',
+                            waitSec: waiter.waitSec || 0,
+                            queueName: qName || 'Asosiy Navbat'
+                        });
+                    }
+                }
+            }
+        }
+
+        // Qo'shimcha: Faqat haqiqiy kiruvchi navbatda turgan kanallarni olish
         for (const ec of externalChannels) {
             if (usedExtChannels.has(ec.chanId)) continue;
-            
+
+            // QAT'IY QOIDA: Chiquvchi (outbound) qo'ng'iroqlar, operator tergan raqamlar yoki operatorga
+            // bog'langan kanallar HECH QACHON NAVBATGA KIRMAYDI!
+            if (ec.chan.direction === 'outbound') continue;
+            if (ec.op || this.channelToOperator.has(ec.chanId)) continue;
+            if (Array.from(this.operatorOutboundCalls.values()).some(o => o.channel === ec.chanId || o.destChannel === ec.chanId)) continue;
+
+            const ctx = (ec.chan.context || '').toLowerCase();
+            if (ctx.includes('from-internal') || ctx.includes('out') || ctx.includes('dialout')) continue;
+
+            // Faqat va faqat navbat dasturidagi (Queue / ext-queues / from-trunk) kanallar:
+            const app = (ec.chan.application || '').toLowerCase();
+            const ext = String(ec.chan.extension || '');
+            const isQueueCall = ctx.includes('queue') || ctx.includes('from-trunk') || ctx.includes('ivr') || app.includes('queue') || ext === '2020159';
+            if (!isQueueCall) continue;
+
             const caller = this.extractCallerNumber(ec.chan.callerId, ec.chan.callerName, ec.chanId);
-            queueCallers.push({
-                callerId: caller !== 'Yashirin raqam (Hidden)' ? caller : (ec.chan.callerId || 'Navbatdagi mijoz'),
-                position: queueCallers.length + 1,
-                channel: ec.chanId,
-                waitSec: 0,
-                queueName: 'Asosiy Navbat'
-            });
+            const key = ec.chanId || caller;
+            if (!seenWaitingCallers.has(key)) {
+                seenWaitingCallers.add(key);
+                queueCallers.push({
+                    callerId: caller !== 'Yashirin raqam (Hidden)' ? caller : (ec.chan.callerId || 'Navbatdagi mijoz'),
+                    position: queueCallers.length + 1,
+                    channel: ec.chanId,
+                    waitSec: 0,
+                    queueName: 'Asosiy Navbat'
+                });
+            }
         }
 
         // 1. Faol suhbatlar
@@ -1132,6 +1923,7 @@ class AmiService {
         this.broadcast('queue_update', this.getQueueSummaryList());
         this.broadcast('stats_update', this.getSummaryStats());
         this.broadcast('operators_update', this.getOperatorList());
+        this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
     }
 
     ensureOperatorExists(operatorId) {
@@ -1157,17 +1949,21 @@ class AmiService {
                 latency: '',
                 totalCalls: initDenied,
                 answered: 0,
+                callsTaken: 0,
+                lastCall: 0,
                 clientHangup: 0,
                 operatorHangup: 0,
                 denied: initDenied,
                 missed: initMissed,
                 transferredOut: 0,
                 transferredIn: 0,
+                transferResolved: 0,
                 totalDurationSec: 0,
                 avgDurationSec: 0,
                 ringingCaller: null,
                 ringingSince: null,
-                talkingSince: null
+                talkingSince: null,
+                paused: false
             });
         }
     }
@@ -1178,12 +1974,23 @@ class AmiService {
         // qo'ng'iroq boshqa operatorga (masalan 101 ga) transfer qilinganda ham Asteriskda eski operator
         // nomidagi Local/ kanali saqlanib turadi. Haqiqiy jismoniy suhbat faqat operatorning SIP/PJSIP kanalida bo'ladi!
         const activeOpIds = new Set();
+        // 1. Faol suhbatdagi operatorlarni to'g'ridan-to'g'ri activeConversations dan olamiz
+        if (this.activeConversations) {
+            for (const conv of this.activeConversations.values()) {
+                if (conv.operatorExten && conv.stateType === 'talking') {
+                    activeOpIds.add(String(conv.operatorExten));
+                }
+            }
+        }
+        // 2. Faqat operatorning bevosita o'z SIP telefoni kanali Up bo'lganlarni qo'shamiz (trunk/local/tashqi kanallar operator hisoblanmaydi)
         for (const [chanId, chan] of this.activeChannels.entries()) {
             if (chanId.startsWith('Local/')) continue;
+            const isDirectOpPhone = /^P?J?SIP\/(1\d\d|2\d\d|4\d\d)[-_]/i.test(chanId);
+            if (!isDirectOpPhone) continue;
 
-            const op = this.extractOperatorExten(chan.operator) || this.extractOperatorExten(chan.extension) || this.extractOperatorExten(chan.callerId);
+            const op = this.extractOperatorExten(chanId);
             if (op && (chan.state.toLowerCase().includes('up') || chan.state.toLowerCase().includes('talk'))) {
-                activeOpIds.add(op);
+                activeOpIds.add(String(op));
             }
         }
 
@@ -1202,13 +2009,16 @@ class AmiService {
                 copy.outbound = Math.max(op.outbound || 0, agentOutbound);
                 copy.transferredOut = op.transferredOut || 0;
                 copy.transferredIn = op.transferredIn || 0;
+                copy.transferResolved = op.transferResolved || 0;
+                // Jami = kiruvchi hal qilingan (answered) + chiquvchi + transfer oxirida hal qilgan (+1)
+                copy.grandTotal = (copy.answered || 0) + (copy.outbound || 0) + (copy.transferResolved || 0);
                 copy.denied = todayRejects[op.id] || 0;
                 copy.missed = todayMissed[op.id] || 0;
                 copy.totalCalls = (copy.answered || 0) + copy.outbound + copy.denied;
 
                 const agentDur = agentOp ? (agentOp.totalDurationSec || 0) : 0;
                 copy.totalDurationSec = Math.max(op.totalDurationSec || 0, agentDur);
-                const spoken = (copy.answered || 0) + copy.outbound;
+                const spoken = (copy.answered || 0) + copy.outbound + (copy.transferResolved || 0);
                 copy.avgDurationSec = spoken > 0 ? Math.round(copy.totalDurationSec / spoken) : 0;
 
                 const realName = op.id === '114' ? 'Maxmudbek' : (issabelDbService.getOperatorName(op.id) || op.realName || `Operator ${op.id}`);
@@ -1229,7 +2039,7 @@ class AmiService {
                     copy.ringingCaller = null;
                     copy.talkingSince = null;
                     op.talkingSince = null;
-                } else if (activeOpIds.has(op.id)) {
+                } else if (activeOpIds.has(String(op.id))) {
                     copy.presence = 'talking';
                     copy.ringingCaller = null;
                     if (!op.talkingSince) {
@@ -1241,14 +2051,49 @@ class AmiService {
                         }
                     }
                     copy.talkingSince = op.talkingSince;
-                } else if (copy.presence === 'talking') {
-                    if (!op.talkingSince) op.talkingSince = Date.now();
-                    copy.talkingSince = op.talkingSince;
+                } else if (op.paused || copy.presence === 'paused') {
+                    copy.presence = 'paused';
+                    copy.ringingCaller = null;
+                    copy.ringingSince = null;
+                    op.ringingCaller = null;
+                    op.ringingSince = null;
+                    copy.talkingSince = null;
+                    op.talkingSince = null;
                 } else {
-                    copy.presence = copy.presence || 'ready';
+                    // Agar faol suhbatda bo'lmasa va pauzada bo'lmasa:
+                    let isReallyRinging = false;
+                    const ringExpired = op.ringingSince && (Date.now() - op.ringingSince > 60000);
+
+                    if (copy.presence === 'ringing' && !ringExpired) {
+                        for (const [chanId, ch] of this.activeChannels.entries()) {
+                            if (chanId.startsWith('Local/')) continue;
+                            const chOp = this.extractOperatorExten(ch.operator, ch.extension, ch.callerId, chanId) || this.channelToOperator.get(chanId);
+                            if (String(chOp) === String(op.id)) {
+                                const isUp = ch.state.toLowerCase().includes('up') || ch.state.toLowerCase().includes('talk') || ch.state === '6';
+                                if (!isUp) {
+                                    isReallyRinging = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (isReallyRinging) {
+                        copy.presence = 'ringing';
+                    } else {
+                        copy.presence = 'ready';
+                        copy.ringingCaller = null;
+                        copy.ringingSince = null;
+                        op.ringingCaller = null;
+                        op.ringingSince = null;
+                    }
                     copy.talkingSince = null;
                     op.talkingSince = null;
                 }
+                copy.paused = !!op.paused;
+                copy.callsTaken = this.getEffectiveCallsTaken(op);
+                copy.callsTakenOverride = this.manualCallsTakenOverrides[String(op.id)] || 0;
+                copy.lastCall = (op.lastCall !== undefined && op.lastCall !== null) ? Number(op.lastCall) : 0;
                 return copy;
             }).sort((a, b) => {
                 const wA = weight[a.presence] || 5;
@@ -1256,6 +2101,113 @@ class AmiService {
                 if (wA !== wB) return wA - wB;
                 return Number(a.id) - Number(b.id);
             });
+    }
+
+    /**
+     * Qo'lda belgilangan callsTaken ofsetlarini fayldan o'qish (server qayta ishga tushganda saqlanib qolishi uchun)
+     */
+    loadCallsTakenOverrides() {
+        try {
+            const p = path.join(__dirname, '..', 'data', 'calls-taken-overrides.json');
+            if (fs.existsSync(p)) {
+                const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
+                const out = {};
+                for (const [id, v] of Object.entries(raw || {})) {
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n)) out[String(id)] = n;
+                }
+                if (Object.keys(out).length > 0) {
+                    console.log(`📊 [AMI RAM] ${Object.keys(out).length} ta operator uchun qo'lda belgilangan callsTaken ofsetlari tiklandi:`, out);
+                }
+                return out;
+            }
+        } catch (e) {
+            console.error('⚠️ [AMI RAM] callsTaken ofsetlarini o\'qishda xato:', e.message);
+        }
+        return {};
+    }
+
+    saveCallsTakenOverrides() {
+        try {
+            const dir = path.join(__dirname, '..', 'data');
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(path.join(dir, 'calls-taken-overrides.json'), JSON.stringify(this.manualCallsTakenOverrides, null, 2));
+        } catch (e) {
+            console.error('⚠️ [AMI RAM] callsTaken ofsetlarini saqlashda xato:', e.message);
+        }
+    }
+
+    /**
+     * Ko'rsatiladigan (sammarali) callsTaken = Asterisk xom qiymati + qo'lda belgilangan ofset
+     */
+    getEffectiveCallsTaken(op) {
+        const base = (op && op.callsTaken !== undefined && op.callsTaken !== null) ? Number(op.callsTaken) : 0;
+        const override = this.manualCallsTakenOverrides[String(op && op.id)];
+        return (override !== undefined) ? Math.max(0, base + override) : base;
+    }
+
+    /**
+     * Operator uchun qo'lda belgilangan ofsetni to'liq bekor qilish — Asterisk haqiqiy hisobiga qaytish
+     */
+    clearCallsTakenOverride(operatorId) {
+        if (!operatorId) return null;
+        const id = String(operatorId);
+        this.ensureOperatorExists(id);
+        const op = this.operators.get(id);
+        if (!op) return null;
+        const had = this.manualCallsTakenOverrides[id];
+        delete this.manualCallsTakenOverrides[id];
+        if (had !== undefined) this.saveCallsTakenOverrides();
+        console.log(`📊 [AMI RAM] Operator ${op.name} (${id}) qo'lda belgilangan callsTaken ofseti bekor qilindi (avvalgi: ${had || 0}) — Asterisk haqiqiy hisobi: ${op.callsTaken || 0}`);
+        this.broadcast('operators_update', this.getOperatorList());
+        return {
+            id: op.id,
+            name: op.name,
+            callsTaken: this.getEffectiveCallsTaken(op),
+            callsTakenOverride: 0,
+            presence: op.presence
+        };
+    }
+
+    /**
+     * Asterisk navbatidagi (fewestcalls) operator callsTaken sonini qo'lda o'zgartirish (+1, -1 yoki aniq qiymat).
+     * Asteriskning o'z navbatiga tegmaymiz — faqat bizning ko'rsatishimiz uchun ofset saqlaymiz,
+     * chunki Asterisk har 5 soniyada haqiqiy QueueMember qiymatini qaytarib turadi.
+     * absoluteValue = 0 (bo'sh kiritilganda) — ofsetni bekor qilib, Asterisk qiymatiga qaytaradi.
+     */
+    adjustOperatorCallsTaken(operatorId, delta = 1, absoluteValue = null) {
+        if (!operatorId) return null;
+        const id = String(operatorId);
+        this.ensureOperatorExists(id);
+        const op = this.operators.get(id);
+        if (!op) return null;
+
+        const base = (op.callsTaken !== undefined && op.callsTaken !== null) ? Number(op.callsTaken) : 0;
+        let target;
+        if (absoluteValue !== null && !isNaN(Number(absoluteValue))) {
+            target = Math.max(0, parseInt(absoluteValue, 10));
+        } else {
+            const current = this.getEffectiveCallsTaken(op);
+            target = Math.max(0, current + Number(delta));
+        }
+
+        const offset = target - base;
+        if (offset === 0) {
+            delete this.manualCallsTakenOverrides[id];
+        } else {
+            this.manualCallsTakenOverrides[id] = offset;
+        }
+        this.saveCallsTakenOverrides();
+
+        console.log(`📊 [AMI RAM] Operator ${op.name} (${id}) callsTaken: ${base} → ${target} (Asterisk xom qiymati: ${base}, ofset: ${this.manualCallsTakenOverrides[id] || 0})`);
+        this.broadcast('operators_update', this.getOperatorList());
+        return {
+            id: op.id,
+            name: op.name,
+            callsTaken: this.getEffectiveCallsTaken(op),
+            callsTakenOverride: this.manualCallsTakenOverrides[id] || 0,
+            presence: op.presence
+        };
     }
 
     registerOperatorCall(operatorId, answered, durationSec, hangupParty = 'Mijoz') {

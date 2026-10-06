@@ -3,15 +3,14 @@ require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
 
 const DEFAULT_OPERATOR_NAMES = {
     '101': 'Oybek',
     '103': 'Feruza',
-    '106': 'Gulchehra',
+    '106': 'Ubaydullayeva Gulchehra',
     '111': 'Nozima',
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
@@ -143,32 +142,21 @@ class IssabelDbService {
                   AND LENGTH(dst) >= 7
                 GROUP BY op_ext;
 
-                SELECT '===TRANSFERS_OUT===' as marker;
+                SELECT '===XFER_ROWS===' as marker;
                 SELECT 
                     CASE 
                         WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
                         WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
-                        ELSE NULL 
-                    END AS op_ext,
-                    COUNT(*) as transferred_out
+                        ELSE '' 
+                    END AS from_op,
+                    dst as to_op,
+                    channel
                 FROM cdr
                 WHERE calldate >= CURDATE()
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dcontext = 'from-internal-xfer'
-                  AND disposition = 'ANSWERED'
-                GROUP BY op_ext;
-
-                SELECT '===TRANSFERS_IN===' as marker;
-                SELECT 
-                    dst as op_ext,
-                    COUNT(*) as transferred_in
-                FROM cdr
-                WHERE calldate >= CURDATE()
-                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-                  AND dcontext = 'from-internal-xfer'
-                  AND disposition = 'ANSWERED'
-                  AND dst REGEXP '^[0-9]{2,4}$'
-                GROUP BY op_ext;
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                ORDER BY channel ASC, calldate ASC;
             `;
 
             const raw = await this.execQuery(multiSql);
@@ -282,26 +270,44 @@ class IssabelDbService {
                 }
             }
 
-            // 4b. Transfers Maps (Outward & Inward)
-            const xferOutMap = new Map();
-            if (sectionMap['TRANSFERS_OUT']) {
-                const lines = sectionMap['TRANSFERS_OUT'].split('\n');
-                for (const l of lines) {
+            // 4b. Transfer zanjirlari — bir zanjirning barcha qadamlari bir xil channel nomida yoziladi.
+            // Olgan (xferIn) = zanjirni OXIRGI bo'lib qabul qilib, o'zi hal qilgan operator (boshqaga uzatmagan) -> Jami +1
+            // Uzatgan (xferOut) = qabul qilib boshqaga o'tkazib yuborgan har bir qadam
+            const xferOutMap = new Map();       // uzatgan (ko'rsatkich)
+            const xferInMap = new Map();        // olgan = hal qilgan (Jami +1)
+            const xferReceiptsMap = new Map();  // transfer qabul qatorlari (raw "Qabul qilingan"dan chiqariladi)
+            const xferFirstFromMap = new Map(); // navbatdan to'g'ri olib boshqaga uzatganlar (raw dan chiqariladi)
+            if (sectionMap['XFER_ROWS']) {
+                const chains = new Map(); // channel -> [{ from, to }]
+                for (const l of sectionMap['XFER_ROWS'].split('\n')) {
                     if (!l) continue;
-                    const [opId, cntStr] = l.split('\t');
-                    const cleanOp = (opId || '').trim();
-                    if (cleanOp) xferOutMap.set(cleanOp, parseInt(cntStr, 10) || 0);
+                    const [fromOp, toOp, chan] = l.split('\t');
+                    const cleanChan = (chan || '').trim();
+                    if (!cleanChan) continue;
+                    if (!chains.has(cleanChan)) chains.set(cleanChan, []);
+                    chains.get(cleanChan).push({ from: (fromOp || '').trim(), to: (toOp || '').trim() });
                 }
-            }
-
-            const xferInMap = new Map();
-            if (sectionMap['TRANSFERS_IN']) {
-                const lines = sectionMap['TRANSFERS_IN'].split('\n');
-                for (const l of lines) {
-                    if (!l) continue;
-                    const [opId, cntStr] = l.split('\t');
-                    const cleanOp = (opId || '').trim();
-                    if (cleanOp) xferInMap.set(cleanOp, parseInt(cntStr, 10) || 0);
+                for (const rows of chains.values()) {
+                    if (!rows || rows.length === 0) continue;
+                    for (const r of rows) {
+                        if (r.from) xferOutMap.set(r.from, (xferOutMap.get(r.from) || 0) + 1);
+                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
+                            xferReceiptsMap.set(r.to, (xferReceiptsMap.get(r.to) || 0) + 1);
+                        }
+                    }
+                    // Birinchi qadam: navbatdan to'g'ri qabul qilingan qo'ng'iroq boshqaga uzatilgan
+                    const first = rows[0];
+                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) {
+                        xferFirstFromMap.set(first.from, (xferFirstFromMap.get(first.from) || 0) + 1);
+                    }
+                    // Olgan (hal qilgan): zanjirning oxirgi operator qabulchisi (tashqi raqamga uzatilgan bo'lsa — oxirgi operator)
+                    let lastTo = '';
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
+                    }
+                    if (lastTo) {
+                        xferInMap.set(lastTo, (xferInMap.get(lastTo) || 0) + 1);
+                    }
                 }
             }
 
@@ -321,7 +327,14 @@ class IssabelDbService {
                     const inDur = parseInt(durStr, 10) || 0;
                     const outInfo = outMap.get(ext) || { answered: 0, duration: 0 };
                     const totalDur = inDur + outInfo.duration;
-                    const spokenCalls = inAns + outInfo.answered;
+                    const xOut = xferOutMap.get(ext) || 0;
+                    const xIn = xferInMap.get(ext) || 0;
+                    const receipts = xferReceiptsMap.get(ext) || 0;
+                    const directFwd = xferFirstFromMap.get(ext) || 0;
+                    // Haqiqiy yakunlangan kiruvchi: transfer qabullari va boshqaga uzatib yuborganlari chiqariladi.
+                    // "Olgan" (transferni o'zi hal qilganlari) alohida xIn sifatida Jami ga qo'shiladi.
+                    const resolvedIn = Math.max(0, inAns - receipts - directFwd);
+                    const spokenCalls = resolvedIn + outInfo.answered + xIn;
                     const avg = spokenCalls > 0 ? Math.round(totalDur / spokenCalls) : 0;
                     const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
                     const opDenied = todayRejects[ext] || 0;
@@ -330,11 +343,14 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: inAns + outInfo.answered + opDenied,
-                        answered: inAns,
+                        totalCalls: resolvedIn + outInfo.answered + opDenied + xIn,
+                        answered: resolvedIn,
+                        rawAnswered: inAns,
                         outbound: outInfo.answered,
-                        transferredOut: xferOutMap.get(ext) || 0,
-                        transferredIn: xferInMap.get(ext) || 0,
+                        transferredOut: xOut,
+                        transferredIn: xIn,
+                        // Transfer zanjirini oxirida hal qilgan (A->B->C da faqat C hisoblanadi)
+                        transferResolved: xIn,
                         denied: opDenied,
                         totalDurationSec: totalDur,
                         avgDurationSec: avg
@@ -352,11 +368,12 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: outInfo.answered + opDenied,
+                        totalCalls: outInfo.answered + opDenied + (xferInMap.get(ext) || 0),
                         answered: 0,
                         outbound: outInfo.answered,
                         transferredOut: xferOutMap.get(ext) || 0,
                         transferredIn: xferInMap.get(ext) || 0,
+                        transferResolved: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         totalDurationSec: outInfo.duration,
                         avgDurationSec: avg
@@ -543,32 +560,21 @@ class IssabelDbService {
                   AND LENGTH(dst) >= 7
                 GROUP BY op_id;
 
-                SELECT '===TRANSFERS_OUT===';
+                SELECT '===XFER_ROWS===';
                 SELECT 
                     CASE 
                         WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
                         WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
-                        ELSE NULL 
-                    END AS op_ext,
-                    COUNT(*) as transferred_out
+                        ELSE '' 
+                    END AS from_op,
+                    dst as to_op,
+                    channel
                 FROM cdr
                 WHERE ${dateCond}
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dcontext = 'from-internal-xfer'
-                  AND disposition = 'ANSWERED'
-                GROUP BY op_ext;
-
-                SELECT '===TRANSFERS_IN===';
-                SELECT 
-                    dst as op_ext,
-                    COUNT(*) as transferred_in
-                FROM cdr
-                WHERE ${dateCond}
-                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-                  AND dcontext = 'from-internal-xfer'
-                  AND disposition = 'ANSWERED'
-                  AND dst REGEXP '^[0-9]{2,4}$'
-                GROUP BY op_ext;
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                ORDER BY channel ASC, calldate ASC;
             `;
             const raw = await this.execQuery(sql);
             const sections = (raw || '').split('===');
@@ -594,23 +600,41 @@ class IssabelDbService {
                 }
             }
 
-            const xferOutMap = new Map();
-            if (sectionMap['TRANSFERS_OUT']) {
-                for (const line of sectionMap['TRANSFERS_OUT'].split('\n')) {
+            // 4b. Transfer zanjirlari (channel bo'yicha guruhlash)
+            // Olgan (xferIn) = oxirgi bo'lib qabul qilib o'zi hal qilgan; Uzatgan (xferOut) = qabul qilib boshqaga o'tkazgan
+            const xferOutMap = new Map();       // uzatgan
+            const xferInMap = new Map();        // olgan = hal qilgan (Jami +1)
+            const xferReceiptsMap = new Map();  // transfer qabul qatorlari (raw dan chiqariladi)
+            const xferFirstFromMap = new Map(); // navbatdan to'g'ri olib boshqaga uzatganlar (raw dan chiqariladi)
+            if (sectionMap['XFER_ROWS']) {
+                const chains = new Map();
+                for (const line of sectionMap['XFER_ROWS'].split('\n')) {
                     if (!line) continue;
                     const parts = line.split('\t');
-                    const opId = (parts[0] || '').trim();
-                    if (opId) xferOutMap.set(opId, parseInt(parts[1], 10) || 0);
+                    const cleanChan = (parts[2] || '').trim();
+                    if (!cleanChan) continue;
+                    if (!chains.has(cleanChan)) chains.set(cleanChan, []);
+                    chains.get(cleanChan).push({ from: (parts[0] || '').trim(), to: (parts[1] || '').trim() });
                 }
-            }
-
-            const xferInMap = new Map();
-            if (sectionMap['TRANSFERS_IN']) {
-                for (const line of sectionMap['TRANSFERS_IN'].split('\n')) {
-                    if (!line) continue;
-                    const parts = line.split('\t');
-                    const opId = (parts[0] || '').trim();
-                    if (opId) xferInMap.set(opId, parseInt(parts[1], 10) || 0);
+                for (const rows of chains.values()) {
+                    if (!rows || rows.length === 0) continue;
+                    for (const r of rows) {
+                        if (r.from) xferOutMap.set(r.from, (xferOutMap.get(r.from) || 0) + 1);
+                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
+                            xferReceiptsMap.set(r.to, (xferReceiptsMap.get(r.to) || 0) + 1);
+                        }
+                    }
+                    const first = rows[0];
+                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) {
+                        xferFirstFromMap.set(first.from, (xferFirstFromMap.get(first.from) || 0) + 1);
+                    }
+                    let lastTo = '';
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
+                    }
+                    if (lastTo) {
+                        xferInMap.set(lastTo, (xferInMap.get(lastTo) || 0) + 1);
+                    }
                 }
             }
 
@@ -633,7 +657,12 @@ class IssabelDbService {
                     const outInfo = outMap.get(ext) || { ansOut: 0, outDur: 0 };
                     const outbound = outInfo.ansOut;
                     const totalDurationSec = inDuration + outInfo.outDur;
-                    const spoken = ans + outbound;
+                    const xOut = xferOutMap.get(ext) || 0;
+                    const xIn = xferInMap.get(ext) || 0;
+                    const receipts = xferReceiptsMap.get(ext) || 0;
+                    const directFwd = xferFirstFromMap.get(ext) || 0;
+                    const resolvedIn = Math.max(0, ans - receipts - directFwd);
+                    const spoken = resolvedIn + outbound + xIn;
 
                     const opDenied = rejects[ext] || 0;
                     const opMissed = missed[ext] || 0;
@@ -644,11 +673,13 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: ans + outbound + opDenied,
-                        answered: ans,
+                        totalCalls: resolvedIn + outbound + opDenied + xIn,
+                        answered: resolvedIn,
+                        rawAnswered: ans,
                         outbound: outbound,
-                        transferredOut: xferOutMap.get(ext) || 0,
-                        transferredIn: xferInMap.get(ext) || 0,
+                        transferredOut: xOut,
+                        transferredIn: xIn,
+                        transferResolved: xIn,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
@@ -670,11 +701,12 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: outbound + opDenied,
+                        totalCalls: outbound + opDenied + (xferInMap.get(ext) || 0),
                         answered: 0,
                         outbound: outbound,
                         transferredOut: xferOutMap.get(ext) || 0,
                         transferredIn: xferInMap.get(ext) || 0,
+                        transferResolved: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
@@ -1143,13 +1175,14 @@ class IssabelDbService {
                     FROM cdr c
                     LEFT JOIN (
                         SELECT 
+                            uniqueid,
                             SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
-                            MAX(SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)) as xfer_from,
+                            SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
                             GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
                         FROM cdr
                         ${xferSubDateCond}
-                        GROUP BY xfer_key
-                    ) xfer ON SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key
+                        GROUP BY uniqueid
+                    ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
                     ${filter};
                 `;
                 const countRaw = await this.execQuery(countSql);
@@ -1192,13 +1225,14 @@ class IssabelDbService {
                 FROM cdr c
                 LEFT JOIN (
                     SELECT 
+                        uniqueid,
                         SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
-                        MAX(SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)) as xfer_from,
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
                         GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
                     FROM cdr
                     ${xferSubDateCond}
-                    GROUP BY xfer_key
-                ) xfer ON SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key
+                    GROUP BY uniqueid
+                ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
                 ${filter}
                 GROUP BY c.uniqueid
                 ORDER BY call_time DESC 
@@ -1228,6 +1262,7 @@ class IssabelDbService {
                 let opName = 'Operatorga ulanmadi';
                 let direction = (isOutFlag === '1' || (src && src.length <= 4)) ? 'outbound' : 'inbound';
                 let hangupParty = isRealAnswered ? 'Mijoz' : (disp === 'BUSY' ? 'Band' : 'Ko\'tarilmadi');
+                let finalOpExt = opExt;
 
                 if (isXfer) {
                     direction = 'transfer';
@@ -1250,6 +1285,7 @@ class IssabelDbService {
                             if (ext === '114') name = 'Maxmudbek';
                             return name ? `${name} (${ext})` : `Operator ${ext}`;
                         }).join(' ➔ ');
+                        finalOpExt = chainList[chainList.length - 1];
                     } else {
                         opName = `Operator (Transfer: ${xferChain})`;
                     }
@@ -1265,7 +1301,7 @@ class IssabelDbService {
                     time: calldate,
                     callerId: callerNumber,
                     operator: opName,
-                    operatorExten: hasRealOp ? (opExt || xferFromRaw || '') : '',
+                    operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
                     direction: direction,
                     duration: isRealAnswered ? talkSec : 0,
                     waitSec: isRealAnswered ? Math.max(0, ansLagSec) : waitSecVal,
@@ -1384,7 +1420,7 @@ class IssabelDbService {
                     (channel LIKE 'SIP/${operatorExt}-%') OR
                     (src = '${operatorExt}' AND dcontext = 'from-internal') OR
                     (dst = '${operatorExt}' AND disposition = 'ANSWERED' AND billsec > 0)
-                )`;
+                ) AND dst NOT IN ('s', 'h', 't', 'i', 'e') AND dcontext NOT LIKE 'app-%' AND dst NOT LIKE '*%'`;
             } else {
                 whereClause += ` AND ((dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7))`;
             }
@@ -1492,13 +1528,14 @@ class IssabelDbService {
                 FROM cdr c
                 LEFT JOIN (
                     SELECT 
+                        uniqueid,
                         SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
-                        MAX(SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)) as xfer_from,
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
                         GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
                     FROM cdr
-                    WHERE dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'
-                    GROUP BY xfer_key
-                ) xfer ON SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key
+                    WHERE ${this.getDateCondition(targetDate)} AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'
+                    GROUP BY uniqueid
+                ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
                 WHERE ${whereClause}
                 GROUP BY ${isAbandoned ? 'c.channel' : 'c.uniqueid'}
                 ${isAbandoned ? abandonedHaving : ''}
@@ -1516,11 +1553,10 @@ class IssabelDbService {
                 const waitSec = parseInt(waitSecStr, 10) || 0;
                 const ansLagSec = parseInt(ansLagStr, 10) || 0;
                 const xferChain = (xferChainRaw || '').trim();
-                const isXfer = Boolean(xferChain && xferChain !== 'NULL' && xferChain !== '\\N');
-
-                const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159') || isXfer;
-                const isAns = disp === 'ANSWERED' || talkSec > 0;
-                let isOut = type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4);
+                const isAns = (type !== 'abandoned' && disp === 'ANSWERED');
+                const isXfer = isAns && Boolean(xferChain && xferChain !== 'NULL' && xferChain !== '\\N');
+                const hasRealOp = isAns && (Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159') || isXfer);
+                let isOut = (type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4)) && dst && dst !== 's' && dst.length >= 7;
                 let direction = isOut ? 'outbound' : 'inbound';
                 let hangupParty = isAns ? (isOut ? 'Operator' : 'Mijoz') : (isOut ? 'Javobsiz' : 'Ko\'tarilmadi');
 
@@ -1528,6 +1564,7 @@ class IssabelDbService {
                 if (opExt === '114') realOpName = 'Maxmudbek';
 
                 let opName = '';
+                let finalOpExt = opExt;
                 if (isXfer) {
                     direction = 'transfer';
                     hangupParty = 'Transfer (Operatorga)';
@@ -1548,15 +1585,28 @@ class IssabelDbService {
                             if (ext === '114') name = 'Maxmudbek';
                             return name ? `${name} (${ext})` : `Operator ${ext}`;
                         }).join(' ➔ ');
+
+                        if (operatorExt && chainList.includes(operatorExt)) {
+                            finalOpExt = operatorExt;
+                        } else {
+                            finalOpExt = chainList[chainList.length - 1];
+                        }
                     } else {
                         opName = `Operator (Transfer: ${xferChain})`;
                     }
                 } else if (opExt) {
                     opName = realOpName ? `${realOpName} (${opExt})` : `Operator ${opExt}`;
                 } else {
-                    const isIvr = (dcontext && dcontext.startsWith('ivr')) || (lastdata && (lastdata.includes('working-time') || lastdata.includes('custom') || lastdata.includes('ivr')));
-                    if (isIvr) {
-                        opName = (lastdata && lastdata.includes('working-time')) ? 'IVR (Ish vaqti emas)' : 'IVR Avtojavob';
+                    const isQueue = (dcontext === 'ext-queues') || (dst && dst.includes('2020159')) || (rec && rec.includes('q-2020159'));
+                    const isOffHours = (lastdata && (lastdata.includes('working-time') || lastdata.includes('music-working-time')));
+                    const isIvr = (dcontext && dcontext.startsWith('ivr')) || (lastdata && lastdata.includes('ivr'));
+
+                    if (isOffHours) {
+                        opName = 'IVR (Ish vaqti emas)';
+                    } else if (isQueue) {
+                        opName = 'Navbat';
+                    } else if (isIvr) {
+                        opName = 'Navbatga kirmasdan chiqdi';
                     } else if (isAns) {
                         opName = 'Avtojavob (Tizim)';
                     } else {
@@ -1564,7 +1614,7 @@ class IssabelDbService {
                     }
                 }
 
-                let calculatedWait = (isAns && hasRealOp) ? Math.max(0, ansLagSec) : waitSec;
+                let calculatedWait = !isAns ? Math.max(waitSec, talkSec) : ((isAns && hasRealOp) ? Math.max(0, ansLagSec) : waitSec);
                 if (isAns && hasRealOp && calculatedWait === 0 && rec) {
                     const match = rec.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-/);
                     if (match) {
@@ -1586,11 +1636,11 @@ class IssabelDbService {
                     callerId: isOut ? (dst || 'Yashirin') : (src || 'Yashirin'),
                     direction: direction,
                     operator: opName,
-                    operatorExten: hasRealOp ? (opExt || xferFromRaw || '') : '',
+                    operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
                     duration: isAns ? talkSec : 0,
                     waitSec: calculatedWait,
-                    status: isAns ? 'ANSWERED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED')),
-                    recording: rec || '',
+                    status: isAns ? 'ANSWERED' : (type === 'abandoned' ? 'ABANDONED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED'))),
+                    recording: isAns ? (rec || '') : '',
                     hangupParty: hangupParty
                 });
             }

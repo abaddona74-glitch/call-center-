@@ -2,6 +2,7 @@ const SftpClient = require('ssh2-sftp-client');
 const config = require('../config');
 const path = require('path');
 const fs = require('fs');
+const issabelDbService = require('./issabelDbService');
 
 class SftpService {
     constructor() {
@@ -10,6 +11,12 @@ class SftpService {
         this.isConnecting = false;
         this.onStatusChange = null;
         this.healthCheckTimer = null;
+
+        // Papkalar hajmi uchun xotira keshi
+        this.dirSizeCache = new Map();
+        // Root darajadagi 2025 va 2026 hajmlarini oldindan keshga kiritib qo'yish (bosh sahifa qotmasligi uchun)
+        this.dirSizeCache.set('/var/spool/asterisk/monitor/2025', { size: 198846406624, time: Date.now() });
+        this.dirSizeCache.set('/var/spool/asterisk/monitor/2026', { size: 208667712168, time: Date.now() });
 
         // Har 20 soniyada aloqani tekshirib, tirik ushlab turish
         this.startHealthCheck();
@@ -107,6 +114,61 @@ class SftpService {
     }
 
     /**
+     * Papkalar hajmini (MB/GB) aniqlash va keshda saqlash
+     */
+    async getDirectorySizes(remoteParentDir, dirNames) {
+        if (!dirNames || dirNames.length === 0) return {};
+        const result = {};
+        const missing = [];
+        const now = Date.now();
+
+        for (const name of dirNames) {
+            const fullDir = path.posix.join(remoteParentDir, name);
+            const cached = this.dirSizeCache.get(fullDir);
+            const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '/');
+            const isToday = fullDir.includes(todayStr);
+            // Bugungi sana papkasi 2 daqiqa, eski sanalar 24 soat keshda turadi
+            const ttl = isToday ? 2 * 60 * 1000 : 24 * 60 * 60 * 1000;
+
+            if (cached && (now - cached.time < ttl)) {
+                result[name] = cached.size;
+            } else {
+                missing.push(name);
+            }
+        }
+
+        if (missing.length > 0) {
+            try {
+                // Tezkor du -sb orqali barcha sub-papkalarning hajmini bir so'rovda olish (~200ms)
+                const cmd = `du -sb "${remoteParentDir}"/* 2>/dev/null`;
+                const stdout = await issabelDbService.execCommand(cmd, 6000);
+                if (stdout) {
+                    const lines = stdout.trim().split('\n');
+                    for (const line of lines) {
+                        const parts = line.split('\t');
+                        if (parts.length >= 2) {
+                            const sizeBytes = parseInt(parts[0], 10);
+                            const itemPath = parts[1].trim();
+                            const itemName = path.posix.basename(itemPath);
+                            if (!isNaN(sizeBytes) && itemName) {
+                                result[itemName] = sizeBytes;
+                                this.dirSizeCache.set(path.posix.join(remoteParentDir, itemName), {
+                                    size: sizeBytes,
+                                    time: Date.now()
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ du -sb papka hajmlarini olishda xatolik:', err.message);
+            }
+        }
+
+        return result;
+    }
+
+    /**
      * Berilgan papkadagi audio fayllar va ichki papkalarni ro'yxatini oladi
      * @param {string} subPath - Masalan: '' yoki '2026/09/02'
      */
@@ -140,6 +202,21 @@ class SftpService {
                             isEmpty: (item.size || 0) <= 44,
                             url: `/api/recordings/stream?file=${encodeURIComponent(path.posix.join(subPath, item.name))}`
                         });
+                    }
+                }
+
+                // Papkalar hajmini (MB / GB) hisoblash va to'ldirish
+                if (directories.length > 0) {
+                    try {
+                        const dirNames = directories.map(d => d.name);
+                        const sizeMap = await this.getDirectorySizes(fullRemotePath, dirNames);
+                        for (const d of directories) {
+                            const sz = sizeMap[d.name] || 0;
+                            d.size = sz;
+                            d.sizeFormatted = sz > 0 ? this.formatBytes(sz) : '';
+                        }
+                    } catch (e) {
+                        console.warn('Papka hajmlarini hisoblashda ogohlantirish:', e.message);
                     }
                 }
 
@@ -290,13 +367,16 @@ class SftpService {
         });
     }
 
-    formatBytes(bytes, decimals = 2) {
-        if (!bytes || bytes === 0) return '0 B';
+    formatBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
         const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        if (i < 0 || i >= sizes.length) return '0 B';
+        const val = bytes / Math.pow(k, i);
+        // GB va TB uchun 2 xona (1.24 GB), MB uchun 1 xona (230.1 MB), KB uchun 0 xona
+        const dec = i >= 3 ? 2 : (i === 2 ? 1 : 0);
+        return `${parseFloat(val.toFixed(dec))} ${sizes[i]}`;
     }
 
     getMockDirectoryList(subPath) {
@@ -313,8 +393,8 @@ class SftpService {
                 isRealSftp: false,
                 notice: 'SFTP ulanmagan. Demo ma\'lumotlar ko\'rsatilmoqda. (.env da SFTP_PASSWORD ni kiriting)',
                 directories: [
-                    { name: `${yyyy}`, path: `${yyyy}`, type: 'directory', modifyTime: Date.now() },
-                    { name: `${yyyy - 1}`, path: `${yyyy - 1}`, type: 'directory', modifyTime: Date.now() - 86400000 * 30 }
+                    { name: `${yyyy}`, path: `${yyyy}`, type: 'directory', modifyTime: Date.now(), size: 208667712168, sizeFormatted: '194.34 GB' },
+                    { name: `${yyyy - 1}`, path: `${yyyy - 1}`, type: 'directory', modifyTime: Date.now() - 86400000 * 30, size: 198846406624, sizeFormatted: '185.19 GB' }
                 ],
                 files: []
             };
@@ -327,8 +407,8 @@ class SftpService {
                 fullRemotePath: path.posix.join(config.SFTP.monitorPath, subPath),
                 isRealSftp: false,
                 directories: [
-                    { name: `${mm}`, path: `${yyyy}/${mm}`, type: 'directory', modifyTime: Date.now() },
-                    { name: '08', path: `${yyyy}/08`, type: 'directory', modifyTime: Date.now() - 86400000 * 5 }
+                    { name: `${mm}`, path: `${yyyy}/${mm}`, type: 'directory', modifyTime: Date.now(), size: 16884767044, sizeFormatted: '15.72 GB' },
+                    { name: '08', path: `${yyyy}/08`, type: 'directory', modifyTime: Date.now() - 86400000 * 5, size: 17471160260, sizeFormatted: '16.27 GB' }
                 ],
                 files: []
             };
@@ -341,8 +421,8 @@ class SftpService {
                 fullRemotePath: path.posix.join(config.SFTP.monitorPath, subPath),
                 isRealSftp: false,
                 directories: [
-                    { name: `${dd}`, path: `${yyyy}/${mm}/${dd}`, type: 'directory', modifyTime: Date.now() },
-                    { name: String(Number(dd) - 1).padStart(2, '0'), path: `${yyyy}/${mm}/${String(Number(dd) - 1).padStart(2, '0')}`, type: 'directory', modifyTime: Date.now() - 86400000 }
+                    { name: `${dd}`, path: `${yyyy}/${mm}/${dd}`, type: 'directory', modifyTime: Date.now(), size: 241240584, sizeFormatted: '230.1 MB' },
+                    { name: String(Number(dd) - 1).padStart(2, '0'), path: `${yyyy}/${mm}/${String(Number(dd) - 1).padStart(2, '0')}`, type: 'directory', modifyTime: Date.now() - 86400000, size: 843607324, sizeFormatted: '804.5 MB' }
                 ],
                 files: []
             };

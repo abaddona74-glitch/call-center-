@@ -7,15 +7,14 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',
     '103': 'Feruza',
-    '106': 'Gulchehra',
+    '106': 'Ubaydullayeva Gulchehra',
     '111': 'Nozima',
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
@@ -130,6 +129,37 @@ class DbService {
             );
             CREATE INDEX IF NOT EXISTS idx_missed_events_time ON operator_missed_events (event_time);
             CREATE INDEX IF NOT EXISTS idx_missed_events_op ON operator_missed_events (operator_id);
+
+            -- 6. Bog'lanishi kerak bo'lgan mijozlar (Pending Callbacks / Missed / IVR Non-working)
+            CREATE TABLE IF NOT EXISTS pending_callbacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                phone TEXT NOT NULL,
+                caller_name TEXT,
+                source TEXT NOT NULL, -- 'abandoned' | 'ivr_non_working' | 'manual'
+                call_time TEXT NOT NULL,
+                attempts_count INTEGER DEFAULT 1,
+                status TEXT DEFAULT 'pending', -- 'pending' | 'resolved' | 'dismissed'
+                dismissed_at TEXT,
+                dismissed_by TEXT,
+                notes TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_pending_callbacks_phone ON pending_callbacks (phone);
+            CREATE INDEX IF NOT EXISTS idx_pending_callbacks_status ON pending_callbacks (status);
+            CREATE INDEX IF NOT EXISTS idx_pending_callbacks_time ON pending_callbacks (call_time DESC);
+
+            -- 7. Mijozlar bazasi / Telefon kitobi (Client Contacts)
+            CREATE TABLE IF NOT EXISTS client_contacts (
+                phone TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                organization TEXT,
+                notes TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_client_contacts_name ON client_contacts (name);
+            CREATE INDEX IF NOT EXISTS idx_client_contacts_org ON client_contacts (organization);
         `);
 
         try {
@@ -137,6 +167,30 @@ class DbService {
         } catch (e) {
             // Already exists
         }
+
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN outbound_attempts INTEGER DEFAULT 0;`);
+        } catch (e) {}
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_time TEXT;`);
+        } catch (e) {}
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_operator TEXT;`);
+        } catch (e) {}
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_cause TEXT;`);
+        } catch (e) {}
+
+        try {
+            // Noto'g'ri tushib qolgan ichki/trunk raqamlarni tozalash (2020159 va h.k.)
+            this.db.exec(`
+                DELETE FROM pending_callbacks 
+                WHERE phone LIKE '%2020159%' 
+                   OR phone = '712020159' 
+                   OR LENGTH(phone) < 7 
+                   OR LENGTH(phone) > 12;
+            `);
+        } catch (e) {}
 
         console.log('✅ SQLite ma\'lumotlar bazasi tayyor: data/callcenter.db');
     }
@@ -492,6 +546,12 @@ class DbService {
      */
     saveCall(call) {
         try {
+            if (!call || !call.callerId) return;
+            const cidStr = String(call.callerId).trim();
+            if (cidStr === '712020159' || cidStr.endsWith('2020159') || cidStr.length < 7) {
+                return;
+            }
+
             const stmt = this.db.prepare(`
                 INSERT OR REPLACE INTO calls 
                 (id, channel, caller_id, operator, operator_exten, direction, status, hangup_party, duration, cause, created_at)
@@ -990,6 +1050,455 @@ class DbService {
             return { total: 0, page: 1, limit, totalPages: 1, data: [] };
         }
     }
+
+    /**
+     * Telefon raqamini tozalash va standartlashtirish (masalan: 901234567)
+     */
+    normalizePhone(raw) {
+        if (!raw) return null;
+        let digits = String(raw).replace(/[^0-9]/g, '');
+        if (digits.length === 12 && digits.startsWith('998')) {
+            digits = digits.slice(3);
+        }
+        // Ichki operator raqamlari (100-299) yoki qisqa raqamlarni istisno qilish
+        if (digits.length < 7 || digits.length > 12) return null;
+
+        // Call center o'zining trunk/DID raqamlari (2020159, 712020159 va h.k.) ni istisno qilish
+        if (digits === '2020159' || digits === '712020159' || digits.endsWith('2020159')) {
+            return null;
+        }
+
+        return digits;
+    }
+
+    /**
+     * Faol (bog'lanilishi kerak bo'lgan) mijozlar ro'yxatini olish (faqat pending)
+     * filter: 'all' (barchasi) yoki 'today' (bugungi kun)
+     */
+    getPendingCallbacks(filter = 'all') {
+        return this.getCallbacks(filter, false);
+    }
+
+    /**
+     * Barcha callbacks ro'yxatini olish (pending va resolved)
+     * filter: 'all' yoki 'today'
+     * includeResolved: true bo'lsa gaplashilgan (resolved) mijozlar ham qaytadi
+     */
+    getCallbacks(filter = 'all', includeResolved = true) {
+        try {
+            let sql = `
+                SELECT 
+                    id,
+                    phone,
+                    caller_name,
+                    source,
+                    call_time,
+                    attempts_count,
+                    COALESCE(outbound_attempts, 0) as outbound_attempts,
+                    last_outbound_time,
+                    last_outbound_operator,
+                    last_outbound_cause,
+                    status,
+                    dismissed_at,
+                    dismissed_by,
+                    notes,
+                    created_at,
+                    updated_at
+                FROM pending_callbacks
+                WHERE phone NOT LIKE '%2020159%'
+                  AND phone != '712020159'
+                  AND LENGTH(phone) >= 7
+            `;
+            if (includeResolved) {
+                sql += ` AND status IN ('pending', 'resolved')`;
+            } else {
+                sql += ` AND status = 'pending'`;
+            }
+
+            const params = [];
+            if (filter === 'today') {
+                const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+                sql += ` AND call_time LIKE ?`;
+                params.push(`${todayStr}%`);
+            }
+
+            sql += `
+                ORDER BY 
+                  CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC,
+                  CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
+                  COALESCE(updated_at, call_time) DESC
+                LIMIT 500
+            `;
+
+            const stmt = this.db.prepare(sql);
+            return stmt.all(...params);
+        } catch (err) {
+            console.error('getCallbacks error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Yangi qo'shish yoki mavjud bo'lsa yangilash (Deduplication)
+     * Agar mijoz 'pending' holatida bo'lsa: vaqti yangilanadi, attempts_count oshadi
+     * Agar mijoz avval dismissed yoki resolved bo'lsa: faqatgina yangi qo'ng'iroq vaqti (callTime)
+     * o'chirilgan/hal qilingan vaqtdan KEYIN bo'lsagina yangi pending yozuv ochiladi (eski qo'ng'iroqlar qaytib chiqmaydi)
+     */
+    upsertCallback({ phone, callerName = '', source = 'abandoned', callTime = null, attemptsCount = 1 }) {
+        const cleanPhone = this.normalizePhone(phone);
+        if (!cleanPhone) return null;
+
+        const timeStr = callTime || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).replace('T', ' ');
+
+        try {
+            // 1. Agar 'pending' holatida mavjud bo'lsa - uni yangilaymiz
+            const pendingStmt = this.db.prepare(`
+                SELECT id, attempts_count, call_time FROM pending_callbacks 
+                WHERE phone = ? AND status = 'pending'
+                ORDER BY id DESC LIMIT 1
+            `);
+            const pendingRecord = pendingStmt.get(cleanPhone);
+
+            if (pendingRecord) {
+                // Mavjud yozuvni yangilash
+                let newAttempts = pendingRecord.attempts_count;
+                const isNewCall = timeStr && timeStr > (pendingRecord.call_time || '');
+                if (attemptsCount !== undefined && attemptsCount !== null && Number.isInteger(attemptsCount)) {
+                    newAttempts = attemptsCount;
+                } else if (isNewCall) {
+                    newAttempts = pendingRecord.attempts_count + 1;
+                }
+
+                const newerTime = (!pendingRecord.call_time || timeStr >= pendingRecord.call_time) ? timeStr : pendingRecord.call_time;
+
+                // Agar mijoz yangi qo'ng'iroq bilan kelgan bo'lsa, 'Kutilmoqda' (outbound_attempts = 0) ga qaytariladi
+                const updateStmt = this.db.prepare(`
+                    UPDATE pending_callbacks 
+                    SET 
+                        call_time = ?,
+                        attempts_count = ?,
+                        source = ?,
+                        caller_name = COALESCE(NULLIF(?, ''), caller_name),
+                        outbound_attempts = CASE WHEN ? = 1 THEN 0 ELSE outbound_attempts END,
+                        updated_at = datetime('now', 'localtime')
+                    WHERE id = ?
+                `);
+                updateStmt.run(newerTime, newAttempts, source, callerName || '', isNewCall ? 1 : 0, pendingRecord.id);
+                return { id: pendingRecord.id, phone: cleanPhone, updated: true };
+            }
+
+            // 2. Agar 'pending' bo'lmasa, avval o'chirilgan (dismissed) yoki hal qilingan (resolved) oxirgi yozuvni tekshiramiz
+            const lastRecord = this.db.prepare(`
+                SELECT id, attempts_count, call_time, status, dismissed_at, updated_at 
+                FROM pending_callbacks 
+                WHERE phone = ? 
+                ORDER BY id DESC LIMIT 1
+            `).get(cleanPhone);
+
+            if (lastRecord) {
+                if (lastRecord.status === 'dismissed') {
+                    // Agar bu qo'ng'iroq vaqti o'chirilgan yozuvning vaqti bilan bir xil yoki undan oldin bo'lsa,
+                    // yoki o'chirilgan paytdan (dismissed_at) oldin bo'lsa:
+                    // demak bu avval admin tomonidan o'chirilgan ESKI qo'ng'iroq! Uni qayta chiqarmaymiz!
+                    const dismissedAt = lastRecord.dismissed_at || lastRecord.updated_at || '';
+                    if (timeStr <= (lastRecord.call_time || '') || (dismissedAt && timeStr <= dismissedAt)) {
+                        return null; // O'chirilgan, qayta tiklanmasin!
+                    }
+                } else if (lastRecord.status === 'resolved') {
+                    // Agar operator gaplashib yopgan bo'lsa va bu o'sha eski qo'ng'iroq bo'lsa:
+                    const resolvedAt = lastRecord.updated_at || '';
+                    if (timeStr <= (lastRecord.call_time || '') || (resolvedAt && timeStr <= resolvedAt)) {
+                        return null; // Yopilgan, qayta chiqarmaymiz!
+                    }
+                }
+            }
+
+            // 3. Yangi kiritish (faqatgina yangi raqam yoki o'chirilgandan/hal qilingandan KEYIN kelgan yangi qo'ng'iroq bo'lsa)
+            const insertStmt = this.db.prepare(`
+                INSERT INTO pending_callbacks (phone, caller_name, source, call_time, attempts_count, status, outbound_attempts)
+                VALUES (?, ?, ?, ?, ?, 'pending', 0)
+            `);
+            const res = insertStmt.run(cleanPhone, callerName || '', source, timeStr, attemptsCount);
+            return { id: res.lastInsertRowid, phone: cleanPhone, inserted: true };
+        } catch (err) {
+            console.error('upsertCallback error:', err.message);
+            return null;
+        }
+    }
+
+    /**
+     * Operator mijoz bilan gaplashganda (Answered bo'lganda) ro'yxatdan avtomatik yechish
+     */
+    resolveCallback(phone, resolvedBy = 'operator_answered', operatorName = null) {
+        const cleanPhone = this.normalizePhone(phone);
+        if (!cleanPhone) return false;
+
+        try {
+            let opToSave = operatorName;
+            if (!opToSave && resolvedBy && (resolvedBy.startsWith('3cx_') || resolvedBy.startsWith('operator_'))) {
+                const parts = resolvedBy.split('_');
+                const ext = parts[parts.length - 1];
+                if (ext && ext.match(/^\d{3,4}$/)) {
+                    opToSave = ext;
+                }
+            }
+
+            const stmt = this.db.prepare(`
+                UPDATE pending_callbacks
+                SET 
+                    status = 'resolved',
+                    dismissed_at = datetime('now', 'localtime'),
+                    dismissed_by = ?,
+                    last_outbound_operator = COALESCE(?, last_outbound_operator),
+                    updated_at = datetime('now', 'localtime')
+                WHERE (phone = ? OR phone = ? OR phone = ? OR phone LIKE ?) AND status = 'pending'
+            `);
+            const phone9 = cleanPhone;
+            const phone12 = `998${cleanPhone}`;
+            const res = stmt.run(resolvedBy, opToSave, phone9, phone12, String(phone), `%${cleanPhone}%`);
+            return res.changes > 0;
+        } catch (err) {
+            console.error('resolveCallback error:', err.message);
+            return false;
+        }
+    }
+
+    /**
+     * Operator chiquvchi qo'ng'iroq qilganida, mijoz go'shakni ko'tarmasa (No answer, Busy, etc.)
+     * 'pending' mijozning chiquvchi urinishlar sonini (outbound_attempts) oshirish va
+     * oxirgi uringan operator va vaqtni belgilash ("Bog'lanib bo'lmadi" ro'yxatiga o'tadi)
+     */
+    recordFailedOutboundAttempt({ phone, operator, cause = '', time = null }) {
+        const cleanPhone = this.normalizePhone(phone);
+        if (!cleanPhone) return null;
+
+        const timeStr = time || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).replace('T', ' ');
+
+        try {
+            // Pending yozuvni qidiramiz
+            const row = this.db.prepare(`
+                SELECT id, outbound_attempts, last_outbound_time 
+                FROM pending_callbacks
+                WHERE (phone = ? OR phone = ? OR phone = ? OR phone LIKE ?) AND status = 'pending'
+                ORDER BY id DESC LIMIT 1
+            `).get(cleanPhone, `998${cleanPhone}`, String(phone), `%${cleanPhone}%`);
+
+            if (!row) return null;
+
+            // Takroriy hisoblanishni oldini olish (20 soniya ichida bir xil qo'ng'iroq kanallari yopilishi mumkin)
+            let attempts = (row.outbound_attempts || 0) + 1;
+            if (row.last_outbound_time) {
+                const prevTime = new Date(row.last_outbound_time.replace(' ', 'T')).getTime();
+                const currTime = new Date(timeStr.replace(' ', 'T')).getTime();
+                if (!isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 20000) {
+                    attempts = Math.max(1, row.outbound_attempts || 1);
+                }
+            }
+
+            // Sababni qulay o'zbek tiliga keltirish
+            let cleanCause = 'Javob bermadi';
+            if (cause) {
+                const c = String(cause).toLowerCase();
+                if (c.includes('busy') || c === '17') cleanCause = 'Mijoz band';
+                else if (c.includes('no answer') || c.includes('no user') || c === '18' || c === '19') cleanCause = 'Javob bermadi';
+                else if (c.includes('reject') || c === '21') cleanCause = 'Rad etildi';
+                else if (c.includes('absent') || c.includes('unavail') || c === '20') cleanCause = 'Aloqa doirasidan tashqarida';
+            }
+
+            const stmt = this.db.prepare(`
+                UPDATE pending_callbacks
+                SET 
+                    outbound_attempts = ?,
+                    last_outbound_time = ?,
+                    last_outbound_operator = ?,
+                    last_outbound_cause = ?,
+                    updated_at = datetime('now', 'localtime')
+                WHERE id = ?
+            `);
+            stmt.run(attempts, timeStr, operator || 'Operator', cleanCause, row.id);
+            return { id: row.id, phone: cleanPhone, outbound_attempts: attempts, updated: true };
+        } catch (err) {
+            console.error('recordFailedOutboundAttempt error:', err.message);
+            return null;
+        }
+    }
+
+    /**
+     * Admin tomonidan o'chirish (dismiss / delete bitta mijozni)
+     */
+    dismissCallback(id, dismissedBy = 'admin') {
+        try {
+            const row = this.db.prepare(`SELECT phone FROM pending_callbacks WHERE id = ?`).get(id);
+            if (!row) return false;
+
+            const stmt = this.db.prepare(`
+                UPDATE pending_callbacks
+                SET 
+                    status = 'dismissed',
+                    dismissed_at = datetime('now', 'localtime'),
+                    dismissed_by = ?,
+                    updated_at = datetime('now', 'localtime')
+                WHERE id = ? OR (phone = ? AND status = 'pending')
+            `);
+            const res = stmt.run(dismissedBy, id, row.phone);
+            return res.changes > 0;
+        } catch (err) {
+            console.error('dismissCallback error:', err.message);
+            return false;
+        }
+    }
+
+    /**
+     * Admin tomonidan barcha 'pending' mijozlarni birdaniga o'chirish (Clear all)
+     */
+    dismissAllCallbacks(dismissedBy = 'admin') {
+        try {
+            const stmt = this.db.prepare(`
+                UPDATE pending_callbacks
+                SET 
+                    status = 'dismissed',
+                    dismissed_at = datetime('now', 'localtime'),
+                    dismissed_by = ?,
+                    updated_at = datetime('now', 'localtime')
+                WHERE status = 'pending'
+            `);
+            const res = stmt.run(dismissedBy);
+            return res.changes;
+        } catch (err) {
+            console.error('dismissAllCallbacks error:', err.message);
+            return 0;
+        }
+    }
+
+    /**
+     * Butunlay o'chirib tashlash (agar kerak bo'lsa)
+     */
+    deleteCallbackPermanent(id) {
+        try {
+            const stmt = this.db.prepare(`DELETE FROM pending_callbacks WHERE id = ?`);
+            const res = stmt.run(id);
+            return res.changes > 0;
+        } catch (err) {
+            console.error('deleteCallbackPermanent error:', err.message);
+            return false;
+        }
+    }
+
+    /**
+     * Telefon raqamini tozalash (kontaktlar uchun 9 xonali standart)
+     */
+    cleanContactPhone(raw) {
+        if (!raw) return null;
+        let digits = String(raw).replace(/\D/g, '');
+        if (digits.length === 12 && digits.startsWith('998')) {
+            digits = digits.slice(3);
+        }
+        return digits || String(raw).trim();
+    }
+
+    /**
+     * Mijoz kontakt ma'lumotini saqlash yoki yangilash (Upsert)
+     */
+    saveContact(contactData) {
+        try {
+            const rawPhone = contactData.phone || '';
+            const cleanPhone = this.cleanContactPhone(rawPhone);
+            if (!cleanPhone) throw new Error('Telefon raqami kiritilmadi');
+            const name = String(contactData.name || '').trim();
+            const organization = String(contactData.organization || '').trim();
+            const notes = String(contactData.notes || '').trim();
+            if (!name && !organization) {
+                throw new Error('Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting');
+            }
+
+            const stmt = this.db.prepare(`
+                INSERT INTO client_contacts (phone, name, organization, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                ON CONFLICT(phone) DO UPDATE SET
+                    name = excluded.name,
+                    organization = excluded.organization,
+                    notes = excluded.notes,
+                    updated_at = datetime('now', 'localtime')
+            `);
+            stmt.run(cleanPhone, name, organization, notes);
+
+            return this.getContact(cleanPhone);
+        } catch (err) {
+            console.error('saveContact error:', err.message);
+            throw err;
+        }
+    }
+
+    /**
+     * Raqam bo'yicha mijoz kontaktini olish (9 yoki 12 xonali formatda ham moslashadi)
+     */
+    getContact(phone) {
+        try {
+            const cleanPhone = this.cleanContactPhone(phone);
+            if (!cleanPhone) return null;
+            let row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(cleanPhone);
+            if (!row && cleanPhone.length > 9) {
+                row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(cleanPhone.slice(-9));
+            }
+            if (!row && cleanPhone.length === 9) {
+                row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(`998${cleanPhone}`);
+            }
+            return row || null;
+        } catch (err) {
+            console.error('getContact error:', err.message);
+            return null;
+        }
+    }
+
+    /**
+     * Barcha saqlangan mijozlar ro'yxatini olish
+     */
+    getAllContacts() {
+        try {
+            return this.db.prepare(`SELECT * FROM client_contacts ORDER BY name COLLATE NOCASE ASC`).all();
+        } catch (err) {
+            console.error('getAllContacts error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Mijozlarni qidirish (ism, raqam, tashkilot yoki izoh bo'yicha)
+     */
+    searchContacts(query) {
+        try {
+            if (!query || typeof query !== 'string') return this.getAllContacts();
+            const q = `%${query.trim()}%`;
+            return this.db.prepare(`
+                SELECT * FROM client_contacts
+                WHERE phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ?
+                ORDER BY name COLLATE NOCASE ASC
+            `).all(q, q, q, q);
+        } catch (err) {
+            console.error('searchContacts error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Mijoz kontaktini o'chirish
+     */
+    deleteContact(phone) {
+        try {
+            const cleanPhone = this.cleanContactPhone(phone);
+            if (!cleanPhone) return false;
+            const stmt = this.db.prepare(`DELETE FROM client_contacts WHERE phone = ? OR phone = ? OR phone = ?`);
+            const alt9 = cleanPhone.length > 9 ? cleanPhone.slice(-9) : cleanPhone;
+            const alt12 = cleanPhone.length === 9 ? `998${cleanPhone}` : cleanPhone;
+            const res = stmt.run(cleanPhone, alt9, alt12);
+            return res.changes > 0;
+        } catch (err) {
+            console.error('deleteContact error:', err.message);
+            return false;
+        }
+    }
 }
 
 module.exports = new DbService();
+
+

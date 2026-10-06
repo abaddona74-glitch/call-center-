@@ -36,6 +36,49 @@
 }
 
 /* ==========================================================================
+   Iconsax Universal Linear Icons
+   ========================================================================== */
+.isax,
+svg.isax {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15em;
+    height: 1.15em;
+    vertical-align: -0.18em;
+    stroke: currentColor;
+    fill: none;
+    flex-shrink: 0;
+}
+.isax-sm { width: 1em; height: 1em; vertical-align: -0.14em; }
+.isax-md { width: 1.25em; height: 1.25em; vertical-align: -0.18em; }
+.isax-lg { width: 1.5em; height: 1.5em; vertical-align: -0.22em; }
+.isax-xl { width: 1.85em; height: 1.85em; vertical-align: -0.25em; }
+
+/* ==========================================================================
+   Russian (Cyrillic) Custom Typography — Golos Text
+   ========================================================================== */
+html[lang="ru"] {
+    --font-family: 'Golos Text', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html[lang="ru"] body,
+html[lang="ru"] button,
+html[lang="ru"] input,
+html[lang="ru"] select,
+html[lang="ru"] textarea,
+html[lang="ru"] h1, html[lang="ru"] h2, html[lang="ru"] h3, html[lang="ru"] h4,
+html[lang="ru"] .kpi-card,
+html[lang="ru"] .nav-tab,
+html[lang="ru"] .sidebar-title,
+html[lang="ru"] .section-title,
+html[lang="ru"] table,
+html[lang="ru"] th,
+html[lang="ru"] td {
+    font-family: 'Golos Text', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ==========================================================================
    Global Custom Dark Theme Scrollbars
    Oq rangli fon (scrollbar-track) to'liq fonga mos qorong'i qilindi
    ========================================================================== */
@@ -134,7 +177,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: 300;
 }
 
 .brand-section {
@@ -671,6 +714,30 @@ select option:hover {
     word-break: break-all;
 }
 
+.folder-size {
+    font-size: 11px;
+    font-weight: 600;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    padding: 2px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.2px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    margin-top: 2px;
+    font-family: 'Inter', monospace;
+    transition: all 0.2s ease;
+}
+
+.folder-card:hover .folder-size {
+    border-color: rgba(56, 189, 248, 0.55);
+    background: rgba(56, 189, 248, 0.22);
+    color: #7dd3fc;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
 /* Custom Data Table */
 .data-table-wrapper {
     width: 100%;
@@ -798,6 +865,13 @@ tr.row-transfer {
     font-weight: 700;
     color: #ffffff;
     letter-spacing: 0.3px;
+    transition: all 0.2s ease;
+}
+
+.phone-cell.is-expanded {
+    display: inline-flex;
+    align-items: flex-start;
+    white-space: normal !important;
 }
 
 .phone-cell .phone-icon {
@@ -813,9 +887,129 @@ tr.row-transfer {
     flex-shrink: 0;
 }
 
+.phone-cell.is-expanded .phone-icon {
+    margin-top: 2px;
+}
+
 .phone-cell.outbound .phone-icon {
     background: rgba(168, 85, 247, 0.2);
     color: #c084fc;
+}
+
+/* Caller Cell Content (Truncate & Expandable) */
+.caller-cell-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 220px;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.caller-cell-content .caller-text {
+    display: inline-block;
+    color: #f8fafc;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.caller-cell-content .caller-text:hover {
+    color: #38bdf8;
+    text-decoration: underline;
+}
+
+.caller-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 7px;
+    height: 19px;
+    min-width: 24px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    background: rgba(56, 189, 248, 0.18);
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+    cursor: pointer;
+    vertical-align: middle;
+    transition: all 0.18s ease;
+    user-select: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    flex-shrink: 0;
+    letter-spacing: 1px;
+}
+
+.caller-expand-btn:hover {
+    background: rgba(56, 189, 248, 0.35);
+    border-color: #38bdf8;
+    color: #ffffff;
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+}
+
+.caller-expand-btn:active {
+    transform: scale(0.96);
+}
+
+/* Yoyilgan (Expanded) holat - balandlikka yoyiladi (height) */
+.caller-cell-content.is-expanded {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 260px;
+    line-height: 1.4;
+    padding: 3px 0;
+    animation: fadeInExpand 0.2s ease;
+}
+
+.caller-cell-content.is-expanded .caller-text {
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+}
+
+.caller-cell-content.is-expanded .caller-expand-btn {
+    margin-top: 6px;
+    background: rgba(148, 163, 184, 0.16);
+    border-color: rgba(148, 163, 184, 0.35);
+    color: #cbd5e1;
+    font-size: 10px;
+    height: 18px;
+    padding: 0 7px;
+    letter-spacing: 0.3px;
+}
+
+.caller-cell-content.is-expanded .caller-expand-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: #fca5a5;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.data-table td.cell-expanded,
+.data-table td:has(.phone-cell.is-expanded) {
+    white-space: normal !important;
+}
+
+@keyframes fadeInExpand {
+    from {
+        opacity: 0.7;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Action Buttons */
@@ -876,7 +1070,7 @@ tr.row-transfer {
     border-left: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    z-index: 100;
+    z-index: 350;
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -1194,6 +1388,74 @@ tr.row-transfer {
     min-height: 210px;
 }
 
+/* Operator Guruhi Switch / Tabs (Asosiy / 2-darajali / Barchasi) */
+.operator-group-tabs {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 4px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.op-group-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.op-group-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.op-group-btn.active {
+    color: #fff;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(59, 130, 246, 0.28));
+    border-color: rgba(99, 102, 241, 0.55);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.op-group-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 6px currentColor;
+}
+
+.op-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+}
+
+.op-group-btn.active .op-group-count {
+    background: rgba(99, 102, 241, 0.45);
+    color: #fff;
+}
+
 /* Operatorlar hali yuklanmagan paytdagi skeleton (joy tutuvchi) karta */
 .operator-card.skeleton {
     display: flex;
@@ -1223,12 +1485,18 @@ tr.row-transfer {
     padding: 18px;
     user-select: text;
     overflow: visible;
+    z-index: 1;
 }
 
-.operator-card:hover,
+.operator-card:hover {
+    border-color: var(--border-glow);
+    z-index: 20;
+}
+
 .operator-card:has(.star-rating-box:hover) {
     border-color: var(--border-glow);
-    z-index: 100;
+    z-index: 50 !important;
+    transform: none !important;
 }
 
 .operator-head {
@@ -1279,6 +1547,13 @@ tr.row-transfer {
     letter-spacing: 0.2px;
 }
 
+.mvp-badge.diamond {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.15));
+    border: 1px solid rgba(56, 189, 248, 0.6);
+    color: #7dd3fc;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
 .mvp-badge.gold {
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 179, 8, 0.15));
     border: 1px solid rgba(245, 158, 11, 0.6);
@@ -1304,22 +1579,143 @@ tr.row-transfer {
     color: #94a3b8;
 }
 
+.operator-meta-sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    margin-top: 2px;
+}
+
 .star-rating-box {
     position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    justify-content: center;
     color: #fbbf24;
-    font-size: 12px;
     cursor: help;
     padding: 2px 4px;
     border-radius: 6px;
     transition: background 0.15s ease;
+    white-space: nowrap;
+    margin-left: auto;
+    user-select: none;
 }
 
 .star-rating-box:hover {
     background: rgba(251, 191, 36, 0.15);
-    z-index: 105;
+    z-index: 25;
+}
+
+/* Yulduzlar klasteri (1, 2, 3, 4, 5 ta yulduz) */
+.stars-cluster {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.stars-cluster .star-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+
+/* 1 ta yulduz */
+.stars-cluster.stars-count-1 .star-single {
+    font-size: 13px;
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.6));
+}
+
+/* 2 ta yulduz: Yonma-yon */
+.stars-cluster.stars-count-2 .star-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11.5px;
+}
+
+/* 3 ta yulduz:
+     x
+   x   x
+*/
+.stars-cluster.stars-count-3 {
+    gap: 1px;
+}
+.stars-cluster.stars-count-3 .star-row-top {
+    display: flex;
+    justify-content: center;
+    font-size: 11.5px;
+    margin-bottom: -1px;
+}
+.stars-cluster.stars-count-3 .star-row-top .star-peak {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
+}
+.stars-cluster.stars-count-3 .star-row-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    font-size: 10.5px;
+}
+
+/* 4 ta yulduz: 2x2 grid
+   x x
+   x x
+*/
+.stars-cluster.stars-count-4 {
+    gap: 1.5px;
+}
+.stars-cluster.stars-count-4 .star-row {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+}
+
+/* 5 ta yulduz: Kamalaksimon (Arch)
+      x
+   xx   xx
+*/
+.stars-cluster.stars-count-5 {
+    gap: 0px;
+}
+.stars-cluster.stars-count-5 .star-row-top {
+    display: flex;
+    justify-content: center;
+    margin-bottom: -1px;
+}
+.stars-cluster.stars-count-5 .star-row-top .star-peak {
+    font-size: 12px;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.95));
+}
+.stars-cluster.stars-count-5 .star-row-bottom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.stars-cluster.stars-count-5 .star-wing {
+    display: flex;
+    align-items: center;
+    gap: 1.5px;
+    font-size: 9.5px;
+}
+.stars-cluster.stars-count-5 .wing-left .star-outer {
+    transform: translateY(2px) rotate(-12deg);
+}
+.stars-cluster.stars-count-5 .wing-left .star-inner {
+    transform: translateY(0px) rotate(-4deg);
+}
+.stars-cluster.stars-count-5 .wing-right .star-inner {
+    transform: translateY(0px) rotate(4deg);
+}
+.stars-cluster.stars-count-5 .wing-right .star-outer {
+    transform: translateY(2px) rotate(12deg);
 }
 
 .star-rating-tooltip {
@@ -1422,7 +1818,71 @@ tr.row-transfer {
 }
 
 /* ==========================================================================
-   MVP Gold Operator Card & Laurel Frame (Classic Gold Edition)
+   1-o'rin: MVP Diamond Operator Card & Laurel Frame (Ice-Cyan Edition)
+   ========================================================================== */
+.operator-card.mvp-diamond {
+    position: relative;
+    background: radial-gradient(ellipse at 50% -10%, rgba(56, 189, 248, 0.22) 0%, rgba(15, 23, 42, 0.98) 80%) !important;
+    border: 1.5px solid rgba(56, 189, 248, 0.85) !important;
+    box-shadow: 0 6px 28px rgba(14, 165, 233, 0.28), 0 0 16px rgba(56, 189, 248, 0.2), inset 0 0 22px rgba(56, 189, 248, 0.1) !important;
+    animation: mvpDiamondGlowPulse 4s ease-in-out infinite;
+}
+
+/* Yuqori nozik olmos/cyan nur chizig'i */
+.operator-card.mvp-diamond::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #38bdf8, #f0f9ff, #38bdf8, transparent);
+    box-shadow: 0 0 14px #38bdf8;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.operator-card.mvp-diamond:hover {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 10px 38px rgba(14, 165, 233, 0.45), 0 0 26px rgba(56, 189, 248, 0.35), inset 0 0 30px rgba(56, 189, 248, 0.16) !important;
+    transform: none !important;
+}
+
+@keyframes mvpDiamondGlowPulse {
+    0%, 100% {
+        box-shadow: 0 6px 28px rgba(14, 165, 233, 0.24), 0 0 16px rgba(56, 189, 248, 0.18), inset 0 0 22px rgba(56, 189, 248, 0.08);
+        border-color: rgba(56, 189, 248, 0.8);
+    }
+    50% {
+        box-shadow: 0 8px 38px rgba(14, 165, 233, 0.4), 0 0 26px rgba(56, 189, 248, 0.32), inset 0 0 32px rgba(56, 189, 248, 0.16);
+        border-color: rgba(186, 230, 253, 0.98);
+    }
+}
+
+/* MVP Diamond Avatar - Cyan Ring & Floating Crown */
+.operator-card.mvp-diamond .operator-avatar {
+    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+    box-shadow: 0 0 0 2.5px rgba(56, 189, 248, 0.95), 0 0 18px rgba(14, 165, 233, 0.65) !important;
+    position: relative;
+}
+
+.operator-card.mvp-diamond .operator-avatar::after {
+    content: '';
+    position: absolute;
+    top: -15px;
+    right: -11px;
+    width: 29px;
+    height: 22px;
+    background: url('/img/crown-diamond.png') center / contain no-repeat;
+    filter: drop-shadow(0 2px 7px rgba(56, 189, 248, 0.85)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+    animation: mvpCrownBob 2.8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* ==========================================================================
+   2-o'rin: MVP Gold Operator Card & Laurel Frame (Classic Gold Edition)
    ========================================================================== */
 .operator-card.mvp-gold {
     position: relative;
@@ -1450,7 +1910,7 @@ tr.row-transfer {
 .operator-card.mvp-gold:hover {
     border-color: #fbbf24 !important;
     box-shadow: 0 10px 36px rgba(245, 158, 11, 0.4), 0 0 24px rgba(245, 158, 11, 0.3), inset 0 0 28px rgba(245, 158, 11, 0.14) !important;
-    transform: translateY(-3px) scale(1.01) !important;
+    transform: none !important;
 }
 
 @keyframes mvpCardGlowPulse {
@@ -1472,19 +1932,142 @@ tr.row-transfer {
 }
 
 .operator-card.mvp-gold .operator-avatar::after {
-    content: '👑';
+    content: '';
     position: absolute;
-    top: -11px;
-    right: -7px;
-    font-size: 14px;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+    top: -15px;
+    right: -11px;
+    width: 29px;
+    height: 22px;
+    background: url('/img/crown-gold.png') center / contain no-repeat;
+    filter: drop-shadow(0 2px 6px rgba(245, 158, 11, 0.7)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
     animation: mvpCrownBob 2.8s ease-in-out infinite;
     pointer-events: none;
+    z-index: 5;
 }
 
 @keyframes mvpCrownBob {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50% { transform: translateY(-2.5px) rotate(6deg); }
+}
+
+/* 2-o'rin: Silver Card & Avatar */
+.operator-card.mvp-silver {
+    position: relative;
+    background: radial-gradient(ellipse at 50% -10%, rgba(226, 232, 240, 0.16) 0%, rgba(17, 24, 39, 0.96) 80%) !important;
+    border: 1.5px solid rgba(203, 213, 225, 0.75) !important;
+    box-shadow: 0 6px 26px rgba(148, 163, 184, 0.22), 0 0 14px rgba(203, 213, 225, 0.15), inset 0 0 20px rgba(226, 232, 240, 0.06) !important;
+    animation: mvpSilverGlowPulse 4s ease-in-out infinite 0.5s;
+}
+
+.operator-card.mvp-silver::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #cbd5e1, #ffffff, #cbd5e1, transparent);
+    box-shadow: 0 0 12px #e2e8f0;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.operator-card.mvp-silver:hover {
+    border-color: #f1f5f9 !important;
+    box-shadow: 0 10px 34px rgba(203, 213, 225, 0.38), 0 0 22px rgba(226, 232, 240, 0.28), inset 0 0 26px rgba(226, 232, 240, 0.12) !important;
+    transform: none !important;
+}
+
+@keyframes mvpSilverGlowPulse {
+    0%, 100% {
+        box-shadow: 0 6px 26px rgba(148, 163, 184, 0.2), 0 0 14px rgba(203, 213, 225, 0.14), inset 0 0 20px rgba(226, 232, 240, 0.06);
+        border-color: rgba(203, 213, 225, 0.7);
+    }
+    50% {
+        box-shadow: 0 8px 34px rgba(203, 213, 225, 0.34), 0 0 22px rgba(226, 232, 240, 0.26), inset 0 0 28px rgba(226, 232, 240, 0.12);
+        border-color: rgba(248, 250, 252, 0.95);
+    }
+}
+
+.operator-card.mvp-silver .operator-avatar {
+    background: linear-gradient(135deg, #94a3b8, #475569) !important;
+    box-shadow: 0 0 0 2.5px rgba(241, 245, 249, 0.95), 0 0 16px rgba(203, 213, 225, 0.6) !important;
+    position: relative;
+}
+
+.operator-card.mvp-silver .operator-avatar::after {
+    content: '';
+    position: absolute;
+    top: -14px;
+    right: -10px;
+    width: 25px;
+    height: 23px;
+    background: url('/img/crown-silver.png') center / contain no-repeat;
+    filter: drop-shadow(0 2px 5px rgba(226, 232, 240, 0.7)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+    animation: mvpCrownBob 2.8s ease-in-out infinite 0.4s;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* 3-o'rin: Bronze Card & Avatar */
+.operator-card.mvp-bronze {
+    position: relative;
+    background: radial-gradient(ellipse at 50% -10%, rgba(217, 119, 6, 0.16) 0%, rgba(17, 24, 39, 0.96) 80%) !important;
+    border: 1.5px solid rgba(217, 119, 6, 0.75) !important;
+    box-shadow: 0 6px 26px rgba(217, 119, 6, 0.22), 0 0 14px rgba(180, 83, 9, 0.15), inset 0 0 20px rgba(217, 119, 6, 0.06) !important;
+    animation: mvpBronzeGlowPulse 4s ease-in-out infinite 1s;
+}
+
+.operator-card.mvp-bronze::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 12%;
+    right: 12%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #d97706, #fed7aa, #d97706, transparent);
+    box-shadow: 0 0 12px #d97706;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.operator-card.mvp-bronze:hover {
+    border-color: #f59e0b !important;
+    box-shadow: 0 10px 34px rgba(217, 119, 6, 0.38), 0 0 22px rgba(245, 158, 11, 0.28), inset 0 0 26px rgba(217, 119, 6, 0.12) !important;
+    transform: none !important;
+}
+
+@keyframes mvpBronzeGlowPulse {
+    0%, 100% {
+        box-shadow: 0 6px 26px rgba(217, 119, 6, 0.2), 0 0 14px rgba(180, 83, 9, 0.14), inset 0 0 20px rgba(217, 119, 6, 0.06);
+        border-color: rgba(217, 119, 6, 0.7);
+    }
+    50% {
+        box-shadow: 0 8px 34px rgba(217, 119, 6, 0.34), 0 0 22px rgba(245, 158, 11, 0.26), inset 0 0 28px rgba(217, 119, 6, 0.12);
+        border-color: rgba(251, 191, 36, 0.95);
+    }
+}
+
+.operator-card.mvp-bronze .operator-avatar {
+    background: linear-gradient(135deg, #d97706, #78350f) !important;
+    box-shadow: 0 0 0 2.5px rgba(245, 158, 11, 0.9), 0 0 16px rgba(217, 119, 6, 0.55) !important;
+    position: relative;
+}
+
+.operator-card.mvp-bronze .operator-avatar::after {
+    content: '';
+    position: absolute;
+    top: -14px;
+    right: -10px;
+    width: 25px;
+    height: 23px;
+    background: url('/img/crown-bronze.png') center / contain no-repeat;
+    filter: drop-shadow(0 2px 5px rgba(217, 119, 6, 0.7)) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.9));
+    animation: mvpCrownBob 2.8s ease-in-out infinite 0.8s;
+    pointer-events: none;
+    z-index: 5;
 }
 
 /* MVP Laurel Wreath Badge (1-rasm: 3 yulduzli oltin lavr chambari) */
@@ -1503,16 +2086,44 @@ tr.row-transfer {
     filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.98));
 }
 
+.mvp-wreath-badge.diamond-wreath {
+    filter: drop-shadow(0 2px 8px rgba(56, 189, 248, 0.8));
+}
+
+.mvp-wreath-badge.diamond-wreath:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 14px rgba(56, 189, 248, 1));
+}
+
+.mvp-wreath-badge.gold-wreath {
+    filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.7));
+}
+
+.mvp-wreath-badge.gold-wreath:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.98));
+}
+
+.mvp-wreath-badge.silver-wreath {
+    filter: drop-shadow(0 2px 8px rgba(203, 213, 225, 0.7));
+}
+
+.mvp-wreath-badge.silver-wreath:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 14px rgba(241, 245, 249, 0.98));
+}
+
+.mvp-wreath-badge.bronze-wreath {
+    filter: drop-shadow(0 2px 8px rgba(217, 119, 6, 0.7));
+}
+
+.mvp-wreath-badge.bronze-wreath:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 4px 14px rgba(245, 158, 11, 0.98));
+}
+
 .mvp-wreath-svg {
     display: block;
-}
-
-.operator-card.mvp-silver {
-    border: 1px solid rgba(148, 163, 184, 0.35);
-}
-
-.operator-card.mvp-bronze {
-    border: 1px solid rgba(217, 119, 6, 0.3);
 }
 
 /* ==========================================================================
@@ -1529,7 +2140,6 @@ tr.row-transfer {
 .operator-card.status-ready:hover {
     border-color: #10b981;
     box-shadow: 0 8px 26px rgba(16, 185, 129, 0.28), inset 0 0 20px rgba(16, 185, 129, 0.08);
-    transform: translateY(-2px);
 }
 
 .operator-card.status-talking {
@@ -1541,7 +2151,6 @@ tr.row-transfer {
 .operator-card.status-talking:hover {
     border-color: #38bdf8;
     box-shadow: 0 8px 26px rgba(14, 165, 233, 0.3);
-    transform: translateY(-2px);
 }
 
 .operator-card.status-offline {
@@ -1553,7 +2162,6 @@ tr.row-transfer {
 .operator-card.status-offline:hover {
     border-color: #ef4444;
     box-shadow: 0 8px 26px rgba(239, 68, 68, 0.25);
-    transform: translateY(-2px);
 }
 
 /* Operator karta holat pillari (Kutmoqda / Suhbatda / Jiringlamoqda / Offline) —
@@ -1609,6 +2217,88 @@ tr.row-transfer {
     color: #f87171;
 }
 
+.status-badge.badge-paused {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fbbf24;
+}
+
+.operator-card.status-paused {
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.badge-dot.pulse-pause {
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+}
+
+/* Operator Card & Detail Modal Pause/Unpause Button */
+.op-card-pause-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    white-space: nowrap;
+    user-select: none;
+    line-height: 1.2;
+}
+.op-card-pause-btn:hover {
+    background: rgba(245, 158, 11, 0.28);
+    border-color: #f59e0b;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(245, 158, 11, 0.35);
+}
+.op-card-pause-btn.is-paused {
+    border-color: rgba(16, 185, 129, 0.55);
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+.op-card-pause-btn.is-paused:hover {
+    background: rgba(16, 185, 129, 0.35);
+    border-color: #10b981;
+    box-shadow: 0 3px 10px rgba(16, 185, 129, 0.35);
+}
+
+.btn-detail-pause {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
+    color: #fbbf24;
+    user-select: none;
+}
+.btn-detail-pause:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(217, 119, 6, 0.35));
+    border-color: #f59e0b;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    transform: translateY(-1px);
+}
+.btn-detail-pause.unpause {
+    border-color: rgba(16, 185, 129, 0.5);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.25));
+    color: #6ee7b7;
+}
+.btn-detail-pause.unpause:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(5, 150, 105, 0.4));
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
 /* Jonli suhbat taymeri (Suhbatda holati tagidagi taymer) */
 .talking-live-timer {
     display: inline-flex;
@@ -1625,7 +2315,6 @@ tr.row-transfer {
     letter-spacing: 0.5px;
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
     white-space: nowrap;
-    animation: fadeIn 0.25s ease;
 }
 
 .talking-live-timer .timer-icon {
@@ -1759,6 +2448,12 @@ tr.row-transfer {
     animation: edgeStripPulse 0.9s ease-in-out infinite;
 }
 
+.call-live-strip.outbound-ringing {
+    background: linear-gradient(180deg, #38bdf8, #0284c7, #38bdf8);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.9), 0 0 26px rgba(14, 165, 233, 0.45);
+    animation: edgeStripPulse 0.9s ease-in-out infinite;
+}
+
 .call-live-strip.talking {
     background: linear-gradient(180deg, #7dd3fc, #0ea5e9, #7dd3fc);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.85), 0 0 22px rgba(14, 165, 233, 0.4);
@@ -1773,11 +2468,16 @@ tr.row-transfer {
     border-color: rgba(245, 158, 11, 0.7) !important;
 }
 
+.operator-card.call-outbound-ringing {
+    border-color: rgba(14, 165, 233, 0.85) !important;
+}
+
 .operator-card.call-talking {
     border-color: rgba(14, 165, 233, 0.7) !important;
 }
 
 .operator-card.call-ringing::after,
+.operator-card.call-outbound-ringing::after,
 .operator-card.call-talking::after {
     content: '';
     position: absolute;
@@ -1792,9 +2492,24 @@ tr.row-transfer {
     animation: cardGlowPulse 1s ease-in-out infinite;
 }
 
+.operator-card.call-outbound-ringing::after {
+    box-shadow: 0 0 22px 2px rgba(14, 165, 233, 0.5), inset 0 0 18px rgba(14, 165, 233, 0.2);
+    animation: cardGlowPulse 1s ease-in-out infinite;
+}
+
 .operator-card.call-talking::after {
     box-shadow: 0 0 18px 1px rgba(14, 165, 233, 0.28), inset 0 0 14px rgba(14, 165, 233, 0.1);
     animation: cardGlowPulse 2.4s ease-in-out infinite;
+}
+
+.operator-card.next-in-line:not(.call-ringing):not(.call-outbound-ringing):not(.call-talking) {
+    border-color: rgba(245, 158, 11, 0.65) !important;
+    box-shadow: 0 4px 22px rgba(245, 158, 11, 0.18) !important;
+}
+
+.operator-card.next-in-line:not(.call-ringing):not(.call-outbound-ringing):not(.call-talking):hover {
+    border-color: rgba(245, 158, 11, 0.9) !important;
+    box-shadow: 0 6px 28px rgba(245, 158, 11, 0.32) !important;
 }
 
 /* Jiringlash badge (blink qiluvchi) */
@@ -1863,15 +2578,6 @@ tr.row-transfer {
     }
 }
 
-.operator-card.next-in-line {
-    border-color: rgba(245, 158, 11, 0.65) !important;
-    box-shadow: 0 4px 22px rgba(245, 158, 11, 0.18) !important;
-}
-
-.operator-card.next-in-line:hover {
-    border-color: rgba(245, 158, 11, 0.9) !important;
-    box-shadow: 0 6px 28px rgba(245, 158, 11, 0.32) !important;
-}
 
 @keyframes edgeStripPulse {
     0%, 100% { opacity: 1; transform: scaleY(1); }
@@ -3091,5 +3797,323 @@ html[data-tab="operators"] #btnExportExcel {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
 }
 
+/* Export Choice Modal (3 ta tugma) */
+.export-choice-btn {
+    width: 100%;
+    outline: none;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
+.export-choice-btn:hover {
+    background: rgba(30, 41, 59, 0.98) !important;
+    border-color: rgba(59, 130, 246, 0.5) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 14px rgba(59, 130, 246, 0.15);
+}
+
+.export-choice-btn:hover .choice-arrow {
+    transform: translateX(4px);
+    color: #fff !important;
+}
+
+.export-choice-btn:active {
+    transform: translateY(0);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Header Language Switcher
+   ========================================================================== */
+.lang-switch-container {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 20px;
+    padding: 3px 6px;
+    gap: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    user-select: none;
+    backdrop-filter: blur(8px);
+}
+
+.lang-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim, #94a3b8);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+    letter-spacing: 0.5px;
+    line-height: 1;
+}
+
+.lang-btn:hover {
+    color: #ffffff;
+}
+
+.lang-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.45);
+}
+
+.lang-separator {
+    color: rgba(148, 163, 184, 0.35);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Real-time Bog'lanishi kerak bo'lgan mijozlar - Jonli suhbat indikatori */
+@keyframes cbPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes cbCardGlow {
+    0%, 100% {
+        border-color: rgba(16, 185, 129, 0.6);
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+    50% {
+        border-color: rgba(16, 185, 129, 1);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.45);
+    }
+}
+
+@keyframes cbDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.callback-card-talking {
+    border-color: rgba(16, 185, 129, 0.85) !important;
+    border-left: 3.5px solid #10b981 !important;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(15, 23, 42, 0.92)) !important;
+    animation: cbCardGlow 2.5s infinite ease-in-out;
+}
+
+.callback-active-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(16, 185, 129, 0.25);
+    border: 1px solid rgba(16, 185, 129, 0.6);
+    padding: 1px 7px;
+    border-radius: 12px;
+    font-size: 10px;
+    color: #34d399;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.callback-active-badge img {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    object-fit: contain;
+    animation: cbPulse 1.6s infinite ease-in-out;
+}
+
+.callback-active-subrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 5px;
+    padding: 2px 7px;
+    font-size: 10px;
+    color: #6ee7b7;
+    font-weight: 600;
+}
+
+.callback-active-subrow .active-dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 5px #10b981;
+    animation: cbDotPulse 1.2s infinite;
+}
+
+/* ==========================================================================
+   PRODUCTION DEPLOY & AUTO-REFRESH NOTIFICATION BANNER
+   ========================================================================== */
+.deploy-update-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100000;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 58, 138, 0.96) 50%, rgba(16, 185, 129, 0.95) 100%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 2px solid #38bdf8;
+    box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.4);
+    animation: slideDownDeployBanner 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    padding: 10px 24px;
+    color: #ffffff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@keyframes slideDownDeployBanner {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.deploy-banner-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.deploy-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.deploy-banner-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 20px;
+    animation: rocketBob 2s infinite ease-in-out;
+}
+
+@keyframes rocketBob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-3px) rotate(8deg); }
+}
+
+.deploy-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.deploy-banner-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.2px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.deploy-banner-sub {
+    font-size: 12px;
+    color: #bae6fd;
+    font-weight: 500;
+}
+
+.deploy-banner-sub .countdown-sec {
+    display: inline-block;
+    min-width: 18px;
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: #38bdf8;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.deploy-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-deploy-reload {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 7px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    transition: all 0.2s ease;
+}
+
+.btn-deploy-reload:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.6);
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+}
+
+.btn-deploy-reload:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+.btn-deploy-reload svg {
+    animation: rotateSlow 4s linear infinite;
+}
+
+@keyframes rotateSlow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.btn-deploy-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-deploy-dismiss:hover {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
 

@@ -25,6 +25,34 @@ console.log(`🎯 Server: ${SERVER_USER}@${SERVER_HOST}:${SERVER_PORT}`);
 console.log(`📂 Remote Path: ${REMOTE_DIR}`);
 console.log('====================================================\n');
 
+// PRE-FLIGHT AUTOMATED TEST SUITE
+console.log('🧪 [0/4] Avtomatlashtirilgan testlar tekshirilmoqda...');
+try {
+    execSync('npm test', { stdio: 'inherit', cwd: projectRoot });
+    console.log('✅ Barcha testlar muvaffaqiyatli o\'tdi! Deploy davom etmoqda...\n');
+} catch (testErr) {
+    console.error('\n❌ XATOLIK: Avtomatlashtirilgan testlar muvaffaqiyatsiz tugadi!');
+    console.error('🚫 Deploy to\'xtatildi. Iltimos avval xatoliklarni bartaraf eting.');
+    process.exit(1);
+}
+
+// 0. Update public/version.json with unique build ID and timestamp
+const versionFilePath = path.join(projectRoot, 'public', 'version.json');
+let pkgVersion = '2.4.0';
+try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+    if (pkg.version) pkgVersion = pkg.version;
+} catch (e) {}
+
+const currentBuild = {
+    buildId: Date.now().toString(),
+    buildTime: new Date().toISOString(),
+    version: pkgVersion,
+    app: 'call-center'
+};
+fs.writeFileSync(versionFilePath, JSON.stringify(currentBuild, null, 2), 'utf8');
+console.log(`🏷️  Versiya tayyorlandi: Build ${currentBuild.buildId} (${currentBuild.version})`);
+
 // 1. Pack files
 console.log('📦 [1/4] Loyiha fayllari arxivlanmoqda...');
 if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
@@ -40,7 +68,7 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="scratch" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
-    `app.js config.js swaggerSpec.js package.json package-lock.json .env services public ssl`;
+    `app.js config.js swaggerSpec.js package.json package-lock.json .env services public ssl viewer`;
 
 try {
     execSync(tarCmd, { stdio: 'inherit' });
@@ -81,6 +109,9 @@ async function deploy() {
                 `rm -f ${remoteArchive}`,
                 `cd ${REMOTE_DIR} && npm install --omit=dev`,
                 `cd ${REMOTE_DIR} && (pm2 reload call-center --force || pm2 restart call-center --update-env || pm2 start app.js --name "call-center" --time)`,
+                `mkdir -p /opt/call-center-viewer`,
+                `cp -ru ${REMOTE_DIR}/viewer/* /opt/call-center-viewer/ 2>/dev/null || true`,
+                `(pm2 reload call-center-viewer --force || pm2 restart call-center-viewer --update-env || true)`,
                 `pm2 save`
             ].join(' && ');
 

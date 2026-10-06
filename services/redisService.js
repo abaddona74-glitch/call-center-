@@ -77,6 +77,15 @@ class RedisService {
         }
         return null;
     }
+
+    async del(key) {
+        this.memoryStore.delete(key);
+        if (this.isConnected && this.client) {
+            try {
+                await this.client.del(key);
+            } catch (e) {}
+        }
+    }
 }
 
 module.exports = new RedisService();

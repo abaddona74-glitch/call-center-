@@ -7,10 +7,10 @@
     <link rel="icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="shortcut icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="apple-touch-icon" href="/images/title-icon.png?v=6.0">
-    <!-- Google Font Inter -->
+    <!-- Google Fonts: Inter & Golos Text (for Cyrillic/Russian) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <!-- Highcharts 3D for 3D Pie Chart -->
@@ -19,7 +19,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=19.0">
+    <link rel="stylesheet" href="/css/style.css?v=22.0">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -160,60 +160,69 @@
                             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
                             <span id="liveClockDisplay">--:--:--</span>
                         </div>
-                        <button id="btnServerStatus" onclick="openServerStatusModal()" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; color: #34d399; cursor: pointer; transition: all 0.2s ease;">
-                            <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
-                            <span>⚡ Server Holati</span>
+                        <button id="btnServerStatus" onclick="openServerStatusModal()" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; color: #34d399; cursor: pointer; transition: all 0.2s ease;">
+                            <svg class="isax isax-flash" style="width: 14px; height: 14px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
+                            <span data-i18n="server_status">Server Holati</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Navigation Tabs -->
-                <nav class="nav-tabs">
-                    <a href="/" class="tab-btn" data-tab="dashboard" style="display: inline-flex; align-items: center; gap: 6px;">
-                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
-                            <path d="M4 3h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-9"/>
-                            <polyline points="2 9 6 6 11 10 16 5"/>
-                            <circle cx="2" cy="9" r="0.75" fill="currentColor"/>
-                            <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
-                            <circle cx="11" cy="10" r="0.75" fill="currentColor"/>
-                            <circle cx="16" cy="5" r="0.75" fill="currentColor"/>
-                            <line x1="13" y1="16" x2="13" y2="12"/>
-                            <line x1="16" y1="16" x2="16" y2="9"/>
-                            <line x1="19" y1="16" x2="19" y2="11"/>
-                            <circle cx="6.5" cy="16.5" r="3.5"/>
-                            <path d="M6.5 13v3.5h3.5"/>
-                        </svg>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="/operators" class="tab-btn" data-tab="operators" style="display: inline-flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
-                            <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
-                            <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
-                            <circle cx="12" cy="10" r="3.2"/>
-                            <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
-                        </svg>
-                        <span>Operatorlar</span>
-                    </a>
-                    <a href="/history" class="tab-btn" data-tab="history" style="display: inline-flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
-                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                            <path d="M3 3v5h5"/>
-                            <path d="M12 7v5l4 2"/>
-                        </svg>
-                        <span>Qo'ng'iroqlar Tarixi</span>
-                    </a>
-                    <a href="/explorer" class="tab-btn" data-tab="explorer" style="display: inline-flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
-                            <rect x="2" y="8" width="2.4" height="8" rx="1.2"/>
-                            <rect x="5.8" y="5" width="2.4" height="14" rx="1.2"/>
-                            <rect x="9.6" y="7" width="2.4" height="10" rx="1.2"/>
-                            <rect x="13.4" y="2.5" width="2.4" height="19" rx="1.2"/>
-                            <rect x="17.2" y="5" width="2.4" height="14" rx="1.2"/>
-                            <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
-                        </svg>
-                        <span>Audio Explorer</span>
-                    </a>
-                </nav>
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <!-- Navigation Tabs -->
+                    <nav class="nav-tabs">
+                        <a href="/" class="tab-btn" data-tab="dashboard" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                <path d="M4 3h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-9"/>
+                                <polyline points="2 9 6 6 11 10 16 5"/>
+                                <circle cx="2" cy="9" r="0.75" fill="currentColor"/>
+                                <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
+                                <circle cx="11" cy="10" r="0.75" fill="currentColor"/>
+                                <circle cx="16" cy="5" r="0.75" fill="currentColor"/>
+                                <line x1="13" y1="16" x2="13" y2="12"/>
+                                <line x1="16" y1="16" x2="16" y2="9"/>
+                                <line x1="19" y1="16" x2="19" y2="11"/>
+                                <circle cx="6.5" cy="16.5" r="3.5"/>
+                                <path d="M6.5 13v3.5h3.5"/>
+                            </svg>
+                            <span data-i18n="tab_dashboard">Dashboard</span>
+                        </a>
+                        <a href="/operators" class="tab-btn" data-tab="operators" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                                <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
+                                <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
+                                <circle cx="12" cy="10" r="3.2"/>
+                                <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
+                            </svg>
+                            <span data-i18n="tab_operators">Operatorlar</span>
+                        </a>
+                        <a href="/history" class="tab-btn" data-tab="history" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                                <path d="M3 3v5h5"/>
+                                <path d="M12 7v5l4 2"/>
+                            </svg>
+                            <span data-i18n="tab_history">Qo'ng'iroqlar Tarixi</span>
+                        </a>
+                        <a href="/explorer" class="tab-btn" data-tab="explorer" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle;">
+                                <rect x="2" y="8" width="2.4" height="8" rx="1.2"/>
+                                <rect x="5.8" y="5" width="2.4" height="14" rx="1.2"/>
+                                <rect x="9.6" y="7" width="2.4" height="10" rx="1.2"/>
+                                <rect x="13.4" y="2.5" width="2.4" height="19" rx="1.2"/>
+                                <rect x="17.2" y="5" width="2.4" height="14" rx="1.2"/>
+                                <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
+                            </svg>
+                            <span data-i18n="tab_explorer">Audio Explorer</span>
+                        </a>
+                    </nav>
+
+                    <!-- Language Switcher: O'zbekcha / Русский -->
+                    <div class="lang-switch-container" id="langSwitchContainer" title="Tilni tanlash / Выбрать язык">
+                        <button type="button" class="lang-btn active" data-lang="uz" onclick="switchLanguage('uz')" title="O'zbek tili">O'Z</button>
+                        <span class="lang-separator">/</span>
+                        <button type="button" class="lang-btn" data-lang="ru" onclick="switchLanguage('ru')" title="Русский язык">РУ</button>
+                    </div>
+                </div>
             </header>
 
             <!-- GLOBAL DATE FILTER SUB-BAR (Barcha sahifalar / routelar uchun umumiy filtr) -->
@@ -244,7 +253,7 @@
                                         <rect x="12.6" y="17.4" width="2.6" height="2.4" rx="0.6"/>
                                     </svg>
                                 </span>
-                                <span class="cal-selected-label" id="calSelectedLabel">Bugun</span>
+                                <span class="cal-selected-label" id="calSelectedLabel" data-i18n="date_today">Bugun</span>
                                 <span class="cal-trigger-arrow">▼</span>
                             </button>
 
@@ -253,8 +262,8 @@
                                 <div class="cal-popup-header">
                                     <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                         <div>
-                                            <div class="cal-header-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 3px;">Tanlangan sana:</div>
-                                            <div class="cal-selected-display" id="calSelectedDisplay" style="font-size: 16px; font-weight: 700; color: #60a5fa;">Bugun</div>
+                                            <div class="cal-header-label" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); margin-bottom: 3px;" data-i18n="date_selected">Tanlangan sana:</div>
+                                            <div class="cal-selected-display" id="calSelectedDisplay" style="font-size: 16px; font-weight: 700; color: #60a5fa;" data-i18n="date_today">Bugun</div>
                                         </div>
                                         <div class="cal-live-clock-pill" id="calLiveClockPill" style="font-size: 12px; font-weight: 600; color: #34d399; background: rgba(52, 211, 153, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(52, 211, 153, 0.25);">
                                             🕒 <span id="calClock">--:--:--</span>
@@ -268,13 +277,13 @@
                                 <div class="cal-month-bar">
                                     <div class="cal-month-title" id="calMonthTitle">--</div>
                                     <div class="cal-nav-buttons">
-                                        <button type="button" class="cal-nav-btn" id="calPrevMonth" onclick="changeCalendarMonth(-1, event)" title="Oldingi oy">▲</button>
-                                        <button type="button" class="cal-nav-btn" id="calNextMonth" onclick="changeCalendarMonth(1, event)" title="Keyingi oy">▼</button>
-                                    </div>
+                                        <button type="button" class="cal-nav-btn" id="calPrevMonth" onclick="changeCalendarMonth(-1, event)" title="Oldingi oy" data-i18n-title="cal_prev_month">▲</button>
+                                        <button type="button" class="cal-nav-btn" id="calNextMonth" onclick="changeCalendarMonth(1, event)"title="Keyingi oy" data-i18n-title="cal_next_month">▼</button>
                                 </div>
+                            </div>
 
                                 <div class="cal-weekdays-grid">
-                                    <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                                    <span data-i18n="cal_week_mon">Du</span><span data-i18n="cal_week_tue">Se</span><span data-i18n="cal_week_wed">Ch</span><span data-i18n="cal_week_thu">Pa</span><span data-i18n="cal_week_fri">Ju</span><span data-i18n="cal_week_sat">Sh</span><span data-i18n="cal_week_sun">Ya</span>
                                 </div>
 
                                 <div class="cal-days-matrix" id="calDaysMatrix">
@@ -282,38 +291,38 @@
                                 </div>
 
                                 <div class="cal-popup-footer">
-                                    <button type="button" class="cal-footer-btn" id="calJumpToday" onclick="quickSelectDate('today', event)">Bugun</button>
-                                    <button type="button" class="cal-footer-btn cal-close-btn" id="calClosePopup" onclick="closeCalendarPopup(event)">Yopish</button>
+                                    <button type="button" class="cal-footer-btn" id="calJumpToday" onclick="quickSelectDate('today', event)" data-i18n="calendar_jump_today">Bugun</button>
+                                    <button type="button" class="cal-footer-btn cal-close-btn" id="calClosePopup" onclick="closeCalendarPopup(event)" data-i18n="calendar_close">Yopish</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Quick Filter Buttons -->
                         <div class="cal-quick-group">
-                            <button type="button" class="cal-quick-pill active" id="btnQuickToday" onclick="quickSelectDate('today', event)">Bugun</button>
-                            <button type="button" class="cal-quick-pill" id="btnQuickYesterday" onclick="quickSelectDate('yesterday', event)">Kecha</button>
+                            <button type="button" class="cal-quick-pill active" id="btnQuickToday" data-i18n="date_today" onclick="quickSelectDate('today', event)">Bugun</button>
+                            <button type="button" class="cal-quick-pill" id="btnQuickYesterday" data-i18n="date_yesterday" onclick="quickSelectDate('yesterday', event)">Kecha</button>
                         </div>
 
                         <!-- Live / Archive Mode Badges -->
                         <div class="cal-mode-badge" id="calModeBadge">
                             <span class="cal-mode-dot"></span>
-                            <span id="calModeText">Jonli (Real-time)</span>
+                            <span id="calModeText" data-i18n="date_live_mode">Jonli (Real-time)</span>
                         </div>
 
                         <!-- Reset to Today button -->
                         <button type="button" class="btn-back-today" id="btnBackToday" onclick="resetToToday(event)" style="display: none;" title="Bugungi jonli monitoringga qaytish">
-                            ✕ Bugunga qaytish
+                            <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg> <span data-i18n="back_to_today">Bugunga qaytish</span>
                         </button>
                     </div>
 
                     <div class="date-filter-right">
-                        <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
+                        <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" data-i18n-title="export_excel_title" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
                                 <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
                                 <polyline points="16 6 12 2 8 6"></polyline>
                                 <line x1="12" y1="2" x2="12" y2="15"></line>
                             </svg>
-                            <span id="txtExportExcel" style="color: #ffffff;">Export</span>
+                            <span id="txtExportExcel" data-i18n="export_excel" style="color: #ffffff;">Export</span>
                         </button>
                     </div>
 
@@ -326,52 +335,52 @@
 
                 <!-- KPI Cards (Clickable Drill-down) -->
                 <div class="kpi-grid is-loading">
-                    <div class="kpi-card blue clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('all', 'Jami Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card blue clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('all', t('kpi_total_calls', 'Jami Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/totalcalls.png?v=2" alt="Jami" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Jami Qo'ng'iroqlar</p>
+                            <p data-i18n="kpi_total_calls">Jami Qo'ng'iroqlar</p>
                             <h3 id="kpiTotalCalls">0</h3>
                         </div>
                     </div>
-                    <div class="kpi-card cyan clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('inbound', 'Kiruvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card cyan clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('inbound', t('kpi_inbound_calls', 'Kiruvchi Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/incomingcall.png?v=2" alt="Kiruvchi" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Kiruvchi Qo'ng'iroqlar</p>
+                            <p data-i18n="kpi_inbound_calls">Kiruvchi Qo'ng'iroqlar</p>
                             <h3><span id="kpiInbound">0</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card purple clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('outbound', 'Chiquvchi Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card purple clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('outbound', t('kpi_outbound_calls', 'Chiquvchi Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/outgoingcall.png?v=2" alt="Chiquvchi" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Chiquvchi Qo'ng'iroqlar</p>
+                            <p data-i18n="kpi_outbound_calls">Chiquvchi Qo'ng'iroqlar</p>
                             <h3><span id="kpiOutbound">0</span> <span class="kpi-badge purple" id="kpiOutboundRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card green clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('answered', 'Muvaffaqiyatli Qo\'ng\'iroqlar')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card green clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('answered', t('kpi_answered_calls', 'Muvaffaqiyatli Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/answered-calls-icon.png?v=2" alt="Muvaffaqiyatli" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Muvaffaqiyatli</p>
+                            <p data-i18n="kpi_answered_calls">Muvaffaqiyatli</p>
                             <h3><span id="kpiAnswered">0</span> <span class="kpi-badge success" id="kpiAnswerRate">0%</span></h3>
                         </div>
                     </div>
-                    <div class="kpi-card amber clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('abandoned', 'Navbatdan chiqdi')" title="Tafsilotlarni ko'rish uchun bosing">
+                    <div class="kpi-card amber clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('abandoned', t('kpi_abandoned_calls', 'Navbatdan chiqdi'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                         <div class="kpi-icon"><img src="/images/queue.png?v=2" alt="Navbatdan chiqdi" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Navbatdan chiqdi</p>
+                            <p data-i18n="kpi_abandoned_calls">Navbatdan chiqdi</p>
                             <h3><span id="kpiAbandoned">0</span> <span class="kpi-badge warning" id="kpiAbandonedRate">0%</span></h3>
                         </div>
                     </div>
                     <div class="kpi-card indigo clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openQueueDetail()" title="Navbatdagi mijozlarni ko'rish">
                         <div class="kpi-icon"><img src="/images/stillinqueue.png?v=2" alt="Navbatda kutayotganlar" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>Navbatda kutayotganlar</p>
+                            <p data-i18n="live_queue_waiting_label">Navbatda kutayotganlar</p>
                             <h3 id="kpiQueueWaiting">0</h3>
                         </div>
                     </div>
-                    <div class="kpi-card red clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('missed', 'O‘tkazib yuborilgan')" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
+                    <div class="kpi-card red clickable-kpi" style="min-height: 145px; height: 145px; padding: 26px 22px;" onclick="openCallsDetail('missed', t('kpi_missed_calls', 'O‘tkazib yuborilgan'))" data-i18n-title="kpi_missed_desc" title="Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar">
                         <div class="kpi-icon"><img src="/images/missedcall.png?v=2" alt="O'tkazib yuborilgan" width="54" height="54"></div>
                         <div class="kpi-details">
-                            <p>O'tkazib yuborilgan</p>
+                            <p data-i18n="kpi_missed_calls">O'tkazib yuborilgan</p>
                             <h3><span id="kpiMissed">0</span></h3>
                         </div>
                     </div>
@@ -382,7 +391,7 @@
                     <!-- Left: Dynamics Chart -->
                     <div class="glass-panel">
                         <div class="panel-header">
-                            <h3 class="panel-title">Qo'ng'iroqlar Dinamikasi</h3>
+                            <h3 class="panel-title" data-i18n="chart_dynamics_title">Qo'ng'iroqlar Dinamikasi</h3>
                         </div>
                         <div class="chart-wrapper">
                             <canvas id="callVolumeChart"></canvas>
@@ -392,7 +401,7 @@
                     <!-- Right: Inbound vs Outbound Pie -->
                     <div class="glass-panel">
                         <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-                            <h3 class="panel-title">Qo'ng'iroqlar Taqsimoti</h3>
+                            <h3 class="panel-title" data-i18n="chart_distribution_title">Qo'ng'iroqlar Taqsimoti</h3>
                             <div class="chart-mode-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 2px; gap: 2px;">
                                 <button type="button" id="btnChartMode2D" onclick="setChartMode('2d')" title="2D Tekis Donut diagramma" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
                                     2D
@@ -413,16 +422,34 @@
 
                 <!-- OPERATORLAR - CHARTS TAGIDA -->
                 <div class="glass-panel" style="margin-bottom: 24px;">
-                    <div class="panel-header">
-                        <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px;">
+                    <div class="panel-header" style="display: flex; align-items: center; justify-content: flex-start; gap: 18px; flex-wrap: wrap;">
+                        <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px; margin: 0;">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="display: inline-block; vertical-align: middle; color: var(--primary-light);">
                                 <path d="M12 2a7.5 7.5 0 0 0-7.5 7.5v2.8a2.7 2.7 0 0 0-1.5 2.4v1.8a2.7 2.7 0 0 0 2.7 2.7h.8a.75.75 0 0 0 .75-.75v-6a.75.75 0 0 0-.75-.75H5v-.2a7 7 0 0 1 14 0v.2h-1.5a.75.75 0 0 0-.75.75v6c0 .41.34.75.75.75h.8a2.7 2.7 0 0 0 2.7-2.7v-1.8a2.7 2.7 0 0 0-1.5-2.4V9.5A7.5 7.5 0 0 0 12 2z"/>
                                 <path d="M6 18.2v.3a3.5 3.5 0 0 0 3.5 3.5h2a1 1 0 1 0 0-2h-2a1.5 1.5 0 0 1-1.5-1.5v-.3H6z"/>
                                 <circle cx="12" cy="10" r="3.2"/>
                                 <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
                             </svg>
-                            <span>Operatorlar</span>
+                            <span data-i18n="op_section_title">Operatorlar</span>
                         </h3>
+
+                        <!-- Operatorlar guruhi switch: Asosiy (100-199) / Zangiota 42 (200+) / Barchasi -->
+                        <div class="operator-group-tabs" id="operatorGroupSwitch">
+                            <button type="button" class="op-group-btn active" data-group="main" onclick="switchOperatorGroup('main')" data-i18n-title="op_group_main_title" title="100 dan 199 gacha bo'lgan asosiy operatorlar">
+                                <span class="op-group-dot" style="background: #38bdf8;"></span>
+                                <span data-i18n="op_group_main">Asosiy (100-199)</span>
+                                <span class="op-group-count" id="countMainOps">0</span>
+                            </button>
+                            <button type="button" class="op-group-btn" data-group="secondary" onclick="switchOperatorGroup('secondary')" data-i18n-title="op_group_sec_title" title="Zangiota 42 operatorlari (200+)">
+                                <span class="op-group-dot" style="background: #a855f7;"></span>
+                                <span data-i18n="op_group_sec">Zangiota 42 (200+)</span>
+                                <span class="op-group-count" id="countSecondaryOps">0</span>
+                            </button>
+                            <button type="button" class="op-group-btn" data-group="all" onclick="switchOperatorGroup('all')" data-i18n-title="op_group_all_title" title="Barcha operatorlar">
+                                <span data-i18n="op_group_all">Barchasi</span>
+                                <span class="op-group-count" id="countAllOps">0</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="operator-grid" id="operatorsGrid">
@@ -439,7 +466,7 @@
                 <!-- Recent Calls Table -->
                 <div class="glass-panel">
                     <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-                        <h3 class="panel-title" style="margin: 0;">⚡ So'nggi Qo'ng'iroqlar Oqimi (Real-time)</h3>
+                        <h3 class="panel-title" style="margin: 0; display: inline-flex; align-items: center; gap: 6px;" data-i18n="recent_flow_title"><svg class="isax isax-flash" style="width: 16px; height: 16px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg> So'nggi Qo'ng'iroqlar Oqimi</h3>
 
                         <!-- Yuqori o'ng qism: 3 ta filtr (Operator, Holat, Yo'nalish) -->
                         <div class="recent-filters-toolbar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -451,70 +478,70 @@
                                         <line x1="16.5" y1="16.5" x2="21.5" y2="21.5"/>
                                     </svg>
                                 </span>
-                                <input type="text" id="recentFilterOperator" list="recentOperatorsList" placeholder="Operator qidirish..." oninput="applyDashboardRecentFilters()" autocomplete="off" style="width: 100%; height: 32px; padding: 6px 12px 6px 28px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #fff;">
+                                <input type="text" id="recentFilterOperator" list="recentOperatorsList" placeholder="Operator qidirish..." data-i18n-placeholder="hist_operator_search" oninput="applyDashboardRecentFilters()" autocomplete="off" style="width: 100%; height: 32px; padding: 6px 12px 6px 28px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #fff;">
                                 <datalist id="recentOperatorsList"></datalist>
                             </div>
 
                             <!-- 2. Holati bo'yicha filtr -->
                             <div class="recent-filter-item">
                                 <select id="recentFilterStatus" onchange="applyDashboardRecentFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
-                                    <option value="all" style="background: #0f172a; color: #fff;">Barcha holatlar</option>
-                                    <option value="answered" style="background: #0f172a; color: #34d399;">✅ Javob berilgan</option>
-                                    <option value="missed" style="background: #0f172a; color: #f87171;">📵 Javobsiz / Chiqdi</option>
+                                    <option value="all" style="background: #0f172a; color: #fff;" data-i18n="hist_filter_all_status">Barcha holatlar</option>
+                                    <option value="answered" style="background: #0f172a; color: #34d399;" data-i18n="hist_opt_answered">Javob berilgan</option>
+                                    <option value="missed" style="background: #0f172a; color: #f87171;" data-i18n="hist_opt_missed">📵 Javobsiz / Chiqdi</option>
                                 </select>
                             </div>
 
                             <!-- 3. Yo'nalishi bo'yicha filtr -->
                             <div class="recent-filter-item">
                                 <select id="recentFilterDirection" onchange="applyDashboardRecentFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
-                                    <option value="all" style="background: #0f172a; color: #fff;">Barcha yo'nalishlar</option>
-                                    <option value="inbound" style="background: #0f172a; color: #38bdf8;">📥 Kiruvchi</option>
-                                    <option value="outbound" style="background: #0f172a; color: #c084fc;">📤 Chiquvchi</option>
-                                    <option value="transfer" style="background: #0f172a; color: #38bdf8;">🔀 Transfer</option>
+                                    <option value="all" style="background: #0f172a; color: #fff;" data-i18n="hist_filter_all_dir">Barcha yo'nalishlar</option>
+                                    <option value="inbound" style="background: #0f172a; color: #38bdf8;" data-i18n="dir_inbound">Kiruvchi</option>
+                                    <option value="outbound" style="background: #0f172a; color: #c084fc;" data-i18n="dir_outbound">Chiquvchi</option>
+                                    <option value="transfer" style="background: #0f172a; color: #38bdf8;" data-i18n="dir_transfer">Transfer</option>
                                 </select>
                             </div>
 
                             <!-- Tozalash (Clear) tugmasi -->
                             <button id="btnClearRecentFilters" onclick="resetDashboardRecentFilters()" title="Filtrlarni tozalash" style="display: none; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 5px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                <span>✕</span> Tozalash
+                                <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg> <span data-i18n="hist_clear_filter">Tozalash</span>
                             </button>
                         </div>
                     </div>
                     <div class="data-table-wrapper">
                         <table class="data-table">
                             <thead>
-                                <tr>
-                                    <th style="width: 45px; text-align: center;">№</th>
+                             <tr>
+                                    <th style="width: 45px; text-align: center;" data-i18n="col_num">№</th>
                                     <th class="sortable-th" style="width: 108px;" onclick="sortDashboardTable('time')" title="Vaqt bo'yicha saralash (Eng yangisi / Eng eskisi)">
-                                        Vaqt <span class="sort-icon" id="sort-icon-time" style="color: #38bdf8; opacity: 1;">▼</span>
+                                        <span data-i18n="hist_col_time">Vaqt</span> <span class="sort-icon" id="sort-icon-time" style="color: #38bdf8; opacity: 1;">▼</span>
                                     </th>
                                     <th class="sortable-th" style="width: 180px;" onclick="sortDashboardTable('callerId')" title="Raqam bo'yicha saralash">
-                                        Raqam / Mijoz <span class="sort-icon" id="sort-icon-callerId">↕</span>
+                                        <span data-i18n="hist_col_phone">Raqam / Mijoz</span> <span class="sort-icon" id="sort-icon-callerId">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 130px;" onclick="sortDashboardTable('direction')" title="Yo'nalish bo'yicha saralash">
-                                        Yo'nalish <span class="sort-icon" id="sort-icon-direction">↕</span>
+                                        <span data-i18n="hist_col_direction">Yo'nalish</span> <span class="sort-icon" id="sort-icon-direction">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 150px;" onclick="sortDashboardTable('operator')" title="Operator bo'yicha saralash (Bir xillarni tepaga chiqarish)">
-                                        Operator <span class="sort-icon" id="sort-icon-operator">↕</span>
+                                        <span data-i18n="hist_col_operator">Operator</span> <span class="sort-icon" id="sort-icon-operator">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 110px;" onclick="sortDashboardTable('duration')" title="Davomiyligi bo'yicha saralash">
-                                        Davomiyligi <span class="sort-icon" id="sort-icon-duration">↕</span>
+                                        <span data-i18n="hist_col_duration">Davomiyligi</span> <span class="sort-icon" id="sort-icon-duration">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 140px;" onclick="sortDashboardTable('waitSec')" title="Navbatda kutish vaqti bo'yicha saralash">
-                                        Navbatda kutish <span class="sort-icon" id="sort-icon-waitSec">↕</span>
+                                        <span data-i18n="hist_col_wait">Navbatda kutish</span> <span class="sort-icon" id="sort-icon-waitSec">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 150px;" onclick="sortDashboardTable('status')" title="Holat bo'yicha saralash">
-                                        Holat <span class="sort-icon" id="sort-icon-status">↕</span>
+                                        <span data-i18n="hist_col_status">Holat</span> <span class="sort-icon" id="sort-icon-status">↕</span>
                                     </th>
                                     <th class="sortable-th" style="width: 150px;" onclick="sortDashboardTable('hangupParty')" title="Kim tugatdi bo'yicha saralash">
-                                        Kim tugatdi? <span class="sort-icon" id="sort-icon-hangupParty">↕</span>
+                                        <span data-i18n="hist_col_hangup">Kim tugatdi?</span> <span class="sort-icon" id="sort-icon-hangupParty">↕</span>
                                     </th>
-                                    <th style="width: 190px;">Amal</th>
+                                    <th style="width: 190px;" data-i18n="hist_col_action">Amal</th>
                                 </tr>
                             </thead>
                             <tbody id="dashboardCallsTable">
                                 <tr>
-                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Hozircha qo'ng'iroqlar yo'q</td>
+                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;" data-i18n="hist_empty">Hozircha qo'ng'iroqlar yo'q</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -536,7 +563,7 @@
                                     <rect x="17.2" y="5" width="2.4" height="14" rx="1.2"/>
                                     <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
                                 </svg>
-                                <span>Audio Yozuvlar Explorer</span>
+                                <span data-i18n="audio_explorer_title">Audio Yozuvlar Explorer</span>
                             </h3>
                         </div>
                     </div>
@@ -557,7 +584,7 @@
                                     <span class="eq-bar eq-3"></span>
                                     <span class="eq-bar eq-4"></span>
                                 </span>
-                                <span>AUDIO STUDIO</span>
+                                <span data-i18n="audio_studio">AUDIO STUDIO</span>
                             </div>
                         </div>
 
@@ -567,7 +594,7 @@
                                 <span class="player-time-divider">/</span>
                                 <span class="player-time-total" id="playerDuration">00:00</span>
                             </div>
-                            <button type="button" class="btn-player-close" id="btnCloseAudioPlayer" onclick="closeAudioPlayer()" title="Pleyerni yopish">✕</button>
+                            <button type="button" class="btn-player-close" id="btnCloseAudioPlayer" onclick="closeAudioPlayer()" title="Pleyerni yopish" data-i18n-title="player_close_title"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
                         </div>
                     </div>
 
@@ -586,17 +613,17 @@
 
                         <div class="player-meta-details">
                             <div class="player-track-title-row">
-                                <h4 id="playerFileName" class="player-file-title" title="Fayl tanlanmagan">Fayl tanlanmagan</h4>
+                                <h4 id="playerFileName" class="player-file-title" title="Fayl tanlanmagan" data-i18n-title="player_no_file" data-i18n="player_no_file">Fayl tanlanmagan</h4>
                                 <button type="button" class="btn-player-download" id="btnDownloadCurrentAudio" title="Audioni kompyuterga yuklab olish" style="display: none;">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
                                         <polyline points="16 6 12 2 8 6"></polyline>
                                         <line x1="12" y1="2" x2="12" y2="15"></line>
                                     </svg>
-                                    <span>Yuklab olish</span>
+                                    <span data-i18n="audio_download">Yuklab olish</span>
                                 </button>
                             </div>
-                            <div class="player-status-subtitle" id="playerStatusSubtitle">Audio ijro etilmoqda</div>
+                            <div class="player-status-subtitle" id="playerStatusSubtitle" data-i18n="player_status_playing">Audio ijro etilmoqda</div>
                         </div>
                     </div>
 
@@ -612,7 +639,7 @@
                         <div id="waveform" class="waveform-canvas"></div>
                         <div id="waveLoadingText" class="waveform-loading-overlay" style="display: none;">
                             <div class="wave-loading-spinner"></div>
-                            <span>Ovoz to'lqini render qilinmoqda...</span>
+                            <span data-i18n="player_waveform_render">Ovoz to'lqini render qilinmoqda...</span>
                         </div>
                     </div>
 
@@ -683,7 +710,7 @@
 
                         <!-- Right: Speed Selector Pills -->
                         <div class="player-control-group speed-group">
-                            <span class="speed-label">Tezlik:</span>
+                            <span class="speed-label" data-i18n="player_speed">Tezlik:</span>
                             <div class="speed-pill-selector">
                                 <button type="button" class="speed-pill" data-rate="0.75">0.75x</button>
                                 <button type="button" class="speed-pill active" data-rate="1">1.0x</button>
@@ -734,7 +761,7 @@
                                 </div>
 
                                 <div class="breadcrumb-nav" id="explorerBreadcrumbs">
-                                    <span class="breadcrumb-item active" data-path="">📁 root (monitor)</span>
+                                    <span class="breadcrumb-item active" data-path=""><svg class="isax isax-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/></svg> root (monitor)</span>
                                 </div>
                             </div>
 
@@ -746,7 +773,7 @@
                                         <line x1="16.5" y1="16.5" x2="21.5" y2="21.5" stroke-width="2.8"/>
                                     </svg>
                                 </span>
-                                <input type="text" id="explorerSearchInput" placeholder="Raqam yoki fayl nomi bo'yicha qidirish...">
+                                <input type="text" id="explorerSearchInput" data-i18n-placeholder="audio_explorer_search" placeholder="Raqam yoki fayl nomi bo'yicha qidirish...">
                             </div>
                         </div>
 
@@ -760,12 +787,12 @@
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th class="cell-left">Fayl Nomi</th>
-                                        <th>Turi</th>
-                                        <th>Hajmi</th>
-                                        <th>Davomiyligi</th>
-                                        <th>Sana / Vaqt</th>
-                                        <th>Amallar</th>
+                                        <th class="cell-left" data-i18n="exp_col_name">Fayl Nomi</th>
+                                        <th data-i18n="exp_col_type">Turi</th>
+                                        <th data-i18n="exp_col_size">Hajmi</th>
+                                        <th data-i18n="exp_col_duration">Davomiyligi</th>
+                                        <th data-i18n="exp_col_datetime">Sana / Vaqt</th>
+                                        <th data-i18n="exp_col_actions">Amallar</th>
                                     </tr>
                                 </thead>
                                 <tbody id="explorerFilesTable">
@@ -788,17 +815,17 @@
                                     <circle cx="12" cy="10" r="3.2"/>
                                     <path d="M6.5 22c0-2.8 2.5-4.8 5.5-4.8s5.5 2 5.5 4.8H6.5z"/>
                                 </svg>
-                                <span>Operatorlar</span>
+                                <span data-i18n="op_section_title">Operatorlar</span>
                             </h3>
                         </div>
 
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <button class="btn-action" id="btnCdrSync" onclick="triggerCdrSync()" title="Asterisk PBX CDR dagi barcha qo'ng'iroqlarni server bazasiga tiklash va yangilash" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 15px; font-size: 12px; font-weight: 500; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.45); color: #c7d2fe; border-radius: 8px;">
-                                <span>⚡</span> Serverdan tiklash
+                                <svg class="isax isax-sm" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#refresh"></use></svg> <span data-i18n="op_card_refresh">Serverdan tiklash</span>
                             </button>
                             <div class="last-sync-badge" id="syncStatusBadge" title="Avtomatik sinxronizatsiya har kuni soat 21:00 da amalga oshiriladi" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-muted);">
                                 <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></span>
-                                <span>Last sync:</span>
+                                <span data-i18n="op_card_last_sync">Last sync:</span>
                                 <strong id="lastSyncTimeText" style="color: #ffffff; font-weight: 600;">21:00</strong>
                             </div>
                         </div>
@@ -813,12 +840,12 @@
                     <div class="panel-header" style="padding-top: 16px; border-top: 1px solid var(--border-color); margin-bottom: 12px; flex-wrap: wrap; gap: 12px;">
                         <div>
                             <h4 style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0;">
-                                🖥️ <span id="operatorSelectedTitle">Agent ma'lumotlari</span>
+                                <svg class="isax isax-sm" style="width: 16px; height: 16px;"><use href="/icons/iconsax/iconsax-sprite.svg#clipboard-text"></use></svg> <span id="operatorSelectedTitle" data-i18n="agent_info_default">Agent ma'lumotlari</span>
                             </h4>
                         </div>
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <select id="tabAgentLogOpSelect" onchange="filterTabAgentLogsByOperator(this.value)" style="background: #0f172a; border: 1px solid rgba(59, 130, 246, 0.4); color: #fff; padding: 6px 14px; border-radius: var(--radius-sm); font-size: 12px; outline: none; cursor: pointer; font-weight: 600;">
-                                <option value="" style="background: #0f172a; color: #fff;">Barcha Operatorlar</option>
+                                <option value="" style="background: #0f172a; color: #fff;" data-i18n="hist_all_operators">Barcha Operatorlar</option>
                             </select>
                         </div>
                     </div>
@@ -830,7 +857,7 @@
 
                 <div class="glass-panel">
                     <div class="panel-header">
-                        <h3 class="panel-title">📊 Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti (3CX Agent)</h3>
+                        <h3 class="panel-title"><svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg> <span data-i18n="chart_operator_title">Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti (3CX Agent)</span></h3>
                     </div>
                     <div class="chart-wrapper">
                         <canvas id="operatorChart"></canvas>
@@ -850,14 +877,14 @@
                                     <path d="M3 3v5h5"/>
                                     <path d="M12 7v5l4 2"/>
                                 </svg>
-                                <span>Qo'ng'iroqlar Jurnali</span>
+                                <span data-i18n="logs_title">Qo'ng'iroqlar Jurnali</span>
                             </h3>
                         </div>
 
                         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                             <!-- Sana qamrovi: Faqat bitta ixcham Barcha kunlar toggle tugmasi -->
                             <button type="button" id="btnHistoryScopeAll" onclick="toggleHistoryScopeAll()" title="Barcha kunlar / butun arxiv bo'yicha qidirishni yoqish/o'chirish" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: rgba(15, 23, 42, 0.8); color: var(--text-muted);">
-                                <span>♾️</span> <span>Barcha kunlar</span>
+                                <span>♾️</span> <span data-i18n="hist_scope_all">Barcha kunlar</span>
                             </button>
 
                             <!-- Source Switch Toggle (Agent vs Server) -->
@@ -872,7 +899,7 @@
                                         <line x1="41" y1="64" x2="35" y2="70" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
                                         <rect x="8" y="73" width="28" height="9" rx="4" transform="rotate(45 22 77.5)"/>
                                     </svg>
-                                    <span>Agent</span>
+                                    <span data-i18n="hist_source_agent">Agent</span>
                                 </button>
                                 <button type="button" id="btnHistorySourceServer" onclick="setHistorySource('server')" style="display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 6px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
                                     <svg width="17" height="17" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
@@ -888,7 +915,7 @@
                                         <circle cx="42" cy="86" r="1.8" fill="currentColor" stroke="none"/>
                                         <rect x="61" y="84.5" width="11" height="3" rx="1.5" fill="currentColor" stroke="none"/>
                                     </svg>
-                                    <span>Server</span>
+                                    <span data-i18n="hist_source_server">Server</span>
                                 </button>
                             </div>
 
@@ -900,29 +927,29 @@
                                         <line x1="16.5" y1="16.5" x2="21.5" y2="21.5" stroke-width="2.8"/>
                                     </svg>
                                 </span>
-                                <input type="text" id="historySearchInput" placeholder="Mijoz raqami, operator..." style="width: 220px;">
+                                <input type="text" id="historySearchInput" placeholder="Mijoz raqami, operator..." data-i18n-placeholder="hist_search_placeholder" style="width: 220px;">
                             </div>
 
                             <!-- History Filter Toolbar -->
                             <div id="historyFilterToolbar" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <!-- Holat filtri -->
                                 <select id="historyFilterStatus" onchange="applyHistoryFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
-                                    <option value="all" style="background: #0f172a;">Barcha holatlar</option>
-                                    <option value="answered" style="background: #0f172a; color: #34d399;">✅ Javob berilgan</option>
-                                    <option value="missed" style="background: #0f172a; color: #f87171;">📵 Javobsiz / Chiqdi</option>
+                                    <option value="all" style="background: #0f172a;" data-i18n="hist_filter_all_status">Barcha holatlar</option>
+                                    <option value="answered" style="background: #0f172a; color: #34d399;" data-i18n="hist_opt_answered">Javob berilgan</option>
+                                    <option value="missed" style="background: #0f172a; color: #f87171;" data-i18n="hist_opt_missed">📵 Javobsiz / Chiqdi</option>
                                 </select>
 
                                 <!-- Yo'nalish filtri -->
                                 <select id="historyFilterDirection" onchange="applyHistoryFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
-                                    <option value="all" style="background: #0f172a;">Barcha yo'nalishlar</option>
-                                    <option value="inbound" style="background: #0f172a; color: #38bdf8;">📥 Kiruvchi</option>
-                                    <option value="outbound" style="background: #0f172a; color: #c084fc;">📤 Chiquvchi</option>
-                                    <option value="transfer" style="background: #0f172a; color: #38bdf8;">🔀 Transfer</option>
+                                    <option value="all" style="background: #0f172a;" data-i18n="hist_filter_all_dir">Barcha yo'nalishlar</option>
+                                    <option value="inbound" style="background: #0f172a; color: #38bdf8;" data-i18n="dir_inbound">Kiruvchi</option>
+                                    <option value="outbound" style="background: #0f172a; color: #c084fc;" data-i18n="dir_outbound">Chiquvchi</option>
+                                    <option value="transfer" style="background: #0f172a; color: #38bdf8;" data-i18n="dir_transfer">Transfer</option>
                                 </select>
 
                                 <!-- Tozalash tugmasi -->
                                 <button id="btnClearHistoryFilters" onclick="resetHistoryFilters()" title="Filtrlarni tozalash" style="display: none; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 5px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                                    <span>✕</span> Tozalash
+                                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg> <span data-i18n="hist_clear_filter">Tozalash</span>
                                 </button>
                             </div>
                         </div>
@@ -935,21 +962,21 @@
                         <table class="data-table">
                             <thead>
                                 <tr id="historyTableHeaderRow">
-                                    <th style="width: 45px;">№</th>
-                                    <th style="width: 108px;">Vaqt</th>
-                                    <th style="width: 180px;">Mijoz Raqami</th>
-                                    <th style="width: 150px;">Operator / Exten</th>
-                                    <th style="width: 130px;">Yo'nalish</th>
-                                    <th style="width: 110px;">Davomiyligi</th>
-                                    <th style="width: 140px;" title="Navbatda kutish vaqti">Navbatda kutish</th>
-                                    <th style="width: 150px;">Holati</th>
-                                    <th style="width: 150px;" id="historyThLast">Kim tugatdi? / Host</th>
-                                    <th style="width: 190px;">Audio / Amal</th>
+                                    <th style="width: 45px;" data-i18n="col_num">№</th>
+                                    <th style="width: 108px;" data-i18n="hist_col_time">Vaqt</th>
+                                    <th style="width: 180px;" data-i18n="hist_col_phone">Mijoz Raqami</th>
+                                    <th style="width: 150px;" data-i18n="hist_col_operator">Operator / Exten</th>
+                                    <th style="width: 130px;" data-i18n="hist_col_direction">Yo'nalish</th>
+                                    <th style="width: 110px;" data-i18n="hist_col_duration">Davomiyligi</th>
+                                    <th style="width: 140px;" title="Navbatda kutish vaqti" data-i18n-title="sort_wait" data-i18n="hist_col_wait">Navbatda kutish</th>
+                                    <th style="width: 150px;" data-i18n="hist_col_status">Holati</th>
+                                    <th style="width: 150px;" id="historyThLast" data-i18n="hist_col_hangup">Kim tugatdi? / Host</th>
+                                    <th style="width: 190px;" data-i18n="hist_col_action">Audio / Amal</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody">
                                 <tr>
-                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Tarix yuklanmoqda...</td>
+                                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;" data-i18n="hist_loading_calls">Tarix yuklanmoqda...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -957,13 +984,13 @@
 
                     <!-- Pagination Controls -->
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding: 0 8px;">
-                        <div style="font-size: 12px; color: var(--text-muted);" id="historyCountInfo">
+                        <div style="font-size: 12px; color: var(--text-muted);" id="historyCountInfo" data-i18n="hist_count_zero">
                             Jami: 0 ta yozuv
                         </div>
                         <div style="display: flex; gap: 8px; align-items: center;" id="historyPaginationControls">
-                            <button class="btn-action" id="btnPrevPage" style="padding: 6px 14px;">⬅ Oldingi</button>
+                            <button class="btn-action" id="btnPrevPage" style="padding: 6px 14px;" data-i18n="hist_prev">⬅ Oldingi</button>
                             <span style="font-size: 12px; font-weight: 600; color: var(--text-main);" id="pageNumberDisplay">Sahifa 1 / 1</span>
-                            <button class="btn-action" id="btnNextPage" style="padding: 6px 14px;">Keyingi ➡</button>
+                            <button class="btn-action" id="btnNextPage" style="padding: 6px 14px;" data-i18n="hist_next">Keyingi ➡</button>
                         </div>
                     </div>
                 </div>
@@ -973,18 +1000,18 @@
         <!-- RIGHT STICKY SIDEBAR (MAXIMIZED FOR REAL-TIME LINES & QUEUE) -->
         <aside class="right-sidebar">
             <div class="sidebar-header">
-                <h2><span>🟢</span> Jonli Monitor</h2>
+                <h2><span>🟢</span> <span data-i18n="live_monitor">Jonli Monitor</span></h2>
             </div>
 
             <div class="sidebar-body">
                 <!-- 1. Queue (Navbatda kutayotganlar) -->
                 <div class="queue-panel" id="queueSection">
                     <div class="queue-panel-head">
-                        <span>👥 NAVBATDA KUTAYOTGANLAR</span>
-                        <span class="badge badge-indigo" id="queueCountBadge">0 ta</span>
+                        <span>👥 <span data-i18n="live_queue_title">NAVBATDA KUTAYOTGANLAR</span></span>
+                        <span class="badge badge-indigo" id="queueCountBadge" data-i18n="queue_zero_count">0 ta</span>
                     </div>
                     <div class="queue-items-list" id="queueItemsList">
-                        <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 4px;">
+                        <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 4px;" data-i18n="live_queue_empty">
                             Hozircha navbatda kutayotganlar yo'q
                         </div>
                     </div>
@@ -993,13 +1020,63 @@
                 <!-- 2. Active Live Conversations (Grouped / Clean) -->
                 <div>
                     <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>FAOL SUHBATLAR (<span id="activeLineCount">0</span>)</span>
-                        <span style="font-size: 11px; color: var(--text-dim);">Liniyalar</span>
+                        <span><span data-i18n="live_active_calls">FAOL SUHBATLAR</span> (<span id="activeLineCount">0</span>)</span>
+                        <span style="font-size: 11px; color: var(--text-dim);" data-i18n="live_lines">Liniyalar</span>
                     </div>
 
                     <div id="activeChannelsContainer" style="display: flex; flex-direction: column; gap: 6px; overflow-x: hidden;">
-                        <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">
+                        <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;" data-i18n="live_active_empty">
                             Hozircha faol suhbatlar yo'q
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Bog'lanishi kerak bo'lgan mijozlar (Callbacks / Qayta aloqa) -->
+                <div class="callback-section" style="margin-top: 4px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                            <span data-i18n="live_callbacks_title">BOG'LANISHI KERAK</span>
+                            (<span id="callbackCountBadge">0</span>)
+                        </span>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <!-- Filter pills: Bugun / Hammasi -->
+                            <div style="display: inline-flex; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 1px; border: 1px solid rgba(255,255,255,0.08);">
+                                <button type="button" id="adminCbFilterToday" onclick="switchAdminCallbackDateFilter('today')" style="background: var(--primary); color: #fff; border: none; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                    <svg class="isax isax-calendar" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-calendar"></use></svg> Bugun
+                                </button>
+                                <button type="button" id="adminCbFilterAll" onclick="switchAdminCallbackDateFilter('all')" style="background: transparent; color: var(--text-dim); border: none; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                    <svg class="isax isax-global" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg> Hammasi
+                                </button>
+                            </div>
+                            <button type="button" id="btnClearAllCallbacks" onclick="clearAllCallbacks()" title="Barchasini tozalash (Clear all)" data-i18n-title="callback_clear_all_title" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all 0.2s; display: none; align-items: center; justify-content: center;">
+                                <svg class="isax isax-trash" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
+                            </button>
+                            <button type="button" id="btnSyncCallbacks" onclick="syncCallbacksManually()" title="Qayta tekshirish" data-i18n-title="callback_refresh_title" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;">
+                                <svg class="isax isax-refresh" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Category Tabs: Kutilmoqda / Bog'lanib bo'lmadi / Gaplashildi -->
+                    <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                        <button type="button" id="adminCbTabPending" onclick="switchAdminCallbackTab('pending')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg> Kutilmoqda</span>
+                            <span id="adminCbPendingCount" style="background: rgba(245, 158, 11, 0.3); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
+                        </button>
+                        <button type="button" id="adminCbTabUnreachable" onclick="switchAdminCallbackTab('unreachable')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg> Ulanilmadi</span>
+                            <span id="adminCbUnreachableCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
+                        </button>
+                        <button type="button" id="adminCbTabResolved" onclick="switchAdminCallbackTab('resolved')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg> Gaplashildi</span>
+                            <span id="adminCbResolvedCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
+                        </button>
+                    </div>
+
+                    <div id="callbackListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                        <div class="empty-callbacks-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;" data-i18n="live_callbacks_empty">
+                            Bog'lanishi kerak bo'lgan mijozlar yo'q
                         </div>
                     </div>
                 </div>
@@ -1010,15 +1087,117 @@
                 <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
                     <div class="status-pill online" id="amiStatusBadge" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 10px;">
                         <span class="status-dot"></span>
-                        <span id="amiStatusText">AMI: Ulangan</span>
+                        <span id="amiStatusText" data-i18n="live_ami_connected">AMI: Ulangan</span>
                     </div>
                     <div class="status-pill" id="sftpStatusBadge" style="flex: 1; justify-content: center; font-size: 11px; padding: 6px 10px;">
                         <span class="status-dot"></span>
-                        <span id="sftpStatusText">SFTP: Tekshirilmoqda</span>
+                        <span id="sftpStatusText" data-i18n="live_sftp_checking">SFTP: Tekshirilmoqda</span>
                     </div>
+                </div>
+                <!-- QUEUE INFO: Har bir operatorning Asterisk callsTaken hisobi -->
+                <div>
+                    <button id="btnQueueInfo" onclick="openQueueInfoModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 12px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #a5b4fc; cursor: pointer; transition: all 0.2s ease;" title="Asterisk navbatidagi har bir operatorning qabul qilgan qo'ng'iroqlari (fewestcalls chart)">
+                        <svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg>
+                        <span>Queue Info</span>
+                        <span id="queueInfoSummary" style="background: rgba(99, 102, 241, 0.3); color: #c7d2fe; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: auto;">—</span>
+                    </button>
                 </div>
             </div>
         </aside>
+    </div>
+
+    <!-- QUEUE INFO MODAL (CENTER OVERLAY - VERTICAL BARS + RAM +/-) -->
+    <div id="queueInfoModal" onclick="if(event.target === this) closeQueueInfoModal();" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.85); backdrop-filter: blur(14px); z-index: 1200; align-items: center; justify-content: center; padding: 16px;">
+        <div style="background: linear-gradient(145deg, #0f172a, #1e1b4b 65%, #0f172a); border: 1px solid rgba(99, 102, 241, 0.45); border-radius: 20px; width: 100%; max-width: 1240px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.85), 0 0 50px rgba(99, 102, 241, 0.25); overflow: hidden;">
+            
+            <!-- Header -->
+            <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, 0.7);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                        <svg style="width: 24px; height: 24px;" class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 17px; font-weight: 800; color: #f8fafc; margin: 0; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px;">
+                            <span>Navbat Hisobi (Asterisk RAM — fewestcalls)</span>
+                            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); font-size: 10px; font-weight: 700; color: #34d399;">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                                JONLI
+                            </span>
+                        </h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 2px 0 0 0;">
+                            Asterisk navbat strategiyasi: yangi mijoz eng kam <b>callsTaken</b> soniga ega bo'sh operatorga yo'naltiriladi.
+                        </p>
+                    </div>
+                </div>
+                <button onclick="closeQueueInfoModal()" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'; this.style.color='#f87171'" onmouseout="this.style.background='rgba(255, 255, 255, 0.06)'; this.style.color='#94a3b8'"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
+            </div>
+
+            <!-- Group Switchers & Status Filter Bar -->
+            <div style="padding: 10px 24px; background: rgba(30, 41, 59, 0.55); border-bottom: 1px solid rgba(255, 255, 255, 0.06); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 11px;">
+                
+                <!-- 1. Operator Guruhlari (100-199 / 200+ / Hammasi) -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #94a3b8; font-weight: 700;">Guruh:</span>
+                    <div style="display: flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.7); padding: 3px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                        <button id="btnQueueGroupMain" onclick="setQueueOperatorGroup('main')" style="padding: 5px 12px; border-radius: 7px; border: none; background: #6366f1; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;">
+                            <span>🏢 100–199 Asosiy</span>
+                            <span id="queueGroupCountMain" style="background: rgba(255, 255, 255, 0.2); padding: 1px 6px; border-radius: 8px; font-size: 10px;">0</span>
+                        </button>
+                        <button id="btnQueueGroupSec" onclick="setQueueOperatorGroup('secondary')" style="padding: 5px 12px; border-radius: 7px; border: none; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;">
+                            <span>🏥 200+ Zangiota 42</span>
+                            <span id="queueGroupCountSec" style="background: rgba(255, 255, 255, 0.1); padding: 1px 6px; border-radius: 8px; font-size: 10px;">0</span>
+                        </button>
+                        <button id="btnQueueGroupAll" onclick="setQueueOperatorGroup('all')" style="padding: 5px 12px; border-radius: 7px; border: none; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;">
+                            <span>🌐 Barchasi</span>
+                            <span id="queueGroupCountAll" style="background: rgba(255, 255, 255, 0.1); padding: 1px 6px; border-radius: 8px; font-size: 10px;">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Status Filtri (Hammasi / Faqat Faol) -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #94a3b8; font-weight: 700;">Holat:</span>
+                    <div style="display: flex; align-items: center; gap: 4px; background: rgba(15, 23, 42, 0.7); padding: 3px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08);">
+                        <button id="btnQueueFilterAll" onclick="setQueueInfoFilter('all')" style="padding: 4px 10px; border-radius: 7px; border: none; background: rgba(99, 102, 241, 0.3); color: #e0e7ff; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s;">
+                            Hammasi
+                        </button>
+                        <button id="btnQueueFilterActive" onclick="setQueueInfoFilter('active')" style="padding: 4px 10px; border-radius: 7px; border: none; background: transparent; color: #94a3b8; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s;">
+                            Faqat Faollar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. Legend (Ranglar tushuntirishi) -->
+                <div style="display: flex; align-items: center; gap: 12px; color: #cbd5e1; font-size: 10px;">
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #10b981;"></span> Bo'sh</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #38bdf8;"></span> Suhbatda</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #f59e0b;"></span> Chalinmoqda</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #8b5cf6;"></span> Tanaffus</span>
+                    <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #64748b;"></span> Offline</span>
+                </div>
+
+            </div>
+
+            <!-- Sub-header Stats -->
+            <div id="queueModalQuickStats" style="padding: 8px 24px; background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid rgba(255, 255, 255, 0.04); display: flex; align-items: center; gap: 16px; font-size: 11px; color: #94a3b8; font-weight: 600;">
+                <!-- Dinamik xulosa ma'lumotlar -->
+            </div>
+
+            <!-- Vertical Bars Area (Silliq gorizontal scroll, chap tomondan boshlanadi) -->
+            <div id="queueModalBarsContainer" style="padding: 24px 28px; overflow-x: auto; overflow-y: hidden; display: flex; align-items: flex-end; justify-content: flex-start; gap: 14px; min-height: 380px; position: relative; background: radial-gradient(circle at 50% 100%, rgba(99, 102, 241, 0.08), transparent 70%);">
+                <!-- Dinamik vertikal barlar JS tomonidan chiziladi -->
+            </div>
+
+            <!-- Footer Help & Action -->
+            <div style="padding: 12px 24px; border-top: 1px solid rgba(255, 255, 255, 0.06); background: rgba(15, 23, 42, 0.85); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #94a3b8;">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 14px;">💡</span>
+                    <span>Operator kartasidagi <b>+</b> tugmasini bosib uning Asterisk RAM dagi <b>callsTaken</b> soniga <b>+1</b> qo'shishingiz mumkin.</span>
+                </span>
+                <button onclick="closeQueueInfoModal()" style="padding: 6px 18px; border-radius: 8px; background: rgba(99, 102, 241, 0.25); border: 1px solid rgba(99, 102, 241, 0.45); color: #e0e7ff; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(99, 102, 241, 0.4)'" onmouseout="this.style.background='rgba(99, 102, 241, 0.25)'">Yopish</button>
+            </div>
+
+        </div>
     </div>
 
     <!-- CALL TRANSFER MODAL (POPOVER) -->
@@ -1026,26 +1205,26 @@
         <div style="background: var(--bg-secondary); border: 1px solid var(--border-glow); border-radius: var(--radius-lg); padding: 24px; width: 420px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                 <h3 style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                    <span>🔄</span> Qo'ng'iroqni Yo'naltirish (Transfer)
+                    <svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21"/><path d="M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/></svg> <span data-i18n="dyn_transfer_call">Qo'ng'iroqni Yo'naltirish (Transfer)</span>
                 </h3>
-                <button id="btnCloseTransferModal" style="background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer;">✕</button>
+                <button id="btnCloseTransferModal" style="background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; display: flex; align-items: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-                Mijoz <b id="transferCallerDisplay" style="color: #fff;"></b> bilan suhbatni qaysi onlayn operatorga o'tkazmoqchisiz?
+                <span data-i18n="transfer_prompt_before">Mijoz</span> <b id="transferCallerDisplay" style="color: #fff;"></b> <span data-i18n="transfer_prompt_after">bilan suhbatni qaysi onlayn operatorga o'tkazmoqchisiz?</span>
             </p>
 
             <div style="margin-bottom: 18px;">
-                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Tayyor Operatorni Tanlang:</label>
+                <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;" data-i18n="transfer_select_label">Tayyor Operatorni Tanlang:</label>
                 <select id="transferOperatorSelect" style="width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; outline: none;">
                     <!-- Populated dynamically with ready operators -->
                 </select>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                <button class="btn-action" id="btnCancelTransfer" style="padding: 8px 16px;">Bekor qilish</button>
+                <button class="btn-action" id="btnCancelTransfer" style="padding: 8px 16px;" data-i18n="export_btn_cancel">Bekor qilish</button>
                 <button class="btn-action" id="btnConfirmTransfer" style="background: var(--primary); border-color: var(--primary); padding: 8px 18px; font-weight: 600;">
-                    ✓ O'tkazish
+                    <span data-i18n="transfer_confirm">✓ O'tkazish</span>
                 </button>
             </div>
         </div>
@@ -1058,13 +1237,13 @@
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8);">
                 <div>
                     <h3 id="detailModalTitle" style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                        📊 Qo'ng'iroqlar Tafsiloti
+                        <svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg> <span data-i18n="detail_modal_title_default">Qo'ng'iroqlar Tafsiloti</span>
                     </h3>
                     <p id="detailModalSubtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                        Bugungi kun bo'yicha batafsil yozuvlar ro'yxati
+                        <span data-i18n="detail_modal_subtitle_default">Bugungi kun bo'yicha batafsil yozuvlar ro'yxati</span>
                     </p>
                 </div>
-                <button id="btnCloseDetailModal" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button id="btnCloseDetailModal" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <!-- Optional Operator Summary Header -->
@@ -1075,17 +1254,17 @@
             <!-- Modal Filter & Pagination Toolbar -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); gap: 12px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: var(--text-muted);">Qidirish:</span>
-                    <input type="text" id="detailSearchInput" oninput="handleDetailSearch(this.value)" placeholder="Raqam yoki operator..." style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: #fff; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none; width: 180px;">
+                    <span style="font-size: 12px; color: var(--text-muted);" data-i18n="detail_search">Qidirish:</span>
+                    <input type="text" id="detailSearchInput" oninput="handleDetailSearch(this.value)" placeholder="Raqam yoki operator..." data-i18n-placeholder="detail_search_placeholder" style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); color: #fff; padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none; width: 180px;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 12px; color: var(--text-muted);">Sahifada:</span>
+                        <span style="font-size: 12px; color: var(--text-muted);" data-i18n="detail_per_page">Sahifada:</span>
                         <select id="detailLimitSelect" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 4px 8px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
-                            <option value="50" selected>50 ta</option>
-                            <option value="100">100 ta</option>
-                            <option value="200">200 ta</option>
-                            <option value="500">500 ta (Barchasi)</option>
+                            <option value="50" selected data-i18n="opt_50">50 ta</option>
+                            <option value="100" data-i18n="opt_100">100 ta</option>
+                            <option value="200" data-i18n="opt_200">200 ta</option>
+                            <option value="500" data-i18n="opt_500">500 ta (Barchasi)</option>
                         </select>
                     </div>
                     <!-- Pagination Controls -->
@@ -1104,7 +1283,7 @@
 
             <!-- Modal Footer: nechta yozuv yuklanganini ko'rsatuvchi panel -->
             <div style="display: flex; justify-content: flex-end; align-items: center; padding: 8px 24px; background: rgba(15, 23, 42, 0.6); border-top: 1px solid var(--border-color); flex-shrink: 0;">
-                <span id="detailCountBadge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Yuklanmoqda...</span>
+                <span id="detailCountBadge" style="font-size: 12px; color: var(--text-muted); font-weight: 600;" data-i18n="detail_loading">Yuklanmoqda...</span>
             </div>
         </div>
     </div>
@@ -1116,31 +1295,30 @@
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.85);">
                 <div>
                     <h3 style="font-size: 17px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                        🖥️ 3CX Desktop Agent — Qo'ng'iroqlar Jurnali
+                        <span data-i18n="logs_modal_title">🖥️ 3CX Desktop Agent — Qo'ng'iroqlar Jurnali</span>
                     </h3>
                     <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                        Operatorlar kompyuteridagi 3CX dasturi orqali to'plangan real qo'ng'iroqlar tarixi
+                        <span data-i18n="logs_modal_sub">Operatorlar kompyuteridagi 3CX dasturi orqali to'plangan real qo'ng'iroqlar tarixi</span>
                     </p>
                 </div>
-                <button onclick="closeAgentLogsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button onclick="closeAgentLogsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <!-- Filter Toolbar -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); gap: 12px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 12px; color: var(--text-muted);">Operator:</span>
+                    <span style="font-size: 12px; color: var(--text-muted);" data-i18n="logs_operator_label">Operator:</span>
                     <select id="agentLogsOperatorFilter" onchange="loadAgentLogs(1)" style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); color: #fff; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
-                        <option value="">Barcha Operatorlar</option>
+                        <option value="" data-i18n="hist_all_operators">Barcha Operatorlar</option>
                         <option value="101">Oybek (101)</option>
                         <option value="103">Feruza (103)</option>
-                        <option value="106">Gulchehra (106)</option>
+                        <option value="106">Ubaydullayeva Gulchehra (106)</option>
                         <option value="111">Nozima (111)</option>
                         <option value="114">Maxmudbek (114)</option>
-                        <option value="116">Ibrohim (116)</option>
                         <option value="119">Muattar (119)</option>
                         <option value="120">Navruzoy (120)</option>
                     </select>
-                    <button class="btn-action" onclick="loadAgentLogs(1)" style="padding: 4px 10px; font-size: 12px;">🔄 Yangilash</button>
+                    <button class="btn-action" onclick="loadAgentLogs(1)" style="padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;"><svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21"/><path d="M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/></svg> <span data-i18n="srv_refresh_btn">Yangilash</span></button>
                 </div>
 
                 <!-- Pagination -->
@@ -1158,8 +1336,8 @@
 
             <!-- Footer -->
             <div style="padding: 12px 24px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9); display: flex; justify-content: space-between; align-items: center;">
-                <span id="agentLogsTotalCount" style="font-size: 12px; color: var(--text-muted);">Jami: 0 ta hodisa</span>
-                <button class="btn-action" onclick="closeAgentLogsModal()" style="padding: 6px 16px;">Yopish</button>
+                <span id="agentLogsTotalCount" style="font-size: 12px; color: var(--text-muted);" data-i18n="logs_total_events_zero">Jami: 0 ta hodisa</span>
+                <button class="btn-action" onclick="closeAgentLogsModal()" style="padding: 6px 16px;" data-i18n="srv_close_btn">Yopish</button>
             </div>
         </div>
     </div>
@@ -1171,13 +1349,13 @@
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9);">
                 <div>
                     <h3 style="font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                        ⚙️ Sozlamalar: 3CX Desktop Agent & OTA Update
+                        <span data-i18n="set_modal_title">⚙️ Sozlamalar: 3CX Desktop Agent & OTA Update</span>
                     </h3>
                     <p style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
-                        Barcha operator kompyuterlaridagi agentlar monitoringi va markaziy versiya yangilanishi
+                        <span data-i18n="set_modal_sub">Barcha operator kompyuterlaridagi agentlar monitoringi va markaziy versiya yangilanishi</span>
                     </p>
                 </div>
-                <button onclick="closeAgentSettingsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button onclick="closeAgentSettingsModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <!-- Body -->
@@ -1187,33 +1365,33 @@
                     <!-- Card 1: Server Status -->
                     <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
                         <h4 style="font-size: 14px; font-weight: 600; color: #93c5fd; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                            <span>📦</span> Serverdagi Rasmiy Versiya
+                            <span>📦</span> <span data-i18n="set_official_version">Serverdagi Rasmiy Versiya</span>
                         </h4>
                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                            <span style="font-size: 12px; color: var(--text-muted);">Hozirgi Versiya:</span>
+                            <span style="font-size: 12px; color: var(--text-muted);" data-i18n="set_current_version">Hozirgi Versiya:</span>
                             <span id="settingsCurrentVersionBadge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px;">v1.0.0</span>
                         </div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">
-                            Yuklab olish manzili: <code id="settingsUpdateUrl" style="color: #60a5fa; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">/downloads/agent.exe</code>
+                            <span data-i18n="set_download_url">Yuklab olish manzili:</span> <code id="settingsUpdateUrl" style="color: #60a5fa; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">/downloads/agent.exe</code>
                         </div>
                         <div style="font-size: 12px; color: var(--text-muted);">
-                            Holati: <span style="color: #10b981;">● Avto-yangilanish faol (Over-the-Air)</span>
+                            <span data-i18n="set_status_label">Holati:</span> <span style="color: #10b981;" data-i18n="set_auto_update_on">● Avto-yangilanish faol (Over-the-Air)</span>
                         </div>
                     </div>
 
                     <!-- Card 2: Release New Version Form -->
                     <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px;">
                         <h4 style="font-size: 14px; font-weight: 600; color: #a78bfa; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                            <span>🚀</span> Yangi Versiya E'lon Qilish
+                            <span>🚀</span> <span data-i18n="set_publish_version">Yangi Versiya E'lon Qilish</span>
                         </h4>
                         <div style="display: flex; gap: 10px; margin-bottom: 8px;">
-                            <input type="text" id="newReleaseVersionInput" placeholder="Versiya (masalan: 1.0.1)" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: #fff; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
+                            <input type="text" id="newReleaseVersionInput" placeholder="Versiya (masalan: 1.0.1)" data-i18n-placeholder="set_new_version_placeholder" style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-color); color: #fff; padding: 7px 12px; border-radius: var(--radius-sm); font-size: 12px; outline: none;">
                             <button onclick="submitNewRelease()" class="btn-primary" style="padding: 7px 16px; font-size: 12px; background: linear-gradient(135deg, #3b82f6, #6366f1); border: none; border-radius: var(--radius-sm); color: #fff; cursor: pointer; font-weight: 600;">
-                                E'lon Qilish
+                                <span data-i18n="set_release_btn">E'lon Qilish</span>
                             </button>
                         </div>
                         <p style="font-size: 11px; color: var(--text-dim);">
-                            * Versiya e'lon qilinganda, barcha onlayn operatorlar agenti fon rejimida avtomatik yangilanadi.
+                            <span data-i18n="set_release_note">* Versiya e'lon qilinganda, barcha onlayn operatorlar agenti fon rejimida avtomatik yangilanadi.</span>
                         </p>
                     </div>
                 </div>
@@ -1222,12 +1400,12 @@
                 <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <h4 style="font-size: 13px; font-weight: 600; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-                            <span>📡</span> Jonli OTA Yangilanish Loglari (Kim yangilanmoqda?)
+                            <span>📡</span> <span data-i18n="set_ota_logs_title">Jonli OTA Yangilanish Loglari (Kim yangilanmoqda?)</span>
                         </h4>
-                        <span id="otaLogStatus" style="font-size: 11px; color: #10b981;">● Jonli kuzatuv faol</span>
+                        <span id="otaLogStatus" style="font-size: 11px; color: #10b981;" data-i18n="set_ota_live">● Jonli kuzatuv faol</span>
                     </div>
                     <div id="otaLogsContainer" style="max-height: 140px; overflow-y: auto; font-family: monospace; font-size: 11px; background: rgba(0, 0, 0, 0.4); padding: 10px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 4px;">
-                        <div style="color: var(--text-dim); text-align: center; padding: 10px;">Hozircha yangilanish loglari yo'q. Yangi versiya e'lon qilinganda bu yerda real-vaqtda ko'rinadi.</div>
+                        <div style="color: var(--text-dim); text-align: center; padding: 10px;" data-i18n="set_ota_empty">Hozircha yangilanish loglari yo'q. Yangi versiya e'lon qilinganda bu yerda real-vaqtda ko'rinadi.</div>
                     </div>
                 </div>
 
@@ -1235,22 +1413,22 @@
                 <div style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;">
                     <div style="padding: 12px 16px; background: rgba(15, 23, 42, 0.6); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
                         <h4 style="font-size: 14px; font-weight: 600; color: #fff;">
-                            👥 Operatorlar Agent Holati va Versiyalari
+                            <span data-i18n="set_agents_status_title">👥 Operatorlar Agent Holati va Versiyalari</span>
                         </h4>
                         <button onclick="loadAgentSettings()" class="btn-action" style="padding: 4px 12px; font-size: 12px;">
-                            🔄 Yangilash
+                            <svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21"/><path d="M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/></svg> <span data-i18n="srv_refresh_btn">Yangilash</span>
                         </button>
                     </div>
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
                             <thead>
                                 <tr style="background: rgba(15, 23, 42, 0.8); color: var(--text-muted); border-bottom: 1px solid var(--border-color);">
-                                    <th style="padding: 10px 14px;">Operator</th>
-                                    <th style="padding: 10px 14px;">Exten / IP</th>
-                                    <th style="padding: 10px 14px;">Desktop Agent</th>
-                                    <th style="padding: 10px 14px;">Kompyuter (Host)</th>
-                                    <th style="padding: 10px 14px;">Versiya</th>
-                                    <th style="padding: 10px 14px;">Holati</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_operator">Operator</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_exten_ip">Exten / IP</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_agent">Desktop Agent</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_host">Kompyuter (Host)</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_version">Versiya</th>
+                                    <th style="padding: 10px 14px;" data-i18n="set_col_status">Holati</th>
                                 </tr>
                             </thead>
                             <tbody id="agentSettingsTableBody">
@@ -1263,7 +1441,7 @@
 
             <!-- Footer -->
             <div style="padding: 14px 24px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.9); display: flex; justify-content: flex-end;">
-                <button class="btn-action" onclick="closeAgentSettingsModal()" style="padding: 7px 20px;">Yopish</button>
+                <button class="btn-action" onclick="closeAgentSettingsModal()" style="padding: 7px 20px;" data-i18n="srv_close_btn">Yopish</button>
             </div>
         </div>
     </div>
@@ -1282,23 +1460,23 @@
                         </svg>
                     </div>
                     <div>
-                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Hisobotni Export Qilish</h3>
-                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Excel (XLSX) formatida sana oralig'i bo'yicha</p>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;" data-i18n="export_modal_heading">Hisobotni Export Qilish</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;" data-i18n="export_modal_subheading">Excel (XLSX) formatida sana oralig'i bo'yicha</p>
                     </div>
                 </div>
-                <button type="button" onclick="closeExportModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <button type="button" onclick="closeExportModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
             </div>
 
             <!-- Modal Body -->
             <div style="padding: 22px 24px;">
                 <!-- Presets buttons -->
                 <div style="margin-bottom: 18px;">
-                    <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500;">⚡ Tezkor sana oralig'i:</label>
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 8px; font-weight: 500;" data-i18n="export_quick_range"><svg class="isax isax-flash" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg> Tezkor sana oralig'i:</label>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button type="button" class="btn-action" onclick="setExportPreset('today')" style="font-size: 12px; padding: 5px 12px;">Bugun</button>
-                        <button type="button" class="btn-action" onclick="setExportPreset('last7')" style="font-size: 12px; padding: 5px 12px;">Oxirgi 7 kun</button>
-                        <button type="button" class="btn-action" onclick="setExportPreset('thisMonth')" style="font-size: 12px; padding: 5px 12px;">Shu oy</button>
-                        <button type="button" class="btn-action" onclick="setExportPreset('prevMonth')" style="font-size: 12px; padding: 5px 12px;">O'tgan oy</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('today')" style="font-size: 12px; padding: 5px 12px;" data-i18n="export_preset_today">Bugun</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('last7')" style="font-size: 12px; padding: 5px 12px;" data-i18n="export_preset_last7">Oxirgi 7 kun</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('thisMonth')" style="font-size: 12px; padding: 5px 12px;" data-i18n="export_preset_this_month">Shu oy</button>
+                        <button type="button" class="btn-action" onclick="setExportPreset('prevMonth')" style="font-size: 12px; padding: 5px 12px;" data-i18n="export_preset_prev_month">O'tgan oy</button>
                     </div>
                 </div>
 
@@ -1306,7 +1484,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
                     <div>
                         <label for="exportStartDate" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;">
-                            📅 Boshlanish sanasi (Kun.Oy.Yil):
+                            <span data-i18n="export_start_date_label">📅 Boshlanish sanasi (Kun.Oy.Yil):</span>
                         </label>
                         <div class="custom-date-box" onclick="triggerExportDatePicker('exportStartDate')" style="position: relative; width: 100%; cursor: pointer;">
                             <div id="exportStartDateBox" style="width: 100%; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(59, 130, 246, 0.45); color: #fff; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; transition: all 0.2s ease;">
@@ -1318,7 +1496,7 @@
                     </div>
                     <div>
                         <label for="exportEndDate" style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500;">
-                            📅 Tugash sanasi (Kun.Oy.Yil):
+                            <span data-i18n="export_end_date_label">📅 Tugash sanasi (Kun.Oy.Yil):</span>
                         </label>
                         <div class="custom-date-box" onclick="triggerExportDatePicker('exportEndDate')" style="position: relative; width: 100%; cursor: pointer;">
                             <div id="exportEndDateBox" style="width: 100%; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(59, 130, 246, 0.45); color: #fff; padding: 9px 12px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; transition: all 0.2s ease;">
@@ -1335,12 +1513,12 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span id="exportCalMonthTitle" style="font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.2px;">Sentyabr 2026</span>
                         <div style="display: flex; gap: 4px;">
-                            <button type="button" class="cal-nav-btn" onclick="navExportCal(-1, event)" style="width: 26px; height: 26px; font-size: 11px; padding: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; cursor: pointer;" title="Oldingi oy">◀</button>
-                            <button type="button" class="cal-nav-btn" onclick="navExportCal(1, event)" style="width: 26px; height: 26px; font-size: 11px; padding: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; cursor: pointer;" title="Keyingi oy">▶</button>
+                            <button type="button" class="cal-nav-btn" onclick="navExportCal(-1, event)" style="width: 26px; height: 26px; font-size: 11px; padding: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; cursor: pointer;" title="Oldingi oy" data-i18n-title="cal_prev_month">◀</button>
+                            <button type="button" class="cal-nav-btn" onclick="navExportCal(1, event)" style="width: 26px; height: 26px; font-size: 11px; padding: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; cursor: pointer;" title="Keyingi oy" data-i18n-title="cal_next_month">▶</button>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px;">
-                        <div>Du</div><div>Se</div><div>Ch</div><div>Pa</div><div>Ju</div><div style="color: #f87171;">Sh</div><div style="color: #f87171;">Ya</div>
+                        <div data-i18n="cal_week_mon">Du</div><div data-i18n="cal_week_tue">Se</div><div data-i18n="cal_week_wed">Ch</div><div data-i18n="cal_week_thu">Pa</div><div data-i18n="cal_week_fri">Ju</div><div style="color: #f87171;" data-i18n="cal_week_sat">Sh</div><div style="color: #f87171;" data-i18n="cal_week_sun">Ya</div>
                     </div>
                     <div id="exportCalDaysGrid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center;">
                         <!-- Days rendered dynamically -->
@@ -1349,13 +1527,13 @@
 
                 <!-- Range Info Badge -->
                 <div id="exportRangeInfo" style="padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 8px; margin-bottom: 18px;">
-                    <span style="font-size: 15px;">📊</span>
-                    <span id="exportRangeText">Tanlangan oraliq: Hisoblanmoqda...</span>
+                    <svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg>
+                    <span id="exportRangeText" data-i18n="export_range_computing">Tanlangan oraliq: Hisoblanmoqda...</span>
                 </div>
 
                 <!-- Action Buttons -->
                 <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                    <button type="button" class="btn-action" onclick="closeExportModal()" style="padding: 9px 18px; font-size: 13px;">
+                    <button type="button" class="btn-action" onclick="closeExportModal()" style="padding: 9px 18px; font-size: 13px;" data-i18n="export_btn_cancel">
                         Bekor qilish
                     </button>
                     <button type="button" id="btnSubmitExport" onclick="submitRangeExport()" class="btn-action" style="padding: 9px 22px; font-size: 13px; font-weight: 600; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); cursor: pointer;">
@@ -1366,9 +1544,116 @@
                                 <line x1="12" y1="2" x2="12" y2="15"></line>
                             </svg>
                         </span>
-                        <span id="exportBtnText">Excel hisobotni yuklash</span>
+                        <span id="exportBtnText" data-i18n="export_download_btn">Excel hisobotni yuklash</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXPORT CHOICE MODAL (3 ta tugmali hisobot turini tanlash) -->
+    <div id="exportChoiceModal" onclick="if(event.target === this) closeExportChoiceModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1060; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 500px; max-width: 95vw; background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.45); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(59, 130, 246, 0.2)); border: 1px solid rgba(99, 102, 241, 0.4); display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                        📑
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;" data-i18n="export_choice_title">Qaysi hisobotni yuklab olmoqchisiz?</h3>
+                        <p id="exportChoiceSubtitle" style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;" data-i18n="export_range_computing">Tanlangan oraliq: Hisoblanmoqda...</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeExportChoiceModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
+            </div>
+
+            <!-- Body with Language Switcher & 3 Action Buttons -->
+            <div style="padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- Til tanlash bloki (Language Switcher) -->
+                <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 9px;">
+                        <span style="font-size: 18px; filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.5));">🌐</span>
+                        <div>
+                            <div style="font-size: 13px; font-weight: 700; color: #f8fafc;" data-i18n="export_lang_label">Hisobot tili:</div>
+                            <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;" id="exportLangHint">Excel fayli qaysi tilda shakllantirilsin?</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 9px; padding: 3px; gap: 4px;">
+                        <button type="button" id="btnExportLangUz" onclick="setExportLanguage('uz')" class="export-lang-btn active" style="padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: none; background: #3b82f6; color: #fff; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);">
+                            🇺🇿 O'zbekcha
+                        </button>
+                        <button type="button" id="btnExportLangRu" onclick="setExportLanguage('ru')" class="export-lang-btn" style="padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: none; background: transparent; color: #94a3b8;">
+                            🇷🇺 Русский
+                        </button>
+                    </div>
+                </div>
+                <!-- 1. Umumiy hisobot (Barchasi) -->
+                <button type="button" class="export-choice-btn" id="btnExportChoiceAll" onclick="executeExportDownload('all')">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.2)); border: 1px solid rgba(16, 185, 129, 0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                            🌐
+                        </div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <span data-i18n="export_choice_all">Umumiy hisobot</span>
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(16, 185, 129, 0.25); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);" data-i18n="export_opt_all_badge">BARCHASI</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                                <span data-i18n="export_opt_all_desc">Barcha operatorlar (100–199 va 200+) bitta umumiy jadvalda</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="choice-arrow" style="font-size: 20px; color: var(--text-dim); transition: transform 0.2s ease; display: flex; align-items: center;"><svg class="isax isax-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"><path d="M8.91 19.92L15.43 13.4C16.2 12.63 16.2 11.37 15.43 10.6L8.91 4.08"/></svg></div>
+                </button>
+
+                <!-- 2. Asosiy operatorlar (100-199) -->
+                <button type="button" class="export-choice-btn" id="btnExportChoiceMain" onclick="executeExportDownload('main')">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(3, 105, 161, 0.2)); border: 1px solid rgba(56, 189, 248, 0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                            🔵
+                        </div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <span data-i18n="export_choice_main">Asosiy operatorlar</span>
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.25); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.4);">100–199</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                                <span data-i18n="export_opt_main_desc">Faqat 100 dan 199 gacha bo'lgan asosiy operatorlar hisoboti</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="choice-arrow" style="font-size: 20px; color: var(--text-dim); transition: transform 0.2s ease; display: flex; align-items: center;"><svg class="isax isax-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"><path d="M8.91 19.92L15.43 13.4C16.2 12.63 16.2 11.37 15.43 10.6L8.91 4.08"/></svg></div>
+                </button>
+
+                <!-- 3. Zangiota 42 operatorlari (200+) -->
+                <button type="button" class="export-choice-btn" id="btnExportChoiceSec" onclick="executeExportDownload('secondary')">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(126, 34, 206, 0.2)); border: 1px solid rgba(168, 85, 247, 0.5); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;">
+                            🟣
+                        </div>
+                        <div>
+                            <div style="font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                                <span data-i18n="export_choice_sec">Zangiota 42 operatorlari</span>
+                                <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: rgba(168, 85, 247, 0.25); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4);">200+</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+                                <span data-i18n="export_opt_sec_desc">Faqat 200 va undan yuqori (Zangiota 42) operatorlar hisoboti</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="choice-arrow" style="font-size: 20px; color: var(--text-dim); transition: transform 0.2s ease; display: flex; align-items: center;"><svg class="isax isax-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"><path d="M8.91 19.92L15.43 13.4C16.2 12.63 16.2 11.37 15.43 10.6L8.91 4.08"/></svg></div>
+                </button>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding: 14px 24px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" class="btn-action" onclick="backToDateRangeModal()" style="padding: 8px 16px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                    <span>◀</span> <span data-i18n="export_btn_back">Sanani o'zgartirish</span>
+                </button>
+                <button type="button" class="btn-action" onclick="closeExportChoiceModal()" style="padding: 8px 16px; font-size: 12px;" data-i18n="export_btn_cancel">
+                    Bekor qilish
+                </button>
             </div>
         </div>
     </div>
@@ -1378,20 +1663,20 @@
         <div class="modal-card glass-panel" style="max-width: 640px; width: 100%; border-radius: 18px; border: 1px solid rgba(59, 130, 246, 0.35); background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(59, 130, 246, 0.2); overflow: hidden;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                        ⚡
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center;">
+                        <svg class="isax isax-flash" style="width: 20px; height: 20px; color: #10b981;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
                     </div>
                     <div>
-                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Server Holati & Resurslar</h3>
-                        <p id="srvHeaderSub" style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-muted);">Yuklanmoqda...</p>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;" data-i18n="srv_modal_title">Server Holati & Resurslar</h3>
+                        <p id="srvHeaderSub" style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-muted);" data-i18n="detail_loading">Yuklanmoqda...</p>
                     </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <button onclick="fetchServerStatus()" class="btn-action" title="Yangilash" style="padding: 6px 12px; font-size: 12px;">
-                        🔄 Yangilash
+                    <button onclick="fetchServerStatus()" class="btn-action" title="Yangilash" style="padding: 6px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                        <svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21"/><path d="M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/></svg> <span data-i18n="srv_refresh_btn">Yangilash</span>
                     </button>
-                    <button onclick="closeServerStatusModal()" class="btn-action" style="padding: 6px 12px; font-size: 13px; color: var(--text-muted);">
-                        ✕
+                    <button onclick="closeServerStatusModal()" class="btn-action" style="padding: 6px 12px; font-size: 13px; color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;">
+                        <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
                     </button>
                 </div>
             </div>
@@ -1400,22 +1685,22 @@
                 <!-- Skeleton loader -->
                 <div id="srvLoadingState" style="text-align: center; padding: 40px 0;">
                     <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid rgba(59, 130, 246, 0.3); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-                    <div style="margin-top: 12px; color: var(--text-muted); font-size: 13px;">Server ma'lumotlari o'qilmoqda...</div>
+                    <div style="margin-top: 12px; color: var(--text-muted); font-size: 13px;" data-i18n="srv_reading">Server ma'lumotlari o'qilmoqda...</div>
                 </div>
 
                 <div id="srvLoadedState" style="display: none; flex-direction: column; gap: 18px;">
                     <!-- PM2 & Process Info Banner -->
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
                         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px;">
-                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">PM2 Holati</div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;" data-i18n="srv_pm2_status">PM2 Holati</div>
                             <div id="srvPm2Badge" style="font-size: 13px; font-weight: 700; color: #10b981; margin-top: 3px;">--</div>
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px;">
-                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Process PID</div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;" data-i18n="srv_pid">Process PID</div>
                             <div id="srvPid" style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-top: 3px;">--</div>
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px;">
-                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Server Ish Vaqti</div>
+                            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;" data-i18n="srv_uptime_label">Server Ish Vaqti</div>
                             <div id="srvUptime" style="font-size: 13px; font-weight: 700; color: #f59e0b; margin-top: 3px;">--</div>
                         </div>
                         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px;">
@@ -1430,7 +1715,7 @@
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #fff;">
-                                    <span>🧠 CPU Yuklanishi</span>
+                                    <span data-i18n="srv_cpu_label">🧠 CPU Yuklanishi</span>
                                     <span id="srvCpuModel" style="font-size: 11px; color: var(--text-muted); font-weight: 400;"></span>
                                 </div>
                                 <span id="srvCpuPercent" style="font-size: 13px; font-weight: 700; color: #38bdf8;">0%</span>
@@ -1444,7 +1729,7 @@
                         <div>
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                                 <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #fff;">
-                                    <span>💾 RAM (Operativ Xotira)</span>
+                                    <span data-i18n="srv_ram_label">💾 RAM (Operativ Xotira)</span>
                                     <span id="srvRamDetail" style="font-size: 11px; color: var(--text-muted); font-weight: 400;"></span>
                                 </div>
                                 <span id="srvRamPercent" style="font-size: 13px; font-weight: 700; color: #10b981;">0%</span>
@@ -1454,17 +1739,53 @@
                             </div>
                         </div>
 
-                        <!-- DISK -->
-                        <div>
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                                <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #fff;">
-                                    <span>💽 Disk Xotirasi</span>
-                                    <span id="srvDiskDetail" style="font-size: 11px; color: var(--text-muted); font-weight: 400;"></span>
+                        <!-- DISK STORAGE (Jismoniy HDD/SSD + Tizim Root + Issabel PBX Ovozlar) -->
+                        <div style="display: flex; flex-direction: column; gap: 10px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px 14px;">
+                            <!-- Physical Drive Header -->
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">💽</span>
+                                    <div>
+                                        <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                            <span data-i18n="srv_physical_disk">Jismoniy Server Diski</span>
+                                            <span id="srvPhysicalDiskTypeBadge" style="font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);" data-i18n="srv_disk_type_spinning">HDD (Aylanuvchi)</span>
+                                        </div>
+                                        <div id="srvPhysicalDiskModel" style="font-size: 11px; color: var(--text-muted);">WDC WD10EZEX-75WN4A1 • 1 TB (931.5 GB)</div>
+                                    </div>
                                 </div>
-                                <span id="srvDiskPercent" style="font-size: 13px; font-weight: 700; color: #f59e0b;">0%</span>
+                                <div id="srvPhysicalDiskSummary" style="font-size: 11px; color: #94a3b8; background: rgba(255, 255, 255, 0.04); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.06);">
+                                    <span data-i18n="srv_lvm_label">LVM taqsimoti: Tizim + PBX Ovozlar</span>
+                                </div>
                             </div>
-                            <div style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden;">
-                                <div id="srvDiskBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #f59e0b, #d97706); border-radius: 4px; transition: width 0.5s ease;"></div>
+
+                            <!-- 1. Tizim va Dashboard xotirasi (Proxmox OS / Root) -->
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #e2e8f0;">
+                                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #38bdf8;"></span>
+                                        <span data-i18n="srv_part_dashboard">1. Tizim & Dashboard (Root /)</span>
+                                        <span id="srvDiskDetail" style="font-size: 11px; color: var(--text-muted); font-weight: 400;"></span>
+                                    </div>
+                                    <span id="srvDiskPercent" style="font-size: 12px; font-weight: 700; color: #38bdf8;">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 7px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden;">
+                                    <div id="srvDiskBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #2563eb); border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
+                            </div>
+
+                            <!-- 2. Issabel PBX & Ovoz Fayllari (Audio Storage - 192.168.0.124) -->
+                            <div id="srvAudioDiskContainer">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #e2e8f0;">
+                                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #a855f7;"></span>
+                                        <span data-i18n="srv_part_issabel">2. Issabel PBX & Ovozlar Xotirasi (192.168.0.124)</span>
+                                        <span id="srvAudioDiskDetail" style="font-size: 11px; color: var(--text-muted); font-weight: 400;"></span>
+                                    </div>
+                                    <span id="srvAudioDiskPercent" style="font-size: 12px; font-weight: 700; color: #c084fc;">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 7px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden;">
+                                    <div id="srvAudioDiskBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a855f7, #7c3aed); border-radius: 4px; transition: width 0.5s ease;"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1472,7 +1793,7 @@
                     <!-- Microservices status (AMI, SFTP, Redis) -->
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">
-                            Aloqa & Xizmatlar Holati
+                            <span data-i18n="srv_services_health">Aloqa & Xizmatlar Holati</span>
                         </div>
                         <div id="srvServicesList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
                             <!-- Injected dynamically -->
@@ -1485,13 +1806,13 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="font-size: 18px;">🖥️</span>
                                 <div>
-                                    <div style="font-size: 13px; font-weight: 700; color: #fff;">Proxmox Virtual Mashinalari (VM)</div>
-                                    <div style="font-size: 11px; color: var(--text-muted);">Kerio Firewall (200) & Issabel PBX (101)</div>
+                                    <div style="font-size: 13px; font-weight: 700; color: #fff;" data-i18n="srv_vm_title">Proxmox Virtual Mashinalari (VM)</div>
+                                    <div style="font-size: 11px; color: var(--text-muted);" data-i18n="srv_vm_sub">Kerio Firewall (200) & Issabel PBX (101)</div>
                                 </div>
                             </div>
                             <!-- 1-Click Disaster Recovery Button -->
                             <button id="btnRecoverVms" onclick="triggerVmRecovery()" class="btn-action" style="padding: 7px 16px; font-size: 12px; font-weight: 700; background: linear-gradient(135deg, rgba(234, 88, 12, 0.35), rgba(249, 115, 22, 0.25)); border: 1px solid #f97316; color: #fed7aa; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s;" title="Svet o'chib yonganda LVM thin pool ni tiklash va Kerio + Issabel ni yoqish">
-                                <span>⚡</span> Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish
+                                <svg class="isax isax-flash" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg> <span data-i18n="srv_power_btn">Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish</span>
                             </button>
                         </div>
                         
@@ -1509,7 +1830,7 @@
                             JSON API: <code style="color: #60a5fa; background: rgba(59, 130, 246, 0.1); padding: 2px 6px; border-radius: 4px;">/api/system/status</code>
                         </span>
                         <a href="/api/system/status" target="_blank" class="btn-action" style="text-decoration: none; padding: 6px 14px; font-size: 12px; color: #38bdf8;">
-                            ↗ Brauzerda JSON ochish
+                            <span data-i18n="srv_open_json">↗ Brauzerda JSON ochish</span>
                         </a>
                     </div>
                 </div>
@@ -1517,7 +1838,36 @@
         </div>
     </div>
 
+    <!-- Custom Confirm Dialog (Zamonaviy Dark-Glass Modal) -->
+    <div id="customConfirmModal" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s ease;">
+        <div style="background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid rgba(239, 68, 68, 0.35); box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 25px rgba(239, 68, 68, 0.15); border-radius: 16px; padding: 22px; width: 92%; max-width: 400px; transform: scale(0.95); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); text-align: center;">
+            <div style="width: 50px; height: 50px; margin: 0 auto 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ef4444;">
+                <svg class="isax isax-trash" style="width: 24px; height: 24px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
+            </div>
+            <h3 id="customConfirmTitle" style="margin: 0 0 8px; font-size: 16px; font-weight: 700; color: #fff;">
+                Mijozni o'chirish
+            </h3>
+            <p id="customConfirmMessage" style="margin: 0 0 20px; font-size: 13px; color: #94a3b8; line-height: 1.5;">
+                Ushbu mijozni ro'yxatdan o'chirmoqchimisiz?
+            </p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" id="customConfirmCancelBtn" style="flex: 1; padding: 10px 16px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+                    Yo'q, qolsin
+                </button>
+                <button type="button" id="customConfirmOkBtn" style="flex: 1; padding: 10px 16px; background: linear-gradient(135deg, #ef4444, #dc2626); border: 1px solid #f87171; color: #fff; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35); transition: all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(239, 68, 68, 0.45)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.35)'">
+                    Ha, o'chirilsin
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Iconsax Linear Icons Engine -->
+    <script src="/js/iconsax.js?v=1.0"></script>
+    <!-- Multi-Language i18n Engine -->
+    <script src="/js/i18n.js?v=2.2"></script>
+    <!-- Blacklist (Qora ro'yxat) moduli -->
+    <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=44.0" defer></script>
+    <script src="/js/dashboard.js?v=49.0" defer></script>
 </body>
 </html>

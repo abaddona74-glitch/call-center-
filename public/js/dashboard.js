@@ -30,6 +30,12 @@ const UZ_MONTHS = [
     'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'
 ];
 
+const MONTH_KEYS = ['month_jan', 'month_feb', 'month_mar', 'month_apr', 'month_may', 'month_jun', 'month_jul', 'month_aug', 'month_sep', 'month_oct', 'month_nov', 'month_dec'];
+function getMonthName(monthIndex) {
+    const key = MONTH_KEYS[monthIndex];
+    return key ? t(key, UZ_MONTHS[monthIndex] || '') : (UZ_MONTHS[monthIndex] || '');
+}
+
 function getTodayDateString() {
     return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
 }
@@ -69,7 +75,9 @@ function runInit() {
     initTransferModal();
     loadInitialData();
     loadSyncStatus();
+    loadClientContacts();
     initHeaderClock();
+    initDeployWatcher();
 
     // Avtomatik har 5 soniyada yangilash (foydalanuvchi bosishi shart emas)
     setInterval(() => {
@@ -78,6 +86,161 @@ function runInit() {
         }
     }, 5000);
 }
+
+/* ==========================================================================
+   PRODUCTION DEPLOY & AUTO-REFRESH ENGINE
+   ========================================================================== */
+let currentClientBuildId = null;
+let deployBannerCountdownTimer = null;
+let isDeployBannerActive = false;
+
+function initDeployWatcher() {
+    // 1. Initial silent version check to store current buildId
+    checkVersionFromServer(true);
+
+    // 2. Periodic polling every 20 seconds (background fallback if WS is idle or sleeping)
+    setInterval(() => {
+        checkVersionFromServer(false);
+    }, 20000);
+
+    // 3. Check immediately when user switches back to this browser tab
+    window.addEventListener('focus', () => {
+        checkVersionFromServer(false);
+    });
+
+    window.addEventListener('online', () => {
+        checkVersionFromServer(false);
+    });
+}
+
+async function checkVersionFromServer(isInitial = false) {
+    try {
+        const res = await fetch(`/api/version?_t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.buildId) {
+            handleServerBuildId(data.buildId, isInitial);
+        }
+    } catch (e) {
+        // Server restart in progress, silently ignore
+    }
+}
+
+function handleServerBuildId(incomingBuildId, isInitial = false) {
+    if (!incomingBuildId || incomingBuildId === 'dev') return;
+
+    // Dastlabki yuklanishda joriy versiya bazasini o'rnatamiz
+    if (isInitial || !currentClientBuildId) {
+        currentClientBuildId = incomingBuildId;
+        try {
+            if (sessionStorage.getItem('last_reloaded_build') === incomingBuildId) {
+                sessionStorage.removeItem('last_reloaded_build');
+            }
+        } catch (e) {}
+        return;
+    }
+
+    // Agar ushbu versiyaga allaqachon sahifa yangilangan bo'lsa, qayta banner ochmaymiz
+    try {
+        if (sessionStorage.getItem('last_reloaded_build') === incomingBuildId) {
+            return;
+        }
+    } catch (e) {}
+
+    // Faqat haqiqiy yangi versiya kelganda va buildId mos kelmagandagina banner chiqadi
+    if (incomingBuildId !== currentClientBuildId) {
+        showDeployUpdateBanner(incomingBuildId);
+    }
+}
+
+function executeDeployReload(targetBuildId) {
+    if (deployBannerCountdownTimer) {
+        clearInterval(deployBannerCountdownTimer);
+        deployBannerCountdownTimer = null;
+    }
+    try {
+        if (targetBuildId) {
+            sessionStorage.setItem('last_reloaded_build', targetBuildId);
+        }
+    } catch (e) {}
+    // Keshni chetlab o'tish uchun vaqt tamg'asi bilan majburiy yangilash
+    const url = new URL(window.location.href);
+    url.searchParams.set('_v', Date.now().toString());
+    window.location.href = url.toString();
+}
+window.executeDeployReload = executeDeployReload;
+
+function showDeployUpdateBanner(targetBuildId) {
+    if (isDeployBannerActive || document.getElementById('deployUpdateBanner')) return;
+    isDeployBannerActive = true;
+
+    const banner = document.createElement('div');
+    banner.id = 'deployUpdateBanner';
+    banner.className = 'deploy-update-banner';
+    banner.setAttribute('role', 'alert');
+
+    let countdownSec = 8;
+
+    const titleText = (typeof t === 'function' ? t('deploy_banner_title', "🚀 Tizim muvaffaqiyatli yangilandi! (Yangi versiya)") : "🚀 Tizim muvaffaqiyatli yangilandi! (Yangi versiya)");
+    const btnReloadText = (typeof t === 'function' ? t('btn_deploy_reload', "Hozir yangilash") : "Hozir yangilash");
+    const btnCancelText = (typeof t === 'function' ? t('btn_deploy_cancel', "To'xtatish") : "To'xtatish");
+
+    banner.innerHTML = `
+        <div class="deploy-banner-content">
+            <div class="deploy-banner-left">
+                <div class="deploy-banner-icon">
+                    <span>🚀</span>
+                </div>
+                <div class="deploy-banner-text">
+                    <strong class="deploy-banner-title">${titleText}</strong>
+                    <span class="deploy-banner-sub" id="deployBannerCountdownText">
+                        Sahifa <span id="deployCountdownSec" class="countdown-sec">${countdownSec}</span> soniyada avtomatik yangilanadi...
+                    </span>
+                </div>
+            </div>
+            <div class="deploy-banner-actions">
+                <button type="button" id="btnDeployReloadNow" class="btn-deploy-reload" onclick="executeDeployReload('${targetBuildId || ''}')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>${btnReloadText}</span>
+                </button>
+                <button type="button" id="btnDeployDismiss" class="btn-deploy-dismiss" onclick="cancelDeployAutoReload()" title="${btnCancelText}">
+                    ${isax('close')}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.prepend(banner);
+
+    deployBannerCountdownTimer = setInterval(() => {
+        countdownSec--;
+        const countEl = document.getElementById('deployCountdownSec');
+        if (countEl) countEl.textContent = countdownSec;
+
+        if (countdownSec <= 0) {
+            clearInterval(deployBannerCountdownTimer);
+            executeDeployReload(targetBuildId);
+        }
+    }, 1000);
+}
+
+window.cancelDeployAutoReload = function() {
+    if (deployBannerCountdownTimer) {
+        clearInterval(deployBannerCountdownTimer);
+        deployBannerCountdownTimer = null;
+    }
+    const textEl = document.getElementById('deployBannerCountdownText');
+    if (textEl) {
+        const pausedText = (typeof t === 'function' ? t('deploy_banner_paused', "Avtomatik yangilanish to'xtatildi. Iltimos, ish tugagach sahifani yangilang.") : "Avtomatik yangilanish to'xtatildi. Iltimos, ish tugagach sahifani yangilang.");
+        textEl.innerHTML = `<span style="color: #fde047;">${pausedText}</span>`;
+    }
+    const dismissBtn = document.getElementById('btnDeployDismiss');
+    if (dismissBtn) dismissBtn.style.display = 'none';
+};
 
 function initHeaderClock() {
     const el = document.getElementById('liveClockDisplay');
@@ -105,12 +268,16 @@ const ROUTE_MAP = {
     '/history': 'history'
 };
 
-const TAB_TITLES = {
-    dashboard: "Dashboard | Call Center AI",
-    explorer: "Audio Explorer | Call Center AI",
-    operators: "Operatorlar | Call Center AI",
-    history: "Qo'ng'iroqlar Tarixi | Call Center AI"
-};
+function getTabTitle(tab) {
+    const suffix = ' | Call Center AI';
+    const map = {
+        dashboard: t('tab_dashboard', 'Dashboard'),
+        explorer: t('tab_explorer', 'Audio Explorer'),
+        operators: t('tab_operators', 'Operatorlar'),
+        history: t('tab_history', "Qo'ng'iroqlar Tarixi")
+    };
+    return (map[tab] || 'Call Center') + suffix;
+}
 
 function switchRoute(tabName, pushState = true) {
     const validTabs = ['dashboard', 'explorer', 'operators', 'history'];
@@ -136,9 +303,7 @@ function switchRoute(tabName, pushState = true) {
         }
     });
 
-    if (TAB_TITLES[target]) {
-        document.title = TAB_TITLES[target];
-    }
+    document.title = getTabTitle(target);
 
     const canonicalPath = target === 'dashboard' ? '/' : `/${target}`;
     if (pushState && window.location.pathname !== canonicalPath) {
@@ -308,7 +473,7 @@ function initCharts() {
             labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'],
             datasets: [
                 {
-                    label: 'Jami Kiruvchi (Inbound)',
+                    label: t('chart_series_inbound', 'Jami Kiruvchi (Inbound)'),
                     data: new Array(14).fill(0),
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99, 102, 241, 0.15)',
@@ -322,7 +487,7 @@ function initCharts() {
                     pointHitRadius: 30
                 },
                 {
-                    label: 'Javob berilgan (Answered)',
+                    label: t('chart_series_answered', 'Javob berilgan (Answered)'),
                     data: new Array(14).fill(0),
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.15)',
@@ -422,11 +587,11 @@ function initCharts() {
             },
             series: [{
                 type: 'pie',
-                name: 'Qo\'ng\'iroqlar',
+                name: t('chart_series_calls', "Qo'ng'iroqlar"),
                 data: [
-                    { name: 'Muvaffaqiyatli', y: 1, color: '#10b981', sliced: false, selected: false },
-                    { name: 'Navbatdan chiqdi', y: 0, color: '#f59e0b', sliced: false, selected: false },
-                    { name: 'Chiquvchi', y: 0, color: '#a855f7', sliced: false, selected: false }
+                    { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: 1, color: '#10b981', sliced: false, selected: false },
+                    { name: t('chart_slice_abandoned', 'Navbatdan chiqdi'), y: 0, color: '#f59e0b', sliced: false, selected: false },
+                    { name: t('chart_slice_outbound', 'Chiquvchi'), y: 0, color: '#a855f7', sliced: false, selected: false }
                 ]
             }]
         });
@@ -440,19 +605,19 @@ function initCharts() {
             labels: [],
             datasets: [
                 {
-                    label: 'Qabul qilingan (Answered)',
+                    label: t('chart_series_accepted', 'Qabul qilingan (Answered)'),
                     data: [],
                     backgroundColor: '#10b981',
                     borderRadius: 6
                 },
                 {
-                    label: 'Chiquvchi (Outbound)',
+                    label: t('chart_series_outbound', 'Chiquvchi (Outbound)'),
                     data: [],
                     backgroundColor: '#38bdf8',
                     borderRadius: 6
                 },
                 {
-                    label: 'O\'tkazib yuborilgan',
+                    label: t('chart_series_missed', "O'tkazib yuborilgan"),
                     data: [],
                     backgroundColor: '#f59e0b',
                     borderRadius: 6
@@ -530,7 +695,7 @@ function setChartMode(mode) {
             callDistributionChart2D = new Chart(ctxDist, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Muvaffaqiyatli', 'Navbatdan chiqdi', 'Chiquvchi'],
+                    labels: [t('chart_slice_success', 'Muvaffaqiyatli'), t('chart_slice_abandoned', 'Navbatdan chiqdi'), t('chart_slice_outbound', 'Chiquvchi')],
                     datasets: [{
                         data: latestPieData,
                         backgroundColor: ['#10b981', '#f59e0b', '#a855f7'],
@@ -591,7 +756,7 @@ function initWebSocket() {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-        console.log('✅ WebSocket ulandi');
+        console.log('WebSocket ulandi');
         updateAmiStatus(true);
     };
 
@@ -625,7 +790,12 @@ function initWebSocket() {
 }
 
 function handleWsMessage(msg) {
-    if (msg.type === 'initial_state') {
+    if (msg.type === 'server_version' && msg.data) {
+        handleServerBuildId(msg.data.buildId);
+    } else if (msg.type === 'initial_state') {
+        if (msg.data && msg.data.serverVersion && msg.data.serverVersion.buildId) {
+            handleServerBuildId(msg.data.serverVersion.buildId);
+        }
         updateAmiStatus(msg.data.amiStatus);
         updateSftpStatus(msg.data.sftpStatus);
         updateStatsUI(msg.data.stats);
@@ -637,6 +807,12 @@ function handleWsMessage(msg) {
             updateRecentOperatorsDataList();
             applyDashboardRecentFilters();
         }
+        if (msg.data.callbacks) {
+            renderCallbacks(msg.data.callbacks);
+        }
+        if (msg.data.contacts) {
+            setClientContactsList(msg.data.contacts);
+        }
     } else if (msg.type === 'ami_status') {
         updateAmiStatus(msg.data.connected);
     } else if (msg.type === 'sftp_status') {
@@ -647,6 +823,7 @@ function handleWsMessage(msg) {
         }
     } else if (msg.type === 'active_conversations_update') {
         renderActiveConversations(msg.data);
+        renderCallbacks(currentCallbacksList);
     } else if (msg.type === 'queue_update') {
         renderQueues(msg.data);
     } else if (msg.type === 'operators_update') {
@@ -656,9 +833,10 @@ function handleWsMessage(msg) {
             // Arxiv sanada turganda, operatorlarning tanlangan sanadagi answered/missed/duration statistikalarini
             // bugungi jonli hisoblagichlar bilan ustiga yozmaslik kerak!
             // Faqat real-vaqtdagi ulanish (presence, ringingCaller, ip, agentConnected) yangilanadi:
-            if (currentOperators && currentOperators.length > 0 && Array.isArray(msg.data)) {
+            const rawOps = window._rawLastOperators || currentOperators;
+            if (rawOps && rawOps.length > 0 && Array.isArray(msg.data)) {
                 const freshMap = new Map(msg.data.map(o => [String(o.id), o]));
-                currentOperators.forEach(op => {
+                rawOps.forEach(op => {
                     const fresh = freshMap.get(String(op.id));
                     if (fresh) {
                         op.presence = fresh.presence;
@@ -670,10 +848,12 @@ function handleWsMessage(msg) {
                         if (fresh.ip) op.ip = fresh.ip;
                     }
                 });
-                renderOperators(currentOperators);
+                renderOperators(window._rawLastOperators || currentOperators);
+                renderCallbacks(currentCallbacksList);
             }
         } else {
             renderOperators(msg.data);
+            renderCallbacks(currentCallbacksList);
         }
     } else if (msg.type === 'agent_operators_update') {
         const todayStr = getTodayDateString();
@@ -696,21 +876,622 @@ function handleWsMessage(msg) {
                     }
                 });
                 renderTabAgentOperators(tabAgentOperatorsData);
+                renderCallbacks(currentCallbacksList);
             }
         } else {
             tabAgentOperatorsData = msg.data;
             renderTabAgentOperators(tabAgentOperatorsData);
+            renderCallbacks(currentCallbacksList);
         }
     } else if (msg.type === 'agent_ota_log') {
         appendOtaLog(msg.data);
+    } else if (msg.type === 'call_history_sync') {
+        if (Array.isArray(msg.data) && msg.data.length > 0) {
+            dashboardRecentCallsList = [...msg.data];
+            updateRecentOperatorsDataList();
+            applyDashboardRecentFilters();
+        }
     } else if (msg.type === 'call_hangup') {
         addRecentDashboardRow(msg.data);
         const histTab = document.getElementById('tab-history');
         if (histTab && histTab.classList.contains('active')) {
             loadHistoryPage(historyCurrentPage, historySearchQuery);
         }
+    } else if (msg.type === 'callbacks_update') {
+        renderCallbacks(msg.data);
+    } else if (msg.type === 'client_contacts_update' && msg.data) {
+        handleWsClientContactUpdate(msg.data);
     }
 }
+
+let currentCallbacksList = [];
+
+function getPhone9(phone) {
+    if (!phone) return null;
+    const digits = String(phone).replace(/\D/g, '');
+    return digits.length >= 9 ? digits.slice(-9) : null;
+}
+
+function findActiveCallForPhone(phone, itemActiveCall) {
+    if (itemActiveCall && itemActiveCall.operator) {
+        return itemActiveCall;
+    }
+    const target9 = getPhone9(phone);
+    if (!target9) return null;
+
+    // 1. Faol suhbatlar (talking)
+    if (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations)) {
+        for (const conv of currentConversations) {
+            const c9 = getPhone9(conv.callerId);
+            if (c9 && c9 === target9) {
+                const rawName = conv.operator || '';
+                const cleanName = String(rawName).replace(/\s*\(\d+\)\s*/g, '').trim() || (conv.operatorExten ? `Operator ${conv.operatorExten}` : 'Operator');
+                return {
+                    operator: cleanName,
+                    operatorExten: conv.operatorExten || '',
+                    state: 'talking',
+                    stateLabel: 'gaplashmoqda'
+                };
+            }
+        }
+    }
+
+    // 2. Chiquvchi yoki kiruvchi qo'ng'iroq jiringlayotgan (ringing)
+    if (typeof currentOperators !== 'undefined' && Array.isArray(currentOperators)) {
+        for (const op of currentOperators) {
+            if (op.presence === 'ringing' && op.ringingCaller) {
+                const r9 = getPhone9(op.ringingCaller);
+                if (r9 && r9 === target9) {
+                    const cleanName = op.realName || op.name || `Operator ${op.id}`;
+                    return {
+                        operator: cleanName,
+                        operatorExten: op.id,
+                        state: 'ringing',
+                        stateLabel: 'qo\'ng\'iroq qilinmoqda'
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+let adminCbDateFilter = 'today'; // 'today' | 'all'
+let adminCbTab = 'pending'; // 'pending' | 'unreachable'
+
+function switchAdminCallbackDateFilter(filter) {
+    if (filter !== 'today' && filter !== 'all') return;
+    adminCbDateFilter = filter;
+
+    const btnToday = document.getElementById('adminCbFilterToday');
+    const btnAll = document.getElementById('adminCbFilterAll');
+    if (btnToday && btnAll) {
+        if (filter === 'today') {
+            btnToday.style.background = 'var(--primary)';
+            btnToday.style.color = '#fff';
+            btnAll.style.background = 'transparent';
+            btnAll.style.color = 'var(--text-dim)';
+        } else {
+            btnAll.style.background = 'var(--primary)';
+            btnAll.style.color = '#fff';
+            btnToday.style.background = 'transparent';
+            btnToday.style.color = 'var(--text-dim)';
+        }
+    }
+    renderCallbacks(currentCallbacksList);
+}
+
+function switchAdminCallbackTab(tab) {
+    if (tab !== 'pending' && tab !== 'unreachable' && tab !== 'resolved') return;
+    adminCbTab = tab;
+
+    const btnPending = document.getElementById('adminCbTabPending');
+    const btnUnreachable = document.getElementById('adminCbTabUnreachable');
+    const btnResolved = document.getElementById('adminCbTabResolved');
+
+    if (btnPending && btnUnreachable) {
+        btnPending.style.background = 'rgba(100, 116, 139, 0.15)';
+        btnPending.style.borderColor = 'rgba(100, 116, 139, 0.3)';
+        btnPending.style.color = '#94a3b8';
+
+        btnUnreachable.style.background = 'rgba(100, 116, 139, 0.15)';
+        btnUnreachable.style.borderColor = 'rgba(100, 116, 139, 0.3)';
+        btnUnreachable.style.color = '#94a3b8';
+
+        if (btnResolved) {
+            btnResolved.style.background = 'rgba(100, 116, 139, 0.15)';
+            btnResolved.style.borderColor = 'rgba(100, 116, 139, 0.3)';
+            btnResolved.style.color = '#94a3b8';
+        }
+
+        if (tab === 'pending') {
+            btnPending.style.background = 'rgba(245, 158, 11, 0.18)';
+            btnPending.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+            btnPending.style.color = '#fbbf24';
+        } else if (tab === 'unreachable') {
+            btnUnreachable.style.background = 'rgba(239, 68, 68, 0.18)';
+            btnUnreachable.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+            btnUnreachable.style.color = '#f87171';
+        } else if (tab === 'resolved' && btnResolved) {
+            btnResolved.style.background = 'rgba(16, 185, 129, 0.18)';
+            btnResolved.style.borderColor = 'rgba(16, 185, 129, 0.45)';
+            btnResolved.style.color = '#34d399';
+        }
+    }
+    renderCallbacks(currentCallbacksList);
+}
+
+function renderCallbacks(callbacks) {
+    currentCallbacksList = Array.isArray(callbacks) ? callbacks : [];
+    const badgeEl = document.getElementById('callbackCountBadge');
+    const pendingCountEl = document.getElementById('adminCbPendingCount');
+    const unreachableCountEl = document.getElementById('adminCbUnreachableCount');
+    const resolvedCountEl = document.getElementById('adminCbResolvedCount');
+    const container = document.getElementById('callbackListContainer');
+
+    const todayStr = getTodayDateString();
+
+    // 1. Sana filtri (Bugun / Hammasi)
+    const isTodayCallback = (c) => {
+        if (!c || !c.call_time) return false;
+        if (!c.call_time.startsWith(todayStr)) return false;
+        if (c.status === 'resolved' && c.dismissed_at && !c.dismissed_at.startsWith(todayStr)) return false;
+        return true;
+    };
+
+    const dateFiltered = (adminCbDateFilter === 'today')
+        ? currentCallbacksList.filter(isTodayCallback)
+        : currentCallbacksList;
+
+    // 2. Kategoriya bo'yicha ajratish: Kutilmoqda vs Bog'lanib bo'lmadi vs Gaplashildi
+    const pendingList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0));
+    const unreachableList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0);
+    const resolvedList = dateFiltered.filter(c => c.status === 'resolved');
+
+    const totalNeedAttention = pendingList.length + unreachableList.length;
+
+    if (badgeEl) {
+        badgeEl.textContent = totalNeedAttention;
+        if (totalNeedAttention > 0) {
+            badgeEl.className = 'badge badge-warning';
+            badgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+            badgeEl.style.color = '#fbbf24';
+        } else {
+            badgeEl.className = 'badge';
+            badgeEl.style.background = 'rgba(255, 255, 255, 0.1)';
+            badgeEl.style.color = 'var(--text-dim)';
+        }
+    }
+    if (pendingCountEl) pendingCountEl.textContent = pendingList.length;
+    if (unreachableCountEl) unreachableCountEl.textContent = unreachableList.length;
+    if (resolvedCountEl) resolvedCountEl.textContent = resolvedList.length;
+
+    const clearAllBtn = document.getElementById('btnClearAllCallbacks');
+    if (clearAllBtn) {
+        clearAllBtn.style.display = totalNeedAttention > 0 ? 'inline-flex' : 'none';
+    }
+
+    if (!container) return;
+
+    let displayList = pendingList;
+    if (adminCbTab === 'unreachable') displayList = unreachableList;
+    else if (adminCbTab === 'resolved') displayList = resolvedList;
+
+    if (displayList.length === 0) {
+        const emptyMsg = (adminCbTab === 'unreachable')
+            ? t('live_callbacks_unreachable_empty', "Bog'lanib bo'lmagan mijozlar yo'q")
+            : (adminCbTab === 'resolved')
+                ? t('live_callbacks_resolved_empty', "Hozircha gaplashilgan mijozlar yo'q")
+                : t('live_callbacks_pending_empty', "Hozircha kutilayotgan yangi mijozlar yo'q");
+        container.innerHTML = `
+            <div class="empty-callbacks-placeholder" style="text-align: center; color: var(--text-dim); padding: 14px; font-size: 11px;">
+                ${emptyMsg}
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    for (const item of displayList) {
+        const phone = item.phone || '';
+        let cleanPhone = String(phone).replace(/[^\d]/g, '');
+        if (cleanPhone.length === 12 && cleanPhone.startsWith('998')) {
+            cleanPhone = cleanPhone.slice(3);
+        }
+        let formattedPhone = cleanPhone || phone;
+
+        const isIvr = (item.source === 'ivr_non_working');
+        const isUnreachable = (adminCbTab === 'unreachable');
+        const isResolved = (adminCbTab === 'resolved' || item.status === 'resolved');
+
+        let badgeLabel = isIvr ? t('callback_source_ivr', 'Ish vaqti emas') : t('callback_source_abandoned', 'Navbatdan chiqdi');
+        let badgeStyle = isIvr 
+            ? 'background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);'
+            : 'background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);';
+        let badgeIcon = isIvr ? isax('moon') : isax('timer');
+
+        if (isResolved) {
+            badgeLabel = "Gaplashildi";
+            badgeStyle = 'background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);';
+            badgeIcon = isax('tick-circle');
+        }
+
+        let timeDisplay = item.call_time || '';
+        if (timeDisplay.includes(' ')) {
+            const parts = timeDisplay.split(' ');
+            const dateP = parts[0];
+            const timeP = parts[1].slice(0, 5);
+            if (dateP === todayStr) {
+                timeDisplay = timeP;
+            } else {
+                timeDisplay = `${dateP.slice(5)} ${timeP}`;
+            }
+        }
+
+        let resTimeDisplay = item.updated_at || item.dismissed_at || item.call_time || '';
+        if (resTimeDisplay.includes(' ')) {
+            const parts = resTimeDisplay.split(' ');
+            resTimeDisplay = (parts[0] === todayStr) ? parts[1].slice(0, 5) : `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
+        }
+
+        const activeCall = findActiveCallForPhone(phone, item.activeCall);
+        const isActive = Boolean(activeCall);
+
+        let cardBorder = '';
+        if (isActive) {
+            cardBorder = 'border: 1.5px solid #10b981; border-left: 3.5px solid #10b981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.9)); box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);';
+        } else if (isResolved) {
+            cardBorder = 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(16, 185, 129, 0.25); border-left: 3px solid #10b981;';
+        } else if (isUnreachable) {
+            const outAttempts = item.outbound_attempts || 1;
+            const borderCol = outAttempts >= 3 ? '#ef4444' : (outAttempts === 2 ? '#f97316' : '#eab308');
+            cardBorder = `background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(239, 68, 68, 0.25); border-left: 3px solid ${borderCol};`;
+        } else {
+            cardBorder = `background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(245, 158, 11, 0.28); border-left: 3px solid ${isIvr ? '#a855f7' : '#f59e0b'};`;
+        }
+
+        const titleText = isActive 
+            ? `${activeCall.operator} hozirda ushbu mijoz bilan ${activeCall.state === 'ringing' ? "bog'lanmoqda" : "gaplashmoqda"}!`
+            : "Raqamni nusxalash";
+
+        // Urinishlar belgisi
+        let retryBadge = '';
+        let lastOutboundInfo = '';
+        if (isResolved) {
+            let opInfo = item.last_outbound_operator || '';
+            if (!opInfo && item.dismissed_by) {
+                if (item.dismissed_by.startsWith('3cx_') || item.dismissed_by.startsWith('operator_')) {
+                    const ext = item.dismissed_by.split('_').pop();
+                    const name = (typeof DEFAULT_OPERATOR_NAMES !== 'undefined' && DEFAULT_OPERATOR_NAMES[ext]) ? DEFAULT_OPERATOR_NAMES[ext] : (operatorNames.get(ext) || null);
+                    opInfo = name ? `${name} (${ext})` : `Operator ${ext}`;
+                } else if (item.dismissed_by === 'realtime_agent_connect') {
+                    opInfo = "Navbat orqali";
+                } else if (item.dismissed_by === 'realtime_outbound_bridge') {
+                    opInfo = "Chiquvchi orqali";
+                } else if (item.dismissed_by === 'cdr_sync_answered') {
+                    opInfo = "Muvaffaqiyatli bog'langan";
+                } else {
+                    opInfo = item.dismissed_by;
+                }
+            }
+
+            lastOutboundInfo = `
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px dashed rgba(16, 185, 129, 0.25); border-radius: 5px; padding: 4px 7px; margin-top: 2px; font-size: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Operator:</span>
+                        <span style="color: #34d399; font-weight: 600;">${opInfo || "Bog'lanildi"}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Dastlabki vaqt:</span>
+                        <span style="color: #94a3b8; font-weight: 500;">${timeDisplay}</span>
+                    </div>
+                </div>
+            `;
+        } else if (isUnreachable) {
+            const outAttempts = item.outbound_attempts || 1;
+            let retryStyle = 'background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
+            let retryIcon = '⚠️';
+            if (outAttempts === 2) {
+                retryStyle = 'background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4);';
+                retryIcon = '⚠️';
+            } else if (outAttempts >= 3) {
+                retryStyle = 'background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);';
+                retryIcon = isax('close-circle');
+            }
+
+            retryBadge = `
+                <span style="padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9.5px; ${retryStyle}">
+                    ${retryIcon} ${outAttempts} marta urinildi
+                </span>
+            `;
+
+            let outTimeDisplay = item.last_outbound_time || '';
+            if (outTimeDisplay.includes(' ')) {
+                const parts = outTimeDisplay.split(' ');
+                outTimeDisplay = (parts[0] === todayStr) ? parts[1].slice(0, 5) : `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
+            }
+
+            lastOutboundInfo = `
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 5px; padding: 4px 7px; margin-top: 2px; font-size: 10px; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Operator:</span>
+                        <span style="color: #38bdf8; font-weight: 600;">${item.last_outbound_operator || 'Operator'}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Urinish:</span>
+                        <span style="color: #f1f5f9; font-weight: 600;">${outTimeDisplay || timeDisplay}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-dim);">Natija:</span>
+                        <span style="color: #fb7185; font-weight: 600;">${item.last_outbound_cause || 'Javob bermadi'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += `
+            <div class="callback-card ${isActive ? 'callback-card-talking' : ''}" id="cb-card-${item.id}" style="${cardBorder} border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative;" title="${titleText}">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="copyCallbackPhone('${phone}', this)" title="Raqamni nusxalash">
+                        <span style="font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.3px;">${formattedPhone}</span>
+                        ${!isActive ? (retryBadge || `<span style="font-size: 10px; opacity: 0.6; display: inline-flex;">${isax('clipboard-text', '', 'width: 11px; height: 11px;')}</span>`) : ''}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        ${isActive ? `
+                            <div class="callback-active-badge" title="${activeCall.operator} ${activeCall.stateLabel}">
+                                <img src="/img/calling-green.png" alt="Calling" />
+                                <span>${activeCall.operator}</span>
+                            </div>
+                        ` : ''}
+                        <button type="button" class="btn-cb-delete" onclick="deleteCallback(${item.id}, event)" title="${t('dyn_delete', 'O\'chirish')}" style="background: transparent; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px 5px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.color='#ef4444'; this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent'">
+                            ${isax('close', '', 'width: 12px; height: 12px;')}
+                        </button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px;">
+                    <span style="padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; ${badgeStyle}">
+                        ${badgeIcon} ${badgeLabel}
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 10.5px;">
+                        <span>🕒 ${isResolved ? resTimeDisplay : timeDisplay}</span>
+                    </div>
+                </div>
+                ${lastOutboundInfo}
+                ${isActive ? `
+                    <div class="callback-active-subrow">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span class="active-dot"></span>
+                            <span>${activeCall.operator}</span>
+                        </div>
+                        <span style="color: #a7f3d0; font-weight: 500; font-size: 9.5px;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function showCustomConfirm({ title, message, okText, cancelText }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirmModal');
+        const titleEl = document.getElementById('customConfirmTitle');
+        const msgEl = document.getElementById('customConfirmMessage');
+        const okBtn = document.getElementById('customConfirmOkBtn');
+        const cancelBtn = document.getElementById('customConfirmCancelBtn');
+
+        if (!modal) {
+            resolve(window.confirm(message || title || "Ishonchingiz komilmi?"));
+            return;
+        }
+
+        if (titleEl && title) titleEl.textContent = title;
+        if (msgEl && message) msgEl.textContent = message;
+        if (okBtn && okText) okBtn.textContent = okText;
+        if (cancelBtn && cancelText) cancelBtn.textContent = cancelText;
+
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            const box = modal.firstElementChild;
+            if (box) box.style.transform = 'scale(1)';
+        }, 10);
+
+        function cleanup(result) {
+            modal.style.opacity = '0';
+            const box = modal.firstElementChild;
+            if (box) box.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 200);
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKey);
+            resolve(result);
+        }
+
+        function onOk() { cleanup(true); }
+        function onCancel() { cleanup(false); }
+        function onBackdrop(e) { if (e.target === modal) cleanup(false); }
+        function onKey(e) { if (e.key === 'Escape') cleanup(false); }
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        modal.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey);
+    });
+}
+
+async function deleteCallback(id, event) {
+    if (event) event.stopPropagation();
+    if (!id) return;
+
+    // Mijoz raqamini topish
+    const target = currentCallbacksList.find(c => c.id === id);
+    let targetPhone = target?.phone || '';
+    if (targetPhone.length === 12 && targetPhone.startsWith('998')) {
+        targetPhone = targetPhone.slice(3);
+    }
+
+    const confirmed = await showCustomConfirm({
+        title: t('callback_delete_modal_title', "Mijozni o'chirish"),
+        message: targetPhone 
+            ? `${targetPhone} raqamli mijozni ro'yxatdan o'chirishga ishonchingiz komilmi?`
+            : t('callback_delete_confirm', "Ushbu mijozni ro'yxatdan o'chirishni tasdiqlaysizmi?"),
+        okText: t('btn_delete_confirm_ok', "Ha, o'chirish"),
+        cancelText: t('btn_delete_confirm_cancel', "Yo'q, qolsin")
+    });
+
+    if (!confirmed) return;
+
+    const card = document.getElementById(`cb-card-${id}`);
+    if (card) {
+        card.style.opacity = '0.4';
+        card.style.transform = 'scale(0.96)';
+    }
+
+    try {
+        const resp = await fetch(`/api/callbacks/${id}`, { method: 'DELETE' });
+        const json = await resp.json();
+        if (json.success) {
+            if (Array.isArray(json.data)) {
+                renderCallbacks(json.data);
+            } else {
+                currentCallbacksList = currentCallbacksList.filter(c => c.id !== id);
+                renderCallbacks(currentCallbacksList);
+            }
+            if (typeof showToast === 'function') {
+                showToast(t('callback_deleted_success', "Mijoz ro'yxatdan o'chirildi"), 'success');
+            }
+        } else {
+            if (card) {
+                card.style.opacity = '1';
+                card.style.transform = 'none';
+            }
+            alert(json.message || "Xatolik yuz berdi");
+        }
+    } catch (e) {
+        if (card) {
+            card.style.opacity = '1';
+            card.style.transform = 'none';
+        }
+        alert("Server bilan aloqa xatosi: " + e.message);
+    }
+}
+
+async function clearAllCallbacks() {
+    if (!currentCallbacksList || currentCallbacksList.length === 0) return;
+
+    const count = currentCallbacksList.length;
+    const confirmed = await showCustomConfirm({
+        title: t('callback_clear_all_title', "Barchasini tozalash"),
+        message: `Barcha (${count} ta) bog'lanishi kerak bo'lgan mijozlarni ro'yxatdan tozalashni tasdiqlaysizmi?`,
+        okText: t('btn_clear_all_confirm_ok', "Ha, barchasini tozalash"),
+        cancelText: t('btn_delete_confirm_cancel', "Bekor qilish")
+    });
+
+    if (!confirmed) return;
+
+    const btn = document.getElementById('btnClearAllCallbacks');
+    if (btn) btn.disabled = true;
+
+    try {
+        const resp = await fetch('/api/callbacks', { method: 'DELETE' });
+        const json = await resp.json();
+        if (json.success) {
+            currentCallbacksList = [];
+            renderCallbacks([]);
+            if (typeof showToast === 'function') {
+                showToast(t('callback_all_cleared', "Barcha mijozlar muvaffaqiyatli tozalandi"), 'success');
+            }
+        } else {
+            alert(json.message || "Xatolik yuz berdi");
+        }
+    } catch (e) {
+        alert("Server bilan aloqa xatosi: " + e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function syncCallbacksManually() {
+    const btn = document.getElementById('btnSyncCallbacks');
+    if (btn) btn.style.transform = 'rotate(180deg)';
+
+    try {
+        const resp = await fetch('/api/callbacks/sync', { method: 'POST' });
+        const json = await resp.json();
+        if (json.success && Array.isArray(json.data)) {
+            renderCallbacks(json.data);
+            if (typeof showToast === 'function') {
+                showToast("Bog'lanishlar ro'yxati yangilandi", 'info');
+            }
+        }
+    } catch (e) {
+        console.error('syncCallbacksManually error:', e);
+    } finally {
+        if (btn) {
+            setTimeout(() => { btn.style.transform = 'none'; }, 300);
+        }
+    }
+}
+
+function copyCallbackPhone(phone, el) {
+    if (!phone) return;
+
+    const onSuccess = () => {
+        if (typeof showToast === 'function') showToast(`${phone} nusxalandi!`, 'info');
+        if (el) {
+            const orig = el.innerHTML;
+            el.innerHTML = `<span style="font-size: 11px; color: #10b981; font-weight: 700;">✓ Nusxalandi</span>`;
+            setTimeout(() => { el.innerHTML = orig; }, 1200);
+        }
+    };
+
+    // 1-usul: modern Clipboard API (faqat HTTPS yoki localhost'da mavjud)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(phone).then(onSuccess).catch(() => fallbackCopyCallbackPhone(phone, onSuccess));
+        return;
+    }
+    fallbackCopyCallbackPhone(phone, onSuccess);
+}
+
+// Clipboard API ishlamasa (HTTP orqali ochilganda) — eski usul: vaqtinchalik textarea + execCommand('copy')
+function fallbackCopyCallbackPhone(phone, onSuccess) {
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = phone;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) {
+            onSuccess();
+        } else {
+            window.prompt('Brauzer ruxsat bermadi. Raqamni qo\'lda nusxalang:', phone);
+        }
+    } catch (e) {
+        window.prompt('Brauzer ruxsat bermadi. Raqamni qo\'lda nusxalang:', phone);   
+    }
+}
+
+// Boshlang'ich REST API orqali ham yuklab olish
+async function fetchCallbacksInitial() {
+    try {
+        const res = await fetch('/api/callbacks');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+            renderCallbacks(json.data);
+        }
+    } catch (e) {}
+}
+fetchCallbacksInitial();
 
 function appendOtaLog(log) {
     const container = document.getElementById('otaLogsContainer');
@@ -747,27 +1528,32 @@ function appendOtaLog(log) {
     container.scrollTop = container.scrollHeight;
 }
 
+let lastAmiConnected = false;
+let lastSftpConnected = false;
+
 function updateAmiStatus(connected) {
+    lastAmiConnected = connected;
     const badge = document.getElementById('amiStatusBadge');
     const text = document.getElementById('amiStatusText');
     if (connected) {
         badge.className = 'status-pill online';
-        text.innerText = 'AMI: Ulangan';
+        text.innerText = t('live_ami_connected', 'AMI: Ulangan');
     } else {
         badge.className = 'status-pill offline';
-        text.innerText = 'AMI: Uzilgan';
+        text.innerText = t('live_ami_disconnected', 'AMI: Uzilgan');
     }
 }
 
 function updateSftpStatus(connected) {
+    lastSftpConnected = connected;
     const badge = document.getElementById('sftpStatusBadge');
     const text = document.getElementById('sftpStatusText');
     if (connected) {
         badge.className = 'status-pill online';
-        text.innerText = 'SFTP: Faol';
+        text.innerText = t('live_sftp_active', 'SFTP: Faol');
     } else {
         badge.className = 'status-pill offline';
-        text.innerText = 'SFTP: Offline';
+        text.innerText = t('live_sftp_offline', 'SFTP: Offline');
     }
 }
 
@@ -841,9 +1627,9 @@ function updateStatsUI(stats) {
             ]);
         } else {
             callDistributionChart.series[0].setData([
-                { name: 'Muvaffaqiyatli', y: answeredCalls, color: '#10b981', sliced: false, selected: false },
-                { name: 'Navbatdan chiqdi', y: abandonedCalls, color: '#f59e0b', sliced: false, selected: false },
-                { name: 'Chiquvchi', y: outboundCalls, color: '#a855f7', sliced: false, selected: false }
+                { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: answeredCalls, color: '#10b981', sliced: false, selected: false },
+                { name: t('chart_slice_abandoned', 'Navbatdan chiqdi'), y: abandonedCalls, color: '#f59e0b', sliced: false, selected: false },
+                { name: t('chart_slice_outbound', 'Chiquvchi'), y: outboundCalls, color: '#a855f7', sliced: false, selected: false }
             ], true, { duration: 600 });
         }
     }
@@ -1191,9 +1977,10 @@ async function loadExplorerPath(subPath, pushHistory = true) {
         if (data.directories && data.directories.length > 0) {
             if (foldersGrid) {
                 foldersGrid.innerHTML = data.directories.map(d => `
-                    <div class="folder-card" onclick="loadExplorerPath('${d.path.replace(/\\/g, '/')}', true)">
-                        <div class="folder-icon">📁</div>
+                    <div class="folder-card" onclick="loadExplorerPath('${d.path.replace(/\\/g, '/')}', true)" title="${d.name}${d.sizeFormatted ? ` (${d.sizeFormatted})` : ''}">
+                        <div class="folder-icon">${isax('folder')}</div>
                         <div class="folder-name">${d.name}</div>
+                        ${d.sizeFormatted ? `<div class="folder-size"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" style="display:inline-block; vertical-align:middle; margin-right:3px;"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>${d.sizeFormatted}</div>` : ''}
                     </div>
                 `).join('');
             }
@@ -1206,7 +1993,7 @@ async function loadExplorerPath(subPath, pushHistory = true) {
         renderExplorerFilesTable(explorerFilesData);
     } catch (err) {
         if (filesTbody) {
-            filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik: ${err.message}</td></tr>`;
+            filesTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 20px;">${tf('hist_error', { msg: err.message }, `Xatolik: ${err.message}`)}</td></tr>`;
         }
     }
 }
@@ -1216,7 +2003,7 @@ function updateBreadcrumbs(subPath) {
     if (!container) return;
     const parts = subPath ? subPath.split('/').filter(Boolean) : [];
 
-    let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadExplorerPath('', true)">📁 monitor</span>`;
+    let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadExplorerPath('', true)">${isax('folder')} monitor</span>`;
     
     let accumulated = '';
     parts.forEach((p, idx) => {
@@ -1239,9 +2026,9 @@ function classifyAudioFile(fileName, sizeBytes) {
         return {
             isEmpty: true,
             isRobot: true,
-            label: '🚫 Bo\'sh (0 soniya)',
+            label: `${isax('close-circle')} ` + t('aud_empty_label', "Bo'sh (0 soniya)"),
             badgeClass: 'badge-danger',
-            desc: 'Qo\'ng\'iroq ulanmasdan uzilgan, ovoz yozilmagan'
+            desc: t('aud_empty_desc', "Qo'ng'iroq ulanmasdan uzilgan, ovoz yozilmagan")
         };
     }
 
@@ -1254,23 +2041,27 @@ function classifyAudioFile(fileName, sizeBytes) {
         return {
             isEmpty: false,
             isRobot: true,
-            label: '🤖 Faqat Navbat (Robot)',
+            label: t('aud_robot_label', '🤖 Faqat Navbat (Robot)'),
             badgeClass: 'badge-warning',
-            desc: 'Mijoz faqat navbat robotini eshitgan, operator bilan suhbat bo\'lmagan'
+            desc: t('aud_robot_desc', "Mijoz faqat navbat robotini eshitgan, operator bilan suhbat bo'lmagan")
         };
     }
 
     return {
         isEmpty: false,
         isRobot: false,
-        label: '🎧 Suhbat (Human Talk)',
+        label: t('aud_human_label', 'Suhbat (Human Talk)'),
         badgeClass: 'badge-success',
-        desc: 'Mijoz va operator o\'rtasidagi haqiqiy suhbat'
+        desc: t('aud_human_desc', "Mijoz va operator o'rtasidagi haqiqiy suhbat")
     };
 }
 
+function showEmptyAudioAlert() {
+    alert(t('aud_empty_alert', "Ushbu audio fayl bo'sh (0 soniya, suhbat bo'lmagan)"));
+}
+
 function estimateAudioDuration(sizeBytes) {
-    if (!sizeBytes || sizeBytes <= 44) return "00:00 (Bo'sh)";
+    if (!sizeBytes || sizeBytes <= 44) return t('aud_duration_empty', "00:00 (Bo'sh)");
     // Asterisk WAV formati: 8000 Hz, 16-bit Mono = sekundiga 16,000 bayt
     const sec = Math.max(0, Math.round((sizeBytes - 44) / 16000));
     const h = Math.floor(sec / 3600);
@@ -1296,7 +2087,7 @@ function renderExplorerFilesTable(files) {
         }
         // Agar qidiruv natijasida 0 ta topilgan bo'lsa:
         if (tableWrapper) tableWrapper.style.display = 'block';
-        filesTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">Qidiruv bo'yicha audio fayllar topilmadi</td></tr>`;
+        filesTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">${t('aud_search_empty', "Qidiruv bo'yicha audio fayllar topilmadi")}</td></tr>`;
         return;
     }
 
@@ -1305,7 +2096,7 @@ function renderExplorerFilesTable(files) {
     }
 
     filesTbody.innerHTML = files.map(file => {
-        const fileDate = file.modifyTime ? new Date(file.modifyTime).toLocaleString() : 'Bugun';
+        const fileDate = file.modifyTime ? new Date(file.modifyTime).toLocaleString() : t('date_today', 'Bugun');
         const analysis = classifyAudioFile(file.name, file.size);
         const durationText = estimateAudioDuration(file.size);
 
@@ -1331,16 +2122,16 @@ function renderExplorerFilesTable(files) {
                 <td style="color: var(--text-muted); font-size: 12px;">${fileDate}</td>
                 <td>
                     ${analysis.isEmpty ? `
-                        <button class="btn-action" style="opacity: 0.5; cursor: not-allowed;" onclick="alert('Ushbu audio fayl bo\\'sh (0 soniya, suhbat bo\\'lmagan)')" title="Yozuv bo'sh">
-                            🚫 Bo'sh
+                        <button class="btn-action" style="opacity: 0.5; cursor: not-allowed;" onclick="showEmptyAudioAlert()" title="${t('aud_empty_hint', "Yozuv bo'sh")}">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('aud_empty_btn', "Bo'sh")}</span>
                         </button>
                     ` : `
-                        <button class="btn-action" onclick="playAudioFile('${file.name}', '${file.path.replace(/\\\\/g, '/')}', ${file.size || 0})">
-                            ▶ Eshitish
+                        <button class="btn-action" onclick="playAudioFile('${file.name}', '${file.path.replace(/\\\\/g, '/')}', ${file.size || 0})" style="display: inline-flex; align-items: center; gap: 4px;">
+                            ${isax('play', '', 'width: 12px; height: 12px;')} ${t('audio_listen', 'Eshitish')}
                         </button>
                     `}
-                    <a class="btn-action" href="/api/recordings/stream?file=${encodeURIComponent(file.path)}" download="${file.name}" style="text-decoration: none;">
-                        ⬇ Yuklab olish
+                    <a class="btn-action" href="/api/recordings/stream?file=${encodeURIComponent(file.path)}" download="${file.name}" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        ${isax('import', '', 'width: 12px; height: 12px;')} ${t('audio_download', 'Yuklab olish')}
                     </a>
                 </td>
             </tr>
@@ -1507,7 +2298,7 @@ function renderInteractiveWaveform(audio, fileName, sizeBytes) {
 
 function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     if (sizeBytes > 0 && sizeBytes <= 44) {
-        alert("⚠️ Ushbu audio fayl bo'sh (suhbat bo'lmagan yoki qo'ng'iroq operatorga ulanmasdan uzilgan).");
+        alert(t('aud_empty_file_alert', "⚠️ Ushbu audio fayl bo'sh (suhbat bo'lmagan yoki qo'ng'iroq operatorga ulanmasdan uzilgan)."));
         return;
     }
 
@@ -1537,7 +2328,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     const subtitle = document.getElementById('playerStatusSubtitle');
     if (subtitle) {
         const sz = (typeof formatBytes === 'function' && sizeBytes) ? formatBytes(sizeBytes) : (sizeBytes ? (Math.round(sizeBytes / 1024) + ' KB') : '');
-        subtitle.innerText = sz ? `Fayl hajmi: ${sz} • Yuklanmoqda...` : 'Audio yuklanmoqda...';
+        subtitle.innerText = sz ? `${tf('player_file_size', { size: sz }, `Fayl hajmi: ${sz}`)} • ${t('logs_loading', 'Yuklanmoqda...')}` : t('audio_loading', 'Audio yuklanmoqda...');
         subtitle.style.color = '';
     }
 
@@ -1608,7 +2399,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     audio.onerror = () => {
         updatePlayerPlayState(false);
         if (subtitle) {
-            subtitle.innerText = '⚠️ Ovoz faylini ochib bo\'lmadi yoki suhbat yozuvi mavjud emas';
+            subtitle.innerText = t('aud_open_failed', '⚠️ Ovoz faylini ochib bo\'lmadi yoki suhbat yozuvi mavjud emas');
             subtitle.style.color = '#f87171';
         }
     };
@@ -1616,7 +2407,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     audio.onplay = () => {
         updatePlayerPlayState(true);
         if (subtitle) {
-            subtitle.innerText = 'Audio ijro etilmoqda';
+            subtitle.innerText = t('aud_playing', 'Audio ijro etilmoqda');
             subtitle.style.color = '';
         }
     };
@@ -1627,7 +2418,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
             audio.play().catch(() => {});
         } else {
             updatePlayerPlayState(false);
-            if (subtitle) subtitle.innerText = 'Ijro yakunlandi';
+            if (subtitle) subtitle.innerText = t('aud_playback_ended', 'Ijro yakunlandi');
         }
     };
 
@@ -1684,7 +2475,7 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
         const realDuration = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
             ? Math.round(audio.duration)
             : (duration || 0);
-        const displayName = `📞 ${callerId} (${formatSeconds(realDuration)})`;
+        const displayName = `${isax('call')} ${callerId} (${formatSeconds(realDuration)})`;
         activeAudioFileName = displayName;
         if (resolvedRec) {
             activeAudioFilePath = resolvedRec;
@@ -1745,14 +2536,14 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
     }
 
     if (playerFileName) {
-        playerFileName.innerText = callerId ? `📞 ${callerId} (Yuklanmoqda...)` : 'Audio yuklanmoqda...';
+        playerFileName.innerHTML = callerId ? `${isax('call')} ${callerId} (${t('logs_loading', 'Yuklanmoqda...')})` : t('audio_loading', 'Audio yuklanmoqda...');
     }
     if (playerCurrentTime) playerCurrentTime.innerText = '00:00';
     if (playerDuration) playerDuration.innerText = duration ? formatDuration(duration) : '--:--';
 
     const subtitle = document.getElementById('playerStatusSubtitle');
     if (subtitle) {
-        subtitle.innerText = '⏳ Audio serverdan qidirilmoqda va tayyorlanmoqda...';
+        subtitle.innerHTML = `${isax('timer')} ${t('aud_preparing', 'Audio serverdan qidirilmoqda va tayyorlanmoqda...')}`;
         subtitle.style.color = '#38bdf8';
     }
 
@@ -1769,7 +2560,7 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
     updatePlayerPlayState(false);
 
     if (btn) {
-        btn.innerHTML = '<span>⏳...</span>';
+        btn.innerHTML = `<span>${isax('timer')}...</span>`;
         btn.disabled = true;
     }
 
@@ -1783,7 +2574,7 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
 
     try {
         if (resolvedRec) {
-            const displayName = `📞 ${callerId} (${formatSeconds(duration || 0)})`;
+            const displayName = `${isax('call')} ${callerId} (${formatSeconds(duration || 0)})`;
             playAudioFile(displayName, resolvedRec, (duration || 0) * 16000, true);
             return;
         }
@@ -1824,22 +2615,22 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
             const targetItem = dashboardRecentCallsList.find(i => i.callerId === callerId);
             if (targetItem) targetItem.recording = matchedRecording;
 
-            const displayName = `📞 ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
+            const displayName = `${isax('call')} ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
             playAudioFile(displayName, matchedRecording, (matchedDuration || duration || 0) * 16000, true);
         } else {
             if (subtitle) {
-                subtitle.innerText = '⚠️ Ushbu suhbat uchun audio yozuv topilmadi';
+                subtitle.innerText = t('aud_record_not_found', '⚠️ Ushbu suhbat uchun audio yozuv topilmadi');
                 subtitle.style.color = '#f87171';
             }
-            if (playerFileName) playerFileName.innerText = `📞 ${callerId} (Yozuv yo'q)`;
-            alert(`⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi.`);
+            if (playerFileName) playerFileName.innerHTML = `${isax('call')} ${callerId} (${isax('close-circle')} ${t('audio_none', "Audio yo'q")})`;
+            alert(tf('audio_not_found_alert', { phone: callerId }, `⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi.`));
         }
     } catch (e) {
         if (subtitle) {
-            subtitle.innerText = '⚠️ Yuklashda xatolik yuz berdi';
+            subtitle.innerText = t('audio_load_error', '⚠️ Yuklashda xatolik yuz berdi');
             subtitle.style.color = '#f87171';
         }
-        alert('Audio ochishda xatolik: ' + e.message);
+        alert(t('audio_open_error', 'Audio ochishda xatolik: ') + e.message);
     } finally {
         if (btn) {
             btn.innerHTML = '<span>🔍 Detal</span>';
@@ -1896,7 +2687,7 @@ function renderActiveConversations(conversations) {
             if (!emptyEl) {
                 container.innerHTML = `
                     <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px; animation: fadeIn 0.3s ease;">
-                        Hozircha faol suhbatlar yo'q
+                        ${t('live_active_empty', "Hozircha faol suhbatlar yo'q")}
                     </div>
                 `;
             }
@@ -1920,21 +2711,24 @@ function renderActiveConversations(conversations) {
         const existingCard = container.querySelector(`.compact-channel-card[data-channel-key="${key}"]:not(.swiping-out)`);
 
         const isTalking = c.stateType === 'talking';
-        const isQueue = c.operator === 'Navbatda kutmoqda' || !c.operatorExten;
+        const isOutbound = c.direction === 'outbound';
+        const isQueue = (c.operator === 'Navbatda kutmoqda' || !c.operatorExten) && !isOutbound;
 
         let badgeClass = 'badge-warning';
         let badgeText = c.state;
 
         if (isTalking) {
-            badgeClass = 'badge-success';
-            badgeText = '🟢 Suhbatda';
+            badgeClass = isOutbound ? 'badge-info' : 'badge-success';
+            badgeText = isOutbound ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('export', '', 'width: 12px; height: 12px;')} ${t('live_badge_outbound', 'Chiquvchi')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('import', '', 'width: 12px; height: 12px;')} ${t('live_badge_inbound', 'Kiruvchi')}</span>`;
         } else if (isQueue) {
             badgeClass = 'badge-warning';
-            badgeText = '⏳ Navbatda kutmoqda';
+            badgeText = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('live_badge_queue', 'Navbatda kutmoqda')}</span>`;
         } else {
-            badgeClass = 'badge-info';
-            badgeText = '📞 Chaqirilmoqda';
+            badgeClass = isOutbound ? 'badge-info' : 'badge-info';
+            badgeText = isOutbound ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${t('live_badge_dialing', 'Chiquvchi chaqiruv')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${t('live_badge_ringing', 'Chaqirilmoqda')}</span>`;
         }
+
+        const opText = isQueue ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('live_badge_queue', 'Navbatda kutmoqda')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('headphone', '', 'width: 12px; height: 12px;')} ${c.operator}</span>`;
 
         if (existingCard) {
             // Holat o'zgargan bo'lsa sinflar va yozuvlarni yangilash
@@ -1942,12 +2736,16 @@ function renderActiveConversations(conversations) {
             const badgeEl = existingCard.querySelector('.badge');
             if (badgeEl) {
                 badgeEl.className = `badge ${badgeClass}`;
-                badgeEl.innerText = badgeText;
+                badgeEl.innerHTML = badgeText;
             }
             const opEl = existingCard.querySelector('.chan-op span');
             if (opEl) {
-                opEl.innerText = `🎧 ${c.operator}`;
+                opEl.innerHTML = opText;
             }
+            const switchBtn = existingCard.querySelector('.btn-action');
+            if (switchBtn) switchBtn.title = t('live_switch_title', "Boshqa operatorga yo'naltirish (Switch / Transfer)");
+            const endBtn = existingCard.querySelector('.btn-end-call');
+            if (endBtn) endBtn.title = t('live_endcall_title', "Qo'ng'iroqni tugatish (End Call)");
         } else {
             // Yangi kelgan suhbat kartasini qo'shish (chapdan silliq kirib keladi)
             const cardEl = document.createElement('div');
@@ -1955,9 +2753,9 @@ function renderActiveConversations(conversations) {
             cardEl.setAttribute('data-channel-key', key);
             cardEl.innerHTML = `
                 <div class="chan-left">
-                    <div class="chan-number">📞 ${formatCallerNumberOrOperator(c.callerId)}</div>
+                    <div class="chan-number" style="display: flex; align-items: center; gap: 4px;">${isax('call')} ${formatCallerNumberOrOperator(c.callerId)}</div>
                     <div class="chan-op">
-                        <span>🎧 ${c.operator}</span>
+                        <span>${opText}</span>
                     </div>
                 </div>
                 <div class="chan-right">
@@ -1965,7 +2763,7 @@ function renderActiveConversations(conversations) {
                         ${badgeText}
                     </span>
                     <!-- Transfer / Switch Button -->
-                    <button class="btn-action" style="padding: 3px 6px; background: rgba(99, 102, 241, 0.25); border-color: rgba(99, 102, 241, 0.5); color: #818cf8; display: inline-flex; align-items: center; justify-content: center;" onclick="openTransferModal('${c.channel}', '${c.callerId}')" title="Boshqa operatorga yo'naltirish (Switch / Transfer)">
+                    <button class="btn-action" style="padding: 3px 6px; background: rgba(99, 102, 241, 0.25); border-color: rgba(99, 102, 241, 0.5); color: #818cf8; display: inline-flex; align-items: center; justify-content: center;" onclick="openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', "Boshqa operatorga yo'naltirish (Switch / Transfer)")}">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="20" y1="7" x2="4" y2="7"></line>
                             <polyline points="10 3 4 7 10 11"></polyline>
@@ -1974,7 +2772,7 @@ function renderActiveConversations(conversations) {
                         </svg>
                     </button>
                     <!-- End Call / Hangup Button -->
-                    <button class="btn-end-call" onclick="hangupChannel('${c.channel}')" title="Qo'ng'iroqni tugatish (End Call)">
+                    <button class="btn-end-call" onclick="hangupChannel('${c.channel}')" title="${t('live_endcall_title', "Qo'ng'iroqni tugatish (End Call)")}">
                         <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
                             <circle cx="50" cy="50" r="48" fill="#e11d48"/>
                             <path d="M22 58 C 21 53, 25 45, 36 41 C 45 38, 55 38, 64 41 C 75 45, 79 53, 78 58 C 77 62, 72 63, 67 58 C 63 54, 59 47, 50 47 C 41 47, 37 54, 33 58 C 28 63, 23 62, 22 58 Z" fill="#ffffff"/>
@@ -2008,13 +2806,13 @@ function renderQueues(queues) {
     // Shuningdek agar activeConversations ichida Navbatda kutayotganlar bo'lsa lekin queue ga kirmagan bo'lsa
     if (currentConversations && currentConversations.length > 0) {
         currentConversations.forEach(c => {
-            if (c.operator === 'Navbatda kutmoqda' || !c.operatorExten) {
+            if ((c.operator === 'Navbatda kutmoqda' || !c.operatorExten) && c.direction !== 'outbound') {
                 const alreadyIn = allWaiters.some(w => w.callerId === c.callerId);
                 if (!alreadyIn) {
                     allWaiters.push({
                         callerId: c.callerId,
                         position: allWaiters.length + 1,
-                        queueName: 'Asosiy Navbat'
+                        queueName: t('live_default_queue', 'Asosiy Navbat')
                     });
                     totalWaiters++;
                 }
@@ -2022,14 +2820,14 @@ function renderQueues(queues) {
         });
     }
 
-    countBadge.innerText = `${totalWaiters} ta`;
+    countBadge.innerText = `${totalWaiters} ${t('unit_item', 'ta')}`;
     const kpiQueue = document.getElementById('kpiQueueWaiting');
     if (kpiQueue) kpiQueue.innerText = totalWaiters;
 
     if (allWaiters.length === 0) {
         listEl.innerHTML = `
             <div style="color: var(--text-dim); font-size: 11px; text-align: center; padding: 4px;">
-                ${totalWaiters > 0 ? `${totalWaiters} ta mijoz navbatda kutmoqda` : 'Hozircha navbatda kutayotganlar yo\'q'}
+                ${totalWaiters > 0 ? tf('live_waiting_count', { n: totalWaiters }, `${totalWaiters} ta mijoz navbatda kutmoqda`) : t('live_queue_empty', "Hozircha navbatda kutayotganlar yo'q")}
             </div>
         `;
         return;
@@ -2037,14 +2835,14 @@ function renderQueues(queues) {
 
     listEl.innerHTML = allWaiters.map(w => `
         <div class="queue-caller-pill">
-            <span style="font-weight: 600; color: #fff;">📞 ${w.callerId}</span>
-            <span style="color: #818cf8; font-size: 10px; font-weight: 600;">Navbatda #${w.position || 1}</span>
+            <span style="font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${w.callerId}</span>
+            <span style="color: #818cf8; font-size: 10px; font-weight: 600;">${tf('live_position', { n: w.position || 1 }, `Navbatda #${w.position || 1}`)}</span>
         </div>
     `).join('');
 }
 
 async function hangupChannel(channel) {
-    if (!confirm(`Haqiqatan ham ushbu kanalni uzmoqchimisiz?`)) return;
+    if (!confirm(t('live_hangup_confirm', 'Haqiqatan ham ushbu kanalni uzmoqchimisiz?'))) return;
 
     // Tugatish bosilganda darhol o'ngga swipe-out animatsiyasini qo'llash
     const card = document.querySelector(`.compact-channel-card[data-channel-key="${channel}"]`);
@@ -2056,7 +2854,7 @@ async function hangupChannel(channel) {
             if (container && container.querySelectorAll('.compact-channel-card:not(.swiping-out)').length === 0) {
                 container.innerHTML = `
                     <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;">
-                        Hozircha faol suhbatlar yo'q
+                        ${t('live_active_empty', "Hozircha faol suhbatlar yo'q")}
                     </div>
                 `;
             }
@@ -2070,7 +2868,7 @@ async function hangupChannel(channel) {
             body: JSON.stringify({ channel })
         });
     } catch (e) {
-        alert('Uzishda xatolik: ' + e.message);
+        alert(t('hangup_error', 'Uzishda xatolik: ') + e.message);
     }
 }
 
@@ -2095,12 +2893,12 @@ function initTransferModal() {
         const select = document.getElementById('transferOperatorSelect');
         const targetExten = select.value;
         if (!targetExten || !activeTransferChannel) {
-            alert('Operator tanlanmadi!');
+            alert(t('transfer_not_selected', 'Operator tanlanmadi!'));
             return;
         }
 
         try {
-            btnConfirm.innerText = 'O\'tkazilmoqda...';
+            btnConfirm.innerText = t('transfer_in_progress', "O'tkazilmoqda...");
             btnConfirm.disabled = true;
 
             const res = await fetch('/api/action/transfer', {
@@ -2113,15 +2911,15 @@ function initTransferModal() {
             });
             const data = await res.json();
             if (data.success) {
-                alert(`✅ Qo'ng'iroq Operator ${targetExten} ga muvaffaqiyatli o'tkazildi!`);
+                alert(tf('transfer_success', { exten: targetExten }, `Qo'ng'iroq Operator ${targetExten} ga muvaffaqiyatli o'tkazildi!`));
                 closeModal();
             } else {
-                alert('Xatolik: ' + (data.error || 'O\'tkazib bo\'lmadi'));
+                alert(t('transfer_error_prefix', 'Xatolik: ') + (data.error || t('transfer_failed', "O'tkazib bo'lmadi")));
             }
         } catch (err) {
-            alert('Transfer xatosi: ' + err.message);
+            alert(t('transfer_exception', 'Transfer xatosi: ') + err.message);
         } finally {
-            btnConfirm.innerText = '✓ O\'tkazish';
+            btnConfirm.innerText = t('transfer_confirm', "✓ O'tkazish");
             btnConfirm.disabled = false;
         }
     });
@@ -2133,16 +2931,16 @@ function openTransferModal(channel, callerId) {
     const callerDisplay = document.getElementById('transferCallerDisplay');
     const select = document.getElementById('transferOperatorSelect');
 
-    callerDisplay.innerText = callerId || 'Mijoz';
+    callerDisplay.innerText = callerId || t('party_client', 'Mijoz');
 
     // Populate operators (ready ones first)
     if (currentOperators.length === 0) {
-        select.innerHTML = `<option value="">Operatorlar topilmadi</option>`;
+        select.innerHTML = `<option value="">${t('transfer_no_ops', 'Operatorlar topilmadi')}</option>`;
     } else {
         select.innerHTML = currentOperators.map(op => {
             const pres = op.presence || 'ready';
             const icon = pres === 'ready' ? '🟢' : (pres === 'talking' ? '🟡' : '🔴');
-            const stateText = pres === 'ready' ? '(Tayyor / On-hook)' : (pres === 'talking' ? '(Suhbatda)' : '(Offline)');
+            const stateText = pres === 'ready' ? t('transfer_ready', '(Tayyor / On-hook)') : (pres === 'talking' ? t('transfer_talking', '(Suhbatda)') : t('transfer_offline', '(Offline)'));
             return `
                 <option value="${op.id}">
                     ${icon} Operator ${op.id} ${stateText}
@@ -2154,7 +2952,36 @@ function openTransferModal(channel, callerId) {
     modal.style.display = 'flex';
 }
 
-const EXCLUDED_OPERATOR_IDS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATOR_IDS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+
+// Operator guruhi holati (main: 100-199 | secondary: 200+ | all: barchasi)
+let currentOperatorGroup = 'main';
+try {
+    const savedGroup = localStorage.getItem('callcenter_op_group');
+    if (savedGroup && ['main', 'secondary', 'all'].includes(savedGroup)) {
+        currentOperatorGroup = savedGroup;
+    }
+} catch (e) {}
+
+function switchOperatorGroup(group) {
+    if (!['main', 'secondary', 'all'].includes(group)) return;
+    currentOperatorGroup = group;
+    try {
+        localStorage.setItem('callcenter_op_group', group);
+    } catch (e) {}
+
+    document.querySelectorAll('.op-group-btn').forEach(btn => {
+        if (btn.getAttribute('data-group') === group) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    if (window._rawLastOperators) {
+        renderOperators(window._rawLastOperators);
+    }
+}
 
 /* ==========================================================================
    6. Operator Performance Section (Sorted: Online -> Talking -> Offline + Gamified MVP Stars)
@@ -2176,50 +3003,110 @@ function getPresenceRank(op) {
     return 5; // 5. Offline
 }
 
-function generateStarRatingHtml(answered, operatorName) {
-    if (!answered || answered < 1) {
+function generateStarRatingHtml(totalScore, operatorName) {
+    const score = parseInt(totalScore, 10) || 0;
+    if (score < 1) {
         return '';
     }
 
-    let stars = '';
     let currentLevel = 0;
     let nextStarNeeded = 0;
+    let starsClusterHtml = '';
 
-    if (answered >= 40) {
-        stars = '⭐⭐⭐⭐⭐';
+    if (score >= 40) {
         currentLevel = 5;
-    } else if (answered >= 30) {
-        stars = '⭐⭐⭐⭐';
+        // 5 ta yulduz: Kamalaksimon (Arch)
+        //    x
+        // xx  xx
+        starsClusterHtml = `
+            <div class="stars-cluster stars-count-5" title="5 ta yulduz (Kamalaksimon)">
+                <div class="star-row star-row-top">
+                    <span class="star-item star-peak">⭐</span>
+                </div>
+                <div class="star-row star-row-bottom">
+                    <div class="star-wing wing-left">
+                        <span class="star-item star-outer">⭐</span>
+                        <span class="star-item star-inner">⭐</span>
+                    </div>
+                    <div class="star-wing wing-right">
+                        <span class="star-item star-inner">⭐</span>
+                        <span class="star-item star-outer">⭐</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else if (score >= 30) {
         currentLevel = 4;
-        nextStarNeeded = 40 - answered;
-    } else if (answered >= 20) {
-        stars = '⭐⭐⭐';
+        nextStarNeeded = 40 - score;
+        // 4 ta yulduz: 2x2 kvadrat
+        // x x
+        // x x
+        starsClusterHtml = `
+            <div class="stars-cluster stars-count-4" title="4 ta yulduz (2x2)">
+                <div class="star-row">
+                    <span class="star-item">⭐</span>
+                    <span class="star-item">⭐</span>
+                </div>
+                <div class="star-row">
+                    <span class="star-item">⭐</span>
+                    <span class="star-item">⭐</span>
+                </div>
+            </div>
+        `;
+    } else if (score >= 20) {
         currentLevel = 3;
-        nextStarNeeded = 30 - answered;
-    } else if (answered >= 10) {
-        stars = '⭐⭐';
+        nextStarNeeded = 30 - score;
+        // 3 ta yulduz: Tepada 1, pastda 2
+        //   x
+        // x   x
+        starsClusterHtml = `
+            <div class="stars-cluster stars-count-3" title="3 ta yulduz">
+                <div class="star-row star-row-top">
+                    <span class="star-item star-peak">⭐</span>
+                </div>
+                <div class="star-row star-row-bottom">
+                    <span class="star-item">⭐</span>
+                    <span class="star-item">⭐</span>
+                </div>
+            </div>
+        `;
+    } else if (score >= 10) {
         currentLevel = 2;
-        nextStarNeeded = 20 - answered;
-    } else if (answered >= 1) {
-        stars = '⭐';
+        nextStarNeeded = 20 - score;
+        // 2 ta yulduz: Yonma-yon
+        starsClusterHtml = `
+            <div class="stars-cluster stars-count-2" title="2 ta yulduz">
+                <div class="star-row">
+                    <span class="star-item">⭐</span>
+                    <span class="star-item">⭐</span>
+                </div>
+            </div>
+        `;
+    } else if (score >= 1) {
         currentLevel = 1;
-        nextStarNeeded = 10 - answered;
+        nextStarNeeded = 10 - score;
+        // 1 ta yulduz
+        starsClusterHtml = `
+            <div class="stars-cluster stars-count-1" title="1 ta yulduz">
+                <span class="star-item star-single">⭐</span>
+            </div>
+        `;
     }
 
     const progressText = nextStarNeeded > 0
-        ? `<div class="star-progress-note">Keyingi yulduzgacha: yana <b>${nextStarNeeded} ta</b> qo'ng'iroq kerak</div>`
-        : `<div class="star-progress-note" style="color: #10b981;">🏆 Maksimal daraja (TOP operator)!</div>`;
+        ? `<div class="star-progress-note">${tf('star_next_note', { n: `<b>${nextStarNeeded} ta</b>` }, `Keyingi yulduzgacha: yana ${nextStarNeeded} ta qo'ng'iroq kerak`)}</div>`
+        : `<div class="star-progress-note" style="color: #10b981;">${t('star_max', '🏆 Maksimal daraja (TOP operator)!')}</div>`;
 
     return `
         <div class="star-rating-box" onclick="event.stopPropagation();">
-            <span>${stars}</span>
+            ${starsClusterHtml}
             <div class="star-rating-tooltip">
                 <div class="star-tooltip-header">
                     <span>⭐</span>
-                    <span>Operator darajasi tizimi</span>
+                    <span>${t('op_mvp_system', 'Operator darajasi tizimi')}</span>
                 </div>
                 <div class="star-tooltip-current">
-                    <b>${operatorName || 'Operator'}:</b> ${answered} ta qabul qilingan
+                    <b>${operatorName || 'Operator'}:</b> ${score} ${t('op_mvp_accepted_suffix', 'ta jami qo\'ng\'iroq')}
                     ${progressText}
                 </div>
                 <div class="star-tooltip-divider"></div>
@@ -2227,27 +3114,27 @@ function generateStarRatingHtml(answered, operatorName) {
                     <div class="star-level-row ${currentLevel === 5 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐⭐⭐</span>
                         <span class="level-range">40+ ta</span>
-                        <span class="level-desc">Super Elita</span>
+                        <span class="level-desc">${t('star_level_5', 'Super Elita')}</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 4 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐⭐</span>
                         <span class="level-range">30 - 39 ta</span>
-                        <span class="level-desc">Yetakchi</span>
+                        <span class="level-desc">${t('star_level_4', 'Yetakchi')}</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 3 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐⭐</span>
                         <span class="level-range">20 - 29 ta</span>
-                        <span class="level-desc">Tajribali</span>
+                        <span class="level-desc">${t('star_level_3', 'Tajribali')}</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 2 ? 'current-level' : ''}">
                         <span class="level-stars">⭐⭐</span>
                         <span class="level-range">10 - 19 ta</span>
-                        <span class="level-desc">O'rta daraja</span>
+                        <span class="level-desc">${t('star_level_2', "O'rta daraja")}</span>
                     </div>
                     <div class="star-level-row ${currentLevel === 1 ? 'current-level' : ''}">
                         <span class="level-stars">⭐</span>
                         <span class="level-range">1 - 9 ta</span>
-                        <span class="level-desc">Boshlang'ich</span>
+                        <span class="level-desc">${t('star_level_1', "Boshlang'ich")}</span>
                     </div>
                 </div>
             </div>
@@ -2294,10 +3181,83 @@ function updateAllTalkingTimers() {
     });
 }
 
-// 1-rasm: 3 yulduzli oltin lavr chambari + MVP SVG nishoni
-function getMvpWreathBadgeHtml() {
+// Jonli suhbat taymerlarini har soniyada silliq oshirib borish (00:00 qotib qolmasligi uchun)
+setInterval(updateAllTalkingTimers, 1000);
+
+// 1-rasm: 3 yulduzli olmos lavr chambari + MVP SVG nishoni
+function getDiamondWreathBadgeHtml() {
     return `
-        <span class="mvp-wreath-badge" title="Bugungi eng faol yetakchi operator (MVP)">
+        <span class="mvp-wreath-badge diamond-wreath" title="${t('op_diamond_title', '1-o\'rin sohibi (Olmos MVP / Diamond Crown)')}">
+            <svg class="mvp-wreath-svg" viewBox="0 0 140 75" width="56" height="30" aria-hidden="true">
+                <defs>
+                    <linearGradient id="mvpDiamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="35%" stop-color="#bae6fd" />
+                        <stop offset="70%" stop-color="#38bdf8" />
+                        <stop offset="100%" stop-color="#0284c7" />
+                    </linearGradient>
+                    <linearGradient id="diamondStarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="60%" stop-color="#7dd3fc" />
+                        <stop offset="100%" stop-color="#0284c7" />
+                    </linearGradient>
+                </defs>
+                <!-- 3 Olmos Yulduz -->
+                <polygon points="70,3 72.8,9.5 80,9.8 74.5,14.2 76.8,21 70,16.8 63.2,21 65.5,14.2 60,9.8 67.2,9.5" fill="url(#diamondStarGrad)" />
+                <polygon points="49,8 51,12.8 56.5,13 52.3,16.2 54,21 49,18 44,21 45.7,16.2 41.5,13 47,12.8" fill="url(#diamondStarGrad)" />
+                <polygon points="91,8 93,12.8 98.5,13 94.3,16.2 96,21 91,18 86,21 87.7,16.2 83.5,13 89,12.8" fill="url(#diamondStarGrad)" />
+                <!-- Chap Lavr Chambari -->
+                <g fill="url(#mvpDiamondGrad)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpDiamondGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- O'ng Lavr Chambari (Mirror) -->
+                <g fill="url(#mvpDiamondGrad)" transform="translate(140, 0) scale(-1, 1)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpDiamondGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- Pastki bog'lam / tugun -->
+                <circle cx="70" cy="69" r="2.5" fill="url(#mvpDiamondGrad)" />
+                <path d="M 66 70 Q 70 74 74 70" fill="none" stroke="url(#mvpDiamondGrad)" stroke-width="1.8" />
+                <!-- MVP Matni -->
+                <text x="70" y="52" 
+                      text-anchor="middle" 
+                      font-family="'Inter', -apple-system, sans-serif" 
+                      font-size="24" 
+                      font-weight="900" 
+                      letter-spacing="1.5"
+                      fill="url(#mvpDiamondGrad)"
+                      style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));">MVP</text>
+            </svg>
+        </span>
+    `;
+}
+function getMvpWreathBadgeHtml() {
+    return getDiamondWreathBadgeHtml();
+}
+
+// 2-rasm: 2 yulduzli oltin lavr chambari + TOP 2 SVG nishoni
+function getGoldWreathBadgeHtml() {
+    return `
+        <span class="mvp-wreath-badge gold-wreath" title="${t('op_gold_title', '2-o\'rin sohibi (Oltin toj / Gold Crown)')}">
             <svg class="mvp-wreath-svg" viewBox="0 0 140 75" width="56" height="30" aria-hidden="true">
                 <defs>
                     <linearGradient id="mvpGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -2306,16 +3266,15 @@ function getMvpWreathBadgeHtml() {
                         <stop offset="75%" stop-color="#f59e0b" />
                         <stop offset="100%" stop-color="#b45309" />
                     </linearGradient>
-                    <linearGradient id="mvpStarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <linearGradient id="goldStarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stop-color="#ffffff" />
                         <stop offset="60%" stop-color="#fcd34d" />
                         <stop offset="100%" stop-color="#f59e0b" />
                     </linearGradient>
                 </defs>
-                <!-- 3 Oltin Yulduz -->
-                <polygon points="70,3 72.8,9.5 80,9.8 74.5,14.2 76.8,21 70,16.8 63.2,21 65.5,14.2 60,9.8 67.2,9.5" fill="url(#mvpStarGrad)" />
-                <polygon points="49,8 51,12.8 56.5,13 52.3,16.2 54,21 49,18 44,21 45.7,16.2 41.5,13 47,12.8" fill="url(#mvpStarGrad)" />
-                <polygon points="91,8 93,12.8 98.5,13 94.3,16.2 96,21 91,18 86,21 87.7,16.2 83.5,13 89,12.8" fill="url(#mvpStarGrad)" />
+                <!-- 2 Oltin Yulduz -->
+                <polygon points="56,8 58,12.8 63.5,13 59.3,16.2 61,21 56,18 51,21 52.7,16.2 48.5,13 54,12.8" fill="url(#goldStarGrad)" />
+                <polygon points="84,8 86,12.8 91.5,13 87.3,16.2 89,21 84,18 79,21 80.7,16.2 76.5,13 82,12.8" fill="url(#goldStarGrad)" />
                 <!-- Chap Lavr Chambari -->
                 <g fill="url(#mvpGoldGrad)">
                     <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpGoldGrad)" stroke-width="2" stroke-linecap="round" />
@@ -2347,22 +3306,148 @@ function getMvpWreathBadgeHtml() {
                 <!-- Pastki bog'lam / tugun -->
                 <circle cx="70" cy="69" r="2.5" fill="url(#mvpGoldGrad)" />
                 <path d="M 66 70 Q 70 74 74 70" fill="none" stroke="url(#mvpGoldGrad)" stroke-width="1.8" />
-                <!-- MVP Matni -->
+                <!-- TOP 2 Matni -->
                 <text x="70" y="52" 
                       text-anchor="middle" 
                       font-family="'Inter', -apple-system, sans-serif" 
-                      font-size="24" 
+                      font-size="21" 
                       font-weight="900" 
-                      letter-spacing="1.5"
+                      letter-spacing="1" 
                       fill="url(#mvpGoldGrad)"
-                      style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));">MVP</text>
+                      style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));">#2</text>
             </svg>
         </span>
     `;
 }
 
+// 3-rasm: 1 yulduzli kumush lavr chambari + TOP 3 SVG nishoni
+function getSilverWreathBadgeHtml() {
+    return `
+        <span class="mvp-wreath-badge silver-wreath" title="${t('op_silver_title', '3-o\'rin sohibi (Kumush toj / Silver Crown)')}">
+            <svg class="mvp-wreath-svg" viewBox="0 0 140 75" width="56" height="30" aria-hidden="true">
+                <defs>
+                    <linearGradient id="mvpSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="35%" stop-color="#e2e8f0" />
+                        <stop offset="75%" stop-color="#94a3b8" />
+                        <stop offset="100%" stop-color="#64748b" />
+                    </linearGradient>
+                    <linearGradient id="silverStarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" />
+                        <stop offset="60%" stop-color="#cbd5e1" />
+                        <stop offset="100%" stop-color="#94a3b8" />
+                    </linearGradient>
+                </defs>
+                <!-- 1 Kumush Yulduz -->
+                <polygon points="70,5 72.8,11.5 80,11.8 74.5,16.2 76.8,23 70,18.8 63.2,23 65.5,16.2 60,11.8 67.2,11.5" fill="url(#silverStarGrad)" />
+                <!-- Chap Lavr Chambari -->
+                <g fill="url(#mvpSilverGrad)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpSilverGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- O'ng Lavr Chambari (Mirror) -->
+                <g fill="url(#mvpSilverGrad)" transform="translate(140, 0) scale(-1, 1)">
+                    <path d="M 66 69 C 48 68 26 56 24 37 C 23 27 28 19 33 16" fill="none" stroke="url(#mvpSilverGrad)" stroke-width="2" stroke-linecap="round" />
+                    <path d="M 61 68 C 55 70 48 66 50 61 C 52 57 58 61 61 68 Z" />
+                    <path d="M 52 64 C 44 65 40 59 44 55 C 47 51 52 56 52 64 Z" />
+                    <path d="M 42 57 C 34 57 31 50 35 45 C 39 42 43 48 42 57 Z" />
+                    <path d="M 33 48 C 24 46 23 39 28 35 C 32 32 36 39 33 48 Z" />
+                    <path d="M 27 37 C 19 33 20 25 26 23 C 30 21 32 29 27 37 Z" />
+                    <path d="M 27 26 C 22 20 25 14 31 15 C 35 16 34 23 27 26 Z" />
+                    <path d="M 33 16 C 30 10 36 6 41 8 C 44 11 41 17 33 16 Z" />
+                    <path d="M 55 58 C 50 56 51 50 55 50 C 58 50 58 55 55 58 Z" />
+                    <path d="M 45 50 C 40 47 42 42 46 42 C 49 42 49 47 45 50 Z" />
+                    <path d="M 37 40 C 33 36 35 31 39 32 C 42 33 41 38 37 40 Z" />
+                </g>
+                <!-- Pastki bog'lam / tugun -->
+                <circle cx="70" cy="69" r="2.5" fill="url(#mvpSilverGrad)" />
+                <path d="M 66 70 Q 70 74 74 70" fill="none" stroke="url(#mvpSilverGrad)" stroke-width="1.8" />
+                <!-- TOP 3 Matni -->
+                <text x="70" y="52" 
+                      text-anchor="middle" 
+                      font-family="'Inter', -apple-system, sans-serif" 
+                      font-size="21" 
+                      font-weight="900" 
+                      letter-spacing="1" 
+                      fill="url(#mvpSilverGrad)"
+                      style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));">#3</text>
+            </svg>
+        </span>
+    `;
+}
+function getBronzeWreathBadgeHtml() {
+    return getSilverWreathBadgeHtml();
+}
+
+window.toggleOperatorPause = async function(operatorId, shouldPause, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    const cleanId = String(operatorId || '').replace(/\D/g, '');
+    if (!cleanId) return;
+
+    const opList = window.currentOperators || (typeof currentOperators !== 'undefined' ? currentOperators : []);
+    const op = opList.find(o => String(o.id) === cleanId);
+    const opName = op ? (op.realName || op.name || `Operator ${cleanId}`) : `Operator ${cleanId}`;
+
+    try {
+        const resp = await fetch('/api/operator/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extension: cleanId, paused: shouldPause })
+        });
+        const res = await resp.json();
+        if (res.success) {
+            const toastMsg = shouldPause 
+                ? `${opName} (${cleanId}) tanaffusga (pauzaga) qo'yildi` 
+                : `${opName} (${cleanId}) pauzadan chiqarildi va ishga qaytdi`;
+            if (typeof showBlacklistToast === 'function') {
+                showBlacklistToast(toastMsg, shouldPause ? 'info' : 'success');
+            } else if (typeof showToast === 'function') {
+                showToast(toastMsg, shouldPause ? 'info' : 'success');
+            } else {
+                console.log(toastMsg);
+            }
+            if (typeof socket !== 'undefined' && socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ action: 'refresh_channels' }));
+            }
+            if (typeof detailState !== 'undefined' && detailState && detailState.currentOp && String(detailState.currentOp.id) === cleanId) {
+                detailState.currentOp.paused = shouldPause;
+                if (shouldPause) {
+                    if (detailState.currentOp.presence !== 'talking') detailState.currentOp.presence = 'paused';
+                } else {
+                    if (detailState.currentOp.presence === 'paused') detailState.currentOp.presence = 'ready';
+                }
+                if (typeof renderOperatorSummaryPills === 'function') {
+                    renderOperatorSummaryPills();
+                }
+            }
+        } else {
+            alert('Xatolik: ' + (res.message || 'Pauza holatini o\'zgartirib bo\'lmadi'));
+        }
+    } catch (err) {
+        console.error('toggleOperatorPause xatolik:', err);
+        alert('Server bilan bog\'lanishda xatolik: ' + err.message);
+    }
+};
+
 function renderOperators(operators) {
-    currentOperators = (operators || [])
+    if (operators && Array.isArray(operators)) {
+        window._rawLastOperators = operators;
+    }
+    const rawList = operators || window._rawLastOperators || [];
+
+    const allFiltered = rawList
         .filter(op => !EXCLUDED_OPERATOR_IDS.has(String(op.id)))
         .slice().sort((a, b) => {
             const rA = getPresenceRank(a);
@@ -2370,14 +3455,53 @@ function renderOperators(operators) {
             if (rA !== rB) return rA - rB;
             return parseInt(a.id, 10) - parseInt(b.id, 10);
         });
+
+    // 100-199 (Asosiy) va 200+ (Zangiota 42) guruhlarga ajratish
+    const mainOps = allFiltered.filter(op => {
+        const num = parseInt(op.id, 10);
+        return !isNaN(num) && num >= 100 && num < 200;
+    });
+    const secondaryOps = allFiltered.filter(op => {
+        const num = parseInt(op.id, 10);
+        return !isNaN(num) && num >= 200;
+    });
+
+    // Switch tugmalaridagi hisoblagichlarni yangilash
+    const elCountMain = document.getElementById('countMainOps');
+    const elCountSec = document.getElementById('countSecondaryOps');
+    const elCountAll = document.getElementById('countAllOps');
+    if (elCountMain) elCountMain.textContent = mainOps.length;
+    if (elCountSec) elCountSec.textContent = secondaryOps.length;
+    if (elCountAll) elCountAll.textContent = allFiltered.length;
+
+    // Tugma active holatini sinxronlashtirish
+    document.querySelectorAll('.op-group-btn').forEach(btn => {
+        if (btn.getAttribute('data-group') === currentOperatorGroup) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Tanlangan guruh bo'yicha joriy ro'yxatni belgilash
+    if (currentOperatorGroup === 'secondary') {
+        currentOperators = secondaryOps;
+    } else if (currentOperatorGroup === 'all') {
+        currentOperators = allFiltered;
+    } else {
+        currentOperators = mainOps; // Default: Asosiy (100-199)
+    }
+
     const grid = document.getElementById('operatorsGrid');
 
-    // Eng faol operatorni aniqlash (MVP reyting)
+    // Eng faol operatorni aniqlash (MVP reyting) jami qo'ng'iroqlar bo'yicha
     const sortedByScore = [...currentOperators]
-        .filter(op => (op.answered || 0) > 0 || (op.totalDurationSec || 0) > 0)
-        .sort((a, b) => (b.answered || 0) - (a.answered || 0) || (b.totalDurationSec || 0) - (a.totalDurationSec || 0));
+        .filter(op => ((op.grandTotal ?? op.answered ?? 0) > 0) || (op.totalDurationSec || 0) > 0)
+        .sort((a, b) => ((b.grandTotal ?? b.answered ?? 0) - (a.grandTotal ?? a.answered ?? 0)) || ((b.totalDurationSec || 0) - (a.totalDurationSec || 0)));
 
     const top1Id = sortedByScore[0] ? sortedByScore[0].id : null;
+    const top2Id = sortedByScore[1] ? sortedByScore[1].id : null;
+    const top3Id = sortedByScore[2] ? sortedByScore[2].id : null;
 
     let countReady = 0;
     let countTalking = 0;
@@ -2403,9 +3527,12 @@ function renderOperators(operators) {
     if (elAgent) elAgent.innerText = `${countAgentOnline} ta`;
 
     if (!currentOperators || currentOperators.length === 0) {
+        const groupLabel = currentOperatorGroup === 'secondary' 
+            ? "Zangiota 42 (200+)" 
+            : (currentOperatorGroup === 'main' ? "Asosiy (100-199)" : "operatorlar");
         grid.innerHTML = `
-            <div style="color: var(--text-muted); font-size: 13px; padding: 16px;">
-                Hozircha operatorlar faoliyati aniqlanmadi. Qo'ng'iroqlar bo'lganda avtomatik qo'shiladi.
+            <div style="color: var(--text-muted); font-size: 13px; padding: 24px; text-align: center; grid-column: 1 / -1;">
+                Hozircha ${groupLabel} bo'yicha operatorlar mavjud emas.
             </div>
         `;
         return;
@@ -2432,32 +3559,29 @@ function renderOperators(operators) {
         return pres === 'ready' && !isRinging;
     });
 
-    // Hozir jiringlayotgan operator bormi?
-    const ringingOp = currentOperators.find(op => {
-        const pres = op.presence || 'ready';
-        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
-        return (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
-    });
-
     let predictedNextOpId = null;
-    if (ringingOp) {
-        // Jiringlash animatsiyasi tugaguncha (suhbat boshlanguncha) oltin belgi aynan shu operator kartasida qoladi
-        predictedNextOpId = ringingOp.id;
-    } else if (readyOps.length > 0) {
+    if (readyOps.length > 0) {
         readyOps.sort((a, b) => {
-            // Asterisk QueueMember dan kelgan jonli callsTaken bo'lsa, o'shani olamiz (Asterisk RAM bilan 100% bir xil bo'ladi)
-            const callsA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : (Number(a.answered) || 0);
-            const callsB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : (Number(b.answered) || 0);
+            // 1. Asosiy mezon: Asterisk navbatidagi haqiqiy hisob (callsTaken) — Asterisk fewestcalls aynan shunga qaraydi!
+            const callsA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : 0;
+            const callsB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : 0;
             if (callsA !== callsB) return callsA - callsB;
 
-            // Asterisk fewestcalls tie-breaker: agar qo'ng'iroqlar soni teng bo'lsa, oxirgi qo'ng'irog'i eng eski (eng ko'p kutgan) operatorga tushadi
+            // 2. Tie-breaker: Agar callsTaken teng bo'lsa, umumiy kunlik qabul qilinganlar (answered) soni bo'yicha
+            const answeredA = (a.answered !== null && a.answered !== undefined) ? Number(a.answered) : 0;
+            const answeredB = (b.answered !== null && b.answered !== undefined) ? Number(b.answered) : 0;
+            if (answeredA !== answeredB) return answeredA - answeredB;
+
+            // 3. Tie-breaker: Oxirgi qo'ng'iroq vaqti (eng ko'p kutgan operator)
             const lastA = (a.lastCall !== null && a.lastCall !== undefined) ? Number(a.lastCall) : 0;
             const lastB = (b.lastCall !== null && b.lastCall !== undefined) ? Number(b.lastCall) : 0;
             if (lastA > 0 && lastB > 0 && lastA !== lastB) return lastA - lastB;
 
+            // 4. Tie-breaker: Kim birinchi bo'lib 'ready' (kutish) holatiga o'tgan
             const readySinceA = operatorReadySinceMap.get(a.id) || 0;
             const readySinceB = operatorReadySinceMap.get(b.id) || 0;
-            if (readySinceA !== readySinceB) return readySinceA - readySinceB;
+            if (readySinceA !== readySinceB && readySinceA > 0 && readySinceB > 0) return readySinceA - readySinceB;
+
             return parseInt(a.id, 10) - parseInt(b.id, 10);
         });
         predictedNextOpId = readyOps[0].id;
@@ -2466,7 +3590,14 @@ function renderOperators(operators) {
     grid.innerHTML = currentOperators.map(op => {
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
-        const ringingNow = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+        const ringingNow = (pres === 'ringing') && pres !== 'talking';
+        const isOutbound = ringingCallerStr.startsWith('📤') || (op.ringingCaller && String(op.ringingCaller).startsWith('📤'));
+
+        // Operator presence'i offline bo'lsa ham (masalan ish vaqti tugab, SIP ro'yxatdan chiqqan bo'lsa)
+        // uning suhbati hali davom etayotgan bo'lishi mumkin — shuni Jonli Monitor ma'lumotidan topamiz
+        const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+            ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+            : null;
 
         let cardClass = 'operator-card clickable-card';
         let statusBadge = '';
@@ -2475,11 +3606,14 @@ function renderOperators(operators) {
 
         if (ringingNow) {
             operatorTalkingSinceMap.delete(op.id);
-            statusBadge = '<span class="status-badge badge-ringing"><span class="badge-dot pulse-ring"></span> Jiringlamoqda</span>';
-            avatarBg = 'linear-gradient(135deg, #ec4899, #be185d)';
-            cardClass += ' status-ringing status-active call-ringing';
+            const ringLabel = isOutbound ? "Chiquvchi chaqiruv..." : t('op_status_ringing', 'Jiringlamoqda');
+            statusBadge = `<span class="status-badge badge-ringing" style="${isOutbound ? 'background: rgba(14, 165, 233, 0.15); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;' : ''}"><span class="badge-dot pulse-ring" style="${isOutbound ? 'background: #38bdf8; box-shadow: 0 0 6px #38bdf8;' : ''}"></span> ${ringLabel}</span>`;
+            avatarBg = isOutbound ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'linear-gradient(135deg, #ec4899, #be185d)';
+            cardClass += isOutbound ? ' status-ringing status-active call-outbound-ringing' : ' status-ringing status-active call-ringing';
         } else if (pres === 'talking') {
-            statusBadge = '<span class="status-badge badge-talking"><span class="badge-dot pulse"></span> Suhbatda</span>';
+            const isOutbound = op.ringingCaller && String(op.ringingCaller).startsWith('📤');
+            const talkLabel = isOutbound ? "Chiquvchi suhbat" : t('status_talking', 'Hozir suhbatda');
+            statusBadge = `<span class="status-badge badge-talking"><span class="badge-dot pulse"></span> ${talkLabel}</span>`;
             avatarBg = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
             cardClass += ' status-talking status-active call-talking';
 
@@ -2496,54 +3630,103 @@ function renderOperators(operators) {
                 operatorTalkingSinceMap.set(op.id, talkingSince);
             }
 
+            const initialDiffSec = Math.max(0, Math.floor((Date.now() - talkingSince) / 1000));
+            const initM = Math.floor(initialDiffSec / 60);
+            const initS = initialDiffSec % 60;
+            const initH = Math.floor(initM / 60);
+            const initialDisplay = initH > 0 
+                ? `${initH}:${String(initM % 60).padStart(2, '0')}:${String(initS).padStart(2, '0')}`
+                : `${String(initM).padStart(2, '0')}:${String(initS).padStart(2, '0')}`;
+            let initWarnClass = '';
+            if (initialDiffSec >= 420) initWarnClass = 'timer-danger';
+            else if (initialDiffSec >= 180) initWarnClass = 'timer-warning';
+
             talkingTimerHtml = `
-                <div class="talking-live-timer" data-talking-since="${talkingSince}" title="Hozirgi suhbat davomiyligi">
+                <div class="talking-live-timer ${initWarnClass}" data-talking-since="${talkingSince}" title="${t('live_talking_duration', 'Hozirgi suhbat davomiyligi')}">
                     <span class="timer-icon">⏱️</span>
-                    <span class="timer-digits">00:00</span>
+                    <span class="timer-digits">${initialDisplay}</span>
                 </div>
             `;
         } else if (pres === 'offline') {
             operatorTalkingSinceMap.delete(op.id);
-            statusBadge = '<span class="status-badge badge-offline"><span class="badge-dot"></span> Offline</span>';
-            avatarBg = 'linear-gradient(135deg, #64748b, #475569)';
-            cardClass += ' status-offline';
+            if (activeConv) {
+                // Oflayn (ish vaqti tugagan bo'lishi mumkin), lekin suhbat hali davom etmoqda!
+                const convSince = activeConv.startTime ? new Date(activeConv.startTime).getTime() : Date.now();
+                const initialDiffSec = Math.max(0, Math.floor((Date.now() - convSince) / 1000));
+                const initM = Math.floor(initialDiffSec / 60);
+                const initS = initialDiffSec % 60;
+                const initH = Math.floor(initM / 60);
+                const initialDisplay = initH > 0 
+                    ? `${initH}:${String(initM % 60).padStart(2, '0')}:${String(initS).padStart(2, '0')}`
+                    : `${String(initM).padStart(2, '0')}:${String(initS).padStart(2, '0')}`;
+                let initWarnClass = '';
+                if (initialDiffSec >= 420) initWarnClass = 'timer-danger';
+                else if (initialDiffSec >= 180) initWarnClass = 'timer-warning';
+
+                statusBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;"><span class="badge-dot pulse" style="background: #10b981; box-shadow: 0 0 6px #10b981;"></span> Suhbat davom etmoqda</span>`;
+                avatarBg = 'linear-gradient(135deg, #059669, #065f46)';
+                cardClass += ' status-talking status-active call-talking';
+                talkingTimerHtml = `
+                    <div class="talking-live-timer ${initWarnClass}" data-talking-since="${convSince}" title="${t('live_talking_duration', 'Hozirgi suhbat davomiyligi')}">
+                        <span class="timer-icon">⏱️</span>
+                        <span class="timer-digits">${initialDisplay}</span>
+                    </div>
+                `;
+            } else {
+                statusBadge = `<span class="status-badge badge-offline"><span class="badge-dot"></span> ${t('op_status_offline', 'Offline')}</span>`;
+            }
+            avatarBg = avatarBg || 'linear-gradient(135deg, #64748b, #475569)';
+        } else if (pres === 'paused' || op.paused) {
+            operatorTalkingSinceMap.delete(op.id);
+            statusBadge = `<span class="status-badge badge-paused"><span class="badge-dot pulse-pause"></span> ${t('op_status_paused', 'Pauzada')}</span>`;
+            avatarBg = 'linear-gradient(135deg, #d97706, #b45309)';
+            cardClass += ' status-paused';
         } else {
             operatorTalkingSinceMap.delete(op.id);
-            statusBadge = '<span class="status-badge badge-ready"><span class="badge-dot"></span> Kutmoqda</span>';
+            statusBadge = `<span class="status-badge badge-ready"><span class="badge-dot"></span> ${t('wait_status', 'Kutmoqda')}</span>`;
             avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
             cardClass += ' status-ready status-active';
         }
         const answered = op.answered || 0;
+        const totalScore = (op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : answered;
 
-        // Yulduzlar soni (1-9: 1★, 10-19: 2★, 20-29: 3★, 30-39: 4★, 40+: 5★)
+        // Yulduzlar soni (Jami bo'yicha: 1-9: 1★, 10-19: 2★, 20-29: 3★, 30-39: 4★, 40+: 5★)
         let stars = '';
-        if (answered >= 40) {
+        if (totalScore >= 40) {
             stars = '⭐⭐⭐⭐⭐';
-        } else if (answered >= 30) {
+        } else if (totalScore >= 30) {
             stars = '⭐⭐⭐⭐';
-        } else if (answered >= 20) {
+        } else if (totalScore >= 20) {
             stars = '⭐⭐⭐';
-        } else if (answered >= 10) {
+        } else if (totalScore >= 10) {
             stars = '⭐⭐';
-        } else if (answered >= 1) {
+        } else if (totalScore >= 1) {
             stars = '⭐';
         }
 
         let mvpBadge = '';
-        if (op.id === top1Id && answered > 0) {
-            mvpBadge = getMvpWreathBadgeHtml();
+        if (op.id === top1Id && totalScore > 0) {
+            mvpBadge = getDiamondWreathBadgeHtml();
+            cardClass += ' mvp-diamond';
+            avatarBg = 'linear-gradient(135deg, #0284c7, #0369a1)';
+        } else if (op.id === top2Id && totalScore > 0) {
+            mvpBadge = getGoldWreathBadgeHtml();
             cardClass += ' mvp-gold';
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
+        } else if (op.id === top3Id && totalScore > 0) {
+            mvpBadge = getSilverWreathBadgeHtml();
+            cardClass += ' mvp-silver';
+            avatarBg = 'linear-gradient(135deg, #94a3b8, #475569)';
         } else if (stars === '⭐') {
-            mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
+            mvpBadge = `<span class="mvp-badge npc" title="${t('op_star_1_title', '1 ta yulduzli operator')}">🤖 NPC</span>`;
         }
 
-        const isNextInLine = (op.id === predictedNextOpId);
+        const isNextInLine = (op.id === predictedNextOpId) && (pres === 'ready') && !ringingNow;
         if (isNextInLine) {
             cardClass += ' next-in-line';
         }
         const nextInLineBadgeHtml = isNextInLine ? `
-            <div class="next-call-corner-badge ${ringingNow ? 'is-ringing' : ''}" title="${ringingNow ? '🎯 Qo\'ng\'iroq tushdi! (Jiringlamoqda)' : '🎯 100% Keyingi qo\'ng\'iroq kutilmoqda (Fewest calls navbatida #1)'}">
+            <div class="next-call-corner-badge" title="${t('op_next_call_title', '🎯 100% Keyingi qo\'ng\'iroq kutilmoqda (Fewest calls navbatida #1)')}">
                 <svg class="next-call-gold-icon" viewBox="0 0 100 100" width="24" height="24">
                     <defs>
                         <linearGradient id="goldRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -2565,75 +3748,114 @@ function renderOperators(operators) {
         ` : '';
 
         const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+        const isMaxmudbek = (String(op.id) === '114' || cleanName.toLowerCase().includes('maxmudbek'));
+        const avatarClickAttr = isMaxmudbek 
+            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" class="operator-avatar maxmudbek-clickable" style="background: ${avatarBg};" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
+            : `class="operator-avatar" style="background: ${avatarBg};"`;
+        const nameClickAttr = isMaxmudbek 
+            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" class="maxmudbek-name-clickable" style="font-size: 15px; font-weight: 700;" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
+            : `style="font-size: 15px; font-weight: 700;"`;
 
         return `
-            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${cleanName} tafsilotlarini va suhbatlarini ko'rish uchun bosing">
-                ${ringingNow ? '<div class="call-live-strip ringing"></div>' : (pres === 'talking' ? '<div class="call-live-strip talking"></div>' : '')}
+            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini va suhbatlarini ko'rish uchun bosing`)}">
+                ${ringingNow ? `<div class="call-live-strip ${isOutbound ? 'outbound-ringing' : 'ringing'}"></div>` : ((pres === 'talking' || activeConv) ? '<div class="call-live-strip talking"></div>' : '')}
                 ${nextInLineBadgeHtml}
                 <div class="operator-head">
-                    <div class="operator-avatar" style="background: ${avatarBg};">${op.id}</div>
-                    <div style="flex: 1;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 4px;">
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                <h4 style="font-size: 15px; font-weight: 700;">${cleanName}</h4>
-                                ${mvpBadge}
-                            </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+                    <div ${avatarClickAttr}>${op.id}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <!-- 1-qator: Operator ismi (chapda) va Holat nishoni (o'ngda: Kutmoqda / Suhbatda / etc) -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                            <h4 ${nameClickAttr} style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${cleanName}</h4>
+                            <div style="flex-shrink: 0;">
                                 ${statusBadge}
-                                ${talkingTimerHtml}
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
-                            <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
-                            ${generateStarRatingHtml(answered, cleanName)}
+                        <!-- 2-qator: MVP nishoni (chapda) va Kutmoqdani tagida Pauza tugmasi (o'ngda) -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 4px; min-height: 24px;">
+                            <div style="display: flex; align-items: center; gap: 6px; min-height: 20px;">
+                                ${mvpBadge}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                                ${talkingTimerHtml}
+                                <button type="button" 
+                                        onclick="toggleOperatorPause('${op.id}', ${!(op.paused || pres === 'paused')}, event)" 
+                                        class="op-card-pause-btn ${(op.paused || pres === 'paused') ? 'is-paused' : ''}" 
+                                        title="${(op.paused || pres === 'paused') ? 'Pauzadan chiqarish (Ishga qaytish)' : 'Pauzaga qo\'yish (Tanaffus)'}">
+                                    <span style="display: inline-flex; align-items: center; gap: 4px;">${(op.paused || pres === 'paused') ? `${isax('play', '', 'width: 12px; height: 12px;')} Qaytish` : `${isax('pause', '', 'width: 12px; height: 12px;')} Pauza`}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 3-qator: Exten va Yulduzchalar -->
+                        <div class="operator-meta-sub" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px 4px; margin-top: 3px;">
+                            <span style="font-size: 11px; color: var(--text-dim); white-space: nowrap;">Exten: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
+                            ${generateStarRatingHtml(totalScore, cleanName)}
                         </div>
                     </div>
                 </div>
 
+                <div class="op-stat-row" style="padding-bottom: 7px; margin-bottom: 7px; border-bottom: 1px solid rgba(16, 185, 129, 0.25);">
+                    <span style="font-weight: 800; color: #6ee7b7; display: inline-flex; align-items: center; gap: 4px;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${t('op_card_grand_total', 'Jami:')} ${isax('chart', '', 'width: 13px; height: 13px;')}</span>
+                    <span class="op-stat-val" style="font-size: 15px; font-weight: 900; color: #34d399;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${(op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : ((op.answered || 0) + (op.outbound || 0) + (op.transferResolved || 0))} ${t('unit_item', 'ta')}</span>
+                </div>
                 <div class="op-stat-row">
-                    <span>Desktop Agent:</span>
+                    <span>${t('op_card_desktop_agent', 'Desktop Agent:')}</span>
                     <span class="op-stat-val" style="font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
                         <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
-                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? 'Faol' : 'O\'chiq'}</span>
+                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? t('op_card_agent_active', 'Faol') : t('op_card_agent_off', "O'chiq")}</span>
                         ${op.agentConnected ? `<span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : ''}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Desktop nomi:</span>
-                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || 'Aniqlanmagan'}">
+                    <span>${t('op_card_desktop_name', 'Desktop nomi:')}</span>
+                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || t('op_card_unknown_host', 'Aniqlanmagan')}">
                         ${op.agentHostname || '—'}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Qabul qilingan:</span>
-                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${op.answered || 0} ta</span>
+                    <span>${t('op_card_accepted', 'Qabul qilingan:')}</span>
+                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${op.answered || 0} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Chiquvchi:</span>
-                    <span class="op-stat-val" style="color: ${(op.outbound || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.outbound || 0} ta</span>
+                    <span>${t('op_card_outbound', 'Chiquvchi:')}</span>
+                    <span class="op-stat-val" style="color: ${(op.outbound || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.outbound || 0} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Transfer:</span>
-                    <span class="op-stat-val" style="color: ${((op.transferredOut || 0) + (op.transferredIn || 0)) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">
-                        ${((op.transferredOut || 0) + (op.transferredIn || 0)) === 0 
-                            ? '0 ta' 
-                            : `${op.transferredOut || 0} ta <span style="font-size: 10px; color: #94a3b8; font-weight: 500;">(uzatgan)</span> / ${op.transferredIn || 0} ta <span style="font-size: 10px; color: #94a3b8; font-weight: 500;">(olgan)</span>`}
-                    </span>
+                    <span>${t('op_card_transfer_out', 'Transfer (uzatgan):')}</span>
+                    <span class="op-stat-val" style="color: ${(op.transferredOut || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.transferredOut || 0} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>O'tkazib yuborilgan:</span>
-                    <span class="op-stat-val" style="color: ${(op.missed || 0) > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${op.missed || 0} ta</span>
+                    <span>${t('op_card_transfer_in', 'Transfer (olgan):')}</span>
+                    <span class="op-stat-val" style="color: ${(op.transferredIn || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.transferredIn || 0} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Umumiy suhbat:</span>
+                    <span>${t('op_card_missed', "O'tkazib yuborilgan:")}</span>
+                    <span class="op-stat-val" style="color: ${(op.missed || 0) > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${op.missed || 0} ${t('unit_item', 'ta')}</span>
+                </div>
+                <div class="op-stat-row">
+                    <span>${t('op_card_total_talk', 'Umumiy suhbat:')}</span>
                     <span class="op-stat-val" style="font-weight: 700; color: ${op.totalDurationSec > 7200 ? '#fcd34d' : 'var(--text-main)'};">
                         ${formatSeconds(op.totalDurationSec || 0)} ${op.totalDurationSec > 7200 ? '🔥' : ''}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>O'rtacha suhbat:</span>
+                    <span>${t('op_card_avg_talk', "O'rtacha suhbat:")}</span>
                     <span class="op-stat-val">${formatSeconds(op.avgDurationSec || 0)}</span>
                 </div>
+                ${activeConv ? (() => {
+                    const cInfo = (typeof getClientContact === 'function') ? getClientContact(activeConv.callerId) : null;
+                    const cText = cInfo ? ((cInfo.name && cInfo.organization) ? `${cInfo.name} • ${cInfo.organization}` : (cInfo.organization || cInfo.name || '')) : '';
+                    return `
+                    <div class="op-stat-row" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(16, 185, 129, 0.35);">
+                        <span style="color: #6ee7b7; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">${isax('call')} Hozir suhbatda:</span>
+                        <span class="op-stat-val" style="color: #34d399; font-weight: 800; font-variant-numeric: tabular-nums;" title="Davom etayotgan suhbat (Jonli Monitor)">${formatCallerNumberOrOperator(activeConv.callerId)}</span>
+                    </div>
+                    ${cText ? `
+                    <div style="font-size: 11px; color: #f59e0b; font-weight: 600; padding: 3px 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 5px; margin-top: 4px; word-break: break-word; line-height: 1.35;" title="${cText}">
+                        ${isax('location')} ${cText}
+                    </div>
+                    ` : ''}
+                    `;
+                })() : ''}
             </div>
         `;
     }).join('');
@@ -2668,13 +3890,13 @@ function updateHistoryScopeUI() {
         btnAll.style.color = '#fff';
         btnAll.style.borderColor = '#3b82f6';
         btnAll.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
-        btnAll.innerHTML = '<span>♾️</span> <span>Barcha kunlar (Faol)</span>';
+        btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days_active', 'Barcha kunlar (Faol)')}</span>`;
     } else {
         btnAll.style.background = 'rgba(15, 23, 42, 0.8)';
         btnAll.style.color = 'var(--text-muted)';
         btnAll.style.borderColor = 'var(--border-color)';
         btnAll.style.boxShadow = 'none';
-        btnAll.innerHTML = '<span>♾️</span> <span>Barcha kunlar</span>';
+        btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days', 'Barcha kunlar')}</span>`;
     }
 }
 window.updateHistoryScopeUI = updateHistoryScopeUI;
@@ -2714,16 +3936,16 @@ function setHistorySource(source) {
             btnServer.style.boxShadow = 'none';
         }
         if (badge) {
-            badge.innerText = '⚡ 3CX Desktop Agent (Tezkor)';
+            badge.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('flash', '', 'width: 12px; height: 12px;')} ${t('hist_source_agent', '3CX Agent')}</span>`;
             badge.style.background = 'rgba(16, 185, 129, 0.15)';
             badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
             badge.style.color = '#34d399';
         }
         if (desc) {
-            desc.innerText = "Operator kompyuterlaridagi 3CX Desktop Agent to'plagan aniq qo'ng'iroqlar jurnali (Lokal tezkor baza).";
+            desc.innerText = t('hist_source_desc_agent', "3CX Desktop Agent lokal bazasidagi qo'ng'iroqlar jurnali.");
         }
         if (thLast) {
-            thLast.innerText = 'Kompyuter (Host)';
+            thLast.innerText = t('set_col_host', 'Kompyuter (Host)');
         }
     } else {
         if (btnAgent) {
@@ -2737,16 +3959,16 @@ function setHistorySource(source) {
             btnServer.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
         }
         if (badge) {
-            badge.innerText = '🌐 Issabel Server (Asterisk CDR)';
+            badge.innerText = `🌐 ${t('hist_source_server', 'Server CDR')}`;
             badge.style.background = 'rgba(59, 130, 246, 0.15)';
             badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
             badge.style.color = '#60a5fa';
         }
         if (desc) {
-            desc.innerText = "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.";
+            desc.innerText = t('hist_source_desc_server', "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.");
         }
         if (thLast) {
-            thLast.innerText = 'Kim tugatdi?';
+            thLast.innerText = t('hist_col_hangup', 'Kim tugatdi?');
         }
     }
 
@@ -2792,7 +4014,7 @@ let currentHistoryData = [];
 async function loadHistoryPage(page = 1, search = '') {
     const tbody = document.getElementById('historyTableBody');
     if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> Qo'ng'iroqlar tarixi yuklanmoqda...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> ${t('hist_loading_calls', "Qo'ng'iroqlar tarixi yuklanmoqda...")}</td></tr>`;
     }
 
     try {
@@ -2815,8 +4037,8 @@ async function loadHistoryPage(page = 1, search = '') {
             const nextBtn = document.getElementById('btnNextPage');
             const pagControls = document.getElementById('historyPaginationControls');
 
-            if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
-            if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv`;
+            if (pageDisp) pageDisp.innerText = tf('hist_page', { page: historyCurrentPage, total: historyTotalPages }, `Sahifa ${historyCurrentPage} / ${historyTotalPages}`);
+            if (countInfo) countInfo.innerText = tf('hist_count_records', { n: result.total || 0 }, `Jami: ${result.total || 0} ta yozuv`);
             if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
@@ -2847,8 +4069,8 @@ async function loadHistoryPage(page = 1, search = '') {
             const nextBtn = document.getElementById('btnNextPage');
             const pagControls = document.getElementById('historyPaginationControls');
 
-            if (pageDisp) pageDisp.innerText = `Sahifa ${historyCurrentPage} / ${historyTotalPages}`;
-            if (countInfo) countInfo.innerText = `Jami: ${result.total || 0} ta yozuv`;
+            if (pageDisp) pageDisp.innerText = tf('hist_page', { page: historyCurrentPage, total: historyTotalPages }, `Sahifa ${historyCurrentPage} / ${historyTotalPages}`);
+            if (countInfo) countInfo.innerText = tf('hist_count_records', { n: result.total || 0 }, `Jami: ${result.total || 0} ta yozuv`);
             if (prevBtn) prevBtn.disabled = historyCurrentPage <= 1;
             if (nextBtn) nextBtn.disabled = historyCurrentPage >= historyTotalPages;
             if (pagControls) pagControls.style.display = historyTotalPages > 1 ? 'flex' : 'none';
@@ -2858,7 +4080,7 @@ async function loadHistoryPage(page = 1, search = '') {
         }
     } catch (e) {
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger); padding: 20px;">Xatolik yuz berdi: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger); padding: 20px;">${tf('hist_error', { msg: e.message }, `Xatolik yuz berdi: ${e.message}`)}</td></tr>`;
         }
     }
 }
@@ -2866,10 +4088,9 @@ async function loadHistoryPage(page = 1, search = '') {
 const OPERATOR_NAMES_MAP = {
     '101': 'Oybek',
     '103': 'Feruza',
-    '106': 'Gulchehra',
+    '106': 'Ubaydullayeva Gulchehra',
     '111': 'Nozima',
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
@@ -2935,7 +4156,10 @@ window.applyHistoryFilters = applyHistoryFilters;
 window.resetHistoryFilters = resetHistoryFilters;
 
 function formatOperatorDisplayName(opStr) {
-    if (!opStr || opStr === 'Navbat' || opStr === '-') return 'Navbat';
+    if (!opStr || opStr === 'Navbat' || opStr === '-') return t('op_queue_short', 'Navbat');
+    if (opStr.includes('Operatorga ulanmadi') || opStr.includes('Не соединен с оператором') || opStr.includes('ulanmadi')) {
+        return t('op_not_connected', 'Operatorga ulanmadi');
+    }
     if (opStr.includes('➔')) {
         const parts = opStr.split('➔').map(p => p.trim());
         const formattedParts = parts.map(p => {
@@ -2947,7 +4171,7 @@ function formatOperatorDisplayName(opStr) {
             }
             return p;
         });
-        return formattedParts.join(' <span style="color: #38bdf8; font-weight: 700; margin: 0 3px;">➔</span> ');
+        return formattedParts.join(` <span style="color: #38bdf8; font-weight: 700; margin: 0 3px; display: inline-flex; align-items: center;">${isax('arrow-right')}</span> `);
     }
     const match = String(opStr).match(/\b(10[1-9]|11[0-9]|120)\b/);
     if (match) {
@@ -2958,13 +4182,211 @@ function formatOperatorDisplayName(opStr) {
     return opStr;
 }
 
+let clientContactsMap = new Map();
+
+function normalizeContactLookupKey(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (digits.length === 12 && digits.startsWith('998')) {
+        digits = digits.slice(3);
+    }
+    return digits || String(raw).trim();
+}
+
+function setClientContactsList(list) {
+    if (!Array.isArray(list)) return;
+    clientContactsMap.clear();
+    for (const c of list) {
+        if (c && c.phone) {
+            const key = normalizeContactLookupKey(c.phone);
+            if (key) clientContactsMap.set(key, c);
+        }
+    }
+}
+
+function getClientContact(phone) {
+    if (!phone) return null;
+    const key = normalizeContactLookupKey(phone);
+    if (!key) return null;
+    if (clientContactsMap.has(key)) return clientContactsMap.get(key);
+    for (const [k, v] of clientContactsMap.entries()) {
+        if (k === key || (k.length >= 9 && key.endsWith(k)) || (key.length >= 9 && k.endsWith(key))) {
+            return v;
+        }
+    }
+    return null;
+}
+
+async function loadClientContacts() {
+    try {
+        const res = await fetch('/api/contacts');
+        const json = await res.json();
+        const list = Array.isArray(json) ? json : (json.data || []);
+        setClientContactsList(list);
+    } catch (e) {}
+}
+
+function handleWsClientContactUpdate(data) {
+    if (!data) return;
+    if (data.action === 'upsert' && data.contact) {
+        const key = normalizeContactLookupKey(data.contact.phone);
+        if (key) clientContactsMap.set(key, data.contact);
+    } else if (data.action === 'delete' && data.phone) {
+        const key = normalizeContactLookupKey(data.phone);
+        if (key) clientContactsMap.delete(key);
+    }
+}
+
 function formatCallerNumberOrOperator(callerId) {
     if (!callerId) return '-';
     const clean = String(callerId).trim();
     if (OPERATOR_NAMES_MAP && OPERATOR_NAMES_MAP[clean]) {
         return `${OPERATOR_NAMES_MAP[clean]} (${clean})`;
     }
+    const contact = getClientContact(clean);
+    if (contact) {
+        const hasName = Boolean(contact.name && contact.name.trim());
+        const hasOrg = Boolean(contact.organization && contact.organization.trim());
+        if (hasName && hasOrg) {
+            return `${clean} (${contact.name} • ${contact.organization})`;
+        } else if (hasOrg) {
+            return `${clean} (${contact.organization})`;
+        } else if (hasName) {
+            return `${clean} (${contact.name})`;
+        }
+    }
     return clean;
+}
+
+const expandedCallerKeys = new Set();
+
+function isCallerExpanded(key) {
+    return Boolean(key && expandedCallerKeys.has(String(key)));
+}
+
+function safeEscapeAttr(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function renderExpandableCallerHtml(callerId, uniqueKey, maxLen = 25) {
+    if (!callerId) return '<span>-</span>';
+    const fullText = formatCallerNumberOrOperator(callerId);
+    const safeKey = safeEscapeAttr(String(uniqueKey || callerId));
+    const safeFull = safeEscapeAttr(fullText);
+
+    // Agar matn uzunligi maxLen dan oshmasa (oddiy raqam yoki qisqa nom), limit va tugma kerak emas
+    if (fullText.length <= maxLen) {
+        return `<span class="caller-single-text" title="${safeFull}">${safeFull}</span>`;
+    }
+
+    const isExp = isCallerExpanded(uniqueKey);
+    const truncText = fullText.slice(0, maxLen - 2).trim();
+    const safeTrunc = safeEscapeAttr(truncText);
+
+    return `
+        <span class="caller-cell-content ${isExp ? 'is-expanded' : ''}" 
+              data-caller-key="${safeKey}" 
+              data-full-text="${safeFull}" 
+              data-trunc-text="${safeTrunc}">
+            <span class="caller-text" 
+                  title="${safeFull}" 
+                  onclick="toggleCallerExpand('${safeKey}', event)">${isExp ? safeFull : safeTrunc}</span>
+            <button type="button" 
+                    class="caller-expand-btn ${isExp ? 'is-expanded' : ''}" 
+                    onclick="toggleCallerExpand('${safeKey}', event)" 
+                    title="${isExp ? t('caller_collapse_title', "Qisqartirish (yig'ish)") : t('caller_expand_title', "To'liq ko'rish (pastga yoyish)")}">${isExp ? t('caller_collapse_btn', "▲ yig'ish") : '...'}</button>
+        </span>
+    `;
+}
+
+function toggleCallerExpand(key, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (!key) return;
+    const strKey = String(key);
+
+    if (expandedCallerKeys.has(strKey)) {
+        expandedCallerKeys.delete(strKey);
+    } else {
+        expandedCallerKeys.add(strKey);
+    }
+
+    const isExp = expandedCallerKeys.has(strKey);
+    const cells = document.querySelectorAll('.caller-cell-content');
+    cells.forEach(cell => {
+        if (cell.getAttribute('data-caller-key') === strKey) {
+            const fullText = cell.getAttribute('data-full-text') || '';
+            const truncText = cell.getAttribute('data-trunc-text') || '';
+            const phoneCell = cell.closest('.phone-cell');
+            const tdEl = cell.closest('td');
+
+            if (isExp) {
+                cell.classList.add('is-expanded');
+                if (phoneCell) phoneCell.classList.add('is-expanded');
+                if (tdEl) tdEl.classList.add('cell-expanded');
+                const textEl = cell.querySelector('.caller-text');
+                if (textEl) textEl.textContent = fullText;
+                const btnEl = cell.querySelector('.caller-expand-btn');
+                if (btnEl) {
+                    btnEl.classList.add('is-expanded');
+                    btnEl.textContent = t('caller_collapse_btn', "▲ yig'ish");
+                    btnEl.title = t('caller_collapse_title', "Qisqartirish (yig'ish)");
+                }
+            } else {
+                cell.classList.remove('is-expanded');
+                if (phoneCell) phoneCell.classList.remove('is-expanded');
+                if (tdEl) tdEl.classList.remove('cell-expanded');
+                const textEl = cell.querySelector('.caller-text');
+                if (textEl) textEl.textContent = truncText;
+                const btnEl = cell.querySelector('.caller-expand-btn');
+                if (btnEl) {
+                    btnEl.classList.remove('is-expanded');
+                    btnEl.textContent = '...';
+                    btnEl.title = t('caller_expand_title', "To'liq ko'rish (pastga yoyish)");
+                }
+            }
+        }
+    });
+}
+
+function formatHangupParty(party, isXfer) {
+    if (isXfer) {
+        return `<span style="color: #38bdf8; font-weight: 600;">${t('party_transfer', 'Transfer (Operatorga)')}</span>`;
+    }
+    if (!party || party === '-' || party === "Noma'lum" || party === 'Неизвестно' || party === 'Unknown' || party === 'Normal') {
+        return `<span style="color: var(--text-dim);">${t('party_unknown', "Noma'lum")}</span>`;
+    }
+    const p = String(party).trim();
+    const pLower = p.toLowerCase();
+    if (pLower === 'mijoz' || pLower === 'client' || pLower === 'клиент') {
+        return `<span style="color: var(--secondary); font-weight: 500;">${t('party_client', 'Mijoz')}</span>`;
+    }
+    if (pLower === "ko'tarilmadi" || pLower === "kotarilmadi" || pLower === 'not answered' || pLower === 'не отвечен' || pLower === 'не поднят') {
+        return `<span style="color: var(--text-dim); font-weight: 500;">${t('party_not_answered', "Ko'tarilmadi")}</span>`;
+    }
+    if (pLower === 'band' || pLower === 'busy' || pLower === 'занято') {
+        return `<span style="color: var(--danger); font-weight: 500;">${t('party_busy', 'Band')}</span>`;
+    }
+    if (pLower === 'javobsiz' || pLower === 'no answer' || pLower === 'без ответа') {
+        return `<span style="color: var(--text-dim); font-weight: 500;">${t('party_no_answer', 'Javobsiz')}</span>`;
+    }
+    if (p.startsWith('Operator') || p.startsWith('Оператор')) {
+        const extMatch = p.match(/\(([^)]+)\)/);
+        const label = extMatch ? `${t('party_operator', 'Operator')} (${extMatch[1]})` : t('party_operator', 'Operator');
+        return `<span style="color: var(--warning); font-weight: 500;">${label}</span>`;
+    }
+    if (p.includes('Transfer') || p.includes('Перевод')) {
+        return `<span style="color: #38bdf8; font-weight: 600;">${t('party_transfer', 'Transfer (Operatorga)')}</span>`;
+    }
+    return `<span style="font-weight: 500;">${p}</span>`;
 }
 
 function renderAgentHistoryTable(data) {
@@ -2976,16 +4398,16 @@ function renderAgentHistoryTable(data) {
                 <tr>
                     <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
-                        <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">${t('detail_no_call_number', "Bugun bu raqam bo'yicha qo'ng'iroq topilmadi")}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">${t('detail_no_call_hint', "Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.")}</div>
                         <button type="button" onclick="setHistoryScope('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 18px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                            <span>♾️</span> Barcha kunlar bo'yicha qidirish
+                            <span>♾️</span> ${t('hist_search_all_days', "Barcha kunlar bo'yicha qidirish")}
                         </button>
                     </td>
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">3CX Desktop Agent bo'yicha qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
         }
         return;
     }
@@ -2999,18 +4421,18 @@ function renderAgentHistoryTable(data) {
         
         let statusBadge = '';
         if (isAns) {
-            statusBadge = '<span class="badge badge-success">✅ Qabul qilingan</span>';
+            statusBadge = `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_accepted', 'Qabul qilingan')}</span>`;
         } else if (item.status === 'REJECT') {
-            statusBadge = '<span class="badge badge-danger">🚫 Rad etilgan</span>';
+            statusBadge = `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_denied', 'Rad etilgan')}</span>`;
         } else if (item.category_3cx === 'Missed' || item.status === 'MISSED') {
-            statusBadge = '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 O\'tkazib yuborilgan</span>';
+            statusBadge = `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_missed', "O'tkazib yuborilgan")}</span>`;
         } else {
             statusBadge = `<span class="badge badge-warning">${item.status_name || item.status}</span>`;
         }
 
         const dirBadge = isOut 
-            ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>' 
-            : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>';
+            ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+            : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
 
         let timeHtml = '';
         if (item.event_time) {
@@ -3036,8 +4458,8 @@ function renderAgentHistoryTable(data) {
         const isThisSearching = activeSearchingCallerId === (item.caller_id || '');
 
         const playBtnText = isThisSearching 
-            ? '⏳ Qidirilmoqda...' 
-            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+            ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
+            : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
         const audioCell = hasAudio 
             ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
@@ -3045,18 +4467,18 @@ function renderAgentHistoryTable(data) {
                            ${isThisSearching ? 'disabled' : ''} 
                            onclick="playDashboardRecording('', '${safeCaller}', ${durSec}, this)" 
                            style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
+                           title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
                        <span>${playBtnText}</span>
                    </button>
                    <button class="btn-action" 
                            onclick="openInExplorerStudio('', '${safeCaller}', ${durSec}, this)" 
                            style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
-                       <span>🔍 Detal</span>
+                           title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                       <span>${t('audio_detail_short', '🔍 Detal')}</span>
                    </button>
                </div>`
-            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
-                   🚫 Audio yo'q
+            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
+                   <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
                </span>`;
 
         let rowStyle = '';
@@ -3066,20 +4488,23 @@ function renderAgentHistoryTable(data) {
             rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
         }
 
+        const callerKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`;
+        const isExpCaller = isCallerExpanded(callerKey);
+
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td>${timeHtml}</td>
-                <td>
-                    <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                        <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                        <span style="font-weight: 600;">${formatCallerNumberOrOperator(item.caller_id)}</span>
+                <td class="${isExpCaller ? 'cell-expanded' : ''}">
+                    <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
+                        <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
+                        ${renderExpandableCallerHtml(item.caller_id, callerKey)}
                     </div>
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
                 <td>${dirBadge}</td>
                 <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(durSec)}</td>
-                <td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="3CX Agent jurnalida navbatda kutish vaqti mavjud emas">—</td>
+                <td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="${t('agent_no_wait_title', '3CX Agent jurnalida navbatda kutish vaqti mavjud emas')}">—</td>
                 <td>${statusBadge}</td>
                 <td style="color: var(--text-muted); font-size: 12px;">
                     <span style="display: inline-flex; align-items: center; gap: 4px;">
@@ -3101,16 +4526,16 @@ function renderServerHistoryTable(data) {
                 <tr>
                     <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
-                        <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">Bugun bu raqam bo'yicha qo'ng'iroq topilmadi</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.</div>
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">${t('detail_no_call_number', "Bugun bu raqam bo'yicha qo'ng'iroq topilmadi")}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">${t('detail_no_call_hint', "Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.")}</div>
                         <button type="button" onclick="setHistoryScope('all')" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 18px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                            <span>♾️</span> Barcha kunlar bo'yicha qidirish
+                            <span>♾️</span> ${t('hist_search_all_days', "Barcha kunlar bo'yicha qidirish")}
                         </button>
                     </td>
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">Issabel serverida qo'ng'iroqlar jurnali bo'sh</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
         }
         return;
     }
@@ -3124,26 +4549,28 @@ function renderServerHistoryTable(data) {
         const isAns = item.status === 'ANSWERED';
 
         // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
-        const isUnconnected = !isAns && !isOut && !isXfer && (item.status === 'ABANDONED' || item.status === 'NO ANSWER' || (item.operator && item.operator.includes('Operatorga ulanmadi')));
+        const isUnconnected = !isAns && !isOut && !isXfer;
         let rowStyle = '';
         if (isXfer) {
             rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
         } else if (isOut) {
-            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+            rowStyle = (item.status === 'BUSY')
+                ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;'
+                : 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
         } else if (isUnconnected) {
             rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
-        } else if (item.status === 'BUSY') {
-            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
         }
 
         const statusBadge = isAns 
-            ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
-            : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
-        const dirBadge = isXfer
-            ? '<span class="badge badge-cyan"><i class="fas fa-random"></i> 🔀 transfer</span>'
+            ? `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>` 
             : (isOut 
-                ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>' 
-                : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>');
+                ? (item.status === 'BUSY' ? `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>` : `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_no_answer', 'Javobsiz')}</span>`)
+                : `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`);
+        const dirBadge = isXfer
+            ? `<span class="badge badge-cyan" style="display: inline-flex; align-items: center; gap: 4px;">${isax('refresh', '', 'width: 12px; height: 12px;')} ${t('dir_transfer', 'transfer')}</span>`
+            : (isOut 
+                ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+                : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
         let timeHtml = '';
         if (item.time) {
@@ -3153,7 +4580,7 @@ function renderServerHistoryTable(data) {
             if (!timeStr) {
                 try {
                     const d = new Date(item.time);
-                    timeStr = d.toLocaleTimeString();
+                    timeStr = d.toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' });
                 } catch (e) {
                     timeStr = item.time;
                 }
@@ -3178,8 +4605,8 @@ function renderServerHistoryTable(data) {
         const isThisSearching = activeSearchingCallerId === (item.callerId || '');
 
         const playBtnText = isThisSearching 
-            ? '⏳ Qidirilmoqda...' 
-            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+            ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
+            : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
         const audioCell = hasAudio 
             ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
@@ -3187,40 +4614,41 @@ function renderServerHistoryTable(data) {
                            ${isThisSearching ? 'disabled' : ''} 
                            onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
                            style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
+                           title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
                        <span>${playBtnText}</span>
                    </button>
                    <button class="btn-action" 
                            onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
                            style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
-                       <span>🔍 Detal</span>
+                           title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                       <span>${t('audio_detail_short', '🔍 Detal')}</span>
                    </button>
                </div>`
-            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
-                   🚫 Audio yo'q
+            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
+                   <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
                </span>`;
 
-        const hangupDisplay = isXfer
-            ? '<span style="color: #38bdf8; font-weight: 600;">🔀 Transfer (Operatorga)</span>'
-            : (item.hangupParty || item.cause || 'Normal');
+        const hangupDisplay = formatHangupParty(item.hangupParty || item.cause, isXfer);
+
+        const callerKey = `hist_${item.recording || ''}_${item.callerId || ''}_${item.time || index}`;
+        const isExpCaller = isCallerExpanded(callerKey);
 
         return `
             <tr style="${rowStyle}">
                 <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                 <td>${timeHtml}</td>
-                <td>
-                    <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                        <span class="phone-icon">${isOut ? '📤' : (isXfer ? '🔀' : '📞')}</span>
-                        <span>${formatCallerNumberOrOperator(item.callerId)}</span>
+                <td class="${isExpCaller ? 'cell-expanded' : ''}">
+                    <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
+                        <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
+                        ${renderExpandableCallerHtml(item.callerId, callerKey)}
                     </div>
                 </td>
                 <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
                 <td>${dirBadge}</td>
                 <td>${formatSeconds(durSec)}</td>
-                <td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish vaqti${item.waitSec ? ': ' + formatSeconds(item.waitSec) : ' mavjud emas'}">${item.waitSec ? formatSeconds(item.waitSec) : '—'}</td>
+                <td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="${item.waitSec ? tf('wait_title', { time: formatSeconds(item.waitSec) }, `Navbatda kutish: ${formatSeconds(item.waitSec)}`) : t('wait_title_none', 'Navbatda kutish vaqti mavjud emas')}">${item.waitSec ? formatSeconds(item.waitSec) : '—'}</td>
                 <td>${statusBadge}</td>
-                <td style="color: var(--text-muted); font-size: 12px;">${hangupDisplay}</td>
+                <td style="font-size: 12px;">${hangupDisplay}</td>
                 <td>${audioCell}</td>
             </tr>
         `;
@@ -3287,7 +4715,7 @@ function sortDashboardTable(column) {
 }
 
 function updateSortIcons() {
-    const columns = ['time', 'callerId', 'direction', 'operator', 'duration', 'status', 'hangupParty'];
+    const columns = ['time', 'callerId', 'direction', 'operator', 'duration', 'waitSec', 'status', 'hangupParty'];
     columns.forEach(col => {
         const iconEl = document.getElementById(`sort-icon-${col}`);
         if (!iconEl) return;
@@ -3435,107 +4863,118 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
         return;
     }
 
-    tbody.innerHTML = data.map((item, index) => {
-        const rowNum = index + 1;
-        const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
-        const isOut = item.direction === 'outbound' && !isXfer;
-        
-        const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
-        const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
+    try {
+        tbody.innerHTML = data.map((item, index) => {
+            const rowNum = index + 1;
+            const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+            const isOut = item.direction === 'outbound' && !isXfer;
+            
+            const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
+            const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
 
-        const statusBadge = isAns 
-            ? '<span class="badge badge-success">✅ Javob berilgan</span>' 
-            : (item.status === 'BUSY' ? '<span class="badge badge-danger">🚫 Band</span>' : (isOut ? '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>' : '<span class="badge badge-warning">⏳ Navbatdan chiqdi</span>'));
-        const dirBadge = isXfer
-            ? '<span class="badge badge-cyan">🔀 transfer</span>'
-            : (isOut
-                ? '<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> chiquvchi</span>'
-                : '<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> kiruvchi</span>');
+            const statusBadge = isAns 
+                ? `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>` 
+                : (isOut 
+                    ? (item.status === 'BUSY' ? `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>` : `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_no_answer', 'Javobsiz')}</span>`)
+                    : `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`);
+            const dirBadge = isXfer
+                ? `<span class="badge badge-cyan" style="display: inline-flex; align-items: center; gap: 4px;">${isax('refresh', '', 'width: 12px; height: 12px;')} ${t('dir_transfer', 'transfer')}</span>`
+                : (isOut
+                    ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
+                    : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
-        const opDisplayName = formatOperatorDisplayName(item.operator);
-        const opCellHtml = isQueueOnly
-            ? '<span style="color: #f59e0b; font-size: 12px; font-weight: 500;">⏳ Operatorga ulanmadi</span>'
-            : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
+            const opDisplayName = typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(item.operator) : (item.operator || '-');
+            const opCellHtml = isQueueOnly
+                ? `<span style="color: #f59e0b; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('op_not_connected', 'Operatorga ulanmadi')}</span>`
+                : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
 
-        // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
-        const isUnconnected = isQueueOnly && !isOut && !isXfer;
-        let rowStyle = '';
-        if (isXfer) {
-            rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
-        } else if (isOut) {
-            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
-        } else if (isUnconnected) {
-            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
-        } else if (item.status === 'BUSY') {
-            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
-        }
+            // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
+            const isUnconnected = isQueueOnly && !isOut && !isXfer;
+            let rowStyle = '';
+            if (isXfer) {
+                rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
+            } else if (isOut) {
+                rowStyle = (item.status === 'BUSY')
+                    ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;'
+                    : 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+            } else if (isUnconnected || !isAns) {
+                rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+            }
 
-        const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
-        const safeRec = (item.recording || '').replace(/'/g, "\\'");
-        const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
-        const durSec = item.duration || 0;
-        const waitSecVal = item.waitSec || 0;
-        const waitCellHtml = isOut
-            ? '<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="Chiquvchi qo\'ng\'iroqda navbat yo\'q">—</td>'
-            : `<td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="Navbatda kutish: ${formatSeconds(waitSecVal)}">${formatSeconds(waitSecVal)}</td>`;
+            const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
+            const safeRec = (item.recording || '').replace(/'/g, "\\'");
+            const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+            const durSec = item.duration || 0;
+            const waitSecVal = item.waitSec || 0;
+            const waitCellHtml = isOut
+                ? `<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="${t('wait_none_outbound_title', "Chiquvchi qo'ng'iroqda navbat yo'q")}">—</td>`
+                : `<td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="${typeof tf === 'function' ? tf('wait_title', { time: formatSeconds(waitSecVal) }, `Navbatda kutish: ${formatSeconds(waitSecVal)}`) : `Navbatda kutish: ${formatSeconds(waitSecVal)}`}">${formatSeconds(waitSecVal)}</td>`;
 
-        const callKey = `${item.callerId || ''}_${durSec}`;
-        const isThisPlaying = currentlyPlayingCallKey === callKey;
-        const isThisPaused = pausedCallKey === callKey;
-        const isThisSearching = activeSearchingCallerId === item.callerId;
+            const callKey = `${item.callerId || ''}_${durSec}`;
+            const isThisPlaying = typeof currentlyPlayingCallKey !== 'undefined' && currentlyPlayingCallKey === callKey;
+            const isThisPaused = typeof pausedCallKey !== 'undefined' && pausedCallKey === callKey;
+            const isThisSearching = typeof activeSearchingCallerId !== 'undefined' && activeSearchingCallerId === item.callerId;
 
-        const playBtnText = isThisSearching 
-            ? '⏳ Qidirilmoqda...' 
-            : (isThisPlaying ? '⏸ To\'xtatish' : (isThisPaused ? '▶ Davom ettirish' : '▶ Tinglash'));
+            const playBtnText = isThisSearching 
+                ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
+                : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
-        const audioCell = hasAudio 
-            ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
-                   <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
-                           ${isThisSearching ? 'disabled' : ''} 
-                           onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                           title="${isThisPlaying ? 'To\'xtatish (pauza)' : (isThisPaused ? 'Qolgan joyidan davom ettirish' : 'Audioni tinglash')}">
-                       <span>${playBtnText}</span>
-                   </button>
-                   <button class="btn-action" 
-                           onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                           style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                           title="Audio Explorer studiyasida to'liq pleyer bilan ochish">
-                       <span>🔍 Detal</span>
-                   </button>
-               </div>`
-            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="Suhbat bo'lmagan (ovoz yozuvi mavjud emas)">
-                   🚫 Audio yo'q
-               </span>`;
+            const audioCell = hasAudio 
+                ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
+                       <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                               ${isThisSearching ? 'disabled' : ''} 
+                               onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                               style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
+                               title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
+                           <span>${playBtnText}</span>
+                       </button>
+                       <button class="btn-action" 
+                               onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                               style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
+                               title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                           <span>${t('audio_detail_short', '🔍 Detal')}</span>
+                       </button>
+                   </div>`
+                : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
+                       <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
+                   </span>`;
 
-        const hangupDisplay = isXfer
-            ? '<span style="color: #38bdf8; font-weight: 600;">🔀 Transfer (Operatorga)</span>'
-            : (item.hangupParty || 'Noma\'lum');
+            const hangupDisplay = typeof formatHangupParty === 'function' 
+                ? formatHangupParty(item.hangupParty || item.cause, isXfer) 
+                : (item.hangupParty || item.cause || '-');
 
-        return `
-            <tr style="${rowStyle}">
-                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                <td>${new Date(item.time).toLocaleTimeString()}</td>
-                <td>
-                    <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                        <span class="phone-icon">${isXfer ? '🔀' : `<img src="/img/${isOut ? 'icon-chiquvchi' : 'icon-kiruvchi'}.png" alt="${isOut ? 'chiquvchi' : 'kiruvchi'}" style="width:14px;height:14px;object-fit:contain;">`}</span>
-                        <span>${formatCallerNumberOrOperator(item.callerId)}</span>
-                    </div>
-                </td>
-                <td>${dirBadge}</td>
-                <td>${opCellHtml}</td>
-                <td>${formatSeconds(item.duration || 0)}</td>
-                ${waitCellHtml}
-                <td>${statusBadge}</td>
-                <td style="font-weight: 500; font-size: 12px; color: ${isXfer ? '#38bdf8' : (item.hangupParty?.includes('Operator') ? 'var(--warning)' : (item.hangupParty?.includes('Mijoz') ? 'var(--secondary)' : 'var(--text-dim)'))};">
-                    ${hangupDisplay}
-                </td>
-                <td>
-                    ${audioCell}
-                </td>
-            </tr>
-        `;
-    }).join('');
+            const callerKey = `rec_${item.recording || ''}_${item.callerId || ''}_${item.time || index}`;
+            const isExpCaller = typeof isCallerExpanded === 'function' ? isCallerExpanded(callerKey) : false;
+
+            const timeStr = item.time ? new Date(item.time).toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' }) : '--:--:--';
+
+            return `
+                <tr style="${rowStyle}">
+                    <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+                    <td>${timeStr}</td>
+                    <td class="${isExpCaller ? 'cell-expanded' : ''}">
+                        <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
+                            <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
+                            ${typeof renderExpandableCallerHtml === 'function' ? renderExpandableCallerHtml(item.callerId, callerKey) : (item.callerId || '')}
+                        </div>
+                    </td>
+                    <td>${dirBadge}</td>
+                    <td>${opCellHtml}</td>
+                    <td>${formatSeconds(item.duration || 0)}</td>
+                    ${waitCellHtml}
+                    <td>${statusBadge}</td>
+                    <td style="font-size: 12px;">
+                        ${hangupDisplay}
+                    </td>
+                    <td>
+                        ${audioCell}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('renderDashboardRecentTable error:', err);
+    }
 }
 
 // Barcha ochiq jadvallarni bir zumda yangilash (dashboard + history)
@@ -3601,7 +5040,7 @@ async function playDashboardRecording(recFile, callerId, duration, btn) {
         currentlyPlayingBtn = btn;
         knownRecordingsCache.set(callKey, recFile);
         refreshAllActiveTables();
-        const displayName = `📞 ${callerId} (${formatSeconds(duration || 0)})`;
+        const displayName = `${isax('call')} ${callerId} (${formatSeconds(duration || 0)})`;
         playAudioFile(displayName, recFile, (duration || 0) * 16000, false);
         return;
     }
@@ -3657,14 +5096,14 @@ async function playDashboardRecording(recFile, callerId, duration, btn) {
             currentlyPlayingCallKey = callKey;
             currentlyPlayingBtn = btn;
             refreshAllActiveTables();
-            const displayName = `📞 ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
+            const displayName = `${isax('call')} ${callerId} (${formatSeconds(matchedDuration || duration || 0)})`;
             playAudioFile(displayName, matchedRecording, (matchedDuration || duration || 0) * 16000, false);
         } else {
-            alert(`⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi yoki suhbat amalga oshmagan (0 soniya).`);
+            alert(tf('audio_not_found_alert', { phone: callerId }, `⚠️ "${callerId}" raqamiga tegishli audio yozuv topilmadi yoki suhbat amalga oshmagan (0 soniya).`));
         }
     } catch (e) {
         if (e.name === 'AbortError') return;
-        alert('Audio yozuvni yuklashda xatolik yuz berdi: ' + e.message);
+        alert(t('audio_download_error', 'Audio yozuvni yuklashda xatolik yuz berdi: ') + e.message);
     } finally {
         if (activeSearchingCallerId === callerId) {
             activeSearchingCallerId = null;
@@ -3692,11 +5131,12 @@ function addRecentDashboardRow(record) {
 async function loadInitialData() {
     setDateFilterLoading(true);
     try {
-        const [statsRes, opRes, queueRes, statusRes] = await Promise.all([
+        const [statsRes, opRes, queueRes, statusRes, recentRes] = await Promise.all([
             fetch('/api/stats').then(r => r.json()).catch(() => null),
             fetch('/api/operators').then(r => r.json()).catch(() => []),
             fetch('/api/queues').then(r => r.json()).catch(() => []),
-            fetch('/api/status').then(r => r.json()).catch(() => null)
+            fetch('/api/status').then(r => r.json()).catch(() => null),
+            fetch('/api/calls/recent').then(r => r.json()).catch(() => null)
         ]);
 
         if (statsRes) updateStatsUI(statsRes);
@@ -3705,6 +5145,11 @@ async function loadInitialData() {
         if (statusRes) {
             updateAmiStatus(statusRes.amiConnected);
             updateSftpStatus(statusRes.sftpConnected);
+        }
+        if (Array.isArray(recentRes) && recentRes.length > 0 && dashboardRecentCallsList.length === 0) {
+            dashboardRecentCallsList = [...recentRes];
+            updateRecentOperatorsDataList();
+            applyDashboardRecentFilters();
         }
         if (typeof loadTabAgentOperators === 'function') {
             await loadTabAgentOperators();
@@ -3905,7 +5350,7 @@ function sortArrow(key) {
 }
 
 function sortableTh(label, key, extraStyle = '') {
-    return `<th class="sortable-th" style="${extraStyle}" onclick="sortDetailTable('${key}')" title="Saralash uchun bosing">${label}${sortArrow(key)}</th>`;
+    return `<th class="sortable-th" style="${extraStyle}" onclick="sortDetailTable('${key}')" title="${t('sort_click_title', 'Saralash uchun bosing')}">${label}${sortArrow(key)}</th>`;
 }
 
 function renderDetailTableBody() {
@@ -3918,14 +5363,14 @@ function renderDetailTableBody() {
     if (countBadge) {
         const filtered = calls.length !== detailState.rawCalls.length;
         countBadge.innerText = filtered
-            ? `Jami: ${detailState.total} ta qo'ng'iroq (Filtr: ${calls.length} ta ko'rsatilmoqda)`
-            : `Jami: ${detailState.total} ta qo'ng'iroq (Ko'rsatilmoqda: ${calls.length} ta)`;
+            ? tf('detail_filter_total', { total: detailState.total, count: calls.length }, `Jami: ${detailState.total} ta qo'ng'iroq (Filtr: ${calls.length} ta ko'rsatilmoqda)`)
+            : tf('detail_total_calls', { total: detailState.total, count: calls.length }, `Jami: ${detailState.total} ta qo'ng'iroq (Ko'rsatilmoqda: ${calls.length} ta)`);
     }
 
     if (calls.length === 0) {
         bodyEl.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-dim);">
-                Ushbu turkum bo'yicha hech qanday qo'ng'iroq topilmadi.
+                ${t('detail_empty_note', "Ushbu turkum bo'yicha hech qanday qo'ng'iroq topilmadi.")}
             </div>
         `;
         return;
@@ -3935,15 +5380,15 @@ function renderDetailTableBody() {
         <table class="detail-table">
             <thead>
                 <tr>
-                    <th style="width: 45px; text-align: center;">№</th>
-                    ${sortableTh('Vaqt', 'time')}
-                    ${sortableTh('Mijoz Raqami', 'callerId')}
-                    ${sortableTh("Yo'nalish", 'direction')}
-                    ${sortableTh('Operator', 'operator')}
-                    ${sortableTh('Suhbat / Kutish Vaqti', 'duration')}
-                    ${sortableTh('Holati', 'status')}
-                    <th>Kim tugatdi?</th>
-                    <th>Audio</th>
+                    <th style="width: 45px; text-align: center;">${t('col_num', '№')}</th>
+                    ${sortableTh(t('col_time', 'Vaqt'), 'time')}
+                    ${sortableTh(t('col_client_phone', 'Mijoz Raqami'), 'callerId')}
+                    ${sortableTh(t('col_direction', "Yo'nalish"), 'direction')}
+                    ${sortableTh(t('col_operator', 'Operator'), 'operator')}
+                    ${sortableTh(t('col_talk_wait', 'Suhbat / Kutish Vaqti'), 'duration')}
+                    ${sortableTh(t('col_status', 'Holati'), 'status')}
+                    <th>${t('col_hangup_party', 'Kim tugatdi?')}</th>
+                    <th>${t('col_audio', 'Audio')}</th>
                 </tr>
             </thead>
             <tbody>
@@ -3955,36 +5400,36 @@ function renderDetailTableBody() {
                     let durText = '';
                     if (isOut) {
                         durText = isAns
-                            ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
-                            : `<span style="font-weight: 500; color: #f87171;">Chaqiruv: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                            ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
+                            : `<span style="font-weight: 500; color: #f87171;">${t('wait_prefix', 'Chaqiruv:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
                     } else {
                         durText = isAns
-                            ? `<span style="font-weight: 700; color: #34d399;">Suhbat: ${formatSeconds(c.duration)}</span>`
-                            : `<span style="font-weight: 500; color: #fbbf24;">Kutgan: ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                            ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
+                            : `<span style="font-weight: 500; color: #fbbf24;">${t('wait_prefix', 'Kutgan:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
                     }
 
                     let statusBadge = '';
                     if (isOut) {
                         if (isAns) {
-                            statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Muvaffaqiyatli</span>`;
+                            statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('kpi_answered_calls', 'Muvaffaqiyatli')}</span>`;
                         } else if (c.status === 'BUSY') {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
                         } else {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 Javobsiz</span>`;
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_no_answer', 'Javobsiz')}</span>`;
                         }
                     } else {
                         if (isAns) {
-                            statusBadge = `<span class="badge badge-success" style="font-size: 10px;">✅ Javob berilgan</span>`;
+                            statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>`;
                         } else if (c.status === 'BUSY') {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px;">🚫 Band</span>`;
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
                         } else {
-                            statusBadge = `<span class="badge badge-warning" style="font-size: 10px;">⏳ Navbatdan chiqdi</span>`;
+                            statusBadge = `<span class="badge badge-warning" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
                         }
                     }
 
                     const directionBadge = isOut
-                        ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> chiquvchi</span>`
-                        : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> kiruvchi</span>`;
+                        ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
+                        : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
 
                     let rowStyle = '';
                     if (isOut) {
@@ -3993,32 +5438,36 @@ function renderDetailTableBody() {
                         rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
                     }
 
+                    let hangupDisplay = formatHangupParty(c.hangupParty, c.direction === 'transfer');
+                    const callerKey = `opmodal_${c.recording || ''}_${c.callerId || ''}_${c.time || index}`;
+                    const isExpCaller = isCallerExpanded(callerKey);
+
                     return `
                         <tr style="${rowStyle}">
                             <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                            <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString()}</td>
-                            <td style="white-space: nowrap;">
-                                <div class="phone-cell ${isOut ? 'outbound' : ''}">
-                                    <span class="phone-icon">${isOut ? '📤' : '📞'}</span>
-                                    <span>${formatCallerNumberOrOperator(c.callerId)}</span>
+                            <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' })}</td>
+                            <td class="${isExpCaller ? 'cell-expanded' : ''}">
+                                <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
+                                    <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
+                                    ${renderExpandableCallerHtml(c.callerId, callerKey)}
                                 </div>
                             </td>
                             <td style="white-space: nowrap;">${directionBadge}</td>
                             <td style="white-space: nowrap;">
-                                ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob')
-                                    ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">🤖 ${c.operator}</span>`
+                                ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob') || (c.operator || '').includes('Navbatga kirmasdan')
+                                    ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">${(c.operator || '').includes('Navbatga kirmasdan') ? '🚪' : '🤖'} ${c.operator}</span>`
                                     : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
                                 }
                             </td>
                             <td style="white-space: nowrap;">${durText}</td>
                             <td style="white-space: nowrap;">${statusBadge}</td>
-                            <td style="white-space: nowrap; font-size: 12px; font-weight: 500; color: ${c.hangupParty === 'Operator' ? 'var(--warning)' : (c.hangupParty === 'Mijoz' ? '#38bdf8' : 'var(--text-dim)')}">${c.hangupParty || '-'}</td>
+                            <td style="white-space: nowrap; font-size: 12px;">${hangupDisplay}</td>
                             <td style="white-space: nowrap;">
                                 ${c.recording ? `
                                     <button class="btn-action" style="padding: 3px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="playCallAudio('${c.recording}', this)">
-                                        ▶ Tinglash
+                                        ${isax('play', '', 'width: 12px; height: 12px;')} ${t('audio_listen', 'Tinglash')}
                                     </button>
-                                ` : `<span style="color: var(--text-dim); font-size: 11px;">Mavjud emas</span>`}
+                                ` : `<span style="color: var(--text-dim); font-size: 11px;">${t('audio_not_available', 'Mavjud emas')}</span>`}
                             </td>
                         </tr>
                     `;
@@ -4038,7 +5487,7 @@ async function fetchAndRenderDetailCalls() {
     bodyEl.innerHTML = `
         <div class="modal-loading-box">
             <div class="modal-spinner-ring"></div>
-            <div class="modal-loading-text">Ma'lumotlar yuklanmoqda...</div>
+            <div class="modal-loading-text">${t('detail_loading', "Ma'lumotlar yuklanmoqda...")}</div>
         </div>
     `;
 
@@ -4071,7 +5520,7 @@ async function fetchAndRenderDetailCalls() {
         renderDetailTableBody();
         renderOperatorSummaryPills();
     } catch (err) {
-        bodyEl.innerHTML = `<div style="color: var(--danger); padding: 20px;">Yuklashda xatolik yuz berdi: ${err.message}</div>`;
+        bodyEl.innerHTML = `<div style="color: var(--danger); padding: 20px;">${tf('hist_error', { msg: err.message }, `Xatolik: ${err.message}`)}</div>`;
     }
 }
 
@@ -4095,8 +5544,8 @@ async function openCallsDetail(type, title) {
     if (searchInput) searchInput.value = '';
 
     const isToday = !currentSelectedDate || currentSelectedDate === getTodayDateString();
-    titleEl.innerHTML = `📊 ${title}`;
-    subTitleEl.innerText = isToday ? `Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti` : `${currentSelectedDate} sanasi bo'yicha saralangan qo'ng'iroqlar tafsiloti`;
+    titleEl.innerHTML = `${isax('chart')} ${title}`;
+    subTitleEl.innerText = isToday ? t('detail_today_subtitle', "Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti") : tf('detail_date_subtitle', { date: currentSelectedDate }, `${currentSelectedDate} sanasi bo'yicha saralangan qo'ng'iroqlar tafsiloti`);
     summaryEl.style.display = 'none';
     summaryEl.innerHTML = '';
 
@@ -4111,7 +5560,7 @@ function renderOperatorSummaryPill(label, valueHtml, colorRgb, borderRgb, catego
     const clickable = !!category;
     const activeStyle = isActive ? `box-shadow: 0 0 0 2px rgba(${colorRgb}, 0.7); background: rgba(${colorRgb}, 0.28);` : '';
     return `
-        <div ${clickable ? `onclick="filterDetailByCategory('${category}')" title="Filtrlash uchun bosing"` : ''}
+        <div ${clickable ? `onclick="filterDetailByCategory('${category}')" title="${t('filter_click_title', 'Filtrlash uchun bosing')}"` : ''}
              style="background: rgba(${colorRgb}, 0.15); border: 1px solid rgba(${borderRgb}, 0.3); padding: 6px 12px; border-radius: var(--radius-sm); ${clickable ? 'cursor: pointer;' : ''} transition: box-shadow 0.15s, background 0.15s; ${activeStyle}">
             <span style="font-size: 11px; color: var(--text-muted); display: block;">${label}:</span>
             ${valueHtml}
@@ -4134,27 +5583,32 @@ function renderOperatorSummaryPills() {
             </div>
             <div>
                 <h4 style="font-size: 16px; font-weight: 700; color: #fff;">${cleanName}</h4>
-                <span style="font-size: 12px; color: var(--text-dim);">Ichki raqam: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
+                <span style="font-size: 12px; color: var(--text-dim);">${t('op_sum_internal', 'Ichki raqam:')} ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
             </div>
         </div>
         <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-            ${renderOperatorSummaryPill('Qabul qilingan', `<b style="font-size: 14px; color: var(--success);">${op.answered || 0} ta</b>`, '16, 185, 129', '16, 185, 129', 'answered')}
-            ${renderOperatorSummaryPill('Chiquvchi', `<b style="font-size: 14px; color: #38bdf8;">${op.outbound || 0} ta</b>`, '56, 189, 248', '56, 189, 248', 'outbound')}
-            ${renderOperatorSummaryPill('Rad etilgan', `<b style="font-size: 14px; color: var(--danger);">${op.denied || 0} ta</b>`, '239, 68, 68', '239, 68, 68', 'denied')}
+            ${renderOperatorSummaryPill(t('op_sum_answered', 'Qabul qilingan'), `<b style="font-size: 14px; color: var(--success);">${op.answered || 0} ${t('unit_item', 'ta')}</b>`, '16, 185, 129', '16, 185, 129', 'answered')}
+            ${renderOperatorSummaryPill(t('dir_outbound', 'Chiquvchi'), `<b style="font-size: 14px; color: #38bdf8;">${op.outbound || 0} ${t('unit_item', 'ta')}</b>`, '56, 189, 248', '56, 189, 248', 'outbound')}
+            ${renderOperatorSummaryPill(t('status_denied', 'Rad etilgan'), `<b style="font-size: 14px; color: var(--danger);">${op.denied || 0} ${t('unit_item', 'ta')}</b>`, '239, 68, 68', '239, 68, 68', 'denied')}
             <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">Umumiy suhbat:</span>
+                <span style="font-size: 11px; color: var(--text-muted); display: block;">${t('op_card_total_talk', 'Umumiy suhbat:')}</span>
                 <b style="font-size: 14px; color: #fff;">${formatSeconds(op.totalDurationSec || 0)}</b>
             </div>
             <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">O'rtacha suhbat:</span>
+                <span style="font-size: 11px; color: var(--text-muted); display: block;">${t('op_card_avg_talk', "O'rtacha suhbat:")}</span>
                 <b style="font-size: 14px; color: #fbbf24;">${formatSeconds(op.avgDurationSec || 0)}</b>
             </div>
             <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: var(--radius-sm);">
-                <span style="font-size: 11px; color: var(--text-muted); display: block;">Liniya holati:</span>
-                <b style="font-size: 12px; color: ${op.presence === 'ready' ? 'var(--success)' : (op.presence === 'talking' ? '#38bdf8' : 'var(--danger)')};">
-                    ${op.presence === 'ready' ? '🟢 Qabul qilishga tayyor' : (op.presence === 'talking' ? '🔵 Hozir suhbatda' : '🔴 Offline')}
+                <span style="font-size: 11px; color: var(--text-muted); display: block;">${t('op_sum_line_status', 'Liniya holati:')}</span>
+                <b style="font-size: 12px; color: ${op.presence === 'ready' ? 'var(--success)' : (op.presence === 'talking' ? '#38bdf8' : (op.presence === 'paused' || op.paused ? '#fbbf24' : 'var(--danger)'))};">
+                    ${op.presence === 'ready' ? '🟢 ' + t('op_status_ready', 'Qabul qilishga tayyor') : (op.presence === 'talking' ? '🔵 ' + t('status_talking', 'Hozir suhbatda') : (op.presence === 'paused' || op.paused ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('pause', '', 'width: 12px; height: 12px;')} Pauzada (Tanaffus)</span>` : '🔴 ' + t('op_status_offline', 'Offline')))}
                 </b>
             </div>
+            <button type="button" 
+                    onclick="toggleOperatorPause('${op.id}', ${!(op.paused || op.presence === 'paused')}, event)" 
+                    class="btn-detail-pause ${(op.paused || op.presence === 'paused') ? 'unpause' : 'pause'}">
+                ${(op.paused || op.presence === 'paused') ? `${isax('play', '', 'width: 13px; height: 13px;')} Pauzadan chiqarish (Ishga qaytish)` : `${isax('pause', '', 'width: 13px; height: 13px;')} Tanaffusga (Pauzaga) qo\'yish`}
+            </button>
         </div>
     `;
 }
@@ -4179,8 +5633,8 @@ async function openOperatorDetail(operatorId) {
     detailState.currentOp = op;
     const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
-    titleEl.innerHTML = `👤 ${cleanName} — Tafsilotlar & Bugungi Suhbatlar`;
-    subTitleEl.innerText = `Operatorning kunlik faolligi, intizomi va audio yozuvlari`;
+    titleEl.innerHTML = `${isax('user')} ` + tf('detail_op_title', { name: cleanName }, `${cleanName} — Tafsilotlar & Bugungi Suhbatlar`);
+    subTitleEl.innerText = t('detail_subtitle_op_activity', 'Operatorning kunlik faolligi, intizomi va audio yozuvlari');
 
     renderOperatorSummaryPills();
 
@@ -4197,19 +5651,19 @@ function openQueueDetail() {
     const countBadge = document.getElementById('detailCountBadge');
     const pageInd = document.getElementById('detailPageIndicator');
 
-    titleEl.innerHTML = `👥 Navbatda Kutayotganlar (Real-time)`;
-    subTitleEl.innerText = `Ayni daqiqada navbatda turgan mijozlar ro'yxati`;
+    titleEl.innerHTML = t('detail_queue_title', '👥 Navbatda Kutayotganlar (Real-time)');
+    subTitleEl.innerText = t('detail_queue_subtitle', "Ayni daqiqada navbatda turgan mijozlar ro'yxati");
     summaryEl.style.display = 'none';
     summaryEl.innerHTML = '';
 
     const waiters = currentQueues.flatMap(q => (q.callersWaiting || []).map(c => ({ ...c, queueName: q.name })));
-    countBadge.innerText = `Jami: ${waiters.length} ta mijoz kutmoqda`;
+    countBadge.innerText = tf('detail_queue_count', { n: waiters.length }, `Jami: ${waiters.length} ta mijoz kutmoqda`);
     if (pageInd) pageInd.innerText = '1 / 1';
 
     if (waiters.length === 0) {
         bodyEl.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-dim);">
-                Hozircha navbatda kutayotgan mijozlar yo'q. Barcha qo'ng'iroqlar operatorlarga ulangan yoki navbat bo'sh.
+                ${t('detail_queue_empty_note', "Hozircha navbatda kutayotgan mijozlar yo'q. Barcha qo'ng'iroqlar operatorlarga ulangan yoki navbat bo'sh.")}
             </div>
         `;
     } else {
@@ -4217,11 +5671,11 @@ function openQueueDetail() {
             <table class="detail-table">
                 <thead>
                     <tr>
-                        <th>O'rni</th>
-                        <th>Mijoz Raqami</th>
-                        <th>Navbat Nomi</th>
-                        <th>Kutish Vaqti</th>
-                        <th>Kanal</th>
+                        <th>${t('detail_col_position', "O'rni")}</th>
+                        <th>${t('detail_col_client_phone', 'Mijoz Raqami')}</th>
+                        <th>${t('detail_col_queue_name', 'Navbat Nomi')}</th>
+                        <th>${t('detail_col_wait_time', 'Kutish Vaqti')}</th>
+                        <th>${t('detail_col_channel', 'Kanal')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -4230,12 +5684,12 @@ function openQueueDetail() {
                             <td style="font-weight: 700; color: #fbbf24;">#${w.position || 1}</td>
                             <td style="white-space: nowrap;">
                                 <div class="phone-cell">
-                                    <span class="phone-icon">📞</span>
+                                    <span class="phone-icon">${isax('call')}</span>
                                     <span>${w.callerId}</span>
                                 </div>
                             </td>
-                            <td><span class="badge badge-info">${w.queueName || 'Asosiy Navbat'}</span></td>
-                            <td style="font-weight: 600; color: var(--warning);">${w.waitSec ? formatSeconds(w.waitSec) : 'Kutmoqda...'}</td>
+                            <td><span class="badge badge-info">${w.queueName || t('live_default_queue', 'Asosiy Navbat')}</span></td>
+                            <td style="font-weight: 600; color: var(--warning);">${w.waitSec ? formatSeconds(w.waitSec) : t('wait_status', 'Kutmoqda...')}</td>
                             <td style="font-size: 11px; color: var(--text-dim);">${w.channel || '-'}</td>
                         </tr>
                     `).join('')}
@@ -4251,7 +5705,7 @@ let currentDetailBtn = null;
 
 function playCallAudio(recordingFile, btn) {
     if (!recordingFile) {
-        alert('Ushbu qo\'ng\'iroqda audio yozuv mavjud emas (suhbat bo\'lmagan)');
+        alert(t('audio_missing_alert', "Ushbu qo'ng'iroqda audio yozuv mavjud emas (suhbat bo'lmagan)"));
         return;
     }
 
@@ -4303,7 +5757,7 @@ async function loadAgentLogs(page = 1) {
     if (bodyEl) {
         bodyEl.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                Yuklanmoqda...
+                ${t('logs_loading', 'Yuklanmoqda...')}
             </div>
         `;
     }
@@ -4314,15 +5768,15 @@ async function loadAgentLogs(page = 1) {
 
         agentLogsTotalPages = json.totalPages || 1;
         if (pageEl) pageEl.innerText = `${json.page || 1} / ${agentLogsTotalPages}`;
-        if (totalEl) totalEl.innerText = `Jami: ${json.total || 0} ta hodisa`;
+        if (totalEl) totalEl.innerText = tf('logs_total_events', { n: json.total || 0 }, `Jami: ${json.total || 0} ta hodisa`);
         if (prevBtn) prevBtn.disabled = (json.page <= 1);
         if (nextBtn) nextBtn.disabled = (json.page >= agentLogsTotalPages);
 
         if (!json.data || json.data.length === 0) {
             bodyEl.innerHTML = `
                 <div style="text-align: center; padding: 50px; color: var(--text-muted); font-size: 13px;">
-                    3CX Desktop Agent tomonidan hozircha qo'ng'iroq qayd etilmadi.<br>
-                    <span style="font-size: 11px; opacity: 0.7;">Qo'ng'iroqlar amalga oshirilganda bu yerda real-time paydo bo'ladi.</span>
+                    ${t('logs_no_records', "3CX Desktop Agent tomonidan hozircha qo'ng'iroq qayd etilmadi.")}<br>
+                    <span style="font-size: 11px; opacity: 0.7;">${t('logs_empty_hint', "Qo'ng'iroqlar amalga oshirilganda bu yerda real-time paydo bo'ladi.")}</span>
                 </div>
             `;
             return;
@@ -4331,10 +5785,9 @@ async function loadAgentLogs(page = 1) {
         const opNames = {
             '101': 'Oybek',
             '103': 'Feruza',
-            '106': 'Gulchehra',
+            '106': 'Ubaydullayeva Gulchehra',
             '111': 'Nozima',
             '114': 'Maxmudbek',
-            '116': 'Ibrohim',
             '119': 'Muattar',
             '120': 'Navruzoy'
         };
@@ -4345,26 +5798,26 @@ async function loadAgentLogs(page = 1) {
             const opDisplay = `${opName} (${r.operator_id})`;
             
             let typeBadge = '';
-            const t = (r.event_type || '').toUpperCase();
+            const evtType = (r.event_type || '').toUpperCase();
             const dur = parseInt(r.duration_sec || 0, 10);
 
-            const isDialled = t === 'DIALLED' || t === 'OUTBOUND';
-            if (t === 'REJECT') {
-                typeBadge = `<span class="status-badge failed">🚫 Rad etildi</span>`;
+            const isDialled = evtType === 'DIALLED' || evtType === 'OUTBOUND';
+            if (evtType === 'REJECT') {
+                typeBadge = `<span class="status-badge failed" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('logs_status_denied', 'Rad etildi')}</span>`;
             } else if (isDialled) {
                 if (dur > 0) {
-                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> Chiquvchi</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'Chiquvchi')}</span>`;
                 } else {
-                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> Chiquvchi (Ulanmagan)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> ${t('logs_status_outbound_unconnected', 'Chiquvchi (Ulanmagan)')}</span>`;
                 }
-            } else if (t === 'MISSED' || dur === 0) {
-                typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi</span>`;
-            } else if (t === 'ANSWERED' || dur > 0) {
-                typeBadge = `<span class="status-badge answered">🟢 Javob berildi</span>`;
-            } else if (t === 'RINGING' || t === 'INCOMING') {
-                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> Kiruvchi</span>`;
+            } else if (evtType === 'MISSED' || dur === 0) {
+                typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">${t('logs_status_missed', "⚠️ O'tkazib yuborildi")}</span>`;
+            } else if (evtType === 'ANSWERED' || dur > 0) {
+                typeBadge = `<span class="status-badge answered">${t('logs_status_answered', '🟢 Javob berildi')}</span>`;
+            } else if (evtType === 'RINGING' || evtType === 'INCOMING') {
+                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'Kiruvchi')}</span>`;
             } else {
-                typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3);">📴 Tugadi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3);">${t('logs_status_ended', '📴 Tugadi')}</span>`;
             }
 
             const durFormatted = formatSeconds(dur);
@@ -4376,8 +5829,8 @@ async function loadAgentLogs(page = 1) {
                     <td style="font-weight: 600; color: var(--text-main); white-space: nowrap;">${opDisplay}</td>
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
-                            <span class="phone-icon">📞</span>
-                            <span>${r.caller_id || 'Yashirin'}</span>
+                            <span class="phone-icon">${isax('call')}</span>
+                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
@@ -4394,13 +5847,13 @@ async function loadAgentLogs(page = 1) {
                     <thead>
                         <tr>
                             <th style="width: 45px; text-align: center;">№</th>
-                            <th>Qayd Vaqti</th>
-                            <th>Operator</th>
-                            <th>Mijoz Raqami</th>
-                            <th>Hodisa Turi</th>
-                            <th>Suhbat Vaqti</th>
-                            <th>Kompyuter (PC)</th>
-                            <th>3CX Tarixi</th>
+                            <th>${t('logs_col_time', 'Qayd Vaqti')}</th>
+                            <th>${t('set_col_operator', 'Operator')}</th>
+                            <th>${t('logs_col_phone', 'Mijoz Raqami')}</th>
+                            <th>${t('logs_col_event', 'Hodisa Turi')}</th>
+                            <th>${t('logs_col_talk', 'Suhbat Vaqti')}</th>
+                            <th>${t('logs_col_pc', 'Kompyuter (PC)')}</th>
+                            <th>${t('logs_col_details', '3CX Tarixi')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -4412,7 +5865,7 @@ async function loadAgentLogs(page = 1) {
     } catch (err) {
         bodyEl.innerHTML = `
             <div style="text-align: center; padding: 40px; color: var(--danger);">
-                Ma'lumotlarni yuklab bo'lmadi: ${err.message}
+                ${tf('logs_load_failed', { msg: err.message }, `Ma'lumotlarni yuklab bo'lmadi: ${err.message}`)}
             </div>
         `;
     }
@@ -4429,6 +5882,7 @@ const tabOperatorLogsLimit = 50;
 async function loadTabAgentOperators(targetDate = null) {
     const grid = document.getElementById('tabOperatorsGrid');
     try {
+        lastTabOpsFingerprint = '';
         const todayStr = getTodayDateString();
         const activeDate = (typeof targetDate === 'string' && targetDate) ? targetDate : (currentSelectedDate || todayStr);
         const urlDateParam = (activeDate === todayStr) ? '' : `?date=${encodeURIComponent(activeDate)}`;
@@ -4446,7 +5900,7 @@ async function loadSyncStatus() {
         const data = await res.json();
         const textEl = document.getElementById('lastSyncTimeText');
         if (textEl && data) {
-            textEl.innerText = data.lastSyncTime || 'Kecha 21:00';
+            textEl.innerText = data.lastSyncTime || t('date_yesterday_21', 'Kecha 21:00');
         }
     } catch (e) {
         console.warn('loadSyncStatus xatosi:', e);
@@ -4459,7 +5913,7 @@ async function triggerCdrSync() {
     try {
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '⏳ Sinxronlanmoqda...';
+            btn.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('sync_in_progress', 'Sinxronlanmoqda...')}</span>`;
         }
         const todayStr = getTodayDateString();
         const activeDate = currentSelectedDate || todayStr;
@@ -4474,15 +5928,15 @@ async function triggerCdrSync() {
             if (textEl && data.lastSyncTime) {
                 textEl.innerText = data.lastSyncTime;
             }
-            alert(`✅ Sinxronizatsiya muvaffaqiyatli yakunlandi!\n\nAsterisk CDR dan ${data.addedCount} ta yetishmayotgan qo'ng'iroq tiklandi.`);
+            alert(`Sinxronizatsiya muvaffaqiyatli yakunlandi!\n\nAsterisk CDR dan ${data.addedCount} ta yetishmayotgan qo'ng'iroq tiklandi.`);
             await loadTabAgentOperators(activeDate);
             if (typeof loadTabAgentLogs === 'function') loadTabAgentLogs();
         } else {
-            alert(`⚠️ Sinxronizatsiya: ${data.message || data.error || 'Noma\'lum xatolik'}`);
+            alert(tf('sync_result', { msg: data.message || data.error || t('unknown_error', "Noma'lum xatolik") }));
         }
     } catch (err) {
         console.error('triggerCdrSync xatolik:', err);
-        alert('❌ Sinxronizatsiya vaqtida xatolik yuz berdi: ' + err.message);
+        alert(t('sync_error', '❌ Sinxronizatsiya vaqtida xatolik yuz berdi: ') + err.message);
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -4549,8 +6003,7 @@ function renderExportRangeCalendar() {
     const endInput = document.getElementById('exportEndDate');
     if (!titleEl || !gridEl || !startInput || !endInput) return;
 
-    const uzMonths = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'];
-    titleEl.innerText = `${uzMonths[exportCalMonth]} ${exportCalYear}`;
+    titleEl.innerText = `${getMonthName(exportCalMonth)} ${exportCalYear}`;
     gridEl.innerHTML = '';
 
     const startDate = startInput.value;
@@ -4748,15 +6201,17 @@ function updateExportRangeBadge() {
     const d1 = new Date(s);
     const d2 = new Date(e);
     if (d1 > d2) {
-        textEl.innerHTML = `<span style="color: #f87171; font-weight: 600;">⚠️ Boshlanish sanasi tugash sanasidan katta bo'lishi mumkin emas!</span>`;
+        textEl.innerHTML = `<span style="color: #f87171; font-weight: 600;">${t('export_err_start_after_end', "⚠️ Boshlanish sanasi tugash sanasidan katta bo'lishi mumkin emas!")}</span>`;
         return;
     }
 
     const diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
     const [sy, sm, sd] = s.split('-');
     const [ey, em, ed] = e.split('-');
-    textEl.innerHTML = `Tanlangan oraliq: <b>${diffDays} kun</b> (${sd}.${sm}.${sy} — ${ed}.${em}.${ey})`;
+    textEl.innerHTML = tf('export_range_text', { days: diffDays, start: `${sd}.${sm}.${sy}`, end: `${ed}.${em}.${ey}` }, `Tanlangan oraliq: <b>${diffDays} kun</b> (${sd}.${sm}.${sy} — ${ed}.${em}.${ey})`);
 }
+
+let pendingExportRange = { startDate: '', endDate: '' };
 
 function submitRangeExport() {
     const startInput = document.getElementById('exportStartDate');
@@ -4767,7 +6222,7 @@ function submitRangeExport() {
     let e = endInput.value;
 
     if (!s || !e) {
-        alert("Iltimos, boshlanish va tugash sanasini tanlang!");
+        alert(t('export_alert_select_dates', "Iltimos, boshlanish va tugash sanasini tanlang!"));
         return;
     }
 
@@ -4779,34 +6234,177 @@ function submitRangeExport() {
         endInput.value = e;
     }
 
-    const btn = document.getElementById('btnSubmitExport');
-    const btnIcon = document.getElementById('exportBtnIcon');
-    const btnText = document.getElementById('exportBtnText');
-    const mainBtn = document.getElementById('btnExportExcel');
-    const mainBtnText = document.getElementById('txtExportExcel');
+    pendingExportRange = { startDate: s, endDate: e };
 
-    if (btn) btn.disabled = true;
-    if (btnIcon) btnIcon.innerText = '⏳';
-    if (btnText) btnText.innerText = 'Yuklanmoqda...';
-    if (mainBtn) mainBtn.disabled = true;
-    if (mainBtnText) mainBtnText.innerText = 'Yuklanmoqda...';
+    // Sana matnini ko'rsatish
+    const [sy, sm, sd] = s.split('-');
+    const [ey, em, ed] = e.split('-');
+    const subtitleEl = document.getElementById('exportChoiceSubtitle');
+    if (subtitleEl) {
+        subtitleEl.innerText = `Tanlangan oraliq: ${sd}.${sm}.${sy} — ${ed}.${em}.${ey}`;
+    }
 
-    const downloadUrl = `/api/export/excel?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}`;
+    // Sana tanlash oynasini yopib, 3 ta tugmali hisobot turini tanlash oynasini ochish
+    closeExportModal();
+    openExportChoiceModal();
+}
+
+let selectedExportLang = 'uz';
+
+function setExportLanguage(lang) {
+    if (lang !== 'uz' && lang !== 'ru') lang = 'uz';
+    selectedExportLang = lang;
+
+    const btnUz = document.getElementById('btnExportLangUz');
+    const btnRu = document.getElementById('btnExportLangRu');
+    const hintEl = document.getElementById('exportLangHint');
+
+    if (btnUz && btnRu) {
+        if (lang === 'uz') {
+            btnUz.style.background = '#3b82f6';
+            btnUz.style.color = '#fff';
+            btnUz.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.5)';
+            btnRu.style.background = 'transparent';
+            btnRu.style.color = '#94a3b8';
+            btnRu.style.boxShadow = 'none';
+        } else {
+            btnRu.style.background = '#3b82f6';
+            btnRu.style.color = '#fff';
+            btnRu.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.5)';
+            btnUz.style.background = 'transparent';
+            btnUz.style.color = '#94a3b8';
+            btnUz.style.boxShadow = 'none';
+        }
+    }
+
+    if (hintEl) {
+        hintEl.innerText = lang === 'ru' 
+            ? 'Excel файл будет выгружен на русском языке' 
+            : "Excel fayli o'zbek tilida shakllantiriladi";
+    }
+
+    updateExportModalTexts();
+}
+
+function updateExportModalTexts() {
+    const isRu = selectedExportLang === 'ru';
+
+    // Subtitle date update
+    if (pendingExportRange && pendingExportRange.startDate && pendingExportRange.endDate) {
+        const [sy, sm, sd] = pendingExportRange.startDate.split('-');
+        const [ey, em, ed] = pendingExportRange.endDate.split('-');
+        const subtitleEl = document.getElementById('exportChoiceSubtitle');
+        if (subtitleEl) {
+            const prefix = isRu ? 'Выбранный период:' : 'Tanlangan oraliq:';
+            subtitleEl.innerText = `${prefix} ${sd}.${sm}.${sy} — ${ed}.${em}.${ey}`;
+        }
+    }
+
+    // Modal Title
+    const titleEl = document.querySelector('#exportChoiceModal [data-i18n="export_choice_title"]');
+    if (titleEl) {
+        titleEl.innerText = isRu ? 'Какой отчет хотите скачать?' : 'Qaysi hisobotni yuklab olmoqchisiz?';
+    }
+
+    // Button 1: All
+    const allTitleEl = document.querySelector('#btnExportChoiceAll [data-i18n="export_choice_all"]');
+    const allBadgeEl = document.querySelector('#btnExportChoiceAll [data-i18n="export_opt_all_badge"]');
+    const allDescEl = document.querySelector('#btnExportChoiceAll [data-i18n="export_opt_all_desc"]');
+    if (allTitleEl) allTitleEl.innerText = isRu ? 'Общий отчет' : 'Umumiy hisobot';
+    if (allBadgeEl) allBadgeEl.innerText = isRu ? 'Все' : 'BARCHASI';
+    if (allDescEl) allDescEl.innerText = isRu ? 'Полный объединенный отчет по всем группам операторов 100–199 и 200+' : 'Barcha operatorlar (100–199 va 200+) bitta umumiy jadvalda';
+
+    // Button 2: Main
+    const mainTitleEl = document.querySelector('#btnExportChoiceMain [data-i18n="export_choice_main"]');
+    const mainDescEl = document.querySelector('#btnExportChoiceMain [data-i18n="export_opt_main_desc"]');
+    if (mainTitleEl) mainTitleEl.innerText = isRu ? 'Основные операторы' : 'Asosiy operatorlar';
+    if (mainDescEl) mainDescEl.innerText = isRu ? 'Отчет только по основным операторам с 100 по 199' : "Faqat 100 dan 199 gacha bo'lgan asosiy operatorlar hisoboti";
+
+    // Button 3: Secondary (Zangiota)
+    const secTitleEl = document.querySelector('#btnExportChoiceSec [data-i18n="export_choice_sec"]');
+    const secDescEl = document.querySelector('#btnExportChoiceSec [data-i18n="export_opt_sec_desc"]');
+    if (secTitleEl) secTitleEl.innerText = isRu ? 'Операторы Зангиота 42' : 'Zangiota 42 operatorlari';
+    if (secDescEl) secDescEl.innerText = isRu ? 'Отчет только по операторам 200+ (Зангиота 42)' : 'Faqat 200 va undan yuqori (Zangiota 42) operatorlar hisoboti';
+
+    // Footer buttons
+    const backBtnText = document.querySelector('#exportChoiceModal [data-i18n="export_btn_back"]');
+    const cancelBtnText = document.querySelector('#exportChoiceModal [data-i18n="export_btn_cancel"]');
+    if (backBtnText) backBtnText.innerText = isRu ? 'Изменить дату' : "Sanani o'zgartirish";
+    if (cancelBtnText) cancelBtnText.innerText = isRu ? 'Отмена' : 'Bekor qilish';
+}
+
+function openExportChoiceModal() {
+    const modal = document.getElementById('exportChoiceModal');
+    if (modal) modal.style.display = 'flex';
+
+    // Tizimning hozirgi tiliga mos holda tanlash
+    try {
+        const sysLang = (typeof getCurrentLang === 'function') ? getCurrentLang() : 'uz';
+        setExportLanguage(sysLang === 'ru' ? 'ru' : 'uz');
+    } catch (e) {
+        setExportLanguage('uz');
+    }
+}
+
+function closeExportChoiceModal() {
+    const modal = document.getElementById('exportChoiceModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function backToDateRangeModal() {
+    closeExportChoiceModal();
+    openExportModal();
+}
+
+function executeExportDownload(group = 'all') {
+    const s = pendingExportRange.startDate;
+    const e = pendingExportRange.endDate;
+    if (!s || !e) return;
+
+    const isRu = selectedExportLang === 'ru';
+    const loadingMsg = isRu ? 'Отчет подготавливается и скачивается...' : 'Hisobot tayyorlanmoqda va yuklanmoqda...';
+
+    let btnId = 'btnExportChoiceAll';
+    if (group === 'main') btnId = 'btnExportChoiceMain';
+    else if (group === 'secondary') btnId = 'btnExportChoiceSec';
+
+    const btn = document.getElementById(btnId);
+    let originalHtml = '';
+    if (btn) {
+        btn.disabled = true;
+        originalHtml = btn.innerHTML;
+        btn.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; width: 100%; gap: 10px; padding: 6px;">
+                <span style="width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite;"></span>
+                <span style="font-size: 14px; font-weight: 600; color: #fff;">${loadingMsg}</span>
+            </div>
+        `;
+    }
+
+    const downloadUrl = `/api/export/excel?startDate=${encodeURIComponent(s)}&endDate=${encodeURIComponent(e)}&group=${encodeURIComponent(group)}&lang=${encodeURIComponent(selectedExportLang)}`;
     const a = document.createElement('a');
     a.href = downloadUrl;
-    a.download = `Call_Center_Export_${s}_${e}.xlsx`;
+
+    let groupSuffix = '_Umumiy';
+    if (isRu) {
+        groupSuffix = group === 'main' ? '_Основные' : (group === 'secondary' ? '_Зангиота_42' : '_Общий');
+    } else {
+        groupSuffix = group === 'main' ? '_Asosiy' : (group === 'secondary' ? '_Zangiota_42' : '_Umumiy');
+    }
+    const langSuffix = isRu ? '_RU' : '_UZ';
+
+    a.download = `Call_Center_Export_${s}_${e}${groupSuffix}${langSuffix}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
 
     setTimeout(() => {
-        if (btn) btn.disabled = false;
-        if (btnIcon) btnIcon.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>`;
-        if (btnText) btnText.innerText = 'Excel hisobotni yuklash';
-        if (mainBtn) mainBtn.disabled = false;
-        if (mainBtnText) mainBtnText.innerText = 'Export';
-        closeExportModal();
-    }, 2500);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+        closeExportChoiceModal();
+    }, 2000);
 }
 
 function downloadExcelReport(targetMonth = null) {
@@ -4824,10 +6422,10 @@ function filterTabAgentLogsByOperator(opId) {
     }
     if (titleEl) {
         if (!selectedTabAgentOpId) {
-            titleEl.innerText = "Agent ma'lumotlari";
+            titleEl.innerText = t('agent_info_default', "Agent ma'lumotlari");
         } else {
             const op = tabAgentOperatorsData.find(o => String(o.id) === selectedTabAgentOpId);
-            titleEl.innerText = op ? `${op.name} — Agent ma'lumotlari` : `Operator ${selectedTabAgentOpId} — Agent ma'lumotlari`;
+            titleEl.innerText = op ? tf('agent_info_title', { name: op.name }, `${op.name} — Agent ma'lumotlari`) : tf('agent_info_title', { name: `Operator ${selectedTabAgentOpId}` }, `Operator ${selectedTabAgentOpId} — Agent ma'lumotlari`);
         }
     }
     if (tabAgentOperatorsData && tabAgentOperatorsData.length > 0) {
@@ -4842,7 +6440,7 @@ function renderTabAgentOperators(operators) {
     if (!grid) return;
 
     if (!operators || operators.length === 0) {
-        grid.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 16px;">Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.</div>`;
+        grid.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 16px;">${t('tab_ops_no_data', "Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.")}</div>`;
         lastTabOpsFingerprint = '';
         return;
     }
@@ -4853,12 +6451,23 @@ function renderTabAgentOperators(operators) {
     }
     lastTabOpsFingerprint = currentFingerprint;
 
-    // Top 1 operatorni aniqlash (MVP reyting) agent answered soni bo'yicha
+    // Top 1 operatorni aniqlash (MVP reyting) jami qo'ng'iroqlar bo'yicha
+    const getOpScore = (o) => {
+        if (!o) return 0;
+        const ans = o.answered || 0;
+        const out = o.outbound || 0;
+        if (o.grandTotal !== undefined && o.grandTotal !== null) {
+            return Math.max(o.grandTotal, ans + out);
+        }
+        return ans + out;
+    };
     const sortedByScore = [...operators]
-        .filter(op => (op.answered || 0) > 0 || (op.totalDurationSec || 0) > 0)
-        .sort((a, b) => (b.answered || 0) - (a.answered || 0) || (b.totalDurationSec || 0) - (a.totalDurationSec || 0));
+        .filter(op => (getOpScore(op) > 0) || (op.totalDurationSec || 0) > 0)
+        .sort((a, b) => (getOpScore(b) - getOpScore(a)) || ((b.totalDurationSec || 0) - (a.totalDurationSec || 0)));
 
     const top1Id = sortedByScore[0] ? sortedByScore[0].id : null;
+    const top2Id = sortedByScore[1] ? sortedByScore[1].id : null;
+    const top3Id = sortedByScore[2] ? sortedByScore[2].id : null;
 
     let countAgentOnline = 0;
     let totalAns = 0;
@@ -4895,36 +6504,54 @@ function renderTabAgentOperators(operators) {
         totalOutbound += outbound;
         totalMissed += missed;
 
+        const grandTotal = (op.grandTotal !== undefined && op.grandTotal !== null)
+            ? Math.max(op.grandTotal, answered + outbound)
+            : (answered + outbound);
+
+        const totalScore = grandTotal;
+
         let stars = '';
-        if (answered >= 40) {
+        if (totalScore >= 40) {
             stars = '⭐⭐⭐⭐⭐';
-        } else if (answered >= 30) {
+        } else if (totalScore >= 30) {
             stars = '⭐⭐⭐⭐';
-        } else if (answered >= 20) {
+        } else if (totalScore >= 20) {
             stars = '⭐⭐⭐';
-        } else if (answered >= 10) {
+        } else if (totalScore >= 10) {
             stars = '⭐⭐';
-        } else if (answered >= 1) {
+        } else if (totalScore >= 1) {
             stars = '⭐';
         }
 
-        const isMvp = op.id === top1Id && answered > 0;
+        const isDiamond = op.id === top1Id && totalScore > 0;
+        const isGold = op.id === top2Id && totalScore > 0;
+        const isSilver = op.id === top3Id && totalScore > 0;
         let mvpBadge = '';
         let avatarBg = 'linear-gradient(135deg, #2563eb, #1d4ed8)';
-        if (isMvp) {
-            mvpBadge = getMvpWreathBadgeHtml();
+        let cardMvpClass = '';
+        if (isDiamond) {
+            mvpBadge = getDiamondWreathBadgeHtml();
+            avatarBg = 'linear-gradient(135deg, #0284c7, #0369a1)';
+            cardMvpClass = ' mvp-diamond';
+        } else if (isGold) {
+            mvpBadge = getGoldWreathBadgeHtml();
             avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
+            cardMvpClass = ' mvp-gold';
+        } else if (isSilver) {
+            mvpBadge = getSilverWreathBadgeHtml();
+            avatarBg = 'linear-gradient(135deg, #94a3b8, #475569)';
+            cardMvpClass = ' mvp-silver';
         } else if (stars === '⭐') {
-            mvpBadge = `<span class="mvp-badge npc" title="1 ta yulduzli operator">🤖 NPC</span>`;
+            mvpBadge = `<span class="mvp-badge npc" title="${t('op_star_1_title', '1 ta yulduzli operator')}">🤖 NPC</span>`;
         }
 
         const isSelected = selectedTabAgentOpId === String(op.id);
         const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
 
         return `
-            <div class="operator-card clickable-card static-operator-card ${isSelected ? 'is-selected' : ''}" 
+            <div class="operator-card clickable-card static-operator-card ${cardMvpClass} ${isSelected ? 'is-selected' : ''}" 
                  onclick="filterTabAgentLogsByOperator('${op.id}')" 
-                 title="${cleanName} tafsilotlarini va 3CX jurnallarini ko'rish uchun bosing">
+                 title="${tf('op_card_click_3cx_detail', { name: cleanName }, `${cleanName} tafsilotlarini va 3CX jurnallarini ko'rish uchun bosing`)}">
                 <div class="operator-head">
                     <div class="operator-avatar" style="background: ${avatarBg};">${op.id}</div>
                     <div style="flex: 1; min-width: 0;">
@@ -4935,47 +6562,51 @@ function renderTabAgentOperators(operators) {
                             </div>
                             <span class="badge" style="font-size: 11px; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-dim);">#${op.id}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2px;">
-                            <span style="font-size: 11px; color: var(--text-dim);">Exten: ${op.id}</span>
-                            ${generateStarRatingHtml(answered, cleanName)}
+                        <div class="operator-meta-sub" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px 4px; margin-top: 2px;">
+                            <span style="font-size: 11px; color: var(--text-dim); white-space: nowrap;">${t('op_card_exten', 'Exten:')} ${op.id}</span>
+                            ${generateStarRatingHtml(totalScore, cleanName)}
                         </div>
                     </div>
                 </div>
 
+                <div class="op-stat-row" style="padding-bottom: 7px; margin-bottom: 7px; border-bottom: 1px solid rgba(16, 185, 129, 0.25);">
+                    <span style="font-weight: 800; color: #6ee7b7; display: inline-flex; align-items: center; gap: 4px;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${t('op_card_grand_total', 'Jami:')} ${isax('chart', '', 'width: 13px; height: 13px;')}</span>
+                    <span class="op-stat-val" style="font-size: 15px; font-weight: 900; color: #34d399;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${grandTotal} ${t('unit_item', 'ta')}</span>
+                </div>
                 <div class="op-stat-row">
-                    <span>Desktop Agent:</span>
+                    <span>${t('op_card_desktop_agent', 'Desktop Agent:')}</span>
                     <span class="op-stat-val" style="font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
                         <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
-                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? 'Faol' : 'O\'chiq'}</span>
+                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? t('op_card_agent_active', 'Faol') : t('op_card_agent_off', "O'chiq")}</span>
                         ${op.agentConnected ? `<span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : ''}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Desktop nomi:</span>
-                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || 'Aniqlanmagan'}">
+                    <span>${t('op_card_desktop_name', 'Desktop nomi:')}</span>
+                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || t('op_card_unknown_host', 'Aniqlanmagan')}">
                         ${op.agentHostname || '—'}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Qabul qilingan:</span>
-                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${answered} ta</span>
+                    <span>${t('op_card_accepted', 'Qabul qilingan:')}</span>
+                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${answered} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Chiquvchi:</span>
-                    <span class="op-stat-val" style="color: ${outbound > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${outbound} ta</span>
+                    <span>${t('op_card_outbound', 'Chiquvchi:')}</span>
+                    <span class="op-stat-val" style="color: ${outbound > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${outbound} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>O'tkazib yuborilgan:</span>
-                    <span class="op-stat-val" style="color: ${missed > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${missed} ta</span>
+                    <span>${t('op_card_missed', "O'tkazib yuborilgan:")}</span>
+                    <span class="op-stat-val" style="color: ${missed > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${missed} ${t('unit_item', 'ta')}</span>
                 </div>
                 <div class="op-stat-row">
-                    <span>Umumiy suhbat:</span>
+                    <span>${t('op_card_total_talk', 'Umumiy suhbat:')}</span>
                     <span class="op-stat-val" style="font-weight: 700; color: ${op.totalDurationSec > 7200 ? '#fcd34d' : 'var(--text-main)'};">
                         ${formatSeconds(op.totalDurationSec || 0)} ${op.totalDurationSec > 7200 ? '🔥' : ''}
                     </span>
                 </div>
                 <div class="op-stat-row">
-                    <span>O'rtacha suhbat:</span>
+                    <span>${t('op_card_avg_talk', "O'rtacha suhbat:")}</span>
                     <span class="op-stat-val">${formatSeconds(op.avgDurationSec || 0)}</span>
                 </div>
             </div>
@@ -4989,11 +6620,11 @@ function renderTabAgentOperators(operators) {
     const elOut = document.getElementById('tabOpTotalOutbound');
     const elMiss = document.getElementById('tabOpTotalMissed');
 
-    if (elReady) elReady.innerText = `${operators.length} ta`;
-    if (elAgent) elAgent.innerText = `${countAgentOnline} ta`;
-    if (elAns) elAns.innerText = `${totalAns} ta`;
-    if (elOut) elOut.innerText = `${totalOutbound} ta`;
-    if (elMiss) elMiss.innerText = `${totalMissed} ta`;
+    if (elReady) elReady.innerText = `${operators.length} ${t('unit_item', 'ta')}`;
+    if (elAgent) elAgent.innerText = `${countAgentOnline} ${t('unit_item', 'ta')}`;
+    if (elAns) elAns.innerText = `${totalAns} ${t('unit_item', 'ta')}`;
+    if (elOut) elOut.innerText = `${totalOutbound} ${t('unit_item', 'ta')}`;
+    if (elMiss) elMiss.innerText = `${totalMissed} ${t('unit_item', 'ta')}`;
 
     // Asosiy sahifadagi (Dashboard) O'tkazib yuborilgan (Missed) KPI kartochkasini ham sinxronlashtirish
     const elKpiMissed = document.getElementById('kpiMissed');
@@ -5024,7 +6655,7 @@ async function loadTabOperatorLogs(opId, page = 1) {
     container.innerHTML = `
         <div style="text-align: center; padding: 30px; color: var(--text-muted);">
             <div class="spinner" style="margin: 0 auto 12px;"></div>
-            3CX Desktop Agent jurnali yuklanmoqda...
+            ${t('logs_tab_loading', '3CX Desktop Agent jurnali yuklanmoqda...')}
         </div>
     `;
 
@@ -5038,16 +6669,16 @@ async function loadTabOperatorLogs(opId, page = 1) {
         const res = await fetch(url);
         const json = await res.json();
 
-        if (totalEl) totalEl.innerText = `Jami qaydlar: ${json.total || 0} ta`;
+        if (totalEl) totalEl.innerText = tf('logs_total_records', { n: json.total || 0 }, `Jami qaydlar: ${json.total || 0} ta`);
 
         if (!json.data || json.data.length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: var(--text-dim); background: rgba(0,0,0,0.2); border-radius: var(--radius-sm);">
                     <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
-                    3CX Desktop Agent tomonidan ushbu operator bo'yicha hali yangi qo'ng'iroq qayd etilmagan.
+                    ${t('logs_tab_empty', "3CX Desktop Agent tomonidan ushbu operator bo'yicha hali yangi qo'ng'iroq qayd etilmagan.")}
                 </div>
                 <div style="padding: 12px 16px; border-top: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted); font-weight: 600;">
-                    Jami qaydlar: 0 ta
+                    ${t('logs_total_records_zero', 'Jami qaydlar: 0 ta')}
                 </div>
             `;
             return;
@@ -5068,19 +6699,19 @@ async function loadTabOperatorLogs(opId, page = 1) {
             const isDialled = statusKey === 'OUTBOUND' || statusKey === 'DIALLED' || r.category_3cx === 'Dialled';
 
             if (statusKey === 'REJECT') {
-                typeBadge = `<span class="status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-weight: 700;">🚫 Rad etildi (Deny)</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('logs_status_denied_deny', 'Rad etildi (Deny)')}</span>`;
             } else if (isDialled) {
                 if (dur > 0) {
-                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> Chiquvchi (Dialled)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 700;"><i class="badge-dir-icon outbound"></i> ${t('logs_status_outbound_dialled', 'Chiquvchi (Dialled)')}</span>`;
                 } else {
-                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> Chiquvchi (Ulanmagan)</span>`;
+                    typeBadge = `<span class="status-badge" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3);"><i class="badge-dir-icon outbound"></i> ${t('logs_status_outbound_unconnected', 'Chiquvchi (Ulanmagan)')}</span>`;
                 }
             } else if (statusKey === 'MISSED' || dur === 0) {
-                typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">⚠️ O'tkazib yuborildi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">${t('logs_status_missed', "⚠️ O'tkazib yuborildi")}</span>`;
             } else if (statusKey === 'ANSWERED' || dur > 0) {
-                typeBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700;">📞 Javob berildi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${t('logs_status_answered_phone', 'Javob berildi')}</span>`;
             } else {
-                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> Kiruvchi</span>`;
+                typeBadge = `<span class="status-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'Kiruvchi')}</span>`;
             }
 
             const durFormatted = formatSeconds(dur);
@@ -5092,8 +6723,8 @@ async function loadTabOperatorLogs(opId, page = 1) {
                     <td style="font-weight: 600; color: var(--text-main); white-space: nowrap;">${opDisplay}</td>
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
-                            <span class="phone-icon">📞</span>
-                            <span>${r.caller_id || 'Yashirin'}</span>
+                            <span class="phone-icon">${isax('call')}</span>
+                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
@@ -5110,11 +6741,11 @@ async function loadTabOperatorLogs(opId, page = 1) {
             paginationControls = `
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button class="btn-action" ${page <= 1 ? 'disabled style="opacity: 0.4;"' : ''} onclick="loadTabOperatorLogs('${opId || ''}', ${page - 1})">
-                        ⬅ Oldingi
+                        ${t('hist_prev', '⬅ Oldingi')}
                     </button>
-                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">Sahifa ${page} / ${json.totalPages}</span>
+                    <span style="font-size: 12px; color: var(--text-muted); font-weight: 600;">${tf('logs_page', { page: page, total: json.totalPages }, `Sahifa ${page} / ${json.totalPages}`)}</span>
                     <button class="btn-action" ${page >= json.totalPages ? 'disabled style="opacity: 0.4;"' : ''} onclick="loadTabOperatorLogs('${opId || ''}', ${page + 1})">
-                        Keyingi ➡
+                        ${t('hist_next', 'Keyingi ➡')}
                     </button>
                 </div>
             `;
@@ -5123,7 +6754,7 @@ async function loadTabOperatorLogs(opId, page = 1) {
         const bottomBarHtml = `
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.4); margin-top: 4px;">
                 <div id="tabOperatorLogsTotal" style="font-size: 13px; color: var(--text-muted); font-weight: 600;">
-                    Jami qaydlar: ${totalCount} ta
+                    ${tf('logs_total_records', { n: totalCount }, `Jami qaydlar: ${totalCount} ta`)}
                 </div>
                 ${paginationControls}
             </div>
@@ -5135,13 +6766,13 @@ async function loadTabOperatorLogs(opId, page = 1) {
                     <thead>
                         <tr>
                             <th style="width: 45px; text-align: center;">№</th>
-                            <th>Qayd Vaqti</th>
-                            <th>Operator</th>
-                            <th>Mijoz Raqami</th>
-                            <th>Hodisa Turi</th>
-                            <th>Suhbat Vaqti</th>
-                            <th>Kompyuter (PC)</th>
-                            <th>3CX Tarixi</th>
+                            <th>${t('logs_col_time', 'Qayd Vaqti')}</th>
+                            <th>${t('set_col_operator', 'Operator')}</th>
+                            <th>${t('logs_col_phone', 'Mijoz Raqami')}</th>
+                            <th>${t('logs_col_event', 'Hodisa Turi')}</th>
+                            <th>${t('logs_col_talk', 'Suhbat Vaqti')}</th>
+                            <th>${t('logs_col_pc', 'Kompyuter (PC)')}</th>
+                            <th>${t('logs_col_details', '3CX Tarixi')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -5154,7 +6785,7 @@ async function loadTabOperatorLogs(opId, page = 1) {
     } catch (err) {
         container.innerHTML = `
             <div style="text-align: center; padding: 30px; color: var(--danger);">
-                Xatolik: ${err.message}
+                ${tf('hist_error', { msg: err.message }, `Xatolik: ${err.message}`)}
             </div>
         `;
     }
@@ -5194,7 +6825,7 @@ async function loadAgentSettings() {
     const urlEl = document.getElementById('settingsUpdateUrl');
 
     if (!tbody) return;
-    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">Yuklanmoqda...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">${t('logs_loading', 'Yuklanmoqda...')}</td></tr>`;
 
     try {
         const res = await fetch('/api/agent/status-all');
@@ -5206,7 +6837,7 @@ async function loadAgentSettings() {
         }
 
         if (!data.operators || data.operators.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">Operatorlar topilmadi</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--text-muted);">${t('transfer_no_ops', 'Operatorlar topilmadi')}</td></tr>`;
             return;
         }
 
@@ -5216,13 +6847,13 @@ async function loadAgentSettings() {
 
             if (op.agentConnected) {
                 if (op.isLatest) {
-                    statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">✅ Eng so'nggi</span>`;
+                    statusBadge = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('set_latest', "Eng so'nggi")}</span>`;
                 } else {
-                    statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; animation: pulse 2s infinite;">⚠️ Yangilanmoqda...</span>`;
+                    statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 3px 8px; border-radius: 12px; font-weight: 600; font-size: 11px; animation: pulse 2s infinite;">${t('logs_updating', '⚠️ Yangilanmoqda...')}</span>`;
                 }
                 verBadge = `<span style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;">v${op.agentVersion || '1.0.0'}</span>`;
             } else {
-                statusBadge = `<span style="color: var(--text-dim); font-size: 11px;">⚪ O'chiq (Offline)</span>`;
+                statusBadge = `<span style="color: var(--text-dim); font-size: 11px;">${t('set_offline_agent', "⚪ O'chiq (Offline)")}</span>`;
                 verBadge = `<span style="color: var(--text-dim); font-size: 11px;">—</span>`;
             }
 
@@ -5236,8 +6867,8 @@ async function loadAgentSettings() {
                     </td>
                     <td style="padding: 10px 14px;">
                         ${op.agentConnected 
-                            ? `<span style="color: #10b981; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>🟢 Faol</span>` 
-                            : `<span style="color: var(--text-dim);">⚪ O'chiq</span>`}
+                            ? `<span style="color: #10b981; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>${t('set_status_active', '🟢 Faol')}</span>` 
+                            : `<span style="color: var(--text-dim);">${t('set_status_off', "⚪ O'chiq")}</span>`}
                     </td>
                     <td style="padding: 10px 14px; color: var(--text-dim);">
                         ${op.agentHostname || '—'}
@@ -5268,7 +6899,7 @@ async function loadAgentSettings() {
         } catch (e) {}
 
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">Xatolik: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">${tf('hist_error', { msg: err.message }, `Xatolik: ${err.message}`)}</td></tr>`;
     }
 }
 
@@ -5277,11 +6908,11 @@ async function submitNewRelease() {
     const ver = input ? input.value.trim() : '';
 
     if (!ver) {
-        alert('Iltimos, yangi versiya raqamini kiriting! (Masalan: 1.0.1)');
+        alert(t('set_release_input_required', 'Iltimos, yangi versiya raqamini kiriting! (Masalan: 1.0.1)'));
         return;
     }
 
-    if (!confirm(`Haqiqatan ham yangi v${ver} versiyasini e'lon qilmoqchimisiz?\n\nBarcha ulangan operatorlarning kompyuteridagi agentlar fon rejimida avtomatik ravishda ushbu versiyaga yangilanadi.`)) {
+    if (!confirm(tf('set_release_confirm', { ver: ver }, `Haqiqatan ham yangi v${ver} versiyasini e'lon qilmoqchimisiz?\n\nBarcha ulangan operatorlarning kompyuteridagi agentlar fon rejimida avtomatik ravishda ushbu versiyaga yangilanadi.`))) {
         return;
     }
 
@@ -5300,7 +6931,7 @@ async function submitNewRelease() {
             if (input) input.value = '';
             loadAgentSettings();
         } else {
-            alert(`Xatolik: ${result.error || 'Noma\'lum xatolik'}`);
+            alert(t('transfer_error_prefix', 'Xatolik: ') + (result.error || t('unknown_error', "Noma'lum xatolik")));
         }
     } catch (err) {
         alert(`Server bilan aloqa xatoligi: ${err.message}`);
@@ -5314,7 +6945,7 @@ async function submitNewRelease() {
 function formatDateDisplay(dateStr) {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-').map(Number);
-    const monthName = UZ_MONTHS[m - 1] || '';
+    const monthName = getMonthName(m - 1);
     return `${d}-${monthName}, ${y}`;
 }
 
@@ -5335,7 +6966,7 @@ function toggleCalendarPopup(e) {
         const displayEl = document.getElementById('calSelectedDisplay');
         if (displayEl) {
             displayEl.innerText = (activeDate === todayStr)
-                ? `Bugun (${formatDateDisplay(todayStr)})`
+                ? tf('date_today_paren', { date: formatDateDisplay(todayStr) }, `Bugun (${formatDateDisplay(todayStr)})`)
                 : formatDateDisplay(activeDate);
         }
         renderCalendarMatrix();
@@ -5426,7 +7057,7 @@ function initDateFilter() {
     // Initial label
     const labelEl = document.getElementById('calSelectedLabel');
     if (labelEl) {
-        labelEl.innerText = `Bugun (${formatDateDisplay(todayStr)})`;
+        labelEl.innerText = tf('date_today_paren', { date: formatDateDisplay(todayStr) }, `Bugun (${formatDateDisplay(todayStr)})`);
     }
 
     // Render initial calendar matrix
@@ -5466,7 +7097,7 @@ function renderCalendarMatrix() {
     const gridEl = document.getElementById('calDaysMatrix');
     if (!titleEl || !gridEl) return;
 
-    titleEl.innerText = `${UZ_MONTHS[calViewMonth]} ${calViewYear}`;
+    titleEl.innerText = `${getMonthName(calViewMonth)} ${calViewYear}`;
     gridEl.innerHTML = '';
 
     const todayStr = getTodayDateString();
@@ -5543,7 +7174,7 @@ function selectDate(dateStr) {
     const labelEl = document.getElementById('calSelectedLabel');
     const displayEl = document.getElementById('calSelectedDisplay');
     const nativeInput = document.getElementById('calDateNativeInput');
-    const formattedText = isToday ? `Bugun (${formatDateDisplay(dateStr)})` : formatDateDisplay(dateStr);
+    const formattedText = isToday ? tf('date_today_paren', { date: formatDateDisplay(dateStr) }, `Bugun (${formatDateDisplay(dateStr)})`) : formatDateDisplay(dateStr);
 
     if (labelEl) labelEl.innerText = formattedText;
     if (displayEl) displayEl.innerText = formattedText;
@@ -5570,12 +7201,12 @@ function selectDate(dateStr) {
             badgeEl.className = 'cal-mode-badge live';
             modeText.innerText = 'Jonli (Real-time)';
             if (backTodayBtn) backTodayBtn.style.display = 'none';
-            if (hintEl) hintEl.innerText = '⚡ Real-time jonli monitoring faol';
+            if (hintEl) hintEl.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('flash', '', 'width: 12px; height: 12px;')} Real-time jonli monitoring faol</span>`;
         } else {
             badgeEl.className = 'cal-mode-badge archive';
             modeText.innerText = `Arxiv: ${dateStr}`;
             if (backTodayBtn) backTodayBtn.style.display = 'inline-block';
-            if (hintEl) hintEl.innerText = `⚡ ${dateStr} sanasi hisoboti ko'rsatilmoqda`;
+            if (hintEl) hintEl.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('flash', '', 'width: 12px; height: 12px;')} ${dateStr} sanasi hisoboti ko'rsatilmoqda</span>`;
         }
     }
 
@@ -5622,9 +7253,9 @@ function setDateFilterLoading(isLoading, targetDate = '') {
             refreshBtn.classList.add('is-loading');
             refreshBtn.disabled = true;
         }
-        if (refreshText) refreshText.innerText = 'Yuklanmoqda...';
+        if (refreshText) refreshText.innerText = t('logs_loading', 'Yuklanmoqda...');
         if (statusHint) {
-            statusHint.innerHTML = `<span class="cal-loading-badge"><span class="fluent-spinner"></span> Serverdan ma'lumot yuklanmoqda...</span>`;
+            statusHint.innerHTML = `<span class="cal-loading-badge"><span class="fluent-spinner"></span> ${t('datefilter_loading', "Serverdan ma'lumot yuklanmoqda...")}</span>`;
         }
         if (kpiGrid) kpiGrid.classList.add('is-loading');
 
@@ -5638,7 +7269,7 @@ function setDateFilterLoading(isLoading, targetDate = '') {
             refreshBtn.classList.remove('is-loading');
             refreshBtn.disabled = false;
         }
-        if (refreshText) refreshText.innerText = 'Yangilash';
+        if (refreshText) refreshText.innerText = t('srv_refresh_btn', 'Yangilash');
         if (kpiGrid) {
             kpiGrid.classList.remove('is-loading');
             kpiGrid.querySelectorAll('h3').forEach(el => {
@@ -5659,10 +7290,10 @@ function setDateFilterLoading(isLoading, targetDate = '') {
         });
         if (statusHint) {
             const isToday = !targetDate || targetDate === getTodayDateString();
-            statusHint.innerHTML = `<span style="color: #34d399; font-size: 12px; font-weight: 500;">✅ Ma'lumotlar yuklandi (${isToday ? 'Bugun' : targetDate})</span>`;
+            statusHint.innerHTML = `<span style="color: #34d399; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${tf('srv_data_loaded', { date: isToday ? t('date_today', 'Bugun') : targetDate }, `Ma'lumotlar yuklandi (${isToday ? 'Bugun' : targetDate})`)}</span>`;
             setTimeout(() => {
                 if (statusHint && statusHint.innerText.includes('yuklandi')) {
-                    statusHint.innerHTML = isToday ? '⚡ Real-time jonli monitoring faol' : `⚡ ${targetDate} sanasi hisoboti`;
+                    statusHint.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('flash', '', 'width: 12px; height: 12px;')} ${isToday ? t('datefilter_live', 'Real-time jonli monitoring faol') : tf('datefilter_report', { date: targetDate }, `${targetDate} sanasi hisoboti`)}</span>`;
                 }
             }, 3000);
         }
@@ -5814,7 +7445,36 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
             const diskPct = data.disk.usedPercent || 0;
             if (diskPercentEl) diskPercentEl.textContent = `${diskPct}%`;
             if (diskBarEl) diskBarEl.style.width = `${Math.min(100, Math.max(2, diskPct))}%`;
-            if (diskDetailEl) diskDetailEl.textContent = `(${data.disk.usedFormatted} band / ${data.disk.freeFormatted} bo'sh - Jami ${data.disk.totalFormatted})`;
+            if (diskDetailEl) diskDetailEl.textContent = tf('srv_disk_detail', { used: data.disk.usedFormatted, free: data.disk.freeFormatted, total: data.disk.totalFormatted }, `(${data.disk.usedFormatted} band / ${data.disk.freeFormatted} bo'sh - Jami ${data.disk.totalFormatted})`);
+
+            // Jismoniy disk (Physical Drive) ma'lumotlari
+            const physBadge = document.getElementById('srvPhysicalDiskTypeBadge');
+            const physModel = document.getElementById('srvPhysicalDiskModel');
+            if (data.disk.physical) {
+                if (physBadge) {
+                    const isHdd = data.disk.physical.type === 'HDD';
+                    physBadge.textContent = isHdd ? `HDD (${data.disk.physical.rpm || '7200 RPM'})` : t('srv_disk_ssd', 'SSD (Tezkor)');
+                    physBadge.style.background = isHdd ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+                    physBadge.style.color = isHdd ? '#fbbf24' : '#10b981';
+                    physBadge.style.borderColor = isHdd ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+                }
+                if (physModel) {
+                    physModel.textContent = `${data.disk.physical.model} • ${data.disk.physical.sizeFormatted || '1 TB'}`;
+                }
+            }
+
+            // Issabel PBX & Ovozlar xotirasi (Audio Storage)
+            const audioContainer = document.getElementById('srvAudioDiskContainer');
+            const audioDetailEl = document.getElementById('srvAudioDiskDetail');
+            const audioPercentEl = document.getElementById('srvAudioDiskPercent');
+            const audioBarEl = document.getElementById('srvAudioDiskBar');
+            if (data.disk.audioStorage) {
+                const aud = data.disk.audioStorage;
+                if (audioContainer) audioContainer.style.display = 'block';
+                if (audioDetailEl) audioDetailEl.textContent = tf('srv_disk_detail', { used: aud.usedFormatted, free: aud.freeFormatted, total: aud.totalFormatted }, `(${aud.usedFormatted} band / ${aud.freeFormatted} bo'sh - Jami ${aud.totalFormatted})`);
+                if (audioPercentEl) audioPercentEl.textContent = `${aud.usedPercent}%`;
+                if (audioBarEl) audioBarEl.style.width = `${Math.min(100, Math.max(2, aud.usedPercent))}%`;
+            }
         }
 
         // SERVICES
@@ -5850,8 +7510,8 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
                 const icon = isRunning ? '🟢' : '🔴';
 
                 const actionBtn = isRunning
-                    ? `<button onclick="triggerVmAction(${vm.id}, 'stop')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">⏹ To'xtatish</button>`
-                    : `<button onclick="triggerVmAction(${vm.id}, 'start')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #86efac;">▶ Yoqish</button>`;
+                    ? `<button onclick="triggerVmAction(${vm.id}, 'stop')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('pause', '', 'width: 12px; height: 12px;')} To'xtatish</button>`
+                    : `<button onclick="triggerVmAction(${vm.id}, 'start')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #86efac; display: inline-flex; align-items: center; gap: 4px;">${isax('play', '', 'width: 12px; height: 12px;')} Yoqish</button>`;
 
                 return `
                     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
@@ -5874,7 +7534,7 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         if (loadedState) loadedState.style.display = 'flex';
     } catch (err) {
         console.error('Server status olishda xatolik:', err);
-        if (headerSub) headerSub.textContent = `Xatolik: ${err.message}`;
+        if (headerSub) headerSub.textContent = t('transfer_error_prefix', 'Xatolik: ') + err.message;
         if (loadingState) {
             loadingState.innerHTML = `<div style="color: #ef4444; padding: 20px;">Server holatini olib bo'lmadi: ${err.message}</div>`;
         }
@@ -5890,7 +7550,7 @@ async function triggerVmRecovery() {
 
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span>⏳</span> Bajarilmoqda...`;
+        btn.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} Bajarilmoqda...</span>`;
     }
     if (logBox) {
         logBox.style.display = 'block';
@@ -5905,21 +7565,21 @@ async function triggerVmRecovery() {
         }
         if (data.success) {
             if (typeof showNotification === 'function') {
-                showNotification('✅ Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!', 'success');
+                showNotification('Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!', 'success');
             } else {
-                alert('✅ Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!');
+                alert('Kerio va Issabel VMlari muvaffaqiyatli ishga tushirildi!');
             }
         } else {
-            alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+            alert(t('transfer_error_prefix', 'Xatolik: ') + (data.error || t('unknown_error', "Noma'lum xatolik")));
         }
         await fetchServerStatus(true);
     } catch (err) {
-        if (logBox) logBox.textContent += `\n❌ So'rov yuborishda xatolik: ${err.message}`;
-        alert('Serverga ulanishda xatolik: ' + err.message);
+        if (logBox) logBox.textContent += `\n${t('srv_request_error', "❌ So'rov yuborishda xatolik: ")}${err.message}`;
+        alert(t('srv_connect_error', 'Serverga ulanishda xatolik: ') + err.message);
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = `<span>⚡</span> Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish`;
+            btn.innerHTML = `${isax('flash', '', 'width: 14px; height: 14px;')} Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish`;
         }
     }
 }
@@ -5934,11 +7594,438 @@ async function triggerVmAction(vmid, action) {
         if (data.success) {
             await fetchServerStatus(true);
         } else {
-            alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+            alert(t('transfer_error_prefix', 'Xatolik: ') + (data.error || t('unknown_error', "Noma'lum xatolik")));
+        }
+    } catch (err) {            alert(t('transfer_error_prefix', 'Xatolik: ') + err.message);
+    }
+}
+
+// Language change reactive listener — tilni o'zgartirganda ochiq jadval va operatorlarni qayta render qilish
+window.addEventListener('languageChanged', () => {
+    // 1. Grafiklarni (Chart.js) yangi tilga moslash
+    try {
+        if (typeof callVolumeChart !== 'undefined' && callVolumeChart && callVolumeChart.data && callVolumeChart.data.datasets) {
+            if (callVolumeChart.data.datasets[0]) callVolumeChart.data.datasets[0].label = t('chart_series_inbound', 'Jami Kiruvchi (Inbound)');
+            if (callVolumeChart.data.datasets[1]) callVolumeChart.data.datasets[1].label = t('chart_series_answered', 'Javob berilgan (Answered)');
+            callVolumeChart.update();
+        }
+        if (typeof operatorChart !== 'undefined' && operatorChart && operatorChart.data && operatorChart.data.datasets) {
+            if (operatorChart.data.datasets[0]) operatorChart.data.datasets[0].label = t('chart_series_accepted', 'Qabul qilingan (Answered)');
+            if (operatorChart.data.datasets[1]) operatorChart.data.datasets[1].label = t('chart_series_outbound', 'Chiquvchi (Outbound)');
+            if (operatorChart.data.datasets[2]) operatorChart.data.datasets[2].label = t('chart_series_missed', "O'tkazib yuborilgan");
+            operatorChart.update();
+        }
+    } catch (e) {}
+
+    // 2. Ochiq detail modal jadvalini qayta chizish
+    const modal = document.getElementById('detailModal');
+    if (modal && modal.style.display !== 'none') {
+        if (typeof renderDetailTableBody === 'function' && detailState && detailState.rawCalls && detailState.rawCalls.length > 0) {
+            renderDetailTableBody();
+        }
+        if (typeof renderOperatorSummaryPills === 'function' && detailState && detailState.currentOp) {
+            renderOperatorSummaryPills();
+        }
+    }
+
+    // 3. Operatorlar, navbat, liniyalar va jadvallarni yangi tilga moslash
+    try {
+        if (typeof renderActiveConversations === 'function' && currentConversations) {
+            renderActiveConversations(currentConversations);
+        }
+        updateAmiStatus(lastAmiConnected);
+        updateSftpStatus(lastSftpConnected);
+        if (typeof renderTabAgentOperators === 'function' && tabAgentOperatorsData && tabAgentOperatorsData.length > 0) {
+            lastTabOpsFingerprint = '';
+            renderTabAgentOperators(tabAgentOperatorsData);
+        }
+        if (typeof renderQueues === 'function' && currentQueues) renderQueues(currentQueues);
+        if (currentHistoryData && currentHistoryData.length > 0) {
+            if (historyDataSource === 'agent') renderAgentHistoryTable(currentHistoryData);
+            else renderServerHistoryTable(currentHistoryData);
+        }
+        if (typeof updateHistoryScopeUI === 'function') updateHistoryScopeUI();
+        if (typeof applyDashboardRecentFilters === 'function') applyDashboardRecentFilters();
+        if (typeof renderCalendarMatrix === 'function') renderCalendarMatrix();
+        if (typeof renderExportRangeCalendar === 'function') {
+            const expCalModal = document.getElementById('exportModal');
+            if (expCalModal && expCalModal.style.display !== 'none') {
+                renderExportRangeCalendar();
+                updateExportRangeBadge();
+            }
+        }
+    } catch (e) {}
+});
+
+// ============================
+// QUEUE INFO: Asterisk Navbat Taqqoslash (Vertical Bar Chart + RAM +/-)
+// ============================
+let _queueInfoModalOpen = false;
+let _queueInfoFilter = 'all'; // 'all' | 'active'
+let _queueOperatorGroup = 'main'; // 'main' (100-199) | 'secondary' (200+) | 'all'
+
+function openQueueInfoModal() {
+    const modal = document.getElementById('queueInfoModal');
+    if (!modal) return;
+    _queueInfoModalOpen = true;
+    modal.style.display = 'flex';
+    // Joriy ekranda tanlangan guruh bo'yicha ochish
+    if (typeof currentOperatorGroup !== 'undefined' && ['main', 'secondary', 'all'].includes(currentOperatorGroup)) {
+        setQueueOperatorGroup(currentOperatorGroup);
+    } else {
+        setQueueOperatorGroup(_queueOperatorGroup);
+    }
+}
+
+function closeQueueInfoModal() {
+    const modal = document.getElementById('queueInfoModal');
+    if (!modal) return;
+    _queueInfoModalOpen = false;
+    modal.style.display = 'none';
+}
+
+function setQueueOperatorGroup(group) {
+    _queueOperatorGroup = group || 'main';
+    const btnMain = document.getElementById('btnQueueGroupMain');
+    const btnSec = document.getElementById('btnQueueGroupSec');
+    const btnAll = document.getElementById('btnQueueGroupAll');
+    if (btnMain) {
+        btnMain.style.background = _queueOperatorGroup === 'main' ? '#6366f1' : 'transparent';
+        btnMain.style.color = _queueOperatorGroup === 'main' ? '#fff' : '#94a3b8';
+    }
+    if (btnSec) {
+        btnSec.style.background = _queueOperatorGroup === 'secondary' ? '#6366f1' : 'transparent';
+        btnSec.style.color = _queueOperatorGroup === 'secondary' ? '#fff' : '#94a3b8';
+    }
+    if (btnAll) {
+        btnAll.style.background = _queueOperatorGroup === 'all' ? '#6366f1' : 'transparent';
+        btnAll.style.color = _queueOperatorGroup === 'all' ? '#fff' : '#94a3b8';
+    }
+    updateQueueInfoModal();
+}
+
+function setQueueInfoFilter(filter) {
+    _queueInfoFilter = filter || 'all';
+    const btnAll = document.getElementById('btnQueueFilterAll');
+    const btnActive = document.getElementById('btnQueueFilterActive');
+    if (btnAll) {
+        btnAll.style.background = _queueInfoFilter === 'all' ? 'rgba(99, 102, 241, 0.4)' : 'transparent';
+        btnAll.style.color = _queueInfoFilter === 'all' ? '#e0e7ff' : '#94a3b8';
+    }
+    if (btnActive) {
+        btnActive.style.background = _queueInfoFilter === 'active' ? 'rgba(99, 102, 241, 0.4)' : 'transparent';
+        btnActive.style.color = _queueInfoFilter === 'active' ? '#e0e7ff' : '#94a3b8';
+    }
+    updateQueueInfoModal();
+}
+
+// Escape tugmasi bosilganda modalni yopish
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && _queueInfoModalOpen) {
+        closeQueueInfoModal();
+    }
+});
+
+/**
+ * Asterisk navbatidagi (RAM) operator callsTaken qiymatini o'zgartirish (+1, -1 yoki aniq son)
+ */
+async function adjustQueueCalls(opId, delta = 1, customVal = null, reset = false) {
+    try {
+        const body = { operatorId: opId, delta: delta };
+        if (customVal !== null && customVal !== undefined && !isNaN(customVal)) {
+            body.value = Number(customVal);
+        }
+        if (reset) {
+            body.reset = true;
+        }
+
+        // Optimistik UI yangilanish — foydalanuvchi darhol son oshganini ko'radi
+        const rawOps = window._rawLastOperators || [];
+        const targetOp = rawOps.find(o => String(o.id) === String(opId));
+        if (targetOp) {
+            if (body.value !== undefined) {
+                targetOp.callsTaken = Math.max(0, body.value);
+            } else {
+                targetOp.callsTaken = Math.max(0, (Number(targetOp.callsTaken) || 0) + delta);
+            }
+            updateQueueInfoModal();
+            updateQueueInfoSummaryBadge();
+        }
+
+        const res = await fetch('/api/queue/adjust-calls', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data && data.success && data.operator) {
+            if (targetOp) targetOp.callsTaken = data.operator.callsTaken;
+            updateQueueInfoModal();
+            updateQueueInfoSummaryBadge();
         }
     } catch (err) {
-        alert('Xatolik: ' + err.message);
+        console.error('Error adjusting queue calls:', err);
     }
+}
+
+/**
+ * Aniq qiymat kiritish uchun qulay prompt
+ */
+function promptCustomQueueCalls(opId, currentVal, opName) {
+    const res = prompt(`${opName} (${opId}) uchun callsTaken qiymatini kiriting:\n(Bo'sh qoldirsangiz — qo'lda belgilangan qiymat bekor qilinib, Asterisk haqiqiy hisobiga qaytadi)`, currentVal);
+    if (res === null) return; // Bekor qilindi
+    const trimmed = res.trim();
+    if (trimmed === '') {
+        // Bo'sh kiritildi — ofsetni tozalash (Asterisk haqiqiy qiymatiga qaytish)
+        if (confirm(`${opName} uchun qo'lda belgilangan qiymat bekor qilinsinmi?\n(Asterisk haqiqiy hisobiga qaytadi)`)) {
+            adjustQueueCalls(opId, 0, null, true);
+        }
+        return;
+    }
+    const n = parseInt(trimmed, 10);
+    if (!isNaN(n) && n >= 0) {
+        adjustQueueCalls(opId, 0, n);
+    }
+}
+
+function updateQueueInfoModal() {
+    const container = document.getElementById('queueModalBarsContainer');
+    const quickStatsEl = document.getElementById('queueModalQuickStats');
+    if (!container) return;
+
+    const rawOps = window._rawLastOperators || [];
+    const allOps = rawOps.slice();
+
+    // 100-199 (Asosiy) va 200+ (Zangiota 42) guruhlarga ajratish
+    const mainOps = allOps.filter(op => {
+        const num = parseInt(op.id, 10);
+        return !isNaN(num) && num >= 100 && num < 200;
+    });
+    const secOps = allOps.filter(op => {
+        const num = parseInt(op.id, 10);
+        return !isNaN(num) && num >= 200;
+    });
+
+    // Guruh tugmalaridagi hisoblagichlarni yangilash
+    const elCountMain = document.getElementById('queueGroupCountMain');
+    const elCountSec = document.getElementById('queueGroupCountSec');
+    const elCountAll = document.getElementById('queueGroupCountAll');
+    if (elCountMain) elCountMain.textContent = mainOps.length;
+    if (elCountSec) elCountSec.textContent = secOps.length;
+    if (elCountAll) elCountAll.textContent = allOps.length;
+
+    // Tanlangan guruh bo'yicha operatorlarni olish
+    let groupOps = allOps;
+    if (_queueOperatorGroup === 'secondary') {
+        groupOps = secOps;
+    } else if (_queueOperatorGroup === 'all') {
+        groupOps = allOps;
+    } else {
+        groupOps = mainOps; // Default: 100-199 Asosiy
+    }
+
+    // Status bo'yicha filtrlash (Hammasi yoki Faqat Faol)
+    let ops = groupOps;
+    if (_queueInfoFilter === 'active') {
+        ops = groupOps.filter(op => op.presence !== 'offline');
+    }
+
+    // Saralash: Faol operatorlar avval (fewestcalls tartibida), so'ng offline operatorlar (fewestcalls tartibida)
+    const presenceRank = { 'ready': 1, 'ringing': 2, 'talking': 3, 'paused': 4, 'offline': 5 };
+    ops.sort((a, b) => {
+        const rA = presenceRank[a.presence] || 5;
+        const rB = presenceRank[b.presence] || 5;
+        const isAOffline = a.presence === 'offline';
+        const isBOffline = b.presence === 'offline';
+        if (isAOffline !== isBOffline) {
+            return isAOffline ? 1 : -1;
+        }
+        const cA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : 0;
+        const cB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : 0;
+        if (cA !== cB) return cA - cB;
+        return Number(a.id) - Number(b.id);
+    });
+
+    if (ops.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 13px; padding: 50px; width: 100%;">Bu guruhda operatorlar mavjud emas</div>';
+        if (quickStatsEl) quickStatsEl.innerHTML = '';
+        return;
+    }
+
+    // Maksimal son (ustunlar proporsional balandligi uchun)
+    const counts = groupOps.map(op => (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0);
+    const maxCalls = Math.max(1, ...counts);
+
+    // Keyingi bo'sh operator (Next Target) — aynan shu guruhdagi ready holatidagi eng kam callsTaken ga ega operator
+    const readyOps = groupOps.filter(op => op.presence === 'ready');
+    const minReadyCalls = readyOps.length > 0 ? Math.min(...readyOps.map(o => Number(o.callsTaken) || 0)) : -1;
+    const nextTargetOp = readyOps.find(o => (Number(o.callsTaken) || 0) === minReadyCalls);
+
+    // Quick stats subheader
+    if (quickStatsEl) {
+        const groupTitle = _queueOperatorGroup === 'secondary' ? 'Zangiota 42' : (_queueOperatorGroup === 'all' ? 'Umumiy' : 'Asosiy (100–199)');
+        quickStatsEl.innerHTML = `
+            <span>Guruh: <b style="color: #c7d2fe;">${groupTitle}</b></span>
+            <span>Ko'rsatilmoqda: <b style="color: #f1f5f9;">${ops.length}</b> ta</span>
+            <span>Bo'sh (Ready): <b style="color: #34d399;">${readyOps.length}</b> ta</span>
+            ${nextTargetOp ? `<span style="background: rgba(16, 185, 129, 0.2); padding: 2px 10px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7;">👉 Keyingi navbat: <b>${(nextTargetOp.realName || nextTargetOp.name).replace(/\s*\(\d+\)\s*$/, '')}</b> (${nextTargetOp.callsTaken || 0} ta)</span>` : ''}
+        `;
+    }
+
+    // Holat ranglari va nomlari — "talking" uchun KO'K (Cyan/Sky blue)
+    const statusConfig = {
+        'ready': {
+            label: "Bo'sh",
+            color: '#10b981',
+            glow: 'rgba(16, 185, 129, 0.4)',
+            bgGrad: 'linear-gradient(180deg, #10b981 0%, #047857 100%)',
+            cardBg: 'rgba(16, 185, 129, 0.06)',
+            border: 'rgba(16, 185, 129, 0.3)'
+        },
+        'talking': {
+            label: "Suhbatda",
+            color: '#38bdf8', // KO'K (Cyan/Sky blue neon)
+            glow: 'rgba(56, 189, 248, 0.45)',
+            bgGrad: 'linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)',
+            cardBg: 'rgba(56, 189, 248, 0.08)',
+            border: 'rgba(56, 189, 248, 0.35)'
+        },
+        'ringing': {
+            label: "Chalinmoqda",
+            color: '#f59e0b',
+            glow: 'rgba(245, 158, 11, 0.4)',
+            bgGrad: 'linear-gradient(180deg, #f59e0b 0%, #b45309 100%)',
+            cardBg: 'rgba(245, 158, 11, 0.06)',
+            border: 'rgba(245, 158, 11, 0.3)'
+        },
+        'paused': {
+            label: "Tanaffusda",
+            color: '#8b5cf6',
+            glow: 'rgba(139, 92, 246, 0.35)',
+            bgGrad: 'linear-gradient(180deg, #8b5cf6 0%, #5b21b6 100%)',
+            cardBg: 'rgba(139, 92, 246, 0.06)',
+            border: 'rgba(139, 92, 246, 0.3)'
+        },
+        'offline': {
+            label: "Offline",
+            color: '#64748b',
+            glow: 'rgba(100, 116, 139, 0.2)',
+            bgGrad: 'linear-gradient(180deg, #475569 0%, #1e293b 100%)',
+            cardBg: 'rgba(100, 116, 139, 0.04)',
+            border: 'rgba(100, 116, 139, 0.2)'
+        }
+    };
+
+    const CHART_BAR_MAX_HEIGHT = 170; // px
+
+    let html = '';
+    ops.forEach(op => {
+        const calls = (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0;
+        const manualOffset = Number(op.callsTakenOverride || 0); // Qo'lda belgilangan ofset (0 bo'lmasa — qo'lda o'zgartirilgan)
+        const name = op.realName || op.name || `Operator ${op.id}`;
+        const shortName = name.replace(/\s*\(\d+\)\s*$/, '');
+        const st = statusConfig[op.presence] || statusConfig['offline'];
+        const isNext = nextTargetOp && String(nextTargetOp.id) === String(op.id);
+        const isOffline = op.presence === 'offline';
+
+        // Balandlik hisobi (eng kam 18px bo'lsin, shunda raqam yoki chiziq yaxshi ko'rinadi)
+        const barHeightPx = Math.max(18, Math.round((calls / maxCalls) * CHART_BAR_MAX_HEIGHT));
+
+        html += `
+        <div style="flex: 0 0 102px; width: 102px; min-width: 102px; max-width: 102px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 10px 6px 12px; border-radius: 14px; background: ${isNext ? 'rgba(16, 185, 129, 0.12)' : st.cardBg}; border: 1px solid ${isNext ? 'rgba(16, 185, 129, 0.6)' : st.border}; transition: all 0.25s ease; position: relative; ${isNext ? 'box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);' : ''} ${isOffline ? 'opacity: 0.75;' : ''}">
+            
+            ${isNext ? `
+            <div style="position: absolute; top: -11px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 10px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5); letter-spacing: 0.5px; text-transform: uppercase;">
+                ⭐ Keyingi
+            </div>` : ''}
+
+            <!-- Calls Taken Number (Katta raqam ustun tepasida) -->
+            <div onclick="promptCustomQueueCalls('${op.id}', ${calls}, '${shortName}')" title="Bosing: qiymatni o'zgartirish. Bo'sh qoldirsangiz qo'lda belgilangan qiymat bekor qilinadi" style="cursor: pointer; display: flex; flex-direction: column; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 20px; font-weight: 900; color: ${isNext ? '#34d399' : (manualOffset !== 0 ? '#fbbf24' : (isOffline ? '#94a3b8' : '#f8fafc'))}; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px ${st.glow}; line-height: 1;">
+                    ${calls}
+                </span>
+                <span style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px;">ta</span>
+                ${manualOffset !== 0 ? `<span title="Qo'lda belgilangan: ${manualOffset > 0 ? '+' : ''}${manualOffset} (Asterisk xom hisobi ustidan). Bo'sh qiymat kiritsangiz haqiqiy hisobga qaytadi." style="font-size: 8px; font-weight: 800; color: #fbbf24; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 6px; padding: 1px 5px; margin-top: 3px;">${isax('edit', '', 'width: 9px; height: 9px;')} ${manualOffset > 0 ? '+' : ''}${manualOffset}</span>` : ''}
+            </div>
+
+            <!-- Vertikal Ustun (Bar) -->
+            <div style="width: 100%; height: ${CHART_BAR_MAX_HEIGHT}px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 12px; position: relative;">
+                <!-- Orqa fon yo'lagi (Track) -->
+                <div style="position: absolute; inset: 0 16%; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px dashed rgba(255, 255, 255, 0.08);"></div>
+                
+                <!-- Rangli to'ldiruvchi ustun -->
+                <div style="width: 58%; height: ${barHeightPx}px; background: ${st.bgGrad}; border-radius: 8px 8px 5px 5px; box-shadow: 0 0 16px ${st.glow}; position: relative; z-index: 2; transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.25);">
+                    <!-- Yuqori yaltirash chizig'i -->
+                    <div style="width: 100%; height: 3px; background: rgba(255, 255, 255, 0.6);"></div>
+                    <!-- VU-metr uslubidagi ichki segment chiziqlar -->
+                    <div style="width: 100%; height: 100%; background: repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(0, 0, 0, 0.2) 6px, rgba(0, 0, 0, 0.2) 8px); pointer-events: none;"></div>
+                </div>
+            </div>
+
+            <!-- Operator Status Nishoni -->
+            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px; padding: 2px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.35);">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${st.color}; box-shadow: 0 0 6px ${st.color};"></span>
+                <span style="font-size: 10px; font-weight: 700; color: ${st.color};">${st.label}</span>
+            </div>
+
+            <!-- Operator Ismi & Exten -->
+            <div style="text-align: center; width: 100%; margin-bottom: 10px;">
+                <div style="font-size: 11px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${name}">
+                    ${shortName}
+                </div>
+                <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">
+                    ${op.id}
+                </div>
+            </div>
+
+            <!-- RAM Qiymatini O'zgartirish Tugmalari (+ / -) -->
+            <div style="display: flex; align-items: center; gap: 3px; width: 100%; justify-content: center; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.07);">
+                <button onclick="adjustQueueCalls('${op.id}', -1)" title="RAM sonini -1 kamaytirish" style="width: 25px; height: 25px; border-radius: 6px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
+                    −
+                </button>
+                <button onclick="promptCustomQueueCalls('${op.id}', ${calls}, '${shortName}')" title="Aniq son kiritish" style="flex: 1; height: 25px; border-radius: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #c7d2fe; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.background='rgba(99, 102, 241, 0.3)'" onmouseout="this.style.background='rgba(99, 102, 241, 0.15)'">
+                    ${isax('edit', '', 'width: 13px; height: 13px;')}
+                </button>
+                <button onclick="adjustQueueCalls('${op.id}', 1)" title="RAM soniga +1 qo'shish" style="width: 25px; height: 25px; border-radius: 6px; background: linear-gradient(135deg, #10b981, #059669); border: 1px solid rgba(16, 185, 129, 0.6); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                    +
+                </button>
+            </div>
+
+        </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+// renderOperators chaqirilganda queue info modal ham yangilansin
+const _origRenderOperators = renderOperators;
+renderOperators = function(operators) {
+    _origRenderOperators(operators);
+    if (_queueInfoModalOpen) updateQueueInfoModal();
+    updateQueueInfoSummaryBadge();
+};
+
+function updateQueueInfoSummaryBadge() {
+    const summaryEl = document.getElementById('queueInfoSummary');
+    if (!summaryEl) return;
+    const rawOps = window._rawLastOperators || [];
+    let ops = rawOps.filter(op => op.presence !== 'offline');
+    if (ops.length === 0) ops = rawOps.slice();
+
+    ops.sort((a, b) => {
+        const cA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : 0;
+        const cB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : 0;
+        if (cA !== cB) return cA - cB;
+        return Number(a.id) - Number(b.id);
+    });
+
+    if (ops.length === 0) {
+        summaryEl.textContent = '—';
+        return;
+    }
+    const counts = ops.map(op => (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0);
+    summaryEl.textContent = counts.join(' · ');
 }
 
 // Initialize Application after all components and functions are loaded

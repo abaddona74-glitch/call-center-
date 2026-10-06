@@ -7,15 +7,14 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110', '213']);
+const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',
     '103': 'Feruza',
-    '106': 'Gulchehra',
+    '106': 'Ubaydullayeva Gulchehra',
     '111': 'Nozima',
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
@@ -130,6 +129,18 @@ class DbService {
             );
             CREATE INDEX IF NOT EXISTS idx_missed_events_time ON operator_missed_events (event_time);
             CREATE INDEX IF NOT EXISTS idx_missed_events_op ON operator_missed_events (operator_id);
+
+            -- 7. Mijozlar bazasi / Telefon kitobi (Client Contacts)
+            CREATE TABLE IF NOT EXISTS client_contacts (
+                phone TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                organization TEXT,
+                notes TEXT,
+                created_at TEXT DEFAULT (datetime('now', 'localtime')),
+                updated_at TEXT DEFAULT (datetime('now', 'localtime'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_client_contacts_name ON client_contacts (name);
+            CREATE INDEX IF NOT EXISTS idx_client_contacts_org ON client_contacts (organization);
         `);
 
         try {
@@ -492,6 +503,12 @@ class DbService {
      */
     saveCall(call) {
         try {
+            if (!call || !call.callerId) return;
+            const cidStr = String(call.callerId).trim();
+            if (cidStr === '712020159' || cidStr.endsWith('2020159') || cidStr.length < 7) {
+                return;
+            }
+
             const stmt = this.db.prepare(`
                 INSERT OR REPLACE INTO calls 
                 (id, channel, caller_id, operator, operator_exten, direction, status, hangup_party, duration, cause, created_at)
@@ -988,6 +1005,120 @@ class DbService {
         } catch (err) {
             console.error('getAgentCallLogsPaginated error:', err.message);
             return { total: 0, page: 1, limit, totalPages: 1, data: [] };
+        }
+    }
+
+    /**
+     * Telefon raqamini tozalash (kontaktlar uchun 9 xonali standart)
+     */
+    cleanContactPhone(raw) {
+        if (!raw) return null;
+        let digits = String(raw).replace(/\D/g, '');
+        if (digits.length === 12 && digits.startsWith('998')) {
+            digits = digits.slice(3);
+        }
+        return digits || String(raw).trim();
+    }
+
+    /**
+     * Mijoz kontakt ma'lumotini saqlash yoki yangilash (Upsert)
+     */
+    saveContact(contactData) {
+        try {
+            const rawPhone = contactData.phone || '';
+            const cleanPhone = this.cleanContactPhone(rawPhone);
+            if (!cleanPhone) throw new Error('Telefon raqami kiritilmadi');
+            const name = String(contactData.name || '').trim();
+            const organization = String(contactData.organization || '').trim();
+            const notes = String(contactData.notes || '').trim();
+            if (!name && !organization) {
+                throw new Error('Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting');
+            }
+
+            const stmt = this.db.prepare(`
+                INSERT INTO client_contacts (phone, name, organization, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                ON CONFLICT(phone) DO UPDATE SET
+                    name = excluded.name,
+                    organization = excluded.organization,
+                    notes = excluded.notes,
+                    updated_at = datetime('now', 'localtime')
+            `);
+            stmt.run(cleanPhone, name, organization, notes);
+
+            return this.getContact(cleanPhone);
+        } catch (err) {
+            console.error('saveContact error:', err.message);
+            throw err;
+        }
+    }
+
+    /**
+     * Raqam bo'yicha mijoz kontaktini olish (9 yoki 12 xonali formatda ham moslashadi)
+     */
+    getContact(phone) {
+        try {
+            const cleanPhone = this.cleanContactPhone(phone);
+            if (!cleanPhone) return null;
+            let row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(cleanPhone);
+            if (!row && cleanPhone.length > 9) {
+                row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(cleanPhone.slice(-9));
+            }
+            if (!row && cleanPhone.length === 9) {
+                row = this.db.prepare(`SELECT * FROM client_contacts WHERE phone = ?`).get(`998${cleanPhone}`);
+            }
+            return row || null;
+        } catch (err) {
+            console.error('getContact error:', err.message);
+            return null;
+        }
+    }
+
+    /**
+     * Barcha saqlangan mijozlar ro'yxatini olish
+     */
+    getAllContacts() {
+        try {
+            return this.db.prepare(`SELECT * FROM client_contacts ORDER BY name COLLATE NOCASE ASC`).all();
+        } catch (err) {
+            console.error('getAllContacts error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Mijozlarni qidirish (ism, raqam, tashkilot yoki izoh bo'yicha)
+     */
+    searchContacts(query) {
+        try {
+            if (!query || typeof query !== 'string') return this.getAllContacts();
+            const q = `%${query.trim()}%`;
+            return this.db.prepare(`
+                SELECT * FROM client_contacts
+                WHERE phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ?
+                ORDER BY name COLLATE NOCASE ASC
+            `).all(q, q, q, q);
+        } catch (err) {
+            console.error('searchContacts error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Mijoz kontaktini o'chirish
+     */
+    deleteContact(phone) {
+        try {
+            const cleanPhone = this.cleanContactPhone(phone);
+            if (!cleanPhone) return false;
+            const stmt = this.db.prepare(`DELETE FROM client_contacts WHERE phone = ? OR phone = ? OR phone = ?`);
+            const alt9 = cleanPhone.length > 9 ? cleanPhone.slice(-9) : cleanPhone;
+            const alt12 = cleanPhone.length === 9 ? `998${cleanPhone}` : cleanPhone;
+            const res = stmt.run(cleanPhone, alt9, alt12);
+            return res.changes > 0;
+        } catch (err) {
+            console.error('deleteContact error:', err.message);
+            return false;
         }
     }
 }

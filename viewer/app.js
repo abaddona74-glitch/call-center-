@@ -9,11 +9,12 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const fs = require('fs');
 const cors = require('cors');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
-// Agar serverda bo'lsa localhost:3535, lokal kompyuterda bo'lsa 192.168.0.2:3535 ga ulanadi
-const UPSTREAM_HOST = process.env.UPSTREAM_HOST || (process.platform === 'win32' ? '192.168.0.2' : '127.0.0.1');
+// Upstream host (3535) - agar alohida berilmagan bo'lsa 127.0.0.1
+const UPSTREAM_HOST = process.env.UPSTREAM_HOST || '127.0.0.1';
 const UPSTREAM_HTTP = process.env.UPSTREAM_HTTP || `http://${UPSTREAM_HOST}:3535`;
 const UPSTREAM_WS = process.env.UPSTREAM_WS || `ws://${UPSTREAM_HOST}:3535`;
 
@@ -66,8 +67,7 @@ const operatorIpMap = new Map([
     ['192.168.0.18', { id: '120', exten: '120', name: 'Navruzoy' }],
     ['192.168.0.15', { id: '119', exten: '119', name: 'Muattar' }],
     ['192.168.0.114', { id: '114', exten: '114', name: 'Maxmudbek' }],
-    ['192.168.0.116', { id: '116', exten: '116', name: 'Ibrohim' }],
-    ['192.168.0.106', { id: '106', exten: '106', name: 'Gulchehra' }]
+    ['192.168.0.106', { id: '106', exten: '106', name: 'Ubaydullayeva Gulchehra' }]
 ]);
 
 // Operatorlar ro'yxatidan IP larni dinamik yangilash
@@ -171,6 +171,21 @@ function broadcastActiveViewers() {
     }
 }
 
+function getViewerVersionInfo() {
+    try {
+        const vPath = path.join(__dirname, 'public', 'version.json');
+        if (fs.existsSync(vPath)) {
+            return JSON.parse(fs.readFileSync(vPath, 'utf8'));
+        }
+    } catch (e) {}
+    return {
+        buildId: 'dev',
+        buildTime: new Date().toISOString(),
+        version: '2.4.0',
+        app: 'call-center-viewer'
+    };
+}
+
 // 1. WebSocket Proxy to 3535 + Active Viewers Management
 wss.on('connection', (clientWs, req) => {
     let upstreamWs = null;
@@ -186,11 +201,15 @@ wss.on('connection', (clientWs, req) => {
 
     console.log(`👁️ [Viewer Connection] Yangi foydalanuvchi ulandi: IP ${clientIp} (Jami oyna: ${connectedViewers.size})`);
 
-    // Yangi ulangan mijozga o'z IP si va hozirgi onlayn kuzatuvchilarni yuborish
+    // Yangi ulangan mijozga o'z IP si, versiya va hozirgi onlayn kuzatuvchilarni yuborish
     try {
         clientWs.send(JSON.stringify({
             type: 'client_identity',
             data: { ip: clientIp }
+        }));
+        clientWs.send(JSON.stringify({
+            type: 'server_version',
+            data: getViewerVersionInfo()
         }));
         clientWs.send(JSON.stringify({
             type: 'active_viewers_update',
@@ -208,7 +227,14 @@ wss.on('connection', (clientWs, req) => {
             if (clientWs.readyState === WebSocket.OPEN) {
                 try {
                     const parsed = JSON.parse(data.toString());
+
+                    // 3535 (Admin) server_version hodisasini Viewer ga o'tkazmaymiz (Viewer o'z buildId siga ega)
+                    if (parsed.type === 'server_version') {
+                        return;
+                    }
+
                     if (parsed.type === 'initial_state' && parsed.data) {
+                        delete parsed.data.serverVersion; // 3535 ning versiyasini uzatmaymiz
                         parsed.data.sftpStatus = false;
                         if (parsed.data.callHistory) {
                             parsed.data.callHistory = sanitizeCalls(parsed.data.callHistory);
@@ -282,6 +308,14 @@ setInterval(() => {
     }
 }, 30000);
 
+// Build / Versiya tekshiruvi (Deploy va avtomatik yangilanish uchun)
+app.get('/api/version', (req, res) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.json(getViewerVersionInfo());
+});
+
 // 2. REST API Proxies to 3535
 app.get('/api/status', async (req, res) => {
     try {
@@ -308,6 +342,18 @@ app.get('/api/operators', async (req, res) => {
     }
 });
 
+// So'nggi qo'ng'iroqlar buferi (Dashboard va zaxira yuklash uchun)
+app.get('/api/calls/recent', async (req, res) => {
+    try {
+        const queryStr = new URLSearchParams(req.query).toString();
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/calls/recent?${queryStr}`);
+        const json = await resp.json();
+        res.json(Array.isArray(json) ? sanitizeCalls(json) : json);
+    } catch (e) {
+        res.status(500).json([]);
+    }
+});
+
 // Calls details (Operator bosilganda ochiladigan modal) — Audio butunlay tozalangan
 app.get('/api/calls/details', async (req, res) => {
     try {
@@ -326,6 +372,154 @@ app.get('/api/calls/details', async (req, res) => {
 // Hozirda onlayn ochib turgan barcha foydalanuvchilar (REST API)
 app.get('/api/viewers/active', (req, res) => {
     res.json(getActiveViewersList());
+});
+
+// Bog'lanishi kerak bo'lgan mijozlar ro'yxati (Faqat ko'rish - Read-Only)
+app.get('/api/callbacks', async (req, res) => {
+    try {
+        const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks${query}`);
+        const json = await resp.json();
+        res.json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, data: [], error: e.message });
+    }
+});
+
+// Mijozni o'chirish (Admin server 3535 ga uzatiladi)
+app.delete('/api/callbacks/:id', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks/${req.params.id}`, { method: 'DELETE' });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Barcha mijozlarni tozalash (Admin server 3535 ga uzatiladi)
+app.delete('/api/callbacks', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks`, { method: 'DELETE' });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Mijozlar bazasi / Telefon kitobi (Client Contacts) API Proxies
+app.get('/api/contacts', async (req, res) => {
+    try {
+        const queryStr = new URLSearchParams(req.query).toString();
+        const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+        res.json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, data: [], error: e.message });
+    }
+});
+
+app.get('/api/contacts/:phone', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`);
+        const json = await resp.json();
+        res.json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/contacts', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body)
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/contacts/:phone', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`, {
+            method: 'DELETE'
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Blacklist (Qora ro'yxat) API Proxies to 3535
+app.post('/api/blacklist/verify', async (req, res) => {
+    try {
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body)
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/blacklist', async (req, res) => {
+    try {
+        const authHeader = req.headers['x-blacklist-auth'] || '';
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist`, {
+            headers: { 'x-blacklist-auth': authHeader }
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/blacklist', async (req, res) => {
+    try {
+        const authHeader = req.headers['x-blacklist-auth'] || '';
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-blacklist-auth': authHeader
+            },
+            body: JSON.stringify(req.body)
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/blacklist/:number', async (req, res) => {
+    try {
+        const authHeader = req.headers['x-blacklist-auth'] || '';
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist/${encodeURIComponent(req.params.number)}`, {
+            method: 'DELETE',
+            headers: { 'x-blacklist-auth': authHeader }
+        });
+        const json = await resp.json();
+        res.status(resp.status).json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Operatorni pauzaga qo'yish / chiqarish viewerda man etilgan (faqat admin uchun)
+app.post('/api/operator/pause', (req, res) => {
+    res.status(403).json({ success: false, error: "Pauza qilish faqat admin paneli orqali amalga oshiriladi. Operatorlar panelida bu imkoniyat cheklangan." });
 });
 
 // Operatorlar keshini boshlang'ich yuklash

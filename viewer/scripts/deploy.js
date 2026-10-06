@@ -25,6 +25,23 @@ console.log(`🎯 Server: ${SERVER_USER}@${SERVER_HOST}:${SERVER_PORT}`);
 console.log(`📂 Remote Path: ${REMOTE_DIR}`);
 console.log('====================================================\n');
 
+// 0. Update public/version.json with unique build ID and timestamp
+const versionFilePath = path.join(projectRoot, 'public', 'version.json');
+let pkgVersion = '2.4.0';
+try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+    if (pkg.version) pkgVersion = pkg.version;
+} catch (e) {}
+
+const currentBuild = {
+    buildId: Date.now().toString(),
+    buildTime: new Date().toISOString(),
+    version: pkgVersion,
+    app: 'call-center-viewer'
+};
+fs.writeFileSync(versionFilePath, JSON.stringify(currentBuild, null, 2), 'utf8');
+console.log(`🏷️  Viewer versiya tayyorlandi: Build ${currentBuild.buildId} (${currentBuild.version})`);
+
 // 1. Pack files
 console.log('📦 [1/4] Viewer fayllari arxivlanmoqda...');
 if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
