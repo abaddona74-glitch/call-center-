@@ -228,68 +228,6 @@ class ExportService {
             }
         }
 
-        // 1. Asterisk PBX CDR dan ma'lumotlarni yig'ish (Kiruvchi navbat va chiquvchi barcha qo'ng'iroqlar)
-        // Format (6 ustun): A-qatorlar = sanasi, op_id, soni, suhbat_vaqt, 'A', '' — allaqachon agregatlangan
-        //                   X-qatorlar = sanasi, from_op, to_op, channel, 'X', billsec — xom transfer zanjiri qatorlari
-        const cdrSql = `
-            USE asteriskcdrdb;
-            -- 1. Operatorlar qabul qilgan kiruvchi va navbat (queue) qo'ng'iroqlari
-            SELECT 
-                DATE(calldate) as call_date,
-                dst as op_id,
-                COUNT(*) as answered_count,
-                SUM(billsec) as total_talk_sec,
-                'A' as kind,
-                '' as extra
-            FROM cdr
-            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
-              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-              AND dst REGEXP '^[0-9]{2,4}$'
-              AND dcontext != 'from-internal-xfer'
-              AND disposition = 'ANSWERED' AND billsec > 0
-            GROUP BY call_date, op_id
-
-            UNION ALL
-
-            -- 2. Operatorlar amalga oshirgan chiquvchi qo'ng'iroqlar
-            SELECT 
-                DATE(calldate) as call_date,
-                SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), 'SIP/', -1) as op_id,
-                COUNT(*) as answered_count,
-                SUM(billsec) as total_talk_sec,
-                'A' as kind,
-                '' as extra
-            FROM cdr
-            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
-              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-              AND dcontext = 'from-internal'
-              AND channel REGEXP '^SIP/[0-9]{2,4}-'
-              AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
-              AND disposition = 'ANSWERED' AND billsec > 0
-            GROUP BY call_date, op_id
-
-            UNION ALL
-
-            -- 3. Transfer zanjirlari xom qatorlari (zanjir boshiga 0 yoki 1 ta -1 va 0 yoki 1 ta +1 beriladi, JS tomonda hisoblanadi)
-            SELECT 
-                DATE(calldate) as call_date,
-                CASE 
-                    WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
-                    WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
-                    ELSE '' 
-                END AS op_id,
-                dst as to_op,
-                channel,
-                'X' as kind,
-                billsec as extra
-            FROM cdr
-            WHERE calldate >= '${startDate} 00:00:00' AND calldate <= '${endDate} 23:59:59'
-              AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-              AND dcontext = 'from-internal-xfer'
-              AND disposition = 'ANSWERED' AND billsec > 0
-            ORDER BY 4 ASC, 1 ASC;
-        `;
-
         // Map: dateStr -> { opId -> { count, talkSec } }
         const dataMap = new Map();
         for (const dStr of dates) {
@@ -309,160 +247,31 @@ class ExportService {
             defaultSecondaryOps.forEach(id => activeOpSet.add(id));
         }
 
-        // 1. SQLite bazasidagi 3CX Desktop Agent to'liq jurnali (eng aniq va to'liq ma'lumot)
-        try {
-            const sqliteSql = `
-                SELECT 
-                    substr(event_time, 1, 10) as call_date,
-                    operator_id,
-                    COUNT(*) as answered_count,
-                    SUM(duration_sec) as total_talk_sec
-                FROM agent_3cx_call_logs
-                WHERE event_time >= ? AND event_time <= ?
-                  AND duration_sec > 0
-                  AND (event_type IN ('ANSWERED', '2', 'DIALLED', '1', 'OUTBOUND', 'INCOMING'))
-                  AND LENGTH(caller_id) > 4
-                GROUP BY call_date, operator_id
-                ORDER BY call_date ASC, operator_id ASC
-            `;
-            const sqliteRows = dbService.db.prepare(sqliteSql).all(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
-            for (const row of sqliteRows) {
-                const callDate = row.call_date;
-                const opId = String(row.operator_id || '').trim();
-                if (!opId || EXCLUDED_OPERATORS.has(opId)) continue;
-                if (!/^[0-9]{2,4}$/.test(opId)) continue;
+        // Har bir sana uchun Dashboard bilan 100% bir xil ma'lumotlarni olish (issabelDbService.fetchOperatorStats orqali)
+        for (const dateStr of dates) {
+            try {
+                const ops = await issabelDbService.fetchOperatorStats(dateStr);
+                if (Array.isArray(ops)) {
+                    for (const op of ops) {
+                        const opId = String(op.id || '').trim();
+                        if (!opId || EXCLUDED_OPERATORS.has(opId) || !/^[0-9]{2,4}$/.test(opId)) continue;
 
-                const opNum = parseInt(opId, 10);
-                if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
-                if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
+                        const opNum = parseInt(opId, 10);
+                        if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
+                        if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
 
-                activeOpSet.add(opId);
-                if (dataMap.has(callDate)) {
-                    dataMap.get(callDate).set(opId, {
-                        count: parseInt(row.answered_count, 10) || 0,
-                        talkSec: parseInt(row.total_talk_sec, 10) || 0
-                    });
-                }
-            }
-        } catch (sqliteErr) {
-            console.error('❌ exportService SQLite agent_3cx_call_logs xatolik:', sqliteErr.message);
-        }
+                        activeOpSet.add(opId);
+                        const count = (op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : (op.totalCalls || 0);
+                        const talkSec = op.totalDurationSec || 0;
 
-        // 2. Asterisk PBX CDR dan ham ma'lumotlarni yig'ish va birlashtirish (eng to'liq qiymat Math.max)
-        let rawCdr = null;
-        try {
-            rawCdr = await issabelDbService.execQuery(cdrSql);
-        } catch (cdrErr) {
-            console.warn('⚠️ exportService Asterisk CDR so\'rovida ogohlantirish:', cdrErr.message);
-        }
-
-        if (rawCdr) {
-            // Transfer tuzatishlari: sana -> operator -> delta (qabul qilinganlardan chiqarish / olganiga qo'shish)
-            const xferDelta = new Map(); // dateStr -> Map(opId -> delta)
-            const addDelta = (dStr, opId, delta) => {
-                if (!opId || !/^[0-9]{2,4}$/.test(opId)) return;
-                if (EXCLUDED_OPERATORS.has(opId)) return;
-                if (!xferDelta.has(dStr)) xferDelta.set(dStr, new Map());
-                const m = xferDelta.get(dStr);
-                m.set(opId, (m.get(opId) || 0) + delta);
-            };
-
-            // 1-o'tish: transfer xom qatorlarini zanjirlarga yig'ish (bir zanjirning barcha qadamlari bir xil channel)
-            const xferChains = new Map(); // dateStr -> Map(channel -> [{ from, to, billsec }])
-            const aggRows = [];
-            for (const line of rawCdr.trim().split('\n')) {
-                if (!line) continue;
-                const parts = line.split('\t');
-                const [callDate, opId, c3, c4] = parts;
-                const kind = (parts[4] || '').trim();
-                if (kind === 'X') {
-                    const cleanChan = (c4 || '').trim();
-                    if (!cleanChan) continue;
-                    if (!xferChains.has(callDate)) xferChains.set(callDate, new Map());
-                    const dayChains = xferChains.get(callDate);
-                    if (!dayChains.has(cleanChan)) dayChains.set(cleanChan, []);
-                    dayChains.get(cleanChan).push({ from: (opId || '').trim(), to: (c3 || '').trim(), billsec: parseInt(parts[5], 10) || 0 });
-                } else {
-                    aggRows.push(parts);
-                }
-            }
-
-            // Suhbat vaqti tuzatishlari: qabul qilingan transfer qatorlarining billsec i qabul qiluvchiga qaytariladi
-            // (1-bo'limdan chiqarilgani uchun) — "o'zi gaplashgan vaqt" saqlanadi
-            const xferTalkDelta = new Map(); // dateStr -> Map(opId -> sec)
-            const addTalk = (dStr, opId, sec) => {
-                if (!opId || !/^[0-9]{2,4}$/.test(opId) || sec <= 0) return;
-                if (EXCLUDED_OPERATORS.has(opId)) return;
-                if (!xferTalkDelta.has(dStr)) xferTalkDelta.set(dStr, new Map());
-                const m = xferTalkDelta.get(dStr);
-                m.set(opId, (m.get(opId) || 0) + sec);
-            };
-
-            // 2-o'tish: zanjirlardan tuzatishlarni hisoblash
-            //   Olgan (+1) = zanjirning oxirgi operator qabulchisi (o'zi hal qilgan)
-            //   Qabul qilingandan chiqarish (-1) = har bir transfer qabul qatori
-            //   Zanjir boshiga -1 = navbatdan to'g'ri qabul qilib boshqaga uzatgan birinchi operator
-            for (const [dStr, dayChains] of xferChains.entries()) {
-                for (const rows of dayChains.values()) {
-                    if (!rows || rows.length === 0) continue;
-                    let lastTo = '';
-                    for (let i = rows.length - 1; i >= 0; i--) {
-                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
-                    }
-                    if (lastTo) addDelta(dStr, lastTo, 1);
-                    const first = rows[0];
-                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) addDelta(dStr, first.from, -1);
-                    for (const r of rows) {
-                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
-                            if (r.to !== lastTo) addDelta(dStr, r.to, -1);
-                            addTalk(dStr, r.to, r.billsec);
-                        }
+                        dataMap.get(dateStr).set(opId, {
+                            count,
+                            talkSec
+                        });
                     }
                 }
-            }
-
-            // 3-o'tish: agregat qatorlar (qabul + chiquvchi)
-            for (const parts of aggRows) {
-                if (parts.length < 4) continue;
-                const [callDate, opId, countStr, talkSecStr] = parts;
-                const cleanOp = (opId || '').trim();
-                if (!cleanOp || EXCLUDED_OPERATORS.has(cleanOp)) continue;
-                if (!/^[0-9]{2,4}$/.test(cleanOp)) continue;
-
-                const opNum = parseInt(cleanOp, 10);
-                if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
-                if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
-
-                activeOpSet.add(cleanOp);
-                if (dataMap.has(callDate)) {
-                    const existing = dataMap.get(callDate).get(cleanOp) || { count: 0, talkSec: 0 };
-                    const cdrCount = parseInt(countStr, 10) || 0;
-                    const cdrTalkSec = parseInt(talkSecStr, 10) || 0;
-                    dataMap.get(callDate).set(cleanOp, {
-                        count: cdrCount,
-                        talkSec: Math.max(existing.talkSec, cdrTalkSec)
-                    });
-                }
-            }
-
-            // 4-o'tish: transfer tuzatishlarini qo'llash (soni + suhbat vaqti)
-            const talkDeltas = xferTalkDelta;
-            for (const [dStr, ops] of xferDelta.entries()) {
-                if (!dataMap.has(dStr)) continue;
-                const allOps = new Set([...ops.keys(), ...((talkDeltas.get(dStr) || new Map()).keys())]);
-                for (const opId of allOps) {
-                    const opNum = parseInt(opId, 10);
-                    if ((operatorGroup === 'main' || operatorGroup === '100') && (opNum < 100 || opNum >= 200)) continue;
-                    if ((operatorGroup === 'secondary' || operatorGroup === '200') && opNum < 200) continue;
-                    activeOpSet.add(opId);
-                    const delta = ops.get(opId) || 0;
-                    const talkAdd = (talkDeltas.get(dStr) || new Map()).get(opId) || 0;
-                    const existing = dataMap.get(dStr).get(opId) || { count: 0, talkSec: 0 };
-                    dataMap.get(dStr).set(opId, {
-                        count: existing.count + delta,
-                        talkSec: existing.talkSec + talkAdd
-                    });
-                }
+            } catch (err) {
+                console.error(`❌ exportService fetchOperatorStats xatosi (${dateStr}):`, err.message);
             }
         }
 

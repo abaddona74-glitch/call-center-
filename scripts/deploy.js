@@ -57,7 +57,7 @@ console.log(`🏷️  Versiya tayyorlandi: Build ${currentBuild.buildId} (${curr
 console.log('📦 [1/4] Loyiha fayllari arxivlanmoqda...');
 if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
 
-// Exclude node_modules, desktop agent packages, git, cache, and database files
+// Exclude node_modules, desktop agent packages, git, cache, and database / dynamic scan data files
 const tarCmd = `tar -czf "${archivePath}" ` +
     `-C "${projectRoot}" ` +
     `--exclude="node_modules" ` +
@@ -68,7 +68,9 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="scratch" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
-    `app.js config.js swaggerSpec.js package.json package-lock.json .env services public ssl viewer`;
+    `--exclude="data/voice_identifications.json" ` +
+    `--exclude="data/voice_scan_status.json" ` +
+    `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data`;
 
 try {
     execSync(tarCmd, { stdio: 'inherit' });

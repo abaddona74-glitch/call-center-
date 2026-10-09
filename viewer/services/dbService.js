@@ -136,12 +136,19 @@ class DbService {
                 name TEXT NOT NULL,
                 organization TEXT,
                 notes TEXT,
+                language TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
             );
             CREATE INDEX IF NOT EXISTS idx_client_contacts_name ON client_contacts (name);
             CREATE INDEX IF NOT EXISTS idx_client_contacts_org ON client_contacts (organization);
         `);
+
+        try {
+            this.db.exec(`ALTER TABLE client_contacts ADD COLUMN language TEXT DEFAULT '';`);
+        } catch (e) {
+            // Already exists
+        }
 
         try {
             this.db.exec(`ALTER TABLE operator_daily_stats ADD COLUMN missed INTEGER DEFAULT 0;`);
@@ -1031,20 +1038,22 @@ class DbService {
             const name = String(contactData.name || '').trim();
             const organization = String(contactData.organization || '').trim();
             const notes = String(contactData.notes || '').trim();
+            const language = String(contactData.language || '').trim().toLowerCase();
             if (!name && !organization) {
                 throw new Error('Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting');
             }
 
             const stmt = this.db.prepare(`
-                INSERT INTO client_contacts (phone, name, organization, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                INSERT INTO client_contacts (phone, name, organization, notes, language, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
                 ON CONFLICT(phone) DO UPDATE SET
                     name = excluded.name,
                     organization = excluded.organization,
                     notes = excluded.notes,
+                    language = excluded.language,
                     updated_at = datetime('now', 'localtime')
             `);
-            stmt.run(cleanPhone, name, organization, notes);
+            stmt.run(cleanPhone, name, organization, notes, language);
 
             return this.getContact(cleanPhone);
         } catch (err) {
@@ -1077,9 +1086,23 @@ class DbService {
     /**
      * Barcha saqlangan mijozlar ro'yxatini olish
      */
-    getAllContacts() {
+    getAllContacts(options = {}) {
         try {
-            return this.db.prepare(`SELECT * FROM client_contacts ORDER BY name COLLATE NOCASE ASC`).all();
+            const lang = options.lang ? String(options.lang).trim().toLowerCase() : '';
+            let sql = `SELECT * FROM client_contacts`;
+            const params = [];
+
+            if (lang) {
+                if (lang === 'empty' || lang === 'none') {
+                    sql += ` WHERE (language IS NULL OR language = '')`;
+                } else {
+                    sql += ` WHERE language = ?`;
+                    params.push(lang);
+                }
+            }
+
+            sql += ` ORDER BY name COLLATE NOCASE ASC`;
+            return this.db.prepare(sql).all(...params);
         } catch (err) {
             console.error('getAllContacts error:', err.message);
             return [];
@@ -1087,17 +1110,31 @@ class DbService {
     }
 
     /**
-     * Mijozlarni qidirish (ism, raqam, tashkilot yoki izoh bo'yicha)
+     * Mijozlarni qidirish (ism, raqam, tashkilot, izoh yoki til bo'yicha)
      */
-    searchContacts(query) {
+    searchContacts(query, lang = '') {
         try {
-            if (!query || typeof query !== 'string') return this.getAllContacts();
+            if (!query || typeof query !== 'string') return this.getAllContacts({ lang });
             const q = `%${query.trim()}%`;
-            return this.db.prepare(`
+            const cleanLang = lang ? String(lang).trim().toLowerCase() : '';
+
+            let sql = `
                 SELECT * FROM client_contacts
-                WHERE phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ?
-                ORDER BY name COLLATE NOCASE ASC
-            `).all(q, q, q, q);
+                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ?)
+            `;
+            const params = [q, q, q, q, q];
+
+            if (cleanLang) {
+                if (cleanLang === 'empty' || cleanLang === 'none') {
+                    sql += ` AND (language IS NULL OR language = '')`;
+                } else {
+                    sql += ` AND language = ?`;
+                    params.push(cleanLang);
+                }
+            }
+
+            sql += ` ORDER BY name COLLATE NOCASE ASC`;
+            return this.db.prepare(sql).all(...params);
         } catch (err) {
             console.error('searchContacts error:', err.message);
             return [];

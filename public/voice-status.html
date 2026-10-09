@@ -1,0 +1,3608 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Ovoz Tahlili (Voice Scan) — Jonli Holat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            background: #0b0f19;
+            color: #f1f5f9;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .status-container {
+            max-width: 1100px;
+            margin: 30px auto 60px auto;
+            padding: 0 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-title-box {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .icon-pulse-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #c084fc;
+            position: relative;
+        }
+
+        .pulse-dot {
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            width: 10px;
+            height: 10px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #10b981;
+            animation: pulse-anim 1.5s infinite;
+        }
+
+        @keyframes pulse-anim {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .header-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .header-subtitle {
+            margin: 4px 0 0 0;
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        .live-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .btn-restart-scan {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: #cbd5e1;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-restart-scan:hover {
+            background: rgba(236, 72, 153, 0.15);
+            border-color: rgba(236, 72, 153, 0.4);
+            color: #f472b6;
+            box-shadow: 0 0 14px rgba(236, 72, 153, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-restart-scan.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-restart-scan .spin {
+            animation: spin-restart-anim 1s linear infinite;
+        }
+
+        @keyframes spin-restart-anim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* PROGRESS SECTION */
+        .progress-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 14px;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .progress-percent {
+            font-size: 38px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* CIRCULAR PROGRESS STYLES */
+        .general-circular-progress-wrap {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin-bottom: 22px;
+        }
+
+        .circular-progress-box {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .circular-progress-svg {
+            transform: rotate(-90deg);
+            overflow: visible;
+        }
+
+        .circle-track {
+            stroke: rgba(255, 255, 255, 0.08);
+        }
+
+        .circle-fill {
+            transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .circle-center-box {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .circle-center-percent {
+            font-size: 26px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+            background: linear-gradient(135deg, #38bdf8, #c084fc, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+
+        .circle-center-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #94a3b8;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        .general-progress-meta-col {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .progress-label-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-dot-pulse {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
+            animation: pulse-dot-anim 1.5s infinite;
+        }
+
+        .progress-sub-count {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .progress-badges-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .progress-badge-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(168, 85, 247, 0.12);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.25);
+        }
+
+        .progress-badge-chip.blue {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border-color: rgba(56, 189, 248, 0.25);
+        }
+
+        /* METRICS GRID */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .metric-title {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .metric-val {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: #f8fafc;
+        }
+
+        .metric-card.zuhra {
+            border-color: rgba(236, 72, 153, 0.3);
+            background: rgba(236, 72, 153, 0.05);
+        }
+        .metric-card.zuhra .metric-val {
+            color: #f472b6;
+        }
+
+        .metric-card.remaining {
+            border-color: rgba(245, 158, 11, 0.3);
+            background: rgba(245, 158, 11, 0.05);
+        }
+        .metric-card.remaining .metric-val {
+            color: #fbbf24;
+        }
+
+        /* CURRENT CALL BOX */
+        .current-call-card {
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .current-call-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .current-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .current-caller {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .current-time {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+
+        /* ACTIONS ROW */
+        .actions-row {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-bottom: 30px;
+        }
+
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f8fafc;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-link:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .btn-link.primary {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            border-color: #6366f1;
+        }
+
+        .btn-link.primary:hover {
+            background: linear-gradient(135deg, #4338ca, #6d28d9);
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+        }
+
+        /* ZUHRA CALLS PREVIEW */
+        .zuhra-preview-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 22px 24px;
+        }
+
+        .zuhra-preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .zuhra-preview-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #f472b6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* INLINE AUDIO PLAYER CARD */
+        .audio-player-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95));
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin-bottom: 22px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .audio-player-card.active-playing {
+            border-color: rgba(236, 72, 153, 0.4);
+            box-shadow: 0 10px 30px -5px rgba(236, 72, 153, 0.25);
+        }
+
+        .player-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .player-track-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .player-track-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(236, 72, 153, 0.15);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f472b6;
+            flex-shrink: 0;
+        }
+
+        .player-track-texts {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .player-caller-number {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f8fafc;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .player-track-meta {
+            font-size: 12px;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .player-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .player-status-badge.playing {
+            background: rgba(236, 72, 153, 0.2);
+            color: #f472b6;
+            border-color: rgba(236, 72, 153, 0.4);
+        }
+
+        .btn-jump-segment {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            color: #c084fc;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-jump-segment:hover {
+            background: rgba(168, 85, 247, 0.25);
+            color: #ffffff;
+            border-color: #a855f7;
+            transform: translateY(-1px);
+        }
+
+        .player-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .player-buttons-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-ctrl {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f1f5f9;
+            border-radius: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+
+        .btn-ctrl:hover {
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .btn-play-pause-main {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ec4899, #8b5cf6);
+            border: none;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+            cursor: pointer;
+        }
+
+        .btn-play-pause-main:hover {
+            transform: scale(1.06);
+            box-shadow: 0 6px 20px rgba(236, 72, 153, 0.6);
+        }
+
+        .btn-skip-10 {
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            gap: 4px;
+            height: 36px;
+        }
+
+        .btn-stop-ctrl {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        .player-timeline-group {
+            flex: 1;
+            min-width: 240px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .time-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            min-width: 44px;
+        }
+
+        .time-display.current {
+            color: #f1f5f9;
+            text-align: right;
+        }
+
+        .timeline-bar-wrapper {
+            position: relative;
+            flex: 1;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        .timeline-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #ec4899 0%, #334155 0%);
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+        }
+
+        .timeline-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ec4899;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.8);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .timeline-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .timeline-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ec4899;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 10px rgba(236, 72, 153, 0.8);
+            cursor: pointer;
+        }
+
+        .player-speed-volume-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-pill-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .speed-pill-btn.active {
+            background: rgba(236, 72, 153, 0.2);
+            border-color: #ec4899;
+            color: #f472b6;
+        }
+
+        .btn-vol {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px;
+        }
+
+        .btn-vol:hover {
+            color: #f1f5f9;
+        }
+
+        .vol-slider {
+            -webkit-appearance: none;
+            width: 60px;
+            height: 4px;
+            border-radius: 2px;
+            background: #334155;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #a855f7;
+            cursor: pointer;
+        }
+
+        /* TABLE BUTTONS & ROW PLAYING STATE */
+        .btn-row-play {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            color: #c084fc;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-row-play:hover {
+            background: rgba(168, 85, 247, 0.28);
+            border-color: #c084fc;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .btn-row-play.active-playing {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(168, 85, 247, 0.25));
+            border-color: #ec4899;
+            color: #f472b6;
+            box-shadow: 0 0 12px rgba(236, 72, 153, 0.4);
+        }
+
+        .sound-wave-bars {
+            display: inline-flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 12px;
+            margin-left: 2px;
+        }
+
+        .sound-wave-bars span {
+            width: 2.5px;
+            background: currentColor;
+            border-radius: 1px;
+            animation: bar-anim 0.8s ease-in-out infinite alternate;
+        }
+
+        .sound-wave-bars span:nth-child(1) { height: 4px; animation-delay: 0.1s; }
+        .sound-wave-bars span:nth-child(2) { height: 12px; animation-delay: 0.3s; }
+        .sound-wave-bars span:nth-child(3) { height: 7px; animation-delay: 0.2s; }
+        .sound-wave-bars span:nth-child(4) { height: 10px; animation-delay: 0.4s; }
+
+        @keyframes bar-anim {
+            0% { height: 3px; }
+            100% { height: 12px; }
+        }
+
+        .table-row-active td {
+            background: rgba(236, 72, 153, 0.08) !important;
+            border-bottom-color: rgba(236, 72, 153, 0.25) !important;
+        }
+
+        /* TRACE ANCHOR ROW (ROW DIRECTLY ABOVE TRANSFERRED SPOT) */
+        .row-trace-anchor td {
+            border-bottom: 2px solid #ec4899 !important;
+        }
+        .row-trace-anchor.to-muattar td {
+            border-bottom: 2px solid #3b82f6 !important;
+        }
+
+        /* TRACE PODSKAZKA ROW & LINE (VISUAL IMPRINT WHERE ROW WAS TRANSFERRED) */
+        .trace-podskazka-row td {
+            padding: 0 !important;
+            border: none !important;
+            background: transparent !important;
+        }
+
+        .trace-podskazka-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: linear-gradient(90deg, rgba(236, 72, 153, 0.15), rgba(236, 72, 153, 0.25), rgba(236, 72, 153, 0.12));
+            border-top: 2px solid #ec4899;
+            border-bottom: 2px solid rgba(236, 72, 153, 0.6);
+            box-shadow: 0 0 18px rgba(236, 72, 153, 0.4);
+            margin: 2px 0 4px 0;
+            border-radius: 6px;
+            animation: trace-pulse 2s infinite alternate;
+        }
+
+        .trace-podskazka-bar.to-muattar {
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.25), rgba(59, 130, 246, 0.12));
+            border-top: 2px solid #3b82f6;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.6);
+            box-shadow: 0 0 18px rgba(59, 130, 246, 0.4);
+        }
+
+        @keyframes trace-pulse {
+            0% { box-shadow: 0 0 8px rgba(236, 72, 153, 0.25); }
+            100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.55); }
+        }
+
+        .trace-podskazka-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #f472b6;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        .trace-podskazka-bar.to-muattar .trace-podskazka-left {
+            color: #60a5fa;
+        }
+
+        .trace-arrow-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            background: rgba(236, 72, 153, 0.3);
+            border: 1px solid rgba(236, 72, 153, 0.6);
+            color: #ffffff;
+            animation: bounce-down 1.2s infinite;
+        }
+
+        .trace-podskazka-bar.to-muattar .trace-arrow-badge {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
+        }
+
+        @keyframes bounce-down {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(3px); }
+        }
+
+        .trace-podskazka-right {
+            font-size: 11px;
+            font-weight: 700;
+            color: #f8fafc;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.7);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .zuhra-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .zuhra-table th {
+            text-align: left;
+            padding: 10px 14px;
+            color: #94a3b8;
+            font-weight: 500;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .zuhra-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #e2e8f0;
+        }
+
+        .zuhra-table tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge-conf {
+            background: rgba(236, 72, 153, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* SPEAKER TABS & BADGES */
+        .speaker-tabs-nav {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .speaker-tab-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .speaker-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+        }
+
+        .speaker-tab-btn.active.tab-zuhra {
+            background: rgba(236, 72, 153, 0.18);
+            border-color: #ec4899;
+            color: #f472b6;
+        }
+
+        .speaker-tab-btn.active.tab-muattar {
+            background: rgba(59, 130, 246, 0.18);
+            border-color: #3b82f6;
+            color: #60a5fa;
+        }
+
+        .speaker-tab-btn.active.tab-all {
+            background: rgba(168, 85, 247, 0.18);
+            border-color: #a855f7;
+            color: #c084fc;
+        }
+
+        .tab-count-pill {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .badge-speaker-zuhra {
+            background: rgba(236, 72, 153, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-speaker-muattar {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-speaker-toggle {
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        .btn-speaker-toggle:hover {
+            transform: scale(1.06);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-speaker-toggle.badge-speaker-zuhra:hover {
+            border-color: #ec4899;
+            background: rgba(236, 72, 153, 0.25);
+        }
+
+        .btn-speaker-toggle.badge-speaker-muattar:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        /* ROW SWITCH BUTTON IN AMAL COLUMN */
+        .btn-row-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            font-family: inherit;
+        }
+
+        .btn-row-switch:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-row-switch.to-zuhra:hover {
+            background: rgba(236, 72, 153, 0.18);
+            border-color: #ec4899;
+            color: #f472b6;
+            box-shadow: 0 2px 10px rgba(236, 72, 153, 0.3);
+        }
+
+        .btn-row-switch.to-muattar:hover {
+            background: rgba(59, 130, 246, 0.18);
+            border-color: #3b82f6;
+            color: #60a5fa;
+            box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* PLAYER ACTION SWITCH BUTTON */
+        .btn-switch-speaker {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            padding: 6px 12px;
+        }
+
+        .btn-switch-speaker.to-zuhra {
+            background: rgba(236, 72, 153, 0.15);
+            border: 1px solid rgba(236, 72, 153, 0.4);
+            color: #f472b6;
+        }
+
+        .btn-switch-speaker.to-zuhra:hover {
+            background: rgba(236, 72, 153, 0.28);
+            border-color: #ec4899;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(236, 72, 153, 0.4);
+        }
+
+        .btn-switch-speaker.to-muattar {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }
+
+        .btn-switch-speaker.to-muattar:hover {
+            background: rgba(59, 130, 246, 0.28);
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+
+        /* TOAST NOTIFICATION */
+        .toast-notification {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 99999;
+            transform: translateY(-20px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .toast-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .eta-speed-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            font-size: 13px;
+            color: #94a3b8;
+            padding: 10px 14px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 2-PROGRESS BAR (CURRENT AUDIO SCAN STATUS) */
+        .current-audio-progress-box {
+            margin-top: 18px;
+            padding: 16px 18px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .current-audio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .current-audio-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .current-audio-percent {
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: #34d399;
+        }
+
+        .current-audio-bar-container {
+            width: 100%;
+            height: 12px;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+
+        .current-audio-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0284c7, #06b6d4, #10b981);
+            border-radius: 6px;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+            position: relative;
+        }
+
+        .current-audio-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        .current-audio-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .btn-nav-call {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+        }
+
+        /* TABLE RESPONSIVE WRAPPER */
+        .table-responsive-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* MOBILE RESPONSIVE OPTIMIZATIONS (< 768px) */
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 175px !important; /* Pastdagi qotirilgan pleyer kontentni to'sib qo'ymasligi uchun */
+            }
+
+            .status-container {
+                margin: 15px auto 30px auto;
+                padding: 0 12px;
+            }
+
+            .header-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 14px;
+                padding: 16px 18px;
+                margin-bottom: 16px;
+            }
+
+            .header-title {
+                font-size: 18px;
+            }
+
+            .header-subtitle {
+                font-size: 12px;
+                line-height: 1.4;
+            }
+
+            .progress-card {
+                padding: 18px 16px;
+                margin-bottom: 16px;
+            }
+
+            .general-circular-progress-wrap {
+                gap: 16px;
+                align-items: center;
+            }
+
+            .circular-progress-box {
+                width: 104px;
+                height: 104px;
+            }
+
+            .circular-progress-svg {
+                width: 104px;
+                height: 104px;
+            }
+
+            .circle-center-percent {
+                font-size: 20px;
+            }
+
+            .circle-center-label {
+                font-size: 8px;
+            }
+
+            .progress-sub-count {
+                font-size: 13px;
+            }
+
+            .eta-speed-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+                font-size: 12px;
+            }
+
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+
+            .metric-card {
+                padding: 14px;
+            }
+
+            .metric-val {
+                font-size: 22px;
+            }
+
+            .current-call-card {
+                padding: 14px 16px;
+                margin-bottom: 16px;
+            }
+
+            .actions-row {
+                flex-direction: column;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .btn-link {
+                justify-content: center;
+                text-align: center;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            .zuhra-preview-card {
+                padding: 16px 14px;
+            }
+
+            .speaker-tabs-nav {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                display: flex;
+                flex-wrap: nowrap;
+                gap: 8px;
+                padding-bottom: 8px;
+                margin-bottom: 14px;
+            }
+
+            .speaker-tab-btn {
+                white-space: nowrap;
+                flex-shrink: 0;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            /* TELEFONDA PASTDA TURADIGAN QULAY QOTIRILGAN AUDIO PLEYER (BOTTOM DOCK) */
+            .audio-player-card {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                z-index: 9999 !important;
+                margin: 0 !important;
+                border-radius: 20px 20px 0 0 !important;
+                background: rgba(11, 15, 25, 0.97) !important;
+                backdrop-filter: blur(25px) !important;
+                -webkit-backdrop-filter: blur(25px) !important;
+                border: 1px solid rgba(255, 255, 255, 0.15) !important;
+                border-bottom: none !important;
+                box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.85) !important;
+                padding: 10px 14px 14px 14px !important;
+                gap: 8px !important;
+                box-sizing: border-box !important;
+            }
+
+            .player-top-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                margin-bottom: 0;
+            }
+
+            .player-track-info {
+                gap: 10px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .player-track-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+            }
+
+            .player-caller-number {
+                font-size: 14px;
+            }
+
+            .player-track-meta {
+                font-size: 11px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .btn-jump-segment {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .player-controls-row {
+                flex-direction: column;
+                gap: 6px;
+                width: 100%;
+            }
+
+            .player-timeline-group {
+                width: 100%;
+                min-width: 100%;
+                order: 1;
+                gap: 8px;
+            }
+
+            .time-display {
+                font-size: 11px;
+                min-width: 36px;
+            }
+
+            .player-buttons-group {
+                width: 100%;
+                order: 2;
+                justify-content: space-evenly;
+                gap: 6px;
+            }
+
+            .btn-play-pause-main {
+                width: 48px;
+                height: 48px;
+            }
+
+            .btn-skip-10 {
+                height: 36px;
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .btn-nav-call {
+                width: 36px;
+                height: 36px;
+            }
+
+            .player-speed-volume-group {
+                display: none !important;
+            }
+
+            /* Responsive Table */
+            .zuhra-table {
+                min-width: 540px;
+                font-size: 12px;
+            }
+
+            .zuhra-table th, .zuhra-table td {
+                padding: 10px 8px;
+            }
+        }
+
+        /* RESTART SCAN BUTTON */
+        .btn-restart-scan {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.35);
+            color: #c084fc;
+            padding: 7px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-restart-scan:hover {
+            background: rgba(168, 85, 247, 0.3);
+            border-color: #c084fc;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);
+        }
+
+        /* ========================================================
+           VOICE CANDIDATE SAMPLES APPROVAL SECTION (AI TRAINING)
+           ======================================================== */
+        .samples-approval-card {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.75), rgba(15, 23, 42, 0.85));
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4), 0 0 20px rgba(236, 72, 153, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .samples-approval-card.collapsed {
+            padding: 12px 18px;
+            background: rgba(30, 41, 59, 0.45);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+            margin-bottom: 16px;
+        }
+
+        .samples-approval-card.collapsed .samples-header-row {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .samples-approval-card.collapsed .samples-desc {
+            display: none;
+        }
+
+        .samples-approval-card.collapsed .samples-collapsible-body {
+            display: none;
+        }
+
+        .btn-toggle-samples {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f1f5f9;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-toggle-samples:hover {
+            background: rgba(255, 255, 255, 0.16);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .samples-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 16px;
+        }
+
+        .samples-title-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .samples-icon-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.2));
+            border: 1px solid rgba(236, 72, 153, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #f472b6;
+            flex-shrink: 0;
+        }
+
+        .samples-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #f8fafc;
+            letter-spacing: -0.2px;
+        }
+
+        .samples-desc {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+
+        .samples-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .samples-stats-pills {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .pill-stat.approved {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+        }
+
+        .pill-stat.denied {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #f87171;
+        }
+
+        .pill-stat.pending {
+            background: rgba(148, 163, 184, 0.12);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            color: #cbd5e1;
+        }
+
+        .btn-snowball-batch {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        .btn-snowball-batch:hover {
+            background: rgba(56, 189, 248, 0.22);
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-snowball-batch.loading {
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-snowball-batch .spin {
+            animation: spin-snowball-anim 1s linear infinite;
+        }
+
+        @keyframes spin-snowball-anim {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-apply-ensemble {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            color: #ffffff;
+            padding: 9px 18px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+        }
+
+        .btn-apply-ensemble:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(236, 72, 153, 0.6);
+        }
+
+        .btn-apply-ensemble:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .samples-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .samples-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sample-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+
+        .sample-card:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+            background: rgba(15, 23, 42, 0.85);
+        }
+
+        .sample-card.is-approved {
+            border-color: rgba(16, 185, 129, 0.6);
+            background: rgba(6, 78, 59, 0.18);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+        }
+
+        .sample-card.is-denied {
+            border-color: rgba(239, 68, 68, 0.45);
+            background: rgba(69, 10, 10, 0.18);
+            opacity: 0.82;
+        }
+
+        .sample-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .sample-meta-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sample-badge-num {
+            background: rgba(236, 72, 153, 0.2);
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.35);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .sample-caller-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sample-time-info {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .sample-status-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        .sample-status-badge.pending {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #94a3b8;
+        }
+
+        .sample-status-badge.approved {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            color: #34d399;
+        }
+
+        .sample-status-badge.denied {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            color: #f87171;
+        }
+
+        /* MINI PLAYER IN CARD */
+        .sample-player-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
+
+        .btn-sample-play {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+            border: none;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+            box-shadow: 0 2px 8px rgba(236, 72, 153, 0.35);
+        }
+
+        .btn-sample-play:hover {
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(236, 72, 153, 0.55);
+        }
+
+        .btn-sample-play.is-playing {
+            background: #10b981;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.45);
+        }
+
+        .sample-track-timeline {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sample-progress-bar {
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sample-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #ec4899, #a855f7);
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+
+        .sample-card.is-approved .sample-progress-fill {
+            background: #10b981;
+        }
+
+        .sample-time-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* DECISION BUTTONS */
+        .sample-actions-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-decision {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-decision.approve {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+        }
+
+        .btn-decision.approve:hover, .btn-decision.approve.active {
+            background: #10b981;
+            border-color: #10b981;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-decision.deny {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .btn-decision.deny:hover, .btn-decision.deny.active {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="status-container">
+        <!-- HEADER -->
+        <div class="header-card">
+            <div class="header-title-box">
+                <div class="icon-pulse-box">
+                    <span class="pulse-dot"></span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="header-title">119-Operator Ovozli AI Skan (SpeechBrain)</h1>
+                    <p class="header-subtitle">17-avgustdan 19-sentabrgacha 119 dagi barcha suhbatlar biometrik tekshiruvi (Zuhra opa va Muattar)</p>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn-restart-scan" id="btnRestartScan" onclick="confirmRestartScan()" title="Yangi model asosida barcha suhbatlarni qayta tahlil qilish">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                    </svg>
+                    <span>Qayta Skan Qilish</span>
+                </button>
+                <div class="live-tag" id="livePulseTag">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                    <span>JONLI TAHLIL</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROGRESS BAR CARD (TWO BARS: GENERAL + CURRENT CALL) -->
+        <div class="progress-card">
+            <!-- 1. GENERAL CIRCULAR PROGRESS -->
+            <div class="general-circular-progress-wrap">
+                <div class="circular-progress-box">
+                    <svg class="circular-progress-svg" viewBox="0 0 140 140" width="130" height="130">
+                        <defs>
+                            <linearGradient id="circularProgressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#38bdf8">
+                                    <animate attributeName="stop-color" values="#38bdf8;#818cf8;#ec4899;#38bdf8" dur="6s" repeatCount="indefinite" />
+                                </stop>
+                                <stop offset="50%" stop-color="#a855f7">
+                                    <animate attributeName="stop-color" values="#a855f7;#ec4899;#38bdf8;#a855f7" dur="6s" repeatCount="indefinite" />
+                                </stop>
+                                <stop offset="100%" stop-color="#ec4899">
+                                    <animate attributeName="stop-color" values="#ec4899;#38bdf8;#818cf8;#ec4899" dur="6s" repeatCount="indefinite" />
+                                </stop>
+                            </linearGradient>
+                            <filter id="circularGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="#a855f7" flood-opacity="0.6"/>
+                            </filter>
+                        </defs>
+                        <!-- Background track -->
+                        <circle class="circle-track" cx="70" cy="70" r="56" stroke="rgba(255, 255, 255, 0.08)" stroke-width="11" fill="none" />
+                        <!-- Animated colored progress fill -->
+                        <circle class="circle-fill" id="circularProgressFill" cx="70" cy="70" r="56" 
+                            stroke="url(#circularProgressGrad)" stroke-width="11" stroke-linecap="round" fill="none"
+                            stroke-dasharray="351.86" stroke-dashoffset="351.86" filter="url(#circularGlow)" />
+                    </svg>
+                    <!-- Center percentage value -->
+                    <div class="circle-center-box">
+                        <div class="circle-center-percent" id="progressPercentText">0%</div>
+                        <div class="circle-center-label">BAJARILDI</div>
+                    </div>
+                </div>
+
+                <div class="general-progress-meta-col">
+                    <div class="progress-label-row">
+                        <span class="live-dot-pulse"></span>
+                        <span class="progress-label">1. UMUMIY BAJARILISH HOLATI</span>
+                    </div>
+                    <div class="progress-sub-count" id="progressSubText">Yuklanmoqda...</div>
+                    <div class="progress-badges-row">
+                        <span class="progress-badge-chip">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            SpeechBrain Biometrik Model
+                        </span>
+                        <span class="progress-badge-chip blue">
+                            17-avgust — 19-sentabr
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. CURRENT AUDIO PROGRESS BAR -->
+            <div class="current-audio-progress-box" id="currentAudioProgressBox">
+                <div class="current-audio-header">
+                    <div class="current-audio-label">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; display: inline-block; animation: pulse-anim 1.5s infinite;"></span>
+                        <span id="currentAudioTitle">2. Ayni paytda: Tahlilga tayyorlanmoqda...</span>
+                    </div>
+                    <div class="current-audio-percent" id="currentAudioPercentText">0%</div>
+                </div>
+                <div class="current-audio-bar-container">
+                    <div class="current-audio-bar-fill" id="currentAudioBarFill"></div>
+                </div>
+                <div class="current-audio-meta">
+                    <span id="currentAudioStage">Bosqich: SFTP serveridan audio yuklanmoqda...</span>
+                    <span id="currentAudioDurMeta" style="font-family: 'JetBrains Mono', monospace; color: #cbd5e1;">-</span>
+                </div>
+            </div>
+
+            <div class="eta-speed-bar" id="etaSpeedBar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8;"></span>
+                    <span>Taxminiy tugash vaqti: <strong style="color: #f8fafc;" id="lblEtaTime">Hisoblanmoqda...</strong></span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span>Tezlik: <strong style="color: #c084fc;" id="lblSpeed">~20 ta / daq</strong></span>
+                    <span style="color: #64748b;">|</span>
+                    <span style="color: #38bdf8; font-size: 12px; font-weight: 600;">Oraliq: 17-avgust — 19-sentabr</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- METRICS -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/></svg>
+                    Jami Qo'ng'iroqlar
+                </div>
+                <div class="metric-val" id="metricTotal">573</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                    Skan Qilindi
+                </div>
+                <div class="metric-val" id="metricScanned">0</div>
+            </div>
+            <div class="metric-card remaining">
+                <div class="metric-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg>
+                    Navbatda Qolgan
+                </div>
+                <div class="metric-val" id="metricRemaining">573</div>
+            </div>
+            <div class="metric-card zuhra">
+                <div class="metric-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    Zuhra opa Topildi
+                </div>
+                <div class="metric-val" id="metricZuhra">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    Muattar / Boshqalar
+                </div>
+                <div class="metric-val" id="metricMuattar">0</div>
+            </div>
+            <div class="metric-card tuning" id="metricCardTuning" style="display: none; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08);">
+                <div class="metric-title" style="color: #10b981;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                    Tuning: Yangi Topilgan
+                </div>
+                <div class="metric-val" id="metricNewlyFound" style="color: #34d399;">+0</div>
+            </div>
+        </div>
+
+        <!-- CURRENT RUNNING CALL -->
+        <div class="current-call-card">
+            <div class="current-call-info">
+                <div class="current-badge">Oxirgi tekshirilgan</div>
+                <div>
+                    <div class="current-caller" id="currentCaller">-</div>
+                    <div class="current-time" id="currentTime">-</div>
+                </div>
+            </div>
+            <div id="currentResultBadge">
+                <span style="font-size: 13px; color: #94a3b8;">Avtomatik yangilanmoqda...</span>
+            </div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div class="actions-row">
+            <a href="/" class="btn-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Asosiy Dashboard
+            </a>
+            <a href="/calls?speaker=zuhra" class="btn-link primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Audio Explorer (Barcha Qo'ng'iroqlar)
+            </a>
+        </div>
+
+        <!-- VOICE SAMPLES APPROVAL CARD (AI ENSEMBLE TRAINING) -->
+        <div class="samples-approval-card collapsed" id="samplesApprovalSection">
+            <div class="samples-header-row">
+                <div class="samples-title-group">
+                    <div class="samples-icon-box">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="samples-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span>Zuhra opa ovoz namunalari (AI Trening)</span>
+                            <span class="pill-stat approved" style="font-size: 11px; padding: 2px 8px;">Model kuchaytirildi</span>
+                        </div>
+                        <div class="samples-desc">
+                            Quyidagi 10 ta parchalarni tinglang: faqat sof <strong>Zuhra opa</strong>ning ovozi bo'lganlarini tasdiqlang. Mijoz ovozi aralashgan yoki begona odam bo'lsa rad eting.
+                        </div>
+                    </div>
+                </div>
+                <div class="samples-actions-group">
+                    <div class="samples-stats-pills">
+                        <span class="pill-stat approved" id="statApprovedPill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                            <span id="txtApprovedCount">5</span> ta tasdiqlandi
+                        </span>
+                        <span class="pill-stat denied" id="statDeniedPill">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                            <span id="txtDeniedCount">5</span> ta rad etildi
+                        </span>
+                        <span class="pill-stat pending" id="statPendingPill" style="display: none;">
+                            <span id="txtPendingCount">0</span> ta kutilmoqda
+                        </span>
+                    </div>
+                    <button type="button" class="btn-snowball-batch" id="btnSnowballBatch" onclick="generateSnowballBatch()" title="Qo'lda Zuhra opaga o'tkazilgan yangi suhbatlardan yangi namunalar to'plamini (Snowball) olish">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5V19M5 12H19"/>
+                        </svg>
+                        <span>Yangi to'plam (+Snowball)</span>
+                    </button>
+                    <button type="button" class="btn-apply-ensemble" id="btnApplyEnsemble" onclick="applyEnsembleTraining()" title="Tasdiqlangan namunalar asosida AI modelini kuchaytirish">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/>
+                        </svg>
+                        <span>Modelni Kuchaytirish</span>
+                    </button>
+                    <!-- COLLAPSE TOGGLE BUTTON -->
+                    <button type="button" class="btn-toggle-samples" id="btnToggleSamples" onclick="toggleSamplesCollapse()" title="Namunalar panelini ochish yoki yashirish">
+                        <span id="btnToggleSamplesText">Namunalar (10 ta) ▾</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- COLLAPSIBLE BODY -->
+            <div class="samples-collapsible-body" id="samplesCollapsibleBody">
+                <div class="samples-grid" id="samplesGridContainer">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: #94a3b8;">
+                        Namunalar yuklanmoqda...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AUDIO PLAYER CARD AND CALLS LIST -->
+        <div class="zuhra-preview-card">
+            <!-- EMBEDDED INLINE AUDIO PLAYER -->
+            <div class="audio-player-card" id="audioPlayerCard">
+                <div class="player-top-row">
+                    <div class="player-track-info">
+                        <div class="player-track-avatar" id="playerSpeakerAvatar">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/>
+                            </svg>
+                        </div>
+                        <div class="player-track-texts">
+                            <div class="player-caller-number" id="playerCallerNumber">
+                                <span id="playerCallerText">Qo'ng'iroqni tanlang</span>
+                                <span class="player-status-badge" id="playerStatusBadge">Kutilmoqda</span>
+                            </div>
+                            <div class="player-track-meta" id="playerTrackMeta">
+                                <span>Tinglash uchun pastdagi jadvaldan birini bosing</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="playerSegmentJumpWrap" style="display: none;">
+                        <button type="button" class="btn-jump-segment" id="btnJumpZuhra" onclick="jumpToZuhraSegment()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M13 19l6-7-6-7M5 19l6-7-6-7"/>
+                            </svg>
+                            <span id="btnJumpZuhraText">Zuhra gapirgan joyga o'tish</span>
+                        </button>
+                    </div>
+                    <div id="playerSpeakerActionWrap" style="display: none;">
+                        <button type="button" class="btn-switch-speaker" id="btnSwitchSpeaker" onclick="switchCurrentCallSpeaker()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                            </svg>
+                            <span id="btnSwitchSpeakerText">Zuhra opaga o'tkazish</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CONTROLS & TIMELINE -->
+                <div class="player-controls-row">
+                    <div class="player-buttons-group">
+                        <!-- Previous Call Button (|<) -->
+                        <button type="button" class="btn-ctrl btn-nav-call" onclick="playPreviousCall()" title="Oldingi suhbat (|<)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M7 6v12M17.5 6.7L10.5 12l7 5.3V6.7z"/>
+                            </svg>
+                        </button>
+
+                        <!-- -10s Rewind -->
+                        <button type="button" class="btn-ctrl btn-skip-10" onclick="skipAudio(-10)" title="10 soniya orqaga">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 19l-7-7 7-7"/><path d="M19 19l-7-7 7-7"/>
+                            </svg>
+                            <span>-10s</span>
+                        </button>
+
+                        <!-- Main Play / Pause Button -->
+                        <button type="button" class="btn-ctrl btn-play-pause-main" id="btnMainPlay" onclick="togglePlayPause()" title="Ijro / Pauza">
+                            <svg id="iconMainPlay" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                            <svg id="iconMainPause" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <path d="M10.65 19.11V4.89C10.65 3.54 10.08 3 8.64 3H5.97C4.53 3 3.96 3.54 3.96 4.89V19.11C3.96 20.46 4.53 21 5.97 21H8.64C10.08 21 10.65 20.46 10.65 19.11Z"/>
+                                <path d="M20.04 19.11V4.89C20.04 3.54 19.47 3 18.03 3H15.36C13.92 3 13.35 3.54 13.35 4.89V19.11C13.35 20.46 13.92 21 15.36 21H18.03C19.47 21 20.04 20.46 20.04 19.11Z"/>
+                            </svg>
+                        </button>
+
+                        <!-- +10s Forward -->
+                        <button type="button" class="btn-ctrl btn-skip-10" onclick="skipAudio(10)" title="10 soniya oldinga">
+                            <span>+10s</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 19l7-7-7-7"/><path d="M13 19l7-7-7-7"/>
+                            </svg>
+                        </button>
+
+                        <!-- Next Call Button (>|) -->
+                        <button type="button" class="btn-ctrl btn-nav-call" onclick="playNextCall()" title="Keyingi suhbat (>|)">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 6v12M6.5 6.7L13.5 12l-7 5.3V6.7z"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- TIMELINE SLIDER -->
+                    <div class="player-timeline-group">
+                        <span class="time-display current" id="lblCurrentTime">00:00</span>
+                        <div class="timeline-bar-wrapper">
+                            <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="100" value="0" step="0.1" oninput="onScrubberInput(this.value)" onchange="onScrubberChange(this.value)">
+                        </div>
+                        <span class="time-display" id="lblTotalTime">00:00</span>
+                    </div>
+
+                    <!-- SPEED & VOLUME -->
+                    <div class="player-speed-volume-group">
+                        <div style="display: flex; gap: 4px;">
+                            <button type="button" class="speed-pill-btn active" data-speed="1" onclick="setSpeed(1, this)">1x</button>
+                            <button type="button" class="speed-pill-btn" data-speed="1.25" onclick="setSpeed(1.25, this)">1.25x</button>
+                            <button type="button" class="speed-pill-btn" data-speed="1.5" onclick="setSpeed(1.5, this)">1.5x</button>
+                            <button type="button" class="speed-pill-btn" data-speed="2" onclick="setSpeed(2, this)">2x</button>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 6px; margin-left: 6px;">
+                            <button type="button" class="btn-vol" id="btnVolToggle" onclick="toggleMute()" title="Ovozni o'chirish / yoqish">
+                                <svg id="volIconNormal" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                                </svg>
+                                <svg id="volIconMuted" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>
+                                </svg>
+                            </button>
+                            <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="100" oninput="setVolume(this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <audio id="inlineAudioElement" preload="metadata" style="display: none;"></audio>
+
+            <!-- SPEAKER TABS -->
+            <div class="speaker-tabs-nav">
+                <button type="button" class="speaker-tab-btn active tab-zuhra" id="tabBtnZuhra" onclick="setSpeakerFilter('zuhra')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    <span>Zuhra opa</span>
+                    <span class="tab-count-pill" id="tabCountZuhra">0</span>
+                </button>
+                <button type="button" class="speaker-tab-btn tab-muattar" id="tabBtnMuattar" onclick="setSpeakerFilter('muattar')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    <span>Muattar</span>
+                    <span class="tab-count-pill" id="tabCountMuattar">0</span>
+                </button>
+                <button type="button" class="speaker-tab-btn tab-all" id="tabBtnAll" onclick="setSpeakerFilter('all')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/></svg>
+                    <span>Barchasi</span>
+                    <span class="tab-count-pill" id="tabCountAll">0</span>
+                </button>
+            </div>
+
+            <div class="table-responsive-wrapper">
+                <table class="zuhra-table">
+                    <thead>
+                        <tr>
+                            <th>Sana va Vaqt</th>
+                            <th>Mijoz Raqami</th>
+                            <th>Operator</th>
+                            <th>Davomiyligi</th>
+                            <th>AI Ishonch</th>
+                            <th>Amal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="zuhraTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">Yuklanmoqda...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Player & Filter State
+        const audio = document.getElementById('inlineAudioElement');
+        let currentFile = null;
+        let currentDurationSec = 0;
+        let currentZuhraStartSec = 0;
+        let isScrubbing = false;
+        let currentSpeed = 1.0;
+        let allVoiceCalls = [];
+        let activeSpeakerFilter = 'zuhra';
+
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
+            const s = Math.floor(seconds);
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m < 10 ? '0' : ''}${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        let lastTransferredTrace = null;
+
+        function setSpeakerFilter(filter) {
+            activeSpeakerFilter = filter;
+            lastTransferredTrace = null;
+            document.querySelectorAll('.speaker-tab-btn').forEach(btn => btn.classList.remove('active'));
+            if (filter === 'zuhra') document.getElementById('tabBtnZuhra').classList.add('active');
+            if (filter === 'muattar') document.getElementById('tabBtnMuattar').classList.add('active');
+            if (filter === 'all') document.getElementById('tabBtnAll').classList.add('active');
+            renderCallsTable();
+        }
+
+        function playCall(file, callerId, calldate, duration, zuhraStart, speaker) {
+            if (currentFile === file) {
+                // Same file: toggle play / pause
+                togglePlayPause();
+                return;
+            }
+
+            // New file selection
+            currentFile = file;
+            currentDurationSec = duration || 0;
+            currentZuhraStartSec = zuhraStart || 0;
+
+            const streamUrl = `/api/recordings/stream?file=${encodeURIComponent(file)}`;
+            audio.src = streamUrl;
+            audio.playbackRate = currentSpeed;
+            audio.currentTime = 0;
+
+            const isZuhra = (speaker === 'zuhra' || speaker === 'Zuhra opa');
+
+            // Update UI elements
+            document.getElementById('playerCallerText').innerText = callerId || 'Noma\'lum';
+            document.getElementById('playerTrackMeta').innerHTML = `
+                <span>${calldate || ''}</span>
+                <span>&bull;</span>
+                <span style="color: ${isZuhra ? '#f472b6' : '#60a5fa'}; font-weight: 600;">${isZuhra ? 'Zuhra opa' : 'Muattar'}</span>
+                <span>&bull;</span>
+                <span style="color: #38bdf8; font-weight: 600;">${formatDuration(duration)}</span>
+            `;
+
+            // Update player speaker action button
+            updatePlayerTrackSpeaker(speaker);
+
+            // Zuhra segment jump button
+            const jumpWrap = document.getElementById('playerSegmentJumpWrap');
+            if (isZuhra && currentZuhraStartSec > 0) {
+                jumpWrap.style.display = 'block';
+                document.getElementById('btnJumpZuhraText').innerText = `Zuhra gapirgan joyga o'tish (${formatDuration(currentZuhraStartSec)})`;
+            } else {
+                jumpWrap.style.display = 'none';
+            }
+
+            document.getElementById('lblCurrentTime').innerText = '00:00';
+            document.getElementById('lblTotalTime').innerText = formatDuration(duration);
+            document.getElementById('timelineSlider').value = 0;
+            updateSliderTrack(0);
+
+            audio.play().then(() => {
+                updatePlayerPlayState(true);
+            }).catch(e => {
+                console.warn('Audio play auto-start error:', e);
+                updatePlayerPlayState(false);
+            });
+
+            renderCallsTable();
+        }
+
+        function getCurrentCallIndex() {
+            const list = getFilteredCalls();
+            if (!list || list.length === 0 || !currentFile) return -1;
+            return list.findIndex(x => x.file === currentFile);
+        }
+
+        function playNextCall() {
+            const list = getFilteredCalls();
+            if (!list || list.length === 0) return;
+            const idx = getCurrentCallIndex();
+            if (idx === -1) {
+                const item = list[0];
+                playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+            } else if (idx + 1 < list.length) {
+                const item = list[idx + 1];
+                playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+            } else {
+                // Ro'yxat oxiriga yetganda, boshidan boshlash
+                const item = list[0];
+                playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+            }
+        }
+
+        function playPreviousCall() {
+            const list = getFilteredCalls();
+            if (!list || list.length === 0) return;
+            const idx = getCurrentCallIndex();
+            if (idx > 0) {
+                const item = list[idx - 1];
+                playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+            } else if (idx === 0) {
+                if (audio.currentTime > 3) {
+                    audio.currentTime = 0;
+                } else {
+                    const item = list[list.length - 1];
+                    playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+                }
+            } else {
+                const item = list[0];
+                playCall(item.file, item.caller_id, item.calldate, item.duration, (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0, item.speaker);
+            }
+        }
+
+        function togglePlayPause() {
+            if (!currentFile) {
+                // If nothing loaded yet, play first visible item
+                const visibleList = getFilteredCalls();
+                if (visibleList.length > 0) {
+                    const first = visibleList[0];
+                    playCall(first.file, first.caller_id, first.calldate, first.duration, (first.top_segments && first.top_segments[0]) ? first.top_segments[0].start : 0, first.speaker);
+                }
+                return;
+            }
+
+            if (audio.paused) {
+                audio.play().then(() => {
+                    updatePlayerPlayState(true);
+                }).catch(e => console.warn('Play error:', e));
+            } else {
+                audio.pause();
+                updatePlayerPlayState(false);
+            }
+        }
+
+        function stopAudio() {
+            if (!audio) return;
+            audio.pause();
+            audio.currentTime = 0;
+            updatePlayerPlayState(false);
+            document.getElementById('lblCurrentTime').innerText = '00:00';
+            document.getElementById('timelineSlider').value = 0;
+            updateSliderTrack(0);
+            updatePlayerTrackSpeaker(null);
+        }
+
+        function skipAudio(seconds) {
+            if (!audio || !currentFile) return;
+            const target = Math.max(0, Math.min(audio.duration || currentDurationSec || 99999, audio.currentTime + seconds));
+            audio.currentTime = target;
+        }
+
+        function jumpToZuhraSegment() {
+            if (!audio || !currentZuhraStartSec) return;
+            audio.currentTime = currentZuhraStartSec;
+            if (audio.paused) {
+                audio.play().then(() => updatePlayerPlayState(true));
+            }
+        }
+
+        function updateSliderTrack(pct) {
+            const slider = document.getElementById('timelineSlider');
+            slider.style.background = `linear-gradient(to right, #ec4899 0%, #ec4899 ${pct}%, #334155 ${pct}%, #334155 100%)`;
+        }
+
+        function onScrubberInput(val) {
+            isScrubbing = true;
+            const dur = audio.duration || currentDurationSec || 1;
+            const targetTime = (val / 100) * dur;
+            document.getElementById('lblCurrentTime').innerText = formatDuration(targetTime);
+            updateSliderTrack(val);
+        }
+
+        function onScrubberChange(val) {
+            const dur = audio.duration || currentDurationSec || 1;
+            const targetTime = (val / 100) * dur;
+            audio.currentTime = targetTime;
+            isScrubbing = false;
+        }
+
+        function setSpeed(spd, btn) {
+            currentSpeed = spd;
+            if (audio) audio.playbackRate = spd;
+            document.querySelectorAll('.speed-pill-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+        }
+
+        function setVolume(val) {
+            if (!audio) return;
+            audio.volume = val / 100;
+            audio.muted = false;
+            updateVolIcon(false);
+        }
+
+        function toggleMute() {
+            if (!audio) return;
+            audio.muted = !audio.muted;
+            updateVolIcon(audio.muted);
+        }
+
+        function updateVolIcon(muted) {
+            document.getElementById('volIconNormal').style.display = muted ? 'none' : 'inline-block';
+            document.getElementById('volIconMuted').style.display = muted ? 'inline-block' : 'none';
+        }
+
+        function updatePlayerPlayState(isPlaying) {
+            const playerCard = document.getElementById('audioPlayerCard');
+            const statusBadge = document.getElementById('playerStatusBadge');
+            const iconPlay = document.getElementById('iconMainPlay');
+            const iconPause = document.getElementById('iconMainPause');
+
+            if (isPlaying) {
+                playerCard.classList.add('active-playing');
+                statusBadge.classList.add('playing');
+                statusBadge.innerText = 'IJRO ETILMOQDA';
+                iconPlay.style.display = 'none';
+                iconPause.style.display = 'block';
+            } else {
+                playerCard.classList.remove('active-playing');
+                statusBadge.classList.remove('playing');
+                statusBadge.innerText = currentFile ? 'TO\'XTATILDI' : 'KUTILMOQDA';
+                iconPlay.style.display = 'block';
+                iconPause.style.display = 'none';
+            }
+
+            renderCallsTable();
+        }
+
+        // Native Audio Event Listeners
+        audio.ontimeupdate = () => {
+            if (isScrubbing) return;
+            const current = audio.currentTime;
+            const dur = (audio.duration && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : currentDurationSec;
+
+            document.getElementById('lblCurrentTime').innerText = formatDuration(current);
+            if (dur > 0) {
+                const pct = Math.min(100, (current / dur) * 100);
+                document.getElementById('timelineSlider').value = pct;
+                updateSliderTrack(pct);
+            }
+        };
+
+        audio.onloadedmetadata = () => {
+            if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+                currentDurationSec = audio.duration;
+                document.getElementById('lblTotalTime').innerText = formatDuration(audio.duration);
+            }
+        };
+
+        audio.onended = () => {
+            updatePlayerPlayState(false);
+            // Avtomatik keyingi suhbatga o'tish (Mobile uchun qulay playlist tajribasi)
+            playNextCall();
+        };
+
+        audio.onerror = () => {
+            console.error('Audio stream xatosi');
+            updatePlayerPlayState(false);
+            const statusBadge = document.getElementById('playerStatusBadge');
+            statusBadge.innerText = 'XATOLIK';
+        };
+
+        // Keyboard shortcuts: Spacebar (Play/Pause), Left/Right (-10s / +10s), N/P (Next/Prev)
+        window.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlayPause();
+            } else if (e.code === 'ArrowLeft') {
+                e.preventDefault();
+                skipAudio(-10);
+            } else if (e.code === 'ArrowRight') {
+                e.preventDefault();
+                skipAudio(10);
+            } else if (e.code === 'KeyN') {
+                e.preventDefault();
+                playNextCall();
+            } else if (e.code === 'KeyP') {
+                e.preventDefault();
+                playPreviousCall();
+            }
+        });
+
+        // Fetch Status & Metrics
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/voice-scan-status?t=' + Date.now());
+                const data = await res.json();
+
+                // Update Circular Progress
+                const percentNum = parseFloat(data.percent) || 0;
+                const circFill = document.getElementById('circularProgressFill');
+                if (circFill) {
+                    const circumference = 351.86;
+                    const offset = circumference * (1 - (Math.min(100, Math.max(0, percentNum)) / 100));
+                    circFill.style.strokeDashoffset = offset;
+                }
+                const pctText = document.getElementById('progressPercentText');
+                if (pctText) pctText.innerText = Math.round(percentNum) + '%';
+                const subText = document.getElementById('progressSubText');
+                if (subText) subText.innerText = `${data.scannedCount} / ${data.totalTarget} ta qo'ng'iroq ko'rib chiqildi`;
+
+                // Update Metrics
+                document.getElementById('metricTotal').innerText = data.totalTarget || 573;
+                document.getElementById('metricScanned').innerText = data.scannedCount || 0;
+                document.getElementById('metricRemaining').innerText = data.remainingCount || 0;
+                document.getElementById('metricZuhra').innerText = data.zuhraCount || 0;
+                document.getElementById('metricMuattar').innerText = data.muattarCount || 0;
+
+                const cardTuning = document.getElementById('metricCardTuning');
+                const valNewlyFound = document.getElementById('metricNewlyFound');
+                if (cardTuning && valNewlyFound) {
+                    if (data.isRescan || (data.newlyFoundZuhraCount && data.newlyFoundZuhraCount > 0)) {
+                        cardTuning.style.display = 'block';
+                        valNewlyFound.innerText = '+' + (data.newlyFoundZuhraCount || 0);
+                    } else {
+                        cardTuning.style.display = 'none';
+                    }
+                }
+
+                // Update ETA & Speed
+                if (data.remainingCount === 0) {
+                    document.getElementById('lblEtaTime').innerText = 'Skan to\'liq yakunlandi';
+                    document.getElementById('lblSpeed').innerText = '100% bajarildi';
+                } else if (data.etaMinutes) {
+                    const etaTxt = data.etaMinutes > 60 
+                        ? `~${Math.floor(data.etaMinutes / 60)} soat ${data.etaMinutes % 60} daqiqa`
+                        : `~${data.etaMinutes} daqiqa`;
+                    const endTxt = data.estimatedEndTime ? ` (taxminan soat ${data.estimatedEndTime} da)` : '';
+                    document.getElementById('lblEtaTime').innerText = `${etaTxt}${endTxt}`;
+                    document.getElementById('lblSpeed').innerText = `~${data.speedPerMin || 20} ta / daq`;
+                } else {
+                    document.getElementById('lblEtaTime').innerText = 'Hisoblanmoqda (~20-25 daqiqa)...';
+                    document.getElementById('lblSpeed').innerText = `~${data.speedPerMin || 20} ta / daq`;
+                }
+
+                // Update 2-Progress Bar (Current Audio Task)
+                if (data.remainingCount === 0) {
+                    document.getElementById('currentAudioTitle').innerText = '2. Barcha suhbatlar to\'liq tahlil qilindi!';
+                    document.getElementById('currentAudioPercentText').innerText = '100%';
+                    document.getElementById('currentAudioBarFill').style.width = '100%';
+                    document.getElementById('currentAudioStage').innerText = 'Bosqich: Yakunlandi';
+                    document.getElementById('currentAudioDurMeta').innerText = 'Tamomlandi';
+                } else if (data.currentTask) {
+                    const ct = data.currentTask;
+                    const callerStr = ct.caller_id ? ct.caller_id : 'Noma\'lum';
+                    const idxStr = ct.currentIndex ? ` [${ct.currentIndex}/${ct.totalCandidates || data.totalTarget}]` : '';
+                    document.getElementById('currentAudioTitle').innerText = `2. Ayni paytda: ${callerStr}${idxStr}`;
+                    const stagePct = ct.stagePercent || 50;
+                    document.getElementById('currentAudioPercentText').innerText = `${stagePct}%`;
+                    document.getElementById('currentAudioBarFill').style.width = `${stagePct}%`;
+                    document.getElementById('currentAudioStage').innerText = `Bosqich: ${ct.stage || 'Tahlil qilinmoqda...'}`;
+                    document.getElementById('currentAudioDurMeta').innerText = `${ct.calldate || ''} (${ct.duration || ''})`;
+                } else {
+                    document.getElementById('currentAudioTitle').innerText = '2. Ayni paytda: Tahlil davom etmoqda...';
+                    document.getElementById('currentAudioPercentText').innerText = '50%';
+                    document.getElementById('currentAudioBarFill').style.width = '50%';
+                }
+
+                // Update Last Scanned
+                if (data.lastScanned) {
+                    document.getElementById('currentCaller').innerText = data.lastScanned.caller_id || 'Noma\'lum';
+                    document.getElementById('currentTime').innerText = data.lastScanned.calldate || '';
+                    const isZ = data.lastScanned.speaker === 'Zuhra opa' || data.lastScanned.speaker === 'zuhra';
+                    const isNew = Boolean(data.lastScanned.isNewlyFound);
+                    document.getElementById('currentResultBadge').innerHTML = `
+                        <span class="badge" style="background: ${isNew ? 'rgba(16, 185, 129, 0.25)' : (isZ ? 'rgba(236, 72, 153, 0.2)' : 'rgba(59, 130, 246, 0.2)')}; color: ${isNew ? '#34d399' : (isZ ? '#f472b6' : '#60a5fa')}; padding: 4px 10px; border-radius: 6px; font-weight: 600; border: ${isNew ? '1px solid rgba(16, 185, 129, 0.4)' : 'none'};">
+                            ${isNew ? '🎯 Yangi Zuhra opa (Tuning)!' : data.lastScanned.speaker}
+                        </span>
+                    `;
+                }
+
+                if (data.remainingCount === 0) {
+                    document.getElementById('livePulseTag').innerHTML = `
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; display: inline-block;"></span>
+                        <span>SKAN YAKUNLANDI</span>
+                    `;
+                }
+            } catch (e) {
+                console.error('Status fetch error:', e);
+            }
+        }
+
+        function getFilteredCalls() {
+            if (activeSpeakerFilter === 'zuhra') {
+                return allVoiceCalls.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa');
+            } else if (activeSpeakerFilter === 'muattar') {
+                return allVoiceCalls.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa');
+            }
+            return allVoiceCalls;
+        }
+
+        // Render Trace Row (Podskazka chizig'i)
+        function renderTraceRowHtml(trace) {
+            const isToMuattar = (trace.targetSpeaker === 'muattar');
+            return `
+                <tr class="trace-podskazka-row">
+                    <td colspan="6">
+                        <div class="trace-podskazka-bar ${isToMuattar ? 'to-muattar' : ''}">
+                            <div class="trace-podskazka-left">
+                                <span class="trace-arrow-badge">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 4v16m0 0l-5-5m5 5l5-5"/>
+                                    </svg>
+                                </span>
+                                <span>IZ (PODSKAZKA): <strong>${trace.transferredCaller || ''}</strong> &rarr; ${trace.targetLabel || ''}ga o'tkazildi &bull; Pastga qarab davom eting &darr;</span>
+                            </div>
+                            <div class="trace-podskazka-right">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19.92 8.91L13.4 15.43C12.63 16.2 11.37 16.2 10.6 15.43L4.08 8.91"/>
+                                </svg>
+                                <span>KEYINGISI PASTDA</span>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function selectCallWithoutPlay(item) {
+            if (!item) return;
+            currentFile = item.file;
+            currentDurationSec = item.duration || 0;
+            currentZuhraStartSec = (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0;
+
+            const streamUrl = `/api/recordings/stream?file=${encodeURIComponent(item.file)}`;
+            audio.src = streamUrl;
+            audio.playbackRate = currentSpeed;
+            audio.currentTime = 0;
+
+            const isZuhra = (item.speaker === 'zuhra' || item.speaker === 'Zuhra opa');
+            document.getElementById('playerCallerText').innerText = item.caller_id || 'Noma\'lum';
+            document.getElementById('playerTrackMeta').innerHTML = `
+                <span>${item.calldate || ''}</span>
+                <span>&bull;</span>
+                <span style="color: ${isZuhra ? '#f472b6' : '#60a5fa'}; font-weight: 600;">${isZuhra ? 'Zuhra opa' : 'Muattar'}</span>
+                <span>&bull;</span>
+                <span style="color: #38bdf8; font-weight: 600;">${formatDuration(item.duration)}</span>
+            `;
+
+            updatePlayerTrackSpeaker(item.speaker);
+
+            const jumpWrap = document.getElementById('playerSegmentJumpWrap');
+            if (isZuhra && currentZuhraStartSec > 0) {
+                jumpWrap.style.display = 'block';
+                document.getElementById('btnJumpZuhraText').innerText = `Zuhra gapirgan joyga o'tish (${formatDuration(currentZuhraStartSec)})`;
+            } else {
+                jumpWrap.style.display = 'none';
+            }
+
+            document.getElementById('lblCurrentTime').innerText = '00:00';
+            document.getElementById('lblTotalTime').innerText = formatDuration(item.duration);
+            document.getElementById('timelineSlider').value = 0;
+            updateSliderTrack(0);
+            updatePlayerPlayState(false);
+        }
+
+        // Render Table without interrupting audio
+        function renderCallsTable() {
+            const tbody = document.getElementById('zuhraTableBody');
+            const visibleList = getFilteredCalls();
+
+            if (!visibleList || visibleList.length === 0) {
+                const emptyText = activeSpeakerFilter === 'zuhra'
+                    ? 'Hozircha Zuhra opa qo\'ng\'iroqlari topilmadi'
+                    : (activeSpeakerFilter === 'muattar' ? 'Hozircha Muattar qo\'ng\'iroqlari yo\'q' : 'Qo\'ng\'iroqlar mavjud emas');
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 25px;">${emptyText}</td></tr>`;
+                return;
+            }
+
+            const isAudioPlaying = !audio.paused;
+            let rowsHtml = '';
+            let traceRendered = false;
+
+            // Agar o'tkazilgan suhbat eng birinchi qatordan ketgan bo'lsa, chiziqni boshida chiqaramiz
+            if (lastTransferredTrace && lastTransferredTrace.nextFile && visibleList[0].file === lastTransferredTrace.nextFile) {
+                rowsHtml += renderTraceRowHtml(lastTransferredTrace);
+                traceRendered = true;
+            }
+
+            visibleList.forEach((item, index) => {
+                const durSec = item.duration || 0;
+                const durStr = formatDuration(durSec);
+                const isThisPlaying = (currentFile === item.file);
+                const isZuhra = (item.speaker === 'zuhra' || item.speaker === 'Zuhra opa');
+                const zuhraStart = (item.top_segments && item.top_segments[0]) ? item.top_segments[0].start : 0;
+
+                const escapedFile = item.file.replace(/'/g, "\\'");
+                const escapedCaller = (item.caller_id || '').replace(/'/g, "\\'");
+                const escapedDate = (item.calldate || '').replace(/'/g, "\\'");
+                const speakerLabel = isZuhra ? 'Zuhra opa' : 'Muattar';
+
+                // Ushbu qator o'tkazilgan suhbatning to'g'ridan-to'g'ri tepasidagi qator bo'lsa (tagiga chiziq tortish uchun)
+                const isAnchorAboveTrace = (lastTransferredTrace && lastTransferredTrace.prevFile === item.file);
+
+                rowsHtml += `
+                    <tr class="${isThisPlaying ? 'table-row-active' : ''} ${isAnchorAboveTrace ? ('row-trace-anchor ' + (lastTransferredTrace.targetSpeaker === 'muattar' ? 'to-muattar' : '')) : ''}">
+                        <td style="font-family: 'JetBrains Mono', monospace;">${item.calldate}</td>
+                        <td style="font-weight: 600; color: #f8fafc; font-family: 'JetBrains Mono', monospace;">${item.caller_id}</td>
+                        <td>
+                            <button type="button" class="btn-speaker-toggle ${isZuhra ? 'badge-speaker-zuhra' : 'badge-speaker-muattar'}" 
+                                title="Bosilsa ${isZuhra ? 'Muattarga' : 'Zuhra opaga'} o'zgartiriladi"
+                                onclick="toggleRowSpeaker('${escapedFile}', '${item.speaker}', event)">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                                </svg>
+                                <span>${speakerLabel}</span>
+                            </button>
+                        </td>
+                        <td style="color: #38bdf8; font-weight: 600; font-family: 'JetBrains Mono', monospace;">${durStr}</td>
+                        <td><span class="badge-conf" style="${isZuhra ? '' : 'color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.15);'}">${item.confidence || Math.round((item.score||0)*100)}%</span></td>
+                        <td>
+                            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                                <button type="button" class="btn-row-play ${isThisPlaying && isAudioPlaying ? 'active-playing' : ''}" 
+                                    onclick="playCall('${escapedFile}', '${escapedCaller}', '${escapedDate}', ${durSec}, ${zuhraStart}, '${item.speaker}')">
+                                    ${isThisPlaying && isAudioPlaying ? `
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                                        </svg>
+                                        <span>Pauza</span>
+                                        <span class="sound-wave-bars">
+                                            <span></span><span></span><span></span><span></span>
+                                        </span>
+                                    ` : isThisPlaying ? `
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polygon points="5 3 19 12 5 21 5 3"/>
+                                        </svg>
+                                        <span>Davom etish</span>
+                                    ` : `
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polygon points="5 3 19 12 5 21 5 3"/>
+                                        </svg>
+                                        <span>Tinglash</span>
+                                    `}
+                                </button>
+                                <button type="button" class="btn-row-switch ${isZuhra ? 'to-muattar' : 'to-zuhra'}"
+                                    title="${isZuhra ? 'Muattarga o\'tkazish' : 'Zuhra opaga o\'tkazish'}"
+                                    onclick="toggleRowSpeaker('${escapedFile}', '${item.speaker}', event)">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                                    </svg>
+                                    <span>${isZuhra ? 'Muattarga' : 'Zuhra opaga'}</span>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                // Iz chizig'ini aynan shu qatordan keyin joylashtirish
+                if (!traceRendered && lastTransferredTrace) {
+                    if (lastTransferredTrace.prevFile === item.file || 
+                        (lastTransferredTrace.nextFile && index + 1 < visibleList.length && visibleList[index + 1].file === lastTransferredTrace.nextFile)) {
+                        rowsHtml += renderTraceRowHtml(lastTransferredTrace);
+                        traceRendered = true;
+                    }
+                }
+            });
+
+            // Agar ro'yxat oxiridagi element o'tkazilgan bo'lsa, chiziqni oxiriga qo'yamiz
+            if (!traceRendered && lastTransferredTrace) {
+                rowsHtml += renderTraceRowHtml(lastTransferredTrace);
+            }
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        // Update player track speaker badge & switch button
+        function updatePlayerTrackSpeaker(speaker) {
+            const wrap = document.getElementById('playerSpeakerActionWrap');
+            const btn = document.getElementById('btnSwitchSpeaker');
+            const text = document.getElementById('btnSwitchSpeakerText');
+            if (!wrap || !btn || !text) return;
+
+            if (currentFile && speaker) {
+                wrap.style.display = 'block';
+                const isZuhra = (speaker === 'zuhra' || speaker === 'Zuhra opa');
+                if (isZuhra) {
+                    btn.className = 'btn-switch-speaker to-muattar';
+                    text.innerText = 'Muattarga o\'tkazish';
+                    btn.setAttribute('title', 'Ushbu suhbatni Muattarga o\'tkazish');
+                } else {
+                    btn.className = 'btn-switch-speaker to-zuhra';
+                    text.innerText = 'Zuhra opaga o\'tkazish';
+                    btn.setAttribute('title', 'Ushbu suhbatni Zuhra opaga o\'tkazish');
+                }
+            } else {
+                wrap.style.display = 'none';
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            const msgEl = document.getElementById('toastMessage');
+            if (!toast || !msgEl) return;
+            msgEl.innerText = msg;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2800);
+        }
+
+        function updateTabCounts() {
+            const zuhraCount = allVoiceCalls.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa').length;
+            const muattarCount = allVoiceCalls.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa').length;
+            document.getElementById('tabCountZuhra').innerText = zuhraCount;
+            document.getElementById('tabCountMuattar').innerText = muattarCount;
+            document.getElementById('tabCountAll').innerText = allVoiceCalls.length;
+            document.getElementById('metricZuhra').innerText = zuhraCount;
+            document.getElementById('metricMuattar').innerText = muattarCount;
+        }
+
+        // API Call: Switch call speaker
+        async function switchCallSpeaker(file, targetSpeaker) {
+            try {
+                // O'tkazishdan oldin ayni paytdagi ro'yxat va qo'shni qatorlarni aniqlab olamiz
+                const visibleBefore = getFilteredCalls();
+                const currentIdx = visibleBefore.findIndex(x => x.file === file || (x.file && x.file.endsWith(file)));
+                let nextItemToFocus = null;
+                let prevItemBefore = null;
+
+                if (currentIdx !== -1) {
+                    prevItemBefore = currentIdx > 0 ? visibleBefore[currentIdx - 1] : null;
+                    nextItemToFocus = (currentIdx + 1 < visibleBefore.length) ? visibleBefore[currentIdx + 1] : null;
+                }
+
+                const res = await fetch('/api/voice-identification/switch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file, newSpeaker: targetSpeaker })
+                });
+                const result = await res.json();
+                if (!result.success) {
+                    alert('Xatolik: ' + (result.message || 'O\'zgartirib bo\'lmadi'));
+                    return false;
+                }
+
+                // Update in local array
+                const item = allVoiceCalls.find(x => x.file === file || (x.file && x.file.endsWith(file)));
+                if (item) {
+                    item.speaker = result.speaker;
+                    item.speaker_name = result.speaker_name;
+                }
+
+                const targetLabel = (targetSpeaker === 'zuhra' || targetSpeaker === 'Zuhra opa') ? 'Zuhra opa' : 'Muattar';
+                const transferredCallerId = item ? item.caller_id : 'Noma\'lum';
+
+                // IZ QOLDIRISH: O'tkazilgan qator o'rnida podskazka chizig'ini o'rnatamiz
+                lastTransferredTrace = {
+                    transferredFile: file,
+                    transferredCaller: transferredCallerId,
+                    targetSpeaker: targetSpeaker,
+                    targetLabel: targetLabel,
+                    prevFile: prevItemBefore ? prevItemBefore.file : null,
+                    nextFile: nextItemToFocus ? nextItemToFocus.file : null
+                };
+
+                // AGAR O'TKAZILGAN SUHBAT AYNI PAYTDA PLEYERDA TINGLANAYOTGAN BO'LSA:
+                // Fokus yo'qolib ketmasligi uchun, darhol keyingi qatorga fokusni ko'chiramiz!
+                if (currentFile === file) {
+                    if (nextItemToFocus) {
+                        const wasPlaying = !audio.paused;
+                        if (wasPlaying) {
+                            // Agar audio ijro bo'layotgan bo'lsa, keyingi suhbatni darhol avtomatik chalib beramiz!
+                            // Shunda qizil/pushti rangli fokus chizig'i pastdagi yangi qatorda bir zumda paydo bo'ladi.
+                            playCall(
+                                nextItemToFocus.file,
+                                nextItemToFocus.caller_id,
+                                nextItemToFocus.calldate,
+                                nextItemToFocus.duration,
+                                (nextItemToFocus.top_segments && nextItemToFocus.top_segments[0]) ? nextItemToFocus.top_segments[0].start : 0,
+                                nextItemToFocus.speaker
+                            );
+                        } else {
+                            // Agar pauzada bo'lsa, audio boshlamay turib, fokusni keyingi qatorda ko'rsatamiz
+                            selectCallWithoutPlay(nextItemToFocus);
+                        }
+                    } else {
+                        stopAudio();
+                    }
+                }
+
+                updateTabCounts();
+                renderCallsTable();
+
+                showToast(`Muvaffaqiyatli: ${transferredCallerId} ${targetLabel}ga o'tkazildi!`);
+                return true;
+            } catch (err) {
+                console.error('Switch speaker error:', err);
+                alert('Server bilan bog\'lanishda xatolik yuz berdi');
+                return false;
+            }
+        }
+
+        function toggleRowSpeaker(file, currentSpeaker, event) {
+            if (event) event.stopPropagation();
+            const isZuhra = (currentSpeaker === 'zuhra' || currentSpeaker === 'Zuhra opa');
+            const targetSpeaker = isZuhra ? 'muattar' : 'zuhra';
+            switchCallSpeaker(file, targetSpeaker);
+        }
+
+        function switchCurrentCallSpeaker() {
+            if (!currentFile) return;
+            const item = allVoiceCalls.find(x => x.file === currentFile || (x.file && x.file.endsWith(currentFile)));
+            const currentSpeaker = item ? item.speaker : 'muattar';
+            const isZuhra = (currentSpeaker === 'zuhra' || currentSpeaker === 'Zuhra opa');
+            const targetSpeaker = isZuhra ? 'muattar' : 'zuhra';
+            switchCallSpeaker(currentFile, targetSpeaker);
+        }
+
+        async function fetchVoiceCallsList() {
+            try {
+                const res = await fetch('/api/voice-identifications?t=' + Date.now());
+                const list = await res.json();
+
+                // 17-avgustdan 19-sentabrgacha filter
+                const START_DATE = '2026-08-17 00:00:00';
+                const END_DATE = '2026-09-19 23:59:59';
+                const inRangeList = list.filter(item => {
+                    const d = item.calldate || '';
+                    return d >= START_DATE && d <= END_DATE;
+                });
+
+                // Sort newest date first
+                inRangeList.sort((a, b) => new Date(b.calldate || 0) - new Date(a.calldate || 0));
+                allVoiceCalls = inRangeList;
+
+                updateTabCounts();
+                renderCallsTable();
+            } catch (e) {
+                console.error('Voice calls list fetch error:', e);
+            }
+        }
+
+        // ========================================================
+        // CANDIDATE VOICE SAMPLES REVIEW LOGIC (AI ENSEMBLE TRAINING)
+        // ========================================================
+        let candidateSamples = [];
+        let activeSampleAudio = null;
+        let activeSampleId = null;
+
+        async function fetchCandidateSamples() {
+            try {
+                const res = await fetch('/api/voice-samples?t=' + Date.now());
+                const data = await res.json();
+                if (data.success && Array.isArray(data.samples)) {
+                    candidateSamples = data.samples;
+                    renderCandidateSamples(data.samples, data.stats);
+                }
+            } catch (err) {
+                console.error('Fetch candidate samples error:', err);
+            }
+        }
+
+        function renderCandidateSamples(samples, stats) {
+            const container = document.getElementById('samplesGridContainer');
+            if (!container) return;
+
+            if (stats) {
+                const approvedEl = document.getElementById('txtApprovedCount');
+                const deniedEl = document.getElementById('txtDeniedCount');
+                const pendingEl = document.getElementById('txtPendingCount');
+                const statPendingPill = document.getElementById('statPendingPill');
+                if (approvedEl) approvedEl.textContent = stats.approved || 0;
+                if (deniedEl) deniedEl.textContent = stats.denied || 0;
+                if (pendingEl) pendingEl.textContent = stats.pending || 0;
+                if (statPendingPill) {
+                    statPendingPill.style.display = (stats.pending > 0) ? 'inline-flex' : 'none';
+                }
+
+                const btnTrain = document.getElementById('btnApplyEnsemble');
+                if (btnTrain) {
+                    btnTrain.disabled = (stats.approved === 0);
+                }
+            }
+
+            // Update toggle button count
+            const cardEl = document.getElementById('samplesApprovalSection');
+            if (cardEl) {
+                updateSamplesToggleBtn(cardEl.classList.contains('collapsed'));
+            }
+
+            if (!samples || samples.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 24px; color: #94a3b8;">Hozircha namunalar mavjud emas.</div>';
+                return;
+            }
+
+            container.innerHTML = samples.map((s, idx) => {
+                const isApproved = s.status === 'approved';
+                const isDenied = s.status === 'denied';
+                const isPending = !isApproved && !isDenied;
+
+                let cardClass = 'sample-card';
+                if (isApproved) cardClass += ' is-approved';
+                if (isDenied) cardClass += ' is-denied';
+
+                let statusBadgeHtml = '';
+                if (isApproved) {
+                    statusBadgeHtml = `<span class="sample-status-badge approved">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                        Zuhra opa ovozi
+                    </span>`;
+                } else if (isDenied) {
+                    statusBadgeHtml = `<span class="sample-status-badge denied">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                        Rad etilgan
+                    </span>`;
+                } else {
+                    statusBadgeHtml = `<span class="sample-status-badge pending">Kutilmoqda</span>`;
+                }
+
+                const isCurrentPlaying = (activeSampleId === s.id);
+                const playIconHtml = isCurrentPlaying ? `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.65 19.11V4.89C10.65 3.54 10.08 3 8.64 3H5.01C3.57 3 3 3.54 3 4.89V19.11C3 20.46 3.57 21 5.01 21H8.64C10.08 21 10.65 20.46 10.65 19.11Z"/>
+                        <path d="M21.0001 19.11V4.89C21.0001 3.54 20.4301 3 18.9901 3H15.3601C13.9301 3 13.3501 3.54 13.3501 4.89V19.11C13.3501 20.46 13.9201 21 15.3601 21H18.9901C20.4301 21 21.0001 20.46 21.0001 19.11Z"/>
+                    </svg>
+                ` : `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 12V6.67C4 3.58 6.18 2.32 8.86 3.87L13.48 6.54L18.1 9.21C20.78 10.76 20.78 13.29 18.1 14.84L13.48 17.51L8.86 20.18C6.18 21.73 4 20.47 4 17.38V12Z"/>
+                    </svg>
+                `;
+
+                return `
+                <div class="${cardClass}" id="card_${s.id}">
+                    <div class="sample-card-header">
+                        <div class="sample-meta-left">
+                            <span class="sample-badge-num">#${idx + 1}</span>
+                            <div>
+                                <div class="sample-caller-title">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.43 8.51 17.46 7.47 16.37C6.44 15.27 5.48 14.12 4.61 12.92C3.75 11.72 3.08 10.53 2.6 9.35C2.12 8.16 1.88 7.03 1.88 5.96C1.88 5.25 2.01 4.58 2.27 3.96C2.53 3.34 2.92 2.78 3.45 2.28C4.09 1.65 4.8 1.33 5.57 1.33C5.9 1.33 6.22 1.4 6.51 1.54C6.81 1.68 7.07 1.89 7.28 2.18L9.56 5.41C9.76 5.69 9.9 5.95 9.99 6.18C10.08 6.41 10.12 6.63 10.12 6.84C10.12 7.1 10.04 7.37 9.89 7.63C9.74 7.89 9.53 8.16 9.25 8.44L8.47 9.25C8.36 9.36 8.3 9.49 8.3 9.65C8.3 9.75 8.32 9.85 8.36 9.96C8.41 10.07 8.47 10.19 8.54 10.32C8.8 10.8 9.17 11.36 9.64 12C10.12 12.63 10.65 13.25 11.23 13.85C11.85 14.45 12.48 15.01 13.13 15.51C13.78 16.01 14.35 16.39 14.85 16.67C14.98 16.74 15.09 16.8 15.2 16.84C15.31 16.88 15.42 16.9 15.53 16.9C15.7 16.9 15.84 16.83 15.96 16.71L16.72 15.91C17.02 15.61 17.3 15.39 17.57 15.24C17.84 15.08 18.11 15 18.39 15C18.6 15 18.82 15.05 19.06 15.14C19.3 15.23 19.56 15.38 19.85 15.58L23.09 17.9C23.38 18.12 23.59 18.38 23.72 18.68C23.85 18.97 23.92 19.28 23.92 19.6C23.92 19.78 23.91 19.96 23.88 20.14C23.85 20.32 23.79 20.5 23.72 20.67L21.97 18.33Z"/></svg>
+                                    ${s.caller_id}
+                                </div>
+                                <div class="sample-time-info">${s.time_range} • ${s.description || 'Namuna'}</div>
+                            </div>
+                        </div>
+                        <div id="statusBadge_${s.id}">
+                            ${statusBadgeHtml}
+                        </div>
+                    </div>
+
+                    <!-- MINI AUDIO PLAYER -->
+                    <div class="sample-player-row">
+                        <button type="button" class="btn-sample-play ${isCurrentPlaying ? 'is-playing' : ''}" id="btnPlay_${s.id}" onclick="toggleSamplePlay('${s.id}', '${s.audio_url}')" title="Parchani tinglash">
+                            ${playIconHtml}
+                        </button>
+                        <div class="sample-track-timeline">
+                            <div class="sample-progress-bar" id="progressBar_${s.id}" onclick="seekSampleAudio(event, '${s.id}')">
+                                <div class="sample-progress-fill" id="progressFill_${s.id}"></div>
+                            </div>
+                            <div class="sample-time-labels">
+                                <span id="timeCurrent_${s.id}">00:00</span>
+                                <span id="timeDuration_${s.id}">00:03</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ACTIONS -->
+                    <div class="sample-actions-row">
+                        <button type="button" class="btn-decision approve ${isApproved ? 'active' : ''}" onclick="reviewSampleAction('${s.id}', 'approved')" title="Bu rostan ham Zuhra opaning sof ovozi">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                            <span>Zuhra opa ovozi</span>
+                        </button>
+                        <button type="button" class="btn-decision deny ${isDenied ? 'active' : ''}" onclick="reviewSampleAction('${s.id}', 'denied')" title="Mijoz yoki begona ovoz aralashgan / noto'g'ri">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                            <span>Rad etish</span>
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleSamplePlay(sampleId, audioUrl) {
+            // If already playing this sample, pause it
+            if (activeSampleId === sampleId && activeSampleAudio && !activeSampleAudio.paused) {
+                activeSampleAudio.pause();
+                updateSamplePlayButton(sampleId, false);
+                return;
+            }
+
+            // Stop any main table call player if playing
+            if (audio && !audio.paused) {
+                audio.pause();
+                updatePlayPauseIcons(false);
+            }
+
+            // Stop previous sample player if any
+            if (activeSampleAudio) {
+                activeSampleAudio.pause();
+                if (activeSampleId) updateSamplePlayButton(activeSampleId, false);
+            }
+
+            activeSampleId = sampleId;
+            activeSampleAudio = new Audio(audioUrl);
+            updateSamplePlayButton(sampleId, true);
+
+            activeSampleAudio.ontimeupdate = () => {
+                if (!activeSampleAudio) return;
+                const cur = activeSampleAudio.currentTime;
+                const dur = activeSampleAudio.duration || 3.0;
+                const pct = dur > 0 ? (cur / dur) * 100 : 0;
+                const fillEl = document.getElementById(`progressFill_${sampleId}`);
+                const curTimeEl = document.getElementById(`timeCurrent_${sampleId}`);
+                if (fillEl) fillEl.style.width = `${pct}%`;
+                if (curTimeEl) {
+                    const m = Math.floor(cur / 60);
+                    const s = Math.floor(cur % 60);
+                    curTimeEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                }
+            };
+
+            activeSampleAudio.onended = () => {
+                updateSamplePlayButton(sampleId, false);
+                const fillEl = document.getElementById(`progressFill_${sampleId}`);
+                if (fillEl) fillEl.style.width = '0%';
+                const curTimeEl = document.getElementById(`timeCurrent_${sampleId}`);
+                if (curTimeEl) curTimeEl.textContent = '00:00';
+            };
+
+            activeSampleAudio.play().catch(e => {
+                console.error('Sample audio play error:', e);
+                updateSamplePlayButton(sampleId, false);
+            });
+        }
+
+        function updateSamplePlayButton(sampleId, isPlaying) {
+            const btn = document.getElementById(`btnPlay_${sampleId}`);
+            if (!btn) return;
+            if (isPlaying) {
+                btn.classList.add('is-playing');
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.65 19.11V4.89C10.65 3.54 10.08 3 8.64 3H5.01C3.57 3 3 3.54 3 4.89V19.11C3 20.46 3.57 21 5.01 21H8.64C10.08 21 10.65 20.46 10.65 19.11Z"/>
+                        <path d="M21.0001 19.11V4.89C21.0001 3.54 20.4301 3 18.9901 3H15.3601C13.9301 3 13.3501 3.54 13.3501 4.89V19.11C13.3501 20.46 13.9201 21 15.3601 21H18.9901C20.4301 21 21.0001 20.46 21.0001 19.11Z"/>
+                    </svg>
+                `;
+            } else {
+                btn.classList.remove('is-playing');
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 12V6.67C4 3.58 6.18 2.32 8.86 3.87L13.48 6.54L18.1 9.21C20.78 10.76 20.78 13.29 18.1 14.84L13.48 17.51L8.86 20.18C6.18 21.73 4 20.47 4 17.38V12Z"/>
+                    </svg>
+                `;
+            }
+        }
+
+        function seekSampleAudio(event, sampleId) {
+            if (!activeSampleAudio || activeSampleId !== sampleId) return;
+            const bar = document.getElementById(`progressBar_${sampleId}`);
+            if (!bar) return;
+            const rect = bar.getBoundingClientRect();
+            const clickPos = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+            if (activeSampleAudio.duration) {
+                activeSampleAudio.currentTime = clickPos * activeSampleAudio.duration;
+            }
+        }
+
+        async function reviewSampleAction(sampleId, newStatus) {
+            try {
+                // If clicked same status again, toggle back to pending
+                const currentItem = candidateSamples.find(s => s.id === sampleId);
+                const targetStatus = (currentItem && currentItem.status === newStatus) ? 'pending' : newStatus;
+
+                const res = await fetch('/api/voice-samples/review', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sampleId, status: targetStatus })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const idx = candidateSamples.findIndex(s => s.id === sampleId);
+                    if (idx !== -1) {
+                        candidateSamples[idx] = data.item;
+                    }
+                    renderCandidateSamples(candidateSamples, data.stats);
+                    const msg = targetStatus === 'approved' ? 'Zuhra opa ovozi deb tasdiqlandi!' : (targetStatus === 'denied' ? 'Namuna rad etildi!' : 'Kutilmoqda holatiga qaytarildi');
+                    showToast(msg);
+                } else {
+                    alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+                }
+            } catch (err) {
+                console.error('Review sample action error:', err);
+                alert('Server bilan bog\'lanishda xatolik yuz berdi');
+            }
+        }
+
+        async function applyEnsembleTraining() {
+            const approvedCount = candidateSamples.filter(s => s.status === 'approved').length;
+            if (approvedCount === 0) {
+                alert('Hech bo\'lmaganda 1 ta namunani tasdiqlang!');
+                return;
+            }
+
+            const btn = document.getElementById('btnApplyEnsemble');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="spin">
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                    </svg>
+                    <span>Model o'qitilmoqda...</span>
+                `;
+            }
+
+            try {
+                const res = await fetch('/api/voice-samples/apply-ensemble', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Muvaffaqiyatli: ${approvedCount} ta namuna asosida AI etaloni kuchaytirildi!`);
+                    alert(`🎉 AI modeli muvaffaqiyatli yangilandi!\n\nTasdiqlangan ${approvedCount} ta sof audio namunasi asosida Zuhra opa uchun yangi kompozit akustik profil yaratildi.\n\nAI endi telefon sifatidagi va past ovozdagi suhbatlarni ham yuqori aniqlik bilan tanib oladi!`);
+                } else {
+                    alert('Modelni yangilashda xatolik: ' + (data.error || 'Noma\'lum'));
+                }
+            } catch (err) {
+                console.error('Apply ensemble error:', err);
+                alert('Server bilan bog\'lanishda xatolik yuz berdi');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/>
+                        </svg>
+                        <span>Modelni Kuchaytirish</span>
+                    `;
+                }
+                fetchCandidateSamples();
+            }
+        }
+
+        async function generateSnowballBatch() {
+            const btn = document.getElementById('btnSnowballBatch');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('loading');
+                btn.innerHTML = `
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                    </svg>
+                    <span>Namunalar olinmoqda...</span>
+                `;
+            }
+
+            try {
+                const res = await fetch('/api/voice-samples/generate-snowball', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ batchSize: 6 })
+                });
+                const data = await res.json();
+                if (data.success && data.addedCount > 0) {
+                    toggleSamplesCollapse(false);
+                    showToast(`Yangi ${data.addedCount} ta namuna tayyorlandi (To'plam #${data.batch})!`);
+                    alert(
+                        `❄️ Snowball: Yangi ${data.addedCount} ta audio namunasi muvaffaqiyatli tayyorlandi!\n\n` +
+                        `Ular siz tasdiqlagan yangi Zuhra opa qo'ng'iroqlaridan kesib olindi.\n` +
+                        `Iltimos, parchalarni tinglab, tasdiqlang yoki rad eting, so'ng "Modelni Kuchaytirish"ni bosing!`
+                    );
+                    fetchCandidateSamples();
+                } else {
+                    alert(data.message || 'Yangi namunalar topilmadi. Avval pastdagi jadvaldan suhbatlarni Zuhra opaga o\'tkazing.');
+                }
+            } catch (err) {
+                console.error('Snowball error:', err);
+                alert('Server bilan bog\'lanishda xatolik yuz berdi');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.innerHTML = `
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5V19M5 12H19"/>
+                        </svg>
+                        <span>Yangi to'plam (+Snowball)</span>
+                    `;
+                }
+            }
+        }
+
+        // ========================================================
+        // SAMPLES COLLAPSE / ACCORDION & SCAN RESTART CONTROLS
+        // ========================================================
+        function toggleSamplesCollapse(forceState = null) {
+            const section = document.getElementById('samplesApprovalSection');
+            if (!section) return;
+
+            let isCollapsed;
+            if (forceState !== null) {
+                isCollapsed = forceState;
+            } else {
+                isCollapsed = !section.classList.contains('collapsed');
+            }
+
+            if (isCollapsed) {
+                section.classList.add('collapsed');
+                try { localStorage.setItem('ai_samples_collapsed', '1'); } catch (e) {}
+            } else {
+                section.classList.remove('collapsed');
+                try { localStorage.setItem('ai_samples_collapsed', '0'); } catch (e) {}
+            }
+            updateSamplesToggleBtn(isCollapsed);
+        }
+
+        function updateSamplesToggleBtn(isCollapsed) {
+            const txt = document.getElementById('btnToggleSamplesText');
+            if (!txt) return;
+            const total = (candidateSamples && candidateSamples.length > 0) ? candidateSamples.length : 10;
+            if (isCollapsed) {
+                txt.innerHTML = `Namunalar (${total} ta) &#9662;`;
+            } else {
+                txt.innerHTML = `Yashirish &#9652;`;
+            }
+        }
+
+        async function confirmRestartScan() {
+            const ok = confirm(
+                "Diqqat: Barcha 119 suhbatlarini yangi kuchaytirilgan Zuhra opa AI modeli (Ensemble) asosida qayta biometrik skan qilishni xohlaysizmi?\n\n" +
+                "✅ Siz qo'lda o'tkazgan (to'g'rilagan) natijalar 100% to'liq saqlanib qoladi va ularga mutlaqo tegilmaydi!\n" +
+                "⚡ Faqat avtomatik tahlil qilingan qo'ng'iroqlar yangi profil orqali yanada aniq tekshirib chiqiladi."
+            );
+            if (!ok) return;
+
+            const btn = document.getElementById('btnRestartScan');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('loading');
+                btn.innerHTML = `
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
+                        <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+                    </svg>
+                    <span>Qayta boshlanmoqda...</span>
+                `;
+            }
+
+            try {
+                const res = await fetch('/api/voice-scan/restart', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Qayta skan so\'rovi qabul qilindi! AI qayta ishga tushmoqda...');
+                    alert(
+                        "🚀 Ovozli AI Skan muvaffaqiyatli qayta boshlandi!\n\n" +
+                        "Kuchaytirilgan akustik profil bilan yangi tahlil boshlanadi. Progressni ushbu sahifada jonli kuzatishingiz mumkin."
+                    );
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    alert('Qayta skan qilishda xatolik: ' + (data.error || 'Noma\'lum xatolik'));
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('loading');
+                        btn.innerHTML = `
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                            </svg>
+                            <span>Qayta Skan Qilish</span>
+                        `;
+                    }
+                }
+            } catch (err) {
+                console.error('Restart scan error:', err);
+                alert('Server bilan bog\'lanishda xatolik yuz berdi');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                    btn.innerHTML = `
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                        </svg>
+                        <span>Qayta Skan Qilish</span>
+                    `;
+                }
+            }
+        }
+
+        // Boshlang'ich yuklashda namunalar panelini yopiq (collapsed) holatda ushlab turish
+        try {
+            const savedCollapsed = localStorage.getItem('ai_samples_collapsed');
+            const initCollapsed = (savedCollapsed === null || savedCollapsed === '1');
+            toggleSamplesCollapse(initCollapsed);
+        } catch (e) {
+            toggleSamplesCollapse(true);
+        }
+
+        fetchStatus();
+        fetchVoiceCallsList();
+        fetchCandidateSamples();
+
+        // Har 1.5 soniyada yangilab turish (jonli 2-progress bar)
+        setInterval(fetchStatus, 1500);
+        setInterval(fetchVoiceCallsList, 4000);
+    </script>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toastNotification" class="toast-notification">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/>
+            <path d="M7.75 12L10.58 14.83L16.25 9.17"/>
+        </svg>
+        <span id="toastMessage">O'zgartirildi</span>
+    </div>
+</body>
+</html>

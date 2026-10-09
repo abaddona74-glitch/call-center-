@@ -963,6 +963,7 @@ function renderOperators(operators) {
                                     <div class="op-mockup-active-talk-sub">
                                         ${hasName ? `<span class="op-client-name" title="${escapeAttr(contact.name)}" style="display: inline-flex; align-items: center; gap: 4px;">${isax('user', '', 'width: 12px; height: 12px;')} ${escapeHtml(contact.name)}</span>` : ''}
                                         ${hasOrg ? `<span class="op-client-org" style="${!hasName ? 'font-size: 11.5px; font-weight: 700; color: #f59e0b;' : ''}" title="${escapeAttr(contact.organization)}" style="display: inline-flex; align-items: center; gap: 3px;">${isax('location', '', 'width: 11px; height: 11px;')} ${escapeHtml(contact.organization)}</span>` : ''}
+                                        ${contact.language ? `<span class="op-client-lang-badge" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); text-transform: uppercase;">${isax('global', '', 'width: 10px; height: 10px;')} ${escapeHtml(contact.language)}</span>` : ''}
                                     </div>
                                 </div>
                                 `;
@@ -1207,6 +1208,12 @@ function renderDetailTableBody() {
         return;
     }
 
+    const durHeaderTitle = detailState.type === 'abandoned'
+        ? t('col_wait_only', 'KUTISH VAQTI')
+        : (detailState.type === 'answered'
+            ? t('col_talk_only', 'SUHBAT VAQTI')
+            : t('col_talk_wait', 'SUHBAT / KUTISH VAQTI'));
+
     bodyEl.innerHTML = `
         <table class="detail-table">
             <thead>
@@ -1216,7 +1223,7 @@ function renderDetailTableBody() {
                     ${sortableTh(t('col_client_phone', 'Mijoz Raqami'), 'callerId')}
                     ${sortableTh(t('col_direction', "Yo'nalish"), 'direction')}
                     ${sortableTh(t('col_operator', 'Operator'), 'operator')}
-                    ${sortableTh(t('col_talk_wait', 'Suhbat / Kutish Vaqti'), 'duration')}
+                    ${sortableTh(durHeaderTitle, 'duration')}
                     ${sortableTh(t('col_status', 'Holati'), 'status')}
                     <th>${t('col_hangup_party', 'Kim tugatdi?')}</th>
                 </tr>
@@ -1228,7 +1235,9 @@ function renderDetailTableBody() {
                     const isOut = c.direction === 'outbound';
 
                     let durText = '';
-                    if (isOut) {
+                    if (detailState.type === 'abandoned') {
+                        durText = `<span style="font-weight: 700; color: #fbbf24; font-family: monospace; font-size: 13px;">${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                    } else if (isOut) {
                         durText = isAns
                             ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
                             : `<span style="font-weight: 500; color: #f87171;">${t('wait_prefix', 'Chaqiruv:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
@@ -1245,7 +1254,7 @@ function renderDetailTableBody() {
                         } else if (c.status === 'BUSY') {
                             statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
                         } else {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_no_answer', 'Javobsiz')}</span>`;
+                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('call-slash', '', 'width: 11px; height: 11px;')} ${t('status_no_answer', 'Javobsiz')}</span>`;
                         }
                     } else {
                         if (isAns) {
@@ -1789,6 +1798,7 @@ function openAddContactModal(prefillPhone = '', event) {
     const phoneInput = document.getElementById('contactPhoneInput');
     const nameInput = document.getElementById('contactNameInput');
     const orgInput = document.getElementById('contactOrgInput');
+    const langSelect = document.getElementById('contactLangSelect');
     const notesInput = document.getElementById('contactNotesInput');
     const btnDelete = document.getElementById('btnDeleteContact');
     const statusEl = document.getElementById('contactFormStatus');
@@ -1800,6 +1810,7 @@ function openAddContactModal(prefillPhone = '', event) {
     phoneInput.readOnly = false;
     nameInput.value = '';
     orgInput.value = '';
+    if (langSelect) langSelect.value = '';
     notesInput.value = '';
     btnDelete.style.display = 'none';
     statusEl.style.display = 'none';
@@ -1823,6 +1834,7 @@ function openEditContactModal(phone, event) {
     const phoneInput = document.getElementById('contactPhoneInput');
     const nameInput = document.getElementById('contactNameInput');
     const orgInput = document.getElementById('contactOrgInput');
+    const langSelect = document.getElementById('contactLangSelect');
     const notesInput = document.getElementById('contactNotesInput');
     const btnDelete = document.getElementById('btnDeleteContact');
     const statusEl = document.getElementById('contactFormStatus');
@@ -1834,6 +1846,7 @@ function openEditContactModal(phone, event) {
     phoneInput.readOnly = false;
     nameInput.value = contact.name || '';
     orgInput.value = contact.organization || '';
+    if (langSelect) langSelect.value = contact.language || '';
     notesInput.value = contact.notes || '';
     btnDelete.style.display = 'inline-block';
     statusEl.style.display = 'none';
@@ -1861,6 +1874,7 @@ async function handleSaveContactSubmit(e) {
     const phoneInput = document.getElementById('contactPhoneInput');
     const nameInput = document.getElementById('contactNameInput');
     const orgInput = document.getElementById('contactOrgInput');
+    const langSelect = document.getElementById('contactLangSelect');
     const notesInput = document.getElementById('contactNotesInput');
     const statusEl = document.getElementById('contactFormStatus');
     const btnSave = document.getElementById('btnSaveContact');
@@ -1868,6 +1882,7 @@ async function handleSaveContactSubmit(e) {
     const phone = phoneInput.value.trim();
     const name = nameInput.value.trim();
     const organization = orgInput.value.trim();
+    const language = langSelect ? langSelect.value.trim().toLowerCase() : '';
     const notes = notesInput.value.trim();
 
     if (!phone) {
@@ -1892,7 +1907,7 @@ async function handleSaveContactSubmit(e) {
         const res = await fetch('/api/contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, name, organization, notes })
+            body: JSON.stringify({ phone, name, organization, notes, language })
         });
         const json = await res.json();
         if (json.success && json.data) {
@@ -1920,7 +1935,7 @@ async function handleSaveContactSubmit(e) {
         statusEl.innerText = err.message;
     } finally {
         btnSave.disabled = false;
-        btnSave.innerText = '💾 Saqlash';
+        btnSave.innerHTML = `<svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg> <span>Saqlash</span>`;
     }
 }
 
@@ -2026,8 +2041,10 @@ function renderClientDirectory(searchQuery = '') {
     if (contacts.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; color: #64748b; padding: 40px 20px;">
-                <span style="font-size: 32px; display: block; margin-bottom: 8px;">📭</span>
-                ${q ? "Qidiruv bo'yicha hech qanday mijoz topilmadi" : "Hozircha saqlangan mijozlar yo'q"}
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); margin-bottom: 12px; color: #94a3b8;">
+                    ${isax('clipboard-text', '', 'width: 24px; height: 24px;')}
+                </div>
+                <div>${q ? "Qidiruv bo'yicha hech qanday mijoz topilmadi" : "Hozircha saqlangan mijozlar yo'q"}</div>
             </div>
         `;
         return;
@@ -2040,17 +2057,27 @@ function renderClientDirectory(searchQuery = '') {
                     <th>Telefon</th>
                     <th>Mijoz / Kimligi</th>
                     <th>Qayerdan / Tashkilot</th>
+                    <th>So'zlashuv tili</th>
                     <th>Izoh</th>
                     <th style="text-align: right;">Harakatlar</th>
                 </tr>
             </thead>
             <tbody>
-                ${contacts.map(c => `
+                ${contacts.map(c => {
+                    let langBadge = '<span style="color: #64748b;">—</span>';
+                    const l = (c.language || '').toLowerCase();
+                    if (l === 'uz') langBadge = '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">O\'zbek</span>';
+                    else if (l === 'ru') langBadge = '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);">Русский</span>';
+                    else if (l === 'en') langBadge = '<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">English</span>';
+                    else if (l) langBadge = `<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255, 255, 255, 0.15);">${escapeHtml(l)}</span>`;
+
+                    return `
                     <tr>
                         <td class="contact-table-phone" style="display: flex; align-items: center; gap: 4px;">${isax('call')} ${formatCallerNumber(c.phone)}</td>
                         <td class="contact-table-name">${c.name ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('user')} ${escapeHtml(c.name)}</span>` : '<span style="color: #64748b; font-style: italic;">Ko\'rsatilmagan</span>'}</td>
                         <td class="contact-table-org">${c.organization ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('location')} ${escapeHtml(c.organization)}</span>` : '<span style="color: #64748b;">—</span>'}</td>
-                        <td style="font-size: 12px; color: #94a3b8; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <td>${langBadge}</td>
+                        <td style="font-size: 12px; color: #94a3b8; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             ${c.notes ? escapeHtml(c.notes) : '<span style="color: #64748b;">—</span>'}
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
@@ -2062,7 +2089,8 @@ function renderClientDirectory(searchQuery = '') {
                             </button>
                         </td>
                     </tr>
-                `).join('')}
+                    `;
+                }).join('')}
             </tbody>
         </table>
     `;
@@ -2331,6 +2359,35 @@ function switchCallbackTab(tab) {
     renderViewerCallbacks(currentViewerCallbacks);
 }
 
+function getCallbackRelativeTime(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const parts = String(dateStr).trim().split(/[- :]/);
+        if (parts.length < 5) return '';
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        const hour = parseInt(parts[3], 10);
+        const min = parseInt(parts[4], 10);
+        const sec = parts[5] ? parseInt(parts[5], 10) : 0;
+        
+        // Target date in Tashkent timezone (UTC+5)
+        const targetUtc = Date.UTC(year, month, day, hour - 5, min, sec);
+        const diffSec = Math.floor((Date.now() - targetUtc) / 1000);
+        
+        if (isNaN(diffSec) || diffSec < 0) return '';
+        if (diffSec < 60) return typeof t === 'function' ? t('time_just_now', 'hozirgina') : 'hozirgina';
+        const diffMin = Math.floor(diffSec / 60);
+        if (diffMin < 60) return `${diffMin} ${typeof t === 'function' ? t('time_min_ago', 'daq oldin') : 'daq oldin'}`;
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) return `${diffHours} ${typeof t === 'function' ? t('time_hour_ago', 'soat oldin') : 'soat oldin'}`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays} ${typeof t === 'function' ? t('time_day_ago', 'kun oldin') : 'kun oldin'}`;
+    } catch (e) {
+        return '';
+    }
+}
+
 function renderViewerCallbacks(callbacks) {
     currentViewerCallbacks = Array.isArray(callbacks) ? callbacks : [];
     const countEl = document.getElementById('viewerCallbackCount');
@@ -2383,6 +2440,13 @@ function renderViewerCallbacks(callbacks) {
     if (currentCallbackTab === 'unreachable') displayList = unreachableList;
     else if (currentCallbackTab === 'resolved') displayList = resolvedList;
 
+    // Eng yangilari tepada bo'lishi uchun call_time bo'yicha kamayish (DESC) tartibida saralash
+    displayList = [...displayList].sort((a, b) => {
+        const timeA = a.call_time || a.created_at || '';
+        const timeB = b.call_time || b.created_at || '';
+        return timeB.localeCompare(timeA);
+    });
+
     if (displayList.length === 0) {
         const emptyMsg = (currentCallbackTab === 'unreachable')
             ? t('live_callbacks_unreachable_empty', "Bog'lanib bo'lmagan mijozlar yo'q")
@@ -2398,7 +2462,8 @@ function renderViewerCallbacks(callbacks) {
     }
 
     let html = '';
-    for (const item of displayList) {
+    for (let index = 0; index < displayList.length; index++) {
+        const item = displayList[index];
         const phone = item.phone || '';
         let cleanPhone = String(phone).replace(/[^\d]/g, '');
         if (cleanPhone.length === 12 && cleanPhone.startsWith('998')) {
@@ -2409,6 +2474,7 @@ function renderViewerCallbacks(callbacks) {
         const isIvr = (item.source === 'ivr_non_working');
         const isUnreachable = (currentCallbackTab === 'unreachable');
         const isResolved = (currentCallbackTab === 'resolved' || item.status === 'resolved');
+        const isNewestItem = (index === 0 && (currentCallbackTab === 'pending' || !currentCallbackTab));
 
         let badgeLabel = isIvr ? t('callback_source_ivr', 'Ish vaqti emas') : t('callback_source_abandoned', 'Navbatdan chiqdi');
         let badgeStyle = isIvr 
@@ -2434,6 +2500,24 @@ function renderViewerCallbacks(callbacks) {
             resTimeDisplay = `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
         }
 
+        const relTime = getCallbackRelativeTime(item.call_time);
+
+        // Tartib raqami (#1, #2, #3...)
+        let orderBadge = '';
+        if (isNewestItem) {
+            orderBadge = `
+                <span style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.4)); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.6); font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.35); text-transform: uppercase; letter-spacing: 0.4px;">
+                    ${isax('flash', '', 'width: 10px; height: 10px; color: #34d399;')} ${t('cb_order_newest', '#1 Eng yangi')}
+                </span>
+            `;
+        } else {
+            orderBadge = `
+                <span style="background: rgba(255, 255, 255, 0.08); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.12); font-size: 10px; font-weight: 700; padding: 1.5px 5.5px; border-radius: 5px; display: inline-flex; align-items: center;">
+                    #${index + 1}
+                </span>
+            `;
+        }
+
         const activeCall = findActiveCallForPhone(phone, item.activeCall);
         const isActive = Boolean(activeCall);
 
@@ -2447,6 +2531,8 @@ function renderViewerCallbacks(callbacks) {
             const outAttempts = item.outbound_attempts || 1;
             const borderCol = outAttempts >= 3 ? '#ef4444' : (outAttempts === 2 ? '#f97316' : '#eab308');
             cardBorder = `background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(239, 68, 68, 0.25); border-left: 3.5px solid ${borderCol};`;
+        } else if (isNewestItem) {
+            cardBorder = 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(30, 41, 59, 0.85)); border: 1.5px solid rgba(16, 185, 129, 0.45); border-left: 4px solid #10b981; box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);';
         } else {
             cardBorder = `background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(245, 158, 11, 0.28); border-left: 3px solid ${isIvr ? '#a855f7' : '#f59e0b'};`;
         }
@@ -2490,10 +2576,10 @@ function renderViewerCallbacks(callbacks) {
         } else if (isUnreachable) {
             const outAttempts = item.outbound_attempts || 1;
             let retryStyle = 'background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
-            let retryIcon = '⚠️';
+            let retryIcon = isax('warning-2');
             if (outAttempts === 2) {
                 retryStyle = 'background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4);';
-                retryIcon = '⚠️';
+                retryIcon = isax('warning-2');
             } else if (outAttempts >= 3) {
                 retryStyle = 'background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);';
                 retryIcon = isax('close-circle');
@@ -2533,8 +2619,11 @@ function renderViewerCallbacks(callbacks) {
 
         html += `
             <div class="${isActive ? 'callback-card-talking' : ''}" style="${cardBorder} border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative;" onclick="copyViewerCallbackPhone('${phone}', this)" title="${titleText}">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 13.5px; font-weight: 700; color: #fff; letter-spacing: 0.3px;">${formattedPhone}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        ${orderBadge}
+                        <span style="font-size: 13.5px; font-weight: 700; color: #fff; letter-spacing: 0.3px;">${formattedPhone}</span>
+                    </div>
                     ${isActive ? `
                         <div class="callback-active-badge" title="${activeCall.operator} ${activeCall.stateLabel}">
                             <img src="/img/calling-green.png" alt="Calling" />
@@ -2561,12 +2650,16 @@ function renderViewerCallbacks(callbacks) {
                     <span style="color: #38bdf8; opacity: 0.8; cursor: pointer; border-bottom: 1px dashed rgba(56, 189, 248, 0.5);">+ Ism / Qayerdan saqlash</span>
                 </div>
                 `}
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-top: 2px;">
                     <span style="padding: 2px 7px; border-radius: 5px; font-weight: 600; font-size: 10px; ${badgeStyle}">
                         ${badgeIcon} ${badgeLabel}
                     </span>
-                    <div style="display: flex; align-items: center; gap: 4px; color: #94a3b8;">
-                        <span>🕒 ${isResolved ? `Gaplashildi: ${resTimeDisplay}` : `Tushgan: ${timeDisplay}`}</span>
+                    <div style="display: flex; align-items: center; gap: 4px; color: #94a3b8; font-size: 10.5px;">
+                        <span style="display: inline-flex; align-items: center; gap: 4px;">
+                            ${isax('clock', '', 'width: 11px; height: 11px; opacity: 0.75;')}
+                            ${isResolved ? `Gaplashildi: ${resTimeDisplay}` : `Tushgan: ${timeDisplay}`}
+                            ${relTime && !isResolved ? `<strong style="color: ${isNewestItem ? '#34d399' : '#cbd5e1'}; font-weight: 600; margin-left: 2px;">(${relTime})</strong>` : ''}
+                        </span>
                     </div>
                 </div>
                 ${lastOutboundInfo}

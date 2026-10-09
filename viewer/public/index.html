@@ -842,7 +842,9 @@
         <div class="glass-panel" style="width: 100%; max-width: 480px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85); border-radius: 16px; overflow: hidden; animation: modalFadeIn 0.2s ease-out;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.9);">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 22px;">📇</span>
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: rgba(56, 189, 248, 0.12); color: #38bdf8;">
+                        <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    </span>
                     <div>
                         <h3 id="contactModalTitle" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Mijoz ma'lumotlari</h3>
                         <p style="font-size: 11.5px; color: #94a3b8; margin: 2px 0 0 0;">Qo'ng'iroqlarda avtomatik ko'rinadi</p>
@@ -878,8 +880,25 @@
                 </div>
 
                 <div>
-                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
-                        📝 Qo'shimcha izoh / Eslatma
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <svg class="isax isax-global" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M7.99998 3H8.99998C7.04998 8.84 7.04998 15.16 8.99998 21H7.99998"/><path d="M15 3C16.95 8.84 16.95 15.16 15 21"/><path d="M3 16V15C8.84 16.95 15.16 16.95 21 15V16"/><path d="M3 9C8.84 7.05 15.16 7.05 21 9"/></svg>
+                        <span>Qaysi tilda gaplashadi</span>
+                        <span style="font-size: 11px; color: #64748b; font-weight: normal;">(ixtiyoriy, default tanlanmagan)</span>
+                    </label>
+                    <select id="contactLangSelect"
+                            style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 13px; font-weight: 500; padding: 10px 14px; border-radius: 8px; outline: none; cursor: pointer;">
+                        <option value="" style="background: #0f172a; color: #94a3b8;">Tanlanmagan (ko'rsatilmagan)</option>
+                        <option value="uz" style="background: #0f172a; color: #ffffff;">O'zbek tili</option>
+                        <option value="ru" style="background: #0f172a; color: #ffffff;">Rus tili</option>
+                        <option value="en" style="background: #0f172a; color: #ffffff;">Ingliz tili</option>
+                        <option value="other" style="background: #0f172a; color: #ffffff;">Boshqa til</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <svg class="isax isax-clipboard-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M8 12.5H16"/><path d="M8 16.5H13"/><path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z"/><path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02"/></svg>
+                        <span>Qo'shimcha izoh / Eslatma</span>
                     </label>
                     <textarea id="contactNotesInput" rows="2" placeholder="Ixtiyoriy qo'shimcha ma'lumot..."
                               style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #ffffff; font-size: 12.5px; padding: 8px 12px; border-radius: 8px; outline: none; resize: vertical;"></textarea>
@@ -895,8 +914,9 @@
                         <button type="button" onclick="closeContactModal()" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
                             Bekor qilish
                         </button>
-                        <button type="submit" id="btnSaveContact" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #ffffff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);">
-                            💾 Saqlash
+                        <button type="submit" id="btnSaveContact" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 1px solid rgba(56, 189, 248, 0.4); color: #ffffff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4); display: inline-flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                            <span>Saqlash</span>
                         </button>
                     </div>
                 </div>
@@ -910,7 +930,9 @@
             <!-- Header -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.9);">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">📇</span>
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.12); color: #38bdf8;">
+                        <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                    </span>
                     <div>
                         <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin: 0;">Mijozlar bazasi (Telefon kitobi)</h3>
                         <p style="font-size: 12px; color: #94a3b8; margin: 2px 0 0 0;">Barcha saqlangan mijoz raqamlari va manzillari</p>

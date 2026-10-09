@@ -1,0 +1,1110 @@
+/**
+ * Call Center Multi-Language (i18n) Engine
+ * Supported languages: 'uz' (default - O'zbekcha), 'ru' (Русский)
+ */
+
+const I18N_TRANSLATIONS = {
+    uz: {
+        // Navigation & Branding
+        app_title: "Call Center",
+        server_status: "⚡ Server Holati",
+        server_status_title: "Server Resurslari (CPU, RAM, Disk, PM2)",
+        tab_dashboard: "Dashboard",
+        tab_operators: "Operatorlar",
+        tab_history: "Qo'ng'iroqlar Tarixi",
+        tab_explorer: "Audio Explorer",
+        live_monitor: "Jonli Monitor",
+        live_clock_title: "Hozirgi aniq vaqt",
+
+        // Date Filter Bar
+        date_today: "Bugun",
+        date_yesterday: "Kecha",
+        date_selected: "Tanlangan sana:",
+        date_live_mode: "Jonli (Real-time)",
+        date_archive_mode: "Arxiv rejimi",
+        back_to_today: "✕ Bugunga qaytish",
+        export_excel: "Excel Export",
+        export_excel_title: "Hisobotni yuklab olish (Sana oralig'i bo'yicha)",
+        calendar_open_title: "Kalendarni ochish",
+        calendar_close: "Yopish",
+        calendar_jump_today: "Bugun",
+
+        // KPI Cards
+        kpi_total_calls: "Jami Qo'ng'iroqlar",
+        kpi_inbound_calls: "Kiruvchi Qo'ng'iroqlar",
+        kpi_outbound_calls: "Chiquvchi Qo'ng'iroqlar",
+        kpi_answered_calls: "Muvaffaqiyatli Qo'ng'iroqlar",
+        kpi_abandoned_calls: "Navbatdan chiqdi",
+        kpi_missed_calls: "O‘tkazib yuborilgan",
+        kpi_denied_calls: "Rad etilgan (Band)",
+        kpi_avg_duration: "O'rtacha Suhbat Vaqti",
+        kpi_sla: "Xizmat Sifati (SLA)",
+        kpi_sec: "soniya",
+        kpi_click_detail: "Tafsilotlarni ko'rish uchun bosing",
+        kpi_missed_desc: "Telefon jiringlab, operator ko'tarmagan qo'ng'iroqlar",
+        kpi_denied_desc: "Operator telefoni band bo'lgan yoki rad etilgan qo'ng'iroqlar",
+
+        // Operators Section
+        op_section_title: "Operatorlar",
+        op_group_main: "Asosiy (100-199)",
+        op_group_main_title: "100 dan 199 gacha bo'lgan asosiy operatorlar",
+        op_group_sec: "Zangiota 42 (200+)",
+        op_group_sec_title: "Zangiota 42 operatorlari (200+)",
+        op_group_all: "Barchasi",
+        op_group_all_title: "Barcha operatorlar",
+        op_status_ready: "Qabul qilishga tayyor",
+        op_status_talking: "Suhbatda",
+        op_status_offline: "Oflayn",
+        op_status_agent_online: "Agent ulangan",
+        op_badge_next: "NAVBATDAGI",
+        op_badge_top1: "TOP 1",
+        op_calls_accepted: "Qabul qildi",
+        op_outbound_short: "Chiquvchi",
+        op_denied_short: "Rad etildi",
+        op_total_time: "Umumiy",
+        op_avg_time: "O'rtacha",
+        op_no_operators: "Hozircha operatorlar mavjud emas.",
+
+        // Statuses & Directions
+        status_answered: "Javob berilgan",
+        status_abandoned: "Navbatdan chiqdi",
+        status_busy: "Band",
+        status_denied: "Rad etilgan",
+        status_no_answer: "Javobsiz",
+        status_ready: "Qabul qilishga tayyor",
+        status_talking: "Hozir suhbatda",
+        status_offline: "Offline",
+
+        dir_inbound: "Kiruvchi",
+        dir_outbound: "Chiquvchi",
+        dir_transfer: "Transfer",
+
+        party_client: "Mijoz",
+        party_operator: "Operator",
+        party_not_answered: "Ko'tarilmadi",
+        party_transfer: "Transfer (Operatorga)",
+
+        // Table Columns
+        col_num: "№",
+        col_time: "VAQT",
+        col_client_phone: "MIJOZ RAQAMI",
+        col_direction: "YO'NALISH",
+        col_operator: "OPERATOR",
+        col_talk_wait: "SUHBAT / KUTISH VAQTI",
+        col_status: "HOLATI",
+        col_hangup_party: "KIM TUGATDI?",
+        col_audio: "AUDIO",
+
+        // Detail Modal
+        detail_search: "Qidirish:",
+        detail_search_placeholder: "Raqam yoki operator...",
+        detail_per_page: "Sahifada:",
+        detail_loading: "Ma'lumotlar yuklanmoqda...",
+        detail_empty: "Ushbu parametrlar bo'yicha qo'ng'iroqlar topilmadi",
+        detail_total_calls: "Jami: {total} ta qo'ng'iroq (Ko'rsatilmoqda: {count} ta)",
+        detail_today_subtitle: "Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti",
+        detail_date_subtitle: "{date} sanasi bo'yicha saralangan qo'ng'iroqlar tafsiloti",
+
+        talk_prefix: "Suhbat:",
+        wait_prefix: "Kutgan:",
+        audio_listen: "Tinglash",
+        audio_not_available: "Mavjud emas",
+        audio_download: "Yuklab olish",
+
+        // Excel Export Modal
+        export_modal_title: "Qo'ng'iroqlar Tarixini Excel Formatida Yuklab Olish",
+        export_modal_subtitle: "O'zingizga kerakli sana oralig'ini tanlang va Excel faylni yuklab oling",
+        export_step1: "1-QADAM: SANA ORALIG'INI TANLANG",
+        export_step2: "2-QADAM: HISOBOT TURINI TANLANG",
+        export_start_date: "Boshlanish sanasi",
+        export_end_date: "Tugash sanasi",
+        export_btn_next: "Keyingisi (Guruhni tanlash) ➔",
+        export_btn_cancel: "Bekor qilish",
+        export_btn_back: "◀ Sanani o'zgartirish",
+        export_opt_all_title: "Umumiy barcha operatorlar",
+        export_opt_all_badge: "Barchasi",
+        export_opt_all_desc: "100-199 va 200+ barcha guruhdagi operatorlar birlashgan to'liq hisoboti",
+        export_opt_main_title: "Asosiy operatorlar",
+        export_opt_main_badge: "100-199",
+        export_opt_main_desc: "Faqat 100 dan 199 gacha bo'lgan asosiy operatorlar hisoboti",
+        export_opt_sec_title: "Zangiota 42 operatorlari",
+        export_opt_sec_badge: "200+",
+        export_opt_sec_desc: "Faqat 200 va undan yuqori (Zangiota 42) operatorlar hisoboti",
+        export_downloading: "Yuklanmoqda...",
+
+        // Server Status Modal
+        srv_title: "⚡ Server Resurslari & Tizim Holati",
+        srv_subtitle: "192.168.0.2 asosiy serverining real-vaqtdagi holati",
+        srv_uptime: "Ish Vaqti",
+        srv_cpu_usage: "CPU Yuklanishi",
+        srv_ram_usage: "Operativ Xotira (RAM)",
+        srv_disk_usage: "Disk Hajmi",
+        srv_pm2_processes: "PM2 Jarayonlari",
+        srv_refresh_btn: "Yangilash",
+        srv_close_btn: "Yopish",
+
+        // Operator Card Labels
+        op_card_desktop_agent: "Desktop Agent:",
+        op_card_desktop_name: "Desktop nomi:",
+        op_card_accepted: "Qabul qilingan:",
+        op_card_outbound: "Chiquvchi:",
+        op_card_transfer: "Transfer:",
+        op_card_missed: "O'tkazib yuborilgan:",
+        op_card_total_talk: "Umumiy suhbat:",
+        op_card_avg_talk: "O'rtacha suhbat:",
+        op_card_agent_active: "Faol",
+        op_card_agent_off: "O'chiq",
+        op_card_transfer_gave: "uzatgan",
+        op_card_transfer_got: "olgan",
+        op_card_unknown_host: "Aniqlanmagan",
+        op_card_refresh: "Serverdan tiklash",
+        op_card_last_sync: "Last sync:",
+        op_card_sync_today: "Bugun",
+        op_card_sync_yesterday: "Kecha",
+
+        // Live Monitor Sidebar
+        live_queue_title: "NAVBATDA KUTAYOTGANLAR",
+        live_queue_empty: "Hozircha navbatda kutayotganlar yo'q",
+        live_active_calls: "FAOL SUHBATLAR",
+        live_lines: "Liniyalar",
+        live_active_empty: "Hozircha faol suhbatlar yo'q",
+        live_ami_connected: "AMI: Ulangan",
+        live_ami_connecting: "AMI: Ulanmoqda",
+        live_sftp_checking: "SFTP: Tekshirilmoqda",
+        live_waiting_label: "Kutmoqda",
+        live_talking_label: "Suhbatda",
+
+        // History Table (index.html headers)
+        hist_col_time: "Vaqt",
+        hist_col_phone: "Raqam / Mijoz",
+        hist_col_direction: "Yo'nalish",
+        hist_col_operator: "Operator",
+        hist_col_duration: "Davomiyligi",
+        hist_col_wait: "Navbatda kutish",
+        hist_col_status: "Holat",
+        hist_col_hangup: "Kim tugatdi?",
+        hist_col_action: "Amal",
+        hist_empty: "Hozircha qo'ng'iroqlar yo'q",
+        hist_source_agent: "3CX Agent",
+        hist_source_server: "Server CDR",
+        hist_scope_today: "Faqat bugun",
+        hist_scope_all: "Barcha kunlar",
+        hist_filter_all_status: "Barcha holatlar",
+        hist_filter_all_dir: "Barcha yo'nalishlar",
+        hist_operator_search: "Operator qidirish...",
+        hist_clear_filter: "Filtrni tozalash",
+
+        // Audio Explorer
+        audio_explorer_title: "Audio Yozuvlar Explorer",
+        audio_explorer_search: "Raqam yoki fayl nomi bo'yicha qidirish...",
+
+        // Dynamic texts
+        dyn_queue_waiting: "Navbat:",
+        dyn_connected_short: "Ulangan",
+        dyn_not_connected: "Ulanmagan",
+        dyn_not_found: "Topilmadi",
+        dyn_searching: "Qidirilmoqda...",
+        dyn_pause: "To'xtatish",
+        dyn_resume: "Davom ettirish",
+        dyn_listen: "Tinglash",
+        dyn_details: "Tafsilot",
+        dyn_delete: "O'chirish",
+        dyn_transfer_call: "Qo'ng'iroqni Yo'naltirish (Transfer)",
+        dyn_no_op_connected: "Operatorga ulanmadi",
+
+        // Charts
+        chart_dynamics_title: "Qo'ng'iroqlar Dinamikasi",
+        chart_distribution_title: "Qo'ng'iroqlar Taqsimoti",
+        chart_operator_title: "📊 Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti (3CX Agent)",
+        chart_series_inbound: "Jami Kiruvchi (Inbound)",
+        chart_series_answered: "Javob berilgan (Answered)",
+        chart_series_outbound: "Chiquvchi (Outbound)",
+        chart_series_missed: "O'tkazib yuborilgan",
+        chart_series_calls: "Qo'ng'iroqlar",
+        chart_slice_success: "Muvaffaqiyatli",
+        chart_slice_abandoned: "Navbatdan chiqdi",
+        chart_slice_outbound: "Chiquvchi",
+        chart_suffix_calls: "ta",
+        recent_flow_title: "⚡ So'nggi Qo'ng'iroqlar Oqimi (Real-time)",
+
+        // Calendar
+        cal_prev_month: "Oldingi oy",
+        cal_next_month: "Keyingi oy",
+        cal_week_mon: "Du", cal_week_tue: "Se", cal_week_wed: "Ch", cal_week_thu: "Pa",
+        cal_week_fri: "Ju", cal_week_sat: "Sh", cal_week_sun: "Ya",
+
+        // History / recent flow
+        hist_all_operators: "Barcha Operatorlar",
+        hist_loading: "Tarix yuklanmoqda...",
+        hist_opt_answered: "✅ Javob berilgan",
+        hist_opt_missed: "📵 Javobsiz / Chiqdi",
+        hist_prev: "⬅ Oldingi",
+        hist_next: "Keyingi ➡",
+        hist_page: "Sahifa {page} / {total}",
+
+        // Audio player
+        player_close_title: "Pleyerni yopish",
+        player_no_file: "Fayl tanlanmagan",
+        player_status_playing: "Audio ijro etilmoqda",
+        player_waveform_render: "Ovoz to'lqini render qilinmoqda...",
+        player_speed: "Tezlik:",
+        player_file_size: "Fayl hajmi: {size}",
+        audio_searching: "⏳ Audio serverdan qidirilmoqda va tayyorlanmoqda...",
+
+        // Explorer
+        exp_col_name: "Fayl Nomi",
+        exp_col_type: "Turi",
+        exp_col_size: "Hajmi",
+        exp_col_duration: "Davomiyligi",
+        exp_col_datetime: "Sana / Vaqt",
+        exp_col_actions: "Amallar",
+        aud_search_empty: "Qidiruv bo'yicha audio fayllar topilmadi",
+        aud_empty_label: "🚫 Bo'sh (0 soniya)",
+        aud_empty_desc: "Qo'ng'iroq ulanmasdan uzilgan, ovoz yozilmagan",
+        aud_empty_btn: "🚫 Bo'sh",
+        aud_empty_alert: "Ushbu audio fayl bo'sh (0 soniya, suhbat bo'lmagan)",
+        aud_empty_hint: "Yozuv bo'sh",
+        aud_robot_label: "🤖 Faqat Navbat (Robot)",
+        aud_robot_desc: "Mijoz faqat navbat robotini eshitgan, operator bilan suhbat bo'lmagan",
+        aud_human_label: "🎧 Suhbat (Human Talk)",
+        aud_human_desc: "Mijoz va operator o'rtasidagi haqiqiy suhbat",
+        aud_toast_empty: "⚠️ Ushbu audio fayl bo'sh (suhbat bo'lmagan yoki qo'ng'iroq operatorga ulanmasdan uzilgan).",
+
+        // Live monitor
+        live_queue_waiting_label: "Navbatda kutayotganlar",
+        live_badge_talking: "🟢 Suhbatda",
+        live_badge_queue: "⏳ Navbatda kutmoqda",
+        live_default_queue: "Asosiy Navbat",
+        live_switch_title: "Boshqa operatorga yo'naltirish (Switch / Transfer)",
+        live_endcall_title: "Qo'ng'iroqni tugatish (End Call)",
+        live_position: "Navbatda #{n}",
+
+        // Transfer
+        transfer_select_label: "Tayyor Operatorni Tanlang:",
+        transfer_no_ops: "Operatorlar topilmadi",
+        transfer_ready: "(Tayyor / On-hook)",
+        transfer_talking: "(Suhbatda)",
+        transfer_offline: "(Offline)",
+
+        // Operator cards / MVP
+        op_mvp_system: "Operator darajasi tizimi",
+        op_mvp_title: "Bugungi eng faol yetakchi operator (MVP)",
+        op_mvp_accepted_suffix: "ta qabul qilingan",
+
+        // Detail modal
+        detail_filter_total: "Jami: {total} ta qo'ng'iroq (Filtr: {count} ta ko'rsatilmoqda)",
+        detail_op_title: "👤 {name} — Tafsilotlar & Bugungi Suhbatlar",
+        detail_queue_title: "👥 Navbatda Kutayotganlar (Real-time)",
+        detail_queue_count: "Jami: {n} ta mijoz kutmoqda",
+        detail_col_client_phone: "Mijoz Raqami",
+        detail_col_queue_name: "Navbat Nomi",
+        detail_col_wait_time: "Kutish Vaqti",
+
+        // Encoding logs
+        logs_title: "Qo'ng'iroqlar Jurnali",
+        logs_loading: "Yuklanmoqda...",
+        logs_total_events: "Jami: {n} ta hodisa",
+        logs_total_events_zero: "Jami: 0 ta hodisa",
+        logs_empty_hint: "Qo'ng'iroqlar amalga oshirilganda bu yerda real-time paydo bo'ladi.",
+        logs_col_time: "Qayd Vaqti",
+        logs_col_phone: "Mijoz Raqami",
+        logs_col_talk: "Suhbat Vaqti",
+        logs_status_denied: "🚫 Rad etildi",
+        logs_status_denied_deny: "🚫 Rad etildi (Deny)",
+        logs_status_outbound_unconnected: "Chiquvchi (Ulanmagan)",
+        logs_status_outbound_dialled: "Chiquvchi (Dialled)",
+        logs_status_answered: "🟢 Javob berildi",
+        logs_status_answered_phone: "📞 Javob berildi",
+        logs_page: "Sahifa {page} / {total}",
+        logs_total_records: "Jami qaydlar: {n} ta",
+        logs_total_records_zero: "Jami qaydlar: 0 ta",
+        logs_updating: "⚠️ Yangilanmoqda...",
+        logs_operator_label: "Operator:",
+        agent_info_title: "{name} — Agent ma'lumotlari",
+        agent_info_default: "Agent ma'lumotlari",
+        agent_info_outbound: "Chiquvchi:",
+
+        // Date labels
+        date_today_paren: "Bugun ({date})",
+        date_yesterday_21: "Kecha 21:00",
+
+        // Server modal
+        srv_reading: "Server ma'lumotlari o'qilmoqda...",
+        srv_data_loaded: "✅ Ma'lumotlar yuklandi ({date})",
+        srv_disk_detail: "({used} band / {free} bo'sh - Jami {total})",
+        srv_pm2_status: "PM2 Holati",
+        srv_pid: "Process PID",
+        srv_uptime_label: "Server Ish Vaqti",
+        srv_cpu_label: "🧠 CPU Yuklanishi",
+        srv_ram_label: "💾 RAM (Operativ Xotira)",
+        srv_physical_disk: "Jismoniy Server Diski",
+        srv_disk_type_spinning: "HDD (Aylanuvchi)",
+        srv_part_dashboard: "1. Tizim & Dashboard (Root /)",
+        srv_part_issabel: "2. Issabel PBX & Ovozlar Xotirasi (192.168.0.124)",
+        srv_vm_title: "Proxmox Virtual Mashinalari (VM)",
+        srv_vm_sub: "Kerio Firewall (200) & Issabel PBX (101)",
+        srv_power_btn: "Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish",
+
+        // Agent settings modal
+        set_official_version: "Serverdagi Rasmiy Versiya",
+        set_current_version: "Hozirgi Versiya:",
+        set_download_url: "Yuklab olish manzili:",
+        set_status_label: "Holati:",
+        set_auto_update_on: "● Avto-yangilanish faol (Over-the-Air)",
+        set_publish_version: "Yangi Versiya E'lon Qilish",
+        set_ota_logs_title: "Jonli OTA Yangilanish Loglari (Kim yangilanmoqda?)",
+        set_ota_live: "● Jonli kuzatuv faol",
+        set_ota_empty: "Hozircha yangilanish loglari yo'q. Yangi versiya e'lon qilinganda bu yerda real-vaqtda ko'rinadi.",
+        set_col_operator: "Operator",
+        set_col_exten_ip: "Exten / IP",
+        set_col_agent: "Desktop Agent",
+        set_col_host: "Kompyuter (Host)",
+        set_col_version: "Versiya",
+        set_col_status: "Holati",
+
+        // Export modal
+        export_modal_heading: "Hisobotni Export Qilish",
+        export_modal_subheading: "Excel (XLSX) formatida sana oralig'i bo'yicha",
+        export_quick_range: "⚡ Tezkor sana oralig'i:",
+        export_preset_today: "Bugun",
+        export_preset_last7: "Oxirgi 7 kun",
+        export_preset_this_month: "Shu oy",
+        export_preset_prev_month: "O'tgan oy",
+        export_range_computing: "Tanlangan oraliq: Hisoblanmoqda...",
+        export_download_btn: "Excel hisobotni yuklash",
+        export_choice_title: "Qaysi hisobotni yuklab olmoqchisiz?",
+        export_choice_all: "Umumiy hisobot",
+        export_choice_main: "Asosiy operatorlar",
+        export_choice_sec: "Zangiota 42 operatorlari",
+
+        // Misc
+        opt_50: "50 ta", opt_100: "100 ta", opt_200: "200 ta", opt_500: "500 ta (Barchasi)",
+        audio_studio: "AUDIO STUDIO",
+        hist_search_placeholder: "Mijoz raqami, operator...",
+        hist_count_records: "Jami: {n} ta yozuv",
+        hist_count_zero: "Jami: 0 ta yozuv",
+        hist_loading_calls: "Qo'ng'iroqlar tarixi yuklanmoqda...",
+        hist_error: "Xatolik yuz berdi: {msg}",
+        hist_source_desc_server: "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.",
+        hist_source_desc_agent: "3CX Desktop Agent lokal bazasidagi qo'ng'iroqlar jurnali.",
+        sort_time: "Vaqt bo'yicha saralash (Eng yangisi / Eng eskisi)",
+        sort_phone: "Raqam bo'yicha saralash",
+        sort_direction: "Yo'nalish bo'yicha saralash",
+        sort_operator: "Operator bo'yicha saralash (Bir xillarni tepaga chiqarish)",
+        sort_duration: "Davomiyligi bo'yicha saralash",
+        sort_wait: "Navbatda kutish vaqti bo'yicha saralash",
+        sort_status: "Holat bo'yicha saralash",
+        sort_hangup: "Kim tugatdi bo'yicha saralash",
+        chart_mode_2d_title: "2D Tekis Donut diagramma",
+        chart_mode_3d_title: "3D Hajmdor diagramma",
+        filter_clear_title: "Filtrlarni tozalash",
+        transfer_prompt_before: "Mijoz",
+        transfer_prompt_after: "bilan suhbatni qaysi onlayn operatorga o'tkazmoqchisiz?",
+        transfer_confirm: "✓ O'tkazish",
+        detail_modal_title_default: "📊 Qo'ng'iroqlar Tafsiloti",
+        detail_modal_subtitle_default: "Bugungi kun bo'yicha batafsil yozuvlar ro'yxati",
+        logs_modal_title: "🖥️ 3CX Desktop Agent — Qo'ng'iroqlar Jurnali",
+        logs_modal_sub: "Operatorlar kompyuteridagi 3CX dasturi orqali to'plangan real qo'ng'iroqlar tarixi",
+        set_modal_title: "⚙️ Sozlamalar: 3CX Desktop Agent & OTA Update",
+        set_modal_sub: "Barcha operator kompyuterlaridagi agentlar monitoringi va markaziy versiya yangilanishi",
+        set_agents_status_title: "👥 Operatorlar Agent Holati va Versiyalari",
+        set_new_version_placeholder: "Versiya (masalan: 1.0.1)",
+        set_release_btn: "E'lon Qilish",
+        set_release_note: "* Versiya e'lon qilinganda, barcha onlayn operatorlar agenti fon rejimida avtomatik yangilanadi.",
+        export_start_date_label: "📅 Boshlanish sanasi (Kun.Oy.Yil):",
+        export_end_date_label: "📅 Tugash sanasi (Kun.Oy.Yil):",
+        date_picker_native_title: "Sanani to'g'ridan-to'g'ri tanlash",
+        srv_modal_title: "Server Holati & Resurslar",
+        srv_lvm_label: "LVM taqsimoti: Tizim + PBX Ovozlar",
+        srv_services_health: "Aloqa & Xizmatlar Holati",
+        srv_open_json: "↗ Brauzerda JSON ochish",
+        aud_duration_empty: "00:00 (Bo'sh)",
+        live_badge_ringing: "📞 Chaqirilmoqda",
+        live_waiting_count: "{n} ta mijoz navbatda kutmoqda",
+        live_hangup_confirm: "Haqiqatan ham ushbu kanalni uzmoqchimisiz?",
+        audio_none: "🚫 Audio yo'q",
+        audio_none_title: "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)",
+        audio_play_title: "Audioni tinglash",
+        audio_pause_title: "To'xtatish (pauza)",
+        audio_resume_title: "Qolgan joyidan davom ettirish",
+        audio_detail_title: "Audio Explorer studiyasida to'liq pleyer bilan ochish",
+        audio_detail_short: "🔍 Detal",
+        wait_none_outbound_title: "Chiquvchi qo'ng'iroqda navbat yo'q",
+        hangup_unknown: "Noma'lum",
+        detail_empty_note: "Ushbu turkum bo'yicha hech qanday qo'ng'iroq topilmadi.",
+        sort_click_title: "Saralash uchun bosing",
+        star_next_note: "Keyingi yulduzgacha: yana {n} ta qo'ng'iroq kerak",
+        star_max: "🏆 Maksimal daraja (TOP operator)!",
+        star_level_5: "Super Elita",
+        star_level_4: "Yetakchi",
+        star_level_3: "Tajribali",
+        star_level_2: "O'rta daraja",
+        star_level_1: "Boshlang'ich",
+        transfer_not_selected: "Operator tanlanmadi!",
+        transfer_in_progress: "O'tkazilmoqda...",
+        transfer_success: "✅ Qo'ng'iroq Operator {exten} ga muvaffaqiyatli o'tkazildi!",
+        transfer_error_prefix: "Xatolik: ",
+        transfer_failed: "O'tkazib bo'lmadi",
+        transfer_exception: "Transfer xatosi: ",
+        logs_status_missed: "⚠️ O'tkazib yuborildi",
+        logs_status_ended: "📴 Tugadi",
+        logs_hidden_caller: "Yashirin",
+        logs_col_event: "Hodisa Turi",
+        logs_col_pc: "Kompyuter (PC)",
+        logs_col_details: "3CX Tarixi",
+        logs_no_records: "3CX Desktop Agent tomonidan hozircha qo'ng'iroq qayd etilmadi.",
+        logs_load_failed: "Ma'lumotlarni yuklab bo'lmadi: {msg}",
+        sync_in_progress: "⏳ Sinxronlanmoqda...",
+        tab_ops_no_data: "Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.",
+        detail_subtitle_op_activity: "Operatorning kunlik faolligi, intizomi va audio yozuvlari",
+        detail_queue_subtitle: "Ayni daqiqada navbatda turgan mijozlar ro'yxati",
+        detail_queue_empty_note: "Hozircha navbatda kutayotgan mijozlar yo'q. Barcha qo'ng'iroqlar operatorlarga ulangan yoki navbat bo'sh.",
+        detail_col_position: "O'rni",
+        detail_col_channel: "Kanal",
+        wait_status: "Kutmoqda...",
+        op_sum_answered: "Qabul qilingan",
+        op_sum_internal: "Ichki raqam:",
+        op_sum_line_status: "Liniya holati:",
+        filter_click_title: "Filtrlash uchun bosing",
+        audio_missing_alert: "Ushbu qo'ng'iroqda audio yozuv mavjud emas (suhbat bo'lmagan)",
+        logs_tab_loading: "3CX Desktop Agent jurnali yuklanmoqda...",
+        logs_tab_empty: "3CX Desktop Agent tomonidan ushbu operator bo'yicha hali yangi qo'ng'iroq qayd etilmagan.",
+        set_latest: "✅ Eng so'nggi",
+        set_offline_agent: "⚪ O'chiq (Offline)",
+        set_status_active: "🟢 Faol",
+        set_status_off: "⚪ O'chiq",
+        set_release_input_required: "Iltimos, yangi versiya raqamini kiriting! (Masalan: 1.0.1)",
+        set_release_confirm: "Haqiqatan ham yangi v{ver} versiyasini e'lon qilmoqchimisiz?\n\nBarcha ulangan operatorlarning kompyuteridagi agentlar fon rejimida avtomatik ravishda ushbu versiyaga yangilanadi.",
+        datefilter_loading: "Serverdan ma'lumot yuklanmoqda...",
+        datefilter_live: "⚡ Real-time jonli monitoring faol",
+        datefilter_report: "⚡ {date} sanasi hisoboti",
+        srv_disk_ssd: "SSD (Tezkor)",
+        chart_series_accepted: "Qabul qilingan (Answered)",
+        op_queue_short: "Navbat",
+        detail_no_call_number: "Bugun bu raqam bo'yicha qo'ng'iroq topilmadi",
+        detail_no_call_hint: "Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.",
+        wait_title: "Navbatda kutish: {time}",
+        wait_title_none: "Navbatda kutish vaqti mavjud emas",
+        unknown_error: "Noma'lum xatolik",
+        audio_load_error: "⚠️ Yuklashda xatolik yuz berdi",
+        audio_open_error: "Audio ochishda xatolik: ",
+        hangup_error: "Uzishda xatolik: ",
+        audio_download_error: "Audio yozuvni yuklashda xatolik yuz berdi: ",
+        sync_error: "❌ Sinxronizatsiya vaqtida xatolik yuz berdi: ",
+        sync_result: "⚠️ Sinxronizatsiya: {msg}",
+        srv_request_error: "❌ So'rov yuborishda xatolik: ",
+        srv_connect_error: "Serverga ulanishda xatolik: ",
+        audio_loading: "Audio yuklanmoqda...",
+        op_card_exten: "Exten:",
+
+        // Date display
+        month_jan: "Yanvar", month_feb: "Fevral", month_mar: "Mart",
+        month_apr: "Aprel", month_may: "May", month_jun: "Iyun",
+        month_jul: "Iyul", month_aug: "Avgust", month_sep: "Sentabr",
+        month_oct: "Oktabr", month_nov: "Noyabr", month_dec: "Dekabr"
+    },
+    ru: {
+        // Navigation & Branding
+        app_title: "Call Center",
+        server_status: "⚡ Статус сервера",
+        server_status_title: "Ресурсы сервера (CPU, RAM, Диск, PM2)",
+        tab_dashboard: "Дашборд",
+        tab_operators: "Операторы",
+        tab_history: "История звонков",
+        tab_explorer: "Аудио записи",
+        live_monitor: "Прямой эфир",
+        live_clock_title: "Текущее точное время",
+
+        // Date Filter Bar
+        date_today: "Сегодня",
+        date_yesterday: "Вчера",
+        date_selected: "Выбранная дата:",
+        date_live_mode: "Онлайн (Real-time)",
+        date_archive_mode: "Архивный режим",
+        back_to_today: "✕ Вернуться к сегодня",
+        export_excel: "Экспорт Excel",
+        export_excel_title: "Скачать отчет (по диапазону дат)",
+        calendar_open_title: "Открыть календарь",
+        calendar_close: "Закрыть",
+        calendar_jump_today: "Сегодня",
+
+        // KPI Cards
+        kpi_total_calls: "Всего звонков",
+        kpi_inbound_calls: "Входящие звонки",
+        kpi_outbound_calls: "Исходящие звонки",
+        kpi_answered_calls: "Успешные звонки",
+        kpi_abandoned_calls: "Вышли из очереди",
+        kpi_missed_calls: "Пропущенные",
+        kpi_denied_calls: "Отклоненные (Занято)",
+        kpi_avg_duration: "Среднее время разговора",
+        kpi_sla: "Качество сервиса (SLA)",
+        kpi_sec: "сек",
+        kpi_click_detail: "Нажмите для просмотра подробностей",
+        kpi_missed_desc: "Звонки, на которые операторы не ответили после звонка",
+        kpi_denied_desc: "Звонки с занятой линией или отклоненные оператором",
+
+        // Operators Section
+        op_section_title: "Операторы",
+        op_group_main: "Основные (100-199)",
+        op_group_main_title: "Основные операторы с 100 по 199",
+        op_group_sec: "Зангиота 42 (200+)",
+        op_group_sec_title: "Операторы Зангиота 42 (200+)",
+        op_group_all: "Все",
+        op_group_all_title: "Все операторы",
+        op_status_ready: "Готов к приему",
+        op_status_talking: "В разговоре",
+        op_status_offline: "Офлайн",
+        op_status_agent_online: "Агент активен",
+        op_badge_next: "СЛЕДУЮЩИЙ",
+        op_badge_top1: "ТОП 1",
+        op_calls_accepted: "Принято",
+        op_outbound_short: "Исходящие",
+        op_denied_short: "Отклонено",
+        op_total_time: "Всего",
+        op_avg_time: "Среднее",
+        op_no_operators: "На данный момент операторы отсутствуют.",
+
+        // Statuses & Directions
+        status_answered: "Отвечен",
+        status_abandoned: "Вышел из очереди",
+        status_busy: "Занято",
+        status_denied: "Отклонен",
+        status_no_answer: "Без ответа",
+        status_ready: "Готов к приему",
+        status_talking: "Сейчас на линии",
+        status_offline: "Офлайн",
+
+        dir_inbound: "Входящий",
+        dir_outbound: "Исходящий",
+        dir_transfer: "Перевод",
+
+        party_client: "Клиент",
+        party_operator: "Оператор",
+        party_not_answered: "Не отвечен",
+        party_transfer: "Перевод (Оператору)",
+
+        // Table Columns
+        col_num: "№",
+        col_time: "ВРЕМЯ",
+        col_client_phone: "НОМЕР КЛИЕНТА",
+        col_direction: "НАПРАВЛЕНИЕ",
+        col_operator: "ОПЕРАТОР",
+        col_talk_wait: "РАЗГОВОР / ОЖИДАНИЕ",
+        col_status: "СТАТУС",
+        col_hangup_party: "КТО ЗАВЕРШИЛ?",
+        col_audio: "АУДИО",
+
+        // Detail Modal
+        detail_search: "Поиск:",
+        detail_search_placeholder: "Номер или оператор...",
+        detail_per_page: "На странице:",
+        detail_loading: "Загрузка данных...",
+        detail_empty: "По данным параметрам звонков не найдено",
+        detail_total_calls: "Всего: {total} звонков (Отображается: {count})",
+        detail_today_subtitle: "Подробный список звонков за сегодняшний день",
+        detail_date_subtitle: "Подробный список звонков за {date}",
+
+        talk_prefix: "Разговор:",
+        wait_prefix: "Ожидание:",
+        audio_listen: "Слушать",
+        audio_not_available: "Нет записи",
+        audio_download: "Скачать",
+
+        // Excel Export Modal
+        export_modal_title: "Экспорт Истории Звонков в Формате Excel",
+        export_modal_subtitle: "Выберите необходимый диапазон дат и скачайте файл Excel",
+        export_step1: "ШАГ 1: ВЫБЕРИТЕ ДИАПАЗОН ДАТ",
+        export_step2: "ШАГ 2: ВЫБЕРИТЕ ТИП ОТЧЕТА",
+        export_start_date: "Дата начала",
+        export_end_date: "Дата окончания",
+        export_btn_next: "Далее (Выбор группы) ➔",
+        export_btn_cancel: "Отмена",
+        export_btn_back: "◀ Изменить дату",
+        export_opt_all_title: "Общий по всем операторам",
+        export_opt_all_badge: "Все",
+        export_opt_all_desc: "Полный объединенный отчет по всем группам операторов 100-199 и 200+",
+        export_opt_main_title: "Основные операторы",
+        export_opt_main_badge: "100-199",
+        export_opt_main_desc: "Отчет только по основным операторам с 100 по 199",
+        export_opt_sec_title: "Операторы Зангиота 42",
+        export_opt_sec_badge: "200+",
+        export_opt_sec_desc: "Отчет только по операторам 200+ (Зангиота 42)",
+        export_downloading: "Загрузка...",
+
+        // Server Status Modal
+        srv_title: "⚡ Ресурсы Сервера и Состояние Системы",
+        srv_subtitle: "Состояние основного сервера 192.168.0.2 в реальном времени",
+        srv_uptime: "Время работы",
+        srv_cpu_usage: "Загрузка CPU",
+        srv_ram_usage: "Оперативная память (RAM)",
+        srv_disk_usage: "Объем диска",
+        srv_pm2_processes: "Процессы PM2",
+        srv_refresh_btn: "Обновить",
+        srv_close_btn: "Закрыть",
+
+        // Operator Card Labels
+        op_card_desktop_agent: "Desktop Agent:",
+        op_card_desktop_name: "Имя компьютера:",
+        op_card_accepted: "Принято:",
+        op_card_outbound: "Исходящие:",
+        op_card_transfer: "Перевод:",
+        op_card_missed: "Пропущено:",
+        op_card_total_talk: "Всего разговоров:",
+        op_card_avg_talk: "Среднее время:",
+        op_card_agent_active: "Активен",
+        op_card_agent_off: "Не активен",
+        op_card_transfer_gave: "отдал",
+        op_card_transfer_got: "получил",
+        op_card_unknown_host: "Не определено",
+        op_card_refresh: "Обновить с сервера",
+        op_card_last_sync: "Послед. синхр.:",
+        op_card_sync_today: "Сегодня",
+        op_card_sync_yesterday: "Вчера",
+
+        // Live Monitor Sidebar
+        live_queue_title: "ОЖИДАЮТ В ОЧЕРЕДИ",
+        live_queue_empty: "Сейчас в очереди никого нет",
+        live_active_calls: "АКТИВНЫЕ РАЗГОВОРЫ",
+        live_lines: "Линии",
+        live_active_empty: "Сейчас активных разговоров нет",
+        live_ami_connected: "AMI: Подключен",
+        live_ami_connecting: "AMI: Подключение",
+        live_sftp_checking: "SFTP: Проверка",
+        live_waiting_label: "Ожидает",
+        live_talking_label: "В разговоре",
+
+        // History Table
+        hist_col_time: "Время",
+        hist_col_phone: "Номер / Клиент",
+        hist_col_direction: "Направление",
+        hist_col_operator: "Оператор",
+        hist_col_duration: "Длительность",
+        hist_col_wait: "Ожидание",
+        hist_col_status: "Статус",
+        hist_col_hangup: "Кто завершил?",
+        hist_col_action: "Действие",
+        hist_empty: "Звонков пока нет",
+        hist_source_agent: "3CX Агент",
+        hist_source_server: "CDR Сервер",
+        hist_scope_today: "Только сегодня",
+        hist_scope_all: "Все дни",
+        hist_filter_all_status: "Все статусы",
+        hist_filter_all_dir: "Все направления",
+        hist_operator_search: "Поиск оператора...",
+        hist_clear_filter: "Сбросить фильтр",
+
+        // Audio Explorer
+        audio_explorer_title: "Проводник аудио записей",
+        audio_explorer_search: "Поиск по номеру или имени файла...",
+
+        // Dynamic texts
+        dyn_queue_waiting: "Очередь:",
+        dyn_connected_short: "Подключен",
+        dyn_not_connected: "Не подключен",
+        dyn_not_found: "Не найдено",
+        dyn_searching: "Поиск...",
+        dyn_pause: "Пауза",
+        dyn_resume: "Продолжить",
+        dyn_listen: "Слушать",
+        dyn_details: "Детали",
+        dyn_delete: "Удалить",
+        dyn_transfer_call: "Перевод звонка",
+        dyn_no_op_connected: "Оператор не ответил",
+
+        // Charts
+        chart_dynamics_title: "Динамика звонков",
+        chart_distribution_title: "Распределение звонков",
+        chart_operator_title: "📊 Распределение звонков по операторам (3CX Agent)",
+        chart_series_inbound: "Всего входящих (Inbound)",
+        chart_series_answered: "Отвеченные (Answered)",
+        chart_series_outbound: "Исходящие (Outbound)",
+        chart_series_missed: "Пропущенные",
+        chart_series_calls: "Звонки",
+        chart_slice_success: "Успешные",
+        chart_slice_abandoned: "Вышли из очереди",
+        chart_slice_outbound: "Исходящие",
+        chart_suffix_calls: "шт",
+        recent_flow_title: "⚡ Последние звонки (Real-time)",
+
+        // Calendar
+        cal_prev_month: "Предыдущий месяц",
+        cal_next_month: "Следующий месяц",
+        cal_week_mon: "Пн", cal_week_tue: "Вт", cal_week_wed: "Ср", cal_week_thu: "Чт",
+        cal_week_fri: "Пт", cal_week_sat: "Сб", cal_week_sun: "Вс",
+
+        // History / recent flow
+        hist_all_operators: "Все операторы",
+        hist_loading: "Загрузка истории...",
+        hist_opt_answered: "✅ Отвеченные",
+        hist_opt_missed: "📵 Без ответа / Вышли",
+        hist_prev: "⬅ Назад",
+        hist_next: "Вперед ➡",
+        hist_page: "Страница {page} / {total}",
+
+        // Audio player
+        player_close_title: "Закрыть плеер",
+        player_no_file: "Файл не выбран",
+        player_status_playing: "Аудио воспроизводится",
+        player_waveform_render: "Отрисовка звуковой волны...",
+        player_speed: "Скорость:",
+        player_file_size: "Размер файла: {size}",
+        audio_searching: "⏳ Аудио ищется и готовится на сервере...",
+
+        // Explorer
+        exp_col_name: "Имя файла",
+        exp_col_type: "Тип",
+        exp_col_size: "Размер",
+        exp_col_duration: "Длительность",
+        exp_col_datetime: "Дата / Время",
+        exp_col_actions: "Действия",
+        aud_search_empty: "По запросу аудиофайлы не найдены",
+        aud_empty_label: "🚫 Пусто (0 секунд)",
+        aud_empty_desc: "Звонок завершен без соединения, запись отсутствует",
+        aud_empty_btn: "🚫 Пусто",
+        aud_empty_alert: "Этот аудиофайл пуст (0 секунд, разговора не было)",
+        aud_empty_hint: "Запись пуста",
+        aud_robot_label: "🤖 Только очередь (Робот)",
+        aud_robot_desc: "Клиент слышал только робота очереди, разговора с оператором не было",
+        aud_human_label: "🎧 Разговор (Human Talk)",
+        aud_human_desc: "Реальный разговор между клиентом и оператором",
+        aud_toast_empty: "⚠️ Этот аудиофайл пуст (разговора не было или звонок завершен без соединения с оператором).",
+
+        // Live monitor
+        live_queue_waiting_label: "Ожидают в очереди",
+        live_badge_talking: "🟢 В разговоре",
+        live_badge_queue: "⏳ Ожидает в очереди",
+        live_default_queue: "Основная очередь",
+        live_switch_title: "Перевод другому оператору (Switch / Transfer)",
+        live_endcall_title: "Завершить звонок (End Call)",
+        live_position: "В очереди #{n}",
+
+        // Transfer
+        transfer_select_label: "Выберите доступного оператора:",
+        transfer_no_ops: "Операторы не найдены",
+        transfer_ready: "(Готов / On-hook)",
+        transfer_talking: "(В разговоре)",
+        transfer_offline: "(Офлайн)",
+
+        // Operator cards / MVP
+        op_mvp_system: "Система уровней операторов",
+        op_mvp_title: "Самый активный оператор дня (MVP)",
+        op_mvp_accepted_suffix: "принятых звонков",
+
+        // Detail modal
+        detail_filter_total: "Всего: {total} звонков (Фильтр: показано {count})",
+        detail_op_title: "👤 {name} — Детали и сегодняшние разговоры",
+        detail_queue_title: "👥 Ожидающие в очереди (Real-time)",
+        detail_queue_count: "Всего: {n} клиентов ожидают",
+        detail_col_client_phone: "Номер клиента",
+        detail_col_queue_name: "Название очереди",
+        detail_col_wait_time: "Время ожидания",
+
+        // Encoding logs
+        logs_title: "Журнал звонков",
+        logs_loading: "Загрузка...",
+        logs_total_events: "Всего: {n} событий",
+        logs_total_events_zero: "Всего: 0 событий",
+        logs_empty_hint: "Звонки появятся здесь в реальном времени.",
+        logs_col_time: "Время записи",
+        logs_col_phone: "Номер клиента",
+        logs_col_talk: "Время разговора",
+        logs_status_denied: "🚫 Отклонено",
+        logs_status_denied_deny: "🚫 Отклонено (Deny)",
+        logs_status_outbound_unconnected: "Исходящий (Не соединен)",
+        logs_status_outbound_dialled: "Исходящий (Набор)",
+        logs_status_answered: "🟢 Отвечено",
+        logs_status_answered_phone: "📞 Отвечено",
+        logs_page: "Страница {page} / {total}",
+        logs_total_records: "Всего записей: {n}",
+        logs_total_records_zero: "Всего записей: 0",
+        logs_updating: "⚠️ Обновление...",
+        logs_operator_label: "Оператор:",
+        agent_info_title: "{name} — Данные агента",
+        agent_info_default: "Данные агента",
+        agent_info_outbound: "Исходящие:",
+
+        // Date labels
+        date_today_paren: "Сегодня ({date})",
+        date_yesterday_21: "Вчера 21:00",
+
+        // Server modal
+        srv_reading: "Чтение данных сервера...",
+        srv_data_loaded: "✅ Данные загружены ({date})",
+        srv_disk_detail: "({used} занято / {free} свободно - Всего {total})",
+        srv_pm2_status: "Статус PM2",
+        srv_pid: "Process PID",
+        srv_uptime_label: "Время работы сервера",
+        srv_cpu_label: "🧠 Загрузка CPU",
+        srv_ram_label: "💾 RAM (Оперативная память)",
+        srv_physical_disk: "Физический диск сервера",
+        srv_disk_type_spinning: "HDD (Механический)",
+        srv_part_dashboard: "1. Система и Dashboard (Root /)",
+        srv_part_issabel: "2. Issabel PBX и хранилище записей (192.168.0.124)",
+        srv_vm_title: "Виртуальные машины Proxmox (VM)",
+        srv_vm_sub: "Kerio Firewall (200) & Issabel PBX (101)",
+        srv_power_btn: "При отключении света: 1-Нажатие LVM Fix + запуск VM",
+
+        // Agent settings modal
+        set_official_version: "Официальная версия на сервере",
+        set_current_version: "Текущая версия:",
+        set_download_url: "Ссылка для скачивания:",
+        set_status_label: "Статус:",
+        set_auto_update_on: "● Авто-обновление активно (Over-the-Air)",
+        set_publish_version: "Опубликовать новую версию",
+        set_ota_logs_title: "Живые логи OTA-обновления (Кто обновляется?)",
+        set_ota_live: "● Живое наблюдение активно",
+        set_ota_empty: "Пока нет логов обновления. При публикации новой версии они появятся здесь в реальном времени.",
+        set_col_operator: "Оператор",
+        set_col_exten_ip: "Exten / IP",
+        set_col_agent: "Desktop Agent",
+        set_col_host: "Компьютер (Host)",
+        set_col_version: "Версия",
+        set_col_status: "Статус",
+
+        // Export modal
+        export_modal_heading: "Экспорт отчета",
+        export_modal_subheading: "В формате Excel (XLSX) по диапазону дат",
+        export_quick_range: "⚡ Быстрый выбор диапазона:",
+        export_preset_today: "Сегодня",
+        export_preset_last7: "Последние 7 дней",
+        export_preset_this_month: "Этот месяц",
+        export_preset_prev_month: "Прошлый месяц",
+        export_range_computing: "Выбранный диапазон: расчет...",
+        export_download_btn: "Скачать отчет Excel",
+        export_choice_title: "Какой отчет хотите скачать?",
+        export_choice_all: "Общий отчет",
+        export_choice_main: "Основные операторы",
+        export_choice_sec: "Операторы Зангиота 42",
+
+        // Misc
+        opt_50: "50", opt_100: "100", opt_200: "200", opt_500: "500 (Все)",
+        audio_studio: "АУДИО СТУДИЯ",
+        hist_search_placeholder: "Номер клиента, оператор...",
+        hist_count_records: "Всего: {n} записей",
+        hist_count_zero: "Всего: 0 записей",
+        hist_loading_calls: "Загрузка истории звонков...",
+        hist_error: "Произошла ошибка: {msg}",
+        hist_source_desc_server: "Журнал всех входящих и исходящих CDR-звонков из базы сервера Issabel Asterisk.",
+        hist_source_desc_agent: "Журнал звонков из локальной базы 3CX Desktop Agent.",
+        sort_time: "Сортировка по времени (Новые / Старые)",
+        sort_phone: "Сортировка по номеру",
+        sort_direction: "Сортировка по направлению",
+        sort_operator: "Сортировка по оператору",
+        sort_duration: "Сортировка по длительности",
+        sort_wait: "Сортировка по времени ожидания",
+        sort_status: "Сортировка по статусу",
+        sort_hangup: "Сортировка по завершившему",
+        chart_mode_2d_title: "2D плоская кольцевая диаграмма",
+        chart_mode_3d_title: "3D объемная диаграмма",
+        filter_clear_title: "Сбросить фильтры",
+        transfer_prompt_before: "Клиент",
+        transfer_prompt_after: "— на какого онлайн-оператора перевести разговор?",
+        transfer_confirm: "✓ Перевести",
+        detail_modal_title_default: "📊 Детали звонков",
+        detail_modal_subtitle_default: "Подробный список записей за сегодняшний день",
+        logs_modal_title: "🖥️ 3CX Desktop Agent — Журнал звонков",
+        logs_modal_sub: "Реальная история звонков, собранная через 3CX на компьютерах операторов",
+        set_modal_title: "⚙️ Настройки: 3CX Desktop Agent & OTA Update",
+        set_modal_sub: "Мониторинг агентов на всех компьютерах операторов и централизованное обновление версии",
+        set_agents_status_title: "👥 Статус и версии агентов операторов",
+        set_new_version_placeholder: "Версия (например: 1.0.1)",
+        set_release_btn: "Опубликовать",
+        set_release_note: "* При публикации версии агент всех онлайн-операторов автоматически обновится в фоне.",
+        export_start_date_label: "📅 Дата начала (День.Мес.Год):",
+        export_end_date_label: "📅 Дата окончания (День.Мес.Год):",
+        date_picker_native_title: "Выбрать дату напрямую",
+        srv_modal_title: "Статус и ресурсы сервера",
+        srv_lvm_label: "Распределение LVM: Система + записи PBX",
+        srv_services_health: "Статус связи и сервисов",
+        srv_open_json: "↗ Открыть JSON в браузере",
+        aud_duration_empty: "00:00 (Пусто)",
+        live_badge_ringing: "📞 Звонит",
+        live_waiting_count: "{n} клиентов ожидают в очереди",
+        live_hangup_confirm: "Вы действительно хотите завершить этот звонок?",
+        audio_none: "🚫 Нет аудио",
+        audio_none_title: "Разговора не было (запись отсутствует)",
+        audio_play_title: "Прослушать аудио",
+        audio_pause_title: "Остановить (пауза)",
+        audio_resume_title: "Продолжить с места остановки",
+        audio_detail_title: "Открыть в студии Audio Explorer с полным плеером",
+        audio_detail_short: "🔍 Детали",
+        wait_none_outbound_title: "У исходящего звонка нет очереди",
+        hangup_unknown: "Неизвестно",
+        detail_empty_note: "По данной категории звонков не найдено.",
+        sort_click_title: "Нажмите для сортировки",
+        star_next_note: "До следующей звезды осталось {n} звонков",
+        star_max: "🏆 Максимальный уровень (TOP-оператор)!",
+        star_level_5: "Супер Элита",
+        star_level_4: "Лидер",
+        star_level_3: "Опытный",
+        star_level_2: "Средний уровень",
+        star_level_1: "Начинающий",
+        transfer_not_selected: "Оператор не выбран!",
+        transfer_in_progress: "Перевод...",
+        transfer_success: "✅ Звонок успешно переведен на оператора {exten}!",
+        transfer_error_prefix: "Ошибка: ",
+        transfer_failed: "Не удалось перевести",
+        transfer_exception: "Ошибка перевода: ",
+        logs_status_missed: "⚠️ Пропущен",
+        logs_status_ended: "📴 Завершён",
+        logs_hidden_caller: "Скрытый",
+        logs_col_event: "Тип события",
+        logs_col_pc: "Компьютер (PC)",
+        logs_col_details: "История 3CX",
+        logs_no_records: "3CX Desktop Agent пока не зафиксировал звонков.",
+        logs_load_failed: "Не удалось загрузить данные: {msg}",
+        sync_in_progress: "⏳ Синхронизация...",
+        tab_ops_no_data: "Данные 3CX Desktop Agent пока отсутствуют.",
+        detail_subtitle_op_activity: "Ежедневная активность, дисциплина и аудиозаписи оператора",
+        detail_queue_subtitle: "Список клиентов, ожидающих в очереди прямо сейчас",
+        detail_queue_empty_note: "Сейчас ожидающих клиентов нет. Все звонки соединены с операторами или очередь пуста.",
+        detail_col_position: "Место",
+        detail_col_channel: "Канал",
+        wait_status: "Ожидание...",
+        op_sum_answered: "Принятые",
+        op_sum_internal: "Внутренний номер:",
+        op_sum_line_status: "Статус линии:",
+        filter_click_title: "Нажмите для фильтрации",
+        audio_missing_alert: "В этом звонке нет аудиозаписи (разговора не было)",
+        logs_tab_loading: "Журнал 3CX Desktop Agent загружается...",
+        logs_tab_empty: "По этому оператору 3CX Desktop Agent пока не зафиксировал новых звонков.",
+        set_latest: "✅ Актуальная",
+        set_offline_agent: "⚪ Отключён (Offline)",
+        set_status_active: "🟢 Активен",
+        set_status_off: "⚪ Отключён",
+        set_release_input_required: "Пожалуйста, введите номер новой версии! (Например: 1.0.1)",
+        set_release_confirm: "Вы действительно хотите опубликовать новую версию v{ver}?\n\nАгенты на компьютерах всех подключённых операторов автоматически обновятся до этой версии в фоне.",
+        datefilter_loading: "Загрузка данных с сервера...",
+        datefilter_live: "⚡ Мониторинг в реальном времени активен",
+        datefilter_report: "⚡ Отчет за {date}",
+        srv_disk_ssd: "SSD (Быстрый)",
+        chart_series_accepted: "Принятые (Answered)",
+        op_queue_short: "Очередь",
+        detail_no_call_number: "Сегодня по этому номеру звонков не найдено",
+        detail_no_call_hint: "Возможно, клиент звонил в предыдущие дни.",
+        wait_title: "Ожидание в очереди: {time}",
+        wait_title_none: "Время ожидания в очереди недоступно",
+        unknown_error: "Неизвестная ошибка",
+        audio_load_error: "⚠️ Произошла ошибка загрузки",
+        audio_open_error: "Ошибка открытия аудио: ",
+        hangup_error: "Ошибка завершения: ",
+        audio_download_error: "Ошибка загрузки аудиозаписи: ",
+        sync_error: "❌ Ошибка при синхронизации: ",
+        sync_result: "⚠️ Синхронизация: {msg}",
+        srv_request_error: "❌ Ошибка отправки запроса: ",
+        srv_connect_error: "Ошибка подключения к серверу: ",
+        audio_loading: "Аудио загружается...",
+        op_card_exten: "Exten:",
+
+        // Date display
+        month_jan: "Январь", month_feb: "Февраль", month_mar: "Март",
+        month_apr: "Апрель", month_may: "Май", month_jun: "Июнь",
+        month_jul: "Июль", month_aug: "Август", month_sep: "Сентябрь",
+        month_oct: "Октябрь", month_nov: "Ноябрь", month_dec: "Декабрь"
+    }
+};
+
+let currentLang = 'uz';
+
+function initI18n() {
+    try {
+        const saved = localStorage.getItem('callcenter_lang');
+        if (saved && (saved === 'uz' || saved === 'ru')) {
+            currentLang = saved;
+        } else {
+            currentLang = 'uz';
+        }
+    } catch (e) {
+        currentLang = 'uz';
+    }
+    applyTranslations();
+}
+
+function getCurrentLang() {
+    return currentLang;
+}
+
+function t(key, fallback = '') {
+    const dict = I18N_TRANSLATIONS[currentLang] || I18N_TRANSLATIONS.uz;
+    if (dict && dict[key] !== undefined) {
+        return dict[key];
+    }
+    const defDict = I18N_TRANSLATIONS.uz;
+    if (defDict && defDict[key] !== undefined) {
+        return defDict[key];
+    }
+    return fallback || key;
+}
+
+/**
+ * Translate with placeholder substitution, e.g. tf('logs_page', { page: 1, total: 3 })
+ */
+function tf(key, params, fallback = '') {
+    let str = t(key, fallback);
+    if (params && typeof params === 'object') {
+        Object.keys(params).forEach(k => {
+            str = str.split('{' + k + '}').join(params[k]);
+        });
+    }
+    return str;
+}
+
+function switchLanguage(lang) {
+    if (lang !== 'uz' && lang !== 'ru') return;
+    currentLang = lang;
+    try {
+        localStorage.setItem('callcenter_lang', lang);
+    } catch (e) {}
+
+    applyTranslations();
+
+    // Trigger custom event for dynamic components (charts, modals, table renderers)
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang } }));
+}
+
+function applyTranslations() {
+    document.documentElement.setAttribute('lang', currentLang);
+
+    // Update Language Buttons Active State
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        if (btn.getAttribute('data-lang') === currentLang) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Translate DOM elements with data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        const text = t(key);
+        if (text) {
+            if (el.getAttribute('data-i18n-html') === 'true') {
+                el.innerHTML = text;
+            } else {
+                el.textContent = text;
+            }
+        }
+    });
+
+    // Translate Placeholders
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const text = t(key);
+        if (text) el.placeholder = text;
+    });
+
+    // Translate Titles / Tooltips
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        const text = t(key);
+        if (text) el.title = text;
+    });
+}
+
+// Automatically initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initI18n);
+} else {
+    initI18n();
+}

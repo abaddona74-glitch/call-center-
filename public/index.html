@@ -35,32 +35,44 @@
         [data-tab="dashboard"] #tab-dashboard,
         [data-tab="operators"] #tab-operators,
         [data-tab="history"] #tab-history,
-        [data-tab="explorer"] #tab-explorer {
+        [data-tab="explorer"] #tab-explorer,
+        [data-tab="clients"] #tab-clients {
             display: block !important;
         }
 
         /* Boshqa sahifalarni boshidanoq yashirish (Dashboard miltillamasligi uchun) */
         [data-tab="operators"] #tab-dashboard,
         [data-tab="history"] #tab-dashboard,
-        [data-tab="explorer"] #tab-dashboard {
+        [data-tab="explorer"] #tab-dashboard,
+        [data-tab="clients"] #tab-dashboard {
             display: none !important;
         }
 
         [data-tab="dashboard"] #tab-operators,
         [data-tab="history"] #tab-operators,
-        [data-tab="explorer"] #tab-operators {
+        [data-tab="explorer"] #tab-operators,
+        [data-tab="clients"] #tab-operators {
             display: none !important;
         }
 
         [data-tab="dashboard"] #tab-history,
         [data-tab="operators"] #tab-history,
-        [data-tab="explorer"] #tab-history {
+        [data-tab="explorer"] #tab-history,
+        [data-tab="clients"] #tab-history {
             display: none !important;
         }
 
         [data-tab="dashboard"] #tab-explorer,
         [data-tab="operators"] #tab-explorer,
-        [data-tab="history"] #tab-explorer {
+        [data-tab="history"] #tab-explorer,
+        [data-tab="clients"] #tab-explorer {
+            display: none !important;
+        }
+
+        [data-tab="dashboard"] #tab-clients,
+        [data-tab="operators"] #tab-clients,
+        [data-tab="history"] #tab-clients,
+        [data-tab="explorer"] #tab-clients {
             display: none !important;
         }
 
@@ -68,7 +80,8 @@
         [data-tab="dashboard"] .nav-tabs a[data-tab="dashboard"],
         [data-tab="operators"] .nav-tabs a[data-tab="operators"],
         [data-tab="history"] .nav-tabs a[data-tab="history"],
-        [data-tab="explorer"] .nav-tabs a[data-tab="explorer"] {
+        [data-tab="explorer"] .nav-tabs a[data-tab="explorer"],
+        [data-tab="clients"] .nav-tabs a[data-tab="clients"] {
             background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(37, 99, 235, 0.15)) !important;
             color: #60a5fa !important;
             border-color: rgba(59, 130, 246, 0.4) !important;
@@ -213,6 +226,13 @@
                                 <rect x="21" y="8" width="2.4" height="8" rx="1.2"/>
                             </svg>
                             <span data-i18n="tab_explorer">Audio Explorer</span>
+                        </a>
+                        <a href="/clients" class="tab-btn" data-tab="clients" style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+                                <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/>
+                                <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/>
+                            </svg>
+                            <span data-i18n="tab_clients">Mijozlar</span>
                         </a>
                     </nav>
 
@@ -487,7 +507,7 @@
                                 <select id="recentFilterStatus" onchange="applyDashboardRecentFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
                                     <option value="all" style="background: #0f172a; color: #fff;" data-i18n="hist_filter_all_status">Barcha holatlar</option>
                                     <option value="answered" style="background: #0f172a; color: #34d399;" data-i18n="hist_opt_answered">Javob berilgan</option>
-                                    <option value="missed" style="background: #0f172a; color: #f87171;" data-i18n="hist_opt_missed">📵 Javobsiz / Chiqdi</option>
+                                    <option value="missed" style="background: #0f172a; color: #f87171;" data-i18n="hist_opt_missed">Javobsiz / Chiqdi</option>
                                 </select>
                             </div>
 
@@ -630,11 +650,9 @@
                     <!-- WaveSurfer Waveform Visualization Container -->
                     <div class="player-waveform-deck" id="waveform-container">
                         <div class="waveform-timeline-ruler">
-                            <span>0%</span>
-                            <span>25%</span>
-                            <span>50%</span>
-                            <span>75%</span>
-                            <span>100%</span>
+                            <span class="ruler-start" id="waveRulerStart">00:00</span>
+                            <span class="ruler-center-track"></span>
+                            <span class="ruler-end" id="waveRulerEnd">--:--</span>
                         </div>
                         <div id="waveform" class="waveform-canvas"></div>
                         <div id="waveLoadingText" class="waveform-loading-overlay" style="display: none;">
@@ -947,6 +965,13 @@
                                     <option value="transfer" style="background: #0f172a; color: #38bdf8;" data-i18n="dir_transfer">Transfer</option>
                                 </select>
 
+                                <!-- Ovoz / Gapiruvchi filtri (AI Audio Voiceprint) -->
+                                <select id="historyFilterSpeaker" onchange="applyHistoryFilters()" style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
+                                    <option value="all" style="background: #0f172a;" data-i18n="hist_filter_all_speakers">Barcha ovozlar</option>
+                                    <option value="zuhra" style="background: #0f172a; color: #c084fc;" data-i18n="hist_opt_speaker_zuhra">Zuhra opa (119)</option>
+                                    <option value="muattar" style="background: #0f172a; color: #38bdf8;" data-i18n="hist_opt_speaker_muattar">Muattar (119)</option>
+                                </select>
+
                                 <!-- Tozalash tugmasi -->
                                 <button id="btnClearHistoryFilters" onclick="resetHistoryFilters()" title="Filtrlarni tozalash" style="display: none; align-items: center; justify-content: center; height: 32px; padding: 0 10px; gap: 5px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                                     <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg> <span data-i18n="hist_clear_filter">Tozalash</span>
@@ -995,6 +1020,114 @@
                     </div>
                 </div>
             </section>
+
+            <!-- TAB 5: MIJOZLAR (CLIENTS MANAGEMENT & TOP CALLERS) -->
+            <section class="page-content" id="tab-clients">
+                <!-- Top Header Panel -->
+                <div class="glass-panel" style="margin-bottom: 20px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
+                        <div>
+                            <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary-light);">
+                                    <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/>
+                                    <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/>
+                                </svg>
+                                <span data-i18n="clients_title">Mijozlar Boshqaruvi</span>
+                            </h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;" data-i18n="clients_subtitle">
+                                Qo'ng'iroq qiluvchi barcha mijozlar bazasi, so'zlashuv tillari va faollik tahlili
+                            </p>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <div class="last-sync-badge" id="clientsCountBadge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-size: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--text-muted);">
+                                <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);"></span>
+                                <span id="clientsTotalCountText">Jami: 0 ta mijoz</span>
+                            </div>
+
+                            <button class="btn-action" onclick="loadClientsTab(true)" title="Ro'yxatni yangilash" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 500; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 8px;">
+                                <svg class="isax isax-sm" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#refresh"></use></svg>
+                                <span>Yangilash</span>
+                            </button>
+
+                            <button class="btn-action" onclick="openAdminAddClientModal()" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 18px; font-size: 12.5px; font-weight: 600; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: 1px solid rgba(129, 140, 248, 0.45); color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                <span data-i18n="clients_btn_add">Yangi Mijoz Qo'shish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ENG FAOL MIJOZLAR (TOP CALLERS SECTION) -->
+                <div class="glass-panel" style="margin-bottom: 20px;">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+                        <div>
+                            <h4 style="font-size: 14.5px; font-weight: 700; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                <svg class="isax isax-flash" style="width: 16px; height: 16px; color: #f59e0b;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
+                                <span data-i18n="clients_top_active_title">Eng Faol Mijozlar (Top Callers)</span>
+                            </h4>
+                            <p style="font-size: 11.5px; color: var(--text-dim); margin: 3px 0 0 0;" data-i18n="clients_top_active_sub">
+                                Eng ko'p qo'ng'iroq qilgan mijozlar va ularning so'zlashuv tili
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="top-active-clients-grid" id="topActiveClientsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
+                        <!-- Dynamically filled by JS -->
+                    </div>
+                </div>
+
+                <!-- MIJOZLAR JADVALI & QIDIRUV VA FILTRLAR -->
+                <div class="glass-panel">
+                    <div class="panel-header" style="flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
+                        <!-- Search Box -->
+                        <div style="flex: 1; min-width: 260px; position: relative;">
+                            <input type="text" id="clientsSearchInput" oninput="handleClientsSearch(this.value)" placeholder="Mijoz ismi, telefon, tashkilot, izoh yoki til bo'yicha qidiruv..." data-i18n-placeholder="clients_search_placeholder" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 10px 38px 10px 14px; border-radius: var(--radius-sm); font-size: 13px; outline: none; transition: all 0.2s ease;">
+                            <button type="button" id="clientsSearchClearBtn" onclick="clearClientsSearch()" style="display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px;">
+                                <svg class="isax isax-close" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close"></use></svg>
+                            </button>
+                        </div>
+
+                        <!-- Language Filter Pills -->
+                        <div class="clients-lang-filters" id="clientsLangFilterGroup" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                            <button type="button" class="lang-filter-btn active" data-lang="" onclick="setClientsLangFilter('', this)" data-i18n="clients_filter_all">Barchasi</button>
+                            <button type="button" class="lang-filter-btn" data-lang="uz" onclick="setClientsLangFilter('uz', this)" data-i18n="clients_filter_uz">O'zbek tili</button>
+                            <button type="button" class="lang-filter-btn" data-lang="ru" onclick="setClientsLangFilter('ru', this)" data-i18n="clients_filter_ru">Rus tili</button>
+                            <button type="button" class="lang-filter-btn" data-lang="en" onclick="setClientsLangFilter('en', this)" data-i18n="clients_filter_en">Ingliz tili</button>
+                            <button type="button" class="lang-filter-btn" data-lang="other" onclick="setClientsLangFilter('other', this)" data-i18n="clients_filter_other">Boshqa</button>
+                            <button type="button" class="lang-filter-btn" data-lang="empty" onclick="setClientsLangFilter('empty', this)" data-i18n="clients_filter_none">Til belgilanmagan</button>
+                        </div>
+                    </div>
+
+                    <!-- Clients Table -->
+                    <div class="data-table-wrapper" style="overflow-x: auto; max-height: 600px;">
+                        <table class="data-table" id="clientsDataTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 45px; text-align: center;" data-i18n="clients_col_num">№</th>
+                                    <th class="cell-left" data-i18n="clients_col_client">Mijoz (Ism / Raqam)</th>
+                                    <th class="cell-left" data-i18n="clients_col_org">Tashkilot / Hudud</th>
+                                    <th data-i18n="clients_col_lang">So'zlashuv Tili</th>
+                                    <th data-i18n="clients_col_calls">Qo'ng'iroqlar</th>
+                                    <th data-i18n="clients_col_last_call">Oxirgi Muloqot</th>
+                                    <th class="cell-left" data-i18n="clients_col_notes">Izoh / Eslatma</th>
+                                    <th style="text-align: right; width: 140px;" data-i18n="clients_col_actions">Amallar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientsTableBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 32px;" data-i18n="clients_empty">Yuklanmoqda...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Table Footer / Count -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 0 4px; font-size: 12px; color: var(--text-muted);">
+                        <span id="clientsTableCountInfo">0 ta mijoz ko'rsatilmoqda</span>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <!-- RIGHT STICKY SIDEBAR (MAXIMIZED FOR REAL-TIME LINES & QUEUE) -->
@@ -1007,7 +1140,7 @@
                 <!-- 1. Queue (Navbatda kutayotganlar) -->
                 <div class="queue-panel" id="queueSection">
                     <div class="queue-panel-head">
-                        <span>👥 <span data-i18n="live_queue_title">NAVBATDA KUTAYOTGANLAR</span></span>
+                        <span style="display: inline-flex; align-items: center; gap: 5px;"><svg class="isax isax-user" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg> <span data-i18n="live_queue_title">NAVBATDA KUTAYOTGANLAR</span></span>
                         <span class="badge badge-indigo" id="queueCountBadge" data-i18n="queue_zero_count">0 ta</span>
                     </div>
                     <div class="queue-items-list" id="queueItemsList">
@@ -1033,48 +1166,55 @@
 
                 <!-- 3. Bog'lanishi kerak bo'lgan mijozlar (Callbacks / Qayta aloqa) -->
                 <div class="callback-section" style="margin-top: 4px;">
-                    <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="display: flex; align-items: center; gap: 6px;">
-                            <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
-                            <span data-i18n="live_callbacks_title">BOG'LANISHI KERAK</span>
-                            (<span id="callbackCountBadge">0</span>)
-                        </span>
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <!-- Filter pills: Bugun / Hammasi -->
-                            <div style="display: inline-flex; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 1px; border: 1px solid rgba(255,255,255,0.08);">
-                                <button type="button" id="adminCbFilterToday" onclick="switchAdminCallbackDateFilter('today')" style="background: var(--primary); color: #fff; border: none; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                    <svg class="isax isax-calendar" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-calendar"></use></svg> Bugun
+                    <!-- STICKY FILTER HEADER (SCROLL QILGANDA JOYIDA QOLADI) -->
+                    <div class="callback-sticky-header">
+                        <!-- 1-qator: Sarlavha + Hisoblagich va Amallar tugmalari -->
+                        <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                                <span data-i18n="live_callbacks_title">BOG'LANISHI KERAK</span>
+                                <span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10.5px; padding: 1px 6px; border-radius: 6px; font-weight: 700;">(<span id="callbackCountBadge">0</span>)</span>
+                            </span>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <button type="button" id="btnClearAllCallbacks" onclick="clearAllCallbacks()" title="Barchasini tozalash (Clear all)" data-i18n-title="callback_clear_all_title" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 6px; padding: 3px 6px; cursor: pointer; transition: all 0.2s; display: none; align-items: center; justify-content: center;">
+                                    <svg class="isax isax-trash" style="width: 12px; height: 12px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
                                 </button>
-                                <button type="button" id="adminCbFilterAll" onclick="switchAdminCallbackDateFilter('all')" style="background: transparent; color: var(--text-dim); border: none; border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                    <svg class="isax isax-global" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg> Hammasi
+                                <button type="button" id="btnSyncCallbacks" onclick="syncCallbacksManually()" title="Qayta tekshirish" data-i18n-title="callback_refresh_title" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; border-radius: 6px; padding: 3px 6px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;">
+                                    <svg class="isax isax-refresh" style="width: 12px; height: 12px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
                                 </button>
                             </div>
-                            <button type="button" id="btnClearAllCallbacks" onclick="clearAllCallbacks()" title="Barchasini tozalash (Clear all)" data-i18n-title="callback_clear_all_title" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all 0.2s; display: none; align-items: center; justify-content: center;">
-                                <svg class="isax isax-trash" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
+                        </div>
+
+                        <!-- 2-qator: Filter pills (Bugun / Hammasi) to'liq kenglikda qulay joylashadi -->
+                        <div style="display: flex; align-items: center; margin-bottom: 6px;">
+                            <div style="display: inline-flex; width: 100%; background: rgba(0,0,0,0.35); border-radius: 6px; padding: 2px; border: 1px solid rgba(255,255,255,0.08); gap: 2px;">
+                                <button type="button" id="adminCbFilterToday" onclick="switchAdminCallbackDateFilter('today')" style="flex: 1; background: var(--primary); color: #fff; border: none; border-radius: 5px; padding: 3px 6px; font-size: 10.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;">
+                                    <svg class="isax isax-calendar" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-calendar"></use></svg> <span data-i18n="filter_today">Bugun</span>
+                                </button>
+                                <button type="button" id="adminCbFilterAll" onclick="switchAdminCallbackDateFilter('all')" style="flex: 1; background: transparent; color: var(--text-dim); border: none; border-radius: 5px; padding: 3px 6px; font-size: 10.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; transition: all 0.2s;">
+                                    <svg class="isax isax-global" style="width: 11px; height: 11px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg> <span data-i18n="filter_all">Hammasi</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Category Tabs: Kutilmoqda / Bog'lanib bo'lmadi / Gaplashildi -->
+                        <div style="display: flex; gap: 4px;">
+                            <button type="button" id="adminCbTabPending" onclick="switchAdminCallbackTab('pending')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                                <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg> Kutilmoqda</span>
+                                <span id="adminCbPendingCount" style="background: rgba(245, 158, 11, 0.3); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
                             </button>
-                            <button type="button" id="btnSyncCallbacks" onclick="syncCallbacksManually()" title="Qayta tekshirish" data-i18n-title="callback_refresh_title" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24; border-radius: 6px; padding: 4px 6px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center;">
-                                <svg class="isax isax-refresh" style="width: 13px; height: 13px; display: block;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                            <button type="button" id="adminCbTabUnreachable" onclick="switchAdminCallbackTab('unreachable')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                                <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg> Ulanilmadi</span>
+                                <span id="adminCbUnreachableCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
+                            </button>
+                            <button type="button" id="adminCbTabResolved" onclick="switchAdminCallbackTab('resolved')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
+                                <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg> Gaplashildi</span>
+                                <span id="adminCbResolvedCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Category Tabs: Kutilmoqda / Bog'lanib bo'lmadi / Gaplashildi -->
-                    <div style="display: flex; gap: 4px; margin-bottom: 6px;">
-                        <button type="button" id="adminCbTabPending" onclick="switchAdminCallbackTab('pending')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.45); color: #fbbf24; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg> Kutilmoqda</span>
-                            <span id="adminCbPendingCount" style="background: rgba(245, 158, 11, 0.3); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
-                        </button>
-                        <button type="button" id="adminCbTabUnreachable" onclick="switchAdminCallbackTab('unreachable')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg> Ulanilmadi</span>
-                            <span id="adminCbUnreachableCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
-                        </button>
-                        <button type="button" id="adminCbTabResolved" onclick="switchAdminCallbackTab('resolved')" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 3px; background: rgba(100, 116, 139, 0.15); border: 1px solid rgba(100, 116, 139, 0.3); color: #94a3b8; border-radius: 6px; padding: 4px 4px; font-size: 10.5px; font-weight: 600; cursor: pointer;">
-                            <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg> Gaplashildi</span>
-                            <span id="adminCbResolvedCount" style="background: rgba(255, 255, 255, 0.1); padding: 0 4px; border-radius: 8px; font-size: 9.5px;">0</span>
-                        </button>
-                    </div>
-
-                    <div id="callbackListContainer" style="display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                    <div id="callbackListContainer" style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
                         <div class="empty-callbacks-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px;" data-i18n="live_callbacks_empty">
                             Bog'lanishi kerak bo'lgan mijozlar yo'q
                         </div>
@@ -1099,7 +1239,7 @@
                     <button id="btnQueueInfo" onclick="openQueueInfoModal()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 12px; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600; color: #a5b4fc; cursor: pointer; transition: all 0.2s ease;" title="Asterisk navbatidagi har bir operatorning qabul qilgan qo'ng'iroqlari (fewestcalls chart)">
                         <svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/><path d="M15.5 16.5V13.5"/><path d="M12 16.5V10.5"/><path d="M8.5 16.5V7.5"/></svg>
                         <span>Queue Info</span>
-                        <span id="queueInfoSummary" style="background: rgba(99, 102, 241, 0.3); color: #c7d2fe; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: auto;">—</span>
+                        <span id="queueInfoSummary" style="background: transparent; color: #e2e8f0; font-size: 11.5px; font-weight: 700; margin-left: auto; letter-spacing: 0.8px;">—</span>
                     </button>
                 </div>
             </div>
@@ -1167,7 +1307,25 @@
                     </div>
                 </div>
 
-                <!-- 3. Legend (Ranglar tushuntirishi) -->
+                <!-- 3. DB bilan Sinxronizatsiya Switch (ON / OFF) -->
+                <div style="display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.7); padding: 3px 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.08);" title="DB bilan avto-sinxronlash: Issabel qayta yuklansa yoki svet o'chsa ham, RAM qiymatlari bazadagi bugungi JAMI qo'ng'iroqlardan olinadi. Soat 00:00 da avtomatik 0 ga tushadi.">
+                    <span style="color: #cbd5e1; font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 5px;">
+                        <svg class="isax isax-refresh" style="width: 14px; height: 14px; color: #818cf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                        <span>DB Sinxronlash:</span>
+                    </span>
+                    <label style="position: relative; display: inline-block; width: 38px; height: 20px; cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="toggleQueueDbSync" onchange="toggleQueueDbSync(this.checked)" style="opacity: 0; width: 0; height: 0; position: absolute;">
+                        <span id="sliderQueueDbSync" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #10b981; transition: 0.25s; border-radius: 20px; border: 1px solid rgba(16, 185, 129, 0.5); box-shadow: 0 0 8px rgba(16, 185, 129, 0.35);">
+                            <span id="knobQueueDbSync" style="position: absolute; content: ''; height: 14px; width: 14px; left: 3px; bottom: 2px; background-color: white; transition: 0.25s; border-radius: 50%; transform: translateX(18px);"></span>
+                        </span>
+                    </label>
+                    <span id="labelQueueDbSync" style="font-size: 11px; font-weight: 800; color: #34d399; min-width: 24px;">ON</span>
+                    <button id="btnQueueSyncNow" onclick="triggerQueueSyncNow()" style="padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.2); color: #a5b4fc; font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.2s;" title="Hozirning o'zida DB dagi Jami sonlarni navbatga ko'chirib olish">
+                        Hozir sinxronlash
+                    </button>
+                </div>
+
+                <!-- 4. Legend (Ranglar tushuntirishi) -->
                 <div style="display: flex; align-items: center; gap: 12px; color: #cbd5e1; font-size: 10px;">
                     <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #10b981;"></span> Bo'sh</span>
                     <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #38bdf8;"></span> Suhbatda</span>
@@ -1835,6 +1993,118 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ADMIN CLIENT MODAL (Yangi mijoz qo'shish / tahrirlash) -->
+    <div id="adminClientModal" onclick="if(event.target === this) closeAdminClientModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); z-index: 1050; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 520px; max-width: 95vw; background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.4); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(99, 102, 241, 0.15); border-radius: var(--radius-lg); overflow: hidden; animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); display: flex; align-items: center; justify-content: center; color: #818cf8;">
+                        <svg class="isax isax-user" style="width: 20px; height: 20px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
+                    </div>
+                    <div>
+                        <h3 id="adminClientModalTitle" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;" data-i18n="clients_modal_add_title">Yangi Mijoz Qo'shish</h3>
+                        <p style="font-size: 11.5px; color: var(--text-muted); margin: 3px 0 0 0;" data-i18n="clients_modal_sub">Ushbu ma'lumotlar qo'ng'iroqlarda va statistikada avtomatik aks etadi</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAdminClientModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #94a3b8; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease;">
+                    <svg class="isax isax-close" style="width: 16px; height: 16px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close"></use></svg>
+                </button>
+            </div>
+
+            <!-- Modal Form Body -->
+            <form id="adminClientForm" onsubmit="handleAdminClientSubmit(event)" style="padding: 22px 24px; margin: 0;">
+                <input type="hidden" id="adminClientOrigPhone" value="">
+
+                <!-- Telefon raqami -->
+                <div style="margin-bottom: 16px;">
+                    <label for="adminClientPhoneInput" style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <svg class="isax isax-call" style="width: 14px; height: 14px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call"></use></svg>
+                        <span data-i18n="clients_phone_label">Telefon raqami</span>
+                        <span style="color: #f87171;">*</span>
+                    </label>
+                    <input type="text" id="adminClientPhoneInput" required placeholder="+998901234567" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; outline: none; font-family: monospace; letter-spacing: 0.5px; transition: all 0.2s ease;">
+                </div>
+
+                <!-- Mijoz Ismi -->
+                <div style="margin-bottom: 16px;">
+                    <label for="adminClientNameInput" style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-user" style="width: 14px; height: 14px; color: #a78bfa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
+                            <span data-i18n="clients_name_label">Mijoz ismi / Kimligi</span>
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;" data-i18n="clients_name_hint">(ixtiyoriy)</span>
+                    </label>
+                    <input type="text" id="adminClientNameInput" placeholder="Masalan: Sardor Usmonov" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; outline: none; transition: all 0.2s ease;">
+                </div>
+
+                <!-- Tashkilot / Hudud -->
+                <div style="margin-bottom: 16px;">
+                    <label for="adminClientOrgInput" style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-location" style="width: 14px; height: 14px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-location"></use></svg>
+                            <span data-i18n="clients_col_org">Tashkilot / Hudud</span>
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;" data-i18n="clients_org_hint">(Ism bo'lmasa, bu to'ldiriladi)</span>
+                    </label>
+                    <input type="text" id="adminClientOrgInput" placeholder="Masalan: SamAuto, Samarqand filiali" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; outline: none; transition: all 0.2s ease;">
+                </div>
+
+                <!-- So'zlashuv Tili (Optional, by default empty) -->
+                <div style="margin-bottom: 16px;">
+                    <label for="adminClientLangSelect" style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-global" style="width: 14px; height: 14px; color: #60a5fa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
+                            <span data-i18n="clients_lang_label">Qaysi tilda gaplashadi</span>
+                        </span>
+                        <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;" data-i18n="clients_lang_hint">(ixtiyoriy, default tanlanmagan)</span>
+                    </label>
+                    <select id="adminClientLangSelect" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; outline: none; cursor: pointer; transition: all 0.2s ease;">
+                        <option value="" data-i18n="clients_lang_empty">Tanlanmagan (ko'rsatilmagan)</option>
+                        <option value="uz" data-i18n="clients_filter_uz">O'zbek tili</option>
+                        <option value="ru" data-i18n="clients_filter_ru">Rus tili</option>
+                        <option value="en" data-i18n="clients_filter_en">Ingliz tili</option>
+                        <option value="other" data-i18n="clients_filter_other">Boshqa til</option>
+                    </select>
+                </div>
+
+                <!-- Qo'shimcha Izoh -->
+                <div style="margin-bottom: 18px;">
+                    <label for="adminClientNotesInput" style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <svg class="isax isax-document" style="width: 14px; height: 14px; color: #fbbf24;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document"></use></svg>
+                        <span data-i18n="clients_notes_label">Qo'shimcha izoh / Eslatma</span>
+                    </label>
+                    <textarea id="adminClientNotesInput" rows="2" placeholder="Masalan: Doimiy mijoz, chegirmalar so'raydi..." style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13px; outline: none; resize: vertical; min-height: 60px; font-family: inherit; transition: all 0.2s ease;"></textarea>
+                </div>
+
+                <!-- Status Feedback -->
+                <div id="adminClientStatus" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; margin-bottom: 16px;"></div>
+
+                <!-- Modal Actions -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 20px;">
+                    <div>
+                        <button type="button" id="adminClientDeleteBtn" onclick="deleteAdminClientFromModal()" style="display: none; padding: 9px 16px; font-size: 12.5px; font-weight: 600; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.25)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
+                            <span style="display: inline-flex; align-items: center; gap: 6px;">
+                                <svg class="isax isax-trash" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
+                                <span data-i18n="clients_btn_delete">O'chirish</span>
+                            </span>
+                        </button>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button type="button" onclick="closeAdminClientModal()" style="padding: 9px 18px; font-size: 13px; font-weight: 500; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.08)'">
+                            <span data-i18n="clients_btn_cancel">Bekor qilish</span>
+                        </button>
+                        <button type="submit" id="adminClientSaveBtn" style="padding: 9px 24px; font-size: 13px; font-weight: 600; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: 1px solid rgba(129, 140, 248, 0.45); color: #ffffff; border-radius: 8px; cursor: pointer; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;" onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 18px rgba(99, 102, 241, 0.5)'" onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 14px rgba(99, 102, 241, 0.35)'">
+                            <svg class="isax isax-tick-circle" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>
+                            <span data-i18n="clients_btn_save">Saqlash</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 

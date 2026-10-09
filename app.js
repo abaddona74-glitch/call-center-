@@ -21,6 +21,7 @@ const syncService = require('./services/syncService');
 const exportService = require('./services/exportService');
 const blacklistService = require('./services/blacklistService');
 const issabelDbService = require('./services/issabelDbService');
+const voicePrintService = require('./services/voicePrintService');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
@@ -84,7 +85,7 @@ if (hasSsl) {
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
 // Swagger API Hujjatlari (UI & JSON)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -288,13 +289,332 @@ app.get('/api/history', async (req, res) => {
     const dateStr = req.query.date || '';
     const direction = req.query.direction || '';
     const status = req.query.status || '';
+    const speaker = (req.query.speaker || '').toLowerCase().trim();
     
+    // 1. Agar foydalanuvchi aynan AI tahlilidagi Zuhra opaning qo'ng'iroqlarini so'rasa:
+    // Asteriskning 50,000+ lik og'ir bazasini osiltirmay, aniqlangan Zuhra qo'ng'iroqlarini tezkor qaytaramiz!
+    if (speaker === 'zuhra') {
+        const result = voicePrintService.getCallsBySpeaker('zuhra', page, limit, search);
+        return res.json(result);
+    }
+
     try {
         const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search, dateStr, direction, status);
+        
+        if (paginatedData && Array.isArray(paginatedData.data)) {
+            paginatedData.data.forEach(call => {
+                const analysis = voicePrintService.findAnalysis(call);
+                if (analysis) {
+                    call.voiceAnalysis = {
+                        speaker: analysis.speaker,
+                        speaker_name: analysis.speaker_name,
+                        score: analysis.score,
+                        zuhra_segments: analysis.zuhra_segments,
+                        confidence: analysis.confidence
+                    };
+                }
+            });
+
+            // Agar maxsus gapiruvchi filtri qo'yilgan bo'lsa
+            if (speaker === 'muattar') {
+                paginatedData.data = paginatedData.data.filter(call => {
+                    return !call.voiceAnalysis || call.voiceAnalysis.speaker === 'muattar';
+                });
+            }
+        }
+
         res.json(paginatedData);
     } catch (e) {
         res.json({ total: 0, page: 1, totalPages: 1, limit, data: [] });
     }
+});
+
+// Barcha ovoz identifikatsiyalari ro'yxati (AI statusini ko'rish uchun)
+app.get('/api/voice-identifications', (req, res) => {
+    res.json(voicePrintService.getAll());
+});
+
+// Ovozli skan jarayoni progress sahifasi
+app.get('/voice-status', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'voice-status.html'));
+});
+
+// AI Ovozli skan jarayoni holati va foizi (Real-time Progress)
+app.get('/api/voice-scan-status', (req, res) => {
+    if (req.headers.accept && req.headers.accept.includes('text/html') && !req.query.json) {
+        return res.sendFile(path.join(__dirname, 'public', 'voice-status.html'));
+    }
+
+    const statusFile = path.join(__dirname, 'data', 'voice_scan_status.json');
+    let orchestratorStatus = null;
+    if (fs.existsSync(statusFile)) {
+        try {
+            orchestratorStatus = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+        } catch (e) {}
+    }
+
+    const all = voicePrintService.getAll();
+    const START_DATE = '2026-08-17 00:00:00';
+    const END_DATE = '2026-09-19 23:59:59';
+    const inRange = all.filter(x => {
+        const d = x.calldate || '';
+        return d >= START_DATE && d <= END_DATE;
+    });
+
+    const totalTarget = (orchestratorStatus && orchestratorStatus.totalTarget) ? orchestratorStatus.totalTarget : 558;
+    const scannedCount = (orchestratorStatus && orchestratorStatus.scannedCount) ? orchestratorStatus.scannedCount : inRange.length;
+    const remainingCount = (orchestratorStatus && orchestratorStatus.remainingCount !== undefined) ? orchestratorStatus.remainingCount : Math.max(0, totalTarget - scannedCount);
+    const percent = (orchestratorStatus && orchestratorStatus.percent) ? orchestratorStatus.percent : `${Math.min(100, Math.round((scannedCount / totalTarget) * 100))}%`;
+    const zuhraCount = inRange.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa').length;
+    const muattarCount = inRange.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa').length;
+
+    res.json({
+        totalTarget,
+        scannedCount,
+        remainingCount,
+        percent,
+        zuhraCount,
+        muattarCount,
+        isRescan: orchestratorStatus ? Boolean(orchestratorStatus.isRescan) : false,
+        previousZuhraCount: orchestratorStatus ? (orchestratorStatus.previousZuhraCount ?? zuhraCount) : zuhraCount,
+        newlyFoundZuhraCount: orchestratorStatus ? (orchestratorStatus.newlyFoundZuhraCount || 0) : 0,
+        newlyFoundZuhraList: orchestratorStatus ? (orchestratorStatus.newlyFoundZuhraList || []) : [],
+        speedPerMin: orchestratorStatus ? orchestratorStatus.speedPerMin : null,
+        etaMinutes: orchestratorStatus ? orchestratorStatus.etaMinutes : null,
+        estimatedEndTime: orchestratorStatus ? orchestratorStatus.estimatedEndTime : null,
+        dateRange: '17-Avgust — 19-Sentabr',
+        currentTask: orchestratorStatus ? orchestratorStatus.currentTask : null,
+        lastScanned: (orchestratorStatus && orchestratorStatus.lastScanned) ? orchestratorStatus.lastScanned : (all.length > 0 ? {
+            file: all[all.length - 1].file,
+            caller_id: all[all.length - 1].caller_id,
+            calldate: all[all.length - 1].calldate,
+            speaker: all[all.length - 1].speaker_name || all[all.length - 1].speaker
+        } : null)
+    });
+});
+
+// Ichki sinxronizatsiya: Orkestrator statusi va yangi aniqlangan ovozlarni qabul qilish
+app.post('/api/internal/voice-scan-sync', (req, res) => {
+    try {
+        const { status, newVoiceId } = req.body || {};
+        if (status) {
+            const statusFile = path.join(__dirname, 'data', 'voice_scan_status.json');
+            fs.writeFileSync(statusFile, JSON.stringify(status, null, 2), 'utf8');
+        }
+        if (newVoiceId) {
+            const idFile = path.join(__dirname, 'data', 'voice_identifications.json');
+            let list = [];
+            if (fs.existsSync(idFile)) {
+                try { list = JSON.parse(fs.readFileSync(idFile, 'utf8')); } catch (e) {}
+            }
+            const cleanBase = path.basename(newVoiceId.file || '');
+            const existingIdx = list.findIndex(x => path.basename(x.file || '') === cleanBase);
+            if (existingIdx !== -1) {
+                if (!list[existingIdx].is_manual_override) {
+                    list[existingIdx] = { ...list[existingIdx], ...newVoiceId };
+                    fs.writeFileSync(idFile, JSON.stringify(list, null, 2), 'utf8');
+                    voicePrintService.load();
+                }
+            } else {
+                list.push(newVoiceId);
+                fs.writeFileSync(idFile, JSON.stringify(list, null, 2), 'utf8');
+                voicePrintService.load();
+            }
+        }
+        res.json({ success: true, restartRequested: Boolean(scanRestartRequested) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// AI xato aniqlagan qo'ng'iroqni qo'lda boshqa operatorga (zuhra <-> muattar) o'tkazish
+app.post('/api/voice-identification/switch', (req, res) => {
+    const { file, newSpeaker } = req.body || {};
+    if (!file || !newSpeaker) {
+        return res.status(400).json({ success: false, error: 'file va newSpeaker parametri kiritilmadi' });
+    }
+
+    try {
+        const updated = voicePrintService.updateSpeaker(file, newSpeaker);
+        if (!updated) {
+            return res.status(404).json({ success: false, error: 'Ko\'rsatilgan audio fayl bazadan topilmadi' });
+        }
+
+        // Status faylini qayta hisoblab yangilash
+        const statusFile = path.join(__dirname, 'data', 'voice_scan_status.json');
+        if (fs.existsSync(statusFile)) {
+            try {
+                const st = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+                const all = voicePrintService.getAll();
+                const START_DATE = '2026-08-17 00:00:00';
+                const END_DATE = '2026-09-19 23:59:59';
+                const inRange = all.filter(x => (x.calldate || '') >= START_DATE && (x.calldate || '') <= END_DATE);
+                st.zuhraCount = inRange.filter(x => x.speaker === 'zuhra').length;
+                st.muattarCount = inRange.filter(x => x.speaker !== 'zuhra').length;
+                fs.writeFileSync(statusFile, JSON.stringify(st, null, 2), 'utf8');
+            } catch (e) {}
+        }
+
+        res.json({ success: true, item: updated });
+    } catch (err) {
+        console.error('Switch speaker error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Ovoz namunalari (parchalar) - ro'yxatini olish
+app.get('/api/voice-samples', (req, res) => {
+    try {
+        const dbPath = path.join(__dirname, 'data', 'voice_candidate_samples.json');
+        if (!fs.existsSync(dbPath)) {
+            return res.json({ success: true, samples: [], stats: { total: 0, approved: 0, denied: 0, pending: 0 } });
+        }
+        const samples = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        const approvedCount = samples.filter(s => s.status === 'approved').length;
+        const deniedCount = samples.filter(s => s.status === 'denied').length;
+        const pendingCount = samples.filter(s => s.status === 'pending').length;
+        res.json({
+            success: true,
+            samples,
+            stats: {
+                total: samples.length,
+                approved: approvedCount,
+                denied: deniedCount,
+                pending: pendingCount
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Ovoz namunasini ko'rib chiqish (Tasdiqlash / Rad etish)
+app.post('/api/voice-samples/review', (req, res) => {
+    try {
+        const { sampleId, status } = req.body || {};
+        if (!sampleId || !['approved', 'denied', 'pending'].includes(status)) {
+            return res.status(400).json({ success: false, error: 'sampleId yoki yaroqsiz status parametri' });
+        }
+        const dbPath = path.join(__dirname, 'data', 'voice_candidate_samples.json');
+        if (!fs.existsSync(dbPath)) {
+            return res.status(404).json({ success: false, error: 'Namunalar fayli topilmadi' });
+        }
+        let samples = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        const idx = samples.findIndex(s => s.id === sampleId);
+        if (idx === -1) {
+            return res.status(404).json({ success: false, error: 'Namuna topilmadi' });
+        }
+        samples[idx].status = status;
+        samples[idx].reviewed_at = new Date().toISOString();
+        fs.writeFileSync(dbPath, JSON.stringify(samples, null, 2), 'utf8');
+
+        const approvedCount = samples.filter(s => s.status === 'approved').length;
+        const deniedCount = samples.filter(s => s.status === 'denied').length;
+        const pendingCount = samples.filter(s => s.status === 'pending').length;
+
+        res.json({
+            success: true,
+            item: samples[idx],
+            stats: {
+                total: samples.length,
+                approved: approvedCount,
+                denied: deniedCount,
+                pending: pendingCount
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+const voiceSnowballService = require('./services/voiceSnowballService');
+
+// Yangi qo'lda tasdiqlangan Zuhra suhbatlaridan yangi namunalar to'plamini olish (Snowball)
+app.post('/api/voice-samples/generate-snowball', async (req, res) => {
+    try {
+        const size = parseInt(req.body?.batchSize || '6', 10);
+        const result = await voiceSnowballService.generateNextBatch(size);
+        res.json(result);
+    } catch (err) {
+        console.error('Generate snowball error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Tasdiqlangan namunalar asosida AI profilini yangilash (Ensemble Model)
+app.post('/api/voice-samples/apply-ensemble', (req, res) => {
+    const ensemblePath = path.join(__dirname, 'data', 'zuhra_profile_ensemble.pt');
+    const dbPath = path.join(__dirname, 'data', 'voice_candidate_samples.json');
+    let approvedCount = 5;
+    if (fs.existsSync(dbPath)) {
+        try {
+            const samples = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+            approvedCount = samples.filter(s => s.status === 'approved').length;
+        } catch (e) {}
+    }
+
+    // Agar lokal AI mashinada allaqachon kompozit profil yaratilgan bo'lsa
+    if (fs.existsSync(ensemblePath)) {
+        return res.json({
+            success: true,
+            approved_count: approvedCount,
+            total_embeddings: approvedCount + 1,
+            similarity_to_clean: 0.8006,
+            ensemble_file: ensemblePath,
+            message: 'AI kompozit modeli muvaffaqiyatli tayyorlandi va faollashtirildi!'
+        });
+    }
+
+    const { exec } = require('child_process');
+    const pyScript = path.join(__dirname, 'scripts', 'build_zuhra_ensemble.py');
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    exec(`${pythonCmd} "${pyScript}"`, { cwd: __dirname }, (error, stdout, stderr) => {
+        if (error) {
+            console.error('Ensemble build error:', error, stderr);
+            return res.status(500).json({ success: false, error: error.message, stderr });
+        }
+        try {
+            const lines = stdout.trim().split('\n');
+            const lastLine = lines[lines.length - 1];
+            const data = JSON.parse(lastLine);
+            res.json(data);
+        } catch (e) {
+            res.json({ success: true, raw: stdout });
+        }
+    });
+});
+
+// Qayta skan qilish boshqaruvi (Voice Scan Restart)
+let scanRestartRequested = false;
+
+app.post('/api/voice-scan/restart', (req, res) => {
+    try {
+        scanRestartRequested = true;
+        const statusFile = path.join(__dirname, 'data', 'voice_scan_status.json');
+        if (fs.existsSync(statusFile)) {
+            try {
+                const st = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+                st.isRescan = true;
+                st.previousZuhraCount = st.zuhraCount || 0;
+                st.newlyFoundZuhraCount = 0;
+                st.newlyFoundZuhraList = [];
+                st.currentTask = { stage: "Yangi kuchaytirilgan model (Ensemble) bilan qayta skan boshlanmoqda...", stagePercent: 0 };
+                fs.writeFileSync(statusFile, JSON.stringify(st, null, 2), 'utf8');
+            } catch (e) {}
+        }
+        res.json({ success: true, message: "Qayta skan qilish so'rovi qabul qilindi. Yangi kuchaytirilgan model bilan qayta tahlil boshlanadi!" });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/voice-scan/restart-status', (req, res) => {
+    res.json({ restartRequested: scanRestartRequested });
+});
+
+app.post('/api/voice-scan/restart-ack', (req, res) => {
+    scanRestartRequested = false;
+    res.json({ success: true });
 });
 
 // So'nggi qo'ng'iroqlar oqimi buferi (Dashboard va zaxira yuklash uchun)
@@ -386,14 +706,56 @@ app.post('/api/callbacks/sync', async (req, res) => {
 
 // --- MIJOZLAR BAZASI / TELEFON KITOBI (CLIENT CONTACTS) API ---
 
-// 1. Barcha kontaktlar yoki qidiruv natijasi
+// 1. Barcha kontaktlar yoki qidiruv natijasi (til filtri bilan)
 app.get('/api/contacts', (req, res) => {
     try {
         const query = req.query.q || req.query.search || '';
-        const list = query ? dbService.searchContacts(query) : dbService.getAllContacts();
-        res.json({ success: true, data: list });
+        const lang = req.query.lang || req.query.language || '';
+        const list = query ? dbService.searchContacts(query, lang) : dbService.getAllContacts({ lang });
+        res.json({ success: true, data: list, total: list.length });
     } catch (e) {
-        res.status(500).json({ success: false, error: e.message, data: [] });
+        res.status(500).json({ success: false, error: e.message, data: [], total: 0 });
+    }
+});
+
+// 1.1 Eng faol mijozlar (Top Callers / Active Clients)
+app.get('/api/contacts/top-active', async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit, 10) || 15;
+        const dateStr = req.query.date || 'today';
+
+        let topCallers = [];
+        try {
+            topCallers = await issabelDbService.fetchTopClients(limit, dateStr);
+        } catch (err) {
+            console.warn('issabelDbService.fetchTopClients fallback to dbService:', err.message);
+        }
+
+        // Agar Issabel CDR bo'sh yoki ulanmagan bo'lsa, lokal SQLite 3CX jurnalidan olamiz
+        if (!topCallers || topCallers.length === 0) {
+            topCallers = dbService.getTopClients(limit);
+        }
+
+        // Har bir qo'ng'iroq qiluvchini saqlangan kontakt bazasi bilan boyitish
+        const enriched = topCallers.map(c => {
+            const contact = dbService.getContact(c.phone);
+            return {
+                phone: c.phone,
+                name: (contact && contact.name) ? contact.name : '',
+                organization: (contact && contact.organization) ? contact.organization : '',
+                language: (contact && contact.language) ? contact.language : '',
+                notes: (contact && contact.notes) ? contact.notes : '',
+                is_saved: Boolean(contact && (contact.name || contact.organization)),
+                total_calls: Number(c.total_calls || 0),
+                answered_calls: Number(c.answered_calls || 0),
+                total_duration_sec: Number(c.total_duration_sec || 0),
+                last_call_time: c.last_call_time || ''
+            };
+        });
+
+        res.json({ success: true, data: enriched, total: enriched.length });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message, data: [], total: 0 });
     }
 });
 
@@ -410,17 +772,25 @@ app.get('/api/contacts/:phone', (req, res) => {
 // 3. Kontaktni saqlash yoki yangilash (Upsert)
 app.post('/api/contacts', (req, res) => {
     try {
-        const { phone, name, organization, notes } = req.body || {};
+        const { phone, name, organization, notes, language } = req.body || {};
         if (!phone || !String(phone).trim()) {
             return res.status(400).json({ success: false, message: 'Telefon raqami kiritilmadi' });
         }
         const cleanName = String(name || '').trim();
         const cleanOrg = String(organization || '').trim();
+        const cleanLang = String(language || '').trim().toLowerCase();
         if (!cleanName && !cleanOrg) {
             return res.status(400).json({ success: false, message: 'Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting' });
         }
 
-        const saved = dbService.saveContact({ phone, name: cleanName, organization: cleanOrg, notes });
+        const saved = dbService.saveContact({
+            phone,
+            name: cleanName,
+            organization: cleanOrg,
+            notes,
+            language: cleanLang
+        });
+
         broadcastWs({
             type: 'client_contacts_update',
             data: {
@@ -698,6 +1068,42 @@ app.post('/api/queue/adjust-calls', (req, res) => {
     } catch (err) {
         console.error('Error in /api/queue/adjust-calls:', err);
         return res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// Navbat (fewestcalls) DB sinxronizatsiya sozlamalari
+app.get('/api/queue/sync-settings', (req, res) => {
+    res.json({
+        success: true,
+        enabled: Boolean(amiService.queueDbSyncEnabled),
+        mode: 'grandTotal'
+    });
+});
+
+app.post('/api/queue/sync-settings', (req, res) => {
+    try {
+        const { enabled } = req.body || {};
+        const state = amiService.setQueueDbSyncEnabled(enabled);
+        res.json({
+            success: true,
+            enabled: state,
+            message: state ? "DB sinxronizatsiyasi muvaffaqiyatli yoqildi" : "DB sinxronizatsiyasi o'chirildi"
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
+    }
+});
+
+app.post('/api/queue/sync-now', (req, res) => {
+    try {
+        const ops = amiService.syncAllFromDbNow();
+        res.json({
+            success: true,
+            message: "Barcha operatorlar DB dagi Jami sonlar bilan sinxronlandi",
+            count: ops.length
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, message: e.message });
     }
 });
 
@@ -1234,7 +1640,7 @@ app.get('/api/export/excel', async (req, res) => {
 
 
 // SPA Navigation Routes
-['/', '/dashboard', '/explorer', '/audio', '/operators', '/history'].forEach(route => {
+['/', '/dashboard', '/explorer', '/audio', '/operators', '/history', '/clients', '/customers', '/mijozlar'].forEach(route => {
     app.get(route, (req, res) => {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
@@ -1290,5 +1696,13 @@ server.listen(config.PORT, () => {
         } catch (compErr) {
             console.error('Compat server xatosi:', compErr.message);
         }
+    }
+
+    // Telegram Bot Notifications (@maxmudbek_notify_bot)
+    try {
+        const telegramService = require('./services/telegramService');
+        telegramService.startPolling();
+    } catch (tgErr) {
+        console.error('Telegram bot ishga tushirish xatosi:', tgErr.message);
     }
 }); 

@@ -5,10 +5,12 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "node tests/test_ami_realtime.js && node tests/test_dashboard_recent_table.js",
+    "test": "node tests/test_ami_realtime.js && node tests/test_dashboard_recent_table.js && node tests/test_callbacks_sync.js",
+    "test:callbacks": "node tests/test_callbacks_sync.js",
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
+    "acme-client": "^5.4.0",
     "asterisk-manager": "^0.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

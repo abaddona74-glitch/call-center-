@@ -421,6 +421,18 @@ app.get('/api/contacts', async (req, res) => {
     }
 });
 
+app.get('/api/contacts/top-active', async (req, res) => {
+    try {
+        const queryStr = new URLSearchParams(req.query).toString();
+        const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts/top-active?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts/top-active`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+        res.json(json);
+    } catch (e) {
+        res.status(500).json({ success: false, data: [], error: e.message });
+    }
+});
+
 app.get('/api/contacts/:phone', async (req, res) => {
     try {
         const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`);

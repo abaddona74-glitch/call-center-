@@ -155,12 +155,19 @@ class DbService {
                 name TEXT NOT NULL,
                 organization TEXT,
                 notes TEXT,
+                language TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
             );
             CREATE INDEX IF NOT EXISTS idx_client_contacts_name ON client_contacts (name);
             CREATE INDEX IF NOT EXISTS idx_client_contacts_org ON client_contacts (organization);
         `);
+
+        try {
+            this.db.exec(`ALTER TABLE client_contacts ADD COLUMN language TEXT DEFAULT '';`);
+        } catch (e) {
+            // Already exists
+        }
 
         try {
             this.db.exec(`ALTER TABLE operator_daily_stats ADD COLUMN missed INTEGER DEFAULT 0;`);
@@ -179,6 +186,20 @@ class DbService {
         } catch (e) {}
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_cause TEXT;`);
+        } catch (e) {}
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN resolution_type TEXT;`);
+        } catch (e) {}
+
+        try {
+            // Noto'g'ri 'NULL' yoki 'null' satrlarini tozalash
+            this.db.exec(`
+                UPDATE pending_callbacks 
+                SET last_outbound_operator = NULL 
+                WHERE last_outbound_operator = 'NULL' 
+                   OR last_outbound_operator = 'null' 
+                   OR last_outbound_operator = '\\N';
+            `);
         } catch (e) {}
 
         try {
@@ -1101,6 +1122,7 @@ class DbService {
                     status,
                     dismissed_at,
                     dismissed_by,
+                    COALESCE(resolution_type, '') as resolution_type,
                     notes,
                     created_at,
                     updated_at
@@ -1120,13 +1142,17 @@ class DbService {
                 const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
                 sql += ` AND call_time LIKE ?`;
                 params.push(`${todayStr}%`);
+            } else if (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter)) {
+                sql += ` AND call_time LIKE ?`;
+                params.push(`${filter}%`);
             }
 
             sql += `
                 ORDER BY 
                   CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC,
                   CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
-                  COALESCE(updated_at, call_time) DESC
+                  call_time DESC,
+                  COALESCE(updated_at, created_at) DESC
                 LIMIT 500
             `;
 
@@ -1135,6 +1161,20 @@ class DbService {
         } catch (err) {
             console.error('getCallbacks error:', err.message);
             return [];
+        }
+    }
+
+    /**
+     * Navbatdan chiqqan qo'ng'iroqlarning kutilmoqda va gaplashildi bo'yicha taqsimoti
+     */
+    getAbandonedBreakdown(dateFilter = 'today') {
+        try {
+            const list = this.getCallbacks(dateFilter, true).filter(c => c.source === 'abandoned');
+            const pendingCount = list.filter(c => c.status === 'pending').length;
+            const resolvedCount = list.filter(c => c.status === 'resolved').length;
+            return { pendingCount, resolvedCount };
+        } catch (e) {
+            return { pendingCount: 0, resolvedCount: 0 };
         }
     }
 
@@ -1228,20 +1268,49 @@ class DbService {
 
     /**
      * Operator mijoz bilan gaplashganda (Answered bo'lganda) ro'yxatdan avtomatik yechish
+     * resolutionType: 'operator_outbound' | 'client_inbound'
      */
-    resolveCallback(phone, resolvedBy = 'operator_answered', operatorName = null) {
+    resolveCallback(phone, resolvedBy = 'operator_answered', operatorName = null, resolutionType = null) {
         const cleanPhone = this.normalizePhone(phone);
         if (!cleanPhone) return false;
 
         try {
-            let opToSave = operatorName;
-            if (!opToSave && resolvedBy && (resolvedBy.startsWith('3cx_') || resolvedBy.startsWith('operator_'))) {
-                const parts = resolvedBy.split('_');
-                const ext = parts[parts.length - 1];
-                if (ext && ext.match(/^\d{3,4}$/)) {
-                    opToSave = ext;
+            let cleanOpName = operatorName;
+            if (cleanOpName === 'NULL' || cleanOpName === 'null' || cleanOpName === '\\N' || cleanOpName === '') {
+                cleanOpName = null;
+            }
+
+            // Agar operatorName berilmagan bo'lsa, resolvedBy dan raqamni topish
+            if (!cleanOpName && resolvedBy && (resolvedBy.startsWith('3cx_') || resolvedBy.startsWith('operator_'))) {
+                const match = resolvedBy.match(/operator_(\d{2,4})/);
+                if (match && match[1]) {
+                    cleanOpName = match[1];
+                } else {
+                    const parts = resolvedBy.split('_');
+                    const ext = parts.find(p => /^\d{2,4}$/.test(p));
+                    if (ext) cleanOpName = ext;
                 }
             }
+
+            // Agar cleanOpName faqat raqam bo'lsa (masalan 103, 111), uni ismga aylantirish
+            if (cleanOpName && /^\d{2,4}$/.test(String(cleanOpName).trim())) {
+                const ext = String(cleanOpName).trim();
+                const named = KNOWN_OPERATORS[ext];
+                cleanOpName = named ? `${named} (${ext})` : `Operator ${ext}`;
+            }
+
+            // Resolution type ni aniqlash
+            let resType = resolutionType;
+            if (!resType) {
+                if (resolvedBy && (resolvedBy.includes('outbound') || resolvedBy === 'realtime_outbound_bridge')) {
+                    resType = 'operator_outbound';
+                } else if (resolvedBy && (resolvedBy.includes('inbound') || resolvedBy === 'realtime_agent_connect')) {
+                    resType = 'client_inbound';
+                }
+            }
+
+            const phone9 = cleanPhone;
+            const phone12 = `998${cleanPhone}`;
 
             const stmt = this.db.prepare(`
                 UPDATE pending_callbacks
@@ -1249,13 +1318,34 @@ class DbService {
                     status = 'resolved',
                     dismissed_at = datetime('now', 'localtime'),
                     dismissed_by = ?,
-                    last_outbound_operator = COALESCE(?, last_outbound_operator),
+                    last_outbound_operator = CASE 
+                        WHEN ? IS NOT NULL AND ? != '' THEN ? 
+                        WHEN last_outbound_operator = 'NULL' OR last_outbound_operator = 'null' THEN NULL
+                        ELSE last_outbound_operator 
+                    END,
+                    resolution_type = COALESCE(?, resolution_type),
                     updated_at = datetime('now', 'localtime')
                 WHERE (phone = ? OR phone = ? OR phone = ? OR phone LIKE ?) AND status = 'pending'
             `);
-            const phone9 = cleanPhone;
-            const phone12 = `998${cleanPhone}`;
-            const res = stmt.run(resolvedBy, opToSave, phone9, phone12, String(phone), `%${cleanPhone}%`);
+            const res = stmt.run(resolvedBy, cleanOpName, cleanOpName, cleanOpName, resType, phone9, phone12, String(phone), `%${cleanPhone}%`);
+
+            // Allaqachon resolved bo'lgan yozuvlarda agar operator NULL yoki resolution_type bo'sh bo'lsa yangilash
+            if (cleanOpName || resType) {
+                try {
+                    this.db.prepare(`
+                        UPDATE pending_callbacks
+                        SET 
+                            last_outbound_operator = CASE 
+                                WHEN (? IS NOT NULL AND (last_outbound_operator IS NULL OR last_outbound_operator = 'NULL' OR last_outbound_operator = 'null')) THEN ?
+                                ELSE last_outbound_operator 
+                            END,
+                            resolution_type = COALESCE(?, resolution_type)
+                        WHERE (phone = ? OR phone = ? OR phone = ? OR phone LIKE ?)
+                          AND status = 'resolved'
+                    `).run(cleanOpName, cleanOpName, resType, phone9, phone12, String(phone), `%${cleanPhone}%`);
+                } catch (subErr) {}
+            }
+
             return res.changes > 0;
         } catch (err) {
             console.error('resolveCallback error:', err.message);
@@ -1407,20 +1497,23 @@ class DbService {
             const name = String(contactData.name || '').trim();
             const organization = String(contactData.organization || '').trim();
             const notes = String(contactData.notes || '').trim();
+            const language = String(contactData.language || '').trim().toLowerCase(); // Optional, default empty
+
             if (!name && !organization) {
                 throw new Error('Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting');
             }
 
             const stmt = this.db.prepare(`
-                INSERT INTO client_contacts (phone, name, organization, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                INSERT INTO client_contacts (phone, name, organization, notes, language, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
                 ON CONFLICT(phone) DO UPDATE SET
                     name = excluded.name,
                     organization = excluded.organization,
                     notes = excluded.notes,
+                    language = excluded.language,
                     updated_at = datetime('now', 'localtime')
             `);
-            stmt.run(cleanPhone, name, organization, notes);
+            stmt.run(cleanPhone, name, organization, notes, language);
 
             return this.getContact(cleanPhone);
         } catch (err) {
@@ -1451,11 +1544,25 @@ class DbService {
     }
 
     /**
-     * Barcha saqlangan mijozlar ro'yxatini olish
+     * Barcha saqlangan mijozlar ro'yxatini olish (til va saralash bo'yicha filtr bilan)
      */
-    getAllContacts() {
+    getAllContacts(options = {}) {
         try {
-            return this.db.prepare(`SELECT * FROM client_contacts ORDER BY name COLLATE NOCASE ASC`).all();
+            const lang = options.lang ? String(options.lang).trim().toLowerCase() : '';
+            let sql = `SELECT * FROM client_contacts`;
+            const params = [];
+
+            if (lang) {
+                if (lang === 'empty' || lang === 'none') {
+                    sql += ` WHERE (language IS NULL OR language = '')`;
+                } else {
+                    sql += ` WHERE language = ?`;
+                    params.push(lang);
+                }
+            }
+
+            sql += ` ORDER BY name COLLATE NOCASE ASC`;
+            return this.db.prepare(sql).all(...params);
         } catch (err) {
             console.error('getAllContacts error:', err.message);
             return [];
@@ -1463,19 +1570,74 @@ class DbService {
     }
 
     /**
-     * Mijozlarni qidirish (ism, raqam, tashkilot yoki izoh bo'yicha)
+     * Mijozlarni qidirish (ism, raqam, tashkilot, izoh yoki til bo'yicha)
      */
-    searchContacts(query) {
+    searchContacts(query, lang = '') {
         try {
-            if (!query || typeof query !== 'string') return this.getAllContacts();
+            if (!query || typeof query !== 'string') return this.getAllContacts({ lang });
             const q = `%${query.trim()}%`;
-            return this.db.prepare(`
+            const cleanLang = lang ? String(lang).trim().toLowerCase() : '';
+
+            let sql = `
                 SELECT * FROM client_contacts
-                WHERE phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ?
-                ORDER BY name COLLATE NOCASE ASC
-            `).all(q, q, q, q);
+                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ?)
+            `;
+            const params = [q, q, q, q, q];
+
+            if (cleanLang) {
+                if (cleanLang === 'empty' || cleanLang === 'none') {
+                    sql += ` AND (language IS NULL OR language = '')`;
+                } else {
+                    sql += ` AND language = ?`;
+                    params.push(cleanLang);
+                }
+            }
+
+            sql += ` ORDER BY name COLLATE NOCASE ASC`;
+            return this.db.prepare(sql).all(...params);
         } catch (err) {
             console.error('searchContacts error:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Eng faol mijozlarni 3CX qo'ng'iroqlar jurnali bo'yicha olish (fallback sifatida)
+     */
+    getTopClients(limit = 15) {
+        try {
+            const safeLimit = Math.max(1, parseInt(limit, 10) || 15);
+            const rows = this.db.prepare(`
+                SELECT 
+                    caller_id as phone,
+                    COUNT(*) as total_calls,
+                    SUM(CASE WHEN duration_sec > 0 THEN 1 ELSE 0 END) as answered_calls,
+                    SUM(duration_sec) as total_duration_sec,
+                    MAX(event_time) as last_call_time
+                FROM agent_3cx_call_logs
+                WHERE caller_id IS NOT NULL AND LENGTH(caller_id) >= 7
+                GROUP BY caller_id
+                ORDER BY total_calls DESC
+                LIMIT ?
+            `).all(safeLimit);
+
+            return rows.map(r => {
+                const contact = this.getContact(r.phone);
+                return {
+                    phone: r.phone,
+                    name: contact ? contact.name : '',
+                    organization: contact ? contact.organization : '',
+                    language: contact ? (contact.language || '') : '',
+                    notes: contact ? (contact.notes || '') : '',
+                    is_saved: Boolean(contact),
+                    total_calls: Number(r.total_calls || 0),
+                    answered_calls: Number(r.answered_calls || 0),
+                    total_duration_sec: Number(r.total_duration_sec || 0),
+                    last_call_time: r.last_call_time || ''
+                };
+            });
+        } catch (err) {
+            console.error('getTopClients error:', err.message);
             return [];
         }
     }
