@@ -333,12 +333,17 @@ class SftpService {
                         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
                         const chunksize = (end - start) + 1;
 
-                        res.writeHead(206, {
+                        const isDownload = req.query && (req.query.download === '1' || req.query.dl === '1');
+                        const headers206 = {
                             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
                             'Accept-Ranges': 'bytes',
                             'Content-Length': chunksize,
                             'Content-Type': contentType,
-                        });
+                        };
+                        if (isDownload) {
+                            headers206['Content-Disposition'] = `attachment; filename="${path.basename(fullPath)}"`;
+                        }
+                        res.writeHead(206, headers206);
 
                         const stream = this.sftp.createReadStream(fullPath, { start, end });
                         stream.on('error', (err) => {
@@ -350,10 +355,15 @@ class SftpService {
                         });
                         stream.pipe(res);
                     } else {
-                        res.writeHead(200, {
+                        const isDownload = req.query && (req.query.download === '1' || req.query.dl === '1');
+                        const headers200 = {
                             'Content-Length': fileSize,
                             'Content-Type': contentType,
-                        });
+                        };
+                        if (isDownload) {
+                            headers200['Content-Disposition'] = `attachment; filename="${path.basename(fullPath)}"`;
+                        }
+                        res.writeHead(200, headers200);
                         const stream = this.sftp.createReadStream(fullPath);
                         stream.on('error', (err) => {
                             console.warn('SFTP stream xatosi:', err.message);

@@ -462,6 +462,24 @@ app.post('/api/voice-identification/switch', (req, res) => {
     }
 });
 
+// Qo'ng'iroqni eshitib tekshirilgan (galochka) deb belgilash yoki bekor qilish
+app.post('/api/voice-identification/verify', (req, res) => {
+    const { file, is_verified } = req.body || {};
+    if (!file) {
+        return res.status(400).json({ success: false, error: 'file parametri kiritilmadi' });
+    }
+    try {
+        const updated = voicePrintService.toggleVerified(file, is_verified);
+        if (!updated) {
+            return res.status(404).json({ success: false, error: 'Audio fayl bazadan topilmadi' });
+        }
+        res.json({ success: true, item: updated });
+    } catch (err) {
+        console.error('Verify call error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // Ovoz namunalari (parchalar) - ro'yxatini olish
 app.get('/api/voice-samples', (req, res) => {
     try {

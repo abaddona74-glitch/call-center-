@@ -766,6 +766,159 @@
             cursor: pointer;
         }
 
+        /* WAVEFORM VISUALIZER */
+        .waveform-box {
+            position: relative;
+            flex: 1;
+            height: 38px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .waveform-box:hover {
+            border-color: rgba(236, 72, 153, 0.45);
+            background: rgba(15, 23, 42, 0.85);
+        }
+
+        .waveform-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .waveform-progress-overlay {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 0%;
+            background: linear-gradient(90deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.25));
+            border-right: 2px solid #ec4899;
+            box-shadow: 2px 0 10px rgba(236, 72, 153, 0.7);
+            pointer-events: none;
+            transition: width 0.08s linear;
+        }
+
+        .waveform-zuhra-tag {
+            position: absolute;
+            top: 2px;
+            padding: 1px 6px;
+            background: rgba(236, 72, 153, 0.9);
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 700;
+            border-radius: 4px;
+            pointer-events: none;
+            box-shadow: 0 0 8px rgba(236, 72, 153, 0.7);
+            transform: translateX(-50%);
+            white-space: nowrap;
+            z-index: 4;
+        }
+
+        .waveform-cursor-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(255, 255, 255, 0.8);
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+
+        .waveform-hover-tooltip {
+            position: absolute;
+            top: -24px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #f1f5f9;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            pointer-events: none;
+            display: none;
+            transform: translateX(-50%);
+            z-index: 6;
+            white-space: nowrap;
+        }
+
+        .sr-only-slider {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+        }
+
+        /* DOWNLOAD BUTTON IN PLAYER */
+        .btn-download-call {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+
+        .btn-download-call:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: #38bdf8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        /* VERIFIED CALL BUTTON & TAB */
+        .btn-verify-call {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-verify-call:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: #10b981;
+            transform: scale(1.1);
+        }
+
+        .btn-verify-call.verified {
+            background: rgba(16, 185, 129, 0.22);
+            border-color: #10b981;
+            color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+        }
+
+        .speaker-tab-btn.tab-verified.active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            color: #34d399;
+        }
+
         /* TABLE BUTTONS & ROW PLAYING STATE */
         .btn-row-play {
             display: inline-flex;
@@ -2380,6 +2533,14 @@
                             <span id="btnSwitchSpeakerText">Zuhra opaga o'tkazish</span>
                         </button>
                     </div>
+                    <div id="playerDownloadWrap">
+                        <a class="btn-download-call" id="btnDownloadCall" href="#" download="" title="Audioni (.wav) yuklab olish">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 3V16M12 16L7 11M12 16L17 11M3 17V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V17"/>
+                            </svg>
+                            <span>Yuklab olish</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- CONTROLS & TIMELINE -->
@@ -2427,11 +2588,18 @@
                         </button>
                     </div>
 
-                    <!-- TIMELINE SLIDER -->
+                    <!-- WAVEFORM PROGRESS BAR -->
                     <div class="player-timeline-group">
                         <span class="time-display current" id="lblCurrentTime">00:00</span>
                         <div class="timeline-bar-wrapper">
-                            <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="100" value="0" step="0.1" oninput="onScrubberInput(this.value)" onchange="onScrubberChange(this.value)">
+                            <div class="waveform-box" id="waveformBox" onclick="onWaveformClick(event)" onmousemove="onWaveformHover(event)" onmouseleave="onWaveformLeave()">
+                                <canvas id="waveformCanvas" class="waveform-canvas" height="34"></canvas>
+                                <div id="waveformProgressOverlay" class="waveform-progress-overlay"></div>
+                                <div id="waveformZuhraHighlight" class="waveform-zuhra-tag" style="display: none;">🌸 Zuhra ovozi</div>
+                                <div id="waveformCursorLine" class="waveform-cursor-line"></div>
+                                <div id="waveformHoverTooltip" class="waveform-hover-tooltip">00:00</div>
+                            </div>
+                            <input type="range" class="timeline-slider sr-only-slider" id="timelineSlider" min="0" max="100" value="0" step="0.1" oninput="onScrubberInput(this.value)" onchange="onScrubberChange(this.value)">
                         </div>
                         <span class="time-display" id="lblTotalTime">00:00</span>
                     </div>
@@ -2485,6 +2653,11 @@
                         <span>🌸+👤 Zuhra + Oybek</span>
                         <span class="tab-count-pill" id="tabCountDual">0</span>
                     </button>
+                    <button type="button" class="speaker-tab-btn tab-verified" id="tabBtnVerified" onclick="setSpeakerFilter('verified')" title="Siz eshitib tekshirgan qo'ng'iroqlar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                        <span>Tekshirilganlar</span>
+                        <span class="tab-count-pill" id="tabCountVerified">0</span>
+                    </button>
                 </div>
 
                 <!-- DURATION FILTER CONTROL -->
@@ -2519,11 +2692,12 @@
                             <th>Davomiyligi</th>
                             <th>AI Ishonch</th>
                             <th>Amal</th>
+                            <th style="text-align: center; width: 85px;">Tekshirish</th>
                         </tr>
                     </thead>
                     <tbody id="zuhraTableBody">
                         <tr>
-                            <td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">Yuklanmoqda...</td>
+                            <td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">Yuklanmoqda...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -2559,6 +2733,10 @@
             if (filter === 'zuhra') document.getElementById('tabBtnZuhra').classList.add('active');
             if (filter === 'muattar') document.getElementById('tabBtnMuattar').classList.add('active');
             if (filter === 'all') document.getElementById('tabBtnAll').classList.add('active');
+            if (filter === 'verified') {
+                const btnVer = document.getElementById('tabBtnVerified');
+                if (btnVer) btnVer.classList.add('active');
+            }
             if (filter === 'dual') {
                 const btnDual = document.getElementById('tabBtnDual');
                 if (btnDual) btnDual.classList.add('active');
@@ -2598,6 +2776,18 @@
 
             // Update player speaker action button
             updatePlayerTrackSpeaker(speaker);
+
+            // Update Download button
+            const btnDownload = document.getElementById('btnDownloadCall');
+            if (btnDownload) {
+                btnDownload.href = `/api/recordings/stream?file=${encodeURIComponent(file)}&download=1`;
+                const safeCaller = (callerId || 'audio').replace(/[^a-zA-Z0-9_-]/g, '_');
+                const safeDate = (calldate || '').replace(/[^0-9]/g, '_');
+                btnDownload.download = `${safeCaller}_${safeDate}.wav`;
+            }
+
+            // Render Waveform
+            renderWaveform(file, duration, zuhraStart, isZuhra);
 
             // Zuhra segment jump button
             const jumpWrap = document.getElementById('playerSegmentJumpWrap');
@@ -2704,6 +2894,168 @@
             }
         }
 
+        // Waveform Generator & Scrubber State
+        let currentWaveformBars = [];
+
+        function generateSyntheticWaveform(duration, zuhraStart, isZuhra) {
+            const barCount = 110;
+            const bars = [];
+            const dur = (duration && duration > 0) ? duration : 60;
+            const zuhraStartBar = (zuhraStart && isZuhra) ? Math.floor((zuhraStart / dur) * barCount) : -1;
+            const zuhraEndBar = zuhraStartBar >= 0 ? Math.min(barCount - 1, zuhraStartBar + Math.floor((12 / dur) * barCount) + 6) : -1;
+
+            // Deterministic pseudo-randomness based on duration so each call has a consistent waveform pattern
+            let seed = Math.floor(dur * 137 + 42);
+            function rnd() {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            }
+
+            for (let i = 0; i < barCount; i++) {
+                // Speech activity bursts: dialogue turns have higher amplitude, pauses have low amplitude
+                const phase = (i % 16);
+                const isSpeakingTurn = (phase >= 1 && phase <= 10);
+                let amp = 0.12;
+
+                if (isSpeakingTurn) {
+                    amp = 0.28 + rnd() * 0.58;
+                } else {
+                    amp = 0.06 + rnd() * 0.10;
+                }
+
+                // If this is Zuhra's identified segment, elevate the amplitude to stand out immediately
+                const isZuhraSegment = (zuhraStartBar >= 0 && i >= zuhraStartBar && i <= zuhraEndBar);
+                if (isZuhraSegment) {
+                    amp = 0.70 + rnd() * 0.30;
+                }
+
+                bars.push({
+                    amp: Math.max(0.08, Math.min(1.0, amp)),
+                    isZuhra: isZuhraSegment
+                });
+            }
+            return bars;
+        }
+
+        function drawWaveform(bars) {
+            const canvas = document.getElementById('waveformCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            const width = canvas.clientWidth || 320;
+            const height = canvas.clientHeight || 34;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, width, height);
+
+            const numBars = bars.length;
+            const barSpacing = 2;
+            const totalSpacing = (numBars - 1) * barSpacing;
+            const barWidth = Math.max(1.5, (width - totalSpacing) / numBars);
+            const centerY = height / 2;
+
+            bars.forEach((b, idx) => {
+                const x = idx * (barWidth + barSpacing);
+                const barHeight = Math.max(4, b.amp * (height - 6));
+                const y = centerY - (barHeight / 2);
+
+                if (b.isZuhra) {
+                    ctx.fillStyle = '#ec4899'; // Zuhra ovozi: Neon pushti
+                } else if (b.amp > 0.30) {
+                    ctx.fillStyle = '#38bdf8'; // Gap bor qismlar: Yorqin moviy
+                } else {
+                    ctx.fillStyle = '#475569'; // Jimjitlik: Tinch kulrang
+                }
+
+                const radius = Math.min(barWidth / 2, 1.5);
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(x, y, barWidth, barHeight, radius);
+                } else {
+                    ctx.rect(x, y, barWidth, barHeight);
+                }
+                ctx.fill();
+            });
+        }
+
+        function renderWaveform(file, duration, zuhraStart, isZuhra) {
+            const bars = generateSyntheticWaveform(duration, zuhraStart, isZuhra);
+            currentWaveformBars = bars;
+            drawWaveform(bars);
+
+            // Zuhra segmentini belgilash yorlig'i
+            const tag = document.getElementById('waveformZuhraHighlight');
+            if (tag) {
+                if (isZuhra && zuhraStart > 0 && duration > 0) {
+                    const pct = Math.min(92, Math.max(8, (zuhraStart / duration) * 100));
+                    tag.style.left = pct + '%';
+                    tag.style.display = 'block';
+                    tag.innerText = `🌸 Zuhra (${formatDuration(zuhraStart)})`;
+                } else {
+                    tag.style.display = 'none';
+                }
+            }
+
+            const overlay = document.getElementById('waveformProgressOverlay');
+            if (overlay) overlay.style.width = '0%';
+        }
+
+        function onWaveformClick(e) {
+            const box = document.getElementById('waveformBox');
+            if (!box || !audio) return;
+            const rect = box.getBoundingClientRect();
+            const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const pct = clickX / rect.width;
+            const dur = (audio.duration && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : currentDurationSec;
+            if (dur > 0) {
+                const targetTime = pct * dur;
+                audio.currentTime = targetTime;
+                document.getElementById('lblCurrentTime').innerText = formatDuration(targetTime);
+                const overlay = document.getElementById('waveformProgressOverlay');
+                if (overlay) overlay.style.width = (pct * 100) + '%';
+                if (audio.paused) {
+                    audio.play().then(() => updatePlayerPlayState(true)).catch(err => console.warn(err));
+                }
+            }
+        }
+
+        function onWaveformHover(e) {
+            const box = document.getElementById('waveformBox');
+            const line = document.getElementById('waveformCursorLine');
+            const tooltip = document.getElementById('waveformHoverTooltip');
+            if (!box || !line || !tooltip) return;
+
+            const rect = box.getBoundingClientRect();
+            const mouseX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const pct = mouseX / rect.width;
+            const dur = (audio.duration && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : currentDurationSec;
+
+            line.style.left = mouseX + 'px';
+            line.style.display = 'block';
+
+            if (dur > 0) {
+                const hoverTime = pct * dur;
+                tooltip.innerText = formatDuration(hoverTime);
+                tooltip.style.left = mouseX + 'px';
+                tooltip.style.display = 'block';
+            }
+        }
+
+        function onWaveformLeave() {
+            const line = document.getElementById('waveformCursorLine');
+            const tooltip = document.getElementById('waveformHoverTooltip');
+            if (line) line.style.display = 'none';
+            if (tooltip) tooltip.style.display = 'none';
+        }
+
+        window.addEventListener('resize', () => {
+            if (currentWaveformBars && currentWaveformBars.length > 0) {
+                drawWaveform(currentWaveformBars);
+            }
+        });
+
         function stopAudio() {
             if (!audio) return;
             audio.pause();
@@ -2712,6 +3064,8 @@
             document.getElementById('lblCurrentTime').innerText = '00:00';
             document.getElementById('timelineSlider').value = 0;
             updateSliderTrack(0);
+            const overlay = document.getElementById('waveformProgressOverlay');
+            if (overlay) overlay.style.width = '0%';
             updatePlayerTrackSpeaker(null);
         }
 
@@ -2731,7 +3085,9 @@
 
         function updateSliderTrack(pct) {
             const slider = document.getElementById('timelineSlider');
-            slider.style.background = `linear-gradient(to right, #ec4899 0%, #ec4899 ${pct}%, #334155 ${pct}%, #334155 100%)`;
+            if (slider) slider.style.background = `linear-gradient(to right, #ec4899 0%, #ec4899 ${pct}%, #334155 ${pct}%, #334155 100%)`;
+            const overlay = document.getElementById('waveformProgressOverlay');
+            if (overlay) overlay.style.width = pct + '%';
         }
 
         function onScrubberInput(val) {
@@ -3013,6 +3369,8 @@
                 list = list.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa');
             } else if (activeSpeakerFilter === 'muattar') {
                 list = list.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa');
+            } else if (activeSpeakerFilter === 'verified') {
+                list = list.filter(x => Boolean(x.is_verified));
             } else if (activeSpeakerFilter === 'dual') {
                 list = dualSpeakerCalls.map(m => {
                     const oSeg = m.oybek_segment || {};
@@ -3060,7 +3418,7 @@
             const isToMuattar = (trace.targetSpeaker === 'muattar');
             return `
                 <tr class="trace-podskazka-row">
-                    <td colspan="6">
+                    <td colspan="7">
                         <div class="trace-podskazka-bar ${isToMuattar ? 'to-muattar' : ''}" 
                              onclick="playNextCall()" style="cursor: pointer;" title="Pastdagi keyingi suhbatni eshitish uchun bosing">
                             <div class="trace-podskazka-left">
@@ -3106,6 +3464,18 @@
 
             updatePlayerTrackSpeaker(item.speaker);
 
+            // Update Download button
+            const btnDownload = document.getElementById('btnDownloadCall');
+            if (btnDownload) {
+                btnDownload.href = `/api/recordings/stream?file=${encodeURIComponent(item.file)}&download=1`;
+                const safeCaller = (item.caller_id || 'audio').replace(/[^a-zA-Z0-9_-]/g, '_');
+                const safeDate = (item.calldate || '').replace(/[^0-9]/g, '_');
+                btnDownload.download = `${safeCaller}_${safeDate}.wav`;
+            }
+
+            // Render Waveform
+            renderWaveform(item.file, item.duration, currentZuhraStartSec, isZuhra);
+
             const jumpWrap = document.getElementById('playerSegmentJumpWrap');
             if (isZuhra && currentZuhraStartSec > 0) {
                 jumpWrap.style.display = 'block';
@@ -3129,8 +3499,12 @@
             if (!visibleList || visibleList.length === 0) {
                 const emptyText = activeSpeakerFilter === 'zuhra'
                     ? 'Hozircha Zuhra opa qo\'ng\'iroqlari topilmadi'
-                    : (activeSpeakerFilter === 'muattar' ? 'Hozircha Muattar qo\'ng\'iroqlari yo\'q' : 'Qo\'ng\'iroqlar mavjud emas');
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 25px;">${emptyText}</td></tr>`;
+                    : (activeSpeakerFilter === 'muattar' 
+                        ? 'Hozircha Muattar qo\'ng\'iroqlari yo\'q' 
+                        : (activeSpeakerFilter === 'verified' 
+                            ? 'Hozircha tekshirilgan qo\'ng\'iroqlar yo\'q. Jadvalda galochkani bosing!' 
+                            : 'Qo\'ng\'iroqlar mavjud emas'));
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 25px;">${emptyText}</td></tr>`;
                 return;
             }
 
@@ -3200,7 +3574,7 @@
                                         </svg>
                                         <span>Pauza</span>
                                         <span class="sound-wave-bars">
-                                            <span></span><span></span><span></span><span></span>
+                                             <span></span><span></span><span></span><span></span>
                                         </span>
                                     ` : (isThisPlaying && audio.currentTime > 1) ? `
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3226,6 +3600,16 @@
                                 ` : ''}
                             </div>
                         </td>
+                        <td style="text-align: center;">
+                            <button type="button" class="btn-verify-call ${item.is_verified ? 'verified' : ''}" 
+                                title="${item.is_verified ? 'Tekshirilganlardan chiqarish' : 'Eshitib tekshirildi deb belgilash'}"
+                                onclick="toggleCallVerified('${escapedFile}', event)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/>
+                                    <path d="M7.75 12L10.58 14.83L16.25 9.17"/>
+                                </svg>
+                            </button>
+                        </td>
                     </tr>
                 `;
 
@@ -3245,6 +3629,42 @@
             }
 
             tbody.innerHTML = rowsHtml;
+        }
+
+        // Toggle call verified status
+        async function toggleCallVerified(file, event) {
+            if (event) event.stopPropagation();
+            const item = allVoiceCalls.find(x => x.file === file || (x.file && x.file.endsWith(file)));
+            if (!item) return;
+
+            const nextStatus = !item.is_verified;
+            item.is_verified = nextStatus;
+            updateTabCounts();
+            renderCallsTable();
+
+            try {
+                const res = await fetch('/api/voice-identification/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file, is_verified: nextStatus })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    // rollback
+                    item.is_verified = !nextStatus;
+                    updateTabCounts();
+                    renderCallsTable();
+                    showToast('Xatolik: ' + (data.error || 'Saqlanmadi'));
+                } else {
+                    showToast(nextStatus ? 'Qo\'ng\'iroq tekshirilganlar ro\'yxatiga kiritildi' : 'Tekshirilganlardan olib tashlandi');
+                }
+            } catch (err) {
+                console.error('Verify error:', err);
+                item.is_verified = !nextStatus;
+                updateTabCounts();
+                renderCallsTable();
+                showToast('Server bilan bog\'lanishda xatolik');
+            }
         }
 
         // Update player track speaker badge & switch button
@@ -3287,9 +3707,12 @@
         function updateTabCounts() {
             const zuhraCount = allVoiceCalls.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa').length;
             const muattarCount = allVoiceCalls.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa').length;
+            const verifiedCount = allVoiceCalls.filter(x => Boolean(x.is_verified)).length;
             document.getElementById('tabCountZuhra').innerText = zuhraCount;
             document.getElementById('tabCountMuattar').innerText = muattarCount;
             document.getElementById('tabCountAll').innerText = allVoiceCalls.length;
+            const badgeVer = document.getElementById('tabCountVerified');
+            if (badgeVer) badgeVer.innerText = verifiedCount;
             document.getElementById('metricZuhra').innerText = zuhraCount;
             document.getElementById('metricMuattar').innerText = muattarCount;
         }

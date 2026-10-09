@@ -229,6 +229,37 @@ class VoicePrintService {
         fs.writeFileSync(DB_FILE, JSON.stringify(all, null, 2), 'utf8');
         return target;
     }
+
+    /**
+     * Qo'ng'iroqni eshitib tekshirilgan (galochka) deb belgilash yoki bekor qilish
+     */
+    toggleVerified(file, isVerified = null) {
+        if (!file) return null;
+        this.checkReload();
+        const cleanFile = path.basename(file).toLowerCase();
+        let target = null;
+
+        for (const val of this.cache.values()) {
+            if (val && val.file && path.basename(val.file).toLowerCase() === cleanFile) {
+                target = val;
+                break;
+            }
+        }
+
+        if (!target) return null;
+
+        if (typeof isVerified === 'boolean') {
+            target.is_verified = isVerified;
+        } else {
+            target.is_verified = !target.is_verified;
+        }
+        target.verified_at = target.is_verified ? new Date().toISOString() : null;
+
+        this.indexItem(target);
+        const all = this.getAll();
+        fs.writeFileSync(DB_FILE, JSON.stringify(all, null, 2), 'utf8');
+        return target;
+    }
 }
 
 module.exports = new VoicePrintService();
