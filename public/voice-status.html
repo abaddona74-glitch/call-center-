@@ -960,11 +960,119 @@
         .speaker-tabs-nav {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
+            gap: 12px;
             margin-bottom: 18px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             padding-bottom: 12px;
             flex-wrap: wrap;
+        }
+
+        .tabs-left-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .duration-filter-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 5px 12px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .duration-filter-control:focus-within {
+            border-color: #38bdf8;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+            background: rgba(56, 189, 248, 0.04);
+        }
+
+        .dur-filter-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #94a3b8;
+            user-select: none;
+        }
+
+        .dur-select-op {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #38bdf8;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 4px 8px;
+            outline: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .dur-select-op option {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        .dur-input-wrapper {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .dur-time-input {
+            width: 78px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            border-radius: 6px;
+            padding: 4px 22px 4px 8px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            outline: none;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        .dur-time-input:focus {
+            border-color: #38bdf8;
+        }
+
+        .btn-clear-dur {
+            position: absolute;
+            right: 4px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            border-radius: 4px;
+        }
+
+        .btn-clear-dur:hover {
+            color: #f43f5e;
+        }
+
+        .dur-count-badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            font-size: 11px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 7px;
+            border-radius: 8px;
         }
 
         .speaker-tab-btn {
@@ -1004,6 +1112,13 @@
             background: rgba(168, 85, 247, 0.18);
             border-color: #a855f7;
             color: #c084fc;
+        }
+
+        .speaker-tab-btn.active.tab-dual {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.28), rgba(56, 189, 248, 0.28));
+            border-color: #38bdf8;
+            color: #f8fafc;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.3);
         }
 
         .tab-count-pill {
@@ -2168,12 +2283,20 @@
                         </svg>
                     </div>
                     <div>
-                        <div class="samples-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span>Zuhra opa ovoz namunalari (AI Trening)</span>
-                            <span class="pill-stat approved" style="font-size: 11px; padding: 2px 8px;">Model kuchaytirildi</span>
+                        <div class="samples-tab-selector" style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <button type="button" class="speaker-tab-btn active" id="tabBtnZuhraSamples" onclick="switchSamplesTab('zuhra')" style="padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                🌸 Zuhra opa (<span id="countZuhraSamplesBadge">10</span>)
+                            </button>
+                            <button type="button" class="speaker-tab-btn" id="tabBtnOybekSamples" onclick="switchSamplesTab('oybek')" style="padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                👤 Oybek 101 (<span id="countOybekSamplesBadge">15</span>)
+                            </button>
                         </div>
-                        <div class="samples-desc">
-                            Quyidagi 10 ta parchalarni tinglang: faqat sof <strong>Zuhra opa</strong>ning ovozi bo'lganlarini tasdiqlang. Mijoz ovozi aralashgan yoki begona odam bo'lsa rad eting.
+                        <div class="samples-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span id="samplesTitleText">Zuhra opa ovoz namunalari (AI Trening)</span>
+                            <span class="pill-stat approved" id="samplesModelBadge" style="font-size: 11px; padding: 2px 8px;">Model kuchaytirildi</span>
+                        </div>
+                        <div class="samples-desc" id="samplesDescText">
+                            Quyidagi parchalarni tinglang: faqat sof <strong>Zuhra opa</strong>ning ovozi bo'lganlarini tasdiqlang. Mijoz ovozi aralashgan yoki begona odam bo'lsa rad eting.
                         </div>
                     </div>
                 </div>
@@ -2339,23 +2462,51 @@
 
             <audio id="inlineAudioElement" preload="metadata" style="display: none;"></audio>
 
-            <!-- SPEAKER TABS -->
+            <!-- SPEAKER TABS & DURATION FILTER -->
             <div class="speaker-tabs-nav">
-                <button type="button" class="speaker-tab-btn active tab-zuhra" id="tabBtnZuhra" onclick="setSpeakerFilter('zuhra')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
-                    <span>Zuhra opa</span>
-                    <span class="tab-count-pill" id="tabCountZuhra">0</span>
-                </button>
-                <button type="button" class="speaker-tab-btn tab-muattar" id="tabBtnMuattar" onclick="setSpeakerFilter('muattar')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
-                    <span>Muattar</span>
-                    <span class="tab-count-pill" id="tabCountMuattar">0</span>
-                </button>
-                <button type="button" class="speaker-tab-btn tab-all" id="tabBtnAll" onclick="setSpeakerFilter('all')">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/></svg>
-                    <span>Barchasi</span>
-                    <span class="tab-count-pill" id="tabCountAll">0</span>
-                </button>
+                <div class="tabs-left-group">
+                    <button type="button" class="speaker-tab-btn active tab-zuhra" id="tabBtnZuhra" onclick="setSpeakerFilter('zuhra')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                        <span>Zuhra opa</span>
+                        <span class="tab-count-pill" id="tabCountZuhra">0</span>
+                    </button>
+                    <button type="button" class="speaker-tab-btn tab-muattar" id="tabBtnMuattar" onclick="setSpeakerFilter('muattar')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                        <span>Muattar</span>
+                        <span class="tab-count-pill" id="tabCountMuattar">0</span>
+                    </button>
+                    <button type="button" class="speaker-tab-btn tab-all" id="tabBtnAll" onclick="setSpeakerFilter('all')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/></svg>
+                        <span>Barchasi</span>
+                        <span class="tab-count-pill" id="tabCountAll">0</span>
+                    </button>
+                    <button type="button" class="speaker-tab-btn tab-dual" id="tabBtnDual" onclick="setSpeakerFilter('dual')" title="Zuhra opa va Oybek birga qatnashgan suhbatlar">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>🌸+👤 Zuhra + Oybek</span>
+                        <span class="tab-count-pill" id="tabCountDual">0</span>
+                    </button>
+                </div>
+
+                <!-- DURATION FILTER CONTROL -->
+                <div class="duration-filter-control">
+                    <div class="dur-filter-label" title="Davomiylik bo'yicha saralash">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>Davomiyligi:</span>
+                    </div>
+                    <select id="durFilterOp" class="dur-select-op" onchange="onDurationFilterChange()" title="Taqqoslash sharti">
+                        <option value="gte">&ge; dan katta</option>
+                        <option value="lte">&le; dan kichik</option>
+                    </select>
+                    <div class="dur-input-wrapper">
+                        <input type="text" id="durFilterInput" class="dur-time-input" placeholder="02:00" oninput="onDurationFilterChange()" title="Vaqtni min:sek (masalan 01:30 yoki 03:00) yoki soniyalarda kiriting" />
+                        <button type="button" class="btn-clear-dur" id="btnClearDur" onclick="clearDurationFilter()" title="Filtrni tozalash" style="display: none;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <span id="durFilteredCountBadge" class="dur-count-badge" style="display: none;"></span>
+                </div>
             </div>
 
             <div class="table-responsive-wrapper">
@@ -2408,6 +2559,11 @@
             if (filter === 'zuhra') document.getElementById('tabBtnZuhra').classList.add('active');
             if (filter === 'muattar') document.getElementById('tabBtnMuattar').classList.add('active');
             if (filter === 'all') document.getElementById('tabBtnAll').classList.add('active');
+            if (filter === 'dual') {
+                const btnDual = document.getElementById('tabBtnDual');
+                if (btnDual) btnDual.classList.add('active');
+                fetchDualSpeakerResults();
+            }
             renderCallsTable();
         }
 
@@ -2522,9 +2678,26 @@
             }
 
             if (audio.paused) {
+                if (audio.error || !audio.src || audio.readyState === 0) {
+                    audio.src = `/api/recordings/stream?file=${encodeURIComponent(currentFile)}`;
+                    audio.load();
+                }
+                if (audio.duration && audio.currentTime >= audio.duration - 0.5) {
+                    audio.currentTime = 0;
+                }
                 audio.play().then(() => {
                     updatePlayerPlayState(true);
-                }).catch(e => console.warn('Play error:', e));
+                }).catch(e => {
+                    console.warn('Play error, attempting reload stream:', e);
+                    audio.src = `/api/recordings/stream?file=${encodeURIComponent(currentFile)}`;
+                    audio.load();
+                    audio.play().then(() => {
+                        updatePlayerPlayState(true);
+                    }).catch(err => {
+                        console.error('Final play error:', err);
+                        showToast("Audio ijro etilmadi: " + err.message);
+                    });
+                });
             } else {
                 audio.pause();
                 updatePlayerPlayState(false);
@@ -2779,13 +2952,107 @@
             }
         }
 
-        function getFilteredCalls() {
-            if (activeSpeakerFilter === 'zuhra') {
-                return allVoiceCalls.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa');
-            } else if (activeSpeakerFilter === 'muattar') {
-                return allVoiceCalls.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa');
+        function parseDurationInput(val) {
+            if (!val) return null;
+            val = String(val).trim();
+            if (!val) return null;
+            if (val.includes(':')) {
+                const parts = val.split(':');
+                const m = parseInt(parts[0], 10) || 0;
+                const s = parseInt(parts[1], 10) || 0;
+                return (m * 60) + s;
             }
-            return allVoiceCalls;
+            const num = parseInt(val, 10);
+            return isNaN(num) ? null : num;
+        }
+
+        function onDurationFilterChange() {
+            const input = document.getElementById('durFilterInput');
+            const clearBtn = document.getElementById('btnClearDur');
+            if (clearBtn) {
+                clearBtn.style.display = (input && input.value.trim().length > 0) ? 'inline-flex' : 'none';
+            }
+            renderCallsTable();
+        }
+
+        function clearDurationFilter() {
+            const input = document.getElementById('durFilterInput');
+            if (input) input.value = '';
+            const clearBtn = document.getElementById('btnClearDur');
+            if (clearBtn) clearBtn.style.display = 'none';
+            renderCallsTable();
+        }
+
+        let dualSpeakerCalls = [];
+        let isFetchingDual = false;
+
+        async function fetchDualSpeakerResults() {
+            if (isFetchingDual) return;
+            isFetchingDual = true;
+            try {
+                const res = await fetch('/api/voice-scan/dual-speaker-results?t=' + Date.now());
+                const data = await res.json();
+                if (data.success && Array.isArray(data.results)) {
+                    dualSpeakerCalls = data.results;
+                    const badge = document.getElementById('tabCountDual');
+                    if (badge) badge.innerText = dualSpeakerCalls.length;
+                    if (activeSpeakerFilter === 'dual') {
+                        renderCallsTable();
+                    }
+                }
+            } catch (e) {
+                console.warn('Dual speaker results fetch error:', e);
+            } finally {
+                isFetchingDual = false;
+            }
+        }
+
+        function getFilteredCalls() {
+            let list = allVoiceCalls;
+            if (activeSpeakerFilter === 'zuhra') {
+                list = list.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa');
+            } else if (activeSpeakerFilter === 'muattar') {
+                list = list.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa');
+            } else if (activeSpeakerFilter === 'dual') {
+                list = dualSpeakerCalls.map(m => {
+                    const oSeg = m.oybek_segment || {};
+                    return {
+                        file: m.file,
+                        calldate: m.calldate,
+                        caller_id: m.src,
+                        duration: m.duration,
+                        speaker: 'dual',
+                        confidence: Math.round((m.max_oybek_sim || 0) * 100),
+                        score: m.max_oybek_sim || 0,
+                        max_oybek_sim: m.max_oybek_sim || 0,
+                        max_zuhra_sim: m.max_zuhra_sim || 0,
+                        oybek_segment: oSeg,
+                        top_segments: [{ start: oSeg.start_sec || 0, end: oSeg.end_sec || 0 }]
+                    };
+                });
+            }
+
+            const opEl = document.getElementById('durFilterOp');
+            const inEl = document.getElementById('durFilterInput');
+            const badgeEl = document.getElementById('durFilteredCountBadge');
+            
+            const durThreshold = parseDurationInput(inEl ? inEl.value : null);
+            if (durThreshold !== null && durThreshold > 0) {
+                const op = opEl ? opEl.value : 'gte';
+                if (op === 'gte') {
+                    list = list.filter(x => (x.duration || 0) >= durThreshold);
+                } else if (op === 'lte') {
+                    list = list.filter(x => (x.duration || 0) <= durThreshold);
+                }
+                if (badgeEl) {
+                    badgeEl.style.display = 'inline-block';
+                    badgeEl.innerText = `${list.length} ta mos`;
+                }
+            } else {
+                if (badgeEl) badgeEl.style.display = 'none';
+            }
+
+            return list;
         }
 
         // Render Trace Row (Podskazka chizig'i)
@@ -2794,7 +3061,8 @@
             return `
                 <tr class="trace-podskazka-row">
                     <td colspan="6">
-                        <div class="trace-podskazka-bar ${isToMuattar ? 'to-muattar' : ''}">
+                        <div class="trace-podskazka-bar ${isToMuattar ? 'to-muattar' : ''}" 
+                             onclick="playNextCall()" style="cursor: pointer;" title="Pastdagi keyingi suhbatni eshitish uchun bosing">
                             <div class="trace-podskazka-left">
                                 <span class="trace-arrow-badge">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2803,11 +3071,11 @@
                                 </span>
                                 <span>IZ (PODSKAZKA): <strong>${trace.transferredCaller || ''}</strong> &rarr; ${trace.targetLabel || ''}ga o'tkazildi &bull; Pastga qarab davom eting &darr;</span>
                             </div>
-                            <div class="trace-podskazka-right">
+                            <div class="trace-podskazka-right" style="cursor: pointer;">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M19.92 8.91L13.4 15.43C12.63 16.2 11.37 16.2 10.6 15.43L4.08 8.91"/>
                                 </svg>
-                                <span>KEYINGISI PASTDA</span>
+                                <span>KEYINGISI PASTDA &bull; BOSING</span>
                             </div>
                         </div>
                     </td>
@@ -2896,21 +3164,36 @@
                         <td style="font-family: 'JetBrains Mono', monospace;">${item.calldate}</td>
                         <td style="font-weight: 600; color: #f8fafc; font-family: 'JetBrains Mono', monospace;">${item.caller_id}</td>
                         <td>
-                            <button type="button" class="btn-speaker-toggle ${isZuhra ? 'badge-speaker-zuhra' : 'badge-speaker-muattar'}" 
-                                title="Bosilsa ${isZuhra ? 'Muattarga' : 'Zuhra opaga'} o'zgartiriladi"
-                                onclick="toggleRowSpeaker('${escapedFile}', '${item.speaker}', event)">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
-                                </svg>
-                                <span>${speakerLabel}</span>
-                            </button>
+                            ${item.speaker === 'dual' ? `
+                                <div style="display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                                    <span class="badge-speaker-zuhra" style="font-size: 10px; padding: 2px 6px;">🌸 Zuhra ${(item.max_zuhra_sim * 100).toFixed(0)}%</span>
+                                    <span style="font-size: 10px; padding: 2px 6px; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; border-radius: 6px; font-weight: 600;">👤 Oybek ${(item.max_oybek_sim * 100).toFixed(0)}%</span>
+                                </div>
+                            ` : `
+                                <button type="button" class="btn-speaker-toggle ${isZuhra ? 'badge-speaker-zuhra' : 'badge-speaker-muattar'}" 
+                                    title="Bosilsa ${isZuhra ? 'Muattarga' : 'Zuhra opaga'} o'zgartiriladi"
+                                    onclick="toggleRowSpeaker('${escapedFile}', '${item.speaker}', event)">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56"/>
+                                    </svg>
+                                    <span>${speakerLabel}</span>
+                                </button>
+                            `}
                         </td>
                         <td style="color: #38bdf8; font-weight: 600; font-family: 'JetBrains Mono', monospace;">${durStr}</td>
-                        <td><span class="badge-conf" style="${isZuhra ? '' : 'color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.15);'}">${item.confidence || Math.round((item.score||0)*100)}%</span></td>
+                        <td>
+                            ${item.speaker === 'dual' ? `
+                                <span class="badge-conf" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15);" title="Oybek segmenti: ${formatDuration(zuhraStart)}">
+                                    👤 ${item.confidence}% (${formatDuration(zuhraStart)})
+                                </span>
+                            ` : `
+                                <span class="badge-conf" style="${isZuhra ? '' : 'color: #60a5fa; border-color: rgba(59, 130, 246, 0.3); background: rgba(59, 130, 246, 0.15);'}">${item.confidence || Math.round((item.score||0)*100)}%</span>
+                            `}
+                        </td>
                         <td>
                             <div style="display: inline-flex; align-items: center; gap: 8px;">
                                 <button type="button" class="btn-row-play ${isThisPlaying && isAudioPlaying ? 'active-playing' : ''}" 
-                                    onclick="playCall('${escapedFile}', '${escapedCaller}', '${escapedDate}', ${durSec}, ${zuhraStart}, '${item.speaker}')">
+                                    onclick="playCall('${escapedFile}', '${escapedCaller}', '${escapedDate}', ${durSec}, ${zuhraStart}, '${item.speaker === 'dual' ? 'Zuhra opa' : item.speaker}')">
                                     ${isThisPlaying && isAudioPlaying ? `
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
@@ -2919,7 +3202,7 @@
                                         <span class="sound-wave-bars">
                                             <span></span><span></span><span></span><span></span>
                                         </span>
-                                    ` : isThisPlaying ? `
+                                    ` : (isThisPlaying && audio.currentTime > 1) ? `
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <polygon points="5 3 19 12 5 21 5 3"/>
                                         </svg>
@@ -2928,9 +3211,10 @@
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <polygon points="5 3 19 12 5 21 5 3"/>
                                         </svg>
-                                        <span>Tinglash</span>
+                                        <span>${item.speaker === 'dual' ? `Tinglash (${formatDuration(zuhraStart)} dan)` : 'Tinglash'}</span>
                                     `}
                                 </button>
+                                ${item.speaker !== 'dual' ? `
                                 <button type="button" class="btn-row-switch ${isZuhra ? 'to-muattar' : 'to-zuhra'}"
                                     title="${isZuhra ? 'Muattarga o\'tkazish' : 'Zuhra opaga o\'tkazish'}"
                                     onclick="toggleRowSpeaker('${escapedFile}', '${item.speaker}', event)">
@@ -2939,6 +3223,7 @@
                                     </svg>
                                     <span>${isZuhra ? 'Muattarga' : 'Zuhra opaga'}</span>
                                 </button>
+                                ` : ''}
                             </div>
                         </td>
                     </tr>
@@ -3134,7 +3419,9 @@
         // ========================================================
         // CANDIDATE VOICE SAMPLES REVIEW LOGIC (AI ENSEMBLE TRAINING)
         // ========================================================
+        let activeSamplesTab = 'zuhra'; // 'zuhra' or 'oybek'
         let candidateSamples = [];
+        let candidateSamplesOybek = [];
         let activeSampleAudio = null;
         let activeSampleId = null;
 
@@ -3144,16 +3431,93 @@
                 const data = await res.json();
                 if (data.success && Array.isArray(data.samples)) {
                     candidateSamples = data.samples;
-                    renderCandidateSamples(data.samples, data.stats);
+                    const badge = document.getElementById('countZuhraSamplesBadge');
+                    if (badge) badge.innerText = data.samples.length;
+                    if (activeSamplesTab === 'zuhra') {
+                        renderCandidateSamples(data.samples, data.stats);
+                    }
                 }
             } catch (err) {
                 console.error('Fetch candidate samples error:', err);
             }
         }
 
+        async function fetchOybekSamples() {
+            try {
+                const res = await fetch('/api/voice-samples/oybek?t=' + Date.now());
+                const data = await res.json();
+                if (data.success && Array.isArray(data.samples)) {
+                    candidateSamplesOybek = data.samples;
+                    const badge = document.getElementById('countOybekSamplesBadge');
+                    if (badge) badge.innerText = data.samples.length;
+                    if (activeSamplesTab === 'oybek') {
+                        renderCandidateSamples(data.samples, data.stats);
+                    }
+                }
+            } catch (err) {
+                console.error('Fetch Oybek samples error:', err);
+            }
+        }
+
+        function switchSamplesTab(tab) {
+            activeSamplesTab = tab;
+            const btnZuhra = document.getElementById('tabBtnZuhraSamples');
+            const btnOybek = document.getElementById('tabBtnOybekSamples');
+            const titleEl = document.getElementById('samplesTitleText');
+            const descEl = document.getElementById('samplesDescText');
+            const modelBadge = document.getElementById('samplesModelBadge');
+            const snowballBtn = document.getElementById('btnSnowballBatch');
+            const trainBtn = document.getElementById('btnApplyEnsemble');
+
+            if (tab === 'oybek') {
+                if (btnZuhra) btnZuhra.classList.remove('active');
+                if (btnOybek) btnOybek.classList.add('active');
+                if (titleEl) titleEl.innerText = "Oybek (101) ovoz namunalari (AI Trening)";
+                if (modelBadge) {
+                    modelBadge.innerText = "AI Snowball faol";
+                    modelBadge.className = "pill-stat approved";
+                }
+                if (descEl) descEl.innerHTML = "Quyidagi audio parchalarni tinglang: faqat sof <strong>Oybek</strong>ning ovozi bo'lganlarini tasdiqlang. Yangi namunalar olish uchun «Snowball» tugmasini bosing.";
+                if (snowballBtn) {
+                    snowballBtn.style.display = 'inline-flex';
+                    snowballBtn.setAttribute('title', "Oybek suhbatlaridan AI o'xshashligi asosida yangi namunalar to'plash");
+                    const span = snowballBtn.querySelector('span');
+                    if (span) span.innerText = "Oybek Snowball (+Namunalar)";
+                }
+                if (trainBtn) {
+                    trainBtn.setAttribute('title', "Tasdiqlangan namunalar asosida Oybek ovoz modelini shakllantirish");
+                    const span = trainBtn.querySelector('span');
+                    if (span) span.innerText = "Oybek Modelini Kuchaytirish";
+                }
+                fetchOybekSamples();
+            } else {
+                if (btnZuhra) btnZuhra.classList.add('active');
+                if (btnOybek) btnOybek.classList.remove('active');
+                if (titleEl) titleEl.innerText = "Zuhra opa ovoz namunalari (AI Trening)";
+                if (modelBadge) {
+                    modelBadge.innerText = "Model kuchaytirildi";
+                    modelBadge.className = "pill-stat approved";
+                }
+                if (descEl) descEl.innerHTML = "Quyidagi parchalarni tinglang: faqat sof <strong>Zuhra opa</strong>ning ovozi bo'lganlarini tasdiqlang. Mijoz ovozi aralashgan yoki begona odam bo'lsa rad eting.";
+                if (snowballBtn) {
+                    snowballBtn.style.display = 'inline-flex';
+                    snowballBtn.setAttribute('title', "Tasdiqlangan qo'ng'iroqlardan yangi namunalar to'plash");
+                    const span = snowballBtn.querySelector('span');
+                    if (span) span.innerText = "Yangi to'plam (+Snowball)";
+                }
+                if (trainBtn) {
+                    trainBtn.setAttribute('title', "Tasdiqlangan namunalar asosida Zuhra opa AI modelini kuchaytirish");
+                    const span = trainBtn.querySelector('span');
+                    if (span) span.innerText = "Modelni Kuchaytirish";
+                }
+                fetchCandidateSamples();
+            }
+        }
+
         function renderCandidateSamples(samples, stats) {
             const container = document.getElementById('samplesGridContainer');
             if (!container) return;
+            const isOybek = (activeSamplesTab === 'oybek');
 
             if (stats) {
                 const approvedEl = document.getElementById('txtApprovedCount');
@@ -3197,7 +3561,7 @@
                 if (isApproved) {
                     statusBadgeHtml = `<span class="sample-status-badge approved">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
-                        Zuhra opa ovozi
+                        ${isOybek ? 'Oybek ovozi' : 'Zuhra opa ovozi'}
                     </span>`;
                 } else if (isDenied) {
                     statusBadgeHtml = `<span class="sample-status-badge denied">
@@ -3220,6 +3584,12 @@
                     </svg>
                 `;
 
+                const rawFile = s.file || s.filename || (s.id + '.wav');
+                const rawUrl = s.url || s.audio_url || (isOybek ? ('/samples/oybek/' + rawFile) : ('/samples/candidates/' + rawFile));
+                const sampleAudioUrl = (rawUrl && !rawUrl.includes('undefined') && !rawUrl.includes('null')) 
+                    ? rawUrl 
+                    : (isOybek ? `/samples/oybek/${s.id}.wav` : `/samples/candidates/${s.id}.wav`);
+
                 return `
                 <div class="${cardClass}" id="card_${s.id}">
                     <div class="sample-card-header">
@@ -3240,7 +3610,7 @@
 
                     <!-- MINI AUDIO PLAYER -->
                     <div class="sample-player-row">
-                        <button type="button" class="btn-sample-play ${isCurrentPlaying ? 'is-playing' : ''}" id="btnPlay_${s.id}" onclick="toggleSamplePlay('${s.id}', '${s.audio_url}')" title="Parchani tinglash">
+                        <button type="button" class="btn-sample-play ${isCurrentPlaying ? 'is-playing' : ''}" id="btnPlay_${s.id}" onclick="toggleSamplePlay('${s.id}', '${sampleAudioUrl}')" title="Parchani tinglash">
                             ${playIconHtml}
                         </button>
                         <div class="sample-track-timeline">
@@ -3256,9 +3626,9 @@
 
                     <!-- ACTIONS -->
                     <div class="sample-actions-row">
-                        <button type="button" class="btn-decision approve ${isApproved ? 'active' : ''}" onclick="reviewSampleAction('${s.id}', 'approved')" title="Bu rostan ham Zuhra opaning sof ovozi">
+                        <button type="button" class="btn-decision approve ${isApproved ? 'active' : ''}" onclick="reviewSampleAction('${s.id}', 'approved')" title="${isOybek ? 'Bu rostan ham Oybekning sof ovozi' : 'Bu rostan ham Zuhra opaning sof ovozi'}">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
-                            <span>Zuhra opa ovozi</span>
+                            <span>${isOybek ? 'Oybek ovozi' : 'Zuhra opa ovozi'}</span>
                         </button>
                         <button type="button" class="btn-decision deny ${isDenied ? 'active' : ''}" onclick="reviewSampleAction('${s.id}', 'denied')" title="Mijoz yoki begona ovoz aralashgan / noto'g'ri">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
@@ -3270,6 +3640,12 @@
         }
 
         function toggleSamplePlay(sampleId, audioUrl) {
+            const isOybek = (activeSamplesTab === 'oybek');
+            let resolvedUrl = audioUrl;
+            if (!resolvedUrl || resolvedUrl === 'undefined' || resolvedUrl === 'null' || resolvedUrl.includes('undefined') || resolvedUrl.includes('null')) {
+                resolvedUrl = isOybek ? `/samples/oybek/${sampleId}.wav` : `/samples/candidates/${sampleId}.wav`;
+            }
+
             // If already playing this sample, pause it
             if (activeSampleId === sampleId && activeSampleAudio && !activeSampleAudio.paused) {
                 activeSampleAudio.pause();
@@ -3290,7 +3666,7 @@
             }
 
             activeSampleId = sampleId;
-            activeSampleAudio = new Audio(audioUrl);
+            activeSampleAudio = new Audio(resolvedUrl);
             updateSamplePlayButton(sampleId, true);
 
             activeSampleAudio.ontimeupdate = () => {
@@ -3356,8 +3732,9 @@
 
         async function reviewSampleAction(sampleId, newStatus) {
             try {
-                // If clicked same status again, toggle back to pending
-                const currentItem = candidateSamples.find(s => s.id === sampleId);
+                const isOybek = (activeSamplesTab === 'oybek');
+                const targetList = isOybek ? candidateSamplesOybek : candidateSamples;
+                const currentItem = targetList.find(s => s.id === sampleId);
                 const targetStatus = (currentItem && currentItem.status === newStatus) ? 'pending' : newStatus;
 
                 const res = await fetch('/api/voice-samples/review', {
@@ -3367,12 +3744,14 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    const idx = candidateSamples.findIndex(s => s.id === sampleId);
+                    const idx = targetList.findIndex(s => s.id === sampleId);
                     if (idx !== -1) {
-                        candidateSamples[idx] = data.item;
+                        targetList[idx] = data.item;
                     }
-                    renderCandidateSamples(candidateSamples, data.stats);
-                    const msg = targetStatus === 'approved' ? 'Zuhra opa ovozi deb tasdiqlandi!' : (targetStatus === 'denied' ? 'Namuna rad etildi!' : 'Kutilmoqda holatiga qaytarildi');
+                    renderCandidateSamples(targetList, data.stats);
+                    const msg = targetStatus === 'approved' 
+                        ? (isOybek ? 'Oybek ovozi deb tasdiqlandi!' : 'Zuhra opa ovozi deb tasdiqlandi!') 
+                        : (targetStatus === 'denied' ? 'Namuna rad etildi!' : 'Kutilmoqda holatiga qaytarildi');
                     showToast(msg);
                 } else {
                     alert('Xatolik: ' + (data.error || 'Noma\'lum xatolik'));
@@ -3384,7 +3763,9 @@
         }
 
         async function applyEnsembleTraining() {
-            const approvedCount = candidateSamples.filter(s => s.status === 'approved').length;
+            const isOybek = (activeSamplesTab === 'oybek');
+            const targetList = isOybek ? candidateSamplesOybek : candidateSamples;
+            const approvedCount = targetList.filter(s => s.status === 'approved').length;
             if (approvedCount === 0) {
                 alert('Hech bo\'lmaganda 1 ta namunani tasdiqlang!');
                 return;
@@ -3397,19 +3778,20 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="spin">
                         <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
                     </svg>
-                    <span>Model o'qitilmoqda...</span>
+                    <span>${isOybek ? 'Oybek modeli o\'qitilmoqda...' : 'Model o\'qitilmoqda...'}</span>
                 `;
             }
 
             try {
-                const res = await fetch('/api/voice-samples/apply-ensemble', {
+                const url = isOybek ? '/api/voice-samples/oybek/apply-ensemble' : '/api/voice-samples/apply-ensemble';
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 const data = await res.json();
                 if (data.success) {
-                    showToast(`Muvaffaqiyatli: ${approvedCount} ta namuna asosida AI etaloni kuchaytirildi!`);
-                    alert(`🎉 AI modeli muvaffaqiyatli yangilandi!\n\nTasdiqlangan ${approvedCount} ta sof audio namunasi asosida Zuhra opa uchun yangi kompozit akustik profil yaratildi.\n\nAI endi telefon sifatidagi va past ovozdagi suhbatlarni ham yuqori aniqlik bilan tanib oladi!`);
+                    showToast(`Muvaffaqiyatli: ${approvedCount} ta namuna asosida ${isOybek ? 'Oybek' : 'Zuhra opa'} modeli kuchaytirildi!`);
+                    alert(`🎉 AI modeli muvaffaqiyatli yangilandi!\n\nTasdiqlangan ${approvedCount} ta sof audio namunasi asosida ${isOybek ? 'Oybek (101)' : 'Zuhra opa'} uchun yangi akustik profil yaratildi.`);
                 } else {
                     alert('Modelni yangilashda xatolik: ' + (data.error || 'Noma\'lum'));
                 }
@@ -3423,14 +3805,16 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                             <path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/>
                         </svg>
-                        <span>Modelni Kuchaytirish</span>
+                        <span>${isOybek ? 'Oybek Modelini Kuchaytirish' : 'Modelni Kuchaytirish'}</span>
                     `;
                 }
-                fetchCandidateSamples();
+                if (isOybek) fetchOybekSamples();
+                else fetchCandidateSamples();
             }
         }
 
         async function generateSnowballBatch() {
+            const isOybek = (activeSamplesTab === 'oybek');
             const btn = document.getElementById('btnSnowballBatch');
             if (btn) {
                 btn.disabled = true;
@@ -3439,28 +3823,33 @@
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin">
                         <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
                     </svg>
-                    <span>Namunalar olinmoqda...</span>
+                    <span>${isOybek ? 'Oybek namunalari olinmoqda...' : 'Namunalar olinmoqda...'}</span>
                 `;
             }
 
             try {
-                const res = await fetch('/api/voice-samples/generate-snowball', {
+                const url = isOybek ? '/api/voice-samples/oybek/generate-snowball' : '/api/voice-samples/generate-snowball';
+                const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ batchSize: 6 })
                 });
                 const data = await res.json();
-                if (data.success && data.addedCount > 0) {
+                const addedCount = data.new_samples_count || data.addedCount || 0;
+                if (data.success && addedCount > 0) {
                     toggleSamplesCollapse(false);
-                    showToast(`Yangi ${data.addedCount} ta namuna tayyorlandi (To'plam #${data.batch})!`);
+                    showToast(`Yangi ${addedCount} ta namuna tayyorlandi (To'plam #${data.batch})!`);
                     alert(
-                        `❄️ Snowball: Yangi ${data.addedCount} ta audio namunasi muvaffaqiyatli tayyorlandi!\n\n` +
-                        `Ular siz tasdiqlagan yangi Zuhra opa qo'ng'iroqlaridan kesib olindi.\n` +
-                        `Iltimos, parchalarni tinglab, tasdiqlang yoki rad eting, so'ng "Modelni Kuchaytirish"ni bosing!`
+                        `❄️ Snowball: Yangi ${addedCount} ta toza audio namunasi muvaffaqiyatli tayyorlandi!\n\n` +
+                        (isOybek
+                            ? `Oybekning tasdiqlangan ovoziga 70%+ o'xshash bo'lgan yuqori aniqlikdagi namunalar qo'shildi.`
+                            : `Ular siz tasdiqlagan yangi Zuhra opa qo'ng'iroqlaridan kesib olindi.`) +
+                        `\nIltimos, ularni ham tinglab tasdiqlang yoki rad eting!`
                     );
-                    fetchCandidateSamples();
+                    if (isOybek) fetchOybekSamples();
+                    else fetchCandidateSamples();
                 } else {
-                    alert(data.message || 'Yangi namunalar topilmadi. Avval pastdagi jadvaldan suhbatlarni Zuhra opaga o\'tkazing.');
+                    alert(data.message || data.error || 'Yangi namunalar topilmadi.');
                 }
             } catch (err) {
                 console.error('Snowball error:', err);
@@ -3473,7 +3862,7 @@
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 5V19M5 12H19"/>
                         </svg>
-                        <span>Yangi to'plam (+Snowball)</span>
+                        <span>${isOybek ? 'Oybek Snowball (+Namunalar)' : 'Yangi to\'plam (+Snowball)'}</span>
                     `;
                 }
             }
@@ -3590,6 +3979,7 @@
         fetchStatus();
         fetchVoiceCallsList();
         fetchCandidateSamples();
+        fetchOybekSamples();
 
         // Har 1.5 soniyada yangilab turish (jonli 2-progress bar)
         setInterval(fetchStatus, 1500);

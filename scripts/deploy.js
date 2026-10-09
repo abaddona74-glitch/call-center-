@@ -68,8 +68,6 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="scratch" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
-    `--exclude="data/voice_identifications.json" ` +
-    `--exclude="data/voice_scan_status.json" ` +
     `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data`;
 
 try {

@@ -172,7 +172,9 @@ class VoiceSnowballService {
 
                 const sampleObj = {
                     id: newSampleId,
+                    file: outWavName,
                     filename: outWavName,
+                    url: `/samples/candidates/${outWavName}`,
                     audio_url: `/samples/candidates/${outWavName}`,
                     caller_id: c.caller_id || (c.src || 'Noma\'lum'),
                     calldate: c.calldate,

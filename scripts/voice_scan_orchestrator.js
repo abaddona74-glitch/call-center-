@@ -22,13 +22,16 @@ function isInRange(d) {
     return d >= START_DATE && d <= END_DATE;
 }
 
+const LOCAL_PORT = process.env.PORT || 3535;
+const LOCAL_API_BASE = `http://127.0.0.1:${LOCAL_PORT}`;
+
 async function checkRemoteRestartFlag() {
     try {
-        const res = await fetch('http://192.168.0.2:3535/api/voice-scan/restart-status', { signal: AbortSignal.timeout(1500) });
+        const res = await fetch(`${LOCAL_API_BASE}/api/voice-scan/restart-status`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
             const data = await res.json();
             if (data.restartRequested) {
-                await fetch('http://192.168.0.2:3535/api/voice-scan/restart-ack', { method: 'POST', signal: AbortSignal.timeout(1500) }).catch(() => {});
+                await fetch(`${LOCAL_API_BASE}/api/voice-scan/restart-ack`, { method: 'POST', signal: AbortSignal.timeout(1500) }).catch(() => {});
                 return true;
             }
         }
@@ -191,9 +194,34 @@ async function main() {
         }
     });
 
-    await new Promise((resolve) => {
+    pyProcess.on('error', (err) => {
+        console.error("❌ Python jarayonini ishga tushirib bo'lmadi:", err);
+        if (pendingResolve) {
+            const r = pendingResolve;
+            pendingResolve = null;
+            r({ error: err.message });
+        }
+    });
+
+    pyProcess.on('exit', (code) => {
+        if (code !== 0) {
+            console.error(`❌ Python jarayoni to'xtadi (kod: ${code})`);
+            if (pendingResolve) {
+                const r = pendingResolve;
+                pendingResolve = null;
+                r({ error: `Python worker exited with code ${code}` });
+            }
+        }
+    });
+
+    const initResult = await new Promise((resolve) => {
         pendingResolve = resolve;
     });
+
+    if (initResult && initResult.error) {
+        console.error("❌ Python AI modeli ishga tushmadi:", initResult.error);
+        process.exit(1);
+    }
     console.log("✅ Tezlashtirilgan AI modeli xotiraga yuklandi va tayyor!\n");
 
     function askWorker(payload) {
@@ -231,7 +259,7 @@ async function main() {
                 if (newVoiceId) fs.writeFileSync(VOICE_ID_FILE, JSON.stringify(voiceIds, null, 2), 'utf8');
             } catch (e) {}
 
-            fetch('http://192.168.0.2:3535/api/internal/voice-scan-sync', {
+            fetch(`${LOCAL_API_BASE}/api/internal/voice-scan-sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: statusData, newVoiceId }),

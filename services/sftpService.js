@@ -234,6 +234,17 @@ class SftpService {
                 };
             }
         } catch (err) {
+            if (err && err.message && err.message.includes('No such file')) {
+                // Bugungi kun papkasi hali PBX da yaratilmagan bo'lsa (birinchi qo'ng'iroq bo'lmaguncha) - bu xato emas
+                return {
+                    success: true,
+                    currentPath: subPath,
+                    fullRemotePath,
+                    directories: [],
+                    files: [],
+                    isRealSftp: true
+                };
+            }
             console.warn(`SFTP listDirectory xatosi (${fullRemotePath}):`, err.message);
         }
 

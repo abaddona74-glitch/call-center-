@@ -361,10 +361,10 @@ app.get('/api/voice-scan-status', (req, res) => {
         return d >= START_DATE && d <= END_DATE;
     });
 
-    const totalTarget = (orchestratorStatus && orchestratorStatus.totalTarget) ? orchestratorStatus.totalTarget : 558;
-    const scannedCount = (orchestratorStatus && orchestratorStatus.scannedCount) ? orchestratorStatus.scannedCount : inRange.length;
+    const totalTarget = (orchestratorStatus && orchestratorStatus.totalTarget !== undefined) ? orchestratorStatus.totalTarget : 558;
+    const scannedCount = (orchestratorStatus && orchestratorStatus.scannedCount !== undefined) ? orchestratorStatus.scannedCount : inRange.length;
     const remainingCount = (orchestratorStatus && orchestratorStatus.remainingCount !== undefined) ? orchestratorStatus.remainingCount : Math.max(0, totalTarget - scannedCount);
-    const percent = (orchestratorStatus && orchestratorStatus.percent) ? orchestratorStatus.percent : `${Math.min(100, Math.round((scannedCount / totalTarget) * 100))}%`;
+    const percent = (orchestratorStatus && orchestratorStatus.percent !== undefined) ? orchestratorStatus.percent : `${Math.min(100, Math.round((scannedCount / totalTarget) * 100))}%`;
     const zuhraCount = inRange.filter(x => x.speaker === 'zuhra' || x.speaker === 'Zuhra opa').length;
     const muattarCount = inRange.filter(x => x.speaker !== 'zuhra' && x.speaker !== 'Zuhra opa').length;
 
@@ -495,9 +495,86 @@ app.post('/api/voice-samples/review', (req, res) => {
         if (!sampleId || !['approved', 'denied', 'pending'].includes(status)) {
             return res.status(400).json({ success: false, error: 'sampleId yoki yaroqsiz status parametri' });
         }
-        const dbPath = path.join(__dirname, 'data', 'voice_candidate_samples.json');
+        let dbPath = path.join(__dirname, 'data', 'voice_candidate_samples.json');
         if (!fs.existsSync(dbPath)) {
             return res.status(404).json({ success: false, error: 'Namunalar fayli topilmadi' });
+        }
+        let samples = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        let idx = samples.findIndex(s => s.id === sampleId);
+        let targetDbPath = dbPath;
+
+        // Agar Zuhra namunalaridan topilmasa, Oybek namunalaridan tekshiramiz!
+        if (idx === -1) {
+            const oybekDb = path.join(__dirname, 'data', 'oybek_samples.json');
+            if (fs.existsSync(oybekDb)) {
+                const oybekSamples = JSON.parse(fs.readFileSync(oybekDb, 'utf8'));
+                const oybekIdx = oybekSamples.findIndex(s => s.id === sampleId);
+                if (oybekIdx !== -1) {
+                    samples = oybekSamples;
+                    idx = oybekIdx;
+                    targetDbPath = oybekDb;
+                }
+            }
+        }
+
+        if (idx === -1) {
+            return res.status(404).json({ success: false, error: 'Namuna topilmadi' });
+        }
+        samples[idx].status = status;
+        samples[idx].reviewed_at = new Date().toISOString();
+        fs.writeFileSync(targetDbPath, JSON.stringify(samples, null, 2), 'utf8');
+
+        const approvedCount = samples.filter(s => s.status === 'approved').length;
+        const deniedCount = samples.filter(s => s.status === 'denied').length;
+        const pendingCount = samples.filter(s => s.status === 'pending' || !s.status).length;
+
+        res.json({
+            success: true,
+            item: samples[idx],
+            stats: {
+                total: samples.length,
+                approved: approvedCount,
+                denied: deniedCount,
+                pending: pendingCount
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Oybek (101) ovoz namunalari API
+app.get('/api/voice-samples/oybek', (req, res) => {
+    try {
+        const oybekFile = path.join(__dirname, 'data', 'oybek_samples.json');
+        if (fs.existsSync(oybekFile)) {
+            const samples = JSON.parse(fs.readFileSync(oybekFile, 'utf8'));
+            const approved = samples.filter(s => s.status === 'approved').length;
+            const denied = samples.filter(s => s.status === 'denied').length;
+            const pending = samples.filter(s => s.status === 'pending' || !s.status).length;
+            return res.json({ 
+                success: true, 
+                samples, 
+                count: samples.length,
+                stats: { total: samples.length, approved, denied, pending }
+            });
+        }
+        res.json({ success: true, samples: [], count: 0, stats: { total: 0, approved: 0, denied: 0, pending: 0 } });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Oybek namunasini tasdiqlash yoki rad etish
+app.post('/api/voice-samples/oybek/review', (req, res) => {
+    try {
+        const { sampleId, status } = req.body;
+        if (!sampleId || !['approved', 'denied'].includes(status)) {
+            return res.status(400).json({ success: false, error: "Noto'g'ri parametrlar" });
+        }
+        const dbPath = path.join(__dirname, 'data', 'oybek_samples.json');
+        if (!fs.existsSync(dbPath)) {
+            return res.status(404).json({ success: false, error: 'oybek_samples.json topilmadi' });
         }
         let samples = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
         const idx = samples.findIndex(s => s.id === sampleId);
@@ -508,18 +585,38 @@ app.post('/api/voice-samples/review', (req, res) => {
         samples[idx].reviewed_at = new Date().toISOString();
         fs.writeFileSync(dbPath, JSON.stringify(samples, null, 2), 'utf8');
 
-        const approvedCount = samples.filter(s => s.status === 'approved').length;
-        const deniedCount = samples.filter(s => s.status === 'denied').length;
-        const pendingCount = samples.filter(s => s.status === 'pending').length;
+        const approved = samples.filter(s => s.status === 'approved').length;
+        const denied = samples.filter(s => s.status === 'denied').length;
+        const pending = samples.filter(s => s.status === 'pending' || !s.status).length;
 
         res.json({
             success: true,
             item: samples[idx],
-            stats: {
-                total: samples.length,
-                approved: approvedCount,
-                denied: deniedCount,
-                pending: pendingCount
+            stats: { total: samples.length, approved, denied, pending }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Oybek tasdiqlangan namunalari asosida modelni qayta shakllantirish
+app.post('/api/voice-samples/oybek/apply-ensemble', (req, res) => {
+    try {
+        const { exec } = require('child_process');
+        const pyScript = path.join(__dirname, 'scripts', 'build_oybek_profile.py');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        exec(`${pythonCmd} "${pyScript}"`, { cwd: __dirname }, (err, stdout, stderr) => {
+            if (err) {
+                console.error("Oybek ensemble training error:", err, stderr);
+                return res.status(500).json({ success: false, error: err.message, stderr });
+            }
+            try {
+                const lines = stdout.trim().split('\n');
+                const lastLine = lines[lines.length - 1];
+                const data = JSON.parse(lastLine);
+                return res.json(data);
+            } catch (e) {
+                return res.json({ success: true, message: "Oybek modeli tasdiqlangan namunalar bilan yangilandi!", raw: stdout });
             }
         });
     } catch (err) {
@@ -537,6 +634,47 @@ app.post('/api/voice-samples/generate-snowball', async (req, res) => {
         res.json(result);
     } catch (err) {
         console.error('Generate snowball error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Oybek (101) suhbatlaridan AI o'xshashligi asosida yangi namunalar olish (Oybek Snowball)
+app.post('/api/voice-samples/oybek/generate-snowball', (req, res) => {
+    try {
+        const size = parseInt(req.body?.batchSize || '6', 10);
+        const { exec } = require('child_process');
+        const pyScript = path.join(__dirname, 'scripts', 'generate_oybek_snowball.py');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        exec(`${pythonCmd} "${pyScript}" ${size}`, { cwd: __dirname }, (error, stdout, stderr) => {
+            if (error) {
+                console.error('Oybek snowball error:', error, stderr);
+                return res.status(500).json({ success: false, error: error.message, stderr });
+            }
+            try {
+                const lines = stdout.trim().split('\n');
+                const lastLine = lines[lines.length - 1];
+                const data = JSON.parse(lastLine);
+                res.json(data);
+            } catch (e) {
+                res.json({ success: true, raw: stdout });
+            }
+        });
+    } catch (err) {
+        console.error('Generate Oybek snowball error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Zuhra + Oybek birgalikda qatnashgan qo'ng'iroqlar natijalari API
+app.get('/api/voice-scan/dual-speaker-results', (req, res) => {
+    try {
+        const resultsFile = path.join(__dirname, 'data', 'dual_speaker_results.json');
+        if (fs.existsSync(resultsFile)) {
+            const data = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
+            return res.json({ success: true, count: data.length, results: data });
+        }
+        res.json({ success: true, count: 0, results: [], message: 'Skanerlash hali davom etmoqda...' });
+    } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
@@ -585,7 +723,34 @@ app.post('/api/voice-samples/apply-ensemble', (req, res) => {
 });
 
 // Qayta skan qilish boshqaruvi (Voice Scan Restart)
+const { spawn: spawnProcess } = require('child_process');
 let scanRestartRequested = false;
+let activeScanChild = null;
+
+function runVoiceScanOrchestrator(isRescan = true) {
+    if (activeScanChild && !activeScanChild.killed && activeScanChild.exitCode === null) {
+        console.log("ℹ️ Ovozli skan orkestratori allaqachon fonda ishlamoqda.");
+        return;
+    }
+    const scriptPath = path.join(__dirname, 'scripts', 'voice_scan_orchestrator.js');
+    const args = isRescan ? [scriptPath, '--rescan'] : [scriptPath];
+    console.log(`🚀 Ovozli skan orkestratori ishga tushirilmoqda: node ${args.join(' ')}`);
+    activeScanChild = spawnProcess(process.execPath || 'node', args, {
+        cwd: __dirname,
+        stdio: 'inherit',
+        env: { ...process.env, PORT: config.PORT || 3535 }
+    });
+
+    activeScanChild.on('exit', (code) => {
+        console.log(`🏁 Ovozli skan orkestratori yakunlandi (chiqish kodi: ${code})`);
+        activeScanChild = null;
+    });
+
+    activeScanChild.on('error', (err) => {
+        console.error(`❌ Ovozli skan orkestratori ishga tushirishda xatolik:`, err);
+        activeScanChild = null;
+    });
+}
 
 app.post('/api/voice-scan/restart', (req, res) => {
     try {
@@ -595,13 +760,28 @@ app.post('/api/voice-scan/restart', (req, res) => {
             try {
                 const st = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
                 st.isRescan = true;
+                st.scannedCount = 0;
+                st.remainingCount = st.totalTarget || 558;
+                st.percent = "0%";
+                st.speedPerMin = null;
+                st.etaMinutes = null;
+                st.estimatedEndTime = "Hisoblanmoqda...";
                 st.previousZuhraCount = st.zuhraCount || 0;
                 st.newlyFoundZuhraCount = 0;
                 st.newlyFoundZuhraList = [];
-                st.currentTask = { stage: "Yangi kuchaytirilgan model (Ensemble) bilan qayta skan boshlanmoqda...", stagePercent: 0 };
+                st.currentTask = { 
+                    stage: "Yangi kuchaytirilgan model (Ensemble) bilan qayta skan boshlanmoqda...", 
+                    stagePercent: 0,
+                    currentIndex: 0,
+                    totalCandidates: st.totalTarget || 558
+                };
                 fs.writeFileSync(statusFile, JSON.stringify(st, null, 2), 'utf8');
             } catch (e) {}
         }
+
+        // Fonda orkestrator jarayonini avtomatik ishga tushirish
+        runVoiceScanOrchestrator(true);
+
         res.json({ success: true, message: "Qayta skan qilish so'rovi qabul qilindi. Yangi kuchaytirilgan model bilan qayta tahlil boshlanadi!" });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
