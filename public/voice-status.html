@@ -1088,6 +1088,40 @@
             text-transform: uppercase;
         }
 
+        .zuhra-table th.th-sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.18s ease;
+        }
+
+        .zuhra-table th.th-sortable:hover {
+            color: #f8fafc;
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .th-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sort-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            transition: transform 0.2s ease, color 0.2s ease;
+        }
+
+        .zuhra-table th.th-sortable.active-sort {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.04);
+        }
+
+        .zuhra-table th.th-sortable.active-sort .sort-icon {
+            color: #38bdf8;
+        }
+
         .zuhra-table td {
             padding: 12px 14px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04);
@@ -2794,13 +2828,45 @@
                 <table class="zuhra-table">
                     <thead>
                         <tr>
-                            <th>Sana va Vaqt</th>
-                            <th>Mijoz Raqami</th>
-                            <th>Operator</th>
-                            <th>Davomiyligi</th>
-                            <th>AI Ishonch</th>
+                            <th class="th-sortable active-sort" onclick="sortByColumn('calldate')" title="Sana va vaqt bo'yicha saralash (teskari/to'g'ri)">
+                                <div class="th-content">
+                                    <span>Sana va Vaqt</span>
+                                    <span class="sort-icon" id="sortIcon-calldate">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9l-7 7-7-7"/></svg>
+                                    </span>
+                                </div>
+                            </th>
+                            <th class="th-sortable" onclick="sortByColumn('caller_id')" title="Mijoz raqami bo'yicha saralash">
+                                <div class="th-content">
+                                    <span>Mijoz Raqami</span>
+                                    <span class="sort-icon" id="sortIcon-caller_id"></span>
+                                </div>
+                            </th>
+                            <th class="th-sortable" onclick="sortByColumn('operator')" title="Operator bo'yicha saralash">
+                                <div class="th-content">
+                                    <span>Operator</span>
+                                    <span class="sort-icon" id="sortIcon-operator"></span>
+                                </div>
+                            </th>
+                            <th class="th-sortable" onclick="sortByColumn('duration')" title="Davomiylik bo'yicha saralash">
+                                <div class="th-content">
+                                    <span>Davomiyligi</span>
+                                    <span class="sort-icon" id="sortIcon-duration"></span>
+                                </div>
+                            </th>
+                            <th class="th-sortable" onclick="sortByColumn('confidence')" title="AI ishonch foizi bo'yicha saralash">
+                                <div class="th-content">
+                                    <span>AI Ishonch</span>
+                                    <span class="sort-icon" id="sortIcon-confidence"></span>
+                                </div>
+                            </th>
                             <th>Amal</th>
-                            <th style="text-align: center; width: 85px;">Tekshirish</th>
+                            <th class="th-sortable" style="text-align: center; width: 85px;" onclick="sortByColumn('verified')" title="Tekshirilganlar bo'yicha saralash">
+                                <div class="th-content" style="justify-content: center;">
+                                    <span>Tekshirish</span>
+                                    <span class="sort-icon" id="sortIcon-verified"></span>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="zuhraTableBody">
@@ -2846,6 +2912,59 @@
             updateHideVerifiedSwitchUI();
             renderCallsTable();
             showToast(hideVerifiedCalls ? "Tekshirilgan suhbatlar yashirildi" : "Tekshirilgan suhbatlar ko'rsatildi");
+        }
+
+        // Table Sorting State (Ustunlar bo'yicha saralash)
+        let sortColumn = 'calldate';
+        let sortDirection = 'desc'; // 'desc' = yangi/katta birinchi, 'asc' = eski/kichik birinchi (teskari)
+
+        function updateSortHeaderIcons() {
+            const cols = ['calldate', 'caller_id', 'operator', 'duration', 'confidence', 'verified'];
+            cols.forEach(col => {
+                const el = document.getElementById(`sortIcon-${col}`);
+                const th = el ? el.closest('th') : null;
+                if (!el) return;
+
+                if (sortColumn === col) {
+                    if (th) th.classList.add('active-sort');
+                    if (sortDirection === 'asc') {
+                        // O'sish tartibi (Arrow Up)
+                        el.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg>`;
+                        el.title = "O'sish tartibida (teskari)";
+                    } else {
+                        // Kamayish tartibi (Arrow Down)
+                        el.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 9l-7 7-7-7"/></svg>`;
+                        el.title = "Kamayish tartibida (yangi/katta birinchi)";
+                    }
+                } else {
+                    if (th) th.classList.remove('active-sort');
+                    el.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.3"><path d="M7 15l5 5 5-5M7 9l5-5 5 5"/></svg>`;
+                    el.title = "Saralash uchun bosing";
+                }
+            });
+        }
+
+        function sortByColumn(col) {
+            if (sortColumn === col) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = col;
+                sortDirection = (col === 'calldate' || col === 'duration' || col === 'confidence') ? 'desc' : 'asc';
+            }
+            updateSortHeaderIcons();
+            renderCallsTable();
+
+            const colTitles = {
+                calldate: 'Sana va vaqt',
+                caller_id: 'Mijoz raqami',
+                operator: 'Operator',
+                duration: 'Davomiyligi',
+                confidence: 'AI Ishonch',
+                verified: 'Tekshirilganlar'
+            };
+            const colName = colTitles[col] || col;
+            const dirName = sortDirection === 'asc' ? 'teskari (o\'sish)' : 'kamayish';
+            showToast(`${colName} bo'yicha ${dirName} tartibida saralandi`);
         }
 
         function formatDuration(seconds) {
@@ -3561,6 +3680,39 @@
                     badgeSwitch.style.display = 'none';
                 }
             }
+
+            // Ustunlar bo'yicha dinamik saralash (Vaqt, Davomiylik, Ishonch, Mijoz, Operator, Tekshirilgan)
+            list = list.slice().sort((a, b) => {
+                let valA, valB;
+                if (sortColumn === 'calldate') {
+                    valA = new Date(a.calldate || 0).getTime();
+                    valB = new Date(b.calldate || 0).getTime();
+                } else if (sortColumn === 'duration') {
+                    valA = a.duration || 0;
+                    valB = b.duration || 0;
+                } else if (sortColumn === 'confidence') {
+                    valA = a.confidence || Math.round((a.score || 0) * 100);
+                    valB = b.confidence || Math.round((b.score || 0) * 100);
+                } else if (sortColumn === 'caller_id') {
+                    valA = String(a.caller_id || '');
+                    valB = String(b.caller_id || '');
+                    return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortColumn === 'operator') {
+                    valA = String(a.speaker || '');
+                    valB = String(b.speaker || '');
+                    return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else if (sortColumn === 'verified') {
+                    valA = a.is_verified ? 1 : 0;
+                    valB = b.is_verified ? 1 : 0;
+                } else {
+                    valA = a.calldate || '';
+                    valB = b.calldate || '';
+                }
+
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
 
             return list;
         }
@@ -4582,6 +4734,7 @@
         }
 
         updateHideVerifiedSwitchUI();
+        updateSortHeaderIcons();
         fetchStatus();
         fetchVoiceCallsList();
         fetchCandidateSamples();
