@@ -10,7 +10,17 @@ const ExcelJS = require('exceljs');
 const issabelDbService = require('./issabelDbService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+function getExcludedOperators() {
+    return (issabelDbService && typeof issabelDbService.getExcludedOperators === 'function')
+        ? issabelDbService.getExcludedOperators()
+        : new Set();
+}
+
+const EXCLUDED_OPERATORS = {
+    has(id) {
+        return getExcludedOperators().has(String(id || '').trim());
+    }
+};
 
 function cyrillicToLatin(text) {
     if (!text || typeof text !== 'string') return text;
@@ -600,6 +610,7 @@ class ExportService {
                 { header: 'Принято', key: 'answered', width: 16 },
                 { header: 'Исходящие', key: 'outbound', width: 16 },
                 { header: 'Пропущено', key: 'missed', width: 18 },
+                { header: 'Перевод (Вх / Исх)', key: 'transfer', width: 20 },
                 { header: 'Всего звонков', key: 'total', width: 18 },
                 { header: 'Общая длительность', key: 'duration', width: 20 },
                 { header: 'Среднее время', key: 'avg', width: 18 }
@@ -611,6 +622,7 @@ class ExportService {
                 { header: 'Qabul qilingan', key: 'answered', width: 16 },
                 { header: 'Chiquvchi', key: 'outbound', width: 16 },
                 { header: 'O\'tkazib yuborilgan', key: 'missed', width: 18 },
+                { header: 'Transfer (Kir / Chiq)', key: 'transfer', width: 20 },
                 { header: 'Jami qo\'ng\'iroqlar', key: 'total', width: 18 },
                 { header: 'Jami suhbat vaqti', key: 'duration', width: 20 },
                 { header: 'O\'rtacha suhbat', key: 'avg', width: 18 }
@@ -626,8 +638,31 @@ class ExportService {
             cell.alignment = { horizontal: 'center', vertical: 'middle' };
         });
 
-        // Bugungi agent statistikasi
-        const statsMap = dbService.getTodayAgentOperatorStats(todayStr);
+        // Bugungi statistika (IssabelDbService va SQLite DB ma'lumotlarini birlashtirish)
+        const statsMap = dbService.getTodayAgentOperatorStats(todayStr) || {};
+        try {
+            const liveOps = await issabelDbService.fetchOperatorStats(todayStr);
+            if (Array.isArray(liveOps)) {
+                for (const op of liveOps) {
+                    const opId = String(op.id || '').trim();
+                    if (!opId) continue;
+                    const prev = statsMap[opId] || {};
+                    statsMap[opId] = {
+                        answered: op.answered !== undefined ? op.answered : (prev.answered || 0),
+                        outbound: op.outbound !== undefined ? op.outbound : (prev.outbound || 0),
+                        missed: op.missed !== undefined ? op.missed : (prev.missed || 0),
+                        transferredIn: op.transferredIn || 0,
+                        transferredOut: op.transferredOut || 0,
+                        grandTotal: op.grandTotal !== undefined ? op.grandTotal : (op.totalCalls || prev.total || 0),
+                        totalDurationSec: op.totalDurationSec !== undefined ? op.totalDurationSec : (prev.totalDurationSec || 0),
+                        avgDurationSec: op.avgDurationSec !== undefined ? op.avgDurationSec : (prev.avgDurationSec || 0)
+                    };
+                }
+            }
+        } catch (e) {
+            console.warn('⚠️ addDailySummarySheet fetchOperatorStats warning:', e.message);
+        }
+
         const isRu = (lang === 'ru');
         const defaultMainListUz = [
             { id: '101', name: 'Oybek' },
@@ -683,7 +718,7 @@ class ExportService {
 
         // Stats mapdagi qo'shimcha operatorlarni ham qo'shish
         for (const [opId, st] of Object.entries(statsMap)) {
-            if (EXCLUDED_OPERATORS.has(opId)) continue;
+            if (getExcludedOperators().has(opId)) continue;
             const n = parseInt(opId, 10);
             if ((operatorGroup === 'main' || operatorGroup === '100') && (n < 100 || n >= 200)) continue;
             if ((operatorGroup === 'secondary' || operatorGroup === '200') && n < 200) continue;
@@ -695,8 +730,14 @@ class ExportService {
         operatorsList.sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10));
 
         for (const op of operatorsList) {
-            const st = statsMap[op.id] || { answered: 0, outbound: 0, missed: 0, totalDurationSec: 0, avgDurationSec: 0 };
-            const total = (st.answered || 0) + (st.outbound || 0) + (st.missed || 0);
+            const st = statsMap[op.id] || { answered: 0, outbound: 0, missed: 0, transferredIn: 0, transferredOut: 0, totalDurationSec: 0, avgDurationSec: 0 };
+            const total = (st.grandTotal !== undefined && st.grandTotal !== null)
+                ? st.grandTotal
+                : ((st.answered || 0) + (st.outbound || 0) + (st.transferredIn || 0));
+
+            const inXfer = st.transferredIn || 0;
+            const outXfer = st.transferredOut || 0;
+            const transferDisplay = `${inXfer} / ${outXfer}`;
 
             const row = sheet.addRow({
                 id: op.id,
@@ -704,6 +745,7 @@ class ExportService {
                 answered: st.answered || 0,
                 outbound: st.outbound || 0,
                 missed: st.missed || 0,
+                transfer: transferDisplay,
                 total: total,
                 duration: formatDurationHms(st.totalDurationSec || 0),
                 avg: `${st.avgDurationSec || 0} ${lang === 'ru' ? 'сек' : 'sek'}`

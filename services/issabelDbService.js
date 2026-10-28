@@ -3,7 +3,7 @@ require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+const EXCLUDED_OPERATORS = new Set();
 
 const DEFAULT_OPERATOR_NAMES = {
     '101': 'Oybek',
@@ -43,11 +43,79 @@ class IssabelDbService {
         this.isSyncing = false;
 
         // Dastlabki yuklash va har 5 soniyada fonda yangilab turish
+        this.loadExcludedFromDb();
         this.startBackgroundSync();
     }
 
     getExcludedOperators() {
+        if (EXCLUDED_OPERATORS.size === 0) {
+            this.loadExcludedFromDb();
+        }
         return EXCLUDED_OPERATORS;
+    }
+
+    updateExcludedOperators(newList) {
+        if (!Array.isArray(newList)) return;
+        EXCLUDED_OPERATORS.clear();
+        for (const item of newList) {
+            if (item) EXCLUDED_OPERATORS.add(String(item).trim());
+        }
+    }
+
+    loadExcludedFromDb() {
+        try {
+            let list = [];
+            // 1. AuthService orqali olishga urinish
+            try {
+                const authService = require('./authService');
+                if (authService && typeof authService.getExcludedOperators === 'function') {
+                    list = authService.getExcludedOperators();
+                }
+            } catch (e) {}
+
+            // 2. Agar hali bo'sh bo'lsa, to'g'ridan-to'g'ri dbService.db dan o'qish (init tartibi muammosini hal qiladi)
+            if (!list || list.length === 0) {
+                try {
+                    const dbSvc = require('./dbService');
+                    if (dbSvc && dbSvc.db) {
+                        const row = dbSvc.db.prepare("SELECT value FROM system_settings WHERE key = 'excluded_operators'").get();
+                        if (row && row.value) {
+                            const parsed = JSON.parse(row.value);
+                            if (Array.isArray(parsed)) list = parsed.map(String);
+                        }
+                    }
+                } catch (dbErr) {}
+            }
+
+            if (Array.isArray(list) && list.length > 0) {
+                this.updateExcludedOperators(list);
+            }
+        } catch (e) {}
+    }
+
+    async getExistingAsteriskUsers() {
+        try {
+            const sql = "USE asterisk; SELECT extension, name FROM users WHERE extension REGEXP '^[0-9]+$' ORDER BY CAST(extension AS UNSIGNED) ASC;";
+            const raw = await this.execQuery(sql);
+            const list = [];
+            if (raw) {
+                const lines = raw.trim().split('\n');
+                for (const line of lines) {
+                    if (!line) continue;
+                    const [ext, name] = line.split('\t');
+                    const cleanExt = (ext || '').trim();
+                    if (cleanExt) {
+                        const cleanName = cleanExt === '114' ? 'Maxmudbek' : ((name || '').trim() || `Operator ${cleanExt}`);
+                        list.push({ id: cleanExt, name: cleanName });
+                        this.operatorNames.set(cleanExt, cleanName);
+                    }
+                }
+            }
+            return list;
+        } catch (e) {
+            console.error('getExistingAsteriskUsers error:', e.message);
+            return Array.from(this.operatorNames.entries()).map(([id, name]) => ({ id, name }));
+        }
     }
 
     startBackgroundSync() {
@@ -81,7 +149,9 @@ class IssabelDbService {
                     COUNT(DISTINCT c.uniqueid) as total_inbound,
                     COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
                     COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
-                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.src END) as ans_unique_clients
                 FROM cdr c
                 LEFT JOIN (
                     SELECT 
@@ -109,7 +179,8 @@ class IssabelDbService {
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE calldate >= CURDATE() 
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
@@ -204,7 +275,7 @@ class IssabelDbService {
                     if (!l) continue;
                     const [ext, name] = l.split('\t');
                     const cleanExt = ext ? ext.trim() : '';
-                    if (cleanExt && !EXCLUDED_OPERATORS.has(cleanExt)) {
+                    if (cleanExt) {
                         if (cleanExt === '114') {
                             this.operatorNames.set('114', 'Maxmudbek');
                         } else {
@@ -216,19 +287,23 @@ class IssabelDbService {
             }
 
             // 2. Summary
-            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, outTotal = 0, outAns = 0, outDur = 0;
+            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, inUnique = 0, inAnsUnique = 0;
+            let outTotal = 0, outAns = 0, outDur = 0, outUnique = 0;
             if (sectionMap['SUMMARY_IN']) {
-                const [it, ia, idur, iden] = sectionMap['SUMMARY_IN'].split('\t');
-                inTotal = parseInt(it, 10) || 0;
-                inAns = parseInt(ia, 10) || 0;
-                inDur = parseInt(idur, 10) || 0;
-                inDen = parseInt(iden, 10) || 0;
+                const parts = sectionMap['SUMMARY_IN'].split('\t');
+                inTotal = parseInt(parts[0], 10) || 0;
+                inAns = parseInt(parts[1], 10) || 0;
+                inDur = parseInt(parts[2], 10) || 0;
+                inDen = parseInt(parts[3], 10) || 0;
+                inUnique = parseInt(parts[4], 10) || 0;
+                inAnsUnique = parseInt(parts[5], 10) || Math.min(inAns, inUnique);
             }
             if (sectionMap['SUMMARY_OUT']) {
-                const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
+                const [ot, oa, odur, ouniq] = sectionMap['SUMMARY_OUT'].split('\t');
                 outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
+                outUnique = parseInt(ouniq, 10) || 0;
             }
 
             const todayRejects = dbService.getTodayOperatorRejects();
@@ -237,15 +312,18 @@ class IssabelDbService {
             const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
-            const { pendingCount, resolvedCount } = dbService.getAbandonedBreakdown('today');
-            const totalCb = pendingCount + resolvedCount;
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown('today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
             let abandonedPending = 0;
+            let abandonedUnreachable = 0;
             let abandonedResolved = 0;
             if (totalCb > 0 && abandoned > 0) {
                 abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
-                abandonedResolved = abandoned - abandonedPending;
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
             } else {
                 abandonedPending = abandoned;
+                abandonedUnreachable = 0;
                 abandonedResolved = 0;
             }
 
@@ -261,9 +339,17 @@ class IssabelDbService {
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
                 abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
                 abandonedResolvedCalls: abandonedResolved,
                 callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
                 callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                inboundClients: inUnique,
+                outboundClients: outUnique,
+                answeredClients: inAnsUnique,
+                totalClients: inUnique + outUnique,
                 deniedCalls: totalOpDenied,
                 totalDurationSec: durationSec,
                 answerRate,
@@ -439,7 +525,7 @@ class IssabelDbService {
      * Asterisk CDR dan bog'lanilishi kerak bo'lgan mijozlarni (navbatdan chiqqanlar,
      * ishdan tashqari vaqt / IVR) sinxronizatsiya qilish
      */
-    async syncPendingCallbacks(days = 30) {
+    async syncPendingCallbacks(days = 30, activePhones = null) {
         try {
             let changed = false;
 
@@ -494,6 +580,11 @@ class IssabelDbService {
                             let aop = parts[3] ? parts[3].trim() : null;
                             if (aop === 'NULL' || aop === 'null' || aop === '\\N' || !aop) aop = null;
 
+                            // MUHIM: Agar aop (operator ID) bo'lmasa, bu qo'ng'iroqqa hech qaysi operator javob bermagan!
+                            // Faqat IVR musiqa (ivr-4), avtojavob (app-blackhole) yoki navbat robot javobi bo'lgan!
+                            // Shuning uchun aop bo'lmagan qo'ng'iroqlarni "gaplashildi" (answeredMap) ga ASLO qo'shmaymiz!
+                            if (!aop) continue;
+
                             if (p && t) {
                                 const clean = dbService.normalizePhone(p);
                                 if (clean) {
@@ -505,16 +596,74 @@ class IssabelDbService {
                             }
                         }
 
+                        // Shuningdek, operatorlar tomonidan qilingan, ammo javob berilmagan (Ulanilmadi) chiquvchi qo'ng'iroqlarni tekshirish
+                        const failedBatchSql = `
+                            SELECT 
+                                CASE 
+                                    WHEN LENGTH(dst) >= 7 THEN dst
+                                    ELSE src
+                                END as phone,
+                                MAX(calldate) as last_outbound_time,
+                                SUBSTRING_INDEX(GROUP_CONCAT(src ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as op_ext,
+                                SUBSTRING_INDEX(GROUP_CONCAT(disposition ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as last_disposition,
+                                COUNT(*) as total_outbound_attempts
+                            FROM asteriskcdrdb.cdr
+                            WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+                              AND dcontext = 'from-internal'
+                              AND LENGTH(dst) >= 7
+                              AND dst NOT LIKE '%2020159%'
+                              AND (disposition != 'ANSWERED' OR billsec = 0)
+                            GROUP BY phone;
+                        `;
+                        const rawFailedBatch = await this.execQuery(failedBatchSql);
+                        const failedOutboundMap = new Map();
+                        if (rawFailedBatch) {
+                            const fLines = rawFailedBatch.trim().split('\n');
+                            for (const fl of fLines) {
+                                if (!fl) continue;
+                                const parts = fl.split('\t');
+                                const fp = parts[0];
+                                const ft = parts[1];
+                                let fop = parts[2] ? parts[2].trim() : null;
+                                if (fop === 'NULL' || fop === 'null' || fop === '\\N' || !fop) fop = null;
+                                const fdisp = parts[3] ? parts[3].trim() : 'FAILED';
+                                const fatt = parseInt(parts[4], 10) || 1;
+                                const cleanFp = dbService.normalizePhone(fp);
+                                if (cleanFp && ft) {
+                                    failedOutboundMap.set(cleanFp, {
+                                        time: ft,
+                                        opId: fop,
+                                        cause: fdisp,
+                                        attempts: fatt
+                                    });
+                                }
+                            }
+                        }
+
                         for (const item of pendingList) {
                             const clean = dbService.normalizePhone(item.phone);
                             if (!clean) continue;
                             const ansInfo = answeredMap.get(clean);
-                            if (ansInfo && item.call_time && ansInfo.time >= item.call_time) {
+                            if (ansInfo && ansInfo.opId && item.call_time && ansInfo.time >= item.call_time) {
                                 const resType = (ansInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
-                                const resolvedBy = ansInfo.opId ? `operator_${ansInfo.opId}_${ansInfo.direction}` : `cdr_sync_${resType}`;
-                                const displayOp = ansInfo.opId ? (this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`) : null;
+                                const resolvedBy = `operator_${ansInfo.opId}_${ansInfo.direction}`;
+                                const displayOp = this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`;
                                 const resolved = dbService.resolveCallback(clean, resolvedBy, displayOp, resType);
                                 if (resolved) changed = true;
+                            } else {
+                                // Agar suhbat bo'lmagan bo'lsa, ammo operator navbatdan chiqqandan keyin telefon qilgan bo'lsa -> "Ulanilmadi"
+                                const failInfo = failedOutboundMap.get(clean);
+                                if (failInfo && item.call_time && failInfo.time >= item.call_time) {
+                                    const displayOp = failInfo.opId ? (this.operatorNames.get(failInfo.opId) || DEFAULT_OPERATOR_NAMES[failInfo.opId] || `Operator ${failInfo.opId}`) : 'Operator';
+                                    const updated = dbService.recordFailedOutboundAttempt({
+                                        phone: clean,
+                                        operator: displayOp,
+                                        cause: failInfo.cause,
+                                        time: failInfo.time,
+                                        attempts: failInfo.attempts
+                                    });
+                                    if (updated) changed = true;
+                                }
                             }
                         }
                     }
@@ -536,6 +685,14 @@ class IssabelDbService {
                       OR dstchannel LIKE 'Local/%@from-queue%' 
                       OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
                   )
+            `;
+
+            const ansChanSub = `
+                SELECT DISTINCT channel
+                FROM cdr
+                WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
+                  AND disposition = 'ANSWERED'
+                  AND billsec > 0
             `;
 
             const sql = `
@@ -561,6 +718,7 @@ class IssabelDbService {
                         MAX(c.lastdata) as lastdata
                     FROM cdr c
                     LEFT JOIN (${opAnsSub}) op_ans ON c.uniqueid = op_ans.uniqueid
+                    LEFT JOIN (${ansChanSub}) op_chan ON c.channel = op_chan.channel
                     WHERE c.calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
                       AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
                       AND c.channel NOT LIKE 'Local/%'
@@ -568,6 +726,7 @@ class IssabelDbService {
                       AND c.src REGEXP '^[0-9]{7,12}$'
                       AND c.src NOT LIKE '%2020159%'
                       AND op_ans.uniqueid IS NULL
+                      AND op_chan.channel IS NULL
                     GROUP BY c.channel
                 ) missed_calls
                 GROUP BY client_phone
@@ -596,7 +755,7 @@ class IssabelDbService {
                     SUBSTRING_INDEX(GROUP_CONCAT(CASE 
                         WHEN LENGTH(src) >= 7 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
                         WHEN dcontext != 'from-internal' AND dstchannel LIKE 'Local/%@from-queue%' 
-                            THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
+                        THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
                         WHEN dstchannel REGEXP '^SIP/[0-9]{2,4}-'
                             THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
                         WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' 
@@ -652,13 +811,13 @@ class IssabelDbService {
 
                 // Mijoz shu javobsiz qo'ng'iroqdan KEYIN operator bilan gaplashganmi?
                 const answeredInfo = answeredMap.get(cleanPhone);
-                const hasAnsweredAfterMissed = Boolean(answeredInfo && answeredInfo.time && answeredInfo.time >= callbackTime);
+                const hasAnsweredAfterMissed = Boolean(answeredInfo && answeredInfo.opId && answeredInfo.time && answeredInfo.time >= callbackTime);
 
                 if (hasAnsweredAfterMissed) {
-                    // Agar oxirgi suhbat javobsiz qo'ng'iroqdan keyin bo'lgan bo'lsa -> resolved qilinadi
+                    // Agar oxirgi suhbat javobsiz qo'ng'iroqdan keyin bo'lgan bo'lsa -> faqat mavjud pending callback resolved qilinadi
                     const resType = (answeredInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
-                    const resolvedBy = answeredInfo.opId ? `operator_${answeredInfo.opId}_${answeredInfo.direction}` : `cdr_sync_${resType}`;
-                    const displayOp = answeredInfo.opId ? (this.operatorNames.get(answeredInfo.opId) || DEFAULT_OPERATOR_NAMES[answeredInfo.opId] || `Operator ${answeredInfo.opId}`) : null;
+                    const resolvedBy = `operator_${answeredInfo.opId}_${answeredInfo.direction}`;
+                    const displayOp = this.operatorNames.get(answeredInfo.opId) || DEFAULT_OPERATOR_NAMES[answeredInfo.opId] || `Operator ${answeredInfo.opId}`;
 
                     const resolved = dbService.resolveCallback(
                         cleanPhone, 
@@ -666,23 +825,18 @@ class IssabelDbService {
                         displayOp,
                         resType
                     );
-                    if (!resolved) {
-                        dbService.upsertCallback({
-                            phone: cleanPhone,
-                            source: sourceType,
-                            callTime: callbackTime,
-                            attemptsCount: totalAttempts
-                        });
-                        dbService.resolveCallback(
-                            cleanPhone, 
-                            resolvedBy,
-                            displayOp,
-                            resType
-                        );
+                    if (resolved) {
+                        changed = true;
                     }
-                    changed = true;
+                    // Eslatma: Agar resolved false bo'lsa (ya'ni mijoz hech qachon pending callbacks bo'lmagan bo'lsa),
+                    // uni HECH QACHON yangidan upsertCallback qilib qo'shmaymiz! Chunki u oddiy gaplashilgan qo'ng'iroq!
                 } else {
                     // Hali bog'lanilmagan -> pending sifatida kiritiladi yoki yangilanadi
+                    // LEKIN mijoz ayni paytda faol qo'ng'iroqda bo'lsa (navbatda turgan yoki gaplashayotgan), uni pending deb kiritmaymiz!
+                    if (activePhones && (activePhones.has(cleanPhone) || activePhones.has(`998${cleanPhone}`))) {
+                        continue;
+                    }
+
                     const upsertRes = dbService.upsertCallback({
                         phone: cleanPhone,
                         source: sourceType,
@@ -707,10 +861,10 @@ class IssabelDbService {
                             continue;
                         }
                         const ansInfo = answeredMap.get(clean);
-                        if (ansInfo && ansInfo.time && cb.call_time && ansInfo.time >= cb.call_time) {
+                        if (ansInfo && ansInfo.opId && ansInfo.time && cb.call_time && ansInfo.time >= cb.call_time) {
                             const resType = (ansInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
-                            const resolvedBy = ansInfo.opId ? `operator_${ansInfo.opId}_${ansInfo.direction}` : `cdr_sync_${resType}`;
-                            const displayOp = ansInfo.opId ? (this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`) : null;
+                            const resolvedBy = `operator_${ansInfo.opId}_${ansInfo.direction}`;
+                            const displayOp = this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`;
                             const res = dbService.resolveCallback(clean, resolvedBy, displayOp, resType);
                             if (res) changed = true;
                         }
@@ -880,6 +1034,12 @@ class IssabelDbService {
     getDateCondition(dateStr) {
         if (dateStr === 'all' || dateStr === 'all_time') {
             return '1=1';
+        }
+        if (dateStr && dateStr.includes('_')) {
+            const [s, e] = dateStr.split('_');
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s) && /^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return `calldate >= '${s} 00:00:00' AND calldate <= '${e} 23:59:59'`;
+            }
         }
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             return `calldate >= '${dateStr} 00:00:00' AND calldate <= '${dateStr} 23:59:59'`;
@@ -1274,7 +1434,8 @@ class IssabelDbService {
                     COUNT(DISTINCT c.uniqueid) as total_inbound,
                     COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
                     COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
-                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients
                 FROM cdr c
                 LEFT JOIN (
                     SELECT 
@@ -1300,7 +1461,8 @@ class IssabelDbService {
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE ${dateCond}
                   AND dcontext = 'from-internal'
@@ -1310,16 +1472,18 @@ class IssabelDbService {
             const raw = await this.execQuery(sql);
             const blocks = (raw || '').trim().split('\n');
 
-            const [inTotalStr, inAnsStr, inDurStr, inDenStr] = (blocks[0] || '').split('\t');
+            const [inTotalStr, inAnsStr, inDurStr, inDenStr, inUniqueStr] = (blocks[0] || '').split('\t');
             const inTotal = parseInt(inTotalStr, 10) || 0;
             const inAns = parseInt(inAnsStr, 10) || 0;
             const inDur = parseInt(inDurStr, 10) || 0;
             const inDen = parseInt(inDenStr, 10) || 0;
+            const inUnique = parseInt(inUniqueStr, 10) || 0;
 
-            const [outTotalStr, outAnsStr, outDurStr] = (blocks[1] || '').split('\t');
+            const [outTotalStr, outAnsStr, outDurStr, outUniqueStr] = (blocks[1] || '').split('\t');
             const outTotal = parseInt(outAnsStr, 10) || parseInt(outTotalStr, 10) || 0;
             const outAns = parseInt(outAnsStr, 10) || 0;
             const outDur = parseInt(outDurStr, 10) || 0;
+            const outUnique = parseInt(outUniqueStr, 10) || 0;
 
             const dateRejects = dbService.getTodayOperatorRejects(targetDate);
             const totalOpDenied = Object.values(dateRejects).reduce((a, b) => a + b, 0);
@@ -1329,15 +1493,18 @@ class IssabelDbService {
             const durationSec = inDur + outDur;
             const denied = totalOpDenied;
             const abandoned = Math.max(0, inTotal - inAns);
-            const { pendingCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
-            const totalCb = pendingCount + resolvedCount;
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
             let abandonedPending = 0;
+            let abandonedUnreachable = 0;
             let abandonedResolved = 0;
             if (totalCb > 0 && abandoned > 0) {
                 abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
-                abandonedResolved = abandoned - abandonedPending;
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
             } else {
                 abandonedPending = abandoned;
+                abandonedUnreachable = 0;
                 abandonedResolved = 0;
             }
 
@@ -1353,9 +1520,14 @@ class IssabelDbService {
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
                 abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
                 abandonedResolvedCalls: abandonedResolved,
                 callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
                 callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                outboundClients: outUnique,
                 deniedCalls: denied,
                 totalDurationSec: durationSec,
                 answerRate,
@@ -1420,7 +1592,8 @@ class IssabelDbService {
                     COUNT(DISTINCT c.uniqueid) as total_inbound,
                     COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
                     COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
-                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients
                 FROM cdr c
                 LEFT JOIN (
                     SELECT 
@@ -1448,12 +1621,13 @@ class IssabelDbService {
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE ${dateCond} 
                   AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
-                  AND dcontext = 'from-internal'
-                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
+                  AND dcontext = 'from-internal' 
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-' 
                   AND LENGTH(dst) >= 7;
 
                 SELECT '===HOURLY===' as marker;
@@ -1493,19 +1667,22 @@ class IssabelDbService {
                 sectionMap[title] = content;
             }
 
-            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, outTotal = 0, outAns = 0, outDur = 0;
+            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, inUnique = 0;
+            let outTotal = 0, outAns = 0, outDur = 0, outUnique = 0;
             if (sectionMap['SUMMARY_IN']) {
-                const [it, ia, idur, iden] = sectionMap['SUMMARY_IN'].split('\t');
+                const [it, ia, idur, iden, iuniq] = sectionMap['SUMMARY_IN'].split('\t');
                 inTotal = parseInt(it, 10) || 0;
                 inAns = parseInt(ia, 10) || 0;
                 inDur = parseInt(idur, 10) || 0;
                 inDen = parseInt(iden, 10) || 0;
+                inUnique = parseInt(iuniq, 10) || 0;
             }
             if (sectionMap['SUMMARY_OUT']) {
-                const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
+                const [ot, oa, odur, ouniq] = sectionMap['SUMMARY_OUT'].split('\t');
                 outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
+                outUnique = parseInt(ouniq, 10) || 0;
             }
 
             const dateRejects = dbService.getTodayOperatorRejects(targetDate);
@@ -1518,15 +1695,18 @@ class IssabelDbService {
             const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
-            const { pendingCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
-            const totalCb = pendingCount + resolvedCount;
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
             let abandonedPending = 0;
+            let abandonedUnreachable = 0;
             let abandonedResolved = 0;
             if (totalCb > 0 && abandoned > 0) {
                 abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
-                abandonedResolved = abandoned - abandonedPending;
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
             } else {
                 abandonedPending = abandoned;
+                abandonedUnreachable = 0;
                 abandonedResolved = 0;
             }
 
@@ -1566,9 +1746,18 @@ class IssabelDbService {
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
                 abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
                 abandonedResolvedCalls: abandonedResolved,
                 callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
                 callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                outboundClients: outUnique,
+                inboundClients: inUnique,
+                answeredClients: Math.min(answered, inUnique),
+                totalClients: inUnique + outUnique,
+                missedClients: Math.min(totalOpMissed, totalCb || totalOpMissed),
                 deniedCalls: totalOpDenied,
                 missedCalls: totalOpMissed,
                 totalDurationSec: durationSec,
@@ -1599,12 +1788,13 @@ class IssabelDbService {
     /**
      * 5. Tarixni to'g'ridan-to'g'ri Issabel MariaDB dan paginatsiya bilan olish
      */
-    async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '', direction = '', status = '') {
+    async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '', direction = '', status = '', skipCount = false) {
         try {
             const isAll = dateStr === 'all' || dateStr === 'all_time';
-            const targetDate = isAll ? 'all' : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate());
-            const isPastDate = !isAll && targetDate < this.getTodayDate();
-            const redisKey = `callcenter:hist:calls:v5:${targetDate}:${page}:${limit}:${search || '_'}:${direction || '_'}:${status || '_'}`;
+            const isRange = Boolean(dateStr && dateStr.includes('_'));
+            const targetDate = isAll ? 'all' : (isRange ? dateStr : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate()));
+            const isPastDate = (!isAll && !isRange && targetDate < this.getTodayDate()) || isRange;
+            const redisKey = `callcenter:hist:calls:v6:${targetDate}:${page}:${limit}:${search || '_'}:${direction || '_'}:${status || '_'}`;
 
             // 1. Redis dan tayyor sahifa keshini tekshirish (Bugun uchun ham 15 soniya, arxiv uchun 7 kun, all uchun 30s)
             try {
@@ -1658,24 +1848,26 @@ class IssabelDbService {
 
             let total = 0;
             const isToday = !isAll && (!dateStr || dateStr === this.getTodayDate());
-            const countRedisKey = `callcenter:hist:count:v5:${targetDate}:${search || '_'}:${direction || '_'}:${status || '_'}`;
+            const countRedisKey = `callcenter:hist:count:v6:${targetDate}:${search || '_'}:${direction || '_'}:${status || '_'}`;
 
             let cachedCount = null;
             try {
                 cachedCount = await redisService.get(countRedisKey);
             } catch (e) {}
 
-            const xferSubDateCond = (!isAll && dateCond) ? `WHERE ${dateCond} AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'` : `WHERE dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'`;
+            const xferSubDateCond = (!isAll && dateCond) 
+                ? `WHERE ${dateCond} AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'` 
+                : `WHERE calldate >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'`;
 
             if (cachedCount !== null && cachedCount !== undefined) {
                 total = parseInt(cachedCount, 10) || 0;
             } else if (!search && !direction && !status && isToday && this.cache.summary && this.cache.summary.totalCalls) {
                 total = this.cache.summary.totalCalls;
+            } else if (skipCount) {
+                total = limit;
             } else {
-                const countSql = `
-                    USE asteriskcdrdb;
-                    SELECT COUNT(DISTINCT c.uniqueid)
-                    FROM cdr c
+                const needsXfer = Boolean(direction === 'transfer' || (filter && filter.includes('xfer.')));
+                const xferJoin = needsXfer ? `
                     LEFT JOIN (
                         SELECT 
                             uniqueid,
@@ -1686,6 +1878,13 @@ class IssabelDbService {
                         ${xferSubDateCond}
                         GROUP BY uniqueid
                     ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
+                ` : '';
+
+                const countSql = `
+                    USE asteriskcdrdb;
+                    SELECT COUNT(DISTINCT c.uniqueid)
+                    FROM cdr c
+                    ${xferJoin}
                     ${filter};
                 `;
                 const countRaw = await this.execQuery(countSql);
@@ -1797,8 +1996,28 @@ class IssabelDbService {
                 const isOut = direction === 'outbound';
                 const callerNumber = isOut ? (dst || 'Yashirin') : (src || 'Yashirin');
                 let hangupParty = isXfer 
-                    ? 'Transfer (Operatorga)' 
+                    ? 'Transfer' 
                     : (isRealAnswered ? 'Mijoz' : ((isOut && disp === 'BUSY') ? 'Band' : 'Ko\'tarilmadi'));
+
+                let calculatedWait = !isRealAnswered 
+                    ? Math.max(waitSecVal, talkSec) 
+                    : (ansLagSec > 0 ? ansLagSec : Math.max(0, waitSecVal - talkSec));
+
+                if (isRealAnswered && calculatedWait === 0 && rec) {
+                    const match = rec.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-/);
+                    if (match) {
+                        const [_, Y, M, D, h, m, s] = match;
+                        const recDate = new Date(Y, parseInt(M, 10) - 1, D, h, m, s);
+                        const callDate = new Date(calldate.replace(/-/g, '/'));
+                        const diff = Math.round((recDate.getTime() - callDate.getTime()) / 1000);
+                        if (diff > 0 && diff < 3600) {
+                            calculatedWait = diff;
+                        }
+                    }
+                }
+                if (isRealAnswered && calculatedWait === 0 && !isOut && rec && rec.includes('q-')) {
+                    calculatedWait = Math.max(1, Math.min(60, waitSecVal - talkSec)) || 12;
+                }
 
                 calls.push({
                     id: uid,
@@ -1808,7 +2027,7 @@ class IssabelDbService {
                     operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
                     direction: direction,
                     duration: isRealAnswered ? talkSec : 0,
-                    waitSec: isRealAnswered ? Math.max(0, ansLagSec) : waitSecVal,
+                    waitSec: calculatedWait,
                     status: isRealAnswered ? 'ANSWERED' : ((isOut && disp === 'BUSY') ? 'BUSY' : 'ABANDONED'),
                     hangupParty: hangupParty,
                     recording: isRealAnswered ? (rec || '') : ''
@@ -2082,7 +2301,7 @@ class IssabelDbService {
                 let finalOpExt = opExt;
                 if (isXfer) {
                     direction = 'transfer';
-                    hangupParty = 'Transfer (Operatorga)';
+                    hangupParty = 'Transfer';
 
                     const initOp = (xferFromRaw && xferFromRaw !== 'NULL' && xferFromRaw !== '\\N' ? xferFromRaw : opExt || '').trim();
                     const destOps = xferChain.split('➔').map(s => s.trim()).filter(Boolean);
@@ -2161,8 +2380,111 @@ class IssabelDbService {
                 });
             }
 
+            // 3CX Desktop Agent jurnali bilan sinxronizatsiya:
+            // Agar biror operator qo'ng'irog'i (ayniqsa chiquvchi suhbatlar) Asterisk CDR ga yozilmay qolgan bo'lsa
+            // (masalan svet o'chishi, PBX ulanish uzilishi yoki 3CX to'g'ridan-to'g'ri qo'ng'iroqlari),
+            // uni 3CX Desktop Agent jurnali (agent_3cx_call_logs) dan to'ldiramiz!
+            if ((type === 'operator' || type === 'outbound' || type === 'all') && isToday && dbService && dbService.db) {
+                try {
+                    let agentSql = `
+                        SELECT id, event_time, operator_id, caller_id, event_type, duration_sec
+                        FROM agent_3cx_call_logs
+                        WHERE event_time >= ? AND event_time <= ?
+                          AND LENGTH(caller_id) > 4
+                          AND caller_id NOT LIKE '*%'
+                    `;
+                    const activeD = targetDate || this.getTodayDate();
+                    const params = [`${activeD} 00:00:00`, `${activeD} 23:59:59`];
+                    if (operatorExt) {
+                        agentSql += ` AND operator_id = ?`;
+                        params.push(String(operatorExt));
+                    }
+                    if (type === 'outbound') {
+                        agentSql += ` AND (event_type = 'DIALLED' OR event_type = '1') AND duration_sec > 0`;
+                    }
+                    agentSql += ` ORDER BY event_time DESC`;
+
+                    const agentLogs = dbService.db.prepare(agentSql).all(...params);
+
+                    for (const a of agentLogs) {
+                        const aPhone = String(a.caller_id || '').replace(/\D/g, '').slice(-9);
+                        if (!aPhone) continue;
+                        const aTime = new Date(String(a.event_time).replace(/-/g, '/')).getTime();
+
+                        // Asterisk CDR da bu qo'ng'iroq bormi? (3 daqiqa farq bilan tekshiriladi)
+                        const exists = calls.some(c => {
+                            const cPhone = String(c.callerId || '').replace(/\D/g, '').slice(-9);
+                            const cTime = new Date(String(c.time).replace(/-/g, '/')).getTime();
+                            return (cPhone === aPhone || (cPhone && aPhone && (cPhone.endsWith(aPhone) || aPhone.endsWith(cPhone))))
+                                && Math.abs(cTime - aTime) < 180000;
+                        });
+
+                        if (!exists) {
+                            const isOut = a.event_type === 'DIALLED' || a.event_type === '1';
+                            const isAns = (a.duration_sec || 0) > 0;
+                            const aOpId = String(a.operator_id);
+                            const realName = this.operatorNames.get(aOpId) || DEFAULT_OPERATOR_NAMES[aOpId];
+                            const opDisplay = realName ? `${realName} (${aOpId})` : `Operator ${aOpId}`;
+
+                            let matchedRec = '';
+                            if (isAns) {
+                                try {
+                                    const audioIndexService = require('./audioIndexService');
+                                    const foundAudio = audioIndexService.findAudioForCall({
+                                        callerId: a.caller_id,
+                                        operatorExt: aOpId,
+                                        callTime: a.event_time,
+                                        durationSec: a.duration_sec
+                                    });
+                                    if (foundAudio && foundAudio.filename) {
+                                        matchedRec = foundAudio.filename;
+                                    }
+                                } catch (e) {}
+
+                                // Agar tezkor RAM indeksida topilmasa, to'g'ridan-to'g'ri PBX diskidan qidiramiz
+                                if (!matchedRec) {
+                                    try {
+                                        const yyyymmdd = (targetDate || this.getTodayDate()).replace(/-/g, '/');
+                                        const findCmd = `find /var/spool/asterisk/monitor/${yyyymmdd} -type f -name "*${aPhone}*" 2>/dev/null`;
+                                        const findOut = await this.execCommand(findCmd, 2500);
+                                        if (findOut && findOut.trim()) {
+                                            const files = findOut.trim().split('\n').filter(Boolean);
+                                            const opFiles = files.filter(f => f.includes(`-${aOpId}-`));
+                                            const bestFile = (opFiles.length > 0 ? opFiles[0] : files[0]).trim();
+                                            matchedRec = bestFile.split('/').pop();
+                                        }
+                                    } catch (e) {}
+                                }
+                            }
+
+                            calls.push({
+                                id: `3cx_${a.id}`,
+                                time: a.event_time,
+                                callerId: a.caller_id,
+                                direction: isOut ? 'outbound' : 'inbound',
+                                operator: opDisplay,
+                                operatorExten: aOpId,
+                                duration: isAns ? a.duration_sec : 0,
+                                waitSec: 0,
+                                status: isAns ? 'ANSWERED' : (isOut ? 'NO ANSWER' : 'MISSED'),
+                                recording: matchedRec,
+                                hangupParty: isAns ? (isOut ? 'Operator' : 'Mijoz') : 'Javobsiz',
+                                source: '3cx_agent'
+                            });
+                        }
+                    }
+
+                    // Vaqt bo'yicha kamayish tartibida saralash
+                    calls.sort((a, b) => new Date(String(b.time).replace(/-/g, '/')) - new Date(String(a.time).replace(/-/g, '/')));
+                } catch (mergeErr) {
+                    console.error('⚠️ 3CX Desktop Agent logs merge xatosi:', mergeErr.message);
+                }
+            }
+
             if (skipCount) {
                 total = calls.length;
+            } else {
+                total = Math.max(total, calls.length);
             }
 
             const result = { total, page, totalPages: Math.ceil(total / limit) || 1, limit, data: calls };
@@ -2241,6 +2563,198 @@ class IssabelDbService {
             return list;
         } catch (err) {
             console.warn('⚠️ Issabel fetchTopClients xatolik:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Sana oralig'i bo'yicha audio yozuvlar sonini hisoblash
+     */
+    buildRecordingFilter(search = '', direction = '', status = '', speaker = '') {
+        let filter = '';
+        const searchTerms = [];
+        if (search && String(search).trim()) searchTerms.push(String(search).trim());
+        if (speaker && speaker !== 'all') {
+            if (speaker === 'muattar' || speaker === 'zuhra') {
+                searchTerms.push('119');
+            } else {
+                searchTerms.push(speaker);
+            }
+        }
+
+        const combinedSearch = searchTerms.join(' ').trim();
+        if (combinedSearch) {
+            const s = combinedSearch.replace(/'/g, "\\'");
+            const searchLower = combinedSearch.toLowerCase();
+            const matchedExts = [];
+            for (const [ext, name] of this.operatorNames.entries()) {
+                if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
+                    matchedExts.push(ext);
+                }
+            }
+            for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
+                if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
+                    matchedExts.push(ext);
+                }
+            }
+            if (/^[0-9]{2,4}$/.test(combinedSearch) && !matchedExts.includes(combinedSearch)) {
+                matchedExts.push(combinedSearch);
+            }
+
+            let searchCond = `(c.src LIKE '%${s}%' OR c.dst LIKE '%${s}%' OR c.dstchannel LIKE '%${s}%' OR c.channel LIKE '%${s}%')`;
+            if (matchedExts.length > 0) {
+                const extConds = matchedExts.map(ext => `((c.dstchannel LIKE '%/${ext}-%' OR c.channel LIKE '%/${ext}-%' OR c.dstchannel LIKE '%Local/${ext}@%' OR c.channel LIKE '%Local/${ext}@%' OR c.dst = '${ext}') OR c.src = '${ext}')`).join(' OR ');
+                searchCond = `(${searchCond} OR (${extConds}))`;
+            }
+            filter += ` AND ${searchCond} `;
+        }
+
+        if (direction === 'outbound') {
+            filter += ` AND (c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-') `;
+        } else if (direction === 'inbound') {
+            filter += ` AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%') `;
+        }
+
+        if (status === 'answered') {
+            filter += ` AND (c.disposition = 'ANSWERED' AND c.billsec > 0) `;
+        } else if (status === 'missed') {
+            filter += ` AND (c.disposition != 'ANSWERED' OR c.billsec = 0) `;
+        }
+
+        return filter;
+    }
+
+    async countRecordingsByDateRange(startDate, endDate, search = '', direction = '', status = '', speaker = '') {
+        try {
+            if (!startDate || !endDate) return { count: 0, durationSec: 0 };
+            const s = String(startDate).slice(0, 10);
+            const e = String(endDate).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return { count: 0, durationSec: 0 };
+            }
+
+            const extraFilter = this.buildRecordingFilter(search, direction, status, speaker);
+
+            const sql = `
+                USE asteriskcdrdb;
+                SELECT COUNT(DISTINCT c.uniqueid) as total_count, COALESCE(SUM(c.billsec), 0) as total_sec
+                FROM cdr c
+                WHERE c.calldate >= '${s} 00:00:00' 
+                  AND c.calldate <= '${e} 23:59:59'
+                  AND TIME(c.calldate) >= '08:00:00' 
+                  AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.disposition = 'ANSWERED' AND c.billsec > 0)
+                  AND (c.recordingfile IS NOT NULL AND c.recordingfile != '' AND c.recordingfile != 'NULL' AND c.recordingfile != '\\\\N')
+                  ${extraFilter};
+            `;
+
+            const raw = await this.execQuery(sql);
+            if (!raw || !raw.trim()) return { count: 0, durationSec: 0 };
+
+            const lines = raw.trim().split('\n');
+            const [cStr, dStr] = lines[0].split('\t');
+            return {
+                count: parseInt(cStr, 10) || 0,
+                durationSec: parseInt(dStr, 10) || 0
+            };
+        } catch (err) {
+            console.error('countRecordingsByDateRange xatolik:', err.message);
+            return { count: 0, durationSec: 0 };
+        }
+    }
+
+    /**
+     * Sana oralig'i bo'yicha audio yozuvlar ro'yxatini olish (ZIP arxivlash uchun)
+     */
+    async fetchRecordingsByDateRange(startDate, endDate, limit = 5000, search = '', direction = '', status = '', speaker = '') {
+        try {
+            if (!startDate || !endDate) return [];
+            const s = String(startDate).slice(0, 10);
+            const e = String(endDate).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return [];
+            }
+
+            const extraFilter = this.buildRecordingFilter(search, direction, status, speaker);
+
+            const sql = `
+                USE asteriskcdrdb;
+                SELECT 
+                    c.uniqueid,
+                    MIN(c.calldate) as call_time,
+                    MAX(c.src) as src,
+                    MAX(c.dst) as dst,
+                    MAX(c.channel) as channel,
+                    MAX(c.dstchannel) as dstchannel,
+                    MAX(c.billsec) as talk_sec,
+                    MAX(c.recordingfile) as rec,
+                    MAX(CASE WHEN c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
+                FROM cdr c
+                WHERE c.calldate >= '${s} 00:00:00' 
+                  AND c.calldate <= '${e} 23:59:59'
+                  AND TIME(c.calldate) >= '08:00:00' 
+                  AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.disposition = 'ANSWERED' AND c.billsec > 0)
+                  AND (c.recordingfile IS NOT NULL AND c.recordingfile != '' AND c.recordingfile != 'NULL' AND c.recordingfile != '\\\\N')
+                  ${extraFilter}
+                GROUP BY c.uniqueid
+                ORDER BY call_time DESC
+                LIMIT ${limit};
+            `;
+
+            const raw = await this.execQuery(sql);
+            if (!raw || !raw.trim()) return [];
+
+            const lines = raw.trim().split('\n');
+            const list = [];
+            const seenUniq = new Set();
+
+            for (const line of lines) {
+                if (!line) continue;
+                const [uid, calldate, src, dst, channel, dstchannel, talkSecStr, rec, isOutFlag] = line.split('\t');
+                if (!rec || rec === 'NULL' || rec === '\\N') continue;
+                if (uid && seenUniq.has(uid)) continue;
+                if (uid) seenUniq.add(uid);
+
+                const duration = parseInt(talkSecStr, 10) || 0;
+                const isOut = isOutFlag === '1' || (src && src.length <= 4);
+                let clientPhone = isOut ? dst : src;
+                let opExt = '';
+
+                if (isOut) {
+                    const m = (channel || '').match(/SIP\/([0-9]{2,4})-/);
+                    opExt = m ? m[1] : (src && src.length <= 4 ? src : '');
+                } else {
+                    if (dst && dst.match(/^[0-9]{2,4}$/)) {
+                        opExt = dst;
+                    } else {
+                        const m = (dstchannel || '').match(/SIP\/([0-9]{2,4})-/) || (dstchannel || '').match(/Local\/([0-9]{2,4})@/);
+                        if (m) opExt = m[1];
+                    }
+                }
+
+                let opName = opExt ? this.getOperatorName(opExt) : '';
+                if (opName) opName = opName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 16);
+
+                let cleanTime = (calldate || '').replace(/[: ]/g, '-');
+                let cleanCaller = (clientPhone || 'call').replace(/\D/g, '') || 'call';
+                let niceFilename = `${cleanTime}_${cleanCaller}${opName ? '_' + opName : ''}.wav`;
+
+                list.push({
+                    uniqueid: uid,
+                    calldate,
+                    recording: rec,
+                    path: rec,
+                    callerId: clientPhone,
+                    duration,
+                    operator: opName || opExt,
+                    filename: niceFilename
+                });
+            }
+
+            return list;
+        } catch (err) {
+            console.error('fetchRecordingsByDateRange xatolik:', err.message);
             return [];
         }
     }

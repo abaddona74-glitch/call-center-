@@ -1,5 +1,7 @@
 const { exec } = require('child_process');
 const { Client } = require('ssh2');
+const fs = require('fs');
+const path = require('path');
 
 class ProxmoxService {
     constructor() {
@@ -11,10 +13,166 @@ class ProxmoxService {
             readyTimeout: 10000
         };
 
+        // Proxmox dagi haqiqiy VM lar: 101 - Kerio Control, 200 - Issabel PBX
         this.vms = [
-            { id: 200, name: 'Kerio Control', desc: 'Tarmoq / Firewall / Gateway' },
-            { id: 101, name: 'Issabel PBX', desc: 'Asterisk Telefon Stansiyasi' }
+            { id: 101, name: 'Kerio Control', desc: 'Tarmoq / Firewall / Gateway' },
+            { id: 200, name: 'Issabel PBX', desc: 'Asterisk Telefon Stansiyasi' }
         ];
+
+        this.settingsFile = path.resolve(__dirname, '../system_settings.json');
+        this.autoRecoverEnabled = this.loadAutoRecoverSetting();
+        this.lastRecovery = this.loadRecoveryHistory();
+        this.isRecovering = false;
+        this.lastRecoverAttempt = 0;
+        this.lastRecoverOutput = this.lastRecovery?.output || null;
+        this.eventCallback = null;
+
+        // Auto-recovery foni monitoring
+        this.initAutoRecoverMonitor();
+    }
+
+    setEventCallback(cb) {
+        this.eventCallback = cb;
+    }
+
+    emitEvent(status, data) {
+        if (typeof this.eventCallback === 'function') {
+            try {
+                this.eventCallback({ status, data });
+            } catch (e) {
+                console.error('ProxmoxService event callback xatosi:', e.message);
+            }
+        }
+    }
+
+    loadRecoveryHistory() {
+        try {
+            if (fs.existsSync(this.settingsFile)) {
+                const raw = fs.readFileSync(this.settingsFile, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (parsed.lastRecovery && typeof parsed.lastRecovery === 'object') {
+                    return parsed.lastRecovery;
+                }
+            }
+        } catch (e) {
+            console.error('ProxmoxService recovery history o\'qishda xatolik:', e.message);
+        }
+        return {
+            startTime: null,
+            endTime: null,
+            durationSec: null,
+            status: 'idle',
+            trigger: 'auto',
+            stoppedVms: [],
+            output: "Hozircha tiklash jurnali mavjud emas. Avto-tiklash rejimi yoqilgan.",
+            error: null
+        };
+    }
+
+    saveRecoveryHistory(rec) {
+        try {
+            let data = {};
+            if (fs.existsSync(this.settingsFile)) {
+                try {
+                    data = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
+                } catch (e) {}
+            }
+            data.lastRecovery = rec;
+            data.updatedAt = new Date().toISOString();
+            fs.writeFileSync(this.settingsFile, JSON.stringify(data, null, 2), 'utf8');
+        } catch (e) {
+            console.error('ProxmoxService recovery saqlashda xatolik:', e.message);
+        }
+    }
+
+    loadAutoRecoverSetting() {
+        try {
+            if (fs.existsSync(this.settingsFile)) {
+                const raw = fs.readFileSync(this.settingsFile, 'utf8');
+                const parsed = JSON.parse(raw);
+                if (typeof parsed.autoRecoverVms === 'boolean') {
+                    return parsed.autoRecoverVms;
+                }
+            }
+        } catch (e) {
+            console.error('ProxmoxService settings o\'qishda xatolik:', e.message);
+        }
+        return false; // Standart: o'chiq
+    }
+
+    saveAutoRecoverSetting(enabled) {
+        try {
+            let data = {};
+            if (fs.existsSync(this.settingsFile)) {
+                try {
+                    data = JSON.parse(fs.readFileSync(this.settingsFile, 'utf8'));
+                } catch (e) {}
+            }
+            data.autoRecoverVms = Boolean(enabled);
+            data.updatedAt = new Date().toISOString();
+            fs.writeFileSync(this.settingsFile, JSON.stringify(data, null, 2), 'utf8');
+        } catch (e) {
+            console.error('ProxmoxService settings saqlashda xatolik:', e.message);
+        }
+    }
+
+    getAutoRecoverStatus() {
+        return {
+            enabled: Boolean(this.autoRecoverEnabled),
+            isRecovering: Boolean(this.isRecovering),
+            lastAttempt: this.lastRecoverAttempt ? new Date(this.lastRecoverAttempt).toISOString() : (this.lastRecovery?.startTime || null),
+            lastOutput: this.lastRecovery?.output || this.lastRecoverOutput,
+            lastRecovery: this.lastRecovery
+        };
+    }
+
+    setAutoRecover(enabled) {
+        this.autoRecoverEnabled = Boolean(enabled);
+        this.saveAutoRecoverSetting(this.autoRecoverEnabled);
+        console.log(`[Proxmox Auto-Recover] ${this.autoRecoverEnabled ? '🟢 Yoqildi' : '⚪ O\'chirildi'}`);
+        return this.getAutoRecoverStatus();
+    }
+
+    initAutoRecoverMonitor() {
+        // 1. Server ishga tushganda (masalan, svet o'chib yonganda) 15 soniyadan so'ng 1-tekshiruv
+        setTimeout(() => {
+            if (this.autoRecoverEnabled) {
+                console.log('[Proxmox Auto-Recover] 🚀 Server start: VMlar holati tekshirilmoqda...');
+                this.checkAndAutoRecover();
+            }
+        }, 15000);
+
+        // 2. Har 30 soniyada foniy tekshiruv
+        setInterval(() => {
+            if (this.autoRecoverEnabled) {
+                this.checkAndAutoRecover();
+            }
+        }, 30000);
+    }
+
+    async checkAndAutoRecover() {
+        if (!this.autoRecoverEnabled) return;
+        if (this.isRecovering) return;
+
+        // Kamida 60 soniya cooldown (qayta-qayta zanjirli tiklashni oldini olish)
+        const now = Date.now();
+        if (now - this.lastRecoverAttempt < 60000) return;
+
+        try {
+            const vms = await this.getVmsStatus();
+            const stoppedVms = vms.filter(v => v.status === 'stopped' || v.status === 'paused');
+
+            if (stoppedVms.length > 0) {
+                const vmNames = stoppedVms.map(v => `${v.name} (${v.id})`);
+                console.log(`[Proxmox Auto-Recover] ⚠️ To'xtab qolgan VMlar aniqlandi: ${vmNames.join(', ')}`);
+                console.log('[Proxmox Auto-Recover] ⚡ Avtomatik LVM Fix + VMlarni ishga tushirish boshlanmoqda...');
+                
+                const result = await this.recoverAndStartAll('auto', vmNames);
+                console.log('[Proxmox Auto-Recover] ✅ Natija:', result.success ? 'Muvaffaqiyatli tiklandi' : result.error);
+            }
+        } catch (err) {
+            console.error('[Proxmox Auto-Recover] Tekshiruvda xatolik:', err.message);
+        }
     }
 
     /**
@@ -72,7 +230,7 @@ class ProxmoxService {
     }
 
     /**
-     * VM lar holatini olish (qm status 200, qm status 101)
+     * VM lar holatini olish (qm status 101, qm status 200)
      */
     async getVmsStatus() {
         try {
@@ -128,12 +286,30 @@ class ProxmoxService {
      * 1. lvchange -an pve/data_tdata
      * 2. lvchange -an pve/data_tmeta
      * 3. lvchange -ay pve/data
-     * 4. qm start 200 (Kerio)
-     * 5. qm start 101 (Issabel)
+     * 4. qm start 101 (Kerio Control)
+     * 5. qm start 200 (Issabel PBX)
      */
-    async recoverAndStartAll() {
+    async recoverAndStartAll(trigger = 'manual', targetVms = []) {
+        const startTime = new Date().toISOString();
+        this.isRecovering = true;
+        this.lastRecoverAttempt = Date.now();
+
+        const triggerLabel = trigger === 'auto' ? 'Avtomatik (Svet kelganda)' : 'Qo\'lda (Tugma orqali)';
         const logs = [];
-        logs.push(`[${new Date().toLocaleTimeString()}] ⚡ Proxmox LVM tiklash va VMlarni ishga tushirish jarayoni boshlandi...`);
+        logs.push(`[${new Date().toLocaleTimeString()}] ⚡ Proxmox LVM tiklash va VMlarni ishga tushirish (${triggerLabel}) boshlandi...`);
+
+        this.lastRecovery = {
+            startTime,
+            endTime: null,
+            durationSec: null,
+            status: 'running',
+            trigger,
+            stoppedVms: targetVms,
+            output: logs.join('\n'),
+            error: null
+        };
+        this.saveRecoveryHistory(this.lastRecovery);
+        this.emitEvent('started', this.lastRecovery);
 
         const recoveryCmd = [
             'echo "[1/5] LVM data_tdata faolsizlantirilmoqda..."',
@@ -142,11 +318,11 @@ class ProxmoxService {
             'lvchange -an pve/data_tmeta 2>&1 || true',
             'echo "[3/5] LVM pve/data faollashtirilmoqda..."',
             'lvchange -ay pve/data 2>&1',
-            'echo "[4/5] VM 200 (Kerio Control) ishga tushirilmoqda..."',
-            'qm start 200 2>&1 || true',
+            'echo "[4/5] VM 101 (Kerio Control) ishga tushirilmoqda..."',
+            'qm start 101 2>&1 || true',
             'sleep 2',
-            'echo "[5/5] VM 101 (Issabel PBX) ishga tushirilmoqda..."',
-            'qm start 101 2>&1 || true'
+            'echo "[5/5] VM 200 (Issabel PBX) ishga tushirilmoqda..."',
+            'qm start 200 2>&1 || true'
         ].join(' && ');
 
         try {
@@ -157,20 +333,59 @@ class ProxmoxService {
             }
 
             const currentStatus = await this.getVmsStatus();
-            logs.push(`[${new Date().toLocaleTimeString()}] ✅ Jarayon yakunlandi.`);
+            logs.push(`[${new Date().toLocaleTimeString()}] ✅ Jarayon muvaffaqiyatli yakunlandi.`);
+
+            const endTime = new Date().toISOString();
+            const durationSec = Math.round((Date.now() - new Date(startTime).getTime()) / 1000);
+
+            this.lastRecovery = {
+                startTime,
+                endTime,
+                durationSec,
+                status: 'success',
+                trigger,
+                stoppedVms: targetVms,
+                output: logs.join('\n'),
+                error: null,
+                vms: currentStatus
+            };
+            this.lastRecoverOutput = this.lastRecovery.output;
+            this.saveRecoveryHistory(this.lastRecovery);
+            this.emitEvent('success', this.lastRecovery);
 
             return {
                 success: true,
                 output: logs.join('\n'),
-                vms: currentStatus
+                vms: currentStatus,
+                lastRecovery: this.lastRecovery
             };
         } catch (err) {
             logs.push(`[${new Date().toLocaleTimeString()}] ❌ Xatolik: ${err.message}`);
-            return {
-                success: false,
+            const endTime = new Date().toISOString();
+            const durationSec = Math.round((Date.now() - new Date(startTime).getTime()) / 1000);
+
+            this.lastRecovery = {
+                startTime,
+                endTime,
+                durationSec,
+                status: 'failed',
+                trigger,
+                stoppedVms: targetVms,
                 output: logs.join('\n'),
                 error: err.message
             };
+            this.lastRecoverOutput = this.lastRecovery.output;
+            this.saveRecoveryHistory(this.lastRecovery);
+            this.emitEvent('failed', this.lastRecovery);
+
+            return {
+                success: false,
+                output: logs.join('\n'),
+                error: err.message,
+                lastRecovery: this.lastRecovery
+            };
+        } finally {
+            this.isRecovering = false;
         }
     }
 
@@ -178,7 +393,7 @@ class ProxmoxService {
      * Alohida bitta VMni yoqish
      */
     async startVm(vmid) {
-        const validIds = [200, 101];
+        const validIds = [101, 200];
         const id = parseInt(vmid, 10);
         if (!validIds.includes(id)) {
             throw new Error(`Ruxsat berilmagan VM ID: ${vmid}`);
@@ -198,7 +413,7 @@ class ProxmoxService {
      * Alohida bitta VMni to'xtatish (shutdown)
      */
     async stopVm(vmid) {
-        const validIds = [200, 101];
+        const validIds = [101, 200];
         const id = parseInt(vmid, 10);
         if (!validIds.includes(id)) {
             throw new Error(`Ruxsat berilmagan VM ID: ${vmid}`);

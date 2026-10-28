@@ -2,6 +2,7 @@ const SftpClient = require('ssh2-sftp-client');
 const config = require('../config');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
 const issabelDbService = require('./issabelDbService');
 
 class SftpService {
@@ -386,6 +387,115 @@ class SftpService {
             error: 'Audio fayl topilmadi yoki SFTP server bilan aloqa yo\'q',
             hint: 'Fayl /var/spool/asterisk/monitor ichida mavjudligini tekshiring'
         });
+    }
+
+    /**
+     * Bir nechta audio fayllarni ZIP arxiv shaklida stream qilish
+     */
+    async downloadFilesAsZip(fileList, req, res, customZipName) {
+        let audioIndexService = null;
+        try {
+            audioIndexService = require('./audioIndexService');
+        } catch (e) {}
+
+        try {
+            const connected = await this.connect();
+            if (!connected) {
+                return res.status(503).json({ error: 'SFTP serverga ulanib bo\'lmadi' });
+            }
+
+            const archive = archiver('zip', {
+                zlib: { level: 4 }
+            });
+
+            const now = new Date();
+            const dateTag = now.toISOString().slice(0, 10);
+            const safeZipName = (customZipName || `call_recordings_${dateTag}.zip`).replace(/[/\\?%*:|"<>]/g, '_');
+
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="${safeZipName}"`);
+            res.setHeader('Cache-Control', 'no-cache');
+
+            let isAborted = false;
+            req.on('close', () => {
+                isAborted = true;
+                try { archive.abort(); } catch (e) {}
+            });
+
+            archive.on('error', (err) => {
+                console.error('ZIP archiver xatosi:', err.message);
+                if (!res.headersSent) res.status(500).end();
+            });
+
+            archive.pipe(res);
+
+            let addedCount = 0;
+            const usedNames = new Set();
+
+            for (const fileItem of fileList) {
+                if (isAborted) break;
+
+                let rawPath = typeof fileItem === 'string' ? fileItem : (fileItem.path || fileItem.recording);
+                const customName = (typeof fileItem === 'object' && fileItem.filename) ? fileItem.filename : null;
+
+                // Agar recording nomi bo'sh bo'lsa, tezkor indeksdan qidirib ko'ramiz
+                if (!rawPath && typeof fileItem === 'object' && fileItem.callerId && audioIndexService) {
+                    const match = audioIndexService.findAudioForCaller(fileItem.callerId, fileItem.duration || 0);
+                    if (match && match.path) {
+                        rawPath = match.path;
+                    }
+                }
+
+                if (!rawPath) continue;
+
+                try {
+                    const resolved = await this.resolveRemoteAudioPath(rawPath);
+                    if (resolved && resolved.size > 44) {
+                        let baseName = customName || path.basename(resolved.fullPath);
+                        baseName = baseName.replace(/[/\\?%*:|"<>]/g, '_');
+                        if (!baseName.toLowerCase().endsWith('.wav') && !baseName.toLowerCase().endsWith('.mp3')) {
+                            baseName += '.wav';
+                        }
+
+                        let entryName = baseName;
+                        let counter = 1;
+                        while (usedNames.has(entryName)) {
+                            const ext = path.extname(baseName);
+                            const root = path.basename(baseName, ext);
+                            entryName = `${root}_${counter}${ext}`;
+                            counter++;
+                        }
+                        usedNames.add(entryName);
+
+                        const readStream = this.sftp.createReadStream(resolved.fullPath);
+                        await new Promise((resolve) => {
+                            readStream.on('error', (err) => {
+                                console.warn(`SFTP stream xatosi (${resolved.fullPath}):`, err.message);
+                                resolve();
+                            });
+                            readStream.on('end', () => resolve());
+                            archive.append(readStream, { name: entryName });
+                        });
+                        addedCount++;
+                    }
+                } catch (itemErr) {
+                    console.warn(`Arxivga audio qo'shishda xatolik:`, itemErr.message);
+                }
+            }
+
+            if (addedCount === 0) {
+                archive.append('Tanlangan qo\'ng\'iroqlarda audio yozuvlar topilmadi (suhbat bo\'lmagan yoki 0 soniyali).', { name: 'info.txt' });
+            }
+
+            if (!isAborted) {
+                await archive.finalize();
+            }
+        } catch (err) {
+            console.error('downloadFilesAsZip umumiy xatolik:', err.message);
+            if (!res.headersSent) {
+                res.status(500).json({ error: err.message });
+            }
+        }
     }
 
     formatBytes(bytes) {

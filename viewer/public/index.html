@@ -12,7 +12,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css?v=25.0">
+    <link rel="stylesheet" href="/css/style.css?v=25.1">
+    <link rel="stylesheet" href="/css/tickets.css?v=2.3">
     <style>
         body {
             background-color: #0b1120 !important;
@@ -331,15 +332,22 @@
             display: flex;
             gap: 16px;
             align-items: flex-start;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform var(--duration-normal) var(--ease-out),
+                        box-shadow var(--duration-normal) var(--ease-out),
+                        border-color var(--duration-normal) ease,
+                        background-color var(--duration-normal) ease;
             position: relative;
             overflow: hidden;
+            will-change: transform, box-shadow;
         }
         .tool-card:hover {
             border-color: rgba(56, 189, 248, 0.6);
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 20px rgba(56, 189, 248, 0.15);
             background: rgba(30, 41, 59, 0.85);
+        }
+        .tool-card:active {
+            transform: scale(0.99) translateY(0);
         }
         .tool-card-icon {
             width: 48px;
@@ -350,6 +358,10 @@
             justify-content: center;
             flex-shrink: 0;
             box-shadow: 0 4px 14px rgba(0, 136, 204, 0.35);
+            transition: transform var(--duration-fast) var(--ease-out);
+        }
+        .tool-card:hover .tool-card-icon {
+            transform: scale(1.05);
         }
         .tool-card-content {
             flex: 1;
@@ -401,7 +413,11 @@
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
-            transition: all 0.2s ease;
+            transition: transform var(--duration-fast) var(--ease-out),
+                        background var(--duration-fast) ease,
+                        border-color var(--duration-fast) ease,
+                        box-shadow var(--duration-fast) ease,
+                        color var(--duration-fast) ease;
             outline: none;
         }
         .tool-action-btn.primary {
@@ -415,6 +431,9 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(2, 132, 199, 0.45);
         }
+        .tool-action-btn.primary:active {
+            transform: scale(0.96) !important;
+        }
         .tool-action-btn.secondary {
             background: rgba(255, 255, 255, 0.06);
             color: #e2e8f0;
@@ -425,6 +444,164 @@
             color: #ffffff;
             border-color: rgba(255, 255, 255, 0.25);
             transform: translateY(-1px);
+        }
+        .tool-action-btn.secondary:active {
+            transform: scale(0.96) !important;
+        }
+
+        /* ==========================================================================
+           Viewer Access History Modal & Buttons (Superuser Only)
+           ========================================================================== */
+        .viewer-history-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(99, 102, 241, 0.18);
+            border: 1px solid rgba(99, 102, 241, 0.45);
+            color: #c7d2fe;
+            padding: 3px 9px;
+            border-radius: 8px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .viewer-history-btn:hover {
+            background: rgba(99, 102, 241, 0.35);
+            border-color: #818cf8;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .viewer-history-modal-panel {
+            width: 94vw;
+            max-width: 1050px;
+            max-height: 86vh;
+            background: #0f172a !important;
+            border: 1px solid rgba(99, 102, 241, 0.35) !important;
+            border-radius: 18px !important;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0 !important;
+        }
+        .viewer-history-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 22px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .modal-icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .btn-refresh-history {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-refresh-history:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: #38bdf8;
+            color: #fff;
+        }
+        .viewer-history-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 22px;
+            background: rgba(30, 41, 59, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+        }
+        .vh-filter-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .vh-filter-btn:hover {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .vh-filter-btn.active {
+            background: #4f46e5;
+            border-color: #6366f1;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+        }
+        .viewer-history-table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 58vh;
+        }
+        .viewer-history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            text-align: left;
+        }
+        .viewer-history-table th {
+            position: sticky;
+            top: 0;
+            background: #0b1120;
+            color: #94a3b8;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 2;
+        }
+        .viewer-history-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #e2e8f0;
+        }
+        .viewer-history-table tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .vh-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .vh-badge.online {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.35);
+        }
+        .vh-badge.offline {
+            background: rgba(148, 163, 184, 0.12);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.25);
         }
     </style>
 </head>
@@ -437,21 +614,39 @@
         </div>
         <div style="display: flex; align-items: center; gap: 12px;">
             <!-- Mijozlar bazasi (Telefon kitobi) tugmasi -->
-            <button type="button" class="header-contact-book-btn" onclick="openClientDirectoryModal()" title="Mijozlar bazasi va telefon kitobi">
-                <span>📇</span>
+            <button type="button" class="header-contact-book-btn" onclick="openClientDirectoryModal()" data-i18n-title="header_client_directory" title="Mijozlar bazasi">
+                <svg class="isax isax-clipboard-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8 12.5H16"/><path d="M8 16.5H13"/><path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z"/><path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02"/></svg>
                 <span class="btn-text" data-i18n="header_client_directory">Mijozlar bazasi</span>
                 <span id="headerContactsCount" class="header-contact-count">0</span>
             </button>
-            <!-- Language Switcher: O'zbekcha / Русский -->
-            <div class="lang-switch-container" id="langSwitchContainer" title="Tilni tanlash / Выбрать язык">
-                <button type="button" class="lang-btn active" data-lang="uz" onclick="switchLanguage('uz')" title="O'zbek tili">O'Z</button>
-                <span class="lang-separator">/</span>
-                <button type="button" class="lang-btn" data-lang="ru" onclick="switchLanguage('ru')" title="Русский язык">РУ</button>
+            <!-- Fayl konvertor asbobi (Universal Converter) -->
+            <button type="button" class="header-contact-book-btn" onclick="openConverterModal()" data-i18n-title="header_converter" title="Fayl konvertor" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
+                <svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                <span class="btn-text" data-i18n="header_converter">Fayl konvertor</span>
+            </button>
+            <!-- Language Switcher: O'zbekcha / Русский (Spring Animated Glass Pill Toggle) -->
+            <div class="lang-switch-container" id="langSwitchContainer" data-active="uz" role="tablist" aria-label="Tilni tanlash / Выбрать язык" title="Tilni tanlash / Выбрать язык">
+                <span class="lang-switch-thumb" id="langSwitchThumb" aria-hidden="true"></span>
+                <button type="button" class="lang-btn active" data-lang="uz" role="tab" aria-selected="true" onclick="switchLanguage('uz')" title="O'zbek tili"><span>O'Z</span></button>
+                <button type="button" class="lang-btn" data-lang="ru" role="tab" aria-selected="false" onclick="switchLanguage('ru')" title="Русский язык"><span>РУ</span></button>
             </div>
             <div class="live-clock-badge" id="headerLiveClock" data-i18n-title="live_clock_title" title="Hozirgi aniq vaqt">
                 <span class="live-clock-dot"></span>
                 <span id="liveClockDisplay">--:--:--</span>
             </div>
+            <!-- Profile Identity Badge (Chiqish tugmasi oldida) -->
+            <div id="headerUserProfileBadge" class="header-user-badge" style="display: none; cursor: pointer;" onclick="openViewerProfileModal()" title="Profil ma'lumotlari & Gmail bog'lash">
+                <span class="header-user-icon">
+                    <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                </span>
+                <span id="headerUserNameText" class="header-user-name">...</span>
+                <span id="headerUserGmailDot" title="Gmail ulangan" style="display: none; width: 6px; height: 6px; border-radius: 50%; background: #34d399; margin-left: 2px;"></span>
+            </div>
+            <!-- Logout Button -->
+            <button type="button" class="header-logout-btn" onclick="handleViewerLogout(event)" data-i18n-title="header_logout_title" title="Tizimdan chiqish">
+                <svg class="isax isax-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8.9 7.56C9.21 3.96 11.06 2.49 15.11 2.49H15.24C19.71 2.49 21.5 4.28 21.5 8.75V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24 20.08 8.91 16.54"/><path d="M15 12H3.62"/><path d="M5.85 8.65L2.5 12L5.85 15.35"/></svg>
+                <span class="logout-text" data-i18n="header_logout">Chiqish</span>
+            </button>
         </div>
     </header>
 
@@ -503,6 +698,20 @@
                 <div style="font-size: 11px; color: #94a3b8;" id="cbTabHint" data-i18n="viewer_callback_pending_hint">
                     * Hali operatorlar bog'lanmagan yangi mijozlar
                 </div>
+
+                <!-- Faqat bugungi mijozlar bilan gaplashilgan (Switch / Slider) -->
+                <div id="viewerCbResolvedFilterBar" style="display: none; align-items: center; justify-content: space-between; margin-top: 6px; margin-bottom: 8px; padding: 5px 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px;">
+                    <span style="font-size: 11px; color: #94a3b8; display: inline-flex; align-items: center; gap: 5px;">
+                        <svg class="isax isax-calendar" style="width: 13px; height: 13px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-calendar"></use></svg>
+                        <span id="viewerCbResolvedToggleLabel" data-i18n="cb_resolved_today_only_label">Faqat bugungi mijozlar</span>
+                    </span>
+                    <label style="position: relative; display: inline-block; width: 34px; height: 18px; cursor: pointer; margin: 0;" title="Faqat dastlabki qo'ng'irog'i bugun bo'lgan mijozlar">
+                        <input type="checkbox" id="toggleViewerCbResolvedTodayOnly" onchange="toggleViewerCbResolvedTodayOnly(this.checked)" style="opacity: 0; width: 0; height: 0; position: absolute;">
+                        <span id="sliderViewerCbResolvedTodayOnly" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: 0.25s; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.2);">
+                            <span id="knobViewerCbResolvedTodayOnly" style="position: absolute; content: ''; height: 12px; width: 12px; left: 3px; bottom: 2px; background-color: white; transition: 0.25s; border-radius: 50%; transform: translateX(0px);"></span>
+                        </span>
+                    </label>
+                </div>
             </div>
 
             <!-- Callbacks Grid List -->
@@ -537,23 +746,31 @@
                         <span data-i18n="op_group_sec">Zangiota 42 (200+)</span>
                         <span class="op-group-count" id="countSecondaryOps">0</span>
                     </button>
-                    <button type="button" class="op-group-btn" data-group="all" onclick="switchOperatorGroup('all')" data-i18n-title="op_group_all_title" title="Barcha operatorlar">
+                    <button type="button" class="op-group-btn" data-group="all" onclick="switchOperatorGroup('all')" data-i18n-title="op_group_all_title" title="Barcha operatorlar (jami)">
+                        <span class="op-group-dot" style="background: #94a3b8; border: 1px dashed #64748b;"></span>
                         <span data-i18n="op_group_all">Barchasi</span>
                         <span class="op-group-count" id="countAllOps">0</span>
                     </button>
                 </div>
 
-                <!-- O'ng tarafda: Saytda faol kuzatuvchilar ro'yxati -->
-                <div class="online-viewers-wrapper" id="onlineViewersWrapper">
-                    <div class="online-viewers-badge" title="Hozirgi vaqtda sahifani ochib turgan foydalanuvchilar" data-i18n-title="online_active_title">
-                        <span class="online-pulse-ring">
-                            <span class="online-pulse-dot"></span>
-                        </span>
-                        <span class="online-badge-title" data-i18n="online_active">Saytda faol:</span>
-                        <span class="online-badge-count" id="onlineViewersCount">0 ta</span>
-                    </div>
-                    <div class="online-viewers-pills" id="onlineViewersPills">
-                        <span class="viewer-empty-hint" data-i18n="viewer_watching">Kuzatilmoqda...</span>
+                <div class="panel-heading-right">
+                    <!-- O'ng tarafda: Saytda faol kuzatuvchilar ro'yxati -->
+                    <div class="online-viewers-wrapper" id="onlineViewersWrapper">
+                        <div class="online-viewers-badge" title="Hozirgi vaqtda sahifani ochib turgan foydalanuvchilar" data-i18n-title="online_active_title">
+                            <span class="online-pulse-ring">
+                                <span class="online-pulse-dot"></span>
+                            </span>
+                            <span class="online-badge-title" data-i18n="online_active">Saytda faol:</span>
+                            <span class="online-badge-count" id="onlineViewersCount">0 ta</span>
+                        </div>
+                        <div class="online-viewers-pills" id="onlineViewersPills">
+                            <span class="viewer-empty-hint" data-i18n="viewer_watching">Kuzatilmoqda...</span>
+                        </div>
+                        <!-- Faqat Superuser ko'ra oladigan kirishlar tarixi tugmasi -->
+                        <button type="button" id="btnViewerHistory" class="viewer-history-btn" onclick="openViewerHistoryModal()" title="Kuzatuvchilar kirish tarixi (Faqat Superuser)" aria-label="Kuzatuvchilar kirish tarixi" style="display: none;">
+                            <svg class="isax isax-sm"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                            <span>Tarix</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -743,6 +960,76 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Universal Fayl Konvertor Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                            <path d="M3 22v-6h6"></path>
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Universal Fayl Konvertor</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc">Hujjat va rasmlarni tezkor konvertatsiya qilish (PDF, DOCX, DOC, TXT, JPG, PNG, WEBP). Zero-storage xavfsiz tizim.</p>
+                        <div class="tool-card-footer">
+                            <button type="button" onclick="openConverterModal()" class="tool-action-btn primary" style="cursor: pointer;">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </button>
+                            <button type="button" onclick="openConverterModal()" class="tool-action-btn secondary" style="cursor: pointer;">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Yangi O'zbek Alifbosi (2026) Card -->
+                <div class="tool-card">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                            <line x1="6" y1="8" x2="6" y2="8.01"></line>
+                            <line x1="10" y1="8" x2="10" y2="8.01"></line>
+                            <line x1="14" y1="8" x2="14" y2="8.01"></line>
+                            <line x1="18" y1="8" x2="18" y2="8.01"></line>
+                            <line x1="6" y1="12" x2="6" y2="12.01"></line>
+                            <line x1="10" y1="12" x2="10" y2="12.01"></line>
+                            <line x1="14" y1="12" x2="14" y2="12.01"></line>
+                            <line x1="18" y1="12" x2="18" y2="12.01"></line>
+                            <line x1="7" y1="16" x2="17" y2="16"></line>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title" data-i18n="tool_uzb2026_title">Yangi O'zbek Alifbosi (2026)</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc" data-i18n="tool_uzb2026_desc">Yangi lotin alifbosi (ş, ç, ö, ğ) klaviatura drayveri, o'rnatish paketi va foydalanish yo'riqnomasi.</p>
+                        <div class="tool-card-footer">
+                            <a href="/tools/uzb2026.html" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('/tools/uzb2026.html', 'tool_uzb2026_title', 'iframe')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -924,6 +1211,130 @@
         </div>
     </div>
 
+    <!-- UNIVERSAL FAYL KONVERTOR MODALI (Zero-Storage) -->
+    <div id="converterModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 1040; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px);">
+        <div class="glass-panel" style="width: 95vw; max-width: 820px; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85); border-radius: 16px; overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.9);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.12); color: #38bdf8;">
+                        <svg class="isax isax-refresh" style="width: 20px; height: 20px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                    </span>
+                    <div>
+                        <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin: 0;">Universal Fayl Konvertor</h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 2px 0 0 0;">DOCX, PDF, JPG, PNG, WEBP, TXT formatlarida konvertatsiya (Zero-Storage)</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; font-size: 11.5px; font-weight: 600; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <svg class="isax isax-tick-circle" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>
+                        <span>Xavfsiz va toza</span>
+                    </span>
+                    <button type="button" onclick="closeConverterModal()" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div style="flex: 1; overflow-y: auto; padding: 24px;">
+                <!-- Dropzone Area -->
+                <div id="converterDropzone" class="converter-dropzone" onclick="document.getElementById('converterFileInput').click()" style="border: 2px dashed rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 36px 20px; text-align: center; cursor: pointer; background: rgba(15, 23, 42, 0.4); transition: all 0.25s ease;">
+                    <input type="file" id="converterFileInput" style="display: none;" onchange="handleConverterFileSelected(this.files[0])">
+                    <div style="width: 56px; height: 56px; margin: 0 auto 14px auto; border-radius: 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg class="isax isax-folder" style="width: 26px; height: 26px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-folder"></use></svg>
+                    </div>
+                    <h4 style="font-size: 15px; font-weight: 600; color: #f8fafc; margin: 0 0 6px 0;">Faylni bu yerga tashlang yoki tanlash uchun bosing</h4>
+                    <p style="font-size: 12px; color: #94a3b8; margin: 0 0 14px 0;">Qo'llab-quvvatlanadi: PDF, DOCX, DOC, TXT, JPG, PNG, WEBP (maksimal 35 MB)</p>
+                    <span class="btn-action" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 18px; font-size: 12px; font-weight: 600; border-radius: 8px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; pointer-events: none;">
+                        <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                        <span>Fayl tanlash</span>
+                    </span>
+                </div>
+
+                <!-- Active File Details (Hidden until selected) -->
+                <div id="converterFileDetails" style="display: none; margin-top: 18px; padding: 16px; border-radius: 12px; background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div id="convFileIconBadge" style="width: 40px; height: 40px; border-radius: 10px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); display: flex; align-items: center; justify-content: center; color: #c084fc; font-size: 11px; font-weight: 800; text-transform: uppercase;">
+                                PDF
+                            </div>
+                            <div>
+                                <div id="convFileName" style="font-weight: 600; color: #f8fafc; font-size: 13.5px; word-break: break-all;">document.pdf</div>
+                                <div id="convFileSize" style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">1.4 MB</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn" onclick="resetConverterState()" title="Bekor qilish" style="padding: 6px 12px; font-size: 12px; color: #f87171; border: 1px solid rgba(248, 113, 113, 0.25); background: rgba(248, 113, 113, 0.08); border-radius: 8px;">
+                            <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 13px; height: 13px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                            <span>Almashtirish</span>
+                        </button>
+                    </div>
+
+                    <!-- Target Format Selection -->
+                    <div style="margin-bottom: 18px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 8px;">Maqsadli formatni tanlang:</label>
+                        <div id="converterTargetPills" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <!-- Dynamic pills populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Convert Action Button -->
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button type="button" id="btnRunConversion" onclick="executeFileConversion()" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; font-size: 13.5px; font-weight: 700; border-radius: 10px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: 1px solid rgba(96, 165, 250, 0.4); color: #fff; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
+                            <svg class="isax isax-refresh" style="width: 16px; height: 16px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                            <span id="btnRunConversionText">Konvertatsiya qilish</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar (Shown while converting) -->
+                <div id="converterProgressBox" style="display: none; margin-top: 18px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 6px;">
+                        <span id="converterProgressStatus">Konvertatsiya qilinmoqda...</span>
+                        <span id="converterProgressPct">60%</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden;">
+                        <div id="converterProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); border-radius: 4px; transition: width 0.25s ease;"></div>
+                    </div>
+                </div>
+
+                <!-- Result Success Box (Shown when converted) -->
+                <div id="converterResultBox" style="display: none; margin-top: 20px; padding: 18px; border-radius: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); display: flex; align-items: center; justify-content: center; color: #34d399;">
+                                <svg class="isax isax-tick-circle" style="width: 22px; height: 22px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px;">Konvertatsiya tayyor!</div>
+                                <div id="converterResultName" style="font-size: 14px; font-weight: 600; color: #f8fafc; margin-top: 2px;">document.docx</div>
+                                <div id="converterResultSize" style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">Hajmi: 1.1 MB</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <a id="btnDownloadConvertedFile" class="btn-action" href="#" download="" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: 1px solid rgba(52, 211, 153, 0.4); color: #fff; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                                <svg class="isax isax-export" style="width: 15px; height: 15px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-export"></use></svg>
+                                <span>Yuklab olish</span>
+                            </a>
+                            <button type="button" class="btn" onclick="resetConverterState()" title="Tozalash" style="padding: 9px 14px; font-size: 12.5px; font-weight: 600; color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                                <svg class="isax isax-trash" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
+                                <span>Tozalash</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zero Storage Guarantee Footer Notice -->
+                <div style="margin-top: 20px; padding: 14px 16px; border-radius: 10px; background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.2); display: flex; align-items: center; gap: 10px;">
+                    <svg class="isax isax-flash" style="width: 16px; height: 16px; color: #38bdf8; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
+                    <span style="font-size: 12px; color: #94a3b8; line-height: 1.4;">
+                        <strong style="color: #f8fafc;">Zero-Storage:</strong> Fayllar faqat konvertatsiya qilish paytida vaqtinchalik xotiraga olinadi va jarayon yakunlanishi bilan serverdan butunlay avtomatik o'chiriladi.
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MIJOZLAR BAZASI (TELEFON KITOBI) TO'LIQ MODALI -->
     <div id="clientDirectoryModal" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 1040; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(8px);">
         <div class="glass-panel" style="width: 95vw; max-width: 980px; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85); border-radius: 16px; overflow: hidden;">
@@ -960,13 +1371,821 @@
         </div>
     </div>
 
+    <!-- OPERATOR YORDAM SO'ROVI — KIRUVCHI MODAL (RECIPIENT) -->
+    <div id="incomingHelpModal" class="help-modal-overlay" style="display: none;">
+        <div class="help-modal-card">
+            <div class="help-incoming-glow"></div>
+            <div class="help-icon-ring ringing" id="incomingHelpIconRing">
+                <svg class="isax isax-notification-bing" viewBox="0 0 24 24" fill="none"><path d="M12.02 2.91C8.71 2.91 6.02 5.6 6.02 8.91V11.8C6.02 12.41 5.76 13.34 5.45 13.86L4.3 15.77C3.59 16.95 4.08 18.26 5.38 18.26H18.66C19.96 18.26 20.45 16.95 19.74 15.77L18.59 13.86C18.28 13.34 18.02 12.41 18.02 11.8V8.91C18.02 5.61 15.32 2.91 12.02 2.91Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/><path d="M13.87 3.2C13.56 3.11 13.24 3.04 12.91 3C11.95 2.88 11.03 2.99 10.17 3.28C10.42 2.52 11.15 1.97 12.02 1.97C12.89 1.97 13.62 2.52 13.87 3.2Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.02 19.06C15.02 20.71 13.67 22.06 12.02 22.06C11.2 22.06 10.44 21.72 9.9 21.18C9.36 20.64 9.02 19.88 9.02 19.06" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+            </div>
+            <div style="padding: 0 24px 20px 24px;">
+                <h3 id="incomingHelpTitle" style="font-size: 19px; font-weight: 800; color: #ffffff; margin: 0 0 6px 0;">Operator yordam so'ramoqda!</h3>
+                <p id="incomingHelpSubtitle" style="font-size: 13.5px; color: #94a3b8; margin: 0; line-height: 1.5;">Operator sizdan maslahat yoki yordam so'ramoqda.</p>
+
+                <!-- Text Message Display (if incoming help has text) -->
+                <div id="incomingTextContainer" style="display: none; margin-top: 14px; padding: 12px 16px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; text-align: left;">
+                    <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                        <svg class="isax isax-message-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 19 16 19H15.5C15.19 19 14.89 19.15 14.7 19.4L13.2 21.4C12.54 22.28 11.46 22.28 10.8 21.4L9.3 19.4C9.14 19.18 8.77 19 8.5 19Z"/><path d="M7 8H17"/><path d="M7 13H13"/></svg>
+                        <span>Xabar matni:</span>
+                    </div>
+                    <div id="incomingTextMessage" style="font-size: 13.5px; color: #f8fafc; line-height: 1.5; white-space: pre-wrap; font-weight: 600;"></div>
+                </div>
+
+                <!-- Voice Player (if incoming help has audio) -->
+                <div id="incomingVoicePlayerContainer" style="display: none; margin-top: 14px; padding: 12px 16px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; align-items: center; justify-content: space-between; gap: 12px;">
+                    <button type="button" id="btnPlayIncomingVoice" onclick="toggleIncomingVoicePlay()" style="width: 38px; height: 38px; border-radius: 50%; background: #0284c7; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform 0.15s ease;">
+                        <span id="incomingVoicePlayIcon"><svg class="isax isax-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M4 12V6.67C4 3.58 6.18 2.32 8.86 3.87L13.48 6.54L18.1 9.21C20.78 10.76 20.78 13.29 18.1 14.84L13.48 17.51L8.86 20.18C6.18 21.73 4 20.47 4 17.38V12Z"/></svg></span>
+                    </button>
+                    <div style="flex: 1; text-align: left;">
+                        <div style="font-size: 12px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-microphone-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 14px; height: 14px;"><path d="M12 15.5C14.21 15.5 16 13.71 16 11.5V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V11.5C8 13.71 9.79 15.5 12 15.5Z"/><path d="M4.35 9.65V11.35C4.35 15.57 7.78 19 12 19C16.22 19 19.65 15.57 19.65 11.35V9.65"/><path d="M12 19V22"/><path d="M8.5 22H15.5"/></svg>
+                            <span>Ovozli xabar tinglang</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                            <div style="flex: 1; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden;">
+                                <div id="incomingVoiceProgressBar" style="width: 0%; height: 100%; background: #38bdf8; transition: width 0.1s linear;"></div>
+                            </div>
+                            <span id="incomingVoiceDuration" style="font-size: 11px; color: #94a3b8; font-variant-numeric: tabular-nums; font-weight: 600;">00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="help-modal-actions">
+                <button type="button" id="btnAcceptHelp" class="btn-help-accept" onclick="acceptIncomingHelp()">
+                    <svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                    <span>Yordam beraman (OK)</span>
+                </button>
+                <button type="button" id="btnRejectHelp" class="btn-help-reject" onclick="rejectIncomingHelp()">
+                    <svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                    <span>Hozir bandman</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPERATOR YORDAM SO'ROVI — CHIQUVCHI MODAL (CALLER) -->
+    <div id="outgoingHelpModal" class="help-modal-overlay" style="display: none;">
+        <div class="help-modal-card">
+            <!-- Close icon button -->
+            <button type="button" onclick="closeOutgoingHelpModal()" style="position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #94a3b8; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 14px; height: 14px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+            </button>
+
+            <!-- State 1: Record Voice / Push-to-Talk OR Type Text Message -->
+            <div id="outgoingHelpRecordState">
+                <div style="padding: 22px 24px 8px 24px;">
+                    <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-size: 11.5px; font-weight: 700; margin-bottom: 12px;">
+                        <svg class="isax isax-headphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 14px; height: 14px;"><path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/></svg>
+                        <span id="outgoingTargetOpName">Operator</span> ga yordam so'rovi
+                    </div>
+
+                    <!-- Mode Switcher Tabs: Ovozli vs Yozma xabar -->
+                    <div style="display: flex; justify-content: center;">
+                        <div class="help-mode-switcher">
+                            <button type="button" class="help-mode-tab active" id="tabHelpVoice" onclick="switchHelpMode('voice')">
+                                <svg class="isax isax-microphone-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M12 15.5C14.21 15.5 16 13.71 16 11.5V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V11.5C8 13.71 9.79 15.5 12 15.5Z"/><path d="M4.35 9.65V11.35C4.35 15.57 7.78 19 12 19C16.22 19 19.65 15.57 19.65 11.35V9.65"/><path d="M12 19V22"/><path d="M8.5 22H15.5"/></svg>
+                                <span>Ovozli xabar</span>
+                            </button>
+                            <button type="button" class="help-mode-tab" id="tabHelpText" onclick="switchHelpMode('text')">
+                                <svg class="isax isax-message-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 19 16 19H15.5C15.19 19 14.89 19.15 14.7 19.4L13.2 21.4C12.54 22.28 11.46 22.28 10.8 21.4L9.3 19.4C9.14 19.18 8.77 19 8.5 19Z"/><path d="M7 8H17"/><path d="M7 13H13"/></svg>
+                                <span>Yozma matn</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 id="outgoingHelpStateTitle" style="font-size: 18px; font-weight: 800; color: #fff; margin: 0 0 6px 0;">Ovozli xabar qoldiring</h3>
+                    <p id="outgoingHelpMicDesc" style="font-size: 13px; color: #94a3b8; margin: 0; line-height: 1.4;">Tugmani bosib turib gapiring (maks. 15 soniya)</p>
+                </div>
+
+                <!-- HTTPS Warning Banner if accessed over HTTP -->
+                <div id="outgoingHttpWarningBanner" style="display: none; margin: 10px 20px; padding: 10px 14px; border-radius: 10px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); text-align: left; font-size: 12px; color: #fbbf24; line-height: 1.4;">
+                    <strong>🔒 Mikrofon uchun HTTPS kerak:</strong> Brauzeringiz mikrofonni faqat xavfsiz ulanishda ochadi.
+                    <div style="margin-top: 6px;">
+                        <a id="btnSwitchHttpsLink" href="#" style="color: #38bdf8; font-weight: 700; text-decoration: underline;">👉 HTTPS rejimiga o'tish ↗</a>
+                    </div>
+                </div>
+
+                <!-- MODE 1: Voice Section (PTT) -->
+                <div id="outgoingHelpVoiceSection">
+                    <div style="padding: 16px 24px;">
+                        <div id="pttButtonContainer" style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                            <button type="button" id="btnPttMic" class="btn-ptt-mic" 
+                                    onmousedown="startPttRecord(event)" 
+                                    onmouseup="stopPttRecord(event)"
+                                    onmouseleave="stopPttRecord(event)"
+                                    ontouchstart="startPttRecord(event)"
+                                    ontouchend="stopPttRecord(event)">
+                                <div class="ptt-mic-ripple"></div>
+                                <svg class="isax isax-microphone-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 34px; height: 34px;"><path d="M12 15.5C14.21 15.5 16 13.71 16 11.5V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V11.5C8 13.71 9.79 15.5 12 15.5Z"/><path d="M4.35 9.65V11.35C4.35 15.57 7.78 19 12 19C16.22 19 19.65 15.57 19.65 11.35V9.65"/><path d="M12 19V22"/><path d="M8.5 22H15.5"/></svg>
+                            </button>
+                            <div id="pttStatusLabel" style="font-size: 12.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                <span>Bosib turib gapiring</span>
+                            </div>
+                        </div>
+
+                        <!-- Recorded Audio Preview -->
+                        <div id="recordedPreviewContainer" style="display: none; padding: 12px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; margin-top: 14px; align-items: center; justify-content: space-between; gap: 10px;">
+                            <button type="button" id="btnPlayRecordedVoice" onclick="toggleRecordedVoicePlay()" style="width: 34px; height: 34px; border-radius: 50%; background: #0284c7; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <span id="recordedVoicePlayIcon"><svg class="isax isax-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 16px; height: 16px;"><path d="M4 12V6.67C4 3.58 6.18 2.32 8.86 3.87L13.48 6.54L18.1 9.21C20.78 10.76 20.78 13.29 18.1 14.84L13.48 17.51L8.86 20.18C6.18 21.73 4 20.47 4 17.38V12Z"/></svg></span>
+                            </button>
+                            <div style="flex: 1; text-align: left;">
+                                <div style="font-size: 11.5px; font-weight: 700; color: #6ee7b7;">Ovoz yozildi</div>
+                                <div id="recordedVoiceDuration" style="font-size: 12px; color: #94a3b8; font-variant-numeric: tabular-nums;">00:00</div>
+                            </div>
+                            <button type="button" onclick="resetRecordedVoice()" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #94a3b8; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                                Qayta yozish
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Footer Actions: Send Voice OR Direct Ring fallback -->
+                    <div style="padding: 0 24px 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+                        <button type="button" id="btnSendVoiceHelp" class="btn-help-accept" onclick="sendVoiceHelpRequest()" style="display: none; width: 100%;">
+                            <svg class="isax isax-send-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M7.4 6.32L15.89 3.49C19.7 2.22 21.77 4.3 20.51 8.11L17.68 16.6C15.78 22.31 12.66 22.31 10.76 16.6L9.92 14.08L7.4 13.24C1.69 11.34 1.69 8.23 7.4 6.32Z"/><path d="M10.11 13.65L13.69 10.06"/></svg>
+                            <span>Ovozli xabarni yuborish</span>
+                        </button>
+                        <button type="button" class="btn-help-direct-ring" onclick="sendDirectRingHelpRequest()" style="background: rgba(255, 255, 255, 0.05); border: 1px dashed rgba(255, 255, 255, 0.2); color: #cbd5e1; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 16px; height: 16px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07"/></svg>
+                            <span>Ovozsiz to'g'ridan-to'g'ri qo'ng'iroq</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MODE 2: Text Section (Written message) -->
+                <div id="outgoingHelpTextSection" style="display: none; padding: 10px 24px 20px 24px;">
+                    <textarea id="helpTextMessageInput" class="help-text-area" placeholder="Yordam so'rovi matnini yozing (masalan: Mijoz shartnoma raqamini so'ramoqda, qayerdan tekshiraman?)..." maxlength="300" oninput="updateHelpTextCounter()"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <span style="font-size: 11px; color: #94a3b8;">Tezkor savollar:</span>
+                        <span id="helpTextCounter" style="font-size: 11px; color: #64748b; font-variant-numeric: tabular-nums;">0 / 300</span>
+                    </div>
+                    <div class="help-quick-chips">
+                        <button type="button" class="help-quick-chip" onclick="setHelpQuickText('Qo\'ng\'iroqni qanday yo\'naltiraman?')">Qo'ng'iroq yo'naltirish</button>
+                        <button type="button" class="help-quick-chip" onclick="setHelpQuickText('Mijoz shartnomasi bo\'yicha yordam kerak')">Shartnoma bo'yicha</button>
+                        <button type="button" class="help-quick-chip" onclick="setHelpQuickText('Tizimda xatolik bo\'lyapti, qarab bera olasizmi?')">Tizim xatoligi</button>
+                        <button type="button" class="help-quick-chip" onclick="setHelpQuickText('Mijoz savoliga qanday javob bersam bo\'ladi?')">Savolga javob</button>
+                    </div>
+                    <button type="button" id="btnSendTextHelp" class="btn-help-accept" onclick="sendTextHelpRequest()" style="width: 100%;">
+                        <svg class="isax isax-send-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M7.4 6.32L15.89 3.49C19.7 2.22 21.77 4.3 20.51 8.11L17.68 16.6C15.78 22.31 12.66 22.31 10.76 16.6L9.92 14.08L7.4 13.24C1.69 11.34 1.69 8.23 7.4 6.32Z"/><path d="M10.11 13.65L13.69 10.06"/></svg>
+                        <span>Xabarni yuborish</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- State 2: Calling / In Progress (Sent Ring) -->
+            <div id="outgoingHelpCallingState" style="display: none;">
+                <div id="outgoingHelpIconRing" class="help-icon-ring ringing">
+                    <svg class="isax isax-notification-bing" viewBox="0 0 24 24" fill="none"><path d="M12.02 2.91C8.71 2.91 6.02 5.6 6.02 8.91V11.8C6.02 12.41 5.76 13.34 5.45 13.86L4.3 15.77C3.59 16.95 4.08 18.26 5.38 18.26H18.66C19.96 18.26 20.45 16.95 19.74 15.77L18.59 13.86C18.28 13.34 18.02 12.41 18.02 11.8V8.91C18.02 5.61 15.32 2.91 12.02 2.91Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/><path d="M13.87 3.2C13.56 3.11 13.24 3.04 12.91 3C11.95 2.88 11.03 2.99 10.17 3.28C10.42 2.52 11.15 1.97 12.02 1.97C12.89 1.97 13.62 2.52 13.87 3.2Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.02 19.06C15.02 20.71 13.67 22.06 12.02 22.06C11.2 22.06 10.44 21.72 9.9 21.18C9.36 20.64 9.02 19.88 9.02 19.06" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                </div>
+                <div style="padding: 0 24px 20px 24px;">
+                    <h3 id="outgoingHelpTitle" style="font-size: 19px; font-weight: 800; color: #ffffff; margin: 0 0 6px 0;">Qo'ng'iroq qilinmoqda...</h3>
+                    <p id="outgoingHelpSubtitle" style="font-size: 13.5px; color: #94a3b8; margin: 0; line-height: 1.5;">Operator javobi kutilmoqda...</p>
+                </div>
+                <div class="help-modal-actions" id="outgoingHelpActions">
+                    <button type="button" class="btn-help-single" onclick="cancelOutgoingHelp()">
+                        <span>Bekor qilish</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- O'ZINGIZNING OPERATORINGIZNI TANLASH MODALI (AGAR TIZIM BILMASA) -->
+    <div id="operatorSelectSelfModal" class="help-modal-overlay" style="display: none;">
+        <div class="help-modal-card" style="max-width: 420px; text-align: left;">
+            <div style="padding: 20px 24px 14px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center;">
+                        <svg class="isax isax-headphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 18px; height: 18px;"><path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/></svg>
+                    </div>
+                    <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Siz qaysi operatorsiz?</h3>
+                </div>
+                <button type="button" onclick="closeOperatorSelectSelfModal()" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 4px;"><svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 18px; height: 18px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg></button>
+            </div>
+            <div style="padding: 16px 24px;">
+                <p style="font-size: 12.5px; color: #94a3b8; margin: 0 0 12px 0;">Yordam so'rovi kimdan borayotganini ko'rsatish uchun profilingizni tanlang:</p>
+                <div id="operatorSelectSelfList" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+                    <!-- Operator radio options dynamically rendered -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUPERUSER VIEWER ACCESS HISTORY MODAL -->
+    <div id="viewerHistoryModal" class="help-modal-overlay" style="display: none;" onclick="if(event.target===this) closeViewerHistoryModal()">
+        <div class="glass-panel viewer-history-modal-panel">
+            <div class="viewer-history-modal-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="modal-icon-badge" style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8;">
+                        <svg class="isax isax-md"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff;">Kuzatuvchilar Kirish Tarixi</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 12px; color: #94a3b8;">Saytga kim, qaysi kompyuter/IP dan va qachon kirgani loglari (Faqat Superuser)</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button type="button" class="btn-refresh-history" onclick="loadViewerHistoryData()" title="Yangilash">
+                        <svg class="isax isax-sm"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                        <span>Yangilash</span>
+                    </button>
+                    <button type="button" onclick="closeViewerHistoryModal()" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 6px; border-radius: 8px; display: flex; align-items: center; justify-content: center;" title="Yopish" aria-label="Yopish">
+                        <svg class="isax isax-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toolbar & Filter -->
+            <div class="viewer-history-toolbar">
+                <div class="history-search-box">
+                    <input type="text" id="viewerHistorySearch" placeholder="Operator, IP yoki foydalanuvchi qidirish..." oninput="filterViewerHistoryTable()" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff; padding: 7px 12px; border-radius: 8px; font-size: 12px; width: 260px; outline: none;">
+                </div>
+                <div class="history-filter-pills" style="display: flex; gap: 6px;">
+                    <button type="button" class="vh-filter-btn active" data-filter="all" onclick="setViewerHistoryFilter('all', this)">Barchasi</button>
+                    <button type="button" class="vh-filter-btn" data-filter="online" onclick="setViewerHistoryFilter('online', this)">🟢 Hozir faol</button>
+                    <button type="button" class="vh-filter-btn" data-filter="offline" onclick="setViewerHistoryFilter('offline', this)">⚪ Chiqib ketgan</button>
+                </div>
+                <div style="margin-left: auto; font-size: 12px; color: #94a3b8;" id="viewerHistoryCountLabel">
+                    Yuklanmoqda...
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="viewer-history-table-wrapper">
+                <table class="viewer-history-table">
+                    <thead>
+                        <tr>
+                            <th>Holati</th>
+                            <th>Foydalanuvchi / Operator</th>
+                            <th>Roli</th>
+                            <th>IP Manzil</th>
+                            <th>Kirgan vaqti</th>
+                            <th>Chiqqan vaqti</th>
+                            <th>Davomiyligi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewerHistoryTableBody">
+                        <tr><td colspan="7" style="text-align: center; padding: 30px; color: #94a3b8;">Ma'lumotlar yuklanmoqda...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Sidebar Toggle Button (Floating) -->
+    <button type="button" class="ticket-sidebar-toggle-btn" id="ticketSidebarToggleBtn" onclick="window.TicketsApp && window.TicketsApp.toggleSidebar()" title="Ticketlar & Oshxona KDS doskasi">
+        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;"><path d="M9.5 13.75C9.5 14.72 10.28 15.5 11.25 15.5H12.75C13.72 15.5 14.5 14.72 14.5 13.75V10.25C14.5 9.28 13.72 8.5 12.75 8.5H11.25C10.28 8.5 9.5 9.28 9.5 10.25V13.75Z"/><path d="M2.5 10.5C2.5 7.5 4.5 5.5 7.5 5.5H16.5C19.5 5.5 21.5 7.5 21.5 10.5V11C20.67 11 20 11.67 20 12.5C20 13.33 20.67 14 21.5 14V14.5C21.5 17.5 19.5 19.5 16.5 19.5H7.5C4.5 19.5 2.5 17.5 2.5 14.5V14C3.33 14 4 13.33 4 12.5C4 11.67 3.33 11 2.5 11V10.5Z"/></svg>
+        <span class="ticket-floating-red-badge" id="ticketFloatingBadge" style="display: none;">0</span>
+    </button>
+
+    <!-- Floating Toast Container for Tickets -->
+    <div id="ticketToastContainer"></div>
+
+    <!-- Ticket Sidebar Backdrop -->
+    <div id="ticketSidebarBackdrop" class="ticket-sidebar-backdrop" onclick="window.TicketsApp && window.TicketsApp.toggleSidebar(false)"></div>
+
+    <!-- Ticket Right-docked Sidebar -->
+    <aside class="ticket-sidebar" id="ticketSidebar">
+        <!-- Sidebar Header -->
+        <div class="tk-sb-header">
+            <div class="tk-sb-title">
+                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M9.5 13.75C9.5 14.72 10.28 15.5 11.25 15.5H12.75C13.72 15.5 14.5 14.72 14.5 13.75V10.25C14.5 9.28 13.72 8.5 12.75 8.5H11.25C10.28 8.5 9.5 9.28 9.5 10.25V13.75Z"/><path d="M2.5 10.5C2.5 7.5 4.5 5.5 7.5 5.5H16.5C19.5 5.5 21.5 7.5 21.5 10.5V11C20.67 11 20 11.67 20 12.5C20 13.33 20.67 14 21.5 14V14.5C21.5 17.5 19.5 19.5 16.5 19.5H7.5C4.5 19.5 2.5 17.5 2.5 14.5V14C3.33 14 4 13.33 4 12.5C4 11.67 3.33 11 2.5 11V10.5Z"/></svg>
+                <span>Ticketlar & Vazifalar</span>
+                <span class="tk-sb-badge" id="ticketSidebarCount">0 ta</span>
+            </div>
+            <div class="tk-sb-actions">
+                <button type="button" class="tk-sound-toggle-btn" id="ticketSoundToggleBtn" onclick="window.TicketsApp && window.TicketsApp.toggleSound()" title="Bildirishnoma ovozi (Yoqish / O'chirish)">
+                    <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M2 10V14C2 16 3 17 5 17H6.43C6.8 17 7.17 17.11 7.49 17.3L10.41 19.13C12.93 20.71 15 19.56 15 16.59V7.41C15 4.43 12.93 3.29 10.41 4.87L7.49 6.7C7.17 6.89 6.8 7 6.43 7H5C3 7 2 8 2 10Z"/><path d="M18 8C19.83 9.83 19.83 14.17 18 16"/><path d="M20.5 5.5C23.5 8.5 23.5 15.5 20.5 18.5"/></svg>
+                </button>
+                <a href="/tickets.html" class="tk-sb-icon-btn" title="Katta ekranda ochish" target="_blank">
+                    <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                </a>
+                <button type="button" class="tk-sb-icon-btn" onclick="window.TicketsApp && window.TicketsApp.toggleSidebar(false)" title="Yopish">
+                    <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar Create Button -->
+        <div class="tk-sb-top-cta">
+            <button type="button" class="tk-create-btn" style="width: 100%; justify-content: center;" onclick="window.TicketsApp && window.TicketsApp.openCreateModal()">
+                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Yangi Ticket Ochish</span>
+            </button>
+        </div>
+
+        <!-- Sidebar Filter Tabs -->
+        <div class="tk-sb-tabs">
+            <button type="button" class="tk-tab-btn active" data-filter="all" onclick="window.TicketsApp && window.TicketsApp.setFilter('all', this)">
+                <span>Barchasi</span>
+                <span class="tk-tab-badge" id="sbStatTotal">0</span>
+            </button>
+            <button type="button" class="tk-tab-btn" data-filter="mine" onclick="window.TicketsApp && window.TicketsApp.setFilter('mine', this)">
+                <span>🎯 Menga</span>
+                <span class="tk-tab-badge" id="sbStatMine">0</span>
+            </button>
+            <button type="button" class="tk-tab-btn" data-filter="pending" onclick="window.TicketsApp && window.TicketsApp.setFilter('pending', this)">
+                <span>Yangi</span>
+                <span class="tk-tab-badge" id="sbStatPending">0</span>
+            </button>
+            <button type="button" class="tk-tab-btn" data-filter="in_progress" onclick="window.TicketsApp && window.TicketsApp.setFilter('in_progress', this)">
+                <span>Jarayonda</span>
+                <span class="tk-tab-badge" id="sbStatInProgress">0</span>
+            </button>
+            <button type="button" class="tk-tab-btn" data-filter="completed" onclick="window.TicketsApp && window.TicketsApp.setFilter('completed', this)">
+                <span>Bajarildi</span>
+                <span class="tk-tab-badge" id="sbStatCompleted">0</span>
+            </button>
+            <button type="button" class="tk-tab-btn" data-filter="rejected" onclick="window.TicketsApp && window.TicketsApp.setFilter('rejected', this)">
+                <span>Rad etilgan</span>
+                <span class="tk-tab-badge" id="sbStatRejected">0</span>
+            </button>
+        </div>
+
+        <!-- Sidebar Tickets List -->
+        <div class="tk-sb-body" id="ticketSidebarList">
+            <div class="tk-empty-box">
+                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:#64748b;margin:0 auto 8px auto;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                <div style="font-weight: 700; color: #94a3b8; font-size: 13px;">Ticketlar yo'q</div>
+                <div style="font-size: 11.5px; color: #64748b;">Yangi ticket ochish uchun yuqoridagi tugmani bosing</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 1: YANGI TICKET OCHISH MODALI                                 -->
+    <!-- ==================================================================== -->
+    <div class="tk-modal-overlay" id="createTicketModal">
+        <div class="tk-box-modal" style="width: 620px;">
+            <div class="tk-box-header">
+                <div class="tk-box-header-info">
+                    <span class="tk-box-id">YANGI TICKET</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">Murojaat / Vazifa Ochish</h3>
+                </div>
+                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp.closeCreateModal()" title="Yopish">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form onsubmit="window.TicketsApp.handleCreateSubmit(event)" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                <div class="tk-box-body">
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="newTicketOperator">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                            <span>Operator raqami / Ismi *</span>
+                        </label>
+                        <input type="text" id="newTicketOperator" class="tk-form-input" placeholder="Masalan: 101 (Oybek)" required>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="newTicketTargetOperator">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                            <span>Qaysi operatorga (Mas'ul shaxs)</span>
+                        </label>
+                        <select id="newTicketTargetOperator" class="tk-form-select">
+                            <option value="all">👥 Barcha operatorlar (Umumiy)</option>
+                            <option value="101" data-name="Oybek">101 - Oybek</option>
+                            <option value="102" data-name="Dilnoza">102 - Dilnoza</option>
+                            <option value="103" data-name="Feruza">103 - Feruza</option>
+                            <option value="104" data-name="Zuhra">104 - Zuhra</option>
+                            <option value="105" data-name="Shaxnoza">105 - Shaxnoza</option>
+                            <option value="106" data-name="Gulchehra">106 - Gulchehra</option>
+                            <option value="107" data-name="Madina">107 - Madina</option>
+                            <option value="108" data-name="Xurshida">108 - Xurshida</option>
+                            <option value="109" data-name="Sitora">109 - Sitora</option>
+                            <option value="111" data-name="Nozima">111 - Nozima</option>
+                            <option value="112" data-name="Nargiza">112 - Nargiza</option>
+                            <option value="113" data-name="Malika">113 - Malika</option>
+                            <option value="114" data-name="Maxmudbek">114 - Maxmudbek</option>
+                            <option value="115" data-name="Nilufar">115 - Nilufar</option>
+                            <option value="117" data-name="Zarnigor">117 - Zarnigor</option>
+                            <option value="119" data-name="Muattar">119 - Muattar</option>
+                            <option value="120" data-name="Navruzoy">120 - Navruzoy</option>
+                        </select>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="newTicketCustomerPhone">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                            <span>Mijoz telefon raqami (ixtiyoriy)</span>
+                        </label>
+                        <input type="text" id="newTicketCustomerPhone" class="tk-form-input" placeholder="+998 90 123 45 67">
+                    </div>
+
+                    <!-- Shoshilinch (Urgent Priority) Slider Toggle -->
+                    <div class="tk-urgent-toggle-row">
+                        <div class="tk-urgent-info">
+                            <label class="tk-urgent-label" for="newTicketUrgent">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:#f59e0b;"><path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/></svg>
+                                <span>Shoshilinch (Tezkor vazifa)</span>
+                            </label>
+                            <span class="tk-urgent-desc">Barcha operatorlarga tezkor ovozli ogohlantirish yuboriladi</span>
+                        </div>
+                        <label class="tk-switch" title="Shoshilinch vazifa deb belgilash">
+                            <input type="checkbox" id="newTicketUrgent">
+                            <span class="tk-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="newTicketComment">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
+                            <span>Izoh (Muammo yoki topshiriq tafsilotlari) *</span>
+                        </label>
+                        <textarea id="newTicketComment" class="tk-form-textarea" placeholder="Muammo haqida batafsil yozing..."></textarea>
+                    </div>
+
+                    <!-- Drag & Drop Zone -->
+                    <div class="tk-form-group">
+                        <label class="tk-form-label">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            <span>Fayl biriktirish (Rasm, PDF, Word .doc / .docx)</span>
+                        </label>
+                        <div class="tk-dropzone" id="newTicketDropzone" onclick="document.getElementById('newTicketFileInput').click()">
+                            <svg class="tk-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V11L7 13"/><path d="M9 11L11 13"/><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/></svg>
+                            <span class="tk-dropzone-text">Faylni (Rasm, PDF, Word .docx) bu yerga tashlang yoki tanlang</span>
+                            <span class="tk-dropzone-hint">yoki clipboarddan to'g'ridan-to'g'ri tashlang:</span>
+                            <div class="tk-dropzone-keys">
+                                <span class="tk-kbd">Ctrl</span> + <span class="tk-kbd">V</span>
+                            </div>
+                            <input type="file" id="newTicketFileInput" accept="image/*,.pdf,.doc,.docx" multiple style="display: none;">
+                        </div>
+                        <div class="tk-preview-strip" id="newTicketPreviewStrip"></div>
+                    </div>
+                </div>
+
+                <div class="tk-box-actions">
+                    <button type="button" class="tk-action-btn delete" onclick="window.TicketsApp.closeCreateModal()">Bekor qilish</button>
+                    <button type="submit" id="btnSubmitNewTicket" class="tk-action-btn complete" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
+                        Yaratish va yuborish
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 1B: TICKETNI TAHRIRLASH MODALI                                -->
+    <!-- ==================================================================== -->
+    <div class="tk-modal-overlay" id="editTicketModal">
+        <div class="tk-box-modal" style="width: 620px;">
+            <div class="tk-box-header">
+                <div class="tk-box-header-info">
+                    <span class="tk-box-id" id="editTicketIdBadge">TAHRIRLASH</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">Ticketni Tahrirlash</h3>
+                </div>
+                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp.closeEditModal()" title="Yopish">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form onsubmit="window.TicketsApp.handleEditSubmit(event)" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                <input type="hidden" id="editTicketId">
+                <div class="tk-box-body">
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="editTicketTargetOperator">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                            <span>Qaysi operatorga (Mas'ul shaxs)</span>
+                        </label>
+                        <select id="editTicketTargetOperator" class="tk-form-select">
+                            <option value="all">👥 Barcha operatorlar (Umumiy)</option>
+                            <option value="101" data-name="Oybek">101 - Oybek</option>
+                            <option value="103" data-name="Feruza">103 - Feruza</option>
+                            <option value="106" data-name="Gulchehra">106 - Gulchehra</option>
+                            <option value="111" data-name="Nozima">111 - Nozima</option>
+                            <option value="114" data-name="Maxmudbek">114 - Maxmudbek</option>
+                            <option value="119" data-name="Muattar">119 - Muattar</option>
+                            <option value="120" data-name="Navruzoy">120 - Navruzoy</option>
+                        </select>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="editTicketCustomerPhone">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                            <span>Mijoz telefon raqami</span>
+                        </label>
+                        <input type="text" id="editTicketCustomerPhone" class="tk-form-input" placeholder="+998 90 123 45 67">
+                    </div>
+
+                    <!-- Shoshilinch (Urgent Priority) Slider Toggle -->
+                    <div class="tk-urgent-toggle-row">
+                        <div class="tk-urgent-info">
+                            <label class="tk-urgent-label" for="editTicketUrgent">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:#f59e0b;"><path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/></svg>
+                                <span>Shoshilinch (Tezkor vazifa)</span>
+                            </label>
+                            <span class="tk-urgent-desc">Barcha operatorlarga tezkor ovozli ogohlantirish yuboriladi</span>
+                        </div>
+                        <label class="tk-switch" title="Shoshilinch vazifa deb belgilash">
+                            <input type="checkbox" id="editTicketUrgent">
+                            <span class="tk-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="editTicketComment">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
+                            <span>Izoh (Muammo yoki topshiriq tafsilotlari) *</span>
+                        </label>
+                        <textarea id="editTicketComment" class="tk-form-textarea" placeholder="Muammo haqida batafsil yozing..."></textarea>
+                    </div>
+                </div>
+
+                <div class="tk-box-actions">
+                    <button type="button" class="tk-action-btn delete" onclick="window.TicketsApp.closeEditModal()">Bekor qilish</button>
+                    <button type="submit" id="btnSubmitEditTicket" class="tk-action-btn complete" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        O'zgarishlarni saqlash
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- MODAL 2: QUTINI OCHISH (BOX DETAIL UNPACK MODAL)                     -->
+    <!-- ==================================================================== -->
+    <div class="tk-modal-overlay" id="ticketBoxOverlay">
+        <div class="tk-box-modal">
+            <div class="tk-box-header">
+                <div class="tk-box-header-info">
+                    <span class="tk-box-id" id="boxTicketId">TK-1001</span>
+                    <span class="tk-status-badge pending" id="boxStatusBadge">Kutilmoqda</span>
+                </div>
+                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp.closeBox()" title="Yopish">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <div class="tk-box-body">
+                <!-- Meta stats -->
+                <div class="tk-meta-grid">
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Kim ochgan</span>
+                        <span class="tk-meta-val" id="boxCreator">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Vaqti</span>
+                        <span class="tk-meta-val" id="boxCreatedAt">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Qabul qilgan</span>
+                        <span class="tk-meta-val" id="boxAssigned" style="color: #c084fc;">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Mijoz raqami</span>
+                        <span class="tk-meta-val" id="boxCustomerPhone">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Mas'ul (Kimga)</span>
+                        <span class="tk-meta-val" id="boxTargetOperator" style="color: #38bdf8; font-weight: 700;">--</span>
+                    </div>
+                </div>
+
+                <!-- Comment -->
+                <div>
+                    <div style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">IZOH VA TAVSIF:</div>
+                    <div class="tk-comment-content" id="boxCommentText">--</div>
+                </div>
+
+                <!-- Gallery / Screenshots -->
+                <div id="boxGallerySection">
+                    <div class="tk-gallery-title">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        <span>BIRIKTIRILGAN SCREENSHOTLAR:</span>
+                    </div>
+                    <div class="tk-gallery-grid" id="boxGalleryGrid"></div>
+                </div>
+
+                <!-- Discussion & Replies -->
+                <div style="margin-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
+                    <div style="font-size: 12.5px; font-weight: 700; color: #94a3b8; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
+                        <span>ICHKI CHAT VA IZOHLAR:</span>
+                    </div>
+                    <div class="tk-replies-list" id="boxRepliesList"></div>
+
+                    <!-- Add reply form -->
+                    <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <textarea id="boxReplyText" class="tk-form-textarea" placeholder="Ushbu ticketga javob yozish yoki yangi screenshot tashlash (Ctrl+V)..." style="min-height: 70px;"></textarea>
+                        
+                        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <button type="button" onclick="document.getElementById('replyTicketFileInput').click()" style="background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 6px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                                    <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                    <span>Fayl biriktirish (Rasm, PDF, Word)</span>
+                                </button>
+                                <input type="file" id="replyTicketFileInput" accept="image/*,.pdf,.doc,.docx" multiple style="display: none;">
+                                <span style="font-size: 11px; color: #64748b;">(yoki Ctrl+V qiling)</span>
+                            </div>
+
+                            <button type="button" class="tk-action-btn accept" onclick="window.TicketsApp.submitReply()" style="padding: 7px 16px; font-size: 12px;">
+                                Yuborish
+                            </button>
+                        </div>
+                        <div class="tk-preview-strip" id="replyTicketPreviewStrip"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div class="tk-box-actions" id="boxActionsBar">
+                <!-- Dynamically populated (Accept / Complete / Delete) -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen In-Place Document & Image Viewer Modal -->
+    <div class="tk-doc-modal-overlay" id="tkDocViewerModal" onclick="if(event.target===this) window.TicketsApp && window.TicketsApp.closeDocViewer()">
+        <div class="tk-doc-modal-container" onclick="event.stopPropagation()">
+            <div class="tk-doc-modal-header">
+                <div class="tk-doc-modal-title-box">
+                    <span id="tkDocModalIcon" class="tk-doc-modal-icon"></span>
+                    <div>
+                        <div id="tkDocModalTitle" class="tk-doc-modal-title">Hujjat ko'rish</div>
+                        <div id="tkDocModalSub" class="tk-doc-modal-sub">PDF / Word / Rasm</div>
+                    </div>
+                </div>
+                <div class="tk-doc-modal-actions">
+                    <a id="tkDocDownloadBtn" class="tk-doc-action-btn" href="#" download title="Faylni yuklab olish">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M9 11V17L11 15"/><path d="M9 17L7 15"/><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/></svg>
+                        <span>Yuklab olish</span>
+                    </a>
+                    <a id="tkDocOpenNewTabBtn" class="tk-doc-action-btn secondary" href="#" target="_blank" title="Yangi oynada ochish">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M13 11L21.2 2.8"/><path d="M22 6.8V2H17.2"/><path d="M11 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22H15C20 22 22 20 22 15V13"/></svg>
+                        <span>Yangi oyna</span>
+                    </a>
+                    <button type="button" class="tk-doc-action-btn close-btn" onclick="window.TicketsApp && window.TicketsApp.closeDocViewer()" title="Yopish (Esc)">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="tk-doc-modal-body" id="tkDocModalBody">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Lightbox (Backward compatibility) -->
+    <div class="tk-lightbox-overlay" id="tkLightboxOverlay" onclick="window.TicketsApp.closeLightbox()">
+        <button type="button" class="tk-lightbox-close" onclick="window.TicketsApp.closeLightbox()">&times;</button>
+        <img class="tk-lightbox-img" id="tkLightboxImg" src="" alt="Screenshot" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- QUICK IMPERSONATION MODAL (CTRL + ;) -->
+    <div id="impersonateModal" class="impersonate-modal-backdrop" onclick="if(event.target === this) window.TicketsApp && window.TicketsApp.closeImpersonateModal()">
+        <div class="impersonate-modal-card" onclick="event.stopPropagation()">
+            <div class="impersonate-card-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg class="isax isax-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 20px; height: 20px;"><circle cx="9" cy="14" r="4"/><path d="M12 11L21 2"/><path d="M17 6L20 9"/></svg>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">Operator Nomidan Kirish (Impersonation)</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 11.5px; color: #94a3b8;">Boshqa xodim nomiga o'tib, uning vazifa va ticketlarini tahrirlash</p>
+                    </div>
+                </div>
+                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp && window.TicketsApp.closeImpersonateModal()" title="Yopish (Esc)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+
+            <div class="impersonate-card-body">
+                <div>
+                    <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">1. OPERATORNI TANLANG (Bir marta bosish bilan o'tish):</div>
+                    <div class="impersonate-op-grid" id="impersonateOpGrid">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
+                    <div style="font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px;">2. YOKI TOKENNI QO'LDA KIRITING:</div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="manualImpersonateTokenInput" class="tk-form-input" placeholder="Misol: 7f8a9b2c... sessiya tokenini kiriting" style="flex: 1;">
+                        <button type="button" class="btn-session-switch" onclick="window.TicketsApp && window.TicketsApp.applyManualTokenSwitch()" style="padding: 0 16px;">
+                            Tokenni qo'llash
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                    <button type="button" class="btn-session-copy" onclick="window.TicketsApp && window.TicketsApp.applyOperatorImpersonation('', 'admin', 'Superuser Admin')" style="color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); padding: 6px 14px;">
+                        🔄 Asl Admin hisobiga qaytish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OPERATOR PROFILI VA GMAIL BOG'LASH MODALI -->
+    <div id="modalViewerProfile" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 99995; align-items: center; justify-content: center; padding: 20px;" onclick="if(event.target === this) closeViewerProfileModal();">
+        <div class="modal-card glass-panel" style="max-width: 480px; width: 100%; border-radius: 18px; border: 1px solid rgba(56, 189, 248, 0.35); background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(20, 30, 48, 0.98)); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 32px rgba(56, 189, 248, 0.2); overflow: hidden; animation: modalZoomIn 0.22s ease;">
+            <!-- Modal Header -->
+            <div style="padding: 18px 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.02);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg class="isax isax-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;"><path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"/><path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"/></svg>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.2px;">Operator Profili</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 11.5px; color: #94a3b8;">Parolni tiklash uchun Gmail manzilini bog'lash</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-modal-close" onclick="closeViewerProfileModal()" title="Yopish" aria-label="Yopish" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); width: 32px; height: 32px; border-radius: 8px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M18 6L6 18M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 20px 22px;">
+                <!-- User Summary Box -->
+                <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Hisob (Login)</div>
+                        <div id="viewerProfileModalUsername" style="font-size: 15px; font-weight: 700; color: #f1f5f9; margin-top: 2px;">operator</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span id="viewerProfileModalRoleBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">Operator</span>
+                        <div id="viewerProfileModalOpName" style="font-size: 12px; color: #38bdf8; margin-top: 3px; font-weight: 600;"></div>
+                    </div>
+                </div>
+
+                <!-- Info Hint -->
+                <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; display: flex; gap: 10px; align-items: flex-start;">
+                    <svg class="isax isax-info-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; color: #38bdf8; flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><path d="M12 16V12"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.45;">
+                        Parolni esdan chiqarganingizda, 6 xonali tasdiqlash kodi ushbu Gmail manzilingizga yuboriladi va profilingizni osongina tiklashingiz mumkin bo'ladi.
+                    </div>
+                </div>
+
+                <!-- Form Group: Gmail Input & Verification -->
+                <form id="viewerProfileForm" onsubmit="event.preventDefault();">
+                    <div style="margin-bottom: 0;">
+                        <label for="viewerProfileEmailInput" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12.5px; font-weight: 600; color: #cbd5e1;">
+                            <span>Gmail manzilingiz:</span>
+                            <span id="viewerProfileEmailStatusBadge" style="font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 600;"></span>
+                        </label>
+                        <div style="position: relative;">
+                            <input type="email" id="viewerProfileEmailInput" class="tk-form-input" placeholder="masalan: sizning_nomingiz@gmail.com" required style="width: 100%; box-sizing: border-box; padding-left: 38px; font-size: 13.5px; height: 42px; border-radius: 8px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.12); color: #fff;">
+                            <svg class="isax isax-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: #64748b; pointer-events: none;"><path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"/><path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"/></svg>
+                        </div>
+                        <div id="viewerProfileEmailMsg" style="font-size: 11.5px; margin-top: 6px; min-height: 16px;"></div>
+                    </div>
+
+                    <!-- 6-xonali Tasdiqlash Kodi Bloki -->
+                    <div id="viewerProfileVerifySection" style="display: none; margin-top: 14px; padding: 14px 16px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; animation: modalZoomIn 0.2s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label for="viewerProfileCodeInput" style="font-size: 12px; font-weight: 600; color: #e2e8f0; display: flex; align-items: center; gap: 6px;">
+                                <svg class="isax isax-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; color: #38bdf8;"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M16.5 6.5L10.7 12.3"/><path d="M14.5 4.5L18.5 8.5"/><path d="M17.5 7.5L20.5 7.5"/></svg>
+                                6 xonali tasdiqlash kodi:
+                            </label>
+                            <span id="viewerProfileTimer" style="font-family: monospace; font-size: 12px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.25);">02:00</span>
+                        </div>
+                        <input type="text" id="viewerProfileCodeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="______" autocomplete="one-time-code" style="width: 100%; box-sizing: border-box; height: 44px; text-align: center; font-family: monospace; font-size: 20px; font-weight: 700; letter-spacing: 10px; border-radius: 8px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; outline: none; transition: all 0.2s;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                            <button type="button" id="btnResendViewerProfileCode" onclick="resendViewerProfileCode()" disabled style="background: none; border: none; font-size: 11.5px; color: #64748b; cursor: not-allowed; padding: 0; text-decoration: underline; transition: color 0.2s;">
+                                Kodni qayta yuborish
+                            </button>
+                            <button type="button" onclick="resetViewerProfileEmailEdit()" style="background: none; border: none; font-size: 11.5px; color: #94a3b8; cursor: pointer; padding: 0; transition: color 0.2s;">
+                                Emailni o'zgartirish
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 14px 22px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
+                <button type="button" onclick="closeViewerProfileModal()" style="background: transparent; border: 1px solid rgba(255, 255, 255, 0.12); color: #94a3b8; padding: 8px 16px; border-radius: 8px; font-size: 12.5px; cursor: pointer; transition: all 0.2s;">
+                    Bekor qilish
+                </button>
+                <button type="button" id="btnSendViewerProfileCode" onclick="sendViewerProfileCode(event)" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.5); color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35); transition: all 0.2s;">
+                    <svg class="isax isax-send-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                    <span id="btnSendViewerProfileCodeText">Tasdiqlash kodini olish</span>
+                </button>
+                <button type="button" id="btnVerifyViewerProfileCode" onclick="verifyViewerProfileCode(event)" style="display: none; background: linear-gradient(135deg, #10b981, #059669); border: 1px solid rgba(52, 211, 153, 0.5); color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35); transition: all 0.2s;">
+                    <svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M7.75 12L10.58 14.83L16.25 9.17"/></svg>
+                    <span id="btnVerifyViewerProfileCodeText">Tasdiqlash va Bog'lash</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Page Elevator (Lift) Floating Navigation Button -->
+    <button type="button" id="pageElevatorBtn" class="page-elevator-btn mode-down" aria-label="Sahifa bo'yicha harakatlanish" title="Eng pastga tushish">
+        <svg class="isax isax-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19.92 15.09L13.4 8.57C12.63 7.8 11.37 7.8 10.6 8.57L4.08 15.09"/>
+        </svg>
+    </button>
+
     <!-- Iconsax Linear Icons Engine -->
     <script src="/js/iconsax.js?v=1.0"></script>
     <!-- Multi-Language i18n Engine -->
-    <script src="/js/i18n.js?v=1.1"></script>
+    <script src="/js/i18n.js?v=1.2"></script>
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
+    <!-- Tickets Module -->
+    <script src="/vendor/mammoth.browser.min.js"></script>
+    <script src="/js/tickets.js?v=2.4" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=4.0" defer></script>
+    <script src="/js/viewer.js?v=4.2" defer></script>
 </body>
 </html>

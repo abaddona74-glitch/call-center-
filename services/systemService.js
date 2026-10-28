@@ -290,6 +290,7 @@ class SystemService {
         return {
             timestamp: new Date().toISOString(),
             vms: vms,
+            autoRecover: proxmoxService.getAutoRecoverStatus ? proxmoxService.getAutoRecoverStatus() : null,
             services: {
                 ami: {
                     name: 'Asterisk AMI (PBX)',

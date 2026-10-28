@@ -3,6 +3,16 @@
  * Includes: WaveSurfer.js Waveform, Real-time AMI monitoring, SQLite CDR Pagination, and IVR Robot detection
  */
 
+window.handleLogout = async function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {}
+    localStorage.removeItem('auth_token');
+    sessionStorage.clear();
+    window.location.href = '/login';
+};
+
 // Global State
 let socket = null;
 let currentPath = '';
@@ -40,6 +50,19 @@ function getTodayDateString() {
     return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
 }
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+if (typeof window !== 'undefined') {
+    window.escapeHtml = escapeHtml;
+}
+
 // Transfer Modal State
 let activeTransferChannel = null;
 
@@ -49,6 +72,7 @@ let callDistributionChart = null;
 let callDistributionChart2D = null;
 let operatorChart = null;
 let pieChartMode = localStorage.getItem('pie_chart_mode') || '3d';
+let currentDistributionType = localStorage.getItem('distribution_type') || 'clients';
 let latestPieData = [0, 0, 0, 0];
 
 // WaveSurfer Instance
@@ -64,7 +88,48 @@ const audioTagBadge = document.getElementById('audioTagBadge');
 const waveLoadingText = document.getElementById('waveLoadingText');
 
 // DOM Ready
+
+/* ==========================================================================
+   SIDEBAR TOGGLE ENGINE (Collapsible Live Monitor)
+   ========================================================================== */
+window.toggleSidebar = function(forceOpen) {
+    const body = document.body;
+    let willOpen;
+    if (typeof forceOpen === 'boolean') {
+        willOpen = forceOpen;
+    } else {
+        willOpen = body.classList.contains('sidebar-collapsed');
+    }
+
+    if (willOpen) {
+        body.classList.remove('sidebar-collapsed');
+        try { localStorage.setItem('cc_sidebar_collapsed', 'false'); } catch (e) {}
+    } else {
+        body.classList.add('sidebar-collapsed');
+        try { localStorage.setItem('cc_sidebar_collapsed', 'true'); } catch (e) {}
+    }
+};
+
+function initSidebar() {
+    try {
+        const saved = localStorage.getItem('cc_sidebar_collapsed');
+        if (saved === 'true') {
+            document.body.classList.add('sidebar-collapsed');
+        } else if (saved === 'false') {
+            document.body.classList.remove('sidebar-collapsed');
+        } else {
+            // Default on desktop: open so monitor is immediately visible
+            if (window.innerWidth < 1200) {
+                document.body.classList.add('sidebar-collapsed');
+            } else {
+                document.body.classList.remove('sidebar-collapsed');
+            }
+        }
+    } catch (e) {}
+}
+
 function runInit() {
+    initSidebar();
     initDateFilter();
     initTabs();
     initCharts();
@@ -77,7 +142,10 @@ function runInit() {
     loadSyncStatus();
     loadClientContacts();
     initHeaderClock();
+    initPageElevator();
     initDeployWatcher();
+    initConverterDropzone();
+    initStatControls();
 
     // Avtomatik har 5 soniyada yangilash (foydalanuvchi bosishi shart emas)
     setInterval(() => {
@@ -257,6 +325,152 @@ function initHeaderClock() {
 }
 
 /* ==========================================================================
+   SMART PAGE ELEVATOR (LIFT) FLOATING NAVIGATION CONTROLLER
+   ========================================================================== */
+function initPageElevator() {
+    const btn = document.getElementById('pageElevatorBtn');
+    if (!btn) return;
+
+    let hideTimer = null;
+    let lastScrollTop = 0;
+    let isHovered = false;
+
+    function getActiveScrollTarget() {
+        const container = document.querySelector('.main-area') || document.querySelector('.viewer-container');
+        if (container && (container.scrollHeight - container.clientHeight > 60)) {
+            return container;
+        }
+        const docElem = document.scrollingElement || document.documentElement || document.body;
+        if (docElem && (docElem.scrollHeight - window.innerHeight > 60)) {
+            return window;
+        }
+        return container || window;
+    }
+
+    function getMetrics(target) {
+        if (target === window) {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop || 0;
+            const scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight || 0);
+            const clientHeight = window.innerHeight || 0;
+            return { scrollTop, scrollHeight, clientHeight };
+        }
+        return {
+            scrollTop: target.scrollTop || 0,
+            scrollHeight: target.scrollHeight || 0,
+            clientHeight: target.clientHeight || 0
+        };
+    }
+
+    function scheduleHide(delay = 1800) {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => {
+            if (!isHovered) {
+                btn.classList.remove('visible');
+            }
+        }, delay);
+    }
+
+    function setDirection(mode) {
+        if (mode === 'down') {
+            btn.classList.remove('mode-up');
+            btn.classList.add('mode-down');
+            btn.setAttribute('title', "Eng pastga tushish");
+            btn.setAttribute('aria-label', "Eng pastga tushish");
+        } else {
+            btn.classList.remove('mode-down');
+            btn.classList.add('mode-up');
+            btn.setAttribute('title', "Eng tepaga chiqish");
+            btn.setAttribute('aria-label', "Eng tepaga chiqish");
+        }
+    }
+
+    function handleScroll() {
+        const target = getActiveScrollTarget();
+        const { scrollTop, scrollHeight, clientHeight } = getMetrics(target);
+
+        // Sahifada skroll qilish imkoni bo'lmasa, ko'rinmaydi
+        if (scrollHeight <= clientHeight + 80) {
+            btn.classList.remove('visible');
+            return;
+        }
+
+        const delta = scrollTop - lastScrollTop;
+        const isNearTop = scrollTop <= 80;
+        const isNearBottom = scrollTop + clientHeight >= scrollHeight - 80;
+
+        // Yo'nalishni aniqlash:
+        // 1. Eng pastga yetib kelgan bo'lsa -> faqat yuqoriga (mode-up)
+        if (isNearBottom) {
+            setDirection('up');
+        }
+        // 2. Eng tepada bo'lsa -> faqat pastga (mode-down)
+        else if (isNearTop) {
+            setDirection('down');
+        }
+        // 3. Foydalanuvchi pastga qarab skroll qilyapti (delta > 3) -> pastga yo'l ko'rsatsin (mode-down)
+        else if (delta > 3) {
+            setDirection('down');
+        }
+        // 4. Foydalanuvchi tepaga qarab skroll qilyapti (delta < -3) -> tepaga yo'l ko'rsatsin (mode-up)
+        else if (delta < -3) {
+            setDirection('up');
+        }
+
+        lastScrollTop = Math.max(0, scrollTop);
+
+        // Faqat skroll qilganda paydo bo'ladi
+        btn.classList.add('visible');
+
+        // Va skroll to'xtagach sekin disappear bo'lib yo'qoladi
+        scheduleHide(1800);
+    }
+
+    btn.addEventListener('mouseenter', () => {
+        isHovered = true;
+        clearTimeout(hideTimer);
+    });
+
+    btn.addEventListener('mouseleave', () => {
+        isHovered = false;
+        scheduleHide(1200);
+    });
+
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = getActiveScrollTarget();
+        const isUp = btn.classList.contains('mode-up');
+        const { scrollHeight } = getMetrics(target);
+        const destination = isUp ? 0 : scrollHeight;
+
+        if (target === window) {
+            window.scrollTo({ top: destination, behavior: 'smooth' });
+        } else {
+            target.scrollTo({ top: destination, behavior: 'smooth' });
+        }
+
+        // Bosilgach yo'nalishni teskarisiga o'zgartirib, sekin yashiramiz
+        setDirection(isUp ? 'down' : 'up');
+        scheduleHide(1200);
+    });
+
+    const mainArea = document.querySelector('.main-area') || document.querySelector('.viewer-container');
+    if (mainArea) {
+        mainArea.addEventListener('scroll', handleScroll, { passive: true });
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // Boshida mutlaqo ko'rinmasin
+    btn.classList.remove('visible');
+    const { scrollTop, scrollHeight, clientHeight } = getMetrics(getActiveScrollTarget());
+    lastScrollTop = scrollTop;
+    if (scrollTop > (scrollHeight - clientHeight) / 2) {
+        setDirection('up');
+    } else {
+        setDirection('down');
+    }
+}
+
+/* ==========================================================================
    1. Tab Navigation & SPA Client Routing
    ========================================================================== */
 const ROUTE_MAP = {
@@ -268,7 +482,13 @@ const ROUTE_MAP = {
     '/history': 'history',
     '/clients': 'clients',
     '/customers': 'clients',
-    '/mijozlar': 'clients'
+    '/mijozlar': 'clients',
+    '/statistics': 'statistics',
+    '/statistika': 'statistics',
+    '/analytics': 'statistics',
+    '/tools': 'statistics',
+    '/converter': 'statistics',
+    '/asboblar': 'statistics'
 };
 
 function getTabTitle(tab) {
@@ -278,13 +498,15 @@ function getTabTitle(tab) {
         explorer: t('tab_explorer', 'Audio Explorer'),
         operators: t('tab_operators', 'Operatorlar'),
         history: t('tab_history', "Qo'ng'iroqlar Tarixi"),
-        clients: t('tab_clients', 'Mijozlar')
+        clients: t('tab_clients', 'Mijozlar'),
+        statistics: t('tab_statistics', 'Statistika & Tahlil'),
+        tools: t('tab_statistics', 'Statistika & Tahlil')
     };
     return (map[tab] || 'Call Center') + suffix;
 }
 
 function switchRoute(tabName, pushState = true) {
-    const validTabs = ['dashboard', 'explorer', 'operators', 'history', 'clients'];
+    const validTabs = ['dashboard', 'explorer', 'operators', 'history', 'clients', 'statistics', 'tools'];
     const target = validTabs.includes(tabName) ? tabName : (ROUTE_MAP['/' + tabName] || 'dashboard');
     document.documentElement.setAttribute('data-tab', target);
 
@@ -339,6 +561,10 @@ function switchRoute(tabName, pushState = true) {
         if (typeof loadSyncStatus === 'function') loadSyncStatus();
     } else if (target === 'clients') {
         loadClientsTab();
+    } else if (target === 'statistics' || target === 'tools') {
+        if (typeof loadStatisticsData === 'function') {
+            loadStatisticsData();
+        }
     }
 }
 
@@ -543,6 +769,7 @@ function initCharts() {
     // 2. 3D Pie Chart (Highcharts 3D) - Katta va ichini to'liq egallaydigan hajmda
     if (typeof Highcharts !== 'undefined' && document.getElementById('callDistributionChartContainer')) {
         callDistributionChart = Highcharts.chart('callDistributionChartContainer', {
+            accessibility: { enabled: false },
             chart: {
                 type: 'pie',
                 options3d: {
@@ -644,7 +871,8 @@ function initCharts() {
         }
     });
 
-    // Diagramma rejimini (2D yoki 3D) dastlabki yuklash
+    // Diagramma rejimini (2D yoki 3D) va taqsimot turini (Mijozlar yoki Qo'ng'iroqlar) dastlabki yuklash
+    setDistributionType(currentDistributionType);
     setChartMode(pieChartMode);
 }
 
@@ -695,47 +923,7 @@ function setChartMode(mode) {
             el2DBox.style.visibility = 'visible';
             el2DBox.style.zIndex = '2';
         }
-
-        const elCanvas = document.getElementById('callDistributionChart2D');
-        if (!callDistributionChart2D && elCanvas) {
-            const ctxDist = elCanvas.getContext('2d');
-            callDistributionChart2D = new Chart(ctxDist, {
-                type: 'doughnut',
-                data: {
-                    labels: [
-                        t('chart_slice_success', 'Muvaffaqiyatli'),
-                        t('chart_slice_abandoned_pending', 'Kutilmoqda'),
-                        t('chart_slice_abandoned_resolved', 'Gaplashildi'),
-                        t('chart_slice_outbound', 'Chiquvchi')
-                    ],
-                    datasets: [{
-                        data: latestPieData,
-                        backgroundColor: ['#10b981', '#f59e0b', '#38bdf8', '#a855f7'],
-                        borderColor: '#1e293b',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { color: '#94a3b8', font: { family: 'Inter' } }
-                        }
-                    }
-                }
-            });
-        } else if (callDistributionChart2D) {
-            callDistributionChart2D.data.datasets[0].data = latestPieData;
-            callDistributionChart2D.update();
-            setTimeout(() => {
-                if (callDistributionChart2D && typeof callDistributionChart2D.resize === 'function') {
-                    callDistributionChart2D.resize();
-                }
-            }, 10);
-        }
+        updateDistributionChartDisplay();
     } else {
         // 3D mode
         if (el2DBox) {
@@ -755,9 +943,233 @@ function setChartMode(mode) {
                 }
             }
         }
+        updateDistributionChartDisplay();
     }
 }
 window.setChartMode = setChartMode;
+
+/**
+ * Taqsimot turini almashtirish: 'clients' (Mijozlar) vs 'calls' (Qo'ng'iroqlar)
+ */
+function setDistributionType(type) {
+    currentDistributionType = (type === 'calls') ? 'calls' : 'clients';
+    try {
+        localStorage.setItem('distribution_type', currentDistributionType);
+    } catch (e) {}
+
+    const btnClients = document.getElementById('btnDistTypeClients');
+    const btnCalls = document.getElementById('btnDistTypeCalls');
+    const titleEl = document.getElementById('distributionChartTitle');
+
+    if (currentDistributionType === 'clients') {
+        if (btnClients) {
+            btnClients.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            btnClients.style.color = '#ffffff';
+            btnClients.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)';
+        }
+        if (btnCalls) {
+            btnCalls.style.background = 'transparent';
+            btnCalls.style.color = 'var(--text-muted, #94a3b8)';
+            btnCalls.style.boxShadow = 'none';
+        }
+        if (titleEl) {
+            titleEl.textContent = (typeof t === 'function' ? t('chart_dist_title_clients', 'Mijozlar Taqsimoti') : 'Mijozlar Taqsimoti');
+        }
+    } else {
+        if (btnCalls) {
+            btnCalls.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            btnCalls.style.color = '#ffffff';
+            btnCalls.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)';
+        }
+        if (btnClients) {
+            btnClients.style.background = 'transparent';
+            btnClients.style.color = 'var(--text-muted, #94a3b8)';
+            btnClients.style.boxShadow = 'none';
+        }
+        if (titleEl) {
+            titleEl.textContent = (typeof t === 'function' ? t('chart_dist_title_calls', "Qo'ng'iroqlar Taqsimoti") : "Qo'ng'iroqlar Taqsimoti");
+        }
+    }
+
+    updateDistributionChartDisplay();
+}
+window.setDistributionType = setDistributionType;
+
+/**
+ * 2D SVG Donut & Horizontal Legend renderer (Call Center Yangi Dizayn uslubida)
+ * @param {Array<number>} vals - [Muvaffaqiyatli, Kutilmoqda, Chiquvchi, Gaplashildi]
+ * @param {string} sublabel - 'jami mijoz' yoki 'jami qo‘ng‘iroq'
+ */
+function render2DDistribution(vals, sublabel) {
+    const vSuccess = Math.max(0, Number(vals[0]) || 0);
+    const vWait = Math.max(0, Number(vals[1]) || 0);
+    const vOutbound = Math.max(0, Number(vals[2]) || 0);
+    const vResolved = Math.max(0, Number(vals[3]) || 0);
+    const total = vSuccess + vWait + vOutbound + vResolved;
+
+    const elTotal = document.getElementById('dist2DTotal');
+    const elLabel = document.getElementById('dist2DLabel');
+    const seg1 = document.getElementById('dist2DSeg1');
+    const seg2 = document.getElementById('dist2DSeg2');
+    const seg3 = document.getElementById('dist2DSeg3');
+    const seg4 = document.getElementById('dist2DSeg4');
+
+    const pct1El = document.getElementById('dist2DPct1');
+    const val1El = document.getElementById('dist2DVal1');
+    const pct2El = document.getElementById('dist2DPct2');
+    const val2El = document.getElementById('dist2DVal2');
+    const pct3El = document.getElementById('dist2DPct3');
+    const val3El = document.getElementById('dist2DVal3');
+    const pct4El = document.getElementById('dist2DPct4');
+    const val4El = document.getElementById('dist2DVal4');
+
+    if (elTotal) elTotal.textContent = total.toLocaleString();
+    if (elLabel) elLabel.textContent = sublabel || 'jami mijoz';
+
+    if (val1El) val1El.textContent = vSuccess.toLocaleString();
+    if (val2El) val2El.textContent = vWait.toLocaleString();
+    if (val3El) val3El.textContent = vOutbound.toLocaleString();
+    if (val4El) val4El.textContent = vResolved.toLocaleString();
+
+    if (total === 0) {
+        if (pct1El) pct1El.textContent = '0.0%';
+        if (pct2El) pct2El.textContent = '0.0%';
+        if (pct3El) pct3El.textContent = '0.0%';
+        if (pct4El) pct4El.textContent = '0.0%';
+        if (seg1) { seg1.setAttribute('stroke-dasharray', '0 100'); seg1.setAttribute('stroke-dashoffset', '25'); }
+        if (seg2) { seg2.setAttribute('stroke-dasharray', '0 100'); seg2.setAttribute('stroke-dashoffset', '25'); }
+        if (seg3) { seg3.setAttribute('stroke-dasharray', '0 100'); seg3.setAttribute('stroke-dashoffset', '25'); }
+        if (seg4) { seg4.setAttribute('stroke-dasharray', '0 100'); seg4.setAttribute('stroke-dashoffset', '25'); }
+        return;
+    }
+
+    const p1 = (vSuccess / total) * 100;
+    const p2 = (vWait / total) * 100;
+    const p3 = (vOutbound / total) * 100;
+    const p4 = (vResolved / total) * 100;
+
+    if (pct1El) pct1El.textContent = p1.toFixed(1) + '%';
+    if (pct2El) pct2El.textContent = p2.toFixed(1) + '%';
+    if (pct3El) pct3El.textContent = p3.toFixed(1) + '%';
+    if (pct4El) pct4El.textContent = p4.toFixed(1) + '%';
+
+    // SVG stroke-dashoffset: 12 o'clock soat mili bo'yicha 25 dan boshlanadi
+    let currentOffset = 25;
+
+    if (seg1) {
+        seg1.setAttribute('stroke-dasharray', `${p1.toFixed(2)} ${(100 - p1).toFixed(2)}`);
+        seg1.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+        seg1.innerHTML = `<title>Muvaffaqiyatli: ${vSuccess} (${p1.toFixed(1)}%)</title>`;
+    }
+    currentOffset -= p1;
+
+    if (seg2) {
+        seg2.setAttribute('stroke-dasharray', `${p2.toFixed(2)} ${(100 - p2).toFixed(2)}`);
+        seg2.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+        seg2.innerHTML = `<title>Kutilmoqda: ${vWait} (${p2.toFixed(1)}%)</title>`;
+    }
+    currentOffset -= p2;
+
+    if (seg3) {
+        seg3.setAttribute('stroke-dasharray', `${p3.toFixed(2)} ${(100 - p3).toFixed(2)}`);
+        seg3.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+        seg3.innerHTML = `<title>Chiquvchi: ${vOutbound} (${p3.toFixed(1)}%)</title>`;
+    }
+    currentOffset -= p3;
+
+    if (seg4) {
+        seg4.setAttribute('stroke-dasharray', `${p4.toFixed(2)} ${(100 - p4).toFixed(2)}`);
+        seg4.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+        seg4.innerHTML = `<title>Gaplashildi: ${vResolved} (${p4.toFixed(1)}%)</title>`;
+    }
+}
+
+/**
+ * Taqsimot diagrammasini yangilash (2D SVG va 3D Highcharts)
+ */
+function updateDistributionChartDisplay() {
+    const stats = window._latestStats || {};
+
+    const answeredCalls = Number(stats.answeredCalls) || 0;
+    const abandonedCalls = Number(stats.abandonedCalls) || 0;
+    const outboundCalls = Number(stats.outboundCalls) || 0;
+    const abandonedPending = stats.abandonedPendingCalls !== undefined 
+        ? Number(stats.abandonedPendingCalls) 
+        : (abandonedCalls > 0 ? Math.round(abandonedCalls * 0.38) : 0);
+    const abandonedResolved = stats.abandonedResolvedCalls !== undefined 
+        ? Number(stats.abandonedResolvedCalls) 
+        : Math.max(0, abandonedCalls - abandonedPending);
+
+    // Unikal Mijozlar
+    const totalClients = stats.totalClients !== undefined ? Number(stats.totalClients) : (((Number(stats.inboundClients || stats.uniqueClients || 0)) + (Number(stats.outboundClients || 0))) || Number(stats.uniqueClients || 0));
+    const inboundClients = stats.inboundClients !== undefined ? Number(stats.inboundClients) : (stats.uniqueClients !== undefined ? Number(stats.uniqueClients) : totalClients);
+    const outboundClients = stats.outboundClients !== undefined ? Number(stats.outboundClients) : Math.min(outboundCalls, totalClients);
+    const answeredClients = stats.answeredClients !== undefined ? Number(stats.answeredClients) : Math.min(answeredCalls, inboundClients);
+
+    // Qolgan (bog'lanilmagan / navbatdan chiqqan) unikal mijozlar soni
+    const remainingClients = Math.max(0, totalClients - answeredClients - outboundClients);
+
+    // Bugungi kun bo'yicha kutilayotgan vs gaplashilgan callbacklar
+    const todayStr = getTodayDateString();
+    let todayPendingCb = 0;
+    let todayResolvedCb = 0;
+    if (Array.isArray(currentCallbacksList)) {
+        todayPendingCb = currentCallbacksList.filter(c => c.call_time && c.call_time.startsWith(todayStr) && (c.status === 'pending' || !c.status)).length;
+        todayResolvedCb = currentCallbacksList.filter(c => c.call_time && c.call_time.startsWith(todayStr) && c.status === 'resolved').length;
+    }
+
+    let clientPending = 0;
+    let clientResolved = 0;
+    if (remainingClients > 0) {
+        if (todayPendingCb + todayResolvedCb > 0) {
+            clientPending = Math.round((todayPendingCb / (todayPendingCb + todayResolvedCb)) * remainingClients);
+            clientResolved = remainingClients - clientPending;
+        } else {
+            clientPending = remainingClients;
+            clientResolved = 0;
+        }
+    }
+
+    let vals = [];
+    let sublabel = '';
+    if (currentDistributionType === 'clients') {
+        vals = [answeredClients, clientPending, outboundClients, clientResolved];
+        sublabel = 'jami mijoz';
+    } else {
+        vals = [answeredCalls, abandonedPending, outboundCalls, abandonedResolved];
+        sublabel = 'jami qo‘ng‘iroq';
+    }
+
+    latestPieData = vals;
+
+    // 1. 2D SVG Donut & Legend
+    render2DDistribution(vals, sublabel);
+
+    // 2. 3D Highcharts Pie
+    if (callDistributionChart && typeof callDistributionChart.series !== 'undefined' && callDistributionChart.series[0]) {
+        if (callDistributionChart.series[0].points) {
+            callDistributionChart.series[0].points.forEach(p => {
+                if (p && p.slice && p.sliced) p.slice(false);
+            });
+        }
+        const total = vals[0] + vals[1] + vals[2] + vals[3];
+        if (total === 0) {
+            callDistributionChart.series[0].setData([
+                { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: 1, color: '#334155', sliced: false, selected: false }
+            ]);
+        } else {
+            callDistributionChart.series[0].setData([
+                { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: vals[0], color: '#10b981', sliced: false, selected: false },
+                { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: vals[1], color: '#f59e0b', sliced: false, selected: false },
+                { name: t('chart_slice_outbound', 'Chiquvchi'), y: vals[2], color: '#a855f7', sliced: false, selected: false },
+                { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: vals[3], color: '#38bdf8', sliced: false, selected: false }
+            ], true, { duration: 500 });
+        }
+    }
+}
+window.updateCallDistributionPie = updateDistributionChartDisplay;
+window.updateDistributionChartDisplay = updateDistributionChartDisplay;
+
 
 /* ==========================================================================
    3. WebSocket Connection & Real-Time Updates
@@ -814,8 +1226,8 @@ function handleWsMessage(msg) {
         if (msg.data.conversations) renderActiveConversations(msg.data.conversations);
         if (msg.data.queues) renderQueues(msg.data.queues);
         if (msg.data.operators) renderOperators(msg.data.operators);
-        if (msg.data.callHistory) {
-            dashboardRecentCallsList = Array.isArray(msg.data.callHistory) ? [...msg.data.callHistory] : [];
+        if (msg.data.callHistory && Array.isArray(msg.data.callHistory) && msg.data.callHistory.length > 0) {
+            dashboardRecentCallsList = [...msg.data.callHistory];
             updateRecentOperatorsDataList();
             applyDashboardRecentFilters();
         }
@@ -897,6 +1309,10 @@ function handleWsMessage(msg) {
         }
     } else if (msg.type === 'agent_ota_log') {
         appendOtaLog(msg.data);
+    } else if (msg.type === 'excluded_operators_update') {
+        if (Array.isArray(msg.data)) {
+            updateExcludedOperatorIds(msg.data, true);
+        }
     } else if (msg.type === 'call_history_sync') {
         if (Array.isArray(msg.data) && msg.data.length > 0) {
             dashboardRecentCallsList = [...msg.data];
@@ -984,20 +1400,36 @@ function switchAdminCallbackDateFilter(filter) {
     const btnToday = document.getElementById('adminCbFilterToday');
     const btnAll = document.getElementById('adminCbFilterAll');
     if (btnToday && btnAll) {
-        if (filter === 'today') {
-            btnToday.style.background = 'var(--primary)';
-            btnToday.style.color = '#fff';
-            btnAll.style.background = 'transparent';
-            btnAll.style.color = 'var(--text-dim)';
-        } else {
-            btnAll.style.background = 'var(--primary)';
-            btnAll.style.color = '#fff';
-            btnToday.style.background = 'transparent';
-            btnToday.style.color = 'var(--text-dim)';
-        }
+        btnToday.classList.toggle('on', filter === 'today');
+        btnAll.classList.toggle('on', filter === 'all');
+        btnToday.style.background = '';
+        btnToday.style.color = '';
+        btnAll.style.background = '';
+        btnAll.style.color = '';
     }
     renderCallbacks(currentCallbacksList);
+    if (typeof updateCallDistributionPie === 'function') {
+        updateCallDistributionPie();
+    }
 }
+
+let adminCbResolvedTodayOnly = false;
+
+function toggleAdminCbResolvedTodayOnly(checked) {
+    if (typeof checked === 'boolean') {
+        adminCbResolvedTodayOnly = checked;
+    } else {
+        adminCbResolvedTodayOnly = !adminCbResolvedTodayOnly;
+    }
+    const input = document.getElementById('toggleAdminCbResolvedTodayOnly');
+    const slider = document.getElementById('sliderAdminCbResolvedTodayOnly');
+    const knob = document.getElementById('knobAdminCbResolvedTodayOnly');
+    if (input) input.checked = adminCbResolvedTodayOnly;
+    if (slider) slider.style.backgroundColor = adminCbResolvedTodayOnly ? '#10b981' : '#334155';
+    if (knob) knob.style.transform = adminCbResolvedTodayOnly ? 'translateX(16px)' : 'translateX(0px)';
+    renderCallbacks(currentCallbacksList);
+}
+window.toggleAdminCbResolvedTodayOnly = toggleAdminCbResolvedTodayOnly;
 
 function switchAdminCallbackTab(tab) {
     if (tab !== 'pending' && tab !== 'unreachable' && tab !== 'resolved') return;
@@ -1006,34 +1438,33 @@ function switchAdminCallbackTab(tab) {
     const btnPending = document.getElementById('adminCbTabPending');
     const btnUnreachable = document.getElementById('adminCbTabUnreachable');
     const btnResolved = document.getElementById('adminCbTabResolved');
+    const filterBar = document.getElementById('adminCbResolvedFilterBar');
+
+    if (filterBar) {
+        filterBar.style.display = (tab === 'resolved') ? 'flex' : 'none';
+        const slider = document.getElementById('sliderAdminCbResolvedTodayOnly');
+        const knob = document.getElementById('knobAdminCbResolvedTodayOnly');
+        const input = document.getElementById('toggleAdminCbResolvedTodayOnly');
+        if (input) input.checked = adminCbResolvedTodayOnly;
+        if (slider) slider.style.backgroundColor = adminCbResolvedTodayOnly ? '#10b981' : '#334155';
+        if (knob) knob.style.transform = adminCbResolvedTodayOnly ? 'translateX(16px)' : 'translateX(0px)';
+    }
 
     if (btnPending && btnUnreachable) {
-        btnPending.style.background = 'rgba(100, 116, 139, 0.15)';
-        btnPending.style.borderColor = 'rgba(100, 116, 139, 0.3)';
-        btnPending.style.color = '#94a3b8';
+        btnPending.classList.toggle('on', tab === 'pending');
+        btnUnreachable.classList.toggle('on', tab === 'unreachable');
+        if (btnResolved) btnResolved.classList.toggle('on', tab === 'resolved');
 
-        btnUnreachable.style.background = 'rgba(100, 116, 139, 0.15)';
-        btnUnreachable.style.borderColor = 'rgba(100, 116, 139, 0.3)';
-        btnUnreachable.style.color = '#94a3b8';
-
+        btnPending.style.background = '';
+        btnPending.style.borderColor = '';
+        btnPending.style.color = '';
+        btnUnreachable.style.background = '';
+        btnUnreachable.style.borderColor = '';
+        btnUnreachable.style.color = '';
         if (btnResolved) {
-            btnResolved.style.background = 'rgba(100, 116, 139, 0.15)';
-            btnResolved.style.borderColor = 'rgba(100, 116, 139, 0.3)';
-            btnResolved.style.color = '#94a3b8';
-        }
-
-        if (tab === 'pending') {
-            btnPending.style.background = 'rgba(245, 158, 11, 0.18)';
-            btnPending.style.borderColor = 'rgba(245, 158, 11, 0.45)';
-            btnPending.style.color = '#fbbf24';
-        } else if (tab === 'unreachable') {
-            btnUnreachable.style.background = 'rgba(239, 68, 68, 0.18)';
-            btnUnreachable.style.borderColor = 'rgba(239, 68, 68, 0.45)';
-            btnUnreachable.style.color = '#f87171';
-        } else if (tab === 'resolved' && btnResolved) {
-            btnResolved.style.background = 'rgba(16, 185, 129, 0.18)';
-            btnResolved.style.borderColor = 'rgba(16, 185, 129, 0.45)';
-            btnResolved.style.color = '#34d399';
+            btnResolved.style.background = '';
+            btnResolved.style.borderColor = '';
+            btnResolved.style.color = '';
         }
     }
     renderCallbacks(currentCallbacksList);
@@ -1080,10 +1511,11 @@ function renderCallbacks(callbacks) {
 
     // 1. Sana filtri (Bugun / Hammasi)
     const isTodayCallback = (c) => {
-        if (!c || !c.call_time) return false;
-        if (!c.call_time.startsWith(todayStr)) return false;
-        if (c.status === 'resolved' && c.dismissed_at && !c.dismissed_at.startsWith(todayStr)) return false;
-        return true;
+        if (!c) return false;
+        if (c.call_time && c.call_time.startsWith(todayStr)) return true;
+        // Agar "Faqat bugungi mijozlar" switch yoqilgan bo'lsa, faqat dastlabki qo'ng'iroq vaqti bugun bo'lganlar olinadi
+        if (!adminCbResolvedTodayOnly && c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(todayStr)) return true;
+        return false;
     };
 
     const dateFiltered = (adminCbDateFilter === 'today')
@@ -1093,7 +1525,20 @@ function renderCallbacks(callbacks) {
     // 2. Kategoriya bo'yicha ajratish: Kutilmoqda vs Bog'lanib bo'lmadi vs Gaplashildi
     const pendingList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0));
     const unreachableList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0);
-    const resolvedList = dateFiltered.filter(c => c.status === 'resolved');
+    // Gaplashildi (Resolved):
+    // Agar "Faqat bugungi mijozlar" switch ON bo'lsa -> faqat va faqat dastlabki qo'ng'irog'i BUGUN bo'lgan mijozlar (10 kun yoki 1 kun oldingilar chiqmaydi)
+    const resolvedList = currentCallbacksList.filter(c => {
+        if (c.status !== 'resolved') return false;
+        const timeStr = c.call_time || c.created_at || '';
+        if (adminCbResolvedTodayOnly) {
+            return timeStr.startsWith(todayStr);
+        }
+        if (adminCbDateFilter === 'today') {
+            const dismStr = c.dismissed_at || '';
+            return timeStr.startsWith(todayStr) || dismStr.startsWith(todayStr);
+        }
+        return true;
+    });
 
     const totalNeedAttention = pendingList.length + unreachableList.length;
 
@@ -1158,133 +1603,18 @@ function renderCallbacks(callbacks) {
         const isIvr = (item.source === 'ivr_non_working');
         const isUnreachable = (adminCbTab === 'unreachable');
         const isResolved = (adminCbTab === 'resolved' || item.status === 'resolved');
-        const isNewestItem = (index === 0 && (adminCbTab === 'pending' || !adminCbTab));
 
-        let badgeLabel = isIvr ? t('callback_source_ivr', 'Ish vaqti emas') : t('callback_source_abandoned', 'Navbatdan chiqdi');
-        let badgeStyle = isIvr 
-            ? 'background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);'
-            : 'background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);';
-        let badgeIcon = isIvr ? isax('moon') : isax('timer');
-
+        let statusText = isIvr ? t('callback_source_ivr', 'Ish vaqti emas') : t('callback_source_abandoned', 'Navbatdan chiqdi');
         if (isResolved) {
-            badgeLabel = "Gaplashildi";
-            badgeStyle = 'background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);';
-            badgeIcon = isax('tick-circle');
-        }
-
-        let timeDisplay = item.call_time || '';
-        if (timeDisplay.includes(' ')) {
-            const parts = timeDisplay.split(' ');
-            const dateP = parts[0];
-            const timeP = parts[1].slice(0, 5);
-            if (dateP === todayStr) {
-                timeDisplay = timeP;
-            } else {
-                timeDisplay = `${dateP.slice(5)} ${timeP}`;
-            }
-        }
-
-        let resTimeDisplay = item.updated_at || item.dismissed_at || item.call_time || '';
-        if (resTimeDisplay.includes(' ')) {
-            const parts = resTimeDisplay.split(' ');
-            resTimeDisplay = (parts[0] === todayStr) ? parts[1].slice(0, 5) : `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
-        }
-
-        const activeCall = findActiveCallForPhone(phone, item.activeCall);
-        const isActive = Boolean(activeCall);
-
-        const relTime = getAdminCallbackRelativeTime(item.call_time);
-
-        // Tartib raqami (#1, #2, #3...)
-        let orderBadge = '';
-        if (isNewestItem) {
-            orderBadge = `
-                <span style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.4)); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.6); font-size: 9.5px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.35); text-transform: uppercase;">
-                    ${isax('flash', '', 'width: 10px; height: 10px; color: #34d399;')} ${t('cb_order_newest', '#1 Eng yangi')}
-                </span>
-            `;
-        } else {
-            orderBadge = `
-                <span style="background: rgba(255, 255, 255, 0.08); color: #94a3b8; border: 1px solid rgba(255, 255, 255, 0.12); font-size: 9.5px; font-weight: 700; padding: 1px 5px; border-radius: 4px; display: inline-flex; align-items: center;">
-                    #${index + 1}
-                </span>
-            `;
-        }
-
-        let cardBorder = '';
-        if (isActive) {
-            cardBorder = 'border: 1.5px solid #10b981; border-left: 3.5px solid #10b981; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.9)); box-shadow: 0 0 14px rgba(16, 185, 129, 0.25);';
-        } else if (isResolved) {
-            cardBorder = 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(16, 185, 129, 0.25); border-left: 3px solid #10b981;';
-        } else if (isUnreachable) {
-            const outAttempts = item.outbound_attempts || 1;
-            const borderCol = outAttempts >= 3 ? '#ef4444' : (outAttempts === 2 ? '#f97316' : '#eab308');
-            cardBorder = `background: rgba(30, 41, 59, 0.75); border: 1px solid rgba(239, 68, 68, 0.25); border-left: 3px solid ${borderCol};`;
-        } else if (isNewestItem) {
-            cardBorder = 'background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(30, 41, 59, 0.85)); border: 1.5px solid rgba(16, 185, 129, 0.45); border-left: 3.5px solid #10b981; box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);';
-        } else {
-            cardBorder = `background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85)); border: 1px solid rgba(245, 158, 11, 0.28); border-left: 3px solid ${isIvr ? '#a855f7' : '#f59e0b'};`;
-        }
-
-        const titleText = isActive 
-            ? `${activeCall.operator} hozirda ushbu mijoz bilan ${activeCall.state === 'ringing' ? "bog'lanmoqda" : "gaplashmoqda"}!`
-            : "Raqamni nusxalash";
-
-        // Urinishlar belgisi
-        let retryBadge = '';
-        let lastOutboundInfo = '';
-        if (isResolved) {
-            // 1. Yo'nalish va hal bo'lish holati
-            const resType = item.resolution_type || '';
-            const disBy = item.dismissed_by || '';
-            const isOutbound = (resType === 'operator_outbound') || disBy.includes('outbound') || disBy === 'realtime_outbound_bridge';
-            const isInbound = (resType === 'client_inbound') || disBy.includes('inbound') || disBy === 'realtime_agent_connect';
-
-            let resTitle = "Aloqa o'rnatildi";
-            let resIcon = isax('tick-circle', '', 'width: 11px; height: 11px; color: #34d399;');
-            let resColor = '#34d399';
-
-            if (isOutbound) {
-                resTitle = "Operator aloqaga chiqdi";
-                resIcon = isax('call-calling', '', 'width: 11px; height: 11px; color: #10b981;');
-                resColor = '#10b981';
-            } else if (isInbound) {
-                resTitle = "Mijoz qayta bog'landi";
-                resIcon = isax('call-received', '', 'width: 11px; height: 11px; color: #38bdf8;');
-                resColor = '#38bdf8';
-            }
-
-            // 2. Operator ma'lumotini to'g'ri shakllantirish (aslo NULL chiqmasin)
             let opRaw = item.last_outbound_operator || '';
             if (opRaw === 'NULL' || opRaw === 'null' || opRaw === '\\N') opRaw = '';
-
-            const KNOWN_OPS = {
-                '101': 'Oybek',
-                '102': 'Dilnoza',
-                '103': 'Feruza',
-                '104': 'Zuhra',
-                '105': 'Shaxnoza',
-                '106': 'Gulchehra',
-                '107': 'Madina',
-                '108': 'Xurshida',
-                '109': 'Sitora',
-                '111': 'Nozima',
-                '112': 'Nargiza',
-                '113': 'Malika',
-                '114': 'Maxmudbek',
-                '115': 'Nilufar',
-                '117': 'Zarnigor',
-                '119': 'Muattar',
-                '120': 'Navruzoy'
-            };
-
             let opDisplayName = '';
             if (opRaw && !/^\d{2,4}$/.test(opRaw.trim())) {
                 opDisplayName = opRaw.trim();
             } else {
                 let ext = opRaw ? opRaw.trim() : '';
-                if (!ext && disBy) {
-                    const m = disBy.match(/(\d{2,4})/);
+                if (!ext && item.dismissed_by) {
+                    const m = item.dismissed_by.match(/(\d{2,4})/);
                     if (m) ext = m[1];
                 }
                 if (ext) {
@@ -1294,132 +1624,60 @@ function renderCallbacks(callbacks) {
                             opDisplayName = String(found.name).includes(`(${ext})`) ? found.name : `${found.name} (${ext})`;
                         }
                     }
-                    if (!opDisplayName && KNOWN_OPS[ext]) {
-                        opDisplayName = `${KNOWN_OPS[ext]} (${ext})`;
-                    }
-                    if (!opDisplayName) {
-                        opDisplayName = `Operator ${ext}`;
-                    }
+                    if (!opDisplayName) opDisplayName = `Operator ${ext}`;
                 }
             }
-
-            // Takroriy qavslarni tozalash (masalan Feruza (103) (103) -> Feruza (103))
-            if (opDisplayName) {
-                opDisplayName = opDisplayName.replace(/\((\d+)\)\s*\(\1\)/g, '($1)').replace(/\s+/g, ' ').trim();
-            }
-
-            if (!opDisplayName) {
-                opDisplayName = isInbound ? "Navbat orqali ulangan" : (isOutbound ? "Operator aloqada" : "Muvaffaqiyatli bog'langan");
-            }
-
-            lastOutboundInfo = `
-                <div style="background: rgba(15, 23, 42, 0.65); border: 1px dashed rgba(16, 185, 129, 0.28); border-radius: 6px; padding: 5px 8px; margin-top: 3px; font-size: 10px; display: flex; flex-direction: column; gap: 3px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px;">
-                            ${resIcon} Holat:
-                        </span>
-                        <span style="color: ${resColor}; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;">
-                            ${resTitle}
-                        </span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px;">
-                            ${isax('user', '', 'width: 10px; height: 10px; opacity: 0.7;')} Operator:
-                        </span>
-                        <span style="color: #38bdf8; font-weight: 600;">${opDisplayName}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim); display: inline-flex; align-items: center; gap: 4px;">
-                            ${isax('clock', '', 'width: 10px; height: 10px; opacity: 0.7;')} Dastlabki vaqt:
-                        </span>
-                        <span style="color: #94a3b8; font-weight: 500;">${timeDisplay}</span>
-                    </div>
-                </div>
-            `;
+            statusText = opDisplayName ? `${opDisplayName} · Gaplashildi` : 'Gaplashildi';
         } else if (isUnreachable) {
             const outAttempts = item.outbound_attempts || 1;
-            let retryStyle = 'background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);';
-            let retryIcon = isax('warning-2', '', 'width: 11px; height: 11px;');
-            if (outAttempts === 2) {
-                retryStyle = 'background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4);';
-                retryIcon = isax('warning-2', '', 'width: 11px; height: 11px;');
-            } else if (outAttempts >= 3) {
-                retryStyle = 'background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);';
-                retryIcon = isax('close-circle', '', 'width: 11px; height: 11px;');
-            }
-
-            retryBadge = `
-                <span style="padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9.5px; ${retryStyle}">
-                    ${retryIcon} ${outAttempts} marta urinildi
-                </span>
-            `;
-
-            let outTimeDisplay = item.last_outbound_time || '';
-            if (outTimeDisplay.includes(' ')) {
-                const parts = outTimeDisplay.split(' ');
-                outTimeDisplay = (parts[0] === todayStr) ? parts[1].slice(0, 5) : `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
-            }
-
-            lastOutboundInfo = `
-                <div style="background: rgba(15, 23, 42, 0.6); border: 1px dashed rgba(255, 255, 255, 0.1); border-radius: 5px; padding: 4px 7px; margin-top: 2px; font-size: 10px; display: flex; flex-direction: column; gap: 2px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim);">Operator:</span>
-                        <span style="color: #38bdf8; font-weight: 600;">${item.last_outbound_operator || 'Operator'}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim);">Urinish:</span>
-                        <span style="color: #f1f5f9; font-weight: 600;">${outTimeDisplay || timeDisplay}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--text-dim);">Natija:</span>
-                        <span style="color: #fb7185; font-weight: 600;">${item.last_outbound_cause || 'Javob bermadi'}</span>
-                    </div>
-                </div>
-            `;
+            statusText = `Ulanilmadi (${outAttempts} marta)`;
         }
 
+        let timeDisplay = item.call_time || '';
+        if (timeDisplay.includes(' ')) {
+            const parts = timeDisplay.split(' ');
+            const dateP = parts[0];
+            const timeP = parts[1].slice(0, 5);
+            timeDisplay = (dateP === todayStr) ? timeP : `${dateP.slice(5)} ${timeP}`;
+        }
+        if (isResolved) {
+            let resTimeDisplay = item.updated_at || item.dismissed_at || item.call_time || '';
+            if (resTimeDisplay.includes(' ')) {
+                const parts = resTimeDisplay.split(' ');
+                timeDisplay = (parts[0] === todayStr) ? parts[1].slice(0, 5) : `${parts[0].slice(5)} ${parts[1].slice(0, 5)}`;
+            }
+        }
+
+        const activeCall = findActiveCallForPhone(phone, item.activeCall);
+        const isActive = Boolean(activeCall);
+
+        const relTime = getAdminCallbackRelativeTime(item.call_time);
+
+        const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
+        const attemptsCount = (adminCbDateFilter === 'today' || isToday)
+            ? (Number(item.today_attempts) || (isToday ? Number(item.attempts_count) || 1 : 1))
+            : (Number(item.attempts_count || item.today_attempts) || 1);
+        const attemptBadge = attemptsCount > 1
+            ? `<span class="cc-tag cc-tag-miss">${attemptsCount} marta</span>`
+            : '';
+
         html += `
-            <div class="callback-card ${isActive ? 'callback-card-talking' : ''}" id="cb-card-${item.id}" style="${cardBorder} border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative;" title="${titleText}">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 5px;">
-                    <div style="display: flex; align-items: center; gap: 5px; cursor: pointer;" onclick="copyCallbackPhone('${phone}', this)" title="Raqamni nusxalash">
-                        ${orderBadge}
-                        <span style="font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.3px;">${formattedPhone}</span>
-                        ${!isActive ? (retryBadge || `<span style="font-size: 10px; opacity: 0.6; display: inline-flex;">${isax('clipboard-text', '', 'width: 11px; height: 11px;')}</span>`) : ''}
+            <div class="cc-cb callback-card ${isActive ? 'callback-card-talking' : ''}" id="cb-card-${item.id}" onclick="copyCallbackPhone('${phone}', this, event)" title="Raqamni nusxalash: ${formattedPhone}">
+                <div class="cc-cb-left">
+                    <div class="cc-cb-num">
+                        ${formattedPhone}
+                        ${attemptBadge}
+                        ${isActive ? `<span class="cc-tag cc-tag-ok" style="font-size: 11px; padding: 1px 7px;">${activeCall.operator}</span>` : ''}
                     </div>
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        ${isActive ? `
-                            <div class="callback-active-badge" title="${activeCall.operator} ${activeCall.stateLabel}">
-                                <img src="/img/calling-green.png" alt="Calling" />
-                                <span>${activeCall.operator}</span>
-                            </div>
-                        ` : ''}
-                        <button type="button" class="btn-cb-delete" onclick="deleteCallback(${item.id}, event)" title="${t('dyn_delete', 'O\'chirish')}" style="background: transparent; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px 5px; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.color='#ef4444'; this.style.background='rgba(239, 68, 68, 0.15)'" onmouseout="this.style.color='#94a3b8'; this.style.background='transparent'">
-                            ${isax('close', '', 'width: 12px; height: 12px;')}
-                        </button>
-                    </div>
+                    <div class="cc-cb-sub">${isActive ? (activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda...") : statusText}</div>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10.5px; margin-top: 1px;">
-                    <span style="padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; ${badgeStyle}">
-                        ${badgeIcon} ${badgeLabel}
-                    </span>
-                    <div style="display: flex; align-items: center; gap: 4px; color: var(--text-dim); font-size: 10.5px;">
-                        <span style="display: inline-flex; align-items: center; gap: 3px;">
-                            ${isax('clock', '', 'width: 11px; height: 11px; opacity: 0.7;')}
-                            ${isResolved ? resTimeDisplay : timeDisplay}
-                            ${relTime && !isResolved ? `<strong style="color: ${isNewestItem ? '#34d399' : '#cbd5e1'}; font-weight: 600; margin-left: 2px;">(${relTime})</strong>` : ''}
-                        </span>
-                    </div>
+                <div class="cc-cb-time">
+                    <div>${timeDisplay}</div>
+                    ${relTime ? `<div class="cc-cb-rel">${relTime}</div>` : ''}
                 </div>
-                ${lastOutboundInfo}
-                ${isActive ? `
-                    <div class="callback-active-subrow">
-                        <div style="display: flex; align-items: center; gap: 4px;">
-                            <span class="active-dot"></span>
-                            <span>${activeCall.operator}</span>
-                        </div>
-                        <span style="color: #a7f3d0; font-weight: 500; font-size: 9.5px;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
-                    </div>
-                ` : ''}
+                <button type="button" class="cc-cb-del" onclick="event.stopPropagation(); deleteCallback(${item.id}, event)" title="${t('dyn_delete', 'O\'chirish')}">
+                    ${isax('close', '', 'width: 12px; height: 12px;')}
+                </button>
             </div>
         `;
     }
@@ -1592,24 +1850,93 @@ async function syncCallbacksManually() {
     }
 }
 
-function copyCallbackPhone(phone, el) {
+function showToast(message, type = 'info') {
+    if (typeof document === 'undefined') return;
+    let container = document.getElementById('globalToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'globalToastContainer';
+        container.style.cssText = `
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    const borderCol = type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#6c8cff');
+    toast.style.cssText = `
+        background: #17212f;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-left: 4px solid ${borderCol};
+        color: #e8edf5;
+        padding: 9px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: 'Schibsted Grotesk', system-ui, sans-serif;
+    `;
+    toast.innerHTML = `<span style="color: ${borderCol}; font-size: 14px; font-weight: 700;">✓</span> <span>${message}</span>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 250);
+    }, 2400);
+}
+if (typeof window !== 'undefined') {
+    window.showToast = showToast;
+}
+
+function copyCallbackPhone(phone, el, event) {
+    if (event) {
+        if (event.target && event.target.closest && event.target.closest('.cc-cb-del, .cc-ic-btn, .btn-action')) return;
+        event.stopPropagation();
+    }
     if (!phone) return;
 
+    const cleanNum = String(phone).trim();
+
     const onSuccess = () => {
-        if (typeof showToast === 'function') showToast(`${phone} nusxalandi!`, 'info');
+        showToast(`Raqam nusxalandi: ${cleanNum}`, 'success');
         if (el) {
-            const orig = el.innerHTML;
-            el.innerHTML = `<span style="font-size: 11px; color: #10b981; font-weight: 700;">✓ Nusxalandi</span>`;
-            setTimeout(() => { el.innerHTML = orig; }, 1200);
+            el.style.transition = 'transform 0.15s ease, background 0.15s ease';
+            el.style.transform = 'scale(0.98)';
+            const origBg = el.style.background;
+            el.style.background = 'rgba(44, 196, 174, 0.15)';
+            setTimeout(() => {
+                el.style.transform = 'none';
+                el.style.background = origBg;
+            }, 250);
         }
     };
 
     // 1-usul: modern Clipboard API (faqat HTTPS yoki localhost'da mavjud)
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(phone).then(onSuccess).catch(() => fallbackCopyCallbackPhone(phone, onSuccess));
+    if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cleanNum).then(onSuccess).catch(() => fallbackCopyCallbackPhone(cleanNum, onSuccess));
         return;
     }
-    fallbackCopyCallbackPhone(phone, onSuccess);
+    fallbackCopyCallbackPhone(cleanNum, onSuccess);
+}
+if (typeof window !== 'undefined') {
+    window.copyCallbackPhone = copyCallbackPhone;
 }
 
 // Clipboard API ishlamasa (HTTP orqali ochilganda) — eski usul: vaqtinchalik textarea + execCommand('copy')
@@ -1627,10 +1954,10 @@ function fallbackCopyCallbackPhone(phone, onSuccess) {
         if (ok) {
             onSuccess();
         } else {
-            window.prompt('Brauzer ruxsat bermadi. Raqamni qo\'lda nusxalang:', phone);
+            showToast(`Raqam: ${phone}`, 'info');
         }
     } catch (e) {
-        window.prompt('Brauzer ruxsat bermadi. Raqamni qo\'lda nusxalang:', phone);   
+        showToast(`Raqam: ${phone}`, 'info');
     }
 }
 
@@ -1710,6 +2037,86 @@ function updateSftpStatus(connected) {
     }
 }
 
+
+/* ==========================================================================
+   MIJOZLAR KPI VA 5-TALIK SWITCHER BOSHQARUVI
+   ========================================================================== */
+let currentClientKpiType = 'all';
+
+function setClientKpiSwitch(type, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+    currentClientKpiType = type || 'all';
+
+    const btns = document.querySelectorAll('.client-switch-btn');
+    btns.forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-type') === currentClientKpiType);
+    });
+
+    updateClientKpiCardDisplay();
+}
+window.setClientKpiSwitch = setClientKpiSwitch;
+
+function updateClientKpiCardDisplay() {
+    const clientsData = window._lastStatsClients || {
+        all: 0,
+        inbound: 0,
+        outbound: 0,
+        missed: 0,
+        abandoned: 0
+    };
+
+    const countEl = document.getElementById('kpiUniqueClients');
+    const labelEl = document.getElementById('kpiClientTypeLabel');
+    const badgeEl = document.getElementById('kpiClientTypeBadge');
+
+    let count = 0;
+    let label = (typeof t === 'function') ? t('kpi_abandoned_clients', 'Mijozlar Soni') : 'Mijozlar Soni';
+    let badge = 'Jami';
+
+    switch (currentClientKpiType) {
+        case 'inbound':
+            count = clientsData.inbound;
+            label = (typeof t === 'function') ? t('kpi_inbound_clients', 'Kiruvchi Mijozlar') : 'Kiruvchi Mijozlar';
+            badge = 'Kiruvchi';
+            break;
+        case 'outbound':
+            count = clientsData.outbound;
+            label = (typeof t === 'function') ? t('kpi_outbound_clients', 'Chiquvchi Mijozlar') : 'Chiquvchi Mijozlar';
+            badge = 'Chiquvchi';
+            break;
+        case 'missed':
+            count = clientsData.missed;
+            label = (typeof t === 'function') ? t('kpi_missed_clients', "O'tkazilgan Mijozlar") : "O'tkazilgan Mijozlar";
+            badge = "O'tkazilgan";
+            break;
+        case 'abandoned':
+            count = clientsData.abandoned;
+            label = (typeof t === 'function') ? t('kpi_abandoned_clients_tab', 'Navbatdan Chiqqanlar') : 'Navbatdan Chiqqanlar';
+            badge = 'Navbatdan';
+            break;
+        case 'all':
+        default:
+            count = clientsData.all;
+            label = (typeof t === 'function') ? t('kpi_abandoned_clients', 'Mijozlar Soni') : 'Mijozlar Soni';
+            badge = 'Jami';
+            break;
+    }
+
+    if (countEl) countEl.innerText = count;
+    if (labelEl) labelEl.innerText = label;
+    if (badgeEl) badgeEl.innerText = badge;
+}
+window.updateClientKpiCardDisplay = updateClientKpiCardDisplay;
+
+function openClientDirectoryModal() {
+    if (typeof switchRoute === 'function') {
+        switchRoute('clients', true);
+    }
+}
+window.openClientDirectoryModal = openClientDirectoryModal;
+
 function updateStatsUI(stats) {
     if (!stats) return;
     
@@ -1755,6 +2162,41 @@ function updateStatsUI(stats) {
     const kpiQueue = document.getElementById('kpiQueueWaiting');
     if (kpiQueue) kpiQueue.innerText = queueWaiting;
 
+    // Unikal Mijozlar hisob-kitobi (har bir KPI karta tagidagi "Mijozlar: N ta")
+    const totalClients = stats.totalClients !== undefined ? stats.totalClients : (((stats.inboundClients || stats.uniqueClients || 0) + (stats.outboundClients || 0)) || stats.uniqueClients || 0);
+    const inboundClients = stats.inboundClients !== undefined ? stats.inboundClients : (stats.uniqueClients !== undefined ? stats.uniqueClients : totalClients);
+    const outboundClients = stats.outboundClients !== undefined ? stats.outboundClients : (stats.outboundCalls !== undefined ? stats.outboundCalls : 0);
+    const answeredClients = stats.answeredClients !== undefined ? stats.answeredClients : Math.min(answeredCalls, inboundClients);
+    const abandonedClients = stats.totalAbandonedClients !== undefined ? stats.totalAbandonedClients : (stats.abandonedCalls !== undefined ? stats.abandonedCalls : 0);
+    const missedClients = stats.missedClients !== undefined ? stats.missedClients : (stats.missedCalls !== undefined ? stats.missedCalls : 0);
+
+    const elTotalClients = document.getElementById('kpiTotalClientsCount');
+    const elInboundClients = document.getElementById('kpiInboundClientsCount');
+    const elOutboundClients = document.getElementById('kpiOutboundClientsCount');
+    const elAnsweredClients = document.getElementById('kpiAnsweredClientsCount');
+    const elAbandonedClients = document.getElementById('kpiAbandonedClientsCount');
+    const elMissedClients = document.getElementById('kpiMissedClientsCount');
+
+    if (elTotalClients) elTotalClients.innerText = totalClients;
+    if (elInboundClients) elInboundClients.innerText = inboundClients;
+    if (elOutboundClients) elOutboundClients.innerText = outboundClients;
+    if (elAnsweredClients) elAnsweredClients.innerText = answeredClients;
+    if (elAbandonedClients) elAbandonedClients.innerText = abandonedClients;
+    if (elMissedClients) elMissedClients.innerText = missedClients;
+
+    // 8-karta: Mijozlar Soni (5-talik Switcher: J, K, CH, O', N)
+    window._lastStatsClients = {
+        all: totalClients,
+        inbound: inboundClients,
+        outbound: outboundClients,
+        missed: missedClients,
+        abandoned: abandonedClients
+    };
+    if (typeof updateClientKpiCardDisplay === 'function') {
+        updateClientKpiCardDisplay();
+    }
+
+
     // Real-time Hourly Chart yangilash (08:00 - 21:00)
     if (stats.hourlyChart && callVolumeChart) {
         callVolumeChart.data.labels = stats.hourlyChart.labels;
@@ -1771,36 +2213,9 @@ function updateStatsUI(stats) {
         ? stats.abandonedResolvedCalls 
         : (abandonedCalls - abandonedPending);
 
-    // Taqsimot ma'lumotlarini saqlash
-    latestPieData = [answeredCalls, abandonedPending, abandonedResolved, outboundCalls];
-
-    // Update 3D Pie Chart (Highcharts 3D)
-    if (callDistributionChart && typeof callDistributionChart.series !== 'undefined' && callDistributionChart.series[0]) {
-        if (callDistributionChart.series[0].points) {
-            callDistributionChart.series[0].points.forEach(p => {
-                if (p && p.slice && p.sliced) p.slice(false);
-            });
-        }
-        const total = answeredCalls + abandonedPending + abandonedResolved + outboundCalls;
-        if (total === 0) {
-            callDistributionChart.series[0].setData([
-                { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: 1, color: '#334155', sliced: false, selected: false }
-            ]);
-        } else {
-            callDistributionChart.series[0].setData([
-                { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: answeredCalls, color: '#10b981', sliced: false, selected: false },
-                { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: abandonedPending, color: '#f59e0b', sliced: false, selected: false },
-                { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: abandonedResolved, color: '#38bdf8', sliced: false, selected: false },
-                { name: t('chart_slice_outbound', 'Chiquvchi'), y: outboundCalls, color: '#a855f7', sliced: false, selected: false }
-            ], true, { duration: 600 });
-        }
-    }
-
-    // Update 2D Donut Chart (Chart.js)
-    if (callDistributionChart2D && callDistributionChart2D.data && callDistributionChart2D.data.datasets[0]) {
-        callDistributionChart2D.data.datasets[0].data = [answeredCalls, abandonedPending, abandonedResolved, outboundCalls];
-        callDistributionChart2D.update();
-    }
+    // Stats va taqsimot ma'lumotlarini saqlash va yangilash
+    window._latestStats = stats;
+    updateDistributionChartDisplay();
 }
 
 // Background Auto-Refresh Polling — faqat WebSocket uzilib qolgan holatlar uchun zaxira (fallback).
@@ -1888,13 +2303,19 @@ function updatePlayerPlayState(isPlaying) {
     const subtitle = document.getElementById('playerStatusSubtitle');
 
     if (isPlaying) {
-        if (playerEl) playerEl.classList.add('is-playing');
+        if (playerEl) {
+            playerEl.classList.add('is-playing');
+            playerEl.classList.add('playing');
+        }
         if (iconPlay) iconPlay.style.display = 'none';
         if (iconPause) iconPause.style.display = 'block';
         if (subtitle) subtitle.innerText = 'Ijro etilmoqda...';
         pausedCallKey = null;
     } else {
-        if (playerEl) playerEl.classList.remove('is-playing');
+        if (playerEl) {
+            playerEl.classList.remove('is-playing');
+            playerEl.classList.remove('playing');
+        }
         if (iconPlay) iconPlay.style.display = 'block';
         if (iconPause) iconPause.style.display = 'none';
         if (subtitle && activeAudioFileName) subtitle.innerText = 'To\x27xtatildi (Pauza)';
@@ -1954,6 +2375,7 @@ function initWaveSurfer() {
         btnLoop.addEventListener('click', () => {
             isAudioLooped = !isAudioLooped;
             btnLoop.classList.toggle('active', isAudioLooped);
+            btnLoop.setAttribute('aria-pressed', isAudioLooped ? 'true' : 'false');
             getNativeAudio().loop = isAudioLooped;
         });
     }
@@ -2003,8 +2425,12 @@ function initWaveSurfer() {
     const speedPills = document.querySelectorAll('.speed-pill');
     speedPills.forEach(pill => {
         pill.addEventListener('click', () => {
-            speedPills.forEach(p => p.classList.remove('active'));
+            speedPills.forEach(p => {
+                p.classList.remove('active');
+                p.setAttribute('aria-pressed', 'false');
+            });
             pill.classList.add('active');
+            pill.setAttribute('aria-pressed', 'true');
             const rate = parseFloat(pill.getAttribute('data-rate'));
             const aud = getNativeAudio();
             aud.playbackRate = rate;
@@ -2012,18 +2438,41 @@ function initWaveSurfer() {
         });
     });
 
+function downloadCurrentPlayerAudio() {
+    const file = activeAudioFilePath;
+    if (!file) return;
+    const a = document.createElement('a');
+    a.href = `/api/recordings/stream?file=${encodeURIComponent(file)}&download=1`;
+    
+    let rawName = '';
+    if (file) {
+        rawName = file.split('/').pop().split('\\').pop();
+    }
+    if (!rawName || !rawName.includes('.')) {
+        const cleanTitle = (activeAudioFileName || '')
+            .replace(/<[^>]*>/g, '')
+            .replace(/[^\w\s\(\)\-\.]/gi, '_')
+            .replace(/\s+/g, ' ')
+            .trim();
+        rawName = cleanTitle || 'recording.wav';
+    }
+    if (!rawName.endsWith('.wav') && !rawName.endsWith('.mp3') && !rawName.endsWith('.ogg')) {
+        rawName += '.wav';
+    }
+    
+    a.download = rawName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        if (a.parentNode) document.body.removeChild(a);
+    }, 150);
+}
+window.downloadCurrentPlayerAudio = downloadCurrentPlayerAudio;
+
     // Download Button in player
     const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
     if (btnDownloadCurrent) {
-        btnDownloadCurrent.addEventListener('click', () => {
-            if (!activeAudioFilePath) return;
-            const a = document.createElement('a');
-            a.href = `/api/recordings/stream?file=${encodeURIComponent(activeAudioFilePath)}`;
-            a.download = activeAudioFileName || 'recording.wav';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        });
+        btnDownloadCurrent.onclick = downloadCurrentPlayerAudio;
     }
 
     // Audio klaviatura boshqaruvi (ArrowLeft/ArrowRight skip, Space play/pause)
@@ -2618,151 +3067,195 @@ function closeAudioPlayer() {
 }
 
 /**
- * Visualizer Waveform Canvas: 100% ishonchli, darhol ishga tushadigan interaktiv to'lqin
+ * Visualizer Waveform Canvas: 100% ishonchli, ikki suhbatdoshli (Operator & Mijoz) interaktiv to'lqin
  */
 function renderInteractiveWaveform(audio, fileName, sizeBytes) {
     const waveContainer = document.getElementById('waveform');
     if (!waveContainer) return;
 
-    waveContainer.innerHTML = '';
-    const canvas = document.createElement('canvas');
-    canvas.className = 'waveform-interactive-canvas';
+    let canvas = document.getElementById('cv');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'cv';
+        canvas.tabIndex = 0;
+        canvas.role = 'slider';
+        canvas.setAttribute('aria-label', "Yozuv vaqti");
+        waveContainer.appendChild(canvas);
+    }
     canvas.style.width = '100%';
-    canvas.style.height = '86px';
-    canvas.style.cursor = 'pointer';
+    canvas.style.height = '150px';
     canvas.style.display = 'block';
-    waveContainer.appendChild(canvas);
-
-    // Canvas o'lchamlari
-    const rect = waveContainer.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const width = Math.max(300, rect.width || waveContainer.clientWidth || 800);
-    const height = 86;
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
+    canvas.style.cursor = 'pointer';
+    canvas.style.touchAction = 'none';
 
     const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
+    const N = 220;
 
-    const barWidth = 3;
-    const barGap = 2;
-    const totalBarWidth = barWidth + barGap;
-    const barCount = Math.floor(width / totalBarWidth);
-
-    // Fayl nomi va hajmiga asoslangan organik nutq to'lqini
-    let seed = 0;
-    for (let i = 0; i < fileName.length; i++) {
-        seed = (seed * 31 + fileName.charCodeAt(i)) & 0xFFFFFFFF;
+    // Fayl nomi va hajmiga asoslangan organik nutq to'lqini va suhbatdosh navbatlari (two-speaker dialog)
+    let seed = 7;
+    const strForSeed = (fileName || '') + '_' + (sizeBytes || 0);
+    for (let sIdx = 0; sIdx < strForSeed.length; sIdx++) {
+        seed = ((seed * 31 + strForSeed.charCodeAt(sIdx)) % 2147483647) || 7;
     }
-    if (sizeBytes) seed = (seed ^ sizeBytes) & 0xFFFFFFFF;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
-    function pseudoRandom() {
-        seed = (seed * 1664525 + 1013904223) & 0xFFFFFFFF;
-        return (seed >>> 0) / 4294967296;
+    const amp = new Float32Array(N);
+    const who = new Uint8Array(N);
+    let i = 0, w = 0;
+    while (i < N) {
+        const len = Math.floor(8 + rnd() * 22);
+        const gap = Math.floor(rnd() * 4);
+        for (let k = 0; k < len && i < N; k++, i++) {
+            who[i] = w;
+            amp[i] = 0.25 + rnd() * 0.75 * (0.6 + 0.4 * Math.sin(k / 2.2));
+        }
+        for (let k = 0; k < gap && i < N; k++, i++) {
+            who[i] = 2; // gap/silence
+            amp[i] = 0.04;
+        }
+        w = 1 - w; // operator <-> mijoz
     }
 
-    currentWaveBars = [];
-    let prevHeight = 0.35;
-    for (let i = 0; i < barCount; i++) {
-        const raw = pseudoRandom();
-        const speechEnvelope = 0.25 + 0.65 * Math.sin((i / barCount) * Math.PI * 4.5);
-        let h = (prevHeight * 0.45 + raw * 0.55) * Math.abs(speechEnvelope);
-        h = Math.max(0.08, Math.min(0.95, h));
-        prevHeight = h;
-        currentWaveBars.push(h);
-    }
+    const cssProp = (prop, fallback) => {
+        const playerCard = document.getElementById('modernMusicPlayer');
+        return (playerCard ? getComputedStyle(playerCard).getPropertyValue(prop).trim() : '') ||
+               getComputedStyle(document.documentElement).getPropertyValue(prop).trim() ||
+               fallback;
+    };
+
+    let hover = null;
+    let drag = false;
+    const tipEl = document.getElementById('audioWaveTip');
 
     function drawWave() {
-        ctx.clearRect(0, 0, width, height);
+        const r = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const targetW = Math.round(r.width * dpr);
+        const targetH = Math.round(r.height * dpr);
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+        }
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, r.width, r.height);
 
         const curTime = audio.currentTime || 0;
         const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
             ? audio.duration
             : Math.max(1, (sizeBytes - 44) / 16000);
 
-        // Tepada boshi va oxiri vaqtlarini yangilash
-        const waveRulerStart = document.getElementById('waveRulerStart');
-        if (waveRulerStart) waveRulerStart.innerText = '00:00';
-        const waveRulerEnd = document.getElementById('waveRulerEnd');
-        if (waveRulerEnd && totalDur > 0) {
-            waveRulerEnd.innerText = formatDuration(totalDur);
-        }
-        
-        const progress = Math.max(0, Math.min(1, curTime / totalDur));
-        const playedIndex = Math.floor(progress * barCount);
-        const midY = 32;
+        const w = r.width;
+        const h = r.height || 150;
+        const mid = h / 2;
+        const bw = w / N;
+        const cOp = cssProp('--op', '#3ea6ff');
+        const cCl = cssProp('--cl', '#c58bff');
+        const dim = cssProp('--dim', '#2a3858');
+        const head = cssProp('--head', '#ffffff');
+        const px = Math.max(0, Math.min(w, (curTime / totalDur) * w));
 
-        for (let i = 0; i < barCount; i++) {
-            const x = i * totalBarWidth;
-            const barH = Math.max(4, currentWaveBars[i] * 54);
-            const y = midY - barH / 2;
-
-            const isPlayed = i <= playedIndex;
-            ctx.fillStyle = isPlayed ? '#38bdf8' : '#334155';
-
+        for (let idx = 0; idx < N; idx++) {
+            const x = idx * bw;
+            const a = amp[idx] * (h / 2 - 6);
+            const played = (x + bw / 2) <= px;
+            ctx.fillStyle = who[idx] === 0 ? (played ? cOp : dim) : who[idx] === 1 ? (played ? cCl : dim) : dim;
             ctx.beginPath();
             if (ctx.roundRect) {
-                ctx.roundRect(x, y, barWidth, barH, 1.5);
+                ctx.roundRect(x + 1, mid - a, Math.max(bw - 2, 1), a * 2 || 1, 1.5);
             } else {
-                ctx.rect(x, y, barWidth, barH);
+                ctx.rect(x + 1, mid - a, Math.max(bw - 2, 1), a * 2 || 1);
             }
             ctx.fill();
         }
 
-        // Ko'rsatkich (cursor chizig'i)
-        const cursorX = Math.max(1, Math.min(width - 2, progress * width));
-        ctx.fillStyle = '#818cf8';
-        ctx.fillRect(cursorX - 0.75, 0, 1.5, 64);
-
-        // Vertikal chiziq tagida joriy vaqt (current time badge)
-        const curTimeStr = formatDuration(curTime);
-        const badgeW = curTimeStr.length > 5 ? 56 : 42;
-        const badgeH = 17;
-        const badgeY = 66;
-        const badgeX = Math.max(2, Math.min(width - badgeW - 2, cursorX - badgeW / 2));
-
-        ctx.save();
-        ctx.fillStyle = '#0f172a';
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth = 1;
-
+        // Playhead cursor line
+        ctx.fillStyle = head;
+        ctx.fillRect(px - 1, 0, 2, h);
+        // Playhead center handle
         ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
-        } else {
-            ctx.rect(badgeX, badgeY, badgeW, badgeH);
+        ctx.arc(px, mid, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hover vertical line
+        if (hover !== null) {
+            ctx.fillStyle = 'rgba(128, 140, 170, 0.7)';
+            ctx.fillRect(hover, 0, 1, h);
         }
-        ctx.fill();
-        ctx.stroke();
 
-        // Kichik ko'rsatkich nuqtasi
-        ctx.fillStyle = '#818cf8';
-        ctx.beginPath();
-        ctx.arc(cursorX, 64, 2, 0, Math.PI * 2);
-        ctx.fill();
+        if (playerCurrentTime) playerCurrentTime.textContent = formatDuration(curTime);
+        if (playerDuration && totalDur > 0) playerDuration.textContent = formatDuration(totalDur);
 
-        // Joriy vaqt matni
-        ctx.font = 'bold 10px monospace';
-        ctx.fillStyle = '#38bdf8';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(curTimeStr, badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
-        ctx.restore();
+        canvas.setAttribute('aria-valuenow', Math.floor(curTime));
+        canvas.setAttribute('aria-valuemax', Math.floor(totalDur));
+        canvas.setAttribute('aria-valuetext', formatDuration(curTime));
     }
 
     drawWave();
 
-    // To'lqinni bosganda o'sha soniyaga sakrash (Seek)
-    canvas.onclick = (e) => {
-        const clickRect = canvas.getBoundingClientRect();
-        const clickX = e.clientX - clickRect.left;
-        const ratio = Math.max(0, Math.min(1, clickX / clickRect.width));
+    const relX = (e) => {
+        const r = canvas.getBoundingClientRect();
+        return Math.min(r.width, Math.max(0, e.clientX - r.left));
+    };
+
+    const seekToX = (x) => {
+        const r = canvas.getBoundingClientRect();
         const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
             ? audio.duration
-            : (sizeBytes - 44) / 16000;
-        if (totalDur > 0) {
-            audio.currentTime = ratio * totalDur;
+            : Math.max(1, (sizeBytes - 44) / 16000);
+        if (totalDur > 0 && r.width > 0) {
+            const targetTime = Math.min(totalDur, Math.max(0, (x / r.width) * totalDur));
+            audio.currentTime = targetTime;
             drawWave();
+        }
+    };
+
+    canvas.onpointerdown = (e) => {
+        drag = true;
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        seekToX(relX(e));
+    };
+
+    canvas.onpointermove = (e) => {
+        const x = relX(e);
+        hover = x;
+        const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
+            ? audio.duration
+            : Math.max(1, (sizeBytes - 44) / 16000);
+        if (tipEl) {
+            tipEl.style.opacity = '1';
+            tipEl.style.left = (x + 16) + 'px';
+            tipEl.textContent = formatDuration((x / canvas.clientWidth) * totalDur);
+        }
+        if (drag) {
+            seekToX(x);
+        } else {
+            drawWave();
+        }
+    };
+
+    canvas.onpointerup = () => { drag = false; };
+    canvas.onpointercancel = () => { drag = false; };
+    canvas.onpointerleave = () => {
+        hover = null;
+        if (tipEl) tipEl.style.opacity = '0';
+        drawWave();
+    };
+
+    canvas.onkeydown = (e) => {
+        const totalDur = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
+            ? audio.duration
+            : Math.max(1, (sizeBytes - 44) / 16000);
+        if (e.key === 'ArrowRight') {
+            audio.currentTime = Math.min(totalDur, audio.currentTime + 5);
+            drawWave();
+        } else if (e.key === 'ArrowLeft') {
+            audio.currentTime = Math.max(0, audio.currentTime - 5);
+            drawWave();
+        } else if (e.key === ' ') {
+            e.preventDefault();
+            if (audio.paused) audio.play().catch(() => {});
+            else audio.pause();
         }
     };
 
@@ -2771,7 +3264,7 @@ function renderInteractiveWaveform(audio, fileName, sizeBytes) {
     }
     fallbackWaveAnim = setInterval(() => {
         drawWave();
-    }, 60);
+    }, 50);
 }
 
 function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
@@ -2819,15 +3312,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
     if (btnDownloadCurrent) {
         btnDownloadCurrent.style.display = 'inline-flex';
-        btnDownloadCurrent.onclick = () => {
-            const a = document.createElement('a');
-            a.href = `/api/recordings/stream?file=${encodeURIComponent(filePath)}`;
-            const rawName = filePath ? filePath.split('/').pop().split('\\').pop() : (fileName ? fileName.replace(/<[^>]*>/g, '').trim() : 'audio.wav');
-            a.download = rawName.endsWith('.wav') ? rawName : (rawName ? rawName + '.wav' : 'audio.wav');
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        };
+        btnDownloadCurrent.onclick = downloadCurrentPlayerAudio;
     }
 
     // 2. Davomiylikni DARHOL hisoblab chiqarish (Asterisk 8kHz 16-bit mono WAV = 16,000 bayt/soniya)
@@ -2992,19 +3477,13 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
             playerDuration.innerText = formatDuration(realDuration);
         }
 
-        const recToDownload = resolvedRec || activeAudioFilePath;
+        if (resolvedRec) {
+            activeAudioFilePath = resolvedRec;
+        }
         const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
-        if (btnDownloadCurrent && recToDownload) {
+        if (btnDownloadCurrent && activeAudioFilePath) {
             btnDownloadCurrent.style.display = 'inline-flex';
-            btnDownloadCurrent.onclick = () => {
-                const a = document.createElement('a');
-                a.href = `/api/recordings/stream?file=${encodeURIComponent(recToDownload)}`;
-                const rawName = recToDownload ? recToDownload.split('/').pop().split('\\').pop() : (displayName ? displayName.replace(/<[^>]*>/g, '').trim() : 'audio.wav');
-                a.download = rawName.endsWith('.wav') ? rawName : (rawName ? rawName + '.wav' : 'audio.wav');
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            };
+            btnDownloadCurrent.onclick = downloadCurrentPlayerAudio;
         }
 
         updatePlayerPlayState(!audio.paused);
@@ -3160,33 +3639,33 @@ function renderActiveConversations(conversations) {
         newKeyMap.set(getConversationKey(c), c);
     });
 
-    // 1. Tugagan (yo'qolgan) suhbatlarni topish va ularni swipe-out (o'ngga silliq siljish) animatsiyasi bilan olib tashlash
-    const existingCards = container.querySelectorAll('.compact-channel-card');
+    // 1. Tugagan suhbatlarni swipe-out animatsiyasi bilan olib tashlash
+    const existingCards = container.querySelectorAll('.cc-call');
     let hasSwipingOut = false;
 
     existingCards.forEach(card => {
         const key = card.getAttribute('data-channel-key');
         if (key && !newKeyMap.has(key)) {
-            if (!card.classList.contains('swiping-out')) {
+            if (!card.classList.contains('cc-swiping-out')) {
                 hasSwipingOut = true;
-                card.classList.add('swiping-out');
+                card.classList.add('cc-swiping-out');
                 setTimeout(() => {
                     if (card.parentNode) {
                         card.remove();
                     }
                     checkActiveChannelsEmpty();
-                }, 1200);
+                }, 800);
             }
         }
     });
 
     function checkActiveChannelsEmpty() {
-        const remaining = container.querySelectorAll('.compact-channel-card:not(.swiping-out)');
+        const remaining = container.querySelectorAll('.cc-call:not(.cc-swiping-out)');
         if (remaining.length === 0) {
             const emptyEl = container.querySelector('.empty-channels-placeholder');
             if (!emptyEl) {
                 container.innerHTML = `
-                    <div class="empty-channels-placeholder" style="text-align: center; color: var(--text-dim); padding: 12px; font-size: 11px; animation: fadeIn 0.3s ease;">
+                    <div class="empty-channels-placeholder" style="text-align: center; color: var(--cc-mute); padding: 12px 0; font-size: 12px; animation: fadeIn 0.3s ease;">
                         ${t('live_active_empty', "Hozircha faol suhbatlar yo'q")}
                     </div>
                 `;
@@ -3208,82 +3687,69 @@ function renderActiveConversations(conversations) {
     // 2. Yangi suhbatlarni qo'shish yoki mavjudlarini yangilash
     currentConversations.forEach(c => {
         const key = getConversationKey(c);
-        const existingCard = container.querySelector(`.compact-channel-card[data-channel-key="${key}"]:not(.swiping-out)`);
+        const existingCard = container.querySelector(`.cc-call[data-channel-key="${key}"]:not(.cc-swiping-out)`);
 
         const isTalking = c.stateType === 'talking';
         const isOutbound = c.direction === 'outbound';
         const isQueue = (c.operator === 'Navbatda kutmoqda' || !c.operatorExten) && !isOutbound;
 
-        let badgeClass = 'badge-warning';
-        let badgeText = c.state;
+        let tagClass = 'cc-tag-wait';
+        let tagText = c.state || 'Kutmoqda';
 
         if (isTalking) {
-            badgeClass = isOutbound ? 'badge-info' : 'badge-success';
-            badgeText = isOutbound ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('export', '', 'width: 12px; height: 12px;')} ${t('live_badge_outbound', 'Chiquvchi')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('import', '', 'width: 12px; height: 12px;')} ${t('live_badge_inbound', 'Kiruvchi')}</span>`;
+            tagClass = isOutbound ? 'cc-tag-out' : 'cc-tag-ok';
+            tagText = isOutbound ? t('live_badge_outbound', 'Chiquvchi') : t('live_badge_inbound', 'Kiruvchi');
         } else if (isQueue) {
-            badgeClass = 'badge-warning';
-            badgeText = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('live_badge_queue', 'Navbatda kutmoqda')}</span>`;
+            tagClass = 'cc-tag-wait';
+            tagText = t('live_badge_queue', 'Navbatda');
         } else {
-            badgeClass = isOutbound ? 'badge-info' : 'badge-info';
-            badgeText = isOutbound ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${t('live_badge_dialing', 'Chiquvchi chaqiruv')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${t('live_badge_ringing', 'Chaqirilmoqda')}</span>`;
+            tagClass = isOutbound ? 'cc-tag-out' : 'cc-tag-wait';
+            tagText = isOutbound ? t('live_badge_dialing', 'Chiquvchi') : t('live_badge_ringing', 'Chaqirilmoqda');
         }
 
-        const opText = isQueue ? `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('live_badge_queue', 'Navbatda kutmoqda')}</span>` : `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('headphone', '', 'width: 12px; height: 12px;')} ${c.operator}</span>`;
+        // Operator nomidan takroriy (111) yoki (ext) ni tozalash: "Nozima (111)" -> "Nozima"
+        let cleanOp = (c.operator || 'Operator').replace(/\s*\(\d+\)\s*$/, '').trim();
+        const opText = isQueue 
+            ? t('live_badge_queue', 'Navbatda kutmoqda') 
+            : (c.operatorExten ? `${cleanOp} · ${c.operatorExten}` : cleanOp);
 
         if (existingCard) {
-            // Holat o'zgargan bo'lsa sinflar va yozuvlarni yangilash
-            existingCard.className = `compact-channel-card ${isTalking ? 'talking' : 'ringing'}`;
-            const badgeEl = existingCard.querySelector('.badge');
-            if (badgeEl) {
-                badgeEl.className = `badge ${badgeClass}`;
-                badgeEl.innerHTML = badgeText;
+            existingCard.className = `cc-call ${isTalking ? 'talking' : 'ringing'}`;
+            existingCard.setAttribute('title', `Raqamni nusxalash: ${c.callerId || ''}`);
+            existingCard.onclick = (e) => {
+                if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
+                copyCallbackPhone(c.callerId, existingCard, e);
+            };
+            const tagEl = existingCard.querySelector('.cc-tag');
+            if (tagEl) {
+                tagEl.className = `cc-tag ${tagClass}`;
+                tagEl.textContent = tagText;
             }
-            const opEl = existingCard.querySelector('.chan-op span');
+            const opEl = existingCard.querySelector('.cc-sub');
             if (opEl) {
-                opEl.innerHTML = opText;
+                opEl.textContent = opText;
             }
-            const switchBtn = existingCard.querySelector('.btn-action');
-            if (switchBtn) switchBtn.title = t('live_switch_title', "Boshqa operatorga yo'naltirish (Switch / Transfer)");
-            const endBtn = existingCard.querySelector('.btn-end-call');
-            if (endBtn) endBtn.title = t('live_endcall_title', "Qo'ng'iroqni tugatish (End Call)");
         } else {
-            // Yangi kelgan suhbat kartasini qo'shish (chapdan silliq kirib keladi)
             const cardEl = document.createElement('div');
-            cardEl.className = `compact-channel-card ${isTalking ? 'talking' : 'ringing'} swiping-in`;
+            cardEl.className = `cc-call ${isTalking ? 'talking' : 'ringing'}`;
             cardEl.setAttribute('data-channel-key', key);
+            cardEl.setAttribute('title', `Raqamni nusxalash: ${c.callerId || ''}`);
+            cardEl.onclick = (e) => {
+                if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
+                copyCallbackPhone(c.callerId, cardEl, e);
+            };
             cardEl.innerHTML = `
-                <div class="chan-left">
-                    <div class="chan-number" style="display: flex; align-items: center; gap: 4px;">${isax('call')} ${formatCallerNumberOrOperator(c.callerId)}</div>
-                    <div class="chan-op">
-                        <span>${opText}</span>
-                    </div>
+                <div class="cc-call-info">
+                    <div class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</div>
+                    <div class="cc-sub">${opText}</div>
                 </div>
-                <div class="chan-right">
-                    <span class="badge ${badgeClass}" style="font-size: 10px; padding: 2px 6px;">
-                        ${badgeText}
-                    </span>
-                    <!-- Transfer / Switch Button -->
-                    <button class="btn-action" style="padding: 3px 6px; background: rgba(99, 102, 241, 0.25); border-color: rgba(99, 102, 241, 0.5); color: #818cf8; display: inline-flex; align-items: center; justify-content: center;" onclick="openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', "Boshqa operatorga yo'naltirish (Switch / Transfer)")}">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="20" y1="7" x2="4" y2="7"></line>
-                            <polyline points="10 3 4 7 10 11"></polyline>
-                            <line x1="4" y1="17" x2="20" y2="17"></line>
-                            <polyline points="14 13 20 17 14 21"></polyline>
-                        </svg>
-                    </button>
-                    <!-- End Call / Hangup Button -->
-                    <button class="btn-end-call" onclick="hangupChannel('${c.channel}')" title="${t('live_endcall_title', "Qo'ng'iroqni tugatish (End Call)")}">
-                        <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
-                            <circle cx="50" cy="50" r="48" fill="#e11d48"/>
-                            <path d="M22 58 C 21 53, 25 45, 36 41 C 45 38, 55 38, 64 41 C 75 45, 79 53, 78 58 C 77 62, 72 63, 67 58 C 63 54, 59 47, 50 47 C 41 47, 37 54, 33 58 C 28 63, 23 62, 22 58 Z" fill="#ffffff"/>
-                        </svg>
-                    </button>
+                <span class="cc-tag ${tagClass}">${tagText}</span>
+                <div class="cc-call-actions">
+                    <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}">⇄</button>
+                    <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}">✕</button>
                 </div>
             `;
             container.appendChild(cardEl);
-            setTimeout(() => {
-                cardEl.classList.remove('swiping-in');
-            }, 400);
         }
     });
 }
@@ -3320,6 +3786,10 @@ function renderQueues(queues) {
         });
     }
 
+    const queueSection = document.getElementById('queueSection');
+    if (queueSection) {
+        queueSection.style.display = totalWaiters > 0 ? 'block' : 'none';
+    }
     countBadge.innerText = `${totalWaiters} ${t('unit_item', 'ta')}`;
     const kpiQueue = document.getElementById('kpiQueueWaiting');
     if (kpiQueue) kpiQueue.innerText = totalWaiters;
@@ -3345,9 +3815,9 @@ async function hangupChannel(channel) {
     if (!confirm(t('live_hangup_confirm', 'Haqiqatan ham ushbu kanalni uzmoqchimisiz?'))) return;
 
     // Tugatish bosilganda darhol o'ngga swipe-out animatsiyasini qo'llash
-    const card = document.querySelector(`.compact-channel-card[data-channel-key="${channel}"]`);
-    if (card && !card.classList.contains('swiping-out')) {
-        card.classList.add('swiping-out');
+    const card = document.querySelector(`.cc-call[data-channel-key="${channel}"], .compact-channel-card[data-channel-key="${channel}"]`);
+    if (card && !card.classList.contains('cc-swiping-out') || card.classList.contains('swiping-out')) {
+        card.classList.add('cc-swiping-out');
         setTimeout(() => {
             if (card.parentNode) card.remove();
             const container = document.getElementById('activeChannelsContainer');
@@ -3452,7 +3922,31 @@ function openTransferModal(channel, callerId) {
     modal.style.display = 'flex';
 }
 
-const EXCLUDED_OPERATOR_IDS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+let EXCLUDED_OPERATOR_IDS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+
+function updateExcludedOperatorIds(idList, triggerRender = true) {
+    if (Array.isArray(idList)) {
+        EXCLUDED_OPERATOR_IDS = new Set(idList.map(String));
+        if (triggerRender && typeof renderOperators === 'function' && window._rawLastOperators) {
+            renderOperators(window._rawLastOperators);
+        }
+    }
+}
+window.updateExcludedOperatorIds = updateExcludedOperatorIds;
+window.getExcludedOperatorIds = () => Array.from(EXCLUDED_OPERATOR_IDS);
+
+async function fetchExcludedOperatorsInitial() {
+    try {
+        const res = await fetch('/api/settings/exclude-list');
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.excluded)) {
+            updateExcludedOperatorIds(data.excluded, true);
+        }
+    } catch (e) {
+        // Fallback to default
+    }
+}
+fetchExcludedOperatorsInitial();
 
 // Operator guruhi holati (main: 100-199 | secondary: 200+ | all: barchasi)
 let currentOperatorGroup = 'main';
@@ -3497,8 +3991,14 @@ function getPresenceRank(op) {
     const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
     const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
     if (isRinging) return 1; // 1. Ringing (Jiringlayotganlar)
-    if (pres === 'ready') return 2; // 2. Onlayn / Qabul qilishga tayyor
-    if (pres === 'talking') return 3; // 3. Suhbatda
+
+    // Operator presence'i offline bo'lsa ham Jonli Monitor (currentConversations) suhbati hisobga olinadi
+    const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+        ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+        : null;
+
+    if (pres === 'talking' || activeConv) return 2; // 2. Suhbatda (har doim birinchilardan)
+    if (pres === 'ready') return 3; // 3. Onlayn / Qabul qilishga tayyor
     if (pres === 'paused') return 4; // 4. Tanaffusda
     return 5; // 5. Offline
 }
@@ -3666,7 +4166,7 @@ function updateAllTalkingTimers() {
         if (digitsEl) {
             digitsEl.textContent = display;
         } else {
-            el.textContent = `⏱️ ${display}`;
+            el.textContent = display;
         }
 
         if (diffSec >= 420) { // >= 7 daqiqa: Qizil pulsatsiyalanuvchi ogohlantirish (uzoq suhbat)
@@ -3941,6 +4441,18 @@ window.toggleOperatorPause = async function(operatorId, shouldPause, event) {
     }
 };
 
+let _offlineIsCompact = localStorage.getItem('dashboard_offline_compact') === 'true';
+
+function toggleOfflineCardsView(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    _offlineIsCompact = !_offlineIsCompact;
+    localStorage.setItem('dashboard_offline_compact', _offlineIsCompact ? 'true' : 'false');
+    if (window._rawLastOperators && window._rawLastOperators.length > 0) {
+        renderOperators(window._rawLastOperators);
+    }
+}
+window.toggleOfflineCardsView = toggleOfflineCardsView;
+
 function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
@@ -4010,12 +4522,23 @@ function renderOperators(operators) {
 
     currentOperators.forEach(op => {
         const pres = op.presence || 'ready';
-        if (pres === 'talking') countTalking++;
+        const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+            ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+            : null;
+        if (pres === 'talking' || activeConv) countTalking++;
         else if (pres === 'offline') countOffline++;
         else countReady++;
 
         if (op.agentConnected) countAgentOnline++;
     });
+
+    // Sarlavhadagi jonli ko'rsatkichlar (Operatorlar – redizayn.html)
+    const sTalk = document.getElementById('sumCountTalk');
+    const sWait = document.getElementById('sumCountWait');
+    const sOff = document.getElementById('sumCountOff');
+    if (sTalk) sTalk.textContent = countTalking;
+    if (sWait) sWait.textContent = countReady;
+    if (sOff) sOff.textContent = countOffline;
 
     const elReady = document.getElementById('opCountReady');
     const elTalking = document.getElementById('opCountTalking');
@@ -4043,7 +4566,11 @@ function renderOperators(operators) {
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
         const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
-        if (pres === 'ready' && !isRinging) {
+        const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+            ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+            : null;
+        const isWaiting = (pres === 'ready' || isRinging) && pres !== 'talking' && !activeConv && pres !== 'paused' && pres !== 'offline';
+        if (isWaiting) {
             if (!operatorReadySinceMap.has(op.id)) {
                 operatorReadySinceMap.set(op.id, Date.now());
             }
@@ -4056,28 +4583,27 @@ function renderOperators(operators) {
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
         const isRinging = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
-        return pres === 'ready' && !isRinging;
+        const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+            ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+            : null;
+        return (pres === 'ready' || isRinging) && pres !== 'talking' && !activeConv && pres !== 'paused' && pres !== 'offline';
     });
 
     let predictedNextOpId = null;
     if (readyOps.length > 0) {
         readyOps.sort((a, b) => {
-            // 1. Asosiy mezon: Asterisk navbatidagi haqiqiy hisob (callsTaken) — Asterisk fewestcalls aynan shunga qaraydi!
             const callsA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : 0;
             const callsB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : 0;
             if (callsA !== callsB) return callsA - callsB;
 
-            // 2. Tie-breaker: Agar callsTaken teng bo'lsa, umumiy kunlik qabul qilinganlar (answered) soni bo'yicha
             const answeredA = (a.answered !== null && a.answered !== undefined) ? Number(a.answered) : 0;
             const answeredB = (b.answered !== null && b.answered !== undefined) ? Number(b.answered) : 0;
             if (answeredA !== answeredB) return answeredA - answeredB;
 
-            // 3. Tie-breaker: Oxirgi qo'ng'iroq vaqti (eng ko'p kutgan operator)
             const lastA = (a.lastCall !== null && a.lastCall !== undefined) ? Number(a.lastCall) : 0;
             const lastB = (b.lastCall !== null && b.lastCall !== undefined) ? Number(b.lastCall) : 0;
             if (lastA > 0 && lastB > 0 && lastA !== lastB) return lastA - lastB;
 
-            // 4. Tie-breaker: Kim birinchi bo'lib 'ready' (kutish) holatiga o'tgan
             const readySinceA = operatorReadySinceMap.get(a.id) || 0;
             const readySinceB = operatorReadySinceMap.get(b.id) || 0;
             if (readySinceA !== readySinceB && readySinceA > 0 && readySinceB > 0) return readySinceA - readySinceB;
@@ -4087,40 +4613,121 @@ function renderOperators(operators) {
         predictedNextOpId = readyOps[0].id;
     }
 
-    grid.innerHTML = currentOperators.map(op => {
+    // Operatorlarni 3 ta qat'iy guruhga ajratish: Suhbatda, Kutmoqda (Tayyor) va Oflayn
+    const talkingOperators = [];
+    const readyOperators = [];
+    const offlineOperators = [];
+
+    currentOperators.forEach(op => {
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
-        const ringingNow = (pres === 'ringing') && pres !== 'talking';
-        const isOutbound = ringingCallerStr.startsWith('📤') || (op.ringingCaller && String(op.ringingCaller).startsWith('📤'));
-
-        // Operator presence'i offline bo'lsa ham (masalan ish vaqti tugab, SIP ro'yxatdan chiqqan bo'lsa)
-        // uning suhbati hali davom etayotgan bo'lishi mumkin — shuni Jonli Monitor ma'lumotidan topamiz
+        const ringingNow = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
         const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
             ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
             : null;
+        // Jiringlayotgan kutayotgan operator o'z joyida qoladi, 1-qatorga faqat haqiqiy suhbatdagi operatorlar o'tadi
+        if (pres === 'talking' || Boolean(activeConv)) {
+            talkingOperators.push(op);
+        } else if (pres === 'offline') {
+            offlineOperators.push(op);
+        } else {
+            readyOperators.push(op);
+        }
+    });
 
-        let cardClass = 'operator-card clickable-card';
-        let statusBadge = '';
-        let avatarBg = '';
-        let talkingTimerHtml = '';
+    // 1. Suhbatdagi operatorlarni saralash (eng faollar/balli yuqorilar oldinda)
+    talkingOperators.sort((a, b) => {
+        const scoreA = (a.grandTotal !== undefined && a.grandTotal !== null) ? a.grandTotal : (a.answered || 0);
+        const scoreB = (b.grandTotal !== undefined && b.grandTotal !== null) ? b.grandTotal : (b.answered || 0);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return parseInt(a.id, 10) - parseInt(b.id, 10);
+    });
 
-        if (ringingNow) {
-            operatorTalkingSinceMap.delete(op.id);
-            const ringLabel = isOutbound ? "Chiquvchi chaqiruv..." : t('op_status_ringing', 'Jiringlamoqda');
-            statusBadge = `<span class="status-badge badge-ringing" style="${isOutbound ? 'background: rgba(14, 165, 233, 0.15); border-color: rgba(14, 165, 233, 0.4); color: #38bdf8;' : ''}"><span class="badge-dot pulse-ring" style="${isOutbound ? 'background: #38bdf8; box-shadow: 0 0 6px #38bdf8;' : ''}"></span> ${ringLabel}</span>`;
-            avatarBg = isOutbound ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'linear-gradient(135deg, #ec4899, #be185d)';
-            cardClass += isOutbound ? ' status-ringing status-active call-outbound-ringing' : ' status-ringing status-active call-ringing';
-        } else if (pres === 'talking') {
-            const isOutbound = op.ringingCaller && String(op.ringingCaller).startsWith('📤');
-            const talkLabel = isOutbound ? "Chiquvchi suhbat" : t('status_talking', 'Hozir suhbatda');
-            statusBadge = `<span class="status-badge badge-talking"><span class="badge-dot pulse"></span> ${talkLabel}</span>`;
-            avatarBg = 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
-            cardClass += ' status-talking status-active call-talking';
+    // 2. Kutayotgan operatorlarni saralash (navbatdagi/predictedNextOpId oldinda)
+    readyOperators.sort((a, b) => {
+        if (predictedNextOpId) {
+            if (String(a.id) === String(predictedNextOpId)) return -1;
+            if (String(b.id) === String(predictedNextOpId)) return 1;
+        }
+        const scoreA = (a.grandTotal !== undefined && a.grandTotal !== null) ? a.grandTotal : (a.answered || 0);
+        const scoreB = (b.grandTotal !== undefined && b.grandTotal !== null) ? b.grandTotal : (b.answered || 0);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return parseInt(a.id, 10) - parseInt(b.id, 10);
+    });
 
-            // Suhbatda holati uchun aniq boshlangan vaqt
+    // 3. Oflayn operatorlarni saralash
+    offlineOperators.sort((a, b) => {
+        const scoreA = (a.grandTotal !== undefined && a.grandTotal !== null) ? a.grandTotal : (a.answered || 0);
+        const scoreB = (b.grandTotal !== undefined && b.grandTotal !== null) ? b.grandTotal : (b.answered || 0);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return parseInt(a.id, 10) - parseInt(b.id, 10);
+    });
+
+    function renderDashboardOperatorCard(op) {
+        const pres = op.presence || 'ready';
+        const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
+        const ringingNow = (pres === 'ringing' || (ringingCallerStr !== '' && !ringingCallerStr.includes('Yashirin'))) && pres !== 'talking';
+        const activeConv = (typeof currentConversations !== 'undefined' && Array.isArray(currentConversations))
+            ? currentConversations.find(c => String(c.operatorExten) === String(op.id))
+            : null;
+        const isTalking = (pres === 'talking' || Boolean(activeConv));
+        const isPaused = (pres === 'paused' || op.paused);
+
+        let stateClass = 'wait';
+        let stateLabel = t('wait_status', 'Kutmoqda');
+        if (pres === 'offline') {
+            stateClass = 'offline';
+            stateLabel = t('op_status_offline', 'Oflayn');
+        } else if (ringingNow) {
+            stateClass = 'ring';
+            stateLabel = t('op_status_ringing', 'Jiringlamoqda');
+        } else if (isTalking) {
+            stateClass = 'talk';
+            stateLabel = t('status_talking', 'Hozir suhbatda');
+        } else if (isPaused) {
+            stateClass = 'pause';
+            stateLabel = t('op_status_paused', 'Pauzada');
+        }
+
+        const isNextInLine = (op.id === predictedNextOpId) && (pres === 'ready') && !ringingNow;
+
+        // Reyting / Rank nishoni
+        const rankIndex = sortedByScore.findIndex(o => o.id === op.id);
+        const answered = op.answered || 0;
+        const outbound = op.outbound || 0;
+        const missed = op.missed || 0;
+        const transferredIn = op.transferredIn || 0;
+        const transferredOut = op.transferredOut || 0;
+        const transferredTotal = transferredIn + transferredOut;
+        const grandTotal = (op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : answered;
+        const totalDuration = op.totalDurationSec || 0;
+        const avgDuration = op.avgDurationSec || 0;
+
+        let rankBadgeHtml = '';
+        if (rankIndex === 0 && grandTotal > 0) {
+            rankBadgeHtml = `<span class="rank diamond">MVP</span>`;
+        } else if (rankIndex === 1 && grandTotal > 0) {
+            rankBadgeHtml = `<span class="rank">#2</span>`;
+        } else if (rankIndex === 2 && grandTotal > 0) {
+            rankBadgeHtml = `<span class="rank">#3</span>`;
+        } else if (rankIndex >= 3 && rankIndex < 5 && grandTotal > 0) {
+            rankBadgeHtml = `<span class="rank">#${rankIndex + 1}</span>`;
+        }
+
+        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+        const isMaxmudbek = (String(op.id) === '114' || cleanName.toLowerCase().includes('maxmudbek'));
+        const avatarClickAttr = isMaxmudbek 
+            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
+            : '';
+
+        // Jonli suhbat bloki (Call strip)
+        let callBlockHtml = '';
+        if (isTalking) {
             let talkingSince = op.talkingSince;
             if (!talkingSince) {
-                if (operatorTalkingSinceMap.has(op.id)) {
+                if (activeConv && activeConv.startTime) {
+                    talkingSince = new Date(activeConv.startTime).getTime();
+                } else if (operatorTalkingSinceMap.has(op.id)) {
                     talkingSince = operatorTalkingSinceMap.get(op.id);
                 } else {
                     talkingSince = Date.now();
@@ -4137,230 +4744,191 @@ function renderOperators(operators) {
             const initialDisplay = initH > 0 
                 ? `${initH}:${String(initM % 60).padStart(2, '0')}:${String(initS).padStart(2, '0')}`
                 : `${String(initM).padStart(2, '0')}:${String(initS).padStart(2, '0')}`;
-            let initWarnClass = '';
-            if (initialDiffSec >= 420) initWarnClass = 'timer-danger';
-            else if (initialDiffSec >= 180) initWarnClass = 'timer-warning';
 
-            talkingTimerHtml = `
-                <div class="talking-live-timer ${initWarnClass}" data-talking-since="${talkingSince}" title="${t('live_talking_duration', 'Hozirgi suhbat davomiyligi')}">
-                    <span class="timer-icon">⏱️</span>
-                    <span class="timer-digits">${initialDisplay}</span>
+            const callerRaw = activeConv ? (activeConv.callerId || '') : (op.ringingCaller ? String(op.ringingCaller).replace(/^📤\s*/, '').trim() : '');
+            const callerFormatted = callerRaw ? formatCallerNumberOrOperator(callerRaw) : '—';
+            const cInfo = (callerRaw && typeof getClientContact === 'function') ? getClientContact(callerRaw) : null;
+            const clientInfoText = cInfo ? ((cInfo.name && cInfo.organization) ? `${cInfo.name} • ${cInfo.organization}` : (cInfo.organization || cInfo.name || '')) : '';
+
+            callBlockHtml = `
+                <div class="call">
+                    <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                    <div class="no">
+                        <span class="lbl">Suhbatdagi raqam</span>
+                        <span style="font-size: 14px; font-weight: 700; color: #fff;">${callerFormatted}</span>
+                        ${clientInfoText ? `<small style="display:block; color:#f59e0b; font-size:11px; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(clientInfoText)}</small>` : ''}
+                    </div>
+                    <div class="timer talking-live-timer" data-talking-since="${talkingSince}">${initialDisplay}</div>
+                </div>
+            `;
+        } else if (ringingNow) {
+            operatorTalkingSinceMap.delete(op.id);
+            const callerRaw = String(op.ringingCaller || '').replace(/^📤\s*/, '').trim();
+            const callerFormatted = callerRaw ? formatCallerNumberOrOperator(callerRaw) : '—';
+            callBlockHtml = `
+                <div class="call" style="background: rgba(236, 72, 153, 0.12); border: 1px solid rgba(236, 72, 153, 0.3);">
+                    <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ec4899; box-shadow:0 0 8px #ec4899; flex-shrink:0;"></span>
+                    <div class="no">
+                        <span class="lbl" style="color: #f472b6;">Kiruvchi chaqiruv...</span>
+                        <span style="font-size: 14px; font-weight: 700; color: #fff;">${callerFormatted}</span>
+                    </div>
+                </div>
+            `;
+        } else if (isPaused) {
+            operatorTalkingSinceMap.delete(op.id);
+            callBlockHtml = `
+                <div class="call">
+                    <span class="idle" style="color: var(--op-wait); font-weight: 500;">Pauzada (Tanaffus)</span>
                 </div>
             `;
         } else if (pres === 'offline') {
             operatorTalkingSinceMap.delete(op.id);
-            if (activeConv) {
-                // Oflayn (ish vaqti tugagan bo'lishi mumkin), lekin suhbat hali davom etmoqda!
-                const convSince = activeConv.startTime ? new Date(activeConv.startTime).getTime() : Date.now();
-                const initialDiffSec = Math.max(0, Math.floor((Date.now() - convSince) / 1000));
-                const initM = Math.floor(initialDiffSec / 60);
-                const initS = initialDiffSec % 60;
-                const initH = Math.floor(initM / 60);
-                const initialDisplay = initH > 0 
-                    ? `${initH}:${String(initM % 60).padStart(2, '0')}:${String(initS).padStart(2, '0')}`
-                    : `${String(initM).padStart(2, '0')}:${String(initS).padStart(2, '0')}`;
-                let initWarnClass = '';
-                if (initialDiffSec >= 420) initWarnClass = 'timer-danger';
-                else if (initialDiffSec >= 180) initWarnClass = 'timer-warning';
-
-                statusBadge = `<span class="status-badge" style="background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.4); color: #6ee7b7;"><span class="badge-dot pulse" style="background: #10b981; box-shadow: 0 0 6px #10b981;"></span> Suhbat davom etmoqda</span>`;
-                avatarBg = 'linear-gradient(135deg, #059669, #065f46)';
-                cardClass += ' status-talking status-active call-talking';
-                talkingTimerHtml = `
-                    <div class="talking-live-timer ${initWarnClass}" data-talking-since="${convSince}" title="${t('live_talking_duration', 'Hozirgi suhbat davomiyligi')}">
-                        <span class="timer-icon">⏱️</span>
-                        <span class="timer-digits">${initialDisplay}</span>
-                    </div>
-                `;
-            } else {
-                statusBadge = `<span class="status-badge badge-offline"><span class="badge-dot"></span> ${t('op_status_offline', 'Offline')}</span>`;
-            }
-            avatarBg = avatarBg || 'linear-gradient(135deg, #64748b, #475569)';
-        } else if (pres === 'paused' || op.paused) {
-            operatorTalkingSinceMap.delete(op.id);
-            statusBadge = `<span class="status-badge badge-paused"><span class="badge-dot pulse-pause"></span> ${t('op_status_paused', 'Pauzada')}</span>`;
-            avatarBg = 'linear-gradient(135deg, #d97706, #b45309)';
-            cardClass += ' status-paused';
+            callBlockHtml = `
+                <div class="call">
+                    <span class="idle" style="color: var(--op-off, #ef4444); font-weight: 500;">Oflayn (Tizimda emas)</span>
+                </div>
+            `;
         } else {
             operatorTalkingSinceMap.delete(op.id);
-            statusBadge = `<span class="status-badge badge-ready"><span class="badge-dot"></span> ${t('wait_status', 'Kutmoqda')}</span>`;
-            avatarBg = 'linear-gradient(135deg, #10b981, #059669)';
-            cardClass += ' status-ready status-active';
+            callBlockHtml = `
+                <div class="call">
+                    <span class="idle">Yangi qo'ng'iroqni kutmoqda…</span>
+                </div>
+            `;
         }
-        const answered = op.answered || 0;
-        const totalScore = (op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : answered;
-
-        // Yulduzlar soni (Jami bo'yicha: 1-9: 1★, 10-19: 2★, 20-29: 3★, 30-39: 4★, 40+: 5★)
-        let stars = '';
-        if (totalScore >= 40) {
-            stars = '⭐⭐⭐⭐⭐';
-        } else if (totalScore >= 30) {
-            stars = '⭐⭐⭐⭐';
-        } else if (totalScore >= 20) {
-            stars = '⭐⭐⭐';
-        } else if (totalScore >= 10) {
-            stars = '⭐⭐';
-        } else if (totalScore >= 1) {
-            stars = '⭐';
-        }
-
-        let mvpBadge = '';
-        if (op.id === top1Id && totalScore > 0) {
-            mvpBadge = getDiamondWreathBadgeHtml();
-            cardClass += ' mvp-diamond';
-            avatarBg = 'linear-gradient(135deg, #0284c7, #0369a1)';
-        } else if (op.id === top2Id && totalScore > 0) {
-            mvpBadge = getGoldWreathBadgeHtml();
-            cardClass += ' mvp-gold';
-            avatarBg = 'linear-gradient(135deg, #f59e0b, #d97706)';
-        } else if (op.id === top3Id && totalScore > 0) {
-            mvpBadge = getSilverWreathBadgeHtml();
-            cardClass += ' mvp-silver';
-            avatarBg = 'linear-gradient(135deg, #94a3b8, #475569)';
-        } else if (stars === '⭐') {
-            mvpBadge = `<span class="mvp-badge npc" title="${t('op_star_1_title', '1 ta yulduzli operator')}">🤖 NPC</span>`;
-        }
-
-        const isNextInLine = (op.id === predictedNextOpId) && (pres === 'ready') && !ringingNow;
-        if (isNextInLine) {
-            cardClass += ' next-in-line';
-        }
-        const nextInLineBadgeHtml = isNextInLine ? `
-            <div class="next-call-corner-badge" title="${t('op_next_call_title', '🎯 100% Keyingi qo\'ng\'iroq kutilmoqda (Fewest calls navbatida #1)')}">
-                <svg class="next-call-gold-icon" viewBox="0 0 100 100" width="24" height="24">
-                    <defs>
-                        <linearGradient id="goldRimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#fff099" />
-                            <stop offset="35%" stop-color="#f59e0b" />
-                            <stop offset="70%" stop-color="#d97706" />
-                            <stop offset="100%" stop-color="#78350f" />
-                        </linearGradient>
-                        <linearGradient id="goldArrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stop-color="#fff3b0" />
-                            <stop offset="100%" stop-color="#f59e0b" />
-                        </linearGradient>
-                    </defs>
-                    <circle cx="50" cy="50" r="47" fill="url(#goldRimGrad)" stroke="#fef08a" stroke-width="2" />
-                    <circle cx="50" cy="50" r="33" fill="#1e2430" />
-                    <path d="M 50 23 L 69 42 L 58 42 L 58 73 L 42 73 L 42 42 L 31 42 Z" fill="none" stroke="url(#goldArrowGrad)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
-                </svg>
-            </div>
-        ` : '';
-
-        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
-        const isMaxmudbek = (String(op.id) === '114' || cleanName.toLowerCase().includes('maxmudbek'));
-        const avatarClickAttr = isMaxmudbek 
-            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" class="operator-avatar maxmudbek-clickable" style="background: ${avatarBg};" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
-            : `class="operator-avatar" style="background: ${avatarBg};"`;
-        const nameClickAttr = isMaxmudbek 
-            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" class="maxmudbek-name-clickable" style="font-size: 15px; font-weight: 700;" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
-            : `style="font-size: 15px; font-weight: 700;"`;
 
         return `
-            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini va suhbatlarini ko'rish uchun bosing`)}">
-                ${ringingNow ? `<div class="call-live-strip ${isOutbound ? 'outbound-ringing' : 'ringing'}"></div>` : ((pres === 'talking' || activeConv) ? '<div class="call-live-strip talking"></div>' : '')}
-                ${nextInLineBadgeHtml}
-                <div class="operator-head">
-                    <div ${avatarClickAttr}>${op.id}</div>
-                    <div style="flex: 1; min-width: 0;">
-                        <!-- 1-qator: Operator ismi (chapda) va Holat nishoni (o'ngda: Kutmoqda / Suhbatda / etc) -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                            <h4 ${nameClickAttr} style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${cleanName}</h4>
-                            <div style="flex-shrink: 0;">
-                                ${statusBadge}
-                            </div>
-                        </div>
-                        <!-- 2-qator: MVP nishoni (chapda) va Kutmoqdani tagida Pauza tugmasi (o'ngda) -->
-                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 4px; min-height: 24px;">
-                            <div style="display: flex; align-items: center; gap: 6px; min-height: 20px;">
-                                ${mvpBadge}
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0;">
-                                ${talkingTimerHtml}
-                                <button type="button" 
-                                        onclick="toggleOperatorPause('${op.id}', ${!(op.paused || pres === 'paused')}, event)" 
-                                        class="op-card-pause-btn ${(op.paused || pres === 'paused') ? 'is-paused' : ''}" 
-                                        title="${(op.paused || pres === 'paused') ? 'Pauzadan chiqarish (Ishga qaytish)' : 'Pauzaga qo\'yish (Tanaffus)'}">
-                                    <span style="display: inline-flex; align-items: center; gap: 4px;">${(op.paused || pres === 'paused') ? `${isax('play', '', 'width: 12px; height: 12px;')} Qaytish` : `${isax('pause', '', 'width: 12px; height: 12px;')} Pauza`}</span>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- 3-qator: Exten va Yulduzchalar -->
-                        <div class="operator-meta-sub" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px 4px; margin-top: 3px;">
-                            <span style="font-size: 11px; color: var(--text-dim); white-space: nowrap;">Exten: ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
-                            ${generateStarRatingHtml(totalScore, cleanName)}
-                        </div>
+            <article class="operator-card op-redesign clickable-card ${stateClass} ${isNextInLine ? 'next-in-line' : ''}" 
+                     onclick="openOperatorDetail('${op.id}')" 
+                     title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini ko'rish uchun bosing`)}">
+                <div class="head">
+                    <div class="av" ${avatarClickAttr}>${op.id}</div>
+                    <div class="who">
+                        <strong>${cleanName}${rankBadgeHtml}</strong>
+                        <small>Exten ${op.id} · ${op.ip || '-none-'}</small>
                     </div>
+                    <span class="st">${stateLabel}</span>
                 </div>
 
-                <div class="op-stat-row" style="padding-bottom: 7px; margin-bottom: 7px; border-bottom: 1px solid rgba(16, 185, 129, 0.25);">
-                    <span style="font-weight: 800; color: #6ee7b7; display: inline-flex; align-items: center; gap: 4px;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${t('op_card_grand_total', 'Jami:')} ${isax('chart', '', 'width: 13px; height: 13px;')}</span>
-                    <span class="op-stat-val" style="font-size: 15px; font-weight: 900; color: #34d399;" title="Jami = Qabul qilingan + Chiquvchi + Transfer oxirida hal qilgan">${(op.grandTotal !== undefined && op.grandTotal !== null) ? op.grandTotal : ((op.answered || 0) + (op.outbound || 0) + (op.transferResolved || 0))} ${t('unit_item', 'ta')}</span>
+                ${callBlockHtml}
+
+                <div class="total">
+                    <span class="n">${grandTotal}</span>
+                    <span class="u">ta jami qo'ng'iroq</span>
                 </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_desktop_agent', 'Desktop Agent:')}</span>
-                    <span class="op-stat-val" style="font-weight: 700; font-size: 11px; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: ${op.agentConnected ? '#10b981' : '#64748b'}; ${op.agentConnected ? 'box-shadow: 0 0 6px #10b981;' : ''}"></span>
-                        <span style="color: ${op.agentConnected ? 'var(--success)' : 'var(--text-dim)'};">${op.agentConnected ? t('op_card_agent_active', 'Faol') : t('op_card_agent_off', "O'chiq")}</span>
-                        ${op.agentConnected ? `<span class="agent-ver-badge">v${op.agentVersion || '1.0.0'}</span>` : ''}
-                    </span>
+
+                <div class="bar" title="Kiruvchi: ${answered} ta | Chiquvchi: ${outbound} ta | O'tkazib yuborilgan: ${missed} ta">
+                    <i style="flex: ${answered || 1}; background: var(--op-ok);" title="Kiruvchi: ${answered} ta"></i>
+                    ${outbound ? `<i style="flex: ${outbound}; background: #38bdf8;" title="Chiquvchi: ${outbound} ta"></i>` : ''}
+                    ${missed ? `<i style="flex: ${missed}; background: var(--op-wait);" title="O'tkazib yuborilgan: ${missed} ta"></i>` : ''}
                 </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_desktop_name', 'Desktop nomi:')}</span>
-                    <span class="op-stat-val" style="font-size: 11px; font-weight: 600; color: ${op.agentHostname ? '#93c5fd' : 'var(--text-dim)'}; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${op.agentHostname || t('op_card_unknown_host', 'Aniqlanmagan')}">
-                        ${op.agentHostname || '—'}
-                    </span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_accepted', 'Qabul qilingan:')}</span>
-                    <span class="op-stat-val" style="color: var(--success); font-weight: 700;">${op.answered || 0} ${t('unit_item', 'ta')}</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_outbound', 'Chiquvchi:')}</span>
-                    <span class="op-stat-val" style="color: ${(op.outbound || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.outbound || 0} ${t('unit_item', 'ta')}</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_transfer_out', 'Transfer (uzatgan):')}</span>
-                    <span class="op-stat-val" style="color: ${(op.transferredOut || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.transferredOut || 0} ${t('unit_item', 'ta')}</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_transfer_in', 'Transfer (olgan):')}</span>
-                    <span class="op-stat-val" style="color: ${(op.transferredIn || 0) > 0 ? '#38bdf8' : 'var(--text-dim)'}; font-weight: 700;">${op.transferredIn || 0} ${t('unit_item', 'ta')}</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_missed', "O'tkazib yuborilgan:")}</span>
-                    <span class="op-stat-val" style="color: ${(op.missed || 0) > 0 ? '#f59e0b' : 'var(--text-dim)'}; font-weight: 700;">${op.missed || 0} ${t('unit_item', 'ta')}</span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_total_talk', 'Umumiy suhbat:')}</span>
-                    <span class="op-stat-val" style="font-weight: 700; color: ${op.totalDurationSec > 7200 ? '#fcd34d' : 'var(--text-main)'};">
-                        ${formatSeconds(op.totalDurationSec || 0)} ${op.totalDurationSec > 7200 ? '🔥' : ''}
-                    </span>
-                </div>
-                <div class="op-stat-row">
-                    <span>${t('op_card_avg_talk', "O'rtacha suhbat:")}</span>
-                    <span class="op-stat-val">${formatSeconds(op.avgDurationSec || 0)}</span>
-                </div>
-                ${activeConv ? (() => {
-                    const cInfo = (typeof getClientContact === 'function') ? getClientContact(activeConv.callerId) : null;
-                    const cText = cInfo ? ((cInfo.name && cInfo.organization) ? `${cInfo.name} • ${cInfo.organization}` : (cInfo.organization || cInfo.name || '')) : '';
-                    return `
-                    <div class="op-stat-row" style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(16, 185, 129, 0.35);">
-                        <span style="color: #6ee7b7; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">${isax('call')} Hozir suhbatda:</span>
-                        <span class="op-stat-val" style="color: #34d399; font-weight: 800; font-variant-numeric: tabular-nums;" title="Davom etayotgan suhbat (Jonli Monitor)">${formatCallerNumberOrOperator(activeConv.callerId)}</span>
+
+                <dl class="stats" style="margin-bottom:0">
+                    <div><dt>Kiruvchi</dt><dd style="color: var(--op-ok);">${answered} ta</dd></div>
+                    <div><dt>Chiquvchi</dt><dd>${outbound} ta</dd></div>
+                    <div title="Kiruvchi transfer: ${transferredIn} ta | Chiquvchi transfer: ${transferredOut} ta">
+                        <dt>Transfer</dt>
+                        <dd style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; font-variant-numeric: tabular-nums;">
+                            <span style="color: var(--op-ok, #22c55e); font-weight: 600; display: inline-flex; align-items: center; gap: 2px;" title="Kiruvchi transfer (qabul qilingan): ${transferredIn} ta">
+                                ${isax('arrow-down', '', 'width: 10px; height: 10px; vertical-align: middle;')} ${transferredIn}
+                            </span>
+                            <span style="color: rgba(255,255,255,0.25); font-weight: 300;">|</span>
+                            <span style="color: #38bdf8; font-weight: 600; display: inline-flex; align-items: center; gap: 2px;" title="Chiquvchi transfer (uzatilgan): ${transferredOut} ta">
+                                ${isax('arrow-up', '', 'width: 10px; height: 10px; vertical-align: middle;')} ${transferredOut}
+                            </span>
+                        </dd>
                     </div>
-                    ${cText ? `
-                    <div style="font-size: 11px; color: #f59e0b; font-weight: 600; padding: 3px 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 5px; margin-top: 4px; word-break: break-word; line-height: 1.35;" title="${cText}">
-                        ${isax('location')} ${cText}
-                    </div>
-                    ` : ''}
-                    `;
-                })() : ''}
+                    <div class="${missed ? 'warn' : ''}"><dt>O'tkazib yuborilgan</dt><dd>${missed} ta</dd></div>
+                    <div><dt>Umumiy suhbat</dt><dd>${formatSeconds(totalDuration)}</dd></div>
+                    <div><dt>O'rtacha</dt><dd>${formatSeconds(avgDuration)}</dd></div>
+                </dl>
+
+                <div class="foot">
+                    <span>
+                        <em style="color: ${op.agentConnected ? 'var(--op-ok)' : 'var(--op-mu)'};">● Agent ${op.agentConnected ? 'faol' : "o'chiq"}</em>
+                        ${op.agentConnected && op.agentVersion ? `<span style="font-size: 10.5px; opacity: 0.8; margin-left: 2px;">v${op.agentVersion}</span>` : ''}
+                    </span>
+                    <span title="Desktop nomi: ${op.agentHostname || 'Aniqlanmagan'}">${op.agentHostname || '—'}</span>
+                </div>
+            </article>
+        `;
+    }
+
+    // 1-BLOK: Hozir suhbatda bo'lgan operatorlar (liniyasiz, eng tepada)
+    const talkingCardsHtml = talkingOperators.map(renderDashboardOperatorCard).join('');
+
+    // 1-LINIYA (Divider): Kutmoqda (Tayyor)
+    let readyDividerHtml = '';
+    if (readyOperators.length > 0) {
+        readyDividerHtml = `
+            <div class="op-grid-divider divider-ready" title="Qabul qilishga tayyor operatorlar">
+                <div class="op-divider-line"></div>
+                <div class="op-divider-label">
+                    <span class="op-divider-dot"></span>
+                    <span>Kutmoqda (Tayyor)</span>
+                    <span style="background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${readyOperators.length}</span>
+                </div>
+                <div class="op-divider-line"></div>
             </div>
         `;
-    }).join('');
+    }
+    // 2-BLOK: Kutmoqda (Tayyor) operatorlar
+    const readyCardsHtml = readyOperators.map(renderDashboardOperatorCard).join('');
 
-    // Yangi kartalardagi jonli taymerlarni darhol hisoblab ko'rsatish
+    // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar
+    let offlineSectionHtml = '';
+    if (offlineOperators.length > 0) {
+        let offlineContentHtml = '';
+        if (_offlineIsCompact) {
+            offlineContentHtml = `
+                <div class="op-offs" id="opOfflineGrid">
+                    ${offlineOperators.map(o => {
+                        const cName = getCleanOperatorName(o.realName || o.name, o.id);
+                        return `
+                            <div class="row" onclick="openOperatorDetail('${o.id}')" title="${cName} tafsilotlarini ko'rish uchun bosing">
+                                <div class="av">${o.id}</div>
+                                <div class="who">
+                                    <strong>${cName}</strong>
+                                    <small>Exten ${o.id}${o.agentHostname ? ' · ' + o.agentHostname : ''}</small>
+                                </div>
+                                <span class="tag ${o.agentConnected ? 'on' : ''}">Agent: ${o.agentConnected ? 'faol' : "o'chiq"}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        } else {
+            offlineContentHtml = offlineOperators.map(renderDashboardOperatorCard).join('');
+        }
+
+        offlineSectionHtml = `
+            <div class="op-grid-divider" id="opOfflineSep" title="Oflayn operatorlar">
+                <div class="op-divider-line"></div>
+                <div class="op-divider-label" style="display: flex; align-items: center; gap: 8px;">
+                    <span class="op-divider-dot"></span>
+                    <span>Oflayn operatorlar</span>
+                    <span style="background: rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px;">${offlineOperators.length}</span>
+                    <button type="button" 
+                            onclick="toggleOfflineCardsView(event)" 
+                            class="op-offline-toggle-btn" 
+                            style="margin-left: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #cbd5e1; border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
+                            title="Ko'rinishni o'zgartirish (To'liq kartochkalar / Ixcham qatorlar)">
+                        <svg class="isax isax-element-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 12px; height: 12px;"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
+                        <span>${_offlineIsCompact ? 'To\'liq statistika' : 'Ixcham qatorlar'}</span>
+                    </button>
+                </div>
+                <div class="op-divider-line"></div>
+            </div>
+            ${offlineContentHtml}
+        `;
+    }
+
+    grid.innerHTML = talkingCardsHtml + readyDividerHtml + readyCardsHtml + offlineSectionHtml;
+
+    if (_operatorsIsCompact) grid.classList.add('compact');
+    if (_operatorsIsFocus) applyOperatorsFocusUI();
+
+    // Jonli taymerlarni yangilash
     updateAllTalkingTimers();
 
     if (typeof renderOperatorChips === 'function') {
@@ -4375,41 +4943,110 @@ function renderOperators(operators) {
     }
 }
 
+let _operatorsIsCompact = false;
+let _operatorsIsFocus = false;
+
+function toggleOperatorsCompact(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    _operatorsIsCompact = !_operatorsIsCompact;
+    const grid = document.getElementById('operatorsGrid');
+    if (grid) grid.classList.toggle('compact', _operatorsIsCompact);
+    const btnText = document.getElementById('btnDensityText');
+    if (btnText) btnText.textContent = _operatorsIsCompact ? 'Batafsil' : 'Qatorlar';
+}
+window.toggleOperatorsCompact = toggleOperatorsCompact;
+
+function toggleOperatorsFocus(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    _operatorsIsFocus = !_operatorsIsFocus;
+    applyOperatorsFocusUI();
+    const btnText = document.getElementById('btnFocusText');
+    if (btnText) btnText.textContent = _operatorsIsFocus ? 'Barchasi' : 'Fokus';
+}
+window.toggleOperatorsFocus = toggleOperatorsFocus;
+
+function applyOperatorsFocusUI() {
+    const sep = document.getElementById('opOfflineSep');
+    const offs = document.getElementById('opOfflineGrid');
+    if (sep) sep.style.display = _operatorsIsFocus ? 'none' : '';
+    if (offs) offs.style.display = _operatorsIsFocus ? 'none' : '';
+}
+window.applyOperatorsFocusUI = applyOperatorsFocusUI;
+
 /* ==========================================================================
    7. Call History & Dual-Source Pagination (3CX Agent Default + Server CDR)
    ========================================================================== */
-let historyDataSource = 'agent'; // Default: 'agent' (3CX Desktop Agent), 'server' (Issabel Asterisk CDR)
-let historyDateScope = 'today'; // 'today' (Tanlangan sana), 'all' (Barcha kunlar / butun arxiv)
+let historyDataSource = 'server'; // Default: 'server' (Issabel Asterisk CDR)
+let historyDateScope = 'today'; // 'today' (Tanlangan sana), 'all' (Barcha kunlar / butun arxiv), 'range' (Sana oralig'i)
+let currentHistoryDateRange = ''; // 'YYYY-MM-DD_YYYY-MM-DD'
 
 function updateHistoryScopeUI() {
     const btnAll = document.getElementById('btnHistoryScopeAll');
-    if (!btnAll) return;
-
-    if (historyDateScope === 'all') {
-        btnAll.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-        btnAll.style.color = '#fff';
-        btnAll.style.borderColor = '#3b82f6';
-        btnAll.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
-        btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days_active', 'Barcha kunlar (Faol)')}</span>`;
-    } else {
-        btnAll.style.background = 'rgba(15, 23, 42, 0.8)';
-        btnAll.style.color = 'var(--text-muted)';
-        btnAll.style.borderColor = 'var(--border-color)';
-        btnAll.style.boxShadow = 'none';
-        btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days', 'Barcha kunlar')}</span>`;
+    if (btnAll) {
+        if (historyDateScope === 'all') {
+            btnAll.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+            btnAll.style.color = '#fff';
+            btnAll.style.borderColor = '#3b82f6';
+            btnAll.style.boxShadow = '0 2px 8px rgba(37, 99, 235, 0.35)';
+            btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days_active', 'Barcha kunlar (Faol)')}</span>`;
+        } else {
+            btnAll.style.background = 'rgba(15, 23, 42, 0.8)';
+            btnAll.style.color = 'var(--text-muted)';
+            btnAll.style.borderColor = 'var(--border-color)';
+            btnAll.style.boxShadow = 'none';
+            btnAll.innerHTML = `<span>♾️</span> <span>${t('hist_all_days', 'Barcha kunlar')}</span>`;
+        }
     }
+    updateHistoryDateRangeUI();
 }
 window.updateHistoryScopeUI = updateHistoryScopeUI;
 
+function updateHistoryDateRangeUI() {
+    const btnRange = document.getElementById('btnHistoryDateRange');
+    const btnText = document.getElementById('btnHistoryDateRangeText');
+    if (!btnRange) return;
+
+    if (historyDateScope === 'range' && currentHistoryDateRange) {
+        const parts = currentHistoryDateRange.split('_');
+        const start = parts[0] ? formatDisplayDate(parts[0]) : '';
+        const end = parts[1] ? formatDisplayDate(parts[1]) : '';
+        btnRange.style.background = 'linear-gradient(135deg, #2563eb, #3b82f6)';
+        btnRange.style.color = '#fff';
+        btnRange.style.borderColor = '#60a5fa';
+        btnRange.style.boxShadow = '0 2px 10px rgba(37, 99, 235, 0.4)';
+        if (btnText) btnText.textContent = `${start} — ${end}`;
+    } else {
+        btnRange.style.background = 'rgba(59, 130, 246, 0.15)';
+        btnRange.style.color = '#93c5fd';
+        btnRange.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+        btnRange.style.boxShadow = 'none';
+        if (btnText) btnText.textContent = t('hist_date_range_btn', "Sana oralig'i");
+    }
+}
+window.updateHistoryDateRangeUI = updateHistoryDateRangeUI;
+
 function toggleHistoryScopeAll() {
-    historyDateScope = (historyDateScope === 'all') ? 'today' : 'all';
+    if (historyDateScope === 'all') {
+        historyDateScope = 'today';
+    } else {
+        historyDateScope = 'all';
+        currentHistoryDateRange = '';
+    }
     updateHistoryScopeUI();
     loadHistoryPage(1, historySearchQuery);
 }
 window.toggleHistoryScopeAll = toggleHistoryScopeAll;
 
 function setHistoryScope(scope) {
-    historyDateScope = (scope === 'all') ? 'all' : 'today';
+    if (scope === 'range') {
+        historyDateScope = 'range';
+    } else if (scope === 'all') {
+        historyDateScope = 'all';
+        currentHistoryDateRange = '';
+    } else {
+        historyDateScope = 'today';
+        currentHistoryDateRange = '';
+    }
     updateHistoryScopeUI();
     loadHistoryPage(1, historySearchQuery);
 }
@@ -4444,9 +5081,6 @@ function setHistorySource(source) {
         if (desc) {
             desc.innerText = t('hist_source_desc_agent', "3CX Desktop Agent lokal bazasidagi qo'ng'iroqlar jurnali.");
         }
-        if (thLast) {
-            thLast.innerText = t('set_col_host', 'Kompyuter (Host)');
-        }
     } else {
         if (btnAgent) {
             btnAgent.style.background = 'transparent';
@@ -4466,9 +5100,6 @@ function setHistorySource(source) {
         }
         if (desc) {
             desc.innerText = t('hist_source_desc_server', "Issabel Asterisk server bazasidagi barcha kiruvchi va chiquvchi CDR qo'ng'iroqlar jurnali.");
-        }
-        if (thLast) {
-            thLast.innerText = t('hist_col_hangup', 'Kim tugatdi?');
         }
     }
 
@@ -4526,14 +5157,15 @@ let currentHistoryData = [];
 async function loadHistoryPage(page = 1, search = '', isSilent = false) {
     const tbody = document.getElementById('historyTableBody');
     if (tbody && !isSilent) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> ${t('hist_loading_calls', "Qo'ng'iroqlar tarixi yuklanmoqda...")}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> ${t('hist_loading_calls', "Qo'ng'iroqlar tarixi yuklanmoqda...")}</td></tr>`;
     }
 
     try {
         const isAll = (historyDateScope === 'all');
+        const isRange = (historyDateScope === 'range');
         const todayStr = getTodayDateString();
         const activeDate = currentSelectedDate || todayStr;
-        const dateParam = isAll ? 'all' : ((activeDate === todayStr) ? 'today' : activeDate);
+        const dateParam = isAll ? 'all' : (isRange ? (currentHistoryDateRange || activeDate) : ((activeDate === todayStr) ? 'today' : activeDate));
 
         if (historyDataSource === 'agent') {
             // 1. 3CX Desktop Agent lokal bazasidan (bir zumda yuklanadi)
@@ -4557,6 +5189,7 @@ async function loadHistoryPage(page = 1, search = '', isSilent = false) {
 
             currentHistoryData = result.data || [];
             applyHistoryFilters();
+            if (typeof updateHistorySelectionBar === 'function') updateHistorySelectionBar();
         } else {
             // 2. Issabel Asterisk CDR Server bazasidan
             const statusVal = (document.getElementById('historyFilterStatus') || {}).value || 'all';
@@ -4591,10 +5224,11 @@ async function loadHistoryPage(page = 1, search = '', isSilent = false) {
 
             currentHistoryData = result.data || [];
             renderServerHistoryTable(currentHistoryData);
+            if (typeof updateHistorySelectionBar === 'function') updateHistorySelectionBar();
         }
     } catch (e) {
         if (tbody && !isSilent) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger); padding: 20px;">${tf('hist_error', { msg: e.message }, `Xatolik yuz berdi: ${e.message}`)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--danger); padding: 20px;">${tf('hist_error', { msg: e.message }, `Xatolik yuz berdi: ${e.message}`)}</td></tr>`;
         }
     }
 }
@@ -4640,14 +5274,17 @@ function applyHistoryFilters() {
     const clearBtn = document.getElementById('btnClearHistoryFilters');
     if (clearBtn) clearBtn.style.display = hasFilter ? 'inline-flex' : 'none';
 
-    // Agar foydalanuvchi Zuhra opa (AI ovoz) ni tanlasa, avtomatik Server CDR ga o'tkazamiz
-    // Chunki ovoz tahlillari to'liq server CDR bazasida saqlanadi
-    if (speakerVal === 'zuhra' && historyDataSource !== 'server') {
+    // Agar foydalanuvchi Transfer yoki Zuhra opa (AI ovoz) ni tanlasa, avtomatik Server CDR ga o'tkazamiz
+    // Chunki transfer va AI ovoz tahlillari to'liq server CDR bazasida mavjud
+    if ((dirVal === 'transfer' || speakerVal === 'zuhra') && historyDataSource !== 'server') {
         setHistorySource('server');
         return;
     }
 
-    if (historyDataSource === 'server') {
+    const btnServer = document.getElementById('btnHistorySourceServer');
+    const isServerActiveInUI = btnServer && (btnServer.style.background.includes('gradient') || btnServer.style.background.includes('rgb(59, 130, 246)'));
+    if (historyDataSource === 'server' || isServerActiveInUI) {
+        historyDataSource = 'server';
         loadHistoryPage(1, historySearchQuery);
         return;
     }
@@ -4660,7 +5297,9 @@ function applyHistoryFilters() {
     const filtered = currentHistoryData.filter(item => {
         // Holat filtri
         if (statusVal !== 'all') {
-            const isAns = item.status === 'ANSWERED' || item.category_3cx === 'Answered';
+            const isOut = item.direction === 'outbound' || item.category_3cx === 'Dialled' || item.status === 'OUTBOUND' || item.status === 'DIALLED';
+            const dur = item.duration_sec || item.duration || 0;
+            const isAns = item.status === 'ANSWERED' || item.category_3cx === 'Answered' || (isOut && dur > 0);
             if (statusVal === 'answered' && !isAns) return false;
             if (statusVal === 'missed' && isAns) return false;
         }
@@ -4710,24 +5349,31 @@ function formatOperatorDisplayName(opStr) {
     if (opStr.includes('Operatorga ulanmadi') || opStr.includes('Не соединен с оператором') || opStr.includes('ulanmadi')) {
         return t('op_not_connected', 'Operatorga ulanmadi');
     }
+    const renderOpSpan = (label, ext) => {
+        return `<span class="op-link-click" onclick="event.stopPropagation(); if (typeof openOperatorDetail==='function') openOperatorDetail('${ext}');" style="cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; color: inherit; transition: color 0.15s;" title="${label} tafsilotlarini ochish">${label}</span>`;
+    };
     if (opStr.includes('➔')) {
         const parts = opStr.split('➔').map(p => p.trim());
         const formattedParts = parts.map(p => {
             const match = p.match(/\b(10[1-9]|11[0-9]|120)\b/);
             if (match) {
                 const ext = match[1];
-                const name = OPERATOR_NAMES_MAP[ext];
-                if (name && !p.includes(name)) return `${name} (${ext})`;
+                let name = OPERATOR_NAMES_MAP[ext];
+                if (ext === '114') name = 'Maxmudbek';
+                const label = name ? `${name} (${ext})` : (p.includes(`(${ext})`) ? p : `Operator (${ext})`);
+                return renderOpSpan(label, ext);
             }
             return p;
         });
-        return formattedParts.join(` <span style="color: #38bdf8; font-weight: 700; margin: 0 3px; display: inline-flex; align-items: center;">${isax('arrow-right')}</span> `);
+        return formattedParts.join(` <span style="color: #38bdf8; font-weight: 700; margin: 0 4px; display: inline-flex; align-items: center; vertical-align: middle;">${isax('arrow-right', '', 'width: 12px; height: 12px;')}</span> `);
     }
     const match = String(opStr).match(/\b(10[1-9]|11[0-9]|120)\b/);
     if (match) {
         const ext = match[1];
-        const name = OPERATOR_NAMES_MAP[ext];
-        if (name) return `${name} (${ext})`;
+        let name = OPERATOR_NAMES_MAP[ext];
+        if (ext === '114') name = 'Maxmudbek';
+        const label = name ? `${name} (${ext})` : (opStr.includes(`(${ext})`) ? opStr : `Operator (${ext})`);
+        return renderOpSpan(label, ext);
     }
     return opStr;
 }
@@ -5140,9 +5786,24 @@ function openAdminEditClientModal(phone) {
     modal.style.display = 'flex';
 }
 
+function smoothCloseDashboardModal(modalOrId, callback) {
+    const el = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
+    if (!el) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
+    el.classList.add('modal-closing');
+    setTimeout(() => {
+        el.classList.remove('modal-closing');
+        el.style.display = 'none';
+        el.classList.remove('open', 'active');
+        if (typeof callback === 'function') callback();
+    }, 180);
+}
+window.smoothCloseDashboardModal = smoothCloseDashboardModal;
+
 function closeAdminClientModal() {
-    const modal = document.getElementById('adminClientModal');
-    if (modal) modal.style.display = 'none';
+    smoothCloseDashboardModal('adminClientModal');
 }
 
 async function handleAdminClientSubmit(e) {
@@ -5358,7 +6019,7 @@ function toggleCallerExpand(key, event) {
 
 function formatHangupParty(party, isXfer) {
     if (isXfer) {
-        return `<span style="color: #38bdf8; font-weight: 600;">${t('party_transfer', 'Transfer (Operatorga)')}</span>`;
+        return `<span style="color: #c084fc; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">${isax('arrow-swap-horizontal', '', 'width: 11px; height: 11px; color: #c084fc;')} ${t('party_transfer', 'Transfer')}</span>`;
     }
     if (!party || party === '-' || party === "Noma'lum" || party === 'Неизвестно' || party === 'Unknown' || party === 'Normal') {
         return `<span style="color: var(--text-dim);">${t('party_unknown', "Noma'lum")}</span>`;
@@ -5383,7 +6044,7 @@ function formatHangupParty(party, isXfer) {
         return `<span style="color: var(--warning); font-weight: 500;">${label}</span>`;
     }
     if (p.includes('Transfer') || p.includes('Перевод')) {
-        return `<span style="color: #38bdf8; font-weight: 600;">${t('party_transfer', 'Transfer (Operatorga)')}</span>`;
+        return `<span style="color: #c084fc; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">${isax('arrow-swap-horizontal', '', 'width: 11px; height: 11px; color: #c084fc;')} ${t('party_transfer', 'Transfer')}</span>`;
     }
     return `<span style="font-weight: 500;">${p}</span>`;
 }
@@ -5395,7 +6056,7 @@ function renderAgentHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="11" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">${t('detail_no_call_number', "Bugun bu raqam bo'yicha qo'ng'iroq topilmadi")}</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">${t('detail_no_call_hint', "Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.")}</div>
@@ -5406,32 +6067,52 @@ function renderAgentHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
         }
         return;
     }
 
-    const isAll = (historyDateScope === 'all');
+    const isAll = (historyDateScope === 'all') || (historyDateScope === 'range');
 
     tbody.innerHTML = data.map((item, index) => {
         const rowNum = (historyCurrentPage - 1) * 20 + index + 1;
+        const durSec = item.duration_sec || item.duration || 0;
         const isOut = item.category_3cx === 'Dialled' || item.status === 'OUTBOUND' || item.status === 'DIALLED';
         const isAns = item.category_3cx === 'Answered' || item.status === 'ANSWERED';
+        const isMissed = item.category_3cx === 'Missed' || item.status === 'MISSED' || item.status === 'REJECT';
+
+        let rowClass = 'recent-call-row';
+        if (isMissed) {
+            rowClass += ' miss';
+        } else if (isOut) {
+            rowClass += ' xfer';
+        }
+
+        const uniqueRowKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || index}`;
+        const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
+        const isChecked = selectedHistoryKeys.has(uniqueRowKey);
+        if (isChecked) rowClass += ' row-selected';
         
         let statusBadge = '';
-        if (isAns) {
-            statusBadge = `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_accepted', 'Qabul qilingan')}</span>`;
+        if (isOut) {
+            if (durSec > 0) {
+                statusBadge = `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: #c084fc; margin: 0;"></span> ${t('status_dialled_connected', 'Chiquvchi (Bog\'langan)')}</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-warning" style="background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: #94a3b8; margin: 0;"></span> ${t('status_dialled_unconnected', 'Chiquvchi (Ulanmagan)')}</span>`;
+            }
+        } else if (isAns) {
+            statusBadge = `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--ok, #2cc4ae); margin: 0;"></span> ${t('status_accepted', 'Qabul qilingan')}</span>`;
         } else if (item.status === 'REJECT') {
-            statusBadge = `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_denied', 'Rad etilgan')}</span>`;
-        } else if (item.category_3cx === 'Missed' || item.status === 'MISSED') {
-            statusBadge = `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_missed', "O'tkazib yuborilgan")}</span>`;
+            statusBadge = `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--miss, #ff6b70); margin: 0;"></span> ${t('status_denied', 'Rad etilgan')}</span>`;
+        } else if (isMissed) {
+            statusBadge = `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--miss, #ff6b70); margin: 0;"></span> ${t('status_missed', "O'tkazib yuborilgan")}</span>`;
         } else {
-            statusBadge = `<span class="badge badge-warning">${item.status_name || item.status}</span>`;
+            statusBadge = `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--wait, #f2b035); margin: 0;"></span> ${item.status_name || item.status}</span>`;
         }
 
         const dirBadge = isOut 
-            ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
-            : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
+            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+            : `<span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
 
         let timeHtml = '';
         if (item.event_time) {
@@ -5439,17 +6120,18 @@ function renderAgentHistoryTable(data) {
             const dateStr = spl[0] || '';
             const timeStr = spl[1] || item.event_time;
             if (isAll) {
-                timeHtml = `<div style="font-weight: 700; color: #60a5fa; font-size: 11px; letter-spacing: 0.3px;">${dateStr}</div><div style="font-family: monospace; color: var(--text-muted); font-size: 11px;">${timeStr}</div>`;
+                timeHtml = `<div style="font-weight: 700; color: #60a5fa; font-size: 11px; letter-spacing: 0.3px;">${dateStr}</div><div style="font-family: monospace; color: var(--mute, #8d9bb0); font-size: 11px;">${timeStr}</div>`;
             } else {
-                timeHtml = `<div style="font-family: monospace; color: var(--text-muted); font-size: 12px;" title="${item.event_time}">${timeStr}</div>`;
+                timeHtml = `<div style="font-family: monospace; color: var(--mute, #8d9bb0); font-size: 12px;" title="${item.event_time}">${timeStr}</div>`;
             }
         } else {
-            timeHtml = '-';
+            timeHtml = '—';
         }
 
         // --- Audio / Amal ustuni ---
-        const durSec = item.duration_sec || 0;
-        const hasAudio = isAns && durSec > 0;
+        const isConnectedOut = isOut && durSec > 0;
+        const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
+        const safeRec = (item.recording || '').replace(/'/g, "\\'");
         const safeCaller = (item.caller_id || '').replace(/'/g, "\\'");
         const callKey = `${item.caller_id || ''}_${durSec}`;
         const isThisPlaying = currentlyPlayingCallKey === callKey;
@@ -5460,92 +6142,139 @@ function renderAgentHistoryTable(data) {
             ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
             : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
-        const audioCell = hasAudio 
-            ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
-                   <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
-                           ${isThisSearching ? 'disabled' : ''} 
-                           onclick="playDashboardRecording('', '${safeCaller}', ${durSec}, this)" 
-                           style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                           title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
-                       <span>${playBtnText}</span>
-                   </button>
-                   <button class="btn-action" 
-                           onclick="openInExplorerStudio('', '${safeCaller}', ${durSec}, this)" 
-                           style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                           title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
-                       <span>${t('audio_detail_short', '🔍 Detal')}</span>
-                   </button>
-                   ${renderVoiceAnalysisBadge(item.voiceAnalysis)}
-               </div>`
-            : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
-                   <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
-               </span>`;
-
-        let rowStyle = '';
-        if (isOut) {
-            rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
-        } else if (item.category_3cx === 'Missed' || item.status === 'MISSED' || item.status === 'REJECT') {
-            rowStyle = 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;';
+        let audioCell = '';
+        if (hasAudio) {
+            audioCell = `
+                <div class="act">
+                    <button type="button" class="btn p ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                            ${isThisSearching ? 'disabled' : ''} 
+                            onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                            title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
+                        <span>${playBtnText}</span>
+                    </button>
+                    <button type="button" class="btn" 
+                            onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                            title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                        <span>${isax('search-normal', '', 'width: 12px; height: 12px; vertical-align: middle;')} ${t('audio_detail_short', 'Detal')}</span>
+                    </button>
+                    <button type="button" class="btn btn-stt-matn" 
+                            onclick="openCallTranscription('${safeRec}', '${safeCaller}', ${durSec}, '${item.event_time || ''}', this)" 
+                            title="Speech-to-Text: Suhbat transkripsiyasini ochish">
+                        <svg class="isax isax-document-text" style="width: 13px; height: 13px; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document-text"></use></svg>
+                        <span>Matn</span>
+                    </button>
+                    ${renderVoiceAnalysisBadge(item.voiceAnalysis)}
+                </div>
+            `;
+        } else {
+            audioCell = `
+                <div class="act">
+                    <button type="button" class="btn" disabled style="opacity: 0.45; cursor: not-allowed;" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
+                        <svg class="isax isax-close-circle" style="width: 12px; height: 12px; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>
+                        <span>${t('audio_none', "Audio yo'q")}</span>
+                    </button>
+                </div>
+            `;
         }
 
         const callerKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`;
         const isExpCaller = isCallerExpanded(callerKey);
+        const dirIcon = isOut ? '↗' : '↙';
+        const dirClass = isOut ? 'out' : 'in';
+
+        let hangupPartyDisplay = '—';
+        if (item.hangupParty || item.hangup_party) {
+            hangupPartyDisplay = formatHangupParty(item.hangupParty || item.hangup_party, isXfer);
+        } else if (isOut) {
+            if (durSec > 0) {
+                hangupPartyDisplay = `<span style="color: #60a5fa; font-weight: 600;">${t('hangup_client', 'Mijoz')}</span>`;
+            } else {
+                hangupPartyDisplay = `<span style="color: var(--mute, #8d9bb0);">${t('status_no_answer', 'Javobsiz')}</span>`;
+            }
+        } else if (isAns) {
+            hangupPartyDisplay = `<span style="color: #60a5fa; font-weight: 600;">${t('hangup_client', 'Mijoz')}</span>`;
+        } else {
+            hangupPartyDisplay = `<span style="color: var(--mute, #8d9bb0);">${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
+        }
+
+        const hostDisplay = item.hostname 
+            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>` 
+            : `<span style="color: var(--mute, #8d9bb0);">Desktop</span>`;
 
         return `
-            <tr style="${rowStyle}">
-                <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-                <td>${timeHtml}</td>
-                <td class="${isExpCaller ? 'cell-expanded' : ''}">
-                    <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
-                        <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
-                        ${renderExpandableCallerHtml(item.caller_id, callerKey)}
+            <tr class="${rowClass}" data-call-key="${safeKey}">
+                <td class="col-cb" data-col="cb" style="width: 38px; text-align: center; padding: 0 8px 0 12px;">
+                    <input type="checkbox" class="history-row-cb" data-row-key="${safeKey}" ${isChecked ? 'checked' : ''} onchange="handleHistoryRowSelect('${safeKey}', '', '${safeCaller}', ${durSec}, '${item.event_time || ''}', this)" style="accent-color: #38bdf8; width: 15px; height: 15px; cursor: pointer; vertical-align: middle;">
+                </td>
+                <td class="col-num col-row-num" data-col="num" style="color: var(--mute, #8d9bb0); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+                <td class="col-time" data-col="time">${timeHtml}</td>
+                <td class="col-phone ${isExpCaller ? 'cell-expanded' : ''}" data-col="phone">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="dir ${dirClass}" title="${isOut ? t('dir_outbound', 'Chiquvchi') : t('dir_inbound', 'Kiruvchi')}">${dirIcon}</span>
+                        <span class="num">${renderExpandableCallerHtml(item.caller_id, callerKey)}</span>
                     </div>
                 </td>
-                <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator_id)}</td>
-                <td>${dirBadge}</td>
-                <td style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--text-main)' : 'var(--text-dim)'};">${formatSeconds(durSec)}</td>
-                <td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="${t('agent_no_wait_title', '3CX Agent jurnalida navbatda kutish vaqti mavjud emas')}">—</td>
-                <td>${statusBadge}</td>
-                <td style="color: var(--text-muted); font-size: 12px;">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                        <span>💻</span> ${item.hostname || 'Desktop'}
-                    </span>
-                </td>
-                <td>${audioCell}</td>
+                <td class="col-operator" data-col="operator" style="font-weight: 600; color: var(--ink, #e8edf5);">${formatOperatorDisplayName(item.operator_id)}</td>
+                <td class="col-dir" data-col="dir">${dirBadge}</td>
+                <td class="col-dur" data-col="dur" style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--ink, #e8edf5)' : 'var(--mute, #8d9bb0)'};">${formatSeconds(durSec)}</td>
+                <td class="col-wait" data-col="wait" style="font-size: 11px; color: var(--mute, #8d9bb0); text-align: center;" title="${t('agent_no_wait_title', '3CX Agent jurnalida navbatda kutish vaqti mavjud emas')}">—</td>
+                <td class="col-status" data-col="status">${statusBadge}</td>
+                <td class="col-hangup" data-col="hangup" style="font-size: 12px; color: var(--mute, #8d9bb0);">${hangupPartyDisplay}</td>
+                <td class="col-host" data-col="host" style="color: var(--mute, #8d9bb0); font-size: 12px;">${hostDisplay}</td>
+                <td class="col-action" data-col="action" style="text-align: right;">${audioCell}</td>
             </tr>
         `;
     }).join('');
 }
 
 function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
-    const isAll = (historyDateScope === 'all');
+    const isAll = (historyDateScope === 'all') || (historyDateScope === 'range');
     const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
     const isOut = item.direction === 'outbound' && !isXfer;
     const isAns = item.status === 'ANSWERED';
+    const durSec = item.duration || item.duration_sec || 0;
+    const isConnectedOut = isOut && (durSec > 0 || Boolean(item.recording));
+    const isUnconnected = !isAns && !isConnectedOut && !isXfer;
 
-    // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
-    const isUnconnected = !isAns && !isOut && !isXfer;
-    let rowStyle = '';
+    let rowClass = 'recent-call-row';
     if (isXfer) {
-        rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
-    } else if (isOut) {
-        rowStyle = (item.status === 'BUSY')
-            ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;'
-            : 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+        rowClass += ' xfer';
+    } else if (item.status === 'BUSY' || item.status === 'NO ANSWER') {
+        rowClass += ' miss';
     } else if (isUnconnected) {
-        rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+        rowClass += ' lost';
+    } else if (isOut) {
+        rowClass += ' xfer';
+    }
+    if (isLiveNew) rowClass += ' live-call-new-row';
+
+    const uniqueRowKey = item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0)));
+    const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
+    const isChecked = selectedHistoryKeys.has(uniqueRowKey);
+    if (isChecked) rowClass += ' row-selected';
+
+    let statusBadge = '';
+    if (isXfer) {
+        statusBadge = `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); display: inline-flex; align-items: center; gap: 4px;">${isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px;')} ${t('status_transferred', 'Transfer qilingan')}</span>`;
+    } else if (isAns) {
+        statusBadge = `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--ok, #2cc4ae); margin: 0;"></span> ${t('status_answered', 'Qabul qilingan')}</span>`;
+    } else if (isOut) {
+        if (durSec > 0) {
+            statusBadge = `<span class="badge badge-purple" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: #c084fc; margin: 0;"></span> ${t('status_dialled_connected', 'Chiquvchi (Bog\'langan)')}</span>`;
+        } else if (item.status === 'BUSY') {
+            statusBadge = `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--miss, #ff6b70); margin: 0;"></span> ${t('status_busy', 'Band')}</span>`;
+        } else {
+            statusBadge = `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--miss, #ff6b70); margin: 0;"></span> ${t('status_no_answer', 'Javobsiz')}</span>`;
+        }
+    } else {
+        statusBadge = `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--wait, #f2b035); margin: 0;"></span> ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
     }
 
-    const statusBadge = isAns 
-        ? `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>` 
-        : (isOut 
-            ? (item.status === 'BUSY' ? `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>` : `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5;">📵 ${t('status_no_answer', 'Javobsiz')}</span>`)
-            : `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`);
     const dirBadge = isXfer
         ? `<span class="badge badge-cyan" style="display: inline-flex; align-items: center; gap: 4px;">${isax('refresh', '', 'width: 12px; height: 12px;')} ${t('dir_transfer', 'transfer')}</span>`
         : (isOut 
-            ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
-            : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
+            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+            : `<span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
     let timeHtml = '';
     if (item.time) {
@@ -5561,19 +6290,19 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
             }
         }
         if (isAll) {
-            timeHtml = `<div style="font-weight: 700; color: #60a5fa; font-size: 11px; letter-spacing: 0.3px;">${dateStr}</div><div style="font-family: monospace; color: var(--text-muted); font-size: 11px;">${timeStr}</div>`;
+            timeHtml = `<div style="font-weight: 700; color: #60a5fa; font-size: 11px; letter-spacing: 0.3px;">${dateStr}</div><div style="font-family: monospace; color: var(--mute, #8d9bb0); font-size: 11px;">${timeStr}</div>`;
         } else {
-            timeHtml = `<div style="font-family: monospace; color: var(--text-muted); font-size: 12px;" title="${item.time}">${timeStr}</div>`;
+            timeHtml = `<div style="font-family: monospace; color: var(--mute, #8d9bb0); font-size: 12px;" title="${item.time}">${timeStr}</div>`;
         }
     } else {
-        timeHtml = '-';
+        timeHtml = '—';
     }
 
     // --- Audio / Amal ustuni ---
-    const durSec = item.duration || 0;
-    const hasAudio = isAns && (durSec > 0 || Boolean(item.recording));
+    const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
     const safeRec = (item.recording || '').replace(/'/g, "\\'");
     const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+    const timeVal = item.time || '';
     const callKey = `${item.callerId || ''}_${durSec}`;
     const isThisPlaying = currentlyPlayingCallKey === callKey;
     const isThisPaused = pausedCallKey === callKey;
@@ -5583,51 +6312,86 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
         ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
         : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
-    const audioCell = hasAudio 
-        ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
-               <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
-                       ${isThisSearching ? 'disabled' : ''} 
-                       onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                       style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                       title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
-                   <span>${playBtnText}</span>
-               </button>
-               <button class="btn-action" 
-                       onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                       style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                       title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
-                   <span>${t('audio_detail_short', '🔍 Detal')}</span>
-               </button>
-               ${renderVoiceAnalysisBadge(item.voiceAnalysis)}
-           </div>`
-        : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
-               <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
-           </span>`;
+    let audioCell = '';
+    if (hasAudio) {
+        audioCell = `
+            <div class="act">
+                <button type="button" class="btn p ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                        ${isThisSearching ? 'disabled' : ''} 
+                        onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                        title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
+                    <span>${playBtnText}</span>
+                </button>
+                <button type="button" class="btn" 
+                        onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                        title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                    <span>${isax('search-normal', '', 'width: 12px; height: 12px; vertical-align: middle;')} ${t('audio_detail_short', 'Detal')}</span>
+                </button>
+                <button type="button" class="btn btn-stt-matn" 
+                        onclick="openCallTranscription('${safeRec}', '${safeCaller}', ${durSec}, '${timeVal}', this)" 
+                        title="Speech-to-Text: Suhbat transkripsiyasini ochish">
+                    <svg class="isax isax-document-text" style="width: 13px; height: 13px; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document-text"></use></svg>
+                    <span>Matn</span>
+                </button>
+                ${renderVoiceAnalysisBadge(item.voiceAnalysis)}
+            </div>
+        `;
+    } else {
+        audioCell = `
+            <div class="act">
+                <button type="button" class="btn" disabled style="opacity: 0.45; cursor: not-allowed;" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
+                    <svg class="isax isax-close-circle" style="width: 12px; height: 12px; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>
+                    <span>${t('audio_none', "Audio yo'q")}</span>
+                </button>
+            </div>
+        `;
+    }
 
-    const hangupDisplay = formatHangupParty(item.hangupParty || item.cause, isXfer);
+    let hangupDisplay = '—';
+    if (item.hangupParty || item.cause) {
+        hangupDisplay = formatHangupParty(item.hangupParty || item.cause, isXfer);
+    } else if (isOut) {
+        if (durSec > 0) {
+            hangupDisplay = `<span style="color: #60a5fa; font-weight: 600;">${t('hangup_client', 'Mijoz')}</span>`;
+        } else {
+            hangupDisplay = `<span style="color: var(--mute, #8d9bb0);">${t('status_no_answer', 'Javobsiz')}</span>`;
+        }
+    } else if (isAns) {
+        hangupDisplay = `<span style="color: #60a5fa; font-weight: 600;">${t('hangup_client', 'Mijoz')}</span>`;
+    } else {
+        hangupDisplay = `<span style="color: var(--mute, #8d9bb0);">${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
+    }
 
     const callerKey = `hist_${item.recording || ''}_${item.callerId || ''}_${item.time || rowNum}`;
     const isExpCaller = isCallerExpanded(callerKey);
-    const uniqueRowKey = item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0)));
-    const animClass = isLiveNew ? ' live-call-new-row' : '';
+    const dirIcon = isOut ? '↗' : (isXfer ? '⇄' : '↙');
+    const dirClass = isOut ? 'out' : (isXfer ? 'xfer' : 'in');
+
+    const hostDisplay = item.hostname 
+        ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>` 
+        : `<span style="color: var(--mute, #8d9bb0);">—</span>`;
 
     return `
-        <tr style="${rowStyle}" class="${animClass}" data-call-key="${uniqueRowKey}">
-            <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
-            <td>${timeHtml}</td>
-            <td class="${isExpCaller ? 'cell-expanded' : ''}">
-                <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
-                    <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
-                    ${renderExpandableCallerHtml(item.callerId, callerKey)}
+        <tr class="${rowClass}" data-call-key="${safeKey}">
+            <td class="col-cb" data-col="cb" style="width: 38px; text-align: center; padding: 0 8px 0 12px;">
+                <input type="checkbox" class="history-row-cb" data-row-key="${safeKey}" ${isChecked ? 'checked' : ''} onchange="handleHistoryRowSelect('${safeKey}', '${safeRec}', '${safeCaller}', ${durSec}, '${timeVal}', this)" style="accent-color: #38bdf8; width: 15px; height: 15px; cursor: pointer; vertical-align: middle;">
+            </td>
+            <td class="col-num col-row-num" data-col="num" style="color: var(--mute, #8d9bb0); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+            <td class="col-time" data-col="time">${timeHtml}</td>
+            <td class="col-phone ${isExpCaller ? 'cell-expanded' : ''}" data-col="phone">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="dir ${dirClass}" title="${isOut ? t('dir_outbound', 'Chiquvchi') : (isXfer ? t('dir_transfer', 'Transfer') : t('dir_inbound', 'Kiruvchi'))}">${dirIcon}</span>
+                    <span class="num">${renderExpandableCallerHtml(item.callerId, callerKey)}</span>
                 </div>
             </td>
-            <td style="font-weight: 600; color: var(--text-main);">${formatOperatorDisplayName(item.operator)}</td>
-            <td>${dirBadge}</td>
-            <td>${formatSeconds(durSec)}</td>
-            <td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="${item.waitSec ? tf('wait_title', { time: formatSeconds(item.waitSec) }, `Navbatda kutish: ${formatSeconds(item.waitSec)}`) : t('wait_title_none', 'Navbatda kutish vaqti mavjud emas')}">${item.waitSec ? formatSeconds(item.waitSec) : '—'}</td>
-            <td>${statusBadge}</td>
-            <td style="font-size: 12px;">${hangupDisplay}</td>
-            <td>${audioCell}</td>
+            <td class="col-operator" data-col="operator" style="font-weight: 600; color: var(--ink, #e8edf5);">${formatOperatorDisplayName(item.operator)}</td>
+            <td class="col-dir" data-col="dir">${dirBadge}</td>
+            <td class="col-dur" data-col="dur" style="font-family: monospace; font-weight: 600; color: ${isAns ? 'var(--ink, #e8edf5)' : 'var(--mute, #8d9bb0)'};">${formatSeconds(durSec)}</td>
+            <td class="col-wait" data-col="wait" style="font-family: monospace; font-weight: 600; color: ${(!isOut && item.waitSec) ? 'var(--wait, #f2b035)' : 'var(--mute, #8d9bb0)'};" title="${(!isOut && item.waitSec) ? tf('wait_title', { time: formatSeconds(item.waitSec) }, `Navbatda kutish: ${formatSeconds(item.waitSec)}`) : t('wait_title_none', 'Navbatda kutish vaqti mavjud emas')}">${isOut ? '—' : ((item.waitSec !== undefined && item.waitSec !== null && item.waitSec > 0) ? formatSeconds(item.waitSec) : (isAns ? '00:00' : '—'))}</td>
+            <td class="col-status" data-col="status">${statusBadge}</td>
+            <td class="col-hangup" data-col="hangup" style="font-size: 12px; color: var(--mute, #8d9bb0);">${hangupDisplay}</td>
+            <td class="col-host" data-col="host" style="color: var(--mute, #8d9bb0); font-size: 12px;">${hostDisplay}</td>
+            <td class="col-action" data-col="action" style="text-align: right;">${audioCell}</td>
         </tr>
     `;
 }
@@ -5639,7 +6403,7 @@ function renderServerHistoryTable(data) {
         if (historySearchQuery && historyDateScope === 'today') {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
+                    <td colspan="12" style="text-align: center; color: var(--text-dim); padding: 32px 20px;">
                         <div style="font-size: 24px; margin-bottom: 8px;">🔍</div>
                         <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 6px;">${t('detail_no_call_number', "Bugun bu raqam bo'yicha qo'ng'iroq topilmadi")}</div>
                         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">${t('detail_no_call_hint', "Mijoz avvalgi kunlarda qo'ng'iroq qilgan bo'lishi mumkin.")}</div>
@@ -5650,7 +6414,7 @@ function renderServerHistoryTable(data) {
                 </tr>
             `;
         } else {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-dim); padding: 24px;">${t('hist_empty', "Qo'ng'iroqlar tarixi topilmadi")}</td></tr>`;
         }
         return;
     }
@@ -5667,11 +6431,9 @@ function prependLiveHistoryRow(record) {
     if (!tbody) return;
 
     // 1. Faqat foydalanuvchi "bugun", 1-sahifada va qidiruvsiz turganda yangi qo'ng'iroqni tepaga qo'shamiz.
-    // Agar foydalanuvchi eski sanalarni yoki eski sahifalarni (2-sahifa+) yoki qidiruv natijalarini ko'rayotgan bo'lsa,
-    // o'qish jarayoni aslo buzilmaydi va jadval miltillamaydi!
     const todayStr = getTodayDateString();
     const activeDate = currentSelectedDate || todayStr;
-    const isToday = (historyDateScope !== 'all') && (activeDate === todayStr);
+    const isToday = (historyDateScope !== 'all') && (historyDateScope !== 'range') && (activeDate === todayStr);
     const isFirstPage = (historyCurrentPage === 1);
     const hasNoSearch = !historySearchQuery;
 
@@ -5700,11 +6462,11 @@ function prependLiveHistoryRow(record) {
     const newRowHtml = renderServerHistoryRowHtml(record, 1, true);
     tbody.insertAdjacentHTML('afterbegin', newRowHtml);
 
-    // Barcha satrlar tartib raqamini (1..20) yangilaymiz
+    // Barcha satrlar tartib raqamini (1..20) yangilaymiz (2-ustun: col-row-num)
     const rows = tbody.querySelectorAll('tr');
     rows.forEach((r, idx) => {
-        const firstTd = r.querySelector('td:first-child');
-        if (firstTd) firstTd.textContent = idx + 1;
+        const numTd = r.querySelector('td.col-row-num') || r.querySelectorAll('td')[1];
+        if (numTd) numTd.textContent = idx + 1;
     });
 
     // Sahifada maksimal 20 ta yozuv bo'lishi kerak, ortiqchasini (21-satrni) silliq olib tashlaymiz
@@ -5742,7 +6504,1386 @@ function prependLiveHistoryRow(record) {
 
 const renderHistoryTable = renderServerHistoryTable;
 
+/* ==========================================================================
+   History Selection & Batch Audio Action Bar
+   ========================================================================== */
+let selectedHistoryKeys = new Set();
+let selectedHistoryRecords = new Map();
+
+function handleHistoryRowSelect(rowKey, recFile, callerId, durSec, time, cb) {
+    if (cb && cb.checked) {
+        selectedHistoryKeys.add(rowKey);
+        selectedHistoryRecords.set(rowKey, {
+            rowKey,
+            recording: recFile || '',
+            callerId: callerId || '',
+            duration: Number(durSec) || 0,
+            time: time || ''
+        });
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.add('row-selected');
+    } else {
+        selectedHistoryKeys.delete(rowKey);
+        selectedHistoryRecords.delete(rowKey);
+        const tr = cb ? cb.closest('tr') : null;
+        if (tr) tr.classList.remove('row-selected');
+    }
+    updateHistorySelectionBar();
+}
+window.handleHistoryRowSelect = handleHistoryRowSelect;
+
+function toggleSelectAllHistory(checked) {
+    const cbs = document.querySelectorAll('#historyTableBody input.history-row-cb');
+    cbs.forEach(cb => {
+        cb.checked = checked;
+        const rowKey = cb.dataset.rowKey;
+        const tr = cb.closest('tr');
+        if (checked) {
+            if (tr) tr.classList.add('row-selected');
+            selectedHistoryKeys.add(rowKey);
+            const found = currentHistoryData.find(item => {
+                const uKey = item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0)));
+                const aKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || ''}`;
+                return uKey === rowKey || aKey === rowKey || String(item.id) === rowKey;
+            });
+            if (found) {
+                selectedHistoryRecords.set(rowKey, {
+                    rowKey,
+                    recording: found.recording || '',
+                    callerId: found.callerId || found.caller_id || '',
+                    duration: found.duration || found.duration_sec || 0,
+                    time: found.time || found.event_time || ''
+                });
+            } else {
+                selectedHistoryRecords.set(rowKey, { rowKey, recording: '', callerId: '', duration: 0, time: '' });
+            }
+        } else {
+            if (tr) tr.classList.remove('row-selected');
+            selectedHistoryKeys.delete(rowKey);
+            selectedHistoryRecords.delete(rowKey);
+        }
+    });
+    updateHistorySelectionBar();
+}
+window.toggleSelectAllHistory = toggleSelectAllHistory;
+
+function clearHistorySelection() {
+    selectedHistoryKeys.clear();
+    selectedHistoryRecords.clear();
+    const allCb = document.getElementById('historySelectAllCb');
+    if (allCb) {
+        allCb.checked = false;
+        allCb.indeterminate = false;
+    }
+    document.querySelectorAll('#historyTableBody input.history-row-cb').forEach(cb => {
+        cb.checked = false;
+        const tr = cb.closest('tr');
+        if (tr) tr.classList.remove('row-selected');
+    });
+    updateHistorySelectionBar();
+}
+window.clearHistorySelection = clearHistorySelection;
+
+function updateHistorySelectionBar() {
+    const bar = document.getElementById('historySelectionBar');
+    const countText = document.getElementById('historySelectedCountText');
+    const audioBadge = document.getElementById('historySelectedAudioBadge');
+    const allCb = document.getElementById('historySelectAllCb');
+    if (!bar) return;
+
+    const totalSelected = selectedHistoryKeys.size;
+    let audioCount = 0;
+    selectedHistoryRecords.forEach(rec => {
+        if (rec.recording || rec.duration > 0) audioCount++;
+    });
+
+    if (totalSelected > 0) {
+        bar.style.display = 'flex';
+        if (countText) countText.textContent = `${totalSelected} ta tanlandi`;
+        if (audioBadge) {
+            audioBadge.textContent = `${audioCount} ta audio mavjud`;
+            audioBadge.style.display = audioCount > 0 ? 'inline-flex' : 'none';
+        }
+    } else {
+        bar.style.display = 'none';
+    }
+
+    const pageCbs = document.querySelectorAll('#historyTableBody input.history-row-cb');
+    if (allCb && pageCbs.length > 0) {
+        const allChecked = Array.from(pageCbs).every(cb => cb.checked);
+        const someChecked = Array.from(pageCbs).some(cb => cb.checked);
+        allCb.checked = allChecked;
+        allCb.indeterminate = !allChecked && someChecked;
+    }
+}
+window.updateHistorySelectionBar = updateHistorySelectionBar;
+
+async function downloadSelectedHistoryAudio() {
+    const audioFiles = [];
+    selectedHistoryRecords.forEach(rec => {
+        if (rec.recording) {
+            audioFiles.push(rec.recording);
+        } else if (rec.duration > 0 && rec.callerId) {
+            audioFiles.push(`${rec.callerId}_${rec.duration}`);
+        }
+    });
+
+    if (audioFiles.length === 0) {
+        alert(t('zip_no_audio_selected', "Tanlangan qo'ng'iroqlar orasida ovoz yozuvi (audio) mavjud emas"));
+        return;
+    }
+
+    const btn = document.getElementById('btnDownloadSelectedZip');
+    const btnText = document.getElementById('btnDownloadSelectedZipText');
+    const origText = btnText ? btnText.textContent : '';
+
+    // 1 TA AUDIO TANLANGAN BO'LSA: Arxiv qilmasdan to'g'ridan-to'g'ri audioni tezkor yuklab olish!
+    if (selectedHistoryRecords.size === 1) {
+        const firstRec = Array.from(selectedHistoryRecords.values())[0];
+        try {
+            if (btn) btn.disabled = true;
+            if (btnText) btnText.textContent = t('audio_downloading', "Audio yuklanmoqda...");
+
+            let resolvedFile = firstRec.recording || '';
+            const callKey = `${firstRec.callerId}_${firstRec.duration}`;
+            if (!resolvedFile && typeof knownRecordingsCache !== 'undefined') {
+                resolvedFile = knownRecordingsCache.get(callKey) || '';
+            }
+
+            // Agar hali keshda bo'lmasa, tezkor indeksdan qidirish (0.2ms)
+            if (!resolvedFile && firstRec.callerId) {
+                try {
+                    const fastRes = await fetch(`/api/recordings/fast-find?callerId=${encodeURIComponent(firstRec.callerId)}&duration=${firstRec.duration || 0}`).then(r => r.json());
+                    if (fastRes && fastRes.found && fastRes.recording) {
+                        resolvedFile = fastRes.recording;
+                        if (typeof knownRecordingsCache !== 'undefined') {
+                            knownRecordingsCache.set(callKey, resolvedFile);
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (!resolvedFile) {
+                alert(tf('audio_not_found_alert', { phone: firstRec.callerId }, `⚠️ "${firstRec.callerId}" raqamiga tegishli audio yozuv topilmadi.`));
+                return;
+            }
+
+            // Brauzer orqali faylni to'g'ridan-to'g'ri yuklab olish
+            const dlUrl = `/api/recordings/stream?file=${encodeURIComponent(resolvedFile)}&download=1`;
+            const a = document.createElement('a');
+            a.href = dlUrl;
+            a.download = resolvedFile.split('/').pop().split('\\').pop() || 'recording.wav';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (err) {
+            alert(`Xatolik: ${err.message}`);
+        } finally {
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = origText;
+        }
+        return;
+    }
+
+    // BIR NECHTA AUDIO TANLANGAN BO'LSA: Fonda ZIP arxiv yaratish (audioRangeModal ochilmaydi!)
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.textContent = t('zip_starting', 'Arxivlash boshlanmoqda...');
+
+        const res = await fetch('/api/recordings/zip-jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                files: audioFiles,
+                zipName: `Tanlangan_${audioFiles.length}_ta_ovoz.zip`
+            })
+        });
+        const data = await res.json();
+        if (!data.success || !data.jobId) {
+            throw new Error(data.error || 'Arxivlash vazifasini yaratib bo‘lmadi');
+        }
+
+        // Fonda progress toast orqali kuzatish
+        startTrackingZipJob(data.jobId);
+    } catch (err) {
+        alert(`Xatolik: ${err.message}`);
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = origText;
+    }
+}
+window.downloadSelectedHistoryAudio = downloadSelectedHistoryAudio;
+
+function selectAllHistoryPageAndDownload() {
+    toggleSelectAllHistory(true);
+    downloadSelectedHistoryAudio();
+}
+window.selectAllHistoryPageAndDownload = selectAllHistoryPageAndDownload;
+
+/* ==========================================================================
+   Speech-to-Text (STT) Modal & Functions
+   ========================================================================== */
+let currentSttCallKey = '';
+let currentSttRecFile = '';
+let currentSttRawText = '';
+let currentSttCleanedText = '';
+let currentSttViewMode = 'cleaned'; // 'cleaned' | 'raw'
+let currentSttIsEditing = false;
+
+async function openCallTranscription(recFile, callerId, duration, time, btn) {
+    const modal = document.getElementById('callTranscribeModal');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    currentSttRecFile = recFile || '';
+    currentSttCallKey = `${callerId || ''}_${duration || 0}`;
+    currentSttRawText = '';
+    currentSttCleanedText = '';
+    currentSttIsEditing = false;
+    currentSttViewMode = 'cleaned';
+
+    // 0. Agar recFile bo'sh bo'lsa, avval ma'lum bo'lgan keshdan tekshiramiz
+    let resolvedRec = recFile || (typeof knownRecordingsCache !== 'undefined' ? knownRecordingsCache.get(currentSttCallKey) : '') || '';
+    currentSttRecFile = resolvedRec || '';
+
+    const metaEl = document.getElementById('sttCallMeta');
+    if (metaEl) {
+        metaEl.textContent = `Raqam: ${callerId || 'Noma‘lum'} • Davomiyligi: ${formatSeconds(duration || 0)} ${time ? '• ' + time : ''}`;
+    }
+
+    const audioEl = document.getElementById('sttModalAudio');
+    if (audioEl) {
+        if (currentSttRecFile) {
+            audioEl.src = `/api/recordings/stream?file=${encodeURIComponent(currentSttRecFile)}`;
+            audioEl.load();
+        } else {
+            audioEl.removeAttribute('src');
+        }
+    }
+
+    const loadingBox = document.getElementById('sttLoadingBox');
+    const errorBox = document.getElementById('sttErrorBox');
+    const contentBox = document.getElementById('sttContentBox');
+    const cacheBadge = document.getElementById('sttCacheBadge');
+    const btnEdit = document.getElementById('btnEditStt');
+    const btnReprocess = document.getElementById('btnReprocessAi');
+    const btnCopy = document.getElementById('btnCopyStt');
+    const btnSave = document.getElementById('btnSaveStt');
+    const btnCancelEdit = document.getElementById('btnCancelEditStt');
+
+    if (loadingBox) loadingBox.style.display = 'flex';
+    if (errorBox) errorBox.style.display = 'none';
+    if (contentBox) contentBox.style.display = 'none';
+    if (cacheBadge) cacheBadge.style.display = 'none';
+    if (btnEdit) btnEdit.style.display = 'none';
+    if (btnReprocess) btnReprocess.style.display = 'none';
+    if (btnCopy) btnCopy.style.display = 'none';
+    if (btnSave) btnSave.style.display = 'none';
+    if (btnCancelEdit) btnCancelEdit.style.display = 'none';
+
+    // Agar recFile hali topilmagan bo'lsa, tezkor indeksdan qidirib ko'ramiz
+    if (!currentSttRecFile && callerId) {
+        try {
+            const fastRes = await fetch(`/api/recordings/fast-find?callerId=${encodeURIComponent(callerId)}&duration=${duration || 0}`).then(r => r.json());
+            if (fastRes && fastRes.found && fastRes.recording) {
+                currentSttRecFile = fastRes.recording;
+                if (typeof knownRecordingsCache !== 'undefined') knownRecordingsCache.set(currentSttCallKey, currentSttRecFile);
+                if (audioEl) {
+                    audioEl.src = `/api/recordings/stream?file=${encodeURIComponent(currentSttRecFile)}`;
+                    audioEl.load();
+                }
+            }
+        } catch (e) {}
+    }
+
+    try {
+        const statsRes = await fetch('/api/recordings/transcribe/stats');
+        const statsData = await statsRes.json();
+        const learnedEl = document.getElementById('sttLearnedWordsCount');
+        if (learnedEl && statsData.success) {
+            learnedEl.textContent = statsData.learnedWordsCount ?? statsData.totalWords ?? '0';
+        }
+    } catch (e) {}
+
+    try {
+        const res = await fetch('/api/recordings/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recFile: currentSttRecFile,
+                callerId: callerId || '',
+                duration: duration || 0,
+                callKey: currentSttCallKey
+            })
+        });
+        const data = await res.json();
+
+        if (loadingBox) loadingBox.style.display = 'none';
+
+        if (data.recFile && (!currentSttRecFile || currentSttRecFile !== data.recFile)) {
+            currentSttRecFile = data.recFile;
+            if (typeof knownRecordingsCache !== 'undefined') knownRecordingsCache.set(currentSttCallKey, currentSttRecFile);
+            if (audioEl && (!audioEl.src || audioEl.src.includes('undefined') || !audioEl.getAttribute('src'))) {
+                audioEl.src = `/api/recordings/stream?file=${encodeURIComponent(currentSttRecFile)}`;
+                audioEl.load();
+            }
+        }
+
+        if (!data.success) {
+            if (errorBox) {
+                errorBox.style.display = 'block';
+                const errMsg = document.getElementById('sttErrorMessage');
+                if (errMsg) errMsg.textContent = data.error || data.message || 'Transkripsiya amalga oshmadi';
+            }
+            return;
+        }
+
+        currentSttCleanedText = data.text || data.rawText || '';
+        currentSttRawText = data.rawText || data.text || '';
+
+        if (contentBox) contentBox.style.display = 'flex';
+        if (cacheBadge) cacheBadge.style.display = data.cached ? 'inline-block' : 'none';
+        if (btnEdit) btnEdit.style.display = 'inline-flex';
+        if (btnReprocess) btnReprocess.style.display = 'inline-flex';
+        if (btnCopy) btnCopy.style.display = 'inline-flex';
+
+        renderSttText();
+    } catch (err) {
+        if (loadingBox) loadingBox.style.display = 'none';
+        if (errorBox) {
+            errorBox.style.display = 'block';
+            const errMsg = document.getElementById('sttErrorMessage');
+            if (errMsg) errMsg.textContent = err.message || 'Tarmoq xatosi';
+        }
+    }
+}
+window.openCallTranscription = openCallTranscription;
+
+function renderSttText() {
+    const textBox = document.getElementById('sttTextBox');
+    const statsLabel = document.getElementById('sttStatsLabel');
+    const textToShow = (currentSttViewMode === 'raw') ? currentSttRawText : currentSttCleanedText;
+
+    if (textBox) {
+        textBox.textContent = textToShow || '(Matn bo‘sh)';
+    }
+    if (statsLabel) {
+        const words = (textToShow || '').trim().split(/\s+/).filter(Boolean).length;
+        statsLabel.textContent = `${words} ta so'z • ${textToShow ? textToShow.length : 0} ta belgi`;
+    }
+}
+
+function switchSttViewMode(mode) {
+    currentSttViewMode = mode;
+    const tabCleaned = document.getElementById('sttTabCleaned');
+    const tabRaw = document.getElementById('sttTabRaw');
+
+    if (mode === 'cleaned') {
+        if (tabCleaned) {
+            tabCleaned.style.background = 'rgba(16, 185, 129, 0.2)';
+            tabCleaned.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            tabCleaned.style.color = '#34d399';
+            tabCleaned.style.fontWeight = '600';
+        }
+        if (tabRaw) {
+            tabRaw.style.background = 'transparent';
+            tabRaw.style.borderColor = 'transparent';
+            tabRaw.style.color = 'var(--text-dim)';
+            tabRaw.style.fontWeight = 'normal';
+        }
+    } else {
+        if (tabRaw) {
+            tabRaw.style.background = 'rgba(16, 185, 129, 0.2)';
+            tabRaw.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            tabRaw.style.color = '#34d399';
+            tabRaw.style.fontWeight = '600';
+        }
+        if (tabCleaned) {
+            tabCleaned.style.background = 'transparent';
+            tabCleaned.style.borderColor = 'transparent';
+            tabCleaned.style.color = 'var(--text-dim)';
+            tabCleaned.style.fontWeight = 'normal';
+        }
+    }
+    renderSttText();
+}
+window.switchSttViewMode = switchSttViewMode;
+
+function enableSttEditMode() {
+    currentSttIsEditing = true;
+    const textBox = document.getElementById('sttTextBox');
+    const editArea = document.getElementById('sttEditTextArea');
+    const btnEdit = document.getElementById('btnEditStt');
+    const btnSave = document.getElementById('btnSaveStt');
+    const btnCancel = document.getElementById('btnCancelEditStt');
+
+    if (textBox) textBox.style.display = 'none';
+    if (editArea) {
+        editArea.style.display = 'block';
+        editArea.value = currentSttCleanedText || currentSttRawText || '';
+        editArea.focus();
+    }
+    if (btnEdit) btnEdit.style.display = 'none';
+    if (btnSave) btnSave.style.display = 'inline-flex';
+    if (btnCancel) btnCancel.style.display = 'inline-flex';
+}
+window.enableSttEditMode = enableSttEditMode;
+
+function cancelSttEditMode() {
+    currentSttIsEditing = false;
+    const textBox = document.getElementById('sttTextBox');
+    const editArea = document.getElementById('sttEditTextArea');
+    const btnEdit = document.getElementById('btnEditStt');
+    const btnSave = document.getElementById('btnSaveStt');
+    const btnCancel = document.getElementById('btnCancelEditStt');
+
+    if (textBox) textBox.style.display = 'block';
+    if (editArea) editArea.style.display = 'none';
+    if (btnEdit) btnEdit.style.display = 'inline-flex';
+    if (btnSave) btnSave.style.display = 'none';
+    if (btnCancel) btnCancel.style.display = 'none';
+}
+window.cancelSttEditMode = cancelSttEditMode;
+
+async function saveSttManualEdit() {
+    const editArea = document.getElementById('sttEditTextArea');
+    const saveBtnText = document.getElementById('sttSaveBtnText');
+    const newText = editArea ? editArea.value : '';
+
+    try {
+        if (saveBtnText) saveBtnText.textContent = 'Saqlanmoqda...';
+        const res = await fetch('/api/recordings/transcribe/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                callKey: currentSttCallKey,
+                recFile: currentSttRecFile,
+                formattedText: newText
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentSttCleanedText = newText;
+            cancelSttEditMode();
+            renderSttText();
+        } else {
+            alert(data.error || 'Saqlashda xatolik');
+        }
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        if (saveBtnText) saveBtnText.textContent = 'Saqlash';
+    }
+}
+window.saveSttManualEdit = saveSttManualEdit;
+
+async function reprocessSttWithAi() {
+    const btn = document.getElementById('btnReprocessAi');
+    const btnText = document.getElementById('sttAiTrainText');
+    const orig = btnText ? btnText.textContent : '';
+
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.textContent = 'O‘qitilmoqda...';
+
+        const res = await fetch('/api/recordings/transcribe/reprocess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                callKey: currentSttCallKey,
+                recFile: currentSttRecFile
+            })
+        });
+        const data = await res.json();
+        if (data.success && data.text) {
+            currentSttCleanedText = data.text;
+            renderSttText();
+            try {
+                const s = await fetch('/api/recordings/transcribe/stats').then(r => r.json());
+                const count = s.learnedWordsCount ?? s.totalWords;
+                if (count !== undefined) {
+                    const el = document.getElementById('sttLearnedWordsCount');
+                    if (el) el.textContent = count;
+                }
+            } catch (e) {}
+            alert('AI muvaffaqiyatli o‘qitildi va matn yangilandi!');
+        } else {
+            alert(data.error || 'Qayta ishlash xatosi');
+        }
+    } catch (e) {
+        alert(e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = orig;
+    }
+}
+window.reprocessSttWithAi = reprocessSttWithAi;
+
+function copySttTextToClipboard() {
+    const textToShow = (currentSttViewMode === 'raw') ? currentSttRawText : currentSttCleanedText;
+    if (!textToShow) return;
+    navigator.clipboard.writeText(textToShow).then(() => {
+        const copyText = document.getElementById('sttCopyBtnText');
+        if (copyText) {
+            const old = copyText.textContent;
+            copyText.textContent = 'Nusxa olindi! ✓';
+            setTimeout(() => { copyText.textContent = old; }, 2000);
+        }
+    });
+}
+window.copySttTextToClipboard = copySttTextToClipboard;
+
+function closeCallTranscriptionModal() {
+    smoothCloseDashboardModal('callTranscribeModal', () => {
+        document.body.style.overflow = '';
+        const audioEl = document.getElementById('sttModalAudio');
+        if (audioEl) {
+            audioEl.pause();
+            audioEl.removeAttribute('src');
+        }
+    });
+}
+window.closeCallTranscriptionModal = closeCallTranscriptionModal;
+
+let batchSttItems = [];
+let batchSttRunning = false;
+
+async function openBatchTranscribeModal() {
+    const modal = document.getElementById('batchTranscribeModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // 1. Audio yozuvlari bor qatorlarni yig'ish
+    batchSttItems = [];
+
+    // Agar checkboxlar orqali tanlangan bo'lsa
+    if (selectedHistoryRecords && selectedHistoryRecords.size > 0) {
+        selectedHistoryRecords.forEach(item => {
+            let rec = item.recording || '';
+            const callKey = `${item.callerId || ''}_${item.duration || 0}`;
+            if (!rec && typeof knownRecordingsCache !== 'undefined') {
+                rec = knownRecordingsCache.get(callKey) || '';
+            }
+            if (rec || (item.duration > 0 && item.callerId)) {
+                batchSttItems.push({
+                    rowKey: item.rowKey,
+                    recording: rec,
+                    callerId: item.callerId || '',
+                    duration: item.duration || 0,
+                    time: item.time || '',
+                    isCached: false
+                });
+            }
+        });
+    }
+
+    // Agar checkbox tanlanmagan bo'lsa, jadvaldagi audio yozuvi mavjud barcha qo'ng'iroqlarni olamiz
+    if (batchSttItems.length === 0 && Array.isArray(currentHistoryData)) {
+        currentHistoryData.forEach(item => {
+            let rec = item.recording || '';
+            const callerId = item.callerId || item.caller_id || '';
+            const dur = item.duration || item.duration_sec || 0;
+            const callKey = `${callerId}_${dur}`;
+            if (!rec && typeof knownRecordingsCache !== 'undefined') {
+                rec = knownRecordingsCache.get(callKey) || '';
+            }
+            if (rec || (dur > 0 && callerId)) {
+                const uKey = item.uniqueid || item.id || (rec + '_' + callerId + '_' + (item.time || item.calldate || item.event_time || ''));
+                batchSttItems.push({
+                    rowKey: String(uKey),
+                    recording: rec,
+                    callerId: callerId,
+                    duration: dur,
+                    time: item.time || item.calldate || item.event_time || '',
+                    isCached: false
+                });
+            }
+        });
+    }
+
+    await renderBatchSttModalUI();
+}
+window.openBatchTranscribeModal = openBatchTranscribeModal;
+
+async function renderBatchSttModalUI() {
+    const totalCountEl = document.getElementById('batchSttTotalCount');
+    const cachedCountEl = document.getElementById('batchSttCachedCount');
+    const pendingCountEl = document.getElementById('batchSttPendingCount');
+    const emptyNotice = document.getElementById('batchSttEmptyNotice');
+    const itemsList = document.getElementById('batchSttItemsList');
+    const btnStart = document.getElementById('btnBatchStart');
+    const btnStop = document.getElementById('btnBatchStop');
+    const runningBadge = document.getElementById('batchSttRunningBadge');
+    const progressStatus = document.getElementById('batchSttProgressStatusText');
+    const progressPercent = document.getElementById('batchSttProgressPercent');
+    const progressBar = document.getElementById('batchSttProgressBar');
+
+    if (btnStart) btnStart.style.display = 'inline-flex';
+    if (btnStop) btnStop.style.display = 'none';
+    if (runningBadge) runningBadge.style.display = 'none';
+    if (progressStatus) progressStatus.textContent = 'Jarayon boshlanishi kutilmoqda...';
+    if (progressPercent) progressPercent.textContent = '0%';
+    if (progressBar) progressBar.style.width = '0%';
+
+    if (batchSttItems.length === 0) {
+        if (totalCountEl) totalCountEl.textContent = '0';
+        if (cachedCountEl) cachedCountEl.textContent = '0';
+        if (pendingCountEl) pendingCountEl.textContent = '0';
+        if (emptyNotice) emptyNotice.style.display = 'block';
+        if (itemsList) itemsList.innerHTML = '';
+        if (btnStart) btnStart.disabled = true;
+        return;
+    }
+
+    if (emptyNotice) emptyNotice.style.display = 'none';
+    if (btnStart) btnStart.disabled = false;
+
+    // Keshda mavjudligini serverdan tekshirish
+    try {
+        const checkRes = await fetch('/api/recordings/transcribe/check-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                keys: batchSttItems.map(i => i.rowKey),
+                files: batchSttItems.map(i => i.recording).filter(Boolean),
+                calls: batchSttItems.map(i => ({
+                    rowKey: i.rowKey,
+                    recording: i.recording,
+                    callerId: i.callerId,
+                    duration: i.duration
+                }))
+            })
+        });
+        const checkData = await checkRes.json();
+        if (checkData && checkData.success && checkData.map) {
+            batchSttItems.forEach(item => {
+                const recBase = item.recording ? item.recording.split('/').pop().split('\\').pop() : '';
+                const dur = Math.round(Number(item.duration) || 0);
+                const callerKey = item.callerId && dur ? `${item.callerId}_${dur}` : '';
+                const cleanCaller = item.callerId ? String(item.callerId).replace(/[^0-9]/g, '') : '';
+                if (checkData.map[item.rowKey] || 
+                    (item.recording && checkData.map[item.recording]) || 
+                    (recBase && checkData.map[recBase]) ||
+                    (callerKey && checkData.map[callerKey]) ||
+                    (cleanCaller && dur && checkData.map[`${cleanCaller}_${dur}`]) ||
+                    (item.callerId && checkData.map[item.callerId]) ||
+                    (cleanCaller && checkData.map[cleanCaller])) {
+                    item.isCached = true;
+                }
+            });
+        }
+    } catch (e) {}
+
+    const total = batchSttItems.length;
+    const cached = batchSttItems.filter(i => i.isCached).length;
+    const pending = total - cached;
+
+    if (totalCountEl) totalCountEl.textContent = total;
+    if (cachedCountEl) cachedCountEl.textContent = cached;
+    if (pendingCountEl) pendingCountEl.textContent = pending;
+
+    // Elementlar ro'yxatini chiqarish
+    if (itemsList) {
+        let html = '';
+        batchSttItems.forEach((item, idx) => {
+            const timeStr = item.time ? (item.time.length > 10 ? item.time.slice(11, 19) : item.time) : '';
+            const durText = item.duration ? formatSeconds(item.duration) : '00:00';
+            const badgeHtml = item.isCached
+                ? `<span id="batchSttBadge_${idx}" style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">Tayyor ✓</span>`
+                : `<span id="batchSttBadge_${idx}" style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 6px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd;">Kutilmoqda</span>`;
+
+            html += `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 8px; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                        <span style="font-size: 11px; color: var(--text-dim); font-family: monospace; width: 22px;">#${idx + 1}</span>
+                        <strong style="color: #fff; font-size: 13px; font-family: monospace;">${item.callerId || 'Yashirin'}</strong>
+                        <span style="font-size: 11px; color: var(--text-muted);">${timeStr}</span>
+                        <span style="font-size: 11px; color: #38bdf8; font-family: monospace;">⏱ ${durText}</span>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        ${badgeHtml}
+                    </div>
+                </div>
+            `;
+        });
+        itemsList.innerHTML = html;
+    }
+}
+
+async function startBatchTranscription() {
+    if (batchSttRunning || batchSttItems.length === 0) return;
+    batchSttRunning = true;
+
+    const btnStart = document.getElementById('btnBatchStart');
+    const btnStop = document.getElementById('btnBatchStop');
+    const runningBadge = document.getElementById('batchSttRunningBadge');
+    const progressStatus = document.getElementById('batchSttProgressStatusText');
+    const progressPercent = document.getElementById('batchSttProgressPercent');
+    const progressBar = document.getElementById('batchSttProgressBar');
+    const skipCached = document.getElementById('batchSttSkipCached')?.checked ?? true;
+
+    if (btnStart) btnStart.style.display = 'none';
+    if (btnStop) btnStop.style.display = 'inline-flex';
+    if (runningBadge) runningBadge.style.display = 'inline-flex';
+
+    // Bajarilishi kerak bo'lgan vazifalar navbati
+    const queue = [];
+    batchSttItems.forEach((item, idx) => {
+        if (skipCached && item.isCached) return;
+        queue.push({ ...item, itemIndex: idx });
+    });
+
+    if (queue.length === 0) {
+        if (progressStatus) progressStatus.textContent = "Barcha audio yozuvlar allaqachon matnga o'girilgan!";
+        if (progressPercent) progressPercent.textContent = '100%';
+        if (progressBar) progressBar.style.width = '100%';
+        if (btnStart) btnStart.style.display = 'inline-flex';
+        if (btnStop) btnStop.style.display = 'none';
+        if (runningBadge) runningBadge.style.display = 'none';
+        batchSttRunning = false;
+        return;
+    }
+
+    const totalToProcess = queue.length;
+    let processedCount = 0;
+
+    for (let i = 0; i < queue.length; i++) {
+        if (!batchSttRunning) break;
+        const task = queue[i];
+        const badge = document.getElementById(`batchSttBadge_${task.itemIndex}`);
+
+        if (badge) {
+            badge.style.background = 'rgba(245, 158, 11, 0.25)';
+            badge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+            badge.style.color = '#fbbf24';
+            badge.innerHTML = `<span class="sync-spinner" style="width: 8px; height: 8px; border-width: 1.5px; border-color: rgba(251, 191, 36, 0.3); border-top-color: #fbbf24; display: inline-block;"></span> O'girilmoqda...`;
+        }
+        if (progressStatus) {
+            progressStatus.textContent = `[${i + 1}/${totalToProcess}] ${task.callerId || 'Mijoz'} audio yozuvi o'girilmoqda...`;
+        }
+
+        try {
+            const res = await fetch('/api/recordings/transcribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recFile: task.recording,
+                    callerId: task.callerId || '',
+                    duration: task.duration || 0,
+                    callKey: task.rowKey
+                })
+            });
+            const data = await res.json();
+            if (data && data.success) {
+                task.isCached = true;
+                if (batchSttItems[task.itemIndex]) batchSttItems[task.itemIndex].isCached = true;
+                if (badge) {
+                    badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                    badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    badge.style.color = '#34d399';
+                    badge.textContent = 'Tayyor ✓';
+                }
+            } else {
+                if (badge) {
+                    badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                    badge.style.color = '#f87171';
+                    badge.textContent = 'Xato ✗';
+                }
+            }
+        } catch (err) {
+            if (badge) {
+                badge.style.background = 'rgba(239, 68, 68, 0.2)';
+                badge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                badge.style.color = '#f87171';
+                badge.textContent = 'Xato ✗';
+            }
+        }
+
+        processedCount++;
+        const pct = Math.round((processedCount / totalToProcess) * 100);
+        if (progressPercent) progressPercent.textContent = `${pct}%`;
+        if (progressBar) progressBar.style.width = `${pct}%`;
+
+        // Update cached and pending count badges
+        const cachedCount = batchSttItems.filter(item => item.isCached).length;
+        const cachedEl = document.getElementById('batchSttCachedCount');
+        const pendingEl = document.getElementById('batchSttPendingCount');
+        if (cachedEl) cachedEl.textContent = cachedCount;
+        if (pendingEl) pendingEl.textContent = Math.max(0, batchSttItems.length - cachedCount);
+    }
+
+    if (progressStatus) {
+        progressStatus.textContent = batchSttRunning ? "Barcha audio yozuvlar muvaffaqiyatli yakunlandi!" : "Jarayon to'xtatildi.";
+    }
+    if (btnStart) btnStart.style.display = 'inline-flex';
+    if (btnStop) btnStop.style.display = 'none';
+    if (runningBadge) runningBadge.style.display = 'none';
+    batchSttRunning = false;
+
+    // Refresh history table badges so the newly transcribed calls show "Matn" button
+    if (typeof loadHistoryData === 'function') {
+        loadHistoryData();
+    }
+}
+window.startBatchTranscription = startBatchTranscription;
+
+function stopBatchTranscription() {
+    batchSttRunning = false;
+    const btnStart = document.getElementById('btnBatchStart');
+    const btnStop = document.getElementById('btnBatchStop');
+    const runningBadge = document.getElementById('batchSttRunningBadge');
+    const progressStatus = document.getElementById('batchSttProgressStatusText');
+
+    if (btnStart) btnStart.style.display = 'inline-flex';
+    if (btnStop) btnStop.style.display = 'none';
+    if (runningBadge) runningBadge.style.display = 'none';
+    if (progressStatus) progressStatus.textContent = "To'xtatildi.";
+}
+window.stopBatchTranscription = stopBatchTranscription;
+
+function closeBatchTranscribeModal() {
+    batchSttRunning = false;
+    smoothCloseDashboardModal('batchTranscribeModal', () => {
+        document.body.style.overflow = '';
+    });
+}
+window.closeBatchTranscribeModal = closeBatchTranscribeModal;
+
+function copyBatchTranscriptions() {
+    const listEl = document.getElementById('batchSttResultsList');
+    if (!listEl) return;
+    const textEls = listEl.querySelectorAll('.batch-stt-text, [data-stt-text]');
+    const allTexts = [];
+    if (textEls && textEls.length > 0) {
+        textEls.forEach((el, idx) => {
+            const txt = (el.getAttribute('data-stt-text') || el.textContent || '').trim();
+            if (txt) allTexts.push(`[${idx + 1}] ${txt}`);
+        });
+    } else {
+        const text = listEl.innerText.trim();
+        if (text) allTexts.push(text);
+    }
+
+    if (allTexts.length === 0) {
+        if (typeof showToast === 'function') showToast("Nusxa olish uchun transkripsiya matnlari mavjud emas", 'info');
+        return;
+    }
+
+    const fullText = allTexts.join('\n\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullText).then(() => {
+            if (typeof showToast === 'function') showToast("Barcha transkripsiyalar nusxalandi!", 'success');
+        }).catch(() => {
+            prompt("Matnni nusxalab oling:", fullText);
+        });
+    } else {
+        prompt("Matnni nusxalab oling:", fullText);
+    }
+}
+window.copyBatchTranscriptions = copyBatchTranscriptions;
+
+function downloadBatchTranscriptionsTxt() {
+    const listEl = document.getElementById('batchSttResultsList');
+    if (!listEl) return;
+    const textEls = listEl.querySelectorAll('.batch-stt-text, [data-stt-text]');
+    const allTexts = [];
+    if (textEls && textEls.length > 0) {
+        textEls.forEach((el, idx) => {
+            const txt = (el.getAttribute('data-stt-text') || el.textContent || '').trim();
+            if (txt) allTexts.push(`--- Audio #${idx + 1} ---\n${txt}\n`);
+        });
+    } else {
+        const text = listEl.innerText.trim();
+        if (text) allTexts.push(text);
+    }
+
+    if (allTexts.length === 0) {
+        if (typeof showToast === 'function') showToast("Yuklab olish uchun matn mavjud emas", 'info');
+        return;
+    }
+
+    const blob = new Blob([allTexts.join('\n\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transkripsiyalar_${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+window.downloadBatchTranscriptionsTxt = downloadBatchTranscriptionsTxt;
+
+function onSttToastClick(event) {
+    if (event && event.target && event.target.closest('#btnSttToastCancel')) {
+        return;
+    }
+    if (typeof openBatchTranscribeModal === 'function') {
+        openBatchTranscribeModal();
+    }
+}
+window.onSttToastClick = onSttToastClick;
+
+function cancelSttFromToast(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    if (typeof stopBatchTranscription === 'function') {
+        stopBatchTranscription();
+    }
+    const toast = document.getElementById('sttProgressToast');
+    if (toast) toast.classList.remove('active');
+    if (typeof showToast === 'function') showToast("Transkripsiya bekor qilindi", 'info');
+}
+window.cancelSttFromToast = cancelSttFromToast;
+
+
+/* ==========================================================================
+   Audio Recordings Date Range Modal & Interactive Calendar
+   ========================================================================== */
+let audioRangeCalCurrentDate = new Date();
+
+function openAudioRangeModal() {
+    const modal = document.getElementById('audioRangeModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    if (startInp && !startInp.value) {
+        setAudioRangePreset('last7');
+    } else {
+        onAudioRangeDateChange();
+    }
+}
+window.openAudioRangeModal = openAudioRangeModal;
+
+function closeAudioRangeModal() {
+    smoothCloseDashboardModal('audioRangeModal', () => {
+        document.body.style.overflow = '';
+    });
+}
+window.closeAudioRangeModal = closeAudioRangeModal;
+
+function setAudioRangePreset(preset) {
+    const today = new Date();
+    const todayStr = getTodayDateString();
+    let startStr = todayStr;
+    let endStr = todayStr;
+
+    if (preset === 'today') {
+        startStr = todayStr;
+        endStr = todayStr;
+    } else if (preset === 'last7') {
+        const d = new Date(today);
+        d.setDate(d.getDate() - 6);
+        startStr = d.toISOString().slice(0, 10);
+        endStr = todayStr;
+    } else if (preset === 'thisMonth') {
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, '0');
+        startStr = `${y}-${m}-01`;
+        endStr = todayStr;
+    } else if (preset === 'prevMonth') {
+        const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const y = prev.getFullYear();
+        const m = String(prev.getMonth() + 1).padStart(2, '0');
+        const lastDay = new Date(y, prev.getMonth() + 1, 0).getDate();
+        startStr = `${y}-${m}-01`;
+        endStr = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    }
+
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    if (startInp) startInp.value = startStr;
+    if (endInp) endInp.value = endStr;
+
+    audioRangeCalCurrentDate = new Date(endStr || today);
+    onAudioRangeDateChange();
+}
+window.setAudioRangePreset = setAudioRangePreset;
+
+function triggerAudioRangeDatePicker(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    try {
+        if (typeof el.showPicker === 'function') {
+            el.showPicker();
+        } else {
+            el.focus();
+        }
+    } catch (e) {
+        el.focus();
+    }
+}
+window.triggerAudioRangeDatePicker = triggerAudioRangeDatePicker;
+
+function onAudioRangeDateChange() {
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    const startText = document.getElementById('audioRangeStartDateText');
+    const endText = document.getElementById('audioRangeEndDateText');
+
+    const sVal = startInp ? startInp.value : '';
+    const eVal = endInp ? endInp.value : '';
+
+    if (startText) startText.textContent = sVal ? formatDisplayDate(sVal) : '--.--.----';
+    if (endText) endText.textContent = eVal ? formatDisplayDate(eVal) : '--.--.----';
+
+    renderAudioRangeCalendar();
+    updateAudioRangeInfo();
+}
+window.onAudioRangeDateChange = onAudioRangeDateChange;
+
+function formatDisplayDate(iso) {
+    if (!iso) return '--.--.----';
+    const parts = iso.split('-');
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    return iso;
+}
+window.formatDisplayDate = formatDisplayDate;
+
+function updateAudioRangeInfo() {
+    const infoText = document.getElementById('audioRangeInfoText');
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    if (!infoText) return;
+
+    const sVal = startInp ? startInp.value : '';
+    const eVal = endInp ? endInp.value : '';
+    if (!sVal || !eVal) {
+        infoText.textContent = "Sana oralig'ini tanlang";
+        return;
+    }
+
+    const d1 = new Date(sVal);
+    const d2 = new Date(eVal);
+    const diffDays = Math.round(Math.abs((d2 - d1) / (1000 * 60 * 60 * 24))) + 1;
+    infoText.textContent = `Tanlangan oraliq: ${formatDisplayDate(sVal)} dan ${formatDisplayDate(eVal)} gacha (${diffDays} kun)`;
+}
+
+function navAudioRangeCal(delta, event) {
+    if (event) event.stopPropagation();
+    audioRangeCalCurrentDate.setMonth(audioRangeCalCurrentDate.getMonth() + delta);
+    renderAudioRangeCalendar();
+}
+window.navAudioRangeCal = navAudioRangeCal;
+
+function renderAudioRangeCalendar() {
+    const grid = document.getElementById('audioRangeCalDaysGrid');
+    const titleEl = document.getElementById('audioRangeCalMonthTitle');
+    if (!grid) return;
+
+    const y = audioRangeCalCurrentDate.getFullYear();
+    const m = audioRangeCalCurrentDate.getMonth();
+
+    const monthNames = [
+        'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
+        'Iyul', 'Avgust', 'Sentyabr', 'Oktabr', 'Noyabr', 'Dekabr'
+    ];
+    if (titleEl) titleEl.textContent = `${monthNames[m]} ${y}`;
+
+    const firstDay = new Date(y, m, 1);
+    let startDayOfWeek = firstDay.getDay() - 1; // 0=Du, 6=Ya
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    const sVal = startInp ? startInp.value : '';
+    const eVal = endInp ? endInp.value : '';
+
+    let html = '';
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div style="height: 28px;"></div>';
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dayStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isStart = (dayStr === sVal);
+        const isEnd = (dayStr === eVal);
+        const isInRange = (sVal && eVal && dayStr >= sVal && dayStr <= eVal);
+
+        let bg = 'transparent';
+        let color = '#cbd5e1';
+        let radius = '4px';
+
+        if (isStart || isEnd) {
+            bg = '#3b82f6';
+            color = '#fff';
+            radius = isStart && isEnd ? '6px' : (isStart ? '6px 0 0 6px' : '0 6px 6px 0');
+        } else if (isInRange) {
+            bg = 'rgba(59, 130, 246, 0.2)';
+            color = '#93c5fd';
+            radius = '0';
+        }
+
+        html += `
+            <div onclick="selectAudioRangeCalDate('${dayStr}')" 
+                 style="height: 28px; line-height: 28px; font-size: 11px; font-weight: 600; cursor: pointer; background: ${bg}; color: ${color}; border-radius: ${radius}; transition: background 0.15s;" 
+                 onmouseover="if(!this.style.background.includes('rgb(59')) this.style.background='rgba(255,255,255,0.08)'" 
+                 onmouseout="if(!this.style.background.includes('rgb(59')) this.style.background='${bg}'">
+                ${d}
+            </div>
+        `;
+    }
+
+    grid.innerHTML = html;
+}
+window.renderAudioRangeCalendar = renderAudioRangeCalendar;
+
+function selectAudioRangeCalDate(dateStr) {
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    if (!startInp || !endInp) return;
+
+    if (!startInp.value || (startInp.value && endInp.value && startInp.value !== endInp.value)) {
+        startInp.value = dateStr;
+        endInp.value = dateStr;
+    } else if (startInp.value && startInp.value === endInp.value) {
+        if (dateStr >= startInp.value) {
+            endInp.value = dateStr;
+        } else {
+            endInp.value = startInp.value;
+            startInp.value = dateStr;
+        }
+    }
+    onAudioRangeDateChange();
+}
+window.selectAudioRangeCalDate = selectAudioRangeCalDate;
+
+function applyAudioRangeToTable() {
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    const sVal = startInp ? startInp.value : '';
+    const eVal = endInp ? endInp.value : '';
+
+    if (!sVal || !eVal) {
+        alert("Iltimos, boshlanish va tugash sanasini tanlang");
+        return;
+    }
+
+    historyDateScope = 'range';
+    currentHistoryDateRange = `${sVal}_${eVal}`;
+    updateHistoryScopeUI();
+    closeAudioRangeModal();
+    loadHistoryPage(1, historySearchQuery);
+}
+window.applyAudioRangeToTable = applyAudioRangeToTable;
+
+let activeZipJobId = null;
+let zipJobPollInterval = null;
+
+async function submitAudioRangeDownload() {
+    const startInp = document.getElementById('audioRangeStartDate');
+    const endInp = document.getElementById('audioRangeEndDate');
+    const searchInp = document.getElementById('audioRangeSearchInput');
+    const sVal = startInp ? startInp.value : '';
+    const eVal = endInp ? endInp.value : '';
+    const searchVal = searchInp ? searchInp.value.trim() : '';
+
+    if (!sVal || !eVal) {
+        alert("Iltimos, boshlanish va tugash sanasini tanlang");
+        return;
+    }
+
+    const btnSubmit = document.getElementById('btnSubmitAudioRange');
+    const btnText = document.getElementById('audioRangeBtnText');
+    const orig = btnText ? btnText.textContent : '';
+
+    try {
+        if (btnSubmit) btnSubmit.disabled = true;
+        if (btnText) btnText.textContent = "Arxivlash boshlanmoqda...";
+
+        const res = await fetch('/api/recordings/zip-jobs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                startDate: sVal,
+                endDate: eVal,
+                search: searchVal,
+                zipName: `Qongiroqlar_${sVal}_${eVal}.zip`
+            })
+        });
+        const data = await res.json();
+        if (!data.success || !data.jobId) {
+            throw new Error(data.error || "Arxivlash vazifasini yaratib bo'lmadi");
+        }
+
+        startTrackingZipJob(data.jobId);
+    } catch (e) {
+        alert(`Xatolik: ${e.message}`);
+    } finally {
+        if (btnSubmit) btnSubmit.disabled = false;
+        if (btnText) btnText.textContent = orig;
+    }
+}
+window.submitAudioRangeDownload = submitAudioRangeDownload;
+
+function startTrackingZipJob(jobId) {
+    activeZipJobId = jobId;
+    const progressWrap = document.getElementById('audioRangeProgressWrap');
+    const modal = document.getElementById('audioRangeModal');
+    if (progressWrap && modal && modal.style.display !== 'none') {
+        progressWrap.style.display = 'block';
+    }
+
+    const toast = document.getElementById('zipProgressToast');
+    if (toast) {
+        toast.style.display = 'flex';
+        toast.classList.add('show');
+        toast.classList.remove('completed');
+        const toastTitle = document.getElementById('zipToastTitle');
+        if (toastTitle) {
+            toastTitle.innerHTML = `<svg class="isax isax-import" style="width: 15px; height: 15px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg> <span>ZIP arxiv tayyorlanmoqda...</span>`;
+        }
+    }
+
+    if (zipJobPollInterval) clearInterval(zipJobPollInterval);
+
+    zipJobPollInterval = setInterval(async () => {
+        if (!activeZipJobId) {
+            clearInterval(zipJobPollInterval);
+            return;
+        }
+        try {
+            const res = await fetch(`/api/recordings/zip-jobs/${activeZipJobId}`);
+            const data = await res.json();
+            if (!data.success || !data.job) return;
+
+            const job = data.job;
+            const bar = document.getElementById('audioRangeProgressBar');
+            const pct = document.getElementById('audioRangeProgressPercent');
+            const statusText = document.getElementById('audioRangeProgressStatusText');
+            const countEl = document.getElementById('audioRangeProgressCount');
+            const sizeEl = document.getElementById('audioRangeProgressSize');
+            const spinner = document.getElementById('audioRangeProgressSpinner');
+
+            // Modal ichidagi progress (faqat ochiq bo'lsa)
+            if (bar) bar.style.width = `${job.progress || 0}%`;
+            if (pct) pct.textContent = `${job.progress || 0}%`;
+            if (countEl) countEl.textContent = `${job.processed || 0} / ${job.total || 0} ta fayl`;
+            if (sizeEl) sizeEl.textContent = job.fileSizeFormatted || '0 MB';
+
+            // Floating Toast progress widget
+            const toastPct = job.progress || 0;
+            const toastCircle = document.getElementById('zipToastCircleProgress');
+            const toastText = document.getElementById('zipToastCircleText');
+            const toastSub = document.getElementById('zipToastSubtitle');
+            const toastTitle = document.getElementById('zipToastTitle');
+
+            if (toastCircle) {
+                const offset = 106.81 - (106.81 * (toastPct / 100));
+                toastCircle.style.strokeDashoffset = offset;
+            }
+            if (toastText) toastText.textContent = `${toastPct}%`;
+            if (toastSub) {
+                toastSub.textContent = `${job.processed || 0} / ${job.total || 0} ta fayl (${job.fileSizeFormatted || '0 MB'})`;
+            }
+
+            if (job.status === 'completed') {
+                clearInterval(zipJobPollInterval);
+                zipJobPollInterval = null;
+                if (statusText) statusText.textContent = "Tayyor! Yuklab olinmoqda...";
+                if (spinner) spinner.style.display = 'none';
+
+                if (toastTitle) {
+                    toastTitle.innerHTML = `<svg class="isax isax-tick-circle" style="width: 15px; height: 15px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg> <span>Tayyor! Yuklab olinmoqda...</span>`;
+                }
+                if (toast) toast.classList.add('completed');
+
+                window.location.href = `/api/recordings/zip-jobs/${activeZipJobId}/download`;
+                setTimeout(() => {
+                    if (progressWrap) progressWrap.style.display = 'none';
+                    if (toast) {
+                        toast.style.display = 'none';
+                        toast.classList.remove('show', 'completed');
+                    }
+                    activeZipJobId = null;
+                }, 3500);
+            } else if (job.status === 'failed' || job.status === 'cancelled') {
+                clearInterval(zipJobPollInterval);
+                zipJobPollInterval = null;
+                const errMsg = `Arxivlash ${job.status === 'cancelled' ? 'bekor qilindi' : 'to‘xtadi'}: ${job.error || ''}`;
+                if (statusText) statusText.textContent = errMsg;
+                if (spinner) spinner.style.display = 'none';
+                if (toastSub) toastSub.textContent = errMsg;
+                setTimeout(() => {
+                    if (toast) {
+                        toast.style.display = 'none';
+                        toast.classList.remove('show');
+                    }
+                    activeZipJobId = null;
+                }, 4000);
+            } else {
+                if (statusText) statusText.textContent = `Fonda yig'ilmoqda (${job.added || 0} ta fayl qo'shildi)...`;
+            }
+        } catch (e) {
+            console.error('Zip poll error:', e);
+        }
+    }, 1500);
+}
+
+async function cancelAudioZipJob(skipPrompt = false) {
+    if (!activeZipJobId) return;
+    if (!skipPrompt && !confirm("Arxivlash jarayonini to'xtatmoqchimisiz?")) return;
+
+    try {
+        await fetch(`/api/recordings/zip-jobs/${activeZipJobId}/cancel`, { method: 'POST' });
+    } catch (e) {}
+
+    if (zipJobPollInterval) {
+        clearInterval(zipJobPollInterval);
+        zipJobPollInterval = null;
+    }
+    activeZipJobId = null;
+    const progressWrap = document.getElementById('audioRangeProgressWrap');
+    if (progressWrap) progressWrap.style.display = 'none';
+    const toast = document.getElementById('zipProgressToast');
+    if (toast) {
+        toast.style.display = 'none';
+        toast.classList.remove('show', 'completed');
+    }
+}
+window.cancelAudioZipJob = cancelAudioZipJob;
+
+function onAudioRangeSearchChange() {
+    const input = document.getElementById('audioRangeSearchInput');
+    const resetBtn = document.getElementById('audioRangeFilterResetBtn');
+    if (resetBtn) {
+        resetBtn.style.display = (input && input.value.trim()) ? 'inline-block' : 'none';
+    }
+}
+window.onAudioRangeSearchChange = onAudioRangeSearchChange;
+
+function clearAudioRangeFilter() {
+    const input = document.getElementById('audioRangeSearchInput');
+    const resetBtn = document.getElementById('audioRangeFilterResetBtn');
+    if (input) input.value = '';
+    if (resetBtn) resetBtn.style.display = 'none';
+}
+window.clearAudioRangeFilter = clearAudioRangeFilter;
+
 let dashboardRecentCallsList = [];
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+if (typeof window !== 'undefined') {
+    window.escapeHtml = escapeHtml;
+}
 
 function updateRecentOperatorsDataList() {
     const dl = document.getElementById('recentOperatorsList');
@@ -5779,13 +7920,57 @@ function updateRecentOperatorsDataList() {
         });
     }
 
-    // Har bir operatordan faqat 1 ta yozuv, alifbo tartibida
-    const uniqueDisplayNames = Array.from(opMap.values()).sort((a, b) => a.localeCompare(b));
-    dl.innerHTML = uniqueDisplayNames.map(name => `<option value="${name}">`).join('');
+    const options = Array.from(opMap.values())
+        .sort((a, b) => a.localeCompare(b, 'uz'))
+        .map(label => `<option value="${escapeHtml(label)}"></option>`)
+        .join('');
+
+    dl.innerHTML = options;
 }
 
+let dashboardRecentSegFilter = 'all';
+let dashboardRecentPage = 1;
+const DASHBOARD_RECENT_PAGE_SIZE = 15;
 let currentRecentSortColumn = 'time';
 let currentRecentSortDirection = 'desc';
+
+function setDashboardRecentSegFilter(filterVal) {
+    dashboardRecentSegFilter = filterVal || 'all';
+    dashboardRecentPage = 1;
+    const seg = document.getElementById('recentCallsSeg');
+    if (seg) {
+        seg.querySelectorAll('button').forEach(btn => {
+            const st = btn.getAttribute('data-status');
+            if (st === dashboardRecentSegFilter) {
+                btn.classList.add('on');
+            } else {
+                btn.classList.remove('on');
+            }
+        });
+    }
+    applyDashboardRecentFilters();
+}
+if (typeof window !== 'undefined') {
+    window.setDashboardRecentSegFilter = setDashboardRecentSegFilter;
+}
+
+function changeRecentPage(target) {
+    if (target === 'prev' || target === -1) {
+        dashboardRecentPage = Math.max(1, dashboardRecentPage - 1);
+    } else if (target === 'next') {
+        dashboardRecentPage += 1;
+    } else {
+        const p = parseInt(target, 10);
+        if (!isNaN(p) && p >= 1) {
+            dashboardRecentPage = p;
+        }
+    }
+    if (dashboardRecentPage < 1) dashboardRecentPage = 1;
+    applyDashboardRecentFilters();
+}
+if (typeof window !== 'undefined') {
+    window.changeRecentPage = changeRecentPage;
+}
 
 function sortDashboardTable(column) {
     if (currentRecentSortColumn === column) {
@@ -5800,7 +7985,7 @@ function sortDashboardTable(column) {
 }
 
 function updateSortIcons() {
-    const columns = ['time', 'callerId', 'direction', 'operator', 'duration', 'waitSec', 'status', 'hangupParty'];
+    const columns = ['time', 'callerId', 'operator', 'duration', 'waitSec', 'status'];
     columns.forEach(col => {
         const iconEl = document.getElementById(`sort-icon-${col}`);
         if (!iconEl) return;
@@ -5808,7 +7993,7 @@ function updateSortIcons() {
         if (col === currentRecentSortColumn) {
             iconEl.innerHTML = currentRecentSortDirection === 'asc' ? '▲' : '▼';
             iconEl.style.opacity = '1';
-            iconEl.style.color = '#38bdf8';
+            iconEl.style.color = 'var(--accent, #6c8cff)';
         } else {
             iconEl.innerHTML = '↕';
             iconEl.style.opacity = '0.35';
@@ -5817,17 +8002,14 @@ function updateSortIcons() {
     });
 }
 
-function applyDashboardRecentFilters() {
+function applyDashboardRecentFilters(resetPage = false) {
+    if (resetPage) dashboardRecentPage = 1;
+
     const opInput = document.getElementById('recentFilterOperator');
-    const statusSelect = document.getElementById('recentFilterStatus');
-    const dirSelect = document.getElementById('recentFilterDirection');
     const clearBtn = document.getElementById('btnClearRecentFilters');
-
     const opVal = opInput ? opInput.value.trim().toLowerCase() : '';
-    const statusVal = statusSelect ? statusSelect.value : 'all';
-    const dirVal = dirSelect ? dirSelect.value : 'all';
 
-    const hasActiveFilter = Boolean(opVal || statusVal !== 'all' || dirVal !== 'all');
+    const hasActiveFilter = Boolean(opVal || dashboardRecentSegFilter !== 'all');
     if (clearBtn) {
         clearBtn.style.display = hasActiveFilter ? 'inline-flex' : 'none';
     }
@@ -5849,21 +8031,21 @@ function applyDashboardRecentFilters() {
             }
         }
 
-        // 2. Holati (answered vs missed/busy/etc)
-        if (statusVal !== 'all') {
-            const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
-            const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
-            if (statusVal === 'answered' && !isAns) return false;
-            if (statusVal === 'missed' && isAns) return false;
-        }
+        const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
+        const isOut = item.direction === 'outbound' && !isXfer;
+        const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
+        const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
 
-        // 3. Yo'nalishi (inbound vs outbound vs transfer)
-        if (dirVal !== 'all') {
-            const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
-            const isOut = item.direction === 'outbound' && !isXfer;
-            if (dirVal === 'transfer' && !isXfer) return false;
-            if (dirVal === 'inbound' && (isOut || isXfer)) return false;
-            if (dirVal === 'outbound' && (!isOut || isXfer)) return false;
+        // 2. Segmented pill filter: all | missed | abandoned | transfer
+        if (dashboardRecentSegFilter === 'missed') {
+            if (isAns) return false;
+            if (isQueueOnly) return false;
+        } else if (dashboardRecentSegFilter === 'abandoned') {
+            if (!isQueueOnly && isAns) return false;
+            if (isOut) return false;
+            if (isAns) return false;
+        } else if (dashboardRecentSegFilter === 'transfer') {
+            if (!isXfer) return false;
         }
 
         return true;
@@ -5882,13 +8064,9 @@ function applyDashboardRecentFilters() {
                 valA = String(a.callerId || '');
                 valB = String(b.callerId || '');
                 break;
-            case 'direction':
-                valA = String(a.direction || '');
-                valB = String(b.direction || '');
-                break;
             case 'operator':
-                valA = String(formatOperatorDisplayName(a.operator || '')).toLowerCase();
-                valB = String(formatOperatorDisplayName(b.operator || '')).toLowerCase();
+                valA = String(typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(a.operator || '') : (a.operator || '')).toLowerCase();
+                valB = String(typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(b.operator || '') : (b.operator || '')).toLowerCase();
                 break;
             case 'duration':
                 valA = parseInt(a.duration || 0, 10);
@@ -5902,10 +8080,6 @@ function applyDashboardRecentFilters() {
                 valA = String(a.status || '');
                 valB = String(b.status || '');
                 break;
-            case 'hangupParty':
-                valA = String(a.hangupParty || '');
-                valB = String(b.hangupParty || '');
-                break;
             default:
                 valA = new Date(a.time || 0).getTime();
                 valB = new Date(b.time || 0).getTime();
@@ -5916,32 +8090,77 @@ function applyDashboardRecentFilters() {
         return 0;
     });
 
-    const limit = hasActiveFilter ? 40 : 20;
-    renderDashboardRecentTable(filtered.slice(0, limit), hasActiveFilter);
+    const totalFiltered = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / DASHBOARD_RECENT_PAGE_SIZE));
+    if (dashboardRecentPage > totalPages) dashboardRecentPage = totalPages;
+    if (dashboardRecentPage < 1) dashboardRecentPage = 1;
+
+    const startIdx = (dashboardRecentPage - 1) * DASHBOARD_RECENT_PAGE_SIZE;
+    const pageItems = filtered.slice(startIdx, startIdx + DASHBOARD_RECENT_PAGE_SIZE);
+
+    renderDashboardRecentTable(pageItems, hasActiveFilter, totalFiltered, dashboardRecentPage, totalPages);
 }
 
 function resetDashboardRecentFilters() {
     const opInput = document.getElementById('recentFilterOperator');
-    const statusSelect = document.getElementById('recentFilterStatus');
-    const dirSelect = document.getElementById('recentFilterDirection');
     if (opInput) opInput.value = '';
-    if (statusSelect) statusSelect.value = 'all';
-    if (dirSelect) dirSelect.value = 'all';
+    dashboardRecentSegFilter = 'all';
+    const seg = document.getElementById('recentCallsSeg');
+    if (seg) {
+        seg.querySelectorAll('button').forEach(btn => {
+            if (btn.getAttribute('data-status') === 'all') btn.classList.add('on');
+            else btn.classList.remove('on');
+        });
+    }
     currentRecentSortColumn = 'time';
     currentRecentSortDirection = 'desc';
+    dashboardRecentPage = 1;
     updateSortIcons();
     applyDashboardRecentFilters();
 }
+if (typeof window !== 'undefined') {
+    window.sortDashboardTable = sortDashboardTable;
+    window.applyDashboardRecentFilters = applyDashboardRecentFilters;
+    window.resetDashboardRecentFilters = resetDashboardRecentFilters;
+}
 
-function renderDashboardRecentTable(data, hasActiveFilter = false) {
+function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered = 0, currentPage = 1, totalPages = 1) {
     const tbody = document.getElementById('dashboardCallsTable');
     if (!tbody) return;
+
+    // Update pagination controls
+    const countInfo = document.getElementById('recentTotalCount');
+    if (countInfo) {
+        countInfo.textContent = `Jami: ${totalFiltered} ta yozuv`;
+    }
+    const btnPrev = document.getElementById('recentBtnPrev');
+    const btnNext = document.getElementById('recentBtnNext');
+    if (btnPrev) btnPrev.disabled = (currentPage <= 1);
+    if (btnNext) btnNext.disabled = (currentPage >= totalPages);
+
+    const pageNumbersEl = document.getElementById('recentPageNumbers');
+    if (pageNumbersEl) {
+        if (totalPages <= 1) {
+            pageNumbersEl.innerHTML = '';
+        } else {
+            let pagesHtml = '';
+            let startP = Math.max(1, currentPage - 2);
+            let endP = Math.min(totalPages, startP + 4);
+            if (endP - startP < 4) {
+                startP = Math.max(1, endP - 4);
+            }
+            for (let p = startP; p <= endP; p++) {
+                pagesHtml += `<button type="button" class="btn ${p === currentPage ? 'p' : ''}" onclick="changeRecentPage(${p})">${p}</button>`;
+            }
+            pageNumbersEl.innerHTML = pagesHtml;
+        }
+    }
 
     if (!data || data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" style="text-align: center; color: var(--text-dim); padding: 32px 16px; font-size: 13px;">
-                    ${hasActiveFilter ? '🔍 Tanlangan filtrlar bo\'yicha qo\'ng\'iroqlar topilmadi' : 'Hozircha qo\'ng\'iroqlar yo\'q'}
+                <td colspan="7" class="empty-state" style="text-align: center; color: var(--mute, #8d9bb0); padding: 32px 16px; font-size: 13px;">
+                    ${hasActiveFilter ? '🔍 Tanlangan filtr bo\'yicha qo\'ng\'iroqlar topilmadi' : 'Hozircha qo\'ng\'iroqlar yo\'q'}
                 </td>
             </tr>
         `;
@@ -5950,110 +8169,125 @@ function renderDashboardRecentTable(data, hasActiveFilter = false) {
 
     try {
         tbody.innerHTML = data.map((item, index) => {
-            const rowNum = index + 1;
             const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
             const isOut = item.direction === 'outbound' && !isXfer;
-            
             const isQueueOnly = !item.operatorExten && (!item.operator || item.operator === 'Navbat' || item.operator.includes('Navbat') || item.operator.includes('Operatorga ulanmadi') || item.operator === '-');
             const isAns = (item.status === 'ANSWERED') && !isQueueOnly;
 
-            const statusBadge = isAns 
-                ? `<span class="badge badge-success" style="display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>` 
-                : (isOut 
-                    ? (item.status === 'BUSY' ? `<span class="badge badge-danger" style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>` : `<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('call-slash', '', 'width: 11px; height: 11px;')} ${t('status_no_answer', 'Javobsiz')}</span>`)
-                    : `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`);
-            const dirBadge = isXfer
-                ? `<span class="badge badge-cyan" style="display: inline-flex; align-items: center; gap: 4px;">${isax('refresh', '', 'width: 12px; height: 12px;')} ${t('dir_transfer', 'transfer')}</span>`
-                : (isOut
-                    ? `<span class="badge badge-purple"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
-                    : `<span class="badge badge-info"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
-
-            const opDisplayName = typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(item.operator) : (item.operator || '-');
-            const opCellHtml = isQueueOnly
-                ? `<span style="color: #f59e0b; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('op_not_connected', 'Operatorga ulanmadi')}</span>`
-                : `<span style="font-weight: 600; color: var(--text-main);">${opDisplayName}</span>`;
-
-            // "Operatorga ulanmadi / Navbatdan chiqdi" (olovrang), "Chiquvchi" (binafsharang), "Transfer" (moviy/cyan) fon
-            const isUnconnected = isQueueOnly && !isOut && !isXfer;
-            let rowStyle = '';
+            // Row status class matching Call Center — yangi dizayn: miss | lost | xfer
+            let rowClass = '';
             if (isXfer) {
-                rowStyle = 'background: rgba(14, 165, 233, 0.08); border-left: 3px solid #0ea5e9;';
-            } else if (isOut) {
-                rowStyle = (item.status === 'BUSY')
-                    ? 'background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;'
-                    : 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
-            } else if (isUnconnected || !isAns) {
-                rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+                rowClass = 'xfer';
+            } else if (isOut && (!isAns || item.status === 'BUSY')) {
+                rowClass = 'miss';
+            } else if (!isAns) {
+                rowClass = 'lost';
             }
 
-            const hasAudio = (item.status === 'ANSWERED' && (item.duration || 0) > 0) || Boolean(item.recording);
-            const safeRec = (item.recording || '').replace(/'/g, "\\'");
-            const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+            // Direction arrow icon
+            let dirClass = 'in';
+            let dirTitle = 'Kiruvchi';
+            let dirIcon = isax('import', '', 'width: 12px; height: 12px;');
+            if (isXfer) {
+                dirClass = 'xfer';
+                dirTitle = 'Transfer';
+                dirIcon = isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px;');
+            } else if (isOut) {
+                dirClass = 'out';
+                dirTitle = 'Chiquvchi';
+                dirIcon = isax('export', '', 'width: 12px; height: 12px;');
+            }
+
+            // Caller Phone
+            const callerKey = `rec_${item.recording || ''}_${item.callerId || ''}_${item.time || index}`;
+            const callerHtml = typeof renderExpandableCallerHtml === 'function' 
+                ? renderExpandableCallerHtml(item.callerId, callerKey) 
+                : (item.callerId || '');
+
+            // Operator
+            let opCellHtml = '';
+            const opDisplayName = typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(item.operator) : (item.operator || '-');
+            if (isQueueOnly) {
+                opCellHtml = `<span class="slow" style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer', '', 'width: 12px; height: 12px;')} ${t('op_not_connected', 'Operatorga ulanmadi')}</span>`;
+            } else {
+                opCellHtml = `<span>${opDisplayName}</span>`;
+            }
+
+            // Duration & Wait
             const durSec = item.duration || 0;
             const waitSecVal = item.waitSec || 0;
             const waitCellHtml = isOut
-                ? `<td style="font-size: 11px; color: var(--text-dim); text-align: center;" title="${t('wait_none_outbound_title', "Chiquvchi qo'ng'iroqda navbat yo'q")}">—</td>`
-                : `<td style="font-family: monospace; font-weight: 600; color: #f59e0b;" title="${typeof tf === 'function' ? tf('wait_title', { time: formatSeconds(waitSecVal) }, `Navbatda kutish: ${formatSeconds(waitSecVal)}`) : `Navbatda kutish: ${formatSeconds(waitSecVal)}`}">${formatSeconds(waitSecVal)}</td>`;
+                ? `<td class="mut">—</td>`
+                : (waitSecVal > 30 
+                    ? `<td class="slow">${formatSeconds(waitSecVal)}</td>`
+                    : `<td>${formatSeconds(waitSecVal)}</td>`);
 
+            // Status dot + label
+            let statusColor = 'var(--ok, #2cc4ae)';
+            let statusText = 'Javob berilgan';
+            if (isXfer) {
+                statusColor = 'var(--accent, #6c8cff)';
+                statusText = 'Transfer qilingan';
+            } else if (isOut) {
+                if (item.status === 'BUSY') {
+                    statusColor = 'var(--miss, #ff6b70)';
+                    statusText = 'Band';
+                } else if (!isAns) {
+                    statusColor = 'var(--miss, #ff6b70)';
+                    statusText = 'Javobsiz';
+                }
+            } else if (!isAns) {
+                statusColor = 'var(--wait, #f2b035)';
+                statusText = 'Navbatdan chiqdi';
+            }
+
+            // Audio Actions
+            const isConnectedOut = isOut && durSec > 0;
+            const hasAudio = ((item.status === 'ANSWERED' || isConnectedOut) && durSec > 0) || Boolean(item.recording);
+            const safeRec = (item.recording || '').replace(/'/g, "\\'");
+            const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
             const callKey = `${item.callerId || ''}_${durSec}`;
             const isThisPlaying = typeof currentlyPlayingCallKey !== 'undefined' && currentlyPlayingCallKey === callKey;
             const isThisPaused = typeof pausedCallKey !== 'undefined' && pausedCallKey === callKey;
             const isThisSearching = typeof activeSearchingCallerId !== 'undefined' && activeSearchingCallerId === item.callerId;
 
             const playBtnText = isThisSearching 
-                ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
-                : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
+                ? `${isax('timer', '', 'width: 12px; height: 12px;')} Qidirilmoqda...`
+                : (isThisPlaying 
+                    ? `${isax('pause', '', 'width: 12px; height: 12px;')} To‘xtatish` 
+                    : (isThisPaused 
+                        ? `${isax('play', '', 'width: 12px; height: 12px;')} Davom` 
+                        : `${isax('play', '', 'width: 12px; height: 12px;')} Tinglash`));
 
-            const audioCell = hasAudio 
-                ? `<div style="display: inline-flex; align-items: center; gap: 6px;">
-                       <button class="btn-action btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
-                               ${isThisSearching ? 'disabled' : ''} 
-                               onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                               style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; padding: 4px 10px; font-size: 11px;" 
-                               title="${isThisPlaying ? t('audio_pause_title', "To'xtatish (pauza)") : (isThisPaused ? t('audio_resume_title', 'Qolgan joyidan davom ettirish') : t('audio_play_title', 'Audioni tinglash'))}">
-                           <span>${playBtnText}</span>
-                       </button>
-                       <button class="btn-action" 
-                               onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
-                               style="padding: 4px 8px; font-size: 11px; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe; display: inline-flex; align-items: center; gap: 4px;" 
-                               title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
-                           <span>${t('audio_detail_short', '🔍 Detal')}</span>
-                       </button>
-                   </div>`
-                : `<span class="badge" style="background: rgba(100, 116, 139, 0.12); color: var(--text-dim); font-size: 11px; padding: 4px 8px; border: 1px dashed rgba(148, 163, 184, 0.2);" title="${t('audio_none_title', "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)")}">
-                       <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('audio_none', "Audio yo'q")}</span>
-                   </span>`;
-
-            const hangupDisplay = typeof formatHangupParty === 'function' 
-                ? formatHangupParty(item.hangupParty || item.cause, isXfer) 
-                : (item.hangupParty || item.cause || '-');
-
-            const callerKey = `rec_${item.recording || ''}_${item.callerId || ''}_${item.time || index}`;
-            const isExpCaller = typeof isCallerExpanded === 'function' ? isCallerExpanded(callerKey) : false;
+            const audioActionHtml = hasAudio
+                ? `<button type="button" class="btn p btn-play-audio-inline ${isThisPlaying ? 'btn-audio-playing' : ''}" 
+                           ${isThisSearching ? 'disabled' : ''} 
+                           onclick="playDashboardRecording('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           title="${isThisPlaying ? 'To\'xtatish' : (isThisPaused ? 'Davom ettirish' : 'Audioni tinglash')}">
+                       <span>${playBtnText}</span>
+                   </button>
+                   <button type="button" class="btn" 
+                           onclick="openInExplorerStudio('${safeRec}', '${safeCaller}', ${durSec}, this)" 
+                           title="${t('audio_detail_title', "Audio Explorer studiyasida to'liq pleyer bilan ochish")}">
+                       <span>${isax('document-text', '', 'width: 12px; height: 12px;')} Detal</span>
+                   </button>`
+                : `<button type="button" class="btn" disabled>
+                       <span class="mut">${isax('close-circle', '', 'width: 12px; height: 12px;')} Audio yo‘q</span>
+                   </button>`;
 
             const timeStr = item.time ? new Date(item.time).toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' }) : '--:--:--';
 
             return `
-                <tr style="${rowStyle}">
-                    <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
+                <tr class="${rowClass}">
                     <td>${timeStr}</td>
-                    <td class="${isExpCaller ? 'cell-expanded' : ''}">
-                        <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
-                            <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
-                            ${typeof renderExpandableCallerHtml === 'function' ? renderExpandableCallerHtml(item.callerId, callerKey) : (item.callerId || '')}
-                        </div>
-                    </td>
-                    <td>${dirBadge}</td>
-                    <td>${opCellHtml}</td>
-                    <td>${formatSeconds(item.duration || 0)}</td>
-                    ${waitCellHtml}
-                    <td>${statusBadge}</td>
-                    <td style="font-size: 12px;">
-                        ${hangupDisplay}
-                    </td>
                     <td>
-                        ${audioCell}
+                        <span class="dir ${dirClass}" title="${dirTitle}">${dirIcon}</span><span class="num" onclick="copyCallbackPhone('${item.callerId}', this, event)" style="cursor: pointer;" title="Nusxalash: ${item.callerId}">${callerHtml}</span>
                     </td>
+                    <td>${opCellHtml}</td>
+                    <td>${formatSeconds(durSec)}</td>
+                    ${waitCellHtml}
+                    <td><span class="dot" style="--c: ${statusColor};"></span>${statusText}</td>
+                    <td><div class="act">${audioActionHtml}</div></td>
                 </tr>
             `;
         }).join('');
@@ -6231,8 +8465,9 @@ async function loadInitialData() {
             updateAmiStatus(statusRes.amiConnected);
             updateSftpStatus(statusRes.sftpConnected);
         }
-        if (Array.isArray(recentRes) && recentRes.length > 0 && dashboardRecentCallsList.length === 0) {
-            dashboardRecentCallsList = [...recentRes];
+        const recentCalls = Array.isArray(recentRes) ? recentRes : (recentRes && Array.isArray(recentRes.data) ? recentRes.data : []);
+        if (recentCalls.length > 0) {
+            dashboardRecentCallsList = [...recentCalls];
             updateRecentOperatorsDataList();
             applyDashboardRecentFilters();
         }
@@ -6267,12 +8502,11 @@ let detailState = {
 };
 
 function closeDetailModal() {
-    const modal = document.getElementById('detailModal');
-    if (modal) modal.style.display = 'none';
     if (currentDetailAudio) {
         currentDetailAudio.pause();
         currentDetailAudio = null;
     }
+    smoothCloseDashboardModal('detailModal');
 }
 
 let detailSearchTimeout = null;
@@ -6361,10 +8595,18 @@ if (document.readyState === 'loading') {
 function getFilteredSortedDetailCalls() {
     let calls = detailState.rawCalls.slice();
 
+    const isTransferCall = (c) => Boolean(
+        c.direction === 'transfer' ||
+        (c.hangupParty && String(c.hangupParty).toLowerCase().includes('transfer')) ||
+        (c.operator && (c.operator.includes('➔') || c.operator.includes('->') || c.operator.includes('→')))
+    );
+
     if (detailState.category === 'answered') {
-        calls = calls.filter(c => c.direction !== 'outbound' && c.status === 'ANSWERED');
+        calls = calls.filter(c => c.direction !== 'outbound' && c.status === 'ANSWERED' && !isTransferCall(c));
     } else if (detailState.category === 'outbound') {
         calls = calls.filter(c => c.direction === 'outbound' && c.status === 'ANSWERED');
+    } else if (detailState.category === 'transfer') {
+        calls = calls.filter(c => isTransferCall(c));
     }
 
     if (detailState.sortKey) {
@@ -6487,10 +8729,15 @@ function renderDetailTableBody() {
                     const rowNum = index + 1;
                     const isAns = c.status === 'ANSWERED';
                     const isOut = c.direction === 'outbound';
+                    const isXfer = c.direction === 'transfer' || 
+                        (c.hangupParty && String(c.hangupParty).toLowerCase().includes('transfer')) || 
+                        (c.operator && (c.operator.includes('➔') || c.operator.includes('->') || c.operator.includes('→')));
 
                     let durText = '';
                     if (detailState.type === 'abandoned') {
                         durText = `<span style="font-weight: 700; color: #fbbf24; font-family: monospace; font-size: 13px;">${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+                    } else if (isXfer) {
+                        durText = `<span style="font-weight: 700; color: #c084fc;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`;
                     } else if (isOut) {
                         durText = isAns
                             ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
@@ -6502,7 +8749,9 @@ function renderDetailTableBody() {
                     }
 
                     let statusBadge = '';
-                    if (isOut) {
+                    if (isXfer) {
+                        statusBadge = `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 10px; height: 10px; color: #c084fc;')} ${t('status_transferred', 'Transfer qilingan')}</span>`;
+                    } else if (isOut) {
                         if (isAns) {
                             statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('kpi_answered_calls', 'Muvaffaqiyatli')}</span>`;
                         } else if (c.status === 'BUSY') {
@@ -6520,18 +8769,22 @@ function renderDetailTableBody() {
                         }
                     }
 
-                    const directionBadge = isOut
-                        ? `<span class="badge badge-purple" style="font-size: 10px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
-                        : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
+                    const directionBadge = isXfer
+                        ? `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 11px; height: 11px; color: #c084fc;')} ${t('dir_transfer', 'Transfer')}</span>`
+                        : (isOut
+                            ? `<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
+                            : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
                     let rowStyle = '';
-                    if (isOut) {
-                        rowStyle = 'background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7;';
+                    if (isXfer) {
+                        rowStyle = 'background: rgba(168, 85, 247, 0.14); border-left: 4px solid #c084fc; box-shadow: inset 0 0 16px rgba(168, 85, 247, 0.08);';
+                    } else if (isOut) {
+                        rowStyle = 'background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8;';
                     } else if (!isAns) {
                         rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
                     }
 
-                    let hangupDisplay = formatHangupParty(c.hangupParty, c.direction === 'transfer');
+                    let hangupDisplay = formatHangupParty(c.hangupParty, isXfer);
                     const callerKey = `opmodal_${c.recording || ''}_${c.callerId || ''}_${c.time || index}`;
                     const isExpCaller = isCallerExpanded(callerKey);
 
@@ -6541,7 +8794,7 @@ function renderDetailTableBody() {
                             <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' })}</td>
                             <td class="${isExpCaller ? 'cell-expanded' : ''}">
                                 <div class="phone-cell ${isOut ? 'outbound' : ''} ${isExpCaller ? 'is-expanded' : ''}">
-                                    <span class="phone-icon">${isOut ? isax('export') : isax('call')}</span>
+                                    <span class="phone-icon">${isOut ? isax('export') : (isXfer ? isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px; color: #c084fc;') : isax('call'))}</span>
                                     ${renderExpandableCallerHtml(c.callerId, callerKey)}
                                 </div>
                             </td>
@@ -6549,7 +8802,10 @@ function renderDetailTableBody() {
                             <td style="white-space: nowrap;">
                                 ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob') || (c.operator || '').includes('Navbatga kirmasdan')
                                     ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">${(c.operator || '').includes('Navbatga kirmasdan') ? isax('logout', '', 'width: 12px; height: 12px;') : isax('cpu', '', 'width: 12px; height: 12px;')} ${c.operator}</span>`
-                                    : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
+                                    : (isXfer
+                                        ? `<span style="font-weight: 700; color: #e9d5ff; display: inline-flex; align-items: center; gap: 6px; background: rgba(168, 85, 247, 0.16); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(168, 85, 247, 0.35);">${isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px; color: #c084fc;')} ${c.operator}</span>`
+                                        : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
+                                    )
                                 }
                             </td>
                             <td style="white-space: nowrap;">${durText}</td>
@@ -6667,6 +8923,8 @@ function renderOperatorSummaryPills() {
     if (!summaryEl || !op) return;
 
     const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+    const transferredIn = op.transferredIn || 0;
+    const transferredOut = op.transferredOut || 0;
 
     summaryEl.style.display = 'flex';
     summaryEl.innerHTML = `
@@ -6682,6 +8940,7 @@ function renderOperatorSummaryPills() {
         <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
             ${renderOperatorSummaryPill(t('op_sum_answered', 'Qabul qilingan'), `<b style="font-size: 14px; color: var(--success);">${op.answered || 0} ${t('unit_item', 'ta')}</b>`, '16, 185, 129', '16, 185, 129', 'answered')}
             ${renderOperatorSummaryPill(t('dir_outbound', 'Chiquvchi'), `<b style="font-size: 14px; color: #38bdf8;">${op.outbound || 0} ${t('unit_item', 'ta')}</b>`, '56, 189, 248', '56, 189, 248', 'outbound')}
+            ${renderOperatorSummaryPill('Transfer', `<b style="font-size: 14px; color: #c084fc; display: inline-flex; align-items: center; gap: 4px;"><span style="color: #22c55e;" title="Kiruvchi transfer">${isax('arrow-down', '', 'width: 10px; height: 10px;')} ${transferredIn}</span><span style="color: rgba(255,255,255,0.3);">|</span><span style="color: #38bdf8;" title="Chiquvchi transfer">${isax('arrow-up', '', 'width: 10px; height: 10px;')} ${transferredOut}</span></b>`, '168, 85, 247', '168, 85, 247', 'transfer')}
             ${renderOperatorSummaryPill(t('status_denied', 'Rad etilgan'), `<b style="font-size: 14px; color: var(--danger);">${op.denied || 0} ${t('unit_item', 'ta')}</b>`, '239, 68, 68', '239, 68, 68', 'denied')}
             <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 6px 12px; border-radius: var(--radius-sm);">
                 <span style="font-size: 11px; color: var(--text-muted); display: block;">${t('op_card_total_talk', 'Umumiy suhbat:')}</span>
@@ -6821,10 +9080,7 @@ function openAgentLogsModal() {
 }
 
 function closeAgentLogsModal() {
-    const modal = document.getElementById('agentLogsModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    smoothCloseDashboardModal('agentLogsModal');
 }
 
 function changeAgentLogsPage(delta) {
@@ -7206,8 +9462,7 @@ function openExportModal() {
 }
 
 function closeExportModal() {
-    const modal = document.getElementById('exportModal');
-    if (modal) modal.style.display = 'none';
+    smoothCloseDashboardModal('exportModal');
 }
 
 function setExportPreset(preset) {
@@ -7440,8 +9695,7 @@ function openExportChoiceModal() {
 }
 
 function closeExportChoiceModal() {
-    const modal = document.getElementById('exportChoiceModal');
-    if (modal) modal.style.display = 'none';
+    smoothCloseDashboardModal('exportChoiceModal');
 }
 
 function backToDateRangeModal() {
@@ -7900,10 +10154,7 @@ function openAgentSettingsModal() {
 }
 
 function closeAgentSettingsModal() {
-    const modal = document.getElementById('agentSettingsModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    smoothCloseDashboardModal('agentSettingsModal');
 }
 
 // Global window ga bog'lash
@@ -8422,14 +10673,36 @@ async function loadDateData(dateStr) {
                 await loadExplorerPath(typeof currentPath !== 'undefined' ? currentPath : '');
             }
         } else {
-            // 4. Asosiy Dashboard: barcha ma'lumotlar to'liq kelguncha kutish
-            const [statsRes, opRes] = await Promise.all([
-                fetch(`/api/stats${urlDateParam}`).then(r => r.json()).catch(() => null),
-                fetch(`/api/operators${urlDateParam}`).then(r => r.json()).catch(() => []),
+            // 4. Asosiy Dashboard: ma'lumotlarni parallel yuklash va kelishi bilan darhol UI ni yangilash
+            const statsPromise = fetch(`/api/stats${urlDateParam}`)
+                .then(r => r.json())
+                .then(s => { if (s) updateStatsUI(s); return s; })
+                .catch(() => null);
+
+            const opPromise = fetch(`/api/operators${urlDateParam}`)
+                .then(r => r.json())
+                .then(o => { if (o) renderOperators(o); return o; })
+                .catch(() => []);
+
+            const recentPromise = fetch(`/api/calls/recent${urlDateParam}`)
+                .then(r => r.json())
+                .then(recentRes => {
+                    const recentCalls = Array.isArray(recentRes) ? recentRes : (recentRes && Array.isArray(recentRes.data) ? recentRes.data : []);
+                    if (recentCalls.length > 0) {
+                        dashboardRecentCallsList = [...recentCalls];
+                        updateRecentOperatorsDataList();
+                        applyDashboardRecentFilters();
+                    }
+                    return recentCalls;
+                })
+                .catch(() => null);
+
+            await Promise.allSettled([
+                statsPromise,
+                opPromise,
+                recentPromise,
                 typeof loadTabAgentOperators === 'function' ? loadTabAgentOperators(dateStr).catch(() => {}) : Promise.resolve()
             ]);
-            if (statsRes) updateStatsUI(statsRes);
-            if (opRes) renderOperators(opRes);
         }
     } catch (err) {
         console.error('loadDateData xatolik:', err);
@@ -8461,19 +10734,20 @@ function openServerStatusModal() {
 }
 
 function closeServerStatusModal() {
-    const modal = document.getElementById('serverStatusModal');
-    if (modal) modal.style.display = 'none';
     if (srvStatusInterval) {
         clearInterval(srvStatusInterval);
         srvStatusInterval = null;
     }
+    smoothCloseDashboardModal('serverStatusModal');
 }
 
 async function fetchServerStatus(isBackgroundRefresh = false) {
     const loadingState = document.getElementById('srvLoadingState');
     const loadedState = document.getElementById('srvLoadedState');
     const headerSub = document.getElementById('srvHeaderSub');
+    const spinIcon = document.getElementById('ri');
 
+    if (spinIcon) spinIcon.classList.add('spin');
     if (!isBackgroundRefresh && loadingState && loadedState) {
         loadingState.style.display = 'block';
         loadedState.style.display = 'none';
@@ -8485,22 +10759,33 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         const data = await res.json();
 
         if (headerSub && data.os) {
-            headerSub.textContent = `${data.os.hostname} • ${data.os.platform} (${data.os.arch}) • Uptime: ${data.os.uptimeFormatted}`;
+            headerSub.textContent = `${data.os.hostname || 'Server'} · ${data.os.platform} (${data.os.arch}) · tizim uptime: ${data.os.uptimeFormatted || '--'}`;
         }
+
+        // Color & Gauge helpers
+        const srvCol = (p) => p >= 85 ? "var(--bad)" : p >= 70 ? "var(--warn)" : p >= 50 ? "var(--info)" : "var(--ok)";
+        const srvCirc = 2 * Math.PI * 32;
+        const updateSrvGauge = (circleId, percent) => {
+            const c = document.getElementById(circleId);
+            if (!c) return;
+            const p = Math.min(100, Math.max(0, Number(percent) || 0));
+            c.setAttribute('stroke-dasharray', `${(srvCirc * p / 100).toFixed(1)} ${srvCirc.toFixed(1)}`);
+            c.style.stroke = srvCol(p);
+        };
 
         // PM2
         const pm2El = document.getElementById('srvPm2Badge');
         if (pm2El && data.pm2) {
             if (data.pm2.isManagedByPm2) {
-                pm2El.innerHTML = `<span style="color: #10b981;">🟢 PM2 (${data.pm2.name} #${data.pm2.pmId})</span>`;
+                pm2El.innerHTML = `<span style="color: var(--ok);">● ${data.pm2.name} #${data.pm2.pmId}</span>`;
             } else {
-                pm2El.innerHTML = `<span style="color: #f59e0b;" title="Lokalda to'g'ridan-to'g'ri ishlamoqda. Productionda PM2 ishlatiladi">🟡 Direct / Dev</span>`;
+                pm2El.innerHTML = `<span style="color: var(--warn);" title="Lokalda to'g'ridan-to'g'ri ishlamoqda. Productionda PM2 ishlatiladi">Direct / Dev</span>`;
             }
         }
 
         // PID, Uptime, Node
         const pidEl = document.getElementById('srvPid');
-        if (pidEl && data.process) pidEl.textContent = `PID ${data.process.pid}`;
+        if (pidEl && data.process) pidEl.textContent = `${data.process.pid}`;
 
         const uptimeEl = document.getElementById('srvUptime');
         if (uptimeEl && data.process) uptimeEl.textContent = data.process.uptimeFormatted || '--';
@@ -8510,24 +10795,28 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
 
         // CPU
         const cpuPercentEl = document.getElementById('srvCpuPercent');
-        const cpuBarEl = document.getElementById('srvCpuBar');
         const cpuModelEl = document.getElementById('srvCpuModel');
         if (data.os && data.os.cpu) {
-            const cpuPct = data.os.cpu.usagePercent || 0;
-            if (cpuPercentEl) cpuPercentEl.textContent = `${cpuPct}%`;
-            if (cpuBarEl) cpuBarEl.style.width = `${Math.min(100, Math.max(2, cpuPct))}%`;
-            if (cpuModelEl) cpuModelEl.textContent = `(${data.os.cpu.cores} yadro, ${data.os.cpu.speedMHz}MHz)`;
+            const cpuPct = Math.round(data.os.cpu.usagePercent || 0);
+            if (cpuPercentEl) {
+                cpuPercentEl.textContent = `${cpuPct}%`;
+                cpuPercentEl.style.color = srvCol(cpuPct);
+            }
+            updateSrvGauge('cpuc', cpuPct);
+            if (cpuModelEl) cpuModelEl.textContent = `${data.os.cpu.cores} yadro · ${data.os.cpu.speedMHz}MHz`;
         }
 
         // RAM
         const ramPercentEl = document.getElementById('srvRamPercent');
-        const ramBarEl = document.getElementById('srvRamBar');
         const ramDetailEl = document.getElementById('srvRamDetail');
         if (data.os && data.os.memory) {
-            const ramPct = data.os.memory.usedPercent || 0;
-            if (ramPercentEl) ramPercentEl.textContent = `${ramPct}%`;
-            if (ramBarEl) ramBarEl.style.width = `${Math.min(100, Math.max(2, ramPct))}%`;
-            if (ramDetailEl) ramDetailEl.textContent = `(${data.os.memory.usedFormatted} / ${data.os.memory.totalFormatted})`;
+            const ramPct = Math.round(data.os.memory.usedPercent || 0);
+            if (ramPercentEl) {
+                ramPercentEl.textContent = `${ramPct}%`;
+                ramPercentEl.style.color = srvCol(ramPct);
+            }
+            updateSrvGauge('ramc', ramPct);
+            if (ramDetailEl) ramDetailEl.textContent = `${data.os.memory.usedFormatted} / ${data.os.memory.totalFormatted}`;
         }
 
         // DISK
@@ -8535,38 +10824,52 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         const diskBarEl = document.getElementById('srvDiskBar');
         const diskDetailEl = document.getElementById('srvDiskDetail');
         if (data.disk) {
-            const diskPct = data.disk.usedPercent || 0;
-            if (diskPercentEl) diskPercentEl.textContent = `${diskPct}%`;
-            if (diskBarEl) diskBarEl.style.width = `${Math.min(100, Math.max(2, diskPct))}%`;
-            if (diskDetailEl) diskDetailEl.textContent = tf('srv_disk_detail', { used: data.disk.usedFormatted, free: data.disk.freeFormatted, total: data.disk.totalFormatted }, `(${data.disk.usedFormatted} band / ${data.disk.freeFormatted} bo'sh - Jami ${data.disk.totalFormatted})`);
+            const diskPct = Math.round(data.disk.usedPercent || 0);
+            if (diskPercentEl) {
+                diskPercentEl.textContent = `${diskPct}%`;
+                diskPercentEl.style.color = srvCol(diskPct);
+            }
+            if (diskBarEl) {
+                diskBarEl.style.width = `${diskPct}%`;
+                diskBarEl.style.background = srvCol(diskPct);
+            }
+            if (diskDetailEl) {
+                diskDetailEl.textContent = `${data.disk.usedFormatted} band · ${data.disk.freeFormatted} bo'sh · jami ${data.disk.totalFormatted}`;
+            }
 
-            // Jismoniy disk (Physical Drive) ma'lumotlari
             const physBadge = document.getElementById('srvPhysicalDiskTypeBadge');
             const physModel = document.getElementById('srvPhysicalDiskModel');
+            const physSize = document.getElementById('srvPhysicalDiskSize');
             if (data.disk.physical) {
                 if (physBadge) {
                     const isHdd = data.disk.physical.type === 'HDD';
-                    physBadge.textContent = isHdd ? `HDD (${data.disk.physical.rpm || '7200 RPM'})` : t('srv_disk_ssd', 'SSD (Tezkor)');
-                    physBadge.style.background = isHdd ? 'rgba(245, 158, 11, 0.15)' : 'rgba(16, 185, 129, 0.15)';
-                    physBadge.style.color = isHdd ? '#fbbf24' : '#10b981';
-                    physBadge.style.borderColor = isHdd ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+                    physBadge.textContent = isHdd ? `HDD ${data.disk.physical.rpm || '7200 RPM'}` : 'SSD Tezkor';
+                    physBadge.style.background = isHdd ? 'var(--wbg)' : 'var(--okbg)';
+                    physBadge.style.color = isHdd ? 'var(--warn)' : 'var(--ok)';
                 }
-                if (physModel) {
-                    physModel.textContent = `${data.disk.physical.model} • ${data.disk.physical.sizeFormatted || '1 TB'}`;
-                }
+                if (physModel) physModel.textContent = data.disk.physical.model || 'WDC WD10EZEX';
+                if (physSize) physSize.textContent = data.disk.physical.sizeFormatted || '931.51 GB';
             }
 
-            // Issabel PBX & Ovozlar xotirasi (Audio Storage)
             const audioContainer = document.getElementById('srvAudioDiskContainer');
             const audioDetailEl = document.getElementById('srvAudioDiskDetail');
             const audioPercentEl = document.getElementById('srvAudioDiskPercent');
             const audioBarEl = document.getElementById('srvAudioDiskBar');
             if (data.disk.audioStorage) {
                 const aud = data.disk.audioStorage;
+                const audPct = Math.round(aud.usedPercent || 0);
                 if (audioContainer) audioContainer.style.display = 'block';
-                if (audioDetailEl) audioDetailEl.textContent = tf('srv_disk_detail', { used: aud.usedFormatted, free: aud.freeFormatted, total: aud.totalFormatted }, `(${aud.usedFormatted} band / ${aud.freeFormatted} bo'sh - Jami ${aud.totalFormatted})`);
-                if (audioPercentEl) audioPercentEl.textContent = `${aud.usedPercent}%`;
-                if (audioBarEl) audioBarEl.style.width = `${Math.min(100, Math.max(2, aud.usedPercent))}%`;
+                if (audioDetailEl) {
+                    audioDetailEl.textContent = `${aud.usedFormatted} band · ${aud.freeFormatted} bo'sh · jami ${aud.totalFormatted}`;
+                }
+                if (audioPercentEl) {
+                    audioPercentEl.textContent = `${audPct}%`;
+                    audioPercentEl.style.color = srvCol(audPct);
+                }
+                if (audioBarEl) {
+                    audioBarEl.style.width = `${audPct}%`;
+                    audioBarEl.style.background = srvCol(audPct);
+                }
             }
         }
 
@@ -8574,20 +10877,15 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         const servicesList = document.getElementById('srvServicesList');
         if (servicesList && data.services) {
             servicesList.innerHTML = Object.entries(data.services).map(([key, srv]) => {
-                const isOnline = srv.connected;
-                const statusColor = isOnline ? '#10b981' : '#ef4444';
-                const statusText = isOnline ? 'ONLINE' : 'OFFLINE';
-                const icon = isOnline ? '🟢' : '🔴';
-
+                const isOnline = Boolean(srv.connected);
                 return `
-                    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="font-size: 12px; font-weight: 600; color: #fff;">${srv.name}</div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${key.toUpperCase()} protokol</div>
+                    <div class="svc">
+                        <i class="dot ${isOnline ? '' : 'off'}"></i>
+                        <div class="n">
+                            <b>${srv.name}</b>
+                            <small>${key.toUpperCase()} protokol</small>
                         </div>
-                        <span style="font-size: 11px; font-weight: 700; color: ${statusColor}; background: ${isOnline ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; padding: 3px 8px; border-radius: 6px; border: 1px solid ${statusColor}44;">
-                            ${icon} ${statusText}
-                        </span>
+                        <span class="${isOnline ? 'on' : 'off'}">${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
                     </div>
                 `;
             }).join('');
@@ -8598,29 +10896,66 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         if (vmsList && Array.isArray(data.vms)) {
             vmsList.innerHTML = data.vms.map(vm => {
                 const isRunning = vm.status === 'running';
-                const statusColor = isRunning ? '#10b981' : '#ef4444';
-                const statusText = isRunning ? 'ISHLAMOQDA' : (vm.status === 'stopped' ? 'TO\'XTATILGAN' : vm.status.toUpperCase());
-                const icon = isRunning ? '🟢' : '🔴';
-
                 const actionBtn = isRunning
-                    ? `<button onclick="triggerVmAction(${vm.id}, 'stop')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('pause', '', 'width: 12px; height: 12px;')} To'xtatish</button>`
-                    : `<button onclick="triggerVmAction(${vm.id}, 'start')" class="btn-action" style="padding: 4px 10px; font-size: 11px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #86efac; display: inline-flex; align-items: center; gap: 4px;">${isax('play', '', 'width: 12px; height: 12px;')} Yoqish</button>`;
+                    ? `<button onclick="triggerVmAction(${vm.id}, 'stop')" class="srv-btn sm bad">To'xtatish</button>`
+                    : `<button onclick="triggerVmAction(${vm.id}, 'start')" class="srv-btn sm good">Yoqish</button>`;
 
                 return `
-                    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                        <div>
-                            <div style="font-size: 13px; font-weight: 700; color: #fff;">${vm.name} <span style="font-size: 11px; color: #60a5fa;">(VM ${vm.id})</span></div>
-                            <div style="font-size: 11px; color: var(--text-muted);">${vm.desc || ''}</div>
+                    <div class="vm ${isRunning ? '' : 'stopped'}">
+                        <i class="dot"></i>
+                        <div class="n">
+                            <b>${vm.name}</b>
+                            <small>VM ${vm.id} · ${vm.desc || ''}</small>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 11px; font-weight: 700; color: ${statusColor}; background: ${isRunning ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; padding: 3px 8px; border-radius: 6px; border: 1px solid ${statusColor}44;">
-                                ${icon} ${statusText}
-                            </span>
-                            ${actionBtn}
-                        </div>
+                        ${actionBtn}
                     </div>
                 `;
             }).join('');
+        }
+
+        // OVERALL BADGE
+        const hasOfflineService = data.services && Object.values(data.services).some(s => !s.connected);
+        const hasStoppedVm = Array.isArray(data.vms) && data.vms.some(v => v.status !== 'running');
+        const isHeavy = (data.os?.cpu?.usagePercent || 0) >= 85 || (data.os?.memory?.usedPercent || 0) >= 85;
+        const needsAttention = hasOfflineService || hasStoppedVm || isHeavy;
+        const allBadge = document.getElementById('srvAllBadge');
+        if (allBadge) {
+            allBadge.textContent = needsAttention ? '● Diqqat talab etiladi' : '● Hammasi joyida';
+            allBadge.style.background = needsAttention ? 'var(--wbg)' : 'var(--okbg)';
+            allBadge.style.color = needsAttention ? 'var(--warn)' : 'var(--ok)';
+        }
+
+        // PROXMOX AUTO-RECOVER & RECOVERY STATUS
+        if (data.autoRecover !== undefined) {
+            updateVmAutoRecoverUI(data.autoRecover && data.autoRecover.enabled !== undefined ? data.autoRecover.enabled : data.autoRecover);
+        }
+        const rec = data.lastRecovery || (data.autoRecover && data.autoRecover.lastRecovery);
+        if (rec) {
+            const badgeEl = document.getElementById('srvRecoveryBadge');
+            const detailRow = document.getElementById('srvRecoveryDetailRow');
+            const logBox = document.getElementById('srvVmLogBox');
+            if (badgeEl) {
+                const isSuccess = rec.status === 'success';
+                const isRunning = rec.status === 'running';
+                const color = isSuccess ? 'var(--ok)' : (isRunning ? 'var(--info)' : 'var(--bad)');
+                const bg = isSuccess ? 'var(--okbg)' : (isRunning ? 'rgba(56, 189, 248, 0.15)' : 'var(--bbg)');
+                badgeEl.style.color = color;
+                badgeEl.style.background = bg;
+                badgeEl.style.border = `1px solid ${color}44`;
+                badgeEl.textContent = isSuccess ? 'TAYYOR / MUVAFFAQIYATLI' : (isRunning ? 'JARAYONDA...' : 'XATOLIK');
+            }
+            if (detailRow) {
+                const startStr = rec.startTime ? new Date(rec.startTime).toLocaleTimeString() : '-';
+                const durStr = rec.durationSec ? `${rec.durationSec}s` : '-';
+                const trigStr = rec.trigger === 'auto' ? 'Avtomatik (Svet kelganda)' : 'Qo\'lda';
+                detailRow.innerHTML = `
+                    <span>Holat: <b style="color:var(--ok)">Avto-yoqish faol</b></span>
+                    <span>Oxirgi tiklash: <b>${startStr}</b> (${durStr})</span>
+                `;
+            }
+            if (logBox && rec.output) {
+                logBox.textContent = rec.output;
+            }
         }
 
         if (loadingState) loadingState.style.display = 'none';
@@ -8629,10 +10964,62 @@ async function fetchServerStatus(isBackgroundRefresh = false) {
         console.error('Server status olishda xatolik:', err);
         if (headerSub) headerSub.textContent = t('transfer_error_prefix', 'Xatolik: ') + err.message;
         if (loadingState) {
-            loadingState.innerHTML = `<div style="color: #ef4444; padding: 20px;">Server holatini olib bo'lmadi: ${err.message}</div>`;
+            loadingState.innerHTML = `<div style="color: var(--bad); padding: 20px;">Server holatini olib bo'lmadi: ${err.message}</div>`;
         }
+    } finally {
+        if (spinIcon) spinIcon.classList.remove('spin');
     }
 }
+
+function updateVmAutoRecoverUI(enabled) {
+    const autoBtn = document.getElementById('autoSwitch');
+    if (autoBtn) autoBtn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    const cb = document.getElementById('switchVmAutoRecover');
+    if (cb) cb.checked = Boolean(enabled);
+}
+window.updateVmAutoRecoverUI = updateVmAutoRecoverUI;
+
+function toggleVmAutoRecoverFromBtn() {
+    const autoBtn = document.getElementById('autoSwitch');
+    const current = autoBtn ? autoBtn.getAttribute('aria-checked') === 'true' : false;
+    toggleVmAutoRecover(!current);
+}
+window.toggleVmAutoRecoverFromBtn = toggleVmAutoRecoverFromBtn;
+
+async function toggleVmAutoRecover(enabled) {
+    try {
+        const res = await fetch('/api/system/vms/auto-recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: Boolean(enabled) })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            updateVmAutoRecoverUI(data.enabled !== undefined ? data.enabled : enabled);
+            if (typeof showToast === 'function') {
+                showToast(enabled ? "Proxmox VM avtomatik tiklash yoqildi" : "Proxmox VM avtomatik tiklash o'chirildi", 'success');
+            }
+        } else {
+            alert("Xatolik: " + (data.error || "Sozlamani saqlab bo'lmadi"));
+            updateVmAutoRecoverUI(!enabled);
+        }
+    } catch (e) {
+        alert("Server bilan bog'lanishda xatolik: " + e.message);
+        updateVmAutoRecoverUI(!enabled);
+    }
+}
+window.toggleVmAutoRecover = toggleVmAutoRecover;
+
+function toggleVmLogsView() {
+    const logBox = document.getElementById('srvVmLogBox');
+    const btn = document.getElementById('btnToggleVmLogs');
+    if (!logBox) return;
+    const isOpen = logBox.classList.toggle('open');
+    if (btn) {
+        btn.textContent = isOpen ? "Loglarni yashirish" : "Loglarni ko'rsatish";
+    }
+}
+window.toggleVmLogsView = toggleVmLogsView;
 
 async function triggerVmRecovery() {
     const btn = document.getElementById('btnRecoverVms');
@@ -8642,12 +11029,14 @@ async function triggerVmRecovery() {
     }
 
     if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span style="display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} Bajarilmoqda...</span>`;
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.6';
     }
     if (logBox) {
-        logBox.style.display = 'block';
-        logBox.textContent = `[${new Date().toLocaleTimeString()}] LVM tiklash va VMlarni yoqish so'rovi yuborildi. Iltimos, kuting (bu 5-15 soniya vaqt olishi mumkin)...`;
+        logBox.classList.add('open');
+        const btnLogs = document.getElementById('btnToggleVmLogs');
+        if (btnLogs) btnLogs.textContent = "Loglarni yashirish";
+        logBox.textContent = `[${new Date().toLocaleTimeString()}] LVM tiklash va VMlarni yoqish so'rovi yuborildi. Iltimos kuting (5-15 soniya)...`;
     }
 
     try {
@@ -8667,15 +11056,16 @@ async function triggerVmRecovery() {
         }
         await fetchServerStatus(true);
     } catch (err) {
-        if (logBox) logBox.textContent += `\n${t('srv_request_error', "❌ So'rov yuborishda xatolik: ")}${err.message}`;
+        if (logBox) logBox.textContent += `\nSo'rov yuborishda xatolik: ${err.message}`;
         alert(t('srv_connect_error', 'Serverga ulanishda xatolik: ') + err.message);
     } finally {
         if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = `${isax('flash', '', 'width: 14px; height: 14px;')} Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish`;
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
         }
     }
 }
+window.triggerVmRecovery = triggerVmRecovery;
 
 async function triggerVmAction(vmid, action) {
     const actName = action === 'start' ? 'ishga tushirish' : 'to\'xtatish';
@@ -8689,7 +11079,8 @@ async function triggerVmAction(vmid, action) {
         } else {
             alert(t('transfer_error_prefix', 'Xatolik: ') + (data.error || t('unknown_error', "Noma'lum xatolik")));
         }
-    } catch (err) {            alert(t('transfer_error_prefix', 'Xatolik: ') + err.message);
+    } catch (err) {
+        alert(t('transfer_error_prefix', 'Xatolik: ') + err.message);
     }
 }
 
@@ -8793,23 +11184,12 @@ async function toggleQueueDbSync(enabled) {
 }
 
 function updateQueueSyncSwitchUI(enabled) {
+    const syncBtn = document.getElementById('sync');
+    if (syncBtn) {
+        syncBtn.setAttribute('aria-checked', enabled ? 'true' : 'false');
+    }
     const toggle = document.getElementById('toggleQueueDbSync');
-    const slider = document.getElementById('sliderQueueDbSync');
-    const knob = document.getElementById('knobQueueDbSync');
-    const label = document.getElementById('labelQueueDbSync');
     if (toggle) toggle.checked = enabled;
-    if (slider) {
-        slider.style.backgroundColor = enabled ? '#10b981' : '#334155';
-        slider.style.borderColor = enabled ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.15)';
-        slider.style.boxShadow = enabled ? '0 0 8px rgba(16, 185, 129, 0.35)' : 'none';
-    }
-    if (knob) {
-        knob.style.transform = enabled ? 'translateX(18px)' : 'translateX(0px)';
-    }
-    if (label) {
-        label.textContent = enabled ? 'ON' : 'OFF';
-        label.style.color = enabled ? '#34d399' : '#94a3b8';
-    }
 }
 
 async function triggerQueueSyncNow() {
@@ -8866,10 +11246,8 @@ function openQueueInfoModal() {
 }
 
 function closeQueueInfoModal() {
-    const modal = document.getElementById('queueInfoModal');
-    if (!modal) return;
     _queueInfoModalOpen = false;
-    modal.style.display = 'none';
+    smoothCloseDashboardModal('queueInfoModal');
 }
 
 function setQueueOperatorGroup(group) {
@@ -8877,18 +11255,9 @@ function setQueueOperatorGroup(group) {
     const btnMain = document.getElementById('btnQueueGroupMain');
     const btnSec = document.getElementById('btnQueueGroupSec');
     const btnAll = document.getElementById('btnQueueGroupAll');
-    if (btnMain) {
-        btnMain.style.background = _queueOperatorGroup === 'main' ? '#6366f1' : 'transparent';
-        btnMain.style.color = _queueOperatorGroup === 'main' ? '#fff' : '#94a3b8';
-    }
-    if (btnSec) {
-        btnSec.style.background = _queueOperatorGroup === 'secondary' ? '#6366f1' : 'transparent';
-        btnSec.style.color = _queueOperatorGroup === 'secondary' ? '#fff' : '#94a3b8';
-    }
-    if (btnAll) {
-        btnAll.style.background = _queueOperatorGroup === 'all' ? '#6366f1' : 'transparent';
-        btnAll.style.color = _queueOperatorGroup === 'all' ? '#fff' : '#94a3b8';
-    }
+    if (btnMain) btnMain.setAttribute('aria-pressed', _queueOperatorGroup === 'main' ? 'true' : 'false');
+    if (btnSec) btnSec.setAttribute('aria-pressed', _queueOperatorGroup === 'secondary' ? 'true' : 'false');
+    if (btnAll) btnAll.setAttribute('aria-pressed', _queueOperatorGroup === 'all' ? 'true' : 'false');
     updateQueueInfoModal();
 }
 
@@ -8896,14 +11265,8 @@ function setQueueInfoFilter(filter) {
     _queueInfoFilter = filter || 'all';
     const btnAll = document.getElementById('btnQueueFilterAll');
     const btnActive = document.getElementById('btnQueueFilterActive');
-    if (btnAll) {
-        btnAll.style.background = _queueInfoFilter === 'all' ? 'rgba(99, 102, 241, 0.4)' : 'transparent';
-        btnAll.style.color = _queueInfoFilter === 'all' ? '#e0e7ff' : '#94a3b8';
-    }
-    if (btnActive) {
-        btnActive.style.background = _queueInfoFilter === 'active' ? 'rgba(99, 102, 241, 0.4)' : 'transparent';
-        btnActive.style.color = _queueInfoFilter === 'active' ? '#e0e7ff' : '#94a3b8';
-    }
+    if (btnAll) btnAll.setAttribute('aria-pressed', _queueInfoFilter === 'all' ? 'true' : 'false');
+    if (btnActive) btnActive.setAttribute('aria-pressed', _queueInfoFilter === 'active' ? 'true' : 'false');
     updateQueueInfoModal();
 }
 
@@ -8976,10 +11339,55 @@ function promptCustomQueueCalls(opId, currentVal, opName) {
     }
 }
 
+let _queueEditingOpId = null;
+
 function updateQueueInfoModal() {
-    const container = document.getElementById('queueModalBarsContainer');
-    const quickStatsEl = document.getElementById('queueModalQuickStats');
+    const container = document.getElementById('queueModalList');
+    const nextEl = document.getElementById('queueNextOp');
     if (!container) return;
+
+    // Hodisalarni faqat bir marta ulash (delegated listener)
+    if (!container._hasQueueListeners) {
+        container._hasQueueListeners = true;
+        container.addEventListener('click', function(e) {
+            const stepBtn = e.target.closest('button.step');
+            if (stepBtn) {
+                const opId = stepBtn.dataset.opid;
+                const delta = parseInt(stepBtn.dataset.delta, 10) || 0;
+                adjustQueueCalls(opId, delta);
+                return;
+            }
+            const numBtn = e.target.closest('button.n');
+            if (numBtn) {
+                _queueEditingOpId = numBtn.dataset.edit;
+                updateQueueInfoModal();
+                return;
+            }
+        });
+
+        container.addEventListener('keydown', function(e) {
+            if (e.target.classList.contains('queue-edit-input')) {
+                const opId = e.target.dataset.opid;
+                if (e.key === 'Enter') {
+                    const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    _queueEditingOpId = null;
+                    adjustQueueCalls(opId, 0, val);
+                } else if (e.key === 'Escape') {
+                    _queueEditingOpId = null;
+                    updateQueueInfoModal();
+                }
+            }
+        });
+
+        container.addEventListener('focusout', function(e) {
+            if (e.target.classList.contains('queue-edit-input') && _queueEditingOpId !== null) {
+                const opId = e.target.dataset.opid;
+                const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                _queueEditingOpId = null;
+                adjustQueueCalls(opId, 0, val);
+            }
+        });
+    }
 
     const rawOps = window._rawLastOperators || [];
     const allOps = rawOps.slice();
@@ -9012,22 +11420,53 @@ function updateQueueInfoModal() {
         groupOps = mainOps; // Default: 100-199 Asosiy
     }
 
+    // Keyingi bo'sh operator (Next Target) — aynan shu guruhdagi ready holatidagi eng kam callsTaken ga ega operator
+    const readyOps = groupOps.filter(op => op.presence === 'ready');
+    readyOps.sort((a, b) => {
+        const cA = Number(a.callsTaken) || 0;
+        const cB = Number(b.callsTaken) || 0;
+        return cA - cB || Number(a.id) - Number(b.id);
+    });
+    const nextTargetOp = readyOps[0];
+
+    // Keyingi operator qahramon bloki (Next banner)
+    if (nextEl) {
+        if (nextTargetOp) {
+            const nxCalls = Number(nextTargetOp.callsTaken) || 0;
+            const nxName = (nextTargetOp.realName || nextTargetOp.name || `Operator ${nextTargetOp.id}`).replace(/\s*\(\d+\)\s*$/, '');
+            nextEl.className = "next";
+            nextEl.innerHTML = `
+                <span class="big">${nxCalls}</span>
+                <div class="t">
+                    <small>Keyingi qo'ng'iroq shu operatorga boradi</small>
+                    <strong>${nxName} · ${nextTargetOp.id}</strong>
+                </div>
+                <small>Bo'sh operatorlar: <b>${readyOps.length}</b></small>
+            `;
+        } else {
+            nextEl.className = "next none";
+            nextEl.innerHTML = `
+                <span class="big">0</span>
+                <div class="t">
+                    <small>Bo'sh operator yo'q</small>
+                    <strong>Mijoz navbatda kutadi</strong>
+                </div>
+            `;
+        }
+    }
+
     // Status bo'yicha filtrlash (Hammasi yoki Faqat Faol)
-    let ops = groupOps;
+    let ops = groupOps.slice();
     if (_queueInfoFilter === 'active') {
-        ops = groupOps.filter(op => op.presence !== 'offline');
+        ops = ops.filter(op => op.presence !== 'offline');
     }
 
     // Saralash: Faol operatorlar avval (fewestcalls tartibida), so'ng offline operatorlar (fewestcalls tartibida)
-    const presenceRank = { 'ready': 1, 'ringing': 2, 'talking': 3, 'paused': 4, 'offline': 5 };
+    const presenceOrder = { 'ready': 0, 'ringing': 1, 'talking': 2, 'paused': 3, 'offline': 4 };
     ops.sort((a, b) => {
-        const rA = presenceRank[a.presence] || 5;
-        const rB = presenceRank[b.presence] || 5;
-        const isAOffline = a.presence === 'offline';
-        const isBOffline = b.presence === 'offline';
-        if (isAOffline !== isBOffline) {
-            return isAOffline ? 1 : -1;
-        }
+        const rA = presenceOrder[a.presence] !== undefined ? presenceOrder[a.presence] : 4;
+        const rB = presenceOrder[b.presence] !== undefined ? presenceOrder[b.presence] : 4;
+        if (rA !== rB) return rA - rB;
         const cA = (a.callsTaken !== null && a.callsTaken !== undefined) ? Number(a.callsTaken) : 0;
         const cB = (b.callsTaken !== null && b.callsTaken !== undefined) ? Number(b.callsTaken) : 0;
         if (cA !== cB) return cA - cB;
@@ -9035,156 +11474,66 @@ function updateQueueInfoModal() {
     });
 
     if (ops.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 13px; padding: 50px; width: 100%;">Bu guruhda operatorlar mavjud emas</div>';
-        if (quickStatsEl) quickStatsEl.innerHTML = '';
+        container.innerHTML = '<div class="empty">Faol operatorlar yo\'q</div>';
         return;
     }
 
-    // Maksimal son (ustunlar proporsional balandligi uchun)
+    // Maksimal son (ustunlar proporsional kengligi uchun)
     const counts = groupOps.map(op => (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0);
     const maxCalls = Math.max(1, ...counts);
 
-    // Keyingi bo'sh operator (Next Target) — aynan shu guruhdagi ready holatidagi eng kam callsTaken ga ega operator
-    const readyOps = groupOps.filter(op => op.presence === 'ready');
-    const minReadyCalls = readyOps.length > 0 ? Math.min(...readyOps.map(o => Number(o.callsTaken) || 0)) : -1;
-    const nextTargetOp = readyOps.find(o => (Number(o.callsTaken) || 0) === minReadyCalls);
-
-    // Quick stats subheader
-    if (quickStatsEl) {
-        const groupTitle = _queueOperatorGroup === 'secondary' ? 'Zangiota 42' : (_queueOperatorGroup === 'all' ? 'Umumiy' : 'Asosiy (100–199)');
-        quickStatsEl.innerHTML = `
-            <span>Guruh: <b style="color: #c7d2fe;">${groupTitle}</b></span>
-            <span>Ko'rsatilmoqda: <b style="color: #f1f5f9;">${ops.length}</b> ta</span>
-            <span>Bo'sh (Ready): <b style="color: #34d399;">${readyOps.length}</b> ta</span>
-            ${_queueDbSyncEnabled ? `<span style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; padding: 1px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;" title="Asterisk RAM sonlari bazadagi bugungi Jami qo'ng'iroqlardan olinmoqda (svet o'chsa ham nollanmaydi)">⚡ DB Sinxron: ON (Bugungi Jami)</span>` : `<span style="background: rgba(148, 163, 184, 0.15); border: 1px solid rgba(148, 163, 184, 0.3); color: #94a3b8; padding: 1px 8px; border-radius: 6px; font-weight: 700;" title="Asterisk xom RAM qiymatlari">Asterisk RAM: Sof</span>`}
-            ${nextTargetOp ? `<span style="background: rgba(16, 185, 129, 0.2); padding: 2px 10px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.4); color: #6ee7b7;">👉 Keyingi navbat: <b>${(nextTargetOp.realName || nextTargetOp.name).replace(/\\s*\\(\\d+\\)\\s*$/, '')}</b> (${nextTargetOp.callsTaken || 0} ta)</span>` : ''}
-        `;
-    }
-
-    // Holat ranglari va nomlari — "talking" uchun KO'K (Cyan/Sky blue)
-    const statusConfig = {
-        'ready': {
-            label: "Bo'sh",
-            color: '#10b981',
-            glow: 'rgba(16, 185, 129, 0.4)',
-            bgGrad: 'linear-gradient(180deg, #10b981 0%, #047857 100%)',
-            cardBg: 'rgba(16, 185, 129, 0.06)',
-            border: 'rgba(16, 185, 129, 0.3)'
-        },
-        'talking': {
-            label: "Suhbatda",
-            color: '#38bdf8', // KO'K (Cyan/Sky blue neon)
-            glow: 'rgba(56, 189, 248, 0.45)',
-            bgGrad: 'linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)',
-            cardBg: 'rgba(56, 189, 248, 0.08)',
-            border: 'rgba(56, 189, 248, 0.35)'
-        },
-        'ringing': {
-            label: "Chalinmoqda",
-            color: '#f59e0b',
-            glow: 'rgba(245, 158, 11, 0.4)',
-            bgGrad: 'linear-gradient(180deg, #f59e0b 0%, #b45309 100%)',
-            cardBg: 'rgba(245, 158, 11, 0.06)',
-            border: 'rgba(245, 158, 11, 0.3)'
-        },
-        'paused': {
-            label: "Tanaffusda",
-            color: '#8b5cf6',
-            glow: 'rgba(139, 92, 246, 0.35)',
-            bgGrad: 'linear-gradient(180deg, #8b5cf6 0%, #5b21b6 100%)',
-            cardBg: 'rgba(139, 92, 246, 0.06)',
-            border: 'rgba(139, 92, 246, 0.3)'
-        },
-        'offline': {
-            label: "Offline",
-            color: '#64748b',
-            glow: 'rgba(100, 116, 139, 0.2)',
-            bgGrad: 'linear-gradient(180deg, #475569 0%, #1e293b 100%)',
-            cardBg: 'rgba(100, 116, 139, 0.04)',
-            border: 'rgba(100, 116, 139, 0.2)'
-        }
+    // Holat config (Navbat hisobi redizayni ranglari va nomlari)
+    const S = {
+        'ready': ["Bo'sh", "--ok"],
+        'talking': ["Suhbatda", "--talk"],
+        'ringing': ["Chalinmoqda", "--ring"],
+        'paused': ["Tanaffus", "--pause"],
+        'offline': ["Oflayn", "--off"]
     };
 
-    const CHART_BAR_MAX_HEIGHT = 170; // px
-
-    let html = '';
-    ops.forEach(op => {
+    let readyRank = 0;
+    container.innerHTML = ops.map(op => {
         const calls = (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0;
-        const manualOffset = Number(op.callsTakenOverride || 0); // Qo'lda belgilangan ofset (0 bo'lmasa — qo'lda o'zgartirilgan)
-        const name = op.realName || op.name || `Operator ${op.id}`;
-        const shortName = name.replace(/\s*\(\d+\)\s*$/, '');
-        const st = statusConfig[op.presence] || statusConfig['offline'];
+        const isOff = op.presence === 'offline';
         const isNext = nextTargetOp && String(nextTargetOp.id) === String(op.id);
-        const isOffline = op.presence === 'offline';
+        const pos = op.presence === 'ready' ? ++readyRank : '–';
+        const name = (op.realName || op.name || `Operator ${op.id}`).replace(/\s*\(\d+\)\s*$/, '');
+        const stInfo = S[op.presence] || S['offline'];
+        const statusLabel = stInfo[0];
+        const colorVar = stInfo[1];
+        const fillPercent = Math.max((calls / maxCalls) * 100, calls ? 3 : 0);
 
-        // Balandlik hisobi (eng kam 18px bo'lsin, shunda raqam yoki chiziq yaxshi ko'rinadi)
-        const barHeightPx = Math.max(18, Math.round((calls / maxCalls) * CHART_BAR_MAX_HEIGHT));
+        const isEditing = String(_queueEditingOpId) === String(op.id);
+        const numHtml = isEditing
+            ? `<input type="number" min="0" value="${calls}" class="queue-edit-input" data-opid="${op.id}" aria-label="callsTaken">`
+            : `<button class="n" data-edit="${op.id}" title="Sonni bosib tahrirlang">${calls}</button>`;
 
-        html += `
-        <div style="flex: 0 0 102px; width: 102px; min-width: 102px; max-width: 102px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 10px 6px 12px; border-radius: 14px; background: ${isNext ? 'rgba(16, 185, 129, 0.12)' : st.cardBg}; border: 1px solid ${isNext ? 'rgba(16, 185, 129, 0.6)' : st.border}; transition: all 0.25s ease; position: relative; ${isNext ? 'box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);' : ''} ${isOffline ? 'opacity: 0.75;' : ''}">
-            
-            ${isNext ? `
-            <div style="position: absolute; top: -11px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 10px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5); letter-spacing: 0.5px; text-transform: uppercase;">
-                ⭐ Keyingi
-            </div>` : ''}
-
-            <!-- Calls Taken Number (Katta raqam ustun tepasida) -->
-            <div onclick="promptCustomQueueCalls('${op.id}', ${calls}, '${shortName}')" title="Bosing: qiymatni o'zgartirish. Bo'sh qoldirsangiz qo'lda belgilangan qiymat bekor qilinadi" style="cursor: pointer; display: flex; flex-direction: column; align-items: center; margin-bottom: 8px;">
-                <span style="font-size: 20px; font-weight: 900; color: ${isNext ? '#34d399' : (manualOffset !== 0 ? '#fbbf24' : (isOffline ? '#94a3b8' : '#f8fafc'))}; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px ${st.glow}; line-height: 1;">
-                    ${calls}
-                </span>
-                <span style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px;">ta</span>
-                ${manualOffset !== 0 ? `<span title="Qo'lda belgilangan: ${manualOffset > 0 ? '+' : ''}${manualOffset} (Asterisk xom hisobi ustidan). Bo'sh qiymat kiritsangiz haqiqiy hisobga qaytadi." style="font-size: 8px; font-weight: 800; color: #fbbf24; background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 6px; padding: 1px 5px; margin-top: 3px;">${isax('edit', '', 'width: 9px; height: 9px;')} ${manualOffset > 0 ? '+' : ''}${manualOffset}</span>` : ''}
+        return `
+        <div class="row ${isOff ? 'off' : ''} ${isNext ? 'isnext' : ''}" style="--c:var(${colorVar})">
+            <span class="pos" title="${op.presence === 'ready' ? 'Navbat tartibi' : ''}">${pos}</span>
+            <div class="ex">${op.id}</div>
+            <div class="nm">
+                <strong title="${name}">${name}</strong>
+                <small>${isNext ? 'Keyingi · ' : ''}${statusLabel}</small>
             </div>
-
-            <!-- Vertikal Ustun (Bar) -->
-            <div style="width: 100%; height: ${CHART_BAR_MAX_HEIGHT}px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 12px; position: relative;">
-                <!-- Orqa fon yo'lagi (Track) -->
-                <div style="position: absolute; inset: 0 16%; background: rgba(255, 255, 255, 0.04); border-radius: 8px; border: 1px dashed rgba(255, 255, 255, 0.08);"></div>
-                
-                <!-- Rangli to'ldiruvchi ustun -->
-                <div style="width: 58%; height: ${barHeightPx}px; background: ${st.bgGrad}; border-radius: 8px 8px 5px 5px; box-shadow: 0 0 16px ${st.glow}; position: relative; z-index: 2; transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.25);">
-                    <!-- Yuqori yaltirash chizig'i -->
-                    <div style="width: 100%; height: 3px; background: rgba(255, 255, 255, 0.6);"></div>
-                    <!-- VU-metr uslubidagi ichki segment chiziqlar -->
-                    <div style="width: 100%; height: 100%; background: repeating-linear-gradient(0deg, transparent, transparent 6px, rgba(0, 0, 0, 0.2) 6px, rgba(0, 0, 0, 0.2) 8px); pointer-events: none;"></div>
-                </div>
+            <div class="track">
+                <div class="fill" style="width: ${fillPercent}%;"></div>
             </div>
-
-            <!-- Operator Status Nishoni -->
-            <div style="display: flex; align-items: center; gap: 4px; margin-bottom: 6px; padding: 2px 6px; border-radius: 6px; background: rgba(0, 0, 0, 0.35);">
-                <span style="width: 7px; height: 7px; border-radius: 50%; background: ${st.color}; box-shadow: 0 0 6px ${st.color};"></span>
-                <span style="font-size: 10px; font-weight: 700; color: ${st.color};">${st.label}</span>
+            <div class="cnt">
+                <button class="step step-minus" data-delta="-1" data-opid="${op.id}" aria-label="Kamaytirish">−</button>
+                ${numHtml}
+                <button class="step step-plus" data-delta="1" data-opid="${op.id}" aria-label="Oshirish">+</button>
             </div>
+        </div>`;
+    }).join("");
 
-            <!-- Operator Ismi & Exten -->
-            <div style="text-align: center; width: 100%; margin-bottom: 10px;">
-                <div style="font-size: 11px; font-weight: 700; color: #f1f5f9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${name}">
-                    ${shortName}
-                </div>
-                <div style="font-size: 10px; color: #94a3b8; font-weight: 600;">
-                    ${op.id}
-                </div>
-            </div>
-
-            <!-- RAM Qiymatini O'zgartirish Tugmalari (+ / -) -->
-            <div style="display: flex; align-items: center; gap: 3px; width: 100%; justify-content: center; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.07);">
-                <button onclick="adjustQueueCalls('${op.id}', -1)" title="RAM sonini -1 kamaytirish" style="width: 25px; height: 25px; border-radius: 6px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.3)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.15)'">
-                    −
-                </button>
-                <button onclick="promptCustomQueueCalls('${op.id}', ${calls}, '${shortName}')" title="Aniq son kiritish" style="flex: 1; height: 25px; border-radius: 6px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); color: #c7d2fe; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;" onmouseover="this.style.background='rgba(99, 102, 241, 0.3)'" onmouseout="this.style.background='rgba(99, 102, 241, 0.15)'">
-                    ${isax('edit', '', 'width: 13px; height: 13px;')}
-                </button>
-                <button onclick="adjustQueueCalls('${op.id}', 1)" title="RAM soniga +1 qo'shish" style="width: 25px; height: 25px; border-radius: 6px; background: linear-gradient(135deg, #10b981, #059669); border: 1px solid rgba(16, 185, 129, 0.6); color: #fff; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
-                    +
-                </button>
-            </div>
-
-        </div>
-        `;
-    });
-
-    container.innerHTML = html;
+    if (_queueEditingOpId !== null) {
+        const inp = container.querySelector('input.queue-edit-input');
+        if (inp) {
+            inp.focus();
+            inp.select();
+        }
+    }
 }
 
 // renderOperators chaqirilganda queue info modal ham yangilansin
@@ -9217,10 +11566,2476 @@ function updateQueueInfoSummaryBadge() {
     summaryEl.textContent = counts.join(' · ');
 }
 
+/* ==========================================================================
+   1. UNIVERSAL SECTION FOCUS (Fokus / Zoom Rejimi)
+   ========================================================================== */
+let currentFocusedSectionId = null;
+
+function toggleSectionFocus(sectionId) {
+    const sec = document.getElementById(sectionId);
+    if (!sec) return;
+
+    const isFocused = sec.classList.contains('section-focused');
+    if (isFocused) {
+        closeSectionFocus();
+        return;
+    }
+
+    closeSectionFocus();
+
+    currentFocusedSectionId = sectionId;
+    sec.classList.add('section-focused');
+    document.body.classList.add('section-focus-active');
+
+    const backdrop = document.getElementById('sectionFocusBackdrop');
+    if (backdrop) backdrop.classList.add('active');
+
+    const btn = sec.querySelector('.section-focus-btn');
+    if (btn) {
+        const textSpan = btn.querySelector('.zoom-btn-text');
+        if (textSpan) textSpan.textContent = 'Chiqish';
+        btn.classList.add('is-active');
+        const svg = btn.querySelector('svg use');
+        if (svg) svg.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-eye-slash');
+    }
+}
+
+function closeSectionFocus() {
+    if (currentFocusedSectionId) {
+        const sec = document.getElementById(currentFocusedSectionId);
+        if (sec) {
+            sec.classList.remove('section-focused');
+            const btn = sec.querySelector('.section-focus-btn');
+            if (btn) {
+                const textSpan = btn.querySelector('.zoom-btn-text');
+                if (textSpan) textSpan.textContent = 'Fokus';
+                btn.classList.remove('is-active');
+                const svg = btn.querySelector('svg use');
+                if (svg) svg.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-eye');
+            }
+        }
+    }
+    const kpiSec = document.getElementById('kpiParentSection');
+    if (kpiSec) kpiSec.classList.remove('section-focused');
+    const kpiBtn = document.getElementById('btnZoomKpiParent');
+    if (kpiBtn) {
+        const textSpan = kpiBtn.querySelector('.zoom-btn-text');
+        if (textSpan) textSpan.textContent = 'Fokus';
+        kpiBtn.classList.remove('is-active');
+        const svg = kpiBtn.querySelector('svg use');
+        if (svg) svg.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-eye');
+    }
+    document.querySelectorAll('.section-focused').forEach(el => el.classList.remove('section-focused'));
+    document.body.classList.remove('section-focus-active');
+    document.body.classList.remove('kpi-focus-active');
+
+    const backdrop = document.getElementById('sectionFocusBackdrop');
+    if (backdrop) backdrop.classList.remove('active');
+    const kpiBackdrop = document.getElementById('kpiFocusBackdrop');
+    if (kpiBackdrop) kpiBackdrop.classList.remove('active');
+
+    currentFocusedSectionId = null;
+}
+
+function toggleKpiParentZoom(event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+    const sec = document.getElementById('kpiParentSection');
+    if (!sec) return;
+
+    const isFocused = sec.classList.contains('section-focused');
+    if (isFocused) {
+        closeKpiParentZoom();
+        return;
+    }
+
+    closeSectionFocus();
+
+    sec.classList.add('section-focused');
+    document.body.classList.add('kpi-focus-active');
+    document.body.classList.add('section-focus-active');
+
+    const kpiBackdrop = document.getElementById('kpiFocusBackdrop');
+    if (kpiBackdrop) kpiBackdrop.classList.add('active');
+
+    const btn = document.getElementById('btnZoomKpiParent');
+    if (btn) {
+        const textSpan = btn.querySelector('.zoom-btn-text');
+        if (textSpan) textSpan.textContent = 'Chiqish';
+        btn.classList.add('is-active');
+        const svg = btn.querySelector('svg use');
+        if (svg) svg.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-eye-slash');
+    }
+}
+
+function closeKpiParentZoom() {
+    closeSectionFocus();
+}
+
+window.toggleSectionFocus = toggleSectionFocus;
+window.closeSectionFocus = closeSectionFocus;
+window.toggleKpiParentZoom = toggleKpiParentZoom;
+window.closeKpiParentZoom = closeKpiParentZoom;
+
+/* ==========================================================================
+   2. OPERATOR KARTOCHKASI QATORLARI SOZLAMASI (Card Rows Visibility)
+   ========================================================================== */
+const OP_CARD_FIELDS_CONFIG = [
+    { key: 'jami', label: "Jami qo'ng'iroqlar hisobi" },
+    { key: 'desktop_agent', label: "Desktop Agent (Faol / O'chiq)" },
+    { key: 'desktop_name', label: "Desktop nomi (PC hostname)" },
+    { key: 'accepted', label: "Qabul qilingan qo'ng'iroqlar" },
+    { key: 'outbound', label: "Chiquvchi qo'ng'iroqlar" },
+    { key: 'transfer_out', label: "Transfer (uzatgan)" },
+    { key: 'transfer_in', label: "Transfer (olgan)" },
+    { key: 'missed', label: "O'tkazib yuborilgan" },
+    { key: 'total_talk', label: "Umumiy suhbat vaqti" },
+    { key: 'avg_talk', label: "O'rtacha suhbat davomiyligi" },
+    { key: 'active_conv', label: "Hozir suhbatda (Jonli qo'ng'iroq)" }
+];
+
+let opCardFieldsVisibility = {};
+
+function loadOpCardFieldsSettings() {
+    try {
+        const saved = localStorage.getItem('callcenter_op_card_fields');
+        if (saved) {
+            opCardFieldsVisibility = JSON.parse(saved);
+        } else {
+            opCardFieldsVisibility = {};
+            OP_CARD_FIELDS_CONFIG.forEach(f => { opCardFieldsVisibility[f.key] = true; });
+        }
+    } catch (e) {
+        opCardFieldsVisibility = {};
+        OP_CARD_FIELDS_CONFIG.forEach(f => { opCardFieldsVisibility[f.key] = true; });
+    }
+}
+loadOpCardFieldsSettings();
+
+function saveOpCardFieldsSettings() {
+    try {
+        localStorage.setItem('callcenter_op_card_fields', JSON.stringify(opCardFieldsVisibility));
+    } catch (e) {}
+}
+
+function isOpCardFieldVisible(key) {
+    if (opCardFieldsVisibility[key] === undefined) return true;
+    return Boolean(opCardFieldsVisibility[key]);
+}
+window.isOpCardFieldVisible = isOpCardFieldVisible;
+
+function applyOpCardFieldsVisibility() {
+    OP_CARD_FIELDS_CONFIG.forEach(f => {
+        const visible = isOpCardFieldVisible(f.key);
+        const rows = document.querySelectorAll(`.op-stat-row[data-card-field="${f.key}"]`);
+        rows.forEach(r => {
+            if (visible) {
+                r.classList.remove('op-card-field-hidden');
+            } else {
+                r.classList.add('op-card-field-hidden');
+            }
+        });
+    });
+}
+window.applyOpCardFieldsVisibility = applyOpCardFieldsVisibility;
+
+function openOpCardFieldsModal() {
+    const modal = document.getElementById('modalOpCardFields');
+    if (!modal) return;
+    renderOpCardFieldsCheckboxes();
+    modal.style.display = 'flex';
+}
+window.openOpCardFieldsModal = openOpCardFieldsModal;
+
+function closeOpCardFieldsModal() {
+    smoothCloseDashboardModal('modalOpCardFields');
+}
+window.closeOpCardFieldsModal = closeOpCardFieldsModal;
+
+function toggleOpCardField(key, isChecked) {
+    opCardFieldsVisibility[key] = Boolean(isChecked);
+    saveOpCardFieldsSettings();
+    applyOpCardFieldsVisibility();
+}
+window.toggleOpCardField = toggleOpCardField;
+
+function resetOpCardFields() {
+    OP_CARD_FIELDS_CONFIG.forEach(f => { opCardFieldsVisibility[f.key] = true; });
+    saveOpCardFieldsSettings();
+    renderOpCardFieldsCheckboxes();
+    applyOpCardFieldsVisibility();
+}
+window.resetOpCardFields = resetOpCardFields;
+
+function setAllOpCardFields(enableAll) {
+    OP_CARD_FIELDS_CONFIG.forEach(f => {
+        opCardFieldsVisibility[f.key] = Boolean(enableAll);
+    });
+    saveOpCardFieldsSettings();
+    renderOpCardFieldsCheckboxes();
+    applyOpCardFieldsVisibility();
+}
+window.setAllOpCardFields = setAllOpCardFields;
+
+function renderOpCardFieldsCheckboxes() {
+    const list = document.getElementById('opCardFieldsList');
+    if (!list) return;
+
+    list.innerHTML = OP_CARD_FIELDS_CONFIG.map(f => {
+        const checked = isOpCardFieldVisible(f.key);
+        return `
+            <label style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(56, 189, 248, 0.08)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'">
+                <span style="font-size: 13px; color: #e2e8f0; font-weight: 500;">${f.label}</span>
+                <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleOpCardField('${f.key}', this.checked)" style="accent-color: #38bdf8; width: 16px; height: 16px; cursor: pointer;">
+            </label>
+        `;
+    }).join('');
+}
+
+/* ==========================================================================
+   3. TARIX JADVALI USTUNLARINI SOZLASH (History Columns Visibility Manager)
+   ========================================================================== */
+const HISTORY_COLUMNS_CONFIG = [
+    { key: 'cb', label: "Tanlash katakchasi" },
+    { key: 'num', label: "№ (Tartib raqami)" },
+    { key: 'time', label: "Vaqt" },
+    { key: 'phone', label: "Mijoz Raqami" },
+    { key: 'operator', label: "Operator / Exten" },
+    { key: 'dir', label: "Yo'nalish" },
+    { key: 'dur', label: "Davomiyligi" },
+    { key: 'wait', label: "Navbatda kutish" },
+    { key: 'status', label: "Holati" },
+    { key: 'hangup', label: "Kim tugatdi?" },
+    { key: 'host', label: "Kompyuter (Host)" },
+    { key: 'action', label: "Audio / Amal" }
+];
+
+let historyColumnsVisibility = {};
+
+function loadHistoryColumnsSettings() {
+    try {
+        const saved = localStorage.getItem('callcenter_history_columns');
+        if (saved) {
+            historyColumnsVisibility = JSON.parse(saved);
+        } else {
+            historyColumnsVisibility = {};
+            HISTORY_COLUMNS_CONFIG.forEach(c => { historyColumnsVisibility[c.key] = true; });
+        }
+    } catch (e) {
+        historyColumnsVisibility = {};
+        HISTORY_COLUMNS_CONFIG.forEach(c => { historyColumnsVisibility[c.key] = true; });
+    }
+}
+loadHistoryColumnsSettings();
+
+function saveHistoryColumnsSettings() {
+    try {
+        localStorage.setItem('callcenter_history_columns', JSON.stringify(historyColumnsVisibility));
+    } catch (e) {}
+}
+
+function isHistoryColumnVisible(key) {
+    if (historyColumnsVisibility[key] === undefined) return true;
+    return Boolean(historyColumnsVisibility[key]);
+}
+window.isHistoryColumnVisible = isHistoryColumnVisible;
+
+function applyHistoryColumnsVisibility() {
+    HISTORY_COLUMNS_CONFIG.forEach(c => {
+        const visible = isHistoryColumnVisible(c.key);
+        const ths = document.querySelectorAll(`th.col-${c.key}, th[data-col="${c.key}"]`);
+        ths.forEach(th => {
+            if (visible) th.classList.remove('history-col-hidden');
+            else th.classList.add('history-col-hidden');
+        });
+        const tds = document.querySelectorAll(`td.col-${c.key}, td[data-col="${c.key}"]`);
+        tds.forEach(td => {
+            if (visible) td.classList.remove('history-col-hidden');
+            else td.classList.add('history-col-hidden');
+        });
+    });
+}
+window.applyHistoryColumnsVisibility = applyHistoryColumnsVisibility;
+
+function toggleHistoryColumnsDropdown(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('historyColsDropdownMenu');
+    if (!menu) return;
+    const isShowing = menu.style.display !== 'none';
+    if (isShowing) {
+        menu.style.display = 'none';
+    } else {
+        renderHistoryColsCheckboxes();
+        menu.style.display = 'block';
+    }
+}
+window.toggleHistoryColumnsDropdown = toggleHistoryColumnsDropdown;
+
+function toggleHistoryColumn(key, isChecked) {
+    historyColumnsVisibility[key] = Boolean(isChecked);
+    saveHistoryColumnsSettings();
+    applyHistoryColumnsVisibility();
+}
+window.toggleHistoryColumn = toggleHistoryColumn;
+
+function resetHistoryColumns() {
+    HISTORY_COLUMNS_CONFIG.forEach(c => { historyColumnsVisibility[c.key] = true; });
+    saveHistoryColumnsSettings();
+    renderHistoryColsCheckboxes();
+    applyHistoryColumnsVisibility();
+}
+window.resetHistoryColumns = resetHistoryColumns;
+
+function renderHistoryColsCheckboxes() {
+    const container = document.getElementById('historyColsCheckboxes');
+    if (!container) return;
+
+    container.innerHTML = HISTORY_COLUMNS_CONFIG.map(c => {
+        const checked = isHistoryColumnVisible(c.key);
+        return `
+            <label style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(56, 189, 248, 0.12)'" onmouseout="this.style.background='transparent'">
+                <span style="font-size: 12px; color: #cbd5e1; font-weight: 500;">${c.label}</span>
+                <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleHistoryColumn('${c.key}', this.checked)" style="accent-color: #38bdf8; width: 15px; height: 15px; cursor: pointer;">
+            </label>
+        `;
+    }).join('');
+}
+
+// Tarix jadvali yangilanganda ustunlar ko'rinishini qayta tadbiq qilish
+const _origRenderServerHistoryTable = renderServerHistoryTable;
+renderServerHistoryTable = function(data) {
+    _origRenderServerHistoryTable(data);
+    applyHistoryColumnsVisibility();
+};
+
+const _origRenderAgentHistoryTable = renderAgentHistoryTable;
+renderAgentHistoryTable = function(data) {
+    _origRenderAgentHistoryTable(data);
+    applyHistoryColumnsVisibility();
+};
+
+/* ==========================================================================
+   4. USER PROFILE VA GMAIL BOG'LASH (Self-Service Profile)
+   ========================================================================== */
+let profileTimerInterval = null;
+let profileTimerSeconds = 120;
+let currentProfileBoundEmail = null;
+let profileVerificationStep = 'idle'; // 'idle', 'unlink_current', 'bind_new', 'unlinking_only'
+let profileTargetNewEmail = null;
+
+function toggleUserProfile(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('userProfileMenu');
+    if (menu) {
+        menu.classList.toggle('open');
+    }
+}
+window.toggleUserProfile = toggleUserProfile;
+
+async function loadUserProfileData() {
+    try {
+        const res = await fetch('/api/auth/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.user) {
+            const u = data.user;
+            const unameEl = document.getElementById('profileModalUsername');
+            const hUname = document.getElementById('headerUsername');
+            const hEmail = document.getElementById('headerUserEmail');
+            const hRole = document.getElementById('headerUserRole');
+            const roleBadge = document.getElementById('profileModalRoleBadge');
+            const emailInput = document.getElementById('profileEmailInput');
+            const statusBadge = document.getElementById('profileEmailStatusBadge');
+            const passInput = document.getElementById('profilePasswordInput');
+            if (passInput) {
+                passInput.value = '';
+                passInput.disabled = false;
+            }
+
+            if (unameEl) unameEl.textContent = u.username || 'superuser';
+            if (hUname) hUname.textContent = u.username || 'superuser';
+            if (hRole) hRole.textContent = u.role || 'Superuser';
+            if (roleBadge) {
+                roleBadge.textContent = u.role || 'Superuser';
+                roleBadge.className = `role-tag ${u.role ? u.role.toLowerCase() : 'superuser'}`;
+            }
+
+            currentProfileBoundEmail = u.email ? u.email.trim().toLowerCase() : null;
+            const unlinkBtn = document.getElementById('btnProfileUnlinkEmail');
+            const btnSendText = document.getElementById('btnSendProfileCodeText');
+
+            if (u.email) {
+                if (hEmail) hEmail.textContent = u.email;
+                if (emailInput && (!emailInput.value || emailInput.value === currentProfileBoundEmail)) {
+                    emailInput.value = u.email;
+                }
+                if (statusBadge) {
+                    statusBadge.textContent = "Bog'langan";
+                    statusBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+                    statusBadge.style.color = '#34d399';
+                    statusBadge.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                }
+                if (unlinkBtn) unlinkBtn.style.display = 'inline-block';
+                if (btnSendText) btnSendText.textContent = "O'zgartirish kodini olish";
+            } else {
+                if (hEmail) hEmail.textContent = "Gmail bog'lanmagan";
+                if (statusBadge) {
+                    statusBadge.textContent = "Bog'lanmagan";
+                    statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+                    statusBadge.style.color = '#fca5a5';
+                    statusBadge.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                }
+                if (unlinkBtn) unlinkBtn.style.display = 'none';
+                if (btnSendText) btnSendText.textContent = "Tasdiqlash kodini olish";
+            }
+        }
+    } catch (e) {
+        console.warn('loadUserProfileData error:', e);
+    }
+}
+
+function openProfileModal(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('userProfileMenu');
+    if (menu) menu.classList.remove('open');
+
+    const modal = document.getElementById('modalUserProfile');
+    if (modal) {
+        modal.style.display = 'flex';
+        loadUserProfileData();
+    }
+}
+window.openProfileModal = openProfileModal;
+
+function closeProfileModal() {
+    if (profileTimerInterval) {
+        clearInterval(profileTimerInterval);
+        profileTimerInterval = null;
+    }
+    smoothCloseDashboardModal('modalUserProfile');
+}
+window.closeProfileModal = closeProfileModal;
+
+// =========================================================================
+// SYSTEM SETTINGS MODAL (Tizim Sozlamalari) — To'liq boshqaruv
+// =========================================================================
+let currentSettingsTab = 'security';
+let cachedExcludeOperators = [];
+
+function openSettingsModal(e) {
+    if (e) e.stopPropagation();
+    const menu = document.getElementById('userProfileMenu');
+    if (menu) menu.classList.remove('open');
+
+    const modal = document.getElementById('settingsModal');
+    if (modal) {
+        modal.classList.add('open');
+        modal.style.display = 'flex';
+        switchSettingsTab(currentSettingsTab || 'security');
+    }
+}
+window.openSettingsModal = openSettingsModal;
+
+function closeSettingsModal() {
+    smoothCloseDashboardModal('settingsModal');
+}
+window.closeSettingsModal = closeSettingsModal;
+
+function handleSettingsBackdropClick(event) {
+    if (event.target && event.target.id === 'settingsModal') {
+        closeSettingsModal();
+    }
+}
+window.handleSettingsBackdropClick = handleSettingsBackdropClick;
+
+function switchSettingsTab(tabName) {
+    currentSettingsTab = tabName;
+    const tabBtns = document.querySelectorAll('.settings-tab-btn');
+    tabBtns.forEach(btn => {
+        if (btn.getAttribute('data-tab') === tabName) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    const panes = {
+        security: document.getElementById('tabPaneSecurity'),
+        exclude: document.getElementById('tabPaneExclude'),
+        users: document.getElementById('tabPaneUsers'),
+        sessions: document.getElementById('tabPaneSessions'),
+        interface: document.getElementById('tabPaneInterface')
+    };
+
+    Object.keys(panes).forEach(k => {
+        if (panes[k]) {
+            if (k === tabName) {
+                panes[k].classList.add('active');
+                panes[k].style.display = 'block';
+            } else {
+                panes[k].classList.remove('active');
+                panes[k].style.display = 'none';
+            }
+        }
+    });
+
+    if (tabName === 'security') {
+        loadSecuritySettings();
+        loadBlockedLockouts();
+    } else if (tabName === 'exclude') {
+        loadExcludeList();
+    } else if (tabName === 'users') {
+        loadUsersList();
+    } else if (tabName === 'sessions') {
+        loadSessionsList();
+    } else if (tabName === 'interface') {
+        loadInterfaceSettings();
+    }
+}
+window.switchSettingsTab = switchSettingsTab;
+
+function updateThresholdDisplay(val) {
+    const el = document.getElementById('thresholdValueDisplay');
+    if (el) el.textContent = `${val} ta urinish`;
+}
+window.updateThresholdDisplay = updateThresholdDisplay;
+
+// 1. Xavfsizlik & Rate Limit
+async function loadSecuritySettings() {
+    try {
+        const res = await fetch('/api/settings/security');
+        const data = await res.json();
+        if (data && data.success) {
+            const inputThresh = document.getElementById('lockoutThresholdInput');
+            if (inputThresh) {
+                inputThresh.value = data.lockoutThreshold || 5;
+                updateThresholdDisplay(inputThresh.value);
+            }
+            const inputDur = document.getElementById('lockoutDurationInput');
+            if (inputDur) {
+                inputDur.value = String(data.lockoutDurationMinutes || 60);
+            }
+        }
+    } catch (e) {
+        console.error('loadSecuritySettings error:', e);
+    }
+}
+window.loadSecuritySettings = loadSecuritySettings;
+
+async function saveSecuritySettings() {
+    const threshInput = document.getElementById('lockoutThresholdInput');
+    const durInput = document.getElementById('lockoutDurationInput');
+    const threshold = parseInt(threshInput ? threshInput.value : '5', 10);
+    const duration = parseInt(durInput ? durInput.value : '60', 10);
+
+    try {
+        const res = await fetch('/api/settings/security', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lockoutThreshold: threshold, lockoutDurationMinutes: duration })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            alert("✅ Xavfsizlik sozlamalari muvaffaqiyatli saqlandi!");
+        } else {
+            alert("❌ Xatolik: " + (data.error || 'Saqlab bo\'lmadi'));
+        }
+    } catch (e) {
+        alert("❌ Serverga ulanishda xatolik: " + e.message);
+    }
+}
+window.saveSecuritySettings = saveSecuritySettings;
+
+async function loadBlockedLockouts() {
+    const container = document.getElementById('blockedLockoutsContainer');
+    const btnUnlockAll = document.getElementById('btnUnlockAll');
+    if (container) container.innerHTML = '<div class="settings-loading">Yuklanmoqda...</div>';
+
+    try {
+        const res = await fetch('/api/settings/lockouts');
+        const data = await res.json();
+        if (!container) return;
+
+        if (data && data.success && Array.isArray(data.lockouts) && data.lockouts.length > 0) {
+            if (btnUnlockAll) btnUnlockAll.style.display = 'inline-flex';
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            data.lockouts.forEach(item => {
+                const isIp = item.key && item.key.startsWith('ip:');
+                const title = item.key ? item.key.replace(/^(ip:|user:)/, '') : item.key;
+                const typeLabel = isIp ? 'IP Manzil' : 'Foydalanuvchi';
+                const remMin = item.remainingSeconds ? Math.ceil(item.remainingSeconds / 60) : 0;
+
+                html += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 11px; padding: 2px 7px; border-radius: 4px; background: rgba(239, 68, 68, 0.2); color: #f87171; font-weight: 600;">${typeLabel}</span>
+                            <span style="font-weight: 600; color: #f1f5f9; font-size: 13px;">${title}</span>
+                            <span style="font-size: 12px; color: #94a3b8;">(${item.attempts || 0} ta xato urinish, yana ~${remMin} daqiqa blok)</span>
+                        </div>
+                        <button type="button" class="btn-action" onclick="unlockSecurityKey('${item.key}')" style="padding: 4px 10px; font-size: 11px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; border-radius: 6px; cursor: pointer;">
+                            Yechish
+                        </button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } else {
+            if (btnUnlockAll) btnUnlockAll.style.display = 'none';
+            container.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 18px; font-size: 12.5px;">Hozirda bloklangan IP yoki hisoblar yo\'q (Tizim xavfsiz holatda).</div>';
+        }
+    } catch (e) {
+        if (container) container.innerHTML = `<div style="color: #f87171; padding: 10px;">Xatolik: ${e.message}</div>`;
+    }
+}
+window.loadBlockedLockouts = loadBlockedLockouts;
+
+async function unlockSecurityKey(key) {
+    try {
+        const res = await fetch('/api/settings/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            loadBlockedLockouts();
+        } else {
+            alert('Xatolik: ' + (data.error || 'Blokdan chiqarib bo\'lmadi'));
+        }
+    } catch (e) {
+        alert('Server xatosi: ' + e.message);
+    }
+}
+window.unlockSecurityKey = unlockSecurityKey;
+
+async function unlockAllSecurityKeys() {
+    if (!confirm('Barcha bloklangan IP va hisoblarni blokdan chiqarishni tasdiqlaysizmi?')) return;
+    try {
+        const res = await fetch('/api/settings/unlock-all', { method: 'POST' });
+        const data = await res.json();
+        if (data && data.success) {
+            loadBlockedLockouts();
+        }
+    } catch (e) {
+        alert('Server xatosi: ' + e.message);
+    }
+}
+window.unlockAllSecurityKeys = unlockAllSecurityKeys;
+
+// 2. Statistika & Exclude List
+async function loadExcludeList() {
+    const listEl = document.getElementById('excludeOperatorsList');
+    if (listEl) listEl.innerHTML = '<div class="settings-loading">Yuklanmoqda...</div>';
+
+    try {
+        const res = await fetch('/api/settings/exclude-list');
+        const data = await res.json();
+        if (!listEl) return;
+
+        if (data && data.success && Array.isArray(data.operators)) {
+            cachedExcludeOperators = data.operators;
+            renderExcludeOperators(data.operators);
+        } else {
+            listEl.innerHTML = '<div style="color: #f87171; padding: 10px;">Operatorlar ro\'yxatini olib bo\'lmadi</div>';
+        }
+    } catch (e) {
+        if (listEl) listEl.innerHTML = `<div style="color: #f87171; padding: 10px;">Xatolik: ${e.message}</div>`;
+    }
+}
+window.loadExcludeList = loadExcludeList;
+
+function renderExcludeOperators(ops) {
+    const listEl = document.getElementById('excludeOperatorsList');
+    if (!listEl) return;
+
+    if (!ops || ops.length === 0) {
+        listEl.innerHTML = '<div style="color: #94a3b8; padding: 12px; text-align: center;">Operatorlar topilmadi</div>';
+        return;
+    }
+
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; max-height: 340px; overflow-y: auto; padding: 4px;">';
+    ops.forEach(op => {
+        const isChecked = !!op.isExcluded;
+        html += `
+            <label style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                <input type="checkbox" class="exclude-op-checkbox" data-id="${op.id}" ${isChecked ? 'checked' : ''} style="width: 16px; height: 16px; cursor: pointer; accent-color: #ef4444;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: 600; color: #f1f5f9; font-size: 13px;">${op.name} (${op.id})</div>
+                    <div style="font-size: 11px; color: ${isChecked ? '#ef4444' : '#94a3b8'}; font-weight: 500;">
+                        ${isChecked ? '❌ Umumiy hisobotdan chiqarilgan' : '✅ Hisobotlarga qo\'shilgan'}
+                    </div>
+                </div>
+            </label>
+        `;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+}
+
+function filterExcludeOperators(query) {
+    if (!cachedExcludeOperators) return;
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+        renderExcludeOperators(cachedExcludeOperators);
+        return;
+    }
+    const filtered = cachedExcludeOperators.filter(op => {
+        return (op.id && op.id.toLowerCase().includes(q)) || (op.name && op.name.toLowerCase().includes(q));
+    });
+    renderExcludeOperators(filtered);
+}
+window.filterExcludeOperators = filterExcludeOperators;
+
+async function saveExcludeList() {
+    const checkboxes = document.querySelectorAll('.exclude-op-checkbox');
+    const excluded = [];
+    checkboxes.forEach(cb => {
+        if (cb.checked) {
+            const id = cb.getAttribute('data-id');
+            if (id) excluded.push(id);
+        }
+    });
+
+    try {
+        const res = await fetch('/api/settings/exclude-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ excluded })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            updateExcludedOperatorIds(excluded, true);
+            if (typeof showToast === 'function') {
+                showToast('✅ Statistikadan chiqarilganlar ro\'yxati saqlandi!', 'success');
+            } else {
+                alert('✅ Statistikadan chiqarilganlar ro\'yxati saqlandi!');
+            }
+            loadExcludeList();
+        } else {
+            alert('❌ Xatolik: ' + (data.error || 'Saqlab bo\'lmadi'));
+        }
+    } catch (e) {
+        alert('Server xatosi: ' + e.message);
+    }
+}
+window.saveExcludeList = saveExcludeList;
+
+// 3. Foydalanuvchilar (RBAC)
+async function loadUsersList() {
+    const tbody = document.getElementById('settingsUsersTableBody');
+    const opSelect = document.getElementById('newUserOperatorId');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="settings-loading">Yuklanmoqda...</td></tr>';
+
+    try {
+        const [usersRes, opsRes] = await Promise.all([
+            fetch('/api/settings/users').then(r => r.json()).catch(() => null),
+            fetch('/api/settings/exclude-list').then(r => r.json()).catch(() => null)
+        ]);
+
+        if (opSelect && opsRes && Array.isArray(opsRes.operators)) {
+            let opOpts = '<option value="">Operatorni tanlang...</option>';
+            opsRes.operators.forEach(o => {
+                opOpts += `<option value="${o.id}">${o.name} (${o.id})</option>`;
+            });
+            opSelect.innerHTML = opOpts;
+        }
+
+        if (!tbody) return;
+        if (usersRes && usersRes.success && Array.isArray(usersRes.users) && usersRes.users.length > 0) {
+            let html = '';
+            usersRes.users.forEach(u => {
+                const isSuper = u.role === 'superuser';
+                const roleBadge = isSuper 
+                    ? '<span style="background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Superuser</span>'
+                    : '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Operator</span>';
+
+                const createdDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString('uz-UZ') : '-';
+                const opIdDisplay = u.operatorId ? `<b>${u.operatorId}</b>` : '<span style="color: #64748b;">Yo\'q</span>';
+                const emailDisplay = u.email ? `<span style="color: #38bdf8;">${u.email}</span>` : '<span style="color: #64748b;">Kiritilmagan</span>';
+
+                const isProtected = u.username === 'Abaddon2004' || u.username === 'superuser';
+                const deleteBtn = isProtected ? '' : `
+                    <button type="button" class="btn-action" onclick="deleteUser('${u.username}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">
+                        O'chirish
+                    </button>
+                `;
+
+                html += `
+                    <tr>
+                        <td style="font-weight: 600; color: #f1f5f9;">${u.username}</td>
+                        <td>${roleBadge}</td>
+                        <td>${opIdDisplay}</td>
+                        <td>${emailDisplay}</td>
+                        <td style="font-size: 12px; color: #94a3b8;">${createdDate}</td>
+                        <td style="text-align: right;">${deleteBtn}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 14px;">Foydalanuvchilar topilmadi</td></tr>';
+        }
+    } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color: #f87171; padding: 14px;">Xatolik: ${e.message}</td></tr>`;
+    }
+}
+window.loadUsersList = loadUsersList;
+
+function toggleOperatorSelectField() {
+    const roleSelect = document.getElementById('newUserRole');
+    const groupOp = document.getElementById('groupNewUserOperator');
+    const opSelect = document.getElementById('newUserOperatorId');
+    if (!roleSelect || !groupOp) return;
+
+    if (roleSelect.value === 'superuser') {
+        groupOp.style.display = 'none';
+        if (opSelect) opSelect.required = false;
+    } else {
+        groupOp.style.display = 'block';
+        if (opSelect) opSelect.required = true;
+    }
+}
+window.toggleOperatorSelectField = toggleOperatorSelectField;
+
+async function handleCreateUser(e) {
+    if (e) e.preventDefault();
+    const username = document.getElementById('newUsername')?.value?.trim();
+    const password = document.getElementById('newUserPassword')?.value;
+    const role = document.getElementById('newUserRole')?.value;
+    const operatorId = document.getElementById('newUserOperatorId')?.value?.trim();
+    const email = document.getElementById('newUserEmail')?.value?.trim();
+
+    if (!username || !password) {
+        alert('Login va parol kiritilishi shart');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/settings/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role, operatorId, email })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            alert(`✅ Foydalanuvchi '${username}' muvaffaqiyatli yaratildi!`);
+            document.getElementById('newUserForm')?.reset();
+            loadUsersList();
+        } else {
+            alert('❌ Xatolik: ' + (data.error || 'Yaratib bo\'lmadi'));
+        }
+    } catch (err) {
+        alert('Server xatosi: ' + err.message);
+    }
+}
+window.handleCreateUser = handleCreateUser;
+
+async function deleteUser(username) {
+    if (!confirm(`'${username}' foydalanuvchisini o'chirishni tasdiqlaysizmi?`)) return;
+    try {
+        const res = await fetch(`/api/settings/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data && data.success) {
+            loadUsersList();
+        } else {
+            alert('Xatolik: ' + (data.error || 'O\'chirib bo\'lmadi'));
+        }
+    } catch (e) {
+        alert('Server xatosi: ' + e.message);
+    }
+}
+window.deleteUser = deleteUser;
+
+// 4. Faol Sessiyalar & Tokenlar
+async function loadSessionsList() {
+    const tbody = document.getElementById('settingsSessionsTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="settings-loading">Yuklanmoqda...</td></tr>';
+
+    try {
+        const res = await fetch('/api/settings/sessions');
+        const data = await res.json();
+        if (!tbody) return;
+
+        if (data && data.success && Array.isArray(data.sessions) && data.sessions.length > 0) {
+            let html = '';
+            data.sessions.forEach(s => {
+                const opName = (s.operator && s.operator.name) ? `<span style="color: #38bdf8; font-weight: 600;">${s.operator.name}</span>` : '<span style="color: #94a3b8;">Administrator</span>';
+                const tokenMasked = s.token ? `${s.token.slice(0, 8)}...${s.token.slice(-6)}` : '-';
+                const createdTime = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('uz-UZ') : '-';
+
+                const actionHtml = s.isCurrent 
+                    ? '<span style="color: #34d399; font-size: 11.5px; font-weight: 600;">(Siz)</span>'
+                    : `<button type="button" class="btn-action" onclick="revokeSession('${s.token}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
+
+                html += `
+                    <tr>
+                        <td style="font-weight: 600; color: #f1f5f9;">${s.username} <div style="font-size: 11px;">${opName}</div></td>
+                        <td style="font-family: monospace; color: #a5b4fc;">${s.ip || '-'}</td>
+                        <td style="font-family: monospace; font-size: 11.5px; color: #94a3b8;">${tokenMasked}</td>
+                        <td style="font-size: 11.5px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.userAgent || ''}">${s.userAgent || '-'}</td>
+                        <td style="font-size: 12px; color: #94a3b8;">${createdTime}</td>
+                        <td style="text-align: right;">${actionHtml}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 14px;">Faol sessiyalar yo\'q</td></tr>';
+        }
+    } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="color: #f87171; padding: 14px;">Xatolik: ${e.message}</td></tr>`;
+    }
+}
+window.loadSessionsList = loadSessionsList;
+
+async function revokeSession(token) {
+    if (!confirm('Ushbu sessiyani to\'xtatishni (foydalanuvchini chiqarib yuborishni) xohlaysizmi?')) return;
+    try {
+        const res = await fetch(`/api/settings/sessions/${encodeURIComponent(token)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data && data.success) {
+            loadSessionsList();
+        } else {
+            alert('Xatolik: ' + (data.error || 'To\'xtatib bo\'lmadi'));
+        }
+    } catch (e) {
+        alert('Server xatosi: ' + e.message);
+    }
+}
+window.revokeSession = revokeSession;
+
+// 5. Interfeys sozlamalari
+function loadInterfaceSettings() {
+    const cb = document.getElementById('settingShowOperatorPause');
+    if (cb) {
+        cb.checked = localStorage.getItem('setting_show_operator_pause') === '1';
+    }
+}
+window.loadInterfaceSettings = loadInterfaceSettings;
+
+function toggleOperatorPauseSetting(checked) {
+    localStorage.setItem('setting_show_operator_pause', checked ? '1' : '0');
+    if (typeof applyOpCardFieldsVisibility === 'function') {
+        applyOpCardFieldsVisibility();
+    }
+}
+window.toggleOperatorPauseSetting = toggleOperatorPauseSetting;
+
+
+
+function toggleProfilePasswordVisibility() {
+    const passInput = document.getElementById('profilePasswordInput');
+    const eyeIcon = document.getElementById('profilePassEyeIcon');
+    if (!passInput) return;
+    if (passInput.type === 'password') {
+        passInput.type = 'text';
+        if (eyeIcon) {
+            eyeIcon.innerHTML = '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>';
+        }
+    } else {
+        passInput.type = 'password';
+        if (eyeIcon) {
+            eyeIcon.innerHTML = '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>';
+        }
+    }
+}
+window.toggleProfilePasswordVisibility = toggleProfilePasswordVisibility;
+
+async function startProfileEmailUnlink(e) {
+    if (e) e.preventDefault();
+    const passInput = document.getElementById('profilePasswordInput');
+    const msgEl = document.getElementById('profileEmailMsg');
+    const verifySec = document.getElementById('profileVerifySection');
+    const btnSend = document.getElementById('btnSendProfileCode');
+    const btnVerify = document.getElementById('btnVerifyProfileCode');
+    const btnVerifyText = document.getElementById('btnVerifyProfileCodeText');
+    const stepIndicator = document.getElementById('profileStepIndicator');
+    const stepText = document.getElementById('profileStepText');
+    const codeLabelText = document.getElementById('profileCodeLabelText');
+    const emailInput = document.getElementById('profileEmailInput');
+
+    if (!currentProfileBoundEmail) return;
+
+    if (!passInput || !passInput.value.trim()) {
+        if (msgEl) {
+            msgEl.textContent = "Gmailni hisobdan uzish uchun avval parolingizni kiriting!";
+            msgEl.style.color = '#f87171';
+        }
+        if (passInput) passInput.focus();
+        return;
+    }
+
+    const password = passInput.value.trim();
+    if (msgEl) {
+        msgEl.textContent = "Tasdiqlash kodi yuborilmoqda...";
+        msgEl.style.color = '#38bdf8';
+    }
+
+    try {
+        const res = await fetch('/api/auth/profile/email/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'unlink', password: password })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            profileVerificationStep = 'unlinking_only';
+            profileTargetNewEmail = null;
+
+            if (stepIndicator && stepText) {
+                stepIndicator.style.display = 'block';
+                stepIndicator.style.background = 'rgba(239, 68, 68, 0.12)';
+                stepIndicator.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+                stepText.innerHTML = `⚠️ <b>Xavfsizlik tasdig'i:</b> Hisobdan uzish tasdiqlash kodi joriy bog'langan <b>${currentProfileBoundEmail}</b> pochtangizga yuborildi.`;
+            }
+            if (msgEl) msgEl.textContent = '';
+            if (verifySec) verifySec.style.display = 'block';
+            if (btnSend) btnSend.style.display = 'none';
+            if (btnVerify) {
+                btnVerify.style.display = 'inline-flex';
+                btnVerify.disabled = false;
+            }
+            if (btnVerifyText) btnVerifyText.textContent = "Hisobdan butunlay uzish";
+            if (codeLabelText) codeLabelText.textContent = "Eski pochtaga kelgan kod:";
+
+            if (emailInput) emailInput.disabled = true;
+            if (passInput) passInput.disabled = true;
+
+            startProfileTimer();
+            const codeInp = document.getElementById('profileCodeInput');
+            if (codeInp) {
+                codeInp.value = '';
+                codeInp.focus();
+            }
+        } else {
+            if (msgEl) {
+                msgEl.textContent = data.error || "Kodni yuborishda xatolik yuz berdi";
+                msgEl.style.color = '#f87171';
+            }
+        }
+    } catch (err) {
+        if (msgEl) {
+            msgEl.textContent = `Server xatosi: ${err.message}`;
+            msgEl.style.color = '#f87171';
+        }
+    }
+}
+window.startProfileEmailUnlink = startProfileEmailUnlink;
+
+async function sendProfileCode(e) {
+    if (e) e.preventDefault();
+    const passInput = document.getElementById('profilePasswordInput');
+    const emailInput = document.getElementById('profileEmailInput');
+    const msgEl = document.getElementById('profileEmailMsg');
+    const btnSend = document.getElementById('btnSendProfileCode');
+    const btnSendText = document.getElementById('btnSendProfileCodeText');
+    const verifySec = document.getElementById('profileVerifySection');
+    const btnVerify = document.getElementById('btnVerifyProfileCode');
+    const btnVerifyText = document.getElementById('btnVerifyProfileCodeText');
+    const stepIndicator = document.getElementById('profileStepIndicator');
+    const stepText = document.getElementById('profileStepText');
+    const codeLabelText = document.getElementById('profileCodeLabelText');
+
+    if (!passInput || !passInput.value.trim()) {
+        if (msgEl) {
+            msgEl.textContent = 'Iltimos, joriy hisobingiz parolini kiriting!';
+            msgEl.style.color = '#f87171';
+        }
+        if (passInput) passInput.focus();
+        return;
+    }
+
+    if (!emailInput || !emailInput.value.trim()) {
+        if (msgEl) {
+            msgEl.textContent = 'Iltimos, Gmail manzilingizni kiriting';
+            msgEl.style.color = '#f87171';
+        }
+        if (emailInput) emailInput.focus();
+        return;
+    }
+
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email.endsWith('@gmail.com') && !email.includes('@')) {
+        if (msgEl) {
+            msgEl.textContent = "Noto'g'ri elektron pochta formati";
+            msgEl.style.color = '#f87171';
+        }
+        return;
+    }
+
+    if (currentProfileBoundEmail && currentProfileBoundEmail === email) {
+        if (msgEl) {
+            msgEl.textContent = "Ushbu Gmail allaqachon hisobingizga bog'langan. O'zgartirish uchun yangi manzil kiriting yoki 'Hisobdan uzish' tugmasini bosing.";
+            msgEl.style.color = '#f59e0b';
+        }
+        return;
+    }
+
+    const password = passInput.value.trim();
+
+    if (btnSend) btnSend.disabled = true;
+    if (btnSendText) btnSendText.textContent = 'Yuborilmoqda...';
+    if (msgEl) {
+        msgEl.textContent = 'Tasdiqlash kodi yuborilmoqda...';
+        msgEl.style.color = '#38bdf8';
+    }
+
+    try {
+        const res = await fetch('/api/auth/profile/email/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: password })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            if (verifySec) verifySec.style.display = 'block';
+            if (btnSend) btnSend.style.display = 'none';
+            if (btnVerify) {
+                btnVerify.style.display = 'inline-flex';
+                btnVerify.disabled = false;
+            }
+            emailInput.disabled = true;
+            passInput.disabled = true;
+
+            if (data.step === 'unlink_current') {
+                // MUHIM XAVFSIZLIK: Kod yangi emas, joriy eski emailga yuborildi!
+                profileVerificationStep = 'unlink_current';
+                profileTargetNewEmail = email;
+
+                if (stepIndicator && stepText) {
+                    stepIndicator.style.display = 'block';
+                    stepIndicator.style.background = 'rgba(234, 179, 8, 0.12)';
+                    stepIndicator.style.borderColor = 'rgba(234, 179, 8, 0.35)';
+                    stepText.innerHTML = `🔒 <b>1-bosqich:</b> Yangi Gmail bog'lashdan oldin, hisobingiz xavfsizligi uchun tasdiqlash kodi joriy bog'langan eski <b>${data.currentEmail || currentProfileBoundEmail}</b> pochtangizga yuborildi. Eskisidan yechish uchun kodni kiriting.`;
+                }
+                if (codeLabelText) codeLabelText.textContent = "1-bosqich: Eski pochtaga kelgan kod:";
+                if (btnVerifyText) btnVerifyText.textContent = "Eski Gmailni tasdiqlash va uzish";
+                if (msgEl) {
+                    msgEl.textContent = data.message || `Kod ${data.currentEmail || currentProfileBoundEmail} manziliga yuborildi!`;
+                    msgEl.style.color = '#f59e0b';
+                }
+            } else {
+                // Yangi email bog'lash (birinchi marta bog'lanayotganda)
+                profileVerificationStep = 'bind_new';
+                profileTargetNewEmail = email;
+
+                if (stepIndicator && stepText) {
+                    stepIndicator.style.display = 'block';
+                    stepIndicator.style.background = 'rgba(56, 189, 248, 0.08)';
+                    stepIndicator.style.borderColor = 'rgba(56, 189, 248, 0.25)';
+                    stepText.innerHTML = `📩 6 xonali tasdiqlash kodi <b>${email}</b> manziliga yuborildi.`;
+                }
+                if (codeLabelText) codeLabelText.textContent = "6 xonali tasdiqlash kodi:";
+                if (btnVerifyText) btnVerifyText.textContent = "Tasdiqlash va Bog'lash";
+                if (msgEl) {
+                    msgEl.textContent = data.message || `Tasdiqlash kodi ${email} manziliga yuborildi!`;
+                    msgEl.style.color = '#34d399';
+                }
+            }
+
+            startProfileTimer();
+            const codeInp = document.getElementById('profileCodeInput');
+            if (codeInp) {
+                codeInp.value = '';
+                codeInp.focus();
+            }
+        } else {
+            if (msgEl) {
+                msgEl.textContent = data.error || 'Kodni yuborishda xatolik yuz berdi';
+                msgEl.style.color = '#f87171';
+            }
+            if (btnSend) btnSend.disabled = false;
+            if (btnSendText) btnSendText.textContent = currentProfileBoundEmail ? "O'zgartirish kodini olish" : 'Tasdiqlash kodini olish';
+        }
+    } catch (err) {
+        if (msgEl) {
+            msgEl.textContent = `Serverga ulanishda xatolik: ${err.message}`;
+            msgEl.style.color = '#f87171';
+        }
+        if (btnSend) btnSend.disabled = false;
+        if (btnSendText) btnSendText.textContent = currentProfileBoundEmail ? "O'zgartirish kodini olish" : 'Tasdiqlash kodini olish';
+    }
+}
+window.sendProfileCode = sendProfileCode;
+
+function startProfileTimer() {
+    profileTimerSeconds = 120;
+    const timerEl = document.getElementById('profileTimer');
+    const resendBtn = document.getElementById('btnResendProfileCode');
+    if (resendBtn) {
+        resendBtn.disabled = true;
+        resendBtn.style.color = '#64748b';
+        resendBtn.style.cursor = 'not-allowed';
+    }
+
+    if (profileTimerInterval) clearInterval(profileTimerInterval);
+    profileTimerInterval = setInterval(() => {
+        profileTimerSeconds--;
+        const m = Math.floor(profileTimerSeconds / 60);
+        const s = profileTimerSeconds % 60;
+        if (timerEl) {
+            timerEl.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+        if (profileTimerSeconds <= 0) {
+            clearInterval(profileTimerInterval);
+            profileTimerInterval = null;
+            if (resendBtn) {
+                resendBtn.disabled = false;
+                resendBtn.style.color = '#38bdf8';
+                resendBtn.style.cursor = 'pointer';
+            }
+        }
+    }, 1000);
+}
+
+function resendProfileCode() {
+    const resendBtn = document.getElementById('btnResendProfileCode');
+    if (resendBtn && resendBtn.disabled) return;
+    if (profileVerificationStep === 'unlinking_only') {
+        startProfileEmailUnlink();
+    } else {
+        sendProfileCode();
+    }
+}
+window.resendProfileCode = resendProfileCode;
+
+function resetProfileEmailEdit() {
+    profileVerificationStep = 'idle';
+    profileTargetNewEmail = null;
+    const passInput = document.getElementById('profilePasswordInput');
+    const emailInput = document.getElementById('profileEmailInput');
+    const msgEl = document.getElementById('profileEmailMsg');
+    const verifySec = document.getElementById('profileVerifySection');
+    const btnSend = document.getElementById('btnSendProfileCode');
+    const btnSendText = document.getElementById('btnSendProfileCodeText');
+    const btnVerify = document.getElementById('btnVerifyProfileCode');
+    const stepIndicator = document.getElementById('profileStepIndicator');
+    const codeInp = document.getElementById('profileCodeInput');
+
+    if (passInput) passInput.disabled = false;
+    if (emailInput) {
+        emailInput.disabled = false;
+        if (currentProfileBoundEmail) emailInput.value = currentProfileBoundEmail;
+        emailInput.focus();
+    }
+    if (codeInp) codeInp.value = '';
+    if (verifySec) verifySec.style.display = 'none';
+    if (stepIndicator) stepIndicator.style.display = 'none';
+    if (btnSend) {
+        btnSend.style.display = 'inline-flex';
+        btnSend.disabled = false;
+    }
+    if (btnSendText) {
+        btnSendText.textContent = currentProfileBoundEmail ? "O'zgartirish kodini olish" : 'Tasdiqlash kodini olish';
+    }
+    if (btnVerify) btnVerify.style.display = 'none';
+    if (msgEl) msgEl.textContent = '';
+    if (profileTimerInterval) {
+        clearInterval(profileTimerInterval);
+        profileTimerInterval = null;
+    }
+}
+window.resetProfileEmailEdit = resetProfileEmailEdit;
+
+async function verifyProfileCode(e) {
+    if (e) e.preventDefault();
+    const emailInput = document.getElementById('profileEmailInput');
+    const codeInput = document.getElementById('profileCodeInput');
+    const msgEl = document.getElementById('profileEmailMsg');
+    const btnVerify = document.getElementById('btnVerifyProfileCode');
+    const btnVerifyText = document.getElementById('btnVerifyProfileCodeText');
+    const stepIndicator = document.getElementById('profileStepIndicator');
+    const stepText = document.getElementById('profileStepText');
+    const codeLabelText = document.getElementById('profileCodeLabelText');
+
+    if (!codeInput || !codeInput.value || codeInput.value.trim().length !== 6) {
+        if (msgEl) {
+            msgEl.textContent = 'Iltimos, 6 xonali tasdiqlash kodini kiriting';
+            msgEl.style.color = '#f87171';
+        }
+        if (codeInput) codeInput.focus();
+        return;
+    }
+
+    const code = codeInput.value.trim();
+    if (btnVerify) btnVerify.disabled = true;
+    if (btnVerifyText) btnVerifyText.textContent = 'Tekshirilmoqda...';
+
+    // Qaysi email va step uchun tekshiramiz:
+    let verifyEmail = '';
+    let targetNew = profileTargetNewEmail;
+
+    if (profileVerificationStep === 'unlink_current' || profileVerificationStep === 'unlinking_only') {
+        verifyEmail = currentProfileBoundEmail;
+    } else {
+        verifyEmail = profileTargetNewEmail || (emailInput ? emailInput.value.trim() : '');
+    }
+
+    try {
+        const res = await fetch('/api/auth/profile/email/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: verifyEmail,
+                code: code,
+                step: profileVerificationStep,
+                targetNewEmail: targetNew
+            })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+            if (data.step === 'bind_new') {
+                // 1-BOSQICH MUVAFFAQIYATLI O'TDI! ENDI 2-BOSQICH BOSHLANDI!
+                profileVerificationStep = 'bind_new';
+                currentProfileBoundEmail = null; // Eskisi bazadan o'chirildi
+                if (codeInput) codeInput.value = '';
+
+                if (stepIndicator && stepText) {
+                    stepIndicator.style.display = 'block';
+                    stepIndicator.style.background = 'rgba(56, 189, 248, 0.12)';
+                    stepIndicator.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+                    stepText.innerHTML = `✅ <b>Eski Gmail muvaffaqiyatli uzildi!</b><br>Endi <b>2-bosqich:</b> yangi <b>${profileTargetNewEmail}</b> pochtangizga yuborilgan 6 xonali tasdiqlash kodini kiriting.`;
+                }
+                if (codeLabelText) codeLabelText.textContent = "2-bosqich: Yangi pochtaga kelgan kod:";
+                if (btnVerifyText) btnVerifyText.textContent = "Yangi Gmailni bog'lash";
+                if (btnVerify) btnVerify.disabled = false;
+                if (msgEl) {
+                    msgEl.textContent = data.message || `Yangi ${profileTargetNewEmail} pochtangizga kod jo'natildi!`;
+                    msgEl.style.color = '#34d399';
+                }
+
+                startProfileTimer();
+                if (codeInput) codeInput.focus();
+                return;
+            }
+
+            if (data.step === 'unlinked') {
+                // BUTUNLAY UZILDI
+                if (msgEl) {
+                    msgEl.textContent = "Gmail hisobingizdan muvaffaqiyatli uzildi!";
+                    msgEl.style.color = '#34d399';
+                }
+                currentProfileBoundEmail = null;
+                loadUserProfileData();
+                setTimeout(() => {
+                    closeProfileModal();
+                }, 1400);
+                return;
+            }
+
+            // data.step === 'completed' YOKI YAKUNIY BIND
+            if (msgEl) {
+                msgEl.textContent = "✅ Yangi Gmail hisobingizga muvaffaqiyatli bog'landi!";
+                msgEl.style.color = '#34d399';
+            }
+            if (stepIndicator && stepText) {
+                stepIndicator.style.background = 'rgba(16, 185, 129, 0.15)';
+                stepIndicator.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                stepText.innerHTML = `🎉 <b>Muvaffaqiyatli:</b> Yangi Gmail hisobingizga xavfsiz bog'landi!`;
+            }
+            loadUserProfileData();
+            setTimeout(() => {
+                closeProfileModal();
+            }, 1400);
+        } else {
+            if (msgEl) {
+                msgEl.textContent = data.error || "Kod noto'g'ri yoki muddati o'tgan";
+                msgEl.style.color = '#f87171';
+            }
+            if (btnVerify) btnVerify.disabled = false;
+            if (btnVerifyText) {
+                if (profileVerificationStep === 'unlink_current') {
+                    btnVerifyText.textContent = "Eski Gmailni tasdiqlash va uzish";
+                } else if (profileVerificationStep === 'unlinking_only') {
+                    btnVerifyText.textContent = "Hisobdan butunlay uzish";
+                } else {
+                    btnVerifyText.textContent = "Tasdiqlash va Bog'lash";
+                }
+            }
+        }
+    } catch (err) {
+        if (msgEl) {
+            msgEl.textContent = `Server xatosi: ${err.message}`;
+            msgEl.style.color = '#f87171';
+        }
+        if (btnVerify) btnVerify.disabled = false;
+        if (btnVerifyText) {
+            if (profileVerificationStep === 'unlink_current') {
+                btnVerifyText.textContent = "Eski Gmailni tasdiqlash va uzish";
+            } else if (profileVerificationStep === 'unlinking_only') {
+                btnVerifyText.textContent = "Hisobdan butunlay uzish";
+            } else {
+                btnVerifyText.textContent = "Tasdiqlash va Bog'lash";
+            }
+        }
+    }
+}
+window.verifyProfileCode = verifyProfileCode;
+
+/* Global Click & Escape Listeners */
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('userProfileMenu');
+    if (menu && menu.classList.contains('open') && !menu.contains(e.target)) {
+        menu.classList.remove('open');
+    }
+    const colsDropdown = document.getElementById('historyColsDropdownMenu');
+    const colsWrap = document.getElementById('historyColsDropdownWrap');
+    if (colsDropdown && colsDropdown.style.display !== 'none' && colsWrap && !colsWrap.contains(e.target)) {
+        colsDropdown.style.display = 'none';
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        if (currentFocusedSectionId) {
+            closeSectionFocus();
+        }
+        if (typeof closeKpiParentZoom === 'function') {
+            closeKpiParentZoom();
+        }
+        if (typeof closeImpersonateModal === 'function') {
+            closeImpersonateModal();
+        }
+        const profileModal = document.getElementById('modalUserProfile');
+        if (profileModal && profileModal.style.display !== 'none') {
+            closeProfileModal();
+        }
+        const opFieldsModal = document.getElementById('modalOpCardFields');
+        if (opFieldsModal && opFieldsModal.style.display !== 'none') {
+            closeOpCardFieldsModal();
+        }
+    } else if (e.ctrlKey && e.key === ';') {
+        e.preventDefault();
+        if (typeof openImpersonateModal === 'function') {
+            openImpersonateModal();
+        }
+    }
+});
+
+/* ==========================================================================
+   OPERATOR IMPERSONATION (Boshqa operator nomidan kirish)
+   ========================================================================== */
+function openImpersonateModal() {
+    const modal = document.getElementById('impersonateModal');
+    if (!modal) return;
+    renderImpersonateOperators();
+    modal.style.display = 'flex';
+}
+window.openImpersonateModal = openImpersonateModal;
+
+function closeImpersonateModal() {
+    smoothCloseDashboardModal('impersonateModal');
+}
+window.closeImpersonateModal = closeImpersonateModal;
+
+function renderImpersonateOperators() {
+    const grid = document.getElementById('impersonateOpGrid');
+    if (!grid) return;
+    const ops = window._rawLastOperators || currentOperators || [];
+    if (ops.length === 0) {
+        grid.innerHTML = '<div style="color: #94a3b8; font-size: 12px; grid-column: 1/-1;">Faol operatorlar topilmadi</div>';
+        return;
+    }
+    grid.innerHTML = ops.map(op => {
+        const id = op.id || op.extension;
+        const name = op.name || `Operator ${id}`;
+        return `
+            <button type="button" class="impersonate-op-btn" onclick="applyOperatorImpersonation('${id}', 'operator', '${escapeHtml(name)}')" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #f1f5f9; cursor: pointer; text-align: left; transition: all 0.2s;" onmouseover="this.style.background='rgba(56, 189, 248, 0.15)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.04)'">
+                <div>
+                    <div style="font-size: 13px; font-weight: 600;">${name}</div>
+                    <div style="font-size: 11px; color: #94a3b8;">ID: ${id}</div>
+                </div>
+                <span style="font-size: 11px; color: #38bdf8; font-weight: 600;">O'tish &rarr;</span>
+            </button>
+        `;
+    }).join('');
+}
+window.renderImpersonateOperators = renderImpersonateOperators;
+
+function applyOperatorImpersonation(opId, role = 'operator', name = '') {
+    if (!opId && role === 'admin') {
+        sessionStorage.removeItem('impersonated_operator');
+        if (typeof showToast === 'function') showToast("Asl Superuser Admin hisobiga qaytildi", 'success');
+        closeImpersonateModal();
+        setTimeout(() => window.location.reload(), 400);
+        return;
+    }
+    sessionStorage.setItem('impersonated_operator', JSON.stringify({ id: opId, role, name }));
+    if (typeof showToast === 'function') showToast(`Operator nomiga o'tildi: ${name || opId}`, 'success');
+    closeImpersonateModal();
+}
+window.applyOperatorImpersonation = applyOperatorImpersonation;
+
+function applyManualTokenSwitch() {
+    const input = document.getElementById('manualImpersonateTokenInput');
+    const token = input ? input.value.trim() : '';
+    if (!token) {
+        alert("Iltimos, sessiya tokenini kiriting");
+        return;
+    }
+    localStorage.setItem('auth_token', token);
+    if (typeof showToast === 'function') showToast("Yangi token saqlandi, sahifa qayta yuklanmoqda...", 'success');
+    setTimeout(() => window.location.reload(), 500);
+}
+window.applyManualTokenSwitch = applyManualTokenSwitch;
+
+// Avtomatik profil ma'lumotlarini yuklash
+loadUserProfileData();
+
 // Initialize Application after all components and functions are loaded
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', runInit);
+    document.addEventListener('DOMContentLoaded', () => {
+        runInit();
+        applyHistoryColumnsVisibility();
+        applyOpCardFieldsVisibility();
+    });
 } else {
     runInit();
+    applyHistoryColumnsVisibility();
+    applyOpCardFieldsVisibility();
 }
+
+window.handleLogout = async function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {}
+    localStorage.removeItem('auth_token');
+    sessionStorage.clear();
+    window.location.href = '/login';
+};
+
+/* ==========================================================================
+   Universal File Converter Logic (Tab Tools)
+   Zero-storage: In-browser instant conversion for images, python engine for docs
+   ========================================================================== */
+let currentConverterFile = null;
+let selectedTargetFormat = '';
+let convertedFileBlobUrl = null;
+
+function formatConverterFileSize(bytes) {
+    if (!bytes || isNaN(bytes) || bytes <= 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+}
+
+function handleConverterFileSelected(file) {
+    if (!file) return;
+
+    // Maksimal hajm: 35 MB
+    const maxBytes = 35 * 1024 * 1024;
+    if (file.size > maxBytes) {
+        if (typeof showToast === 'function') {
+            showToast("Fayl hajmi 35 MB dan oshmasligi kerak", 'error');
+        } else {
+            alert("Fayl hajmi 35 MB dan oshmasligi kerak");
+        }
+        return;
+    }
+
+    currentConverterFile = file;
+    const name = file.name || 'document';
+    const ext = (name.split('.').pop() || '').toLowerCase();
+
+    // Fayl ma'lumotlarini to'ldirish
+    const nameEl = document.getElementById('convFileName');
+    const sizeEl = document.getElementById('convFileSize');
+    const badgeEl = document.getElementById('convFileIconBadge');
+    const detailsEl = document.getElementById('converterFileDetails');
+    const dropzoneEl = document.getElementById('converterDropzone');
+    const resultBox = document.getElementById('converterResultBox');
+    const progressBox = document.getElementById('converterProgressBox');
+
+    if (nameEl) nameEl.textContent = name;
+    if (sizeEl) sizeEl.textContent = formatConverterFileSize(file.size);
+    if (badgeEl) {
+        badgeEl.textContent = ext.toUpperCase().slice(0, 4);
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+            badgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
+            badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.35)';
+            badgeEl.style.color = '#fbbf24';
+        } else if (['pdf'].includes(ext)) {
+            badgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+            badgeEl.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+            badgeEl.style.color = '#f87171';
+        } else if (['docx', 'doc'].includes(ext)) {
+            badgeEl.style.background = 'rgba(59, 130, 246, 0.15)';
+            badgeEl.style.borderColor = 'rgba(59, 130, 246, 0.35)';
+            badgeEl.style.color = '#60a5fa';
+        } else {
+            badgeEl.style.background = 'rgba(168, 85, 247, 0.15)';
+            badgeEl.style.borderColor = 'rgba(168, 85, 247, 0.35)';
+            badgeEl.style.color = '#c084fc';
+        }
+    }
+
+    // Formatlar xaritasi
+    const formatMap = {
+        'pdf': ['docx', 'txt'],
+        'docx': ['pdf', 'txt'],
+        'doc': ['docx', 'pdf', 'txt'],
+        'txt': ['pdf', 'docx'],
+        'jpg': ['png', 'webp', 'pdf'],
+        'jpeg': ['png', 'webp', 'pdf'],
+        'png': ['jpg', 'webp', 'pdf'],
+        'webp': ['png', 'jpg', 'pdf']
+    };
+
+    const targets = formatMap[ext] || ['pdf', 'docx', 'txt'];
+    const pillsWrap = document.getElementById('converterTargetPills');
+    if (pillsWrap) {
+        pillsWrap.innerHTML = targets.map((tFmt, idx) => `
+            <button type="button" class="converter-pill ${idx === 0 ? 'active' : ''}" onclick="selectConverterTarget('${tFmt}')">
+                ${tFmt.toUpperCase()}
+            </button>
+        `).join('');
+    }
+
+    selectedTargetFormat = targets[0] || 'pdf';
+
+    if (dropzoneEl) dropzoneEl.style.display = 'none';
+    if (detailsEl) detailsEl.style.display = 'block';
+    if (progressBox) progressBox.style.display = 'none';
+    if (resultBox) resultBox.style.display = 'none';
+}
+
+function selectConverterTarget(format) {
+    selectedTargetFormat = format.toLowerCase();
+    const pills = document.querySelectorAll('#converterTargetPills .converter-pill');
+    pills.forEach(p => {
+        if (p.textContent.trim().toLowerCase() === selectedTargetFormat) {
+            p.classList.add('active');
+        } else {
+            p.classList.remove('active');
+        }
+    });
+}
+
+function resetConverterState() {
+    currentConverterFile = null;
+    selectedTargetFormat = '';
+    if (convertedFileBlobUrl) {
+        try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) {}
+        convertedFileBlobUrl = null;
+    }
+
+    const fileInput = document.getElementById('converterFileInput');
+    if (fileInput) fileInput.value = '';
+
+    const dropzoneEl = document.getElementById('converterDropzone');
+    const detailsEl = document.getElementById('converterFileDetails');
+    const progressBox = document.getElementById('converterProgressBox');
+    const resultBox = document.getElementById('converterResultBox');
+    const btn = document.getElementById('btnRunConversion');
+    const btnText = document.getElementById('btnRunConversionText');
+
+    if (dropzoneEl) dropzoneEl.style.display = 'block';
+    if (detailsEl) detailsEl.style.display = 'none';
+    if (progressBox) progressBox.style.display = 'none';
+    if (resultBox) resultBox.style.display = 'none';
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = 'Konvertatsiya qilish';
+}
+
+async function convertImageInBrowser(file, targetFmt) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (targetFmt === 'jpg' || targetFmt === 'jpeg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.drawImage(img, 0, 0);
+
+            let mimeType = 'image/png';
+            if (targetFmt === 'jpg' || targetFmt === 'jpeg') mimeType = 'image/jpeg';
+            else if (targetFmt === 'webp') mimeType = 'image/webp';
+
+            canvas.toBlob((blob) => {
+                if (!blob) return reject(new Error('Canvas konvertatsiya amalga oshmadi'));
+                const base = file.name.substring(0, file.name.lastIndexOf('.')) || 'image';
+                const newName = `${base}.${targetFmt}`;
+                const blobUrl = URL.createObjectURL(blob);
+                resolve({
+                    filename: newName,
+                    size: blob.size,
+                    url: blobUrl
+                });
+            }, mimeType, 0.95);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Rasmni o'qib bo'lmadi"));
+        };
+        img.src = url;
+    });
+}
+
+async function executeFileConversion() {
+    if (!currentConverterFile) {
+        if (typeof showToast === 'function') showToast("Iltimos, avval faylni tanlang", 'warning');
+        return;
+    }
+    if (!selectedTargetFormat) {
+        if (typeof showToast === 'function') showToast("Maqsadli formatni tanlang", 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnRunConversion');
+    const btnText = document.getElementById('btnRunConversionText');
+    const progressBox = document.getElementById('converterProgressBox');
+    const progressBar = document.getElementById('converterProgressBar');
+    const progressPct = document.getElementById('converterProgressPct');
+    const progressStatus = document.getElementById('converterProgressStatus');
+    const resultBox = document.getElementById('converterResultBox');
+    const resultName = document.getElementById('converterResultName');
+    const resultSize = document.getElementById('converterResultSize');
+    const downloadBtn = document.getElementById('btnDownloadConvertedFile');
+
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.textContent = 'Jarayon ketmoqda...';
+    if (progressBox) progressBox.style.display = 'block';
+    if (progressBar) progressBar.style.width = '20%';
+    if (progressPct) progressPct.textContent = '20%';
+    if (progressStatus) progressStatus.textContent = 'Fayl tayyorlanmoqda...';
+
+    const srcExt = (currentConverterFile.name.split('.').pop() || '').toLowerCase();
+    const isImageSrc = ['jpg', 'jpeg', 'png', 'webp'].includes(srcExt);
+    const isImageTarget = ['jpg', 'jpeg', 'png', 'webp'].includes(selectedTargetFormat);
+
+    try {
+        let resultInfo = null;
+
+        // 1. Agar rasm -> rasm bo'lsa, mijoz brauzerida zudlik bilan konvertatsiya (0ms kechikish va 0 bayt tarmoq)
+        if (isImageSrc && isImageTarget && window.HTMLCanvasElement) {
+            if (progressBar) progressBar.style.width = '60%';
+            if (progressPct) progressPct.textContent = '60%';
+            if (progressStatus) progressStatus.textContent = 'Brauzerda qayta ishlanmoqda...';
+
+            resultInfo = await convertImageInBrowser(currentConverterFile, selectedTargetFormat);
+        } else {
+            // 2. Aks holda serverdagi python zero-storage motoriga yuboriladi
+            if (progressBar) progressBar.style.width = '40%';
+            if (progressPct) progressPct.textContent = '40%';
+            if (progressStatus) progressStatus.textContent = 'Serverga xavfsiz uzatilmoqda...';
+
+            const base64Data = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error("Faylni o'qishda xatolik"));
+                reader.readAsDataURL(currentConverterFile);
+            });
+
+            if (progressBar) progressBar.style.width = '75%';
+            if (progressPct) progressPct.textContent = '75%';
+            if (progressStatus) progressStatus.textContent = 'Konvertatsiya qilinmoqda (Zero-storage)...';
+
+            const response = await fetch('/api/converter/convert', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileData: base64Data,
+                    fileName: currentConverterFile.name,
+                    targetFormat: selectedTargetFormat
+                })
+            });
+
+            const resJson = await response.json();
+            if (!response.ok || !resJson.success) {
+                throw new Error(resJson.error || `Server xatosi: ${response.status}`);
+            }
+
+            // Base64 dan Blob yasash
+            const b64Parts = resJson.fileData.split(',');
+            const rawB64 = b64Parts.length > 1 ? b64Parts[1] : b64Parts[0];
+            const byteChars = atob(rawB64);
+            const byteNums = new Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) {
+                byteNums[i] = byteChars.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNums);
+            const blob = new Blob([byteArray], { type: resJson.mimeType });
+            const blobUrl = URL.createObjectURL(blob);
+
+            resultInfo = {
+                filename: resJson.filename,
+                size: blob.size,
+                url: blobUrl
+            };
+        }
+
+        if (progressBar) progressBar.style.width = '100%';
+        if (progressPct) progressPct.textContent = '100%';
+        if (progressStatus) progressStatus.textContent = 'Tayyor!';
+
+        setTimeout(() => {
+            if (progressBox) progressBox.style.display = 'none';
+
+            if (convertedFileBlobUrl) {
+                try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) {}
+            }
+            convertedFileBlobUrl = resultInfo.url;
+
+            if (resultName) resultName.textContent = resultInfo.filename;
+            if (resultSize) resultSize.textContent = `Hajmi: ${formatConverterFileSize(resultInfo.size)}`;
+            if (downloadBtn) {
+                downloadBtn.href = resultInfo.url;
+                downloadBtn.download = resultInfo.filename;
+            }
+            if (resultBox) resultBox.style.display = 'block';
+
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = 'Konvertatsiya qilish';
+
+            if (typeof showToast === 'function') {
+                showToast("Fayl muvaffaqiyatli konvertatsiya qilindi!", 'success');
+            }
+        }, 350);
+
+    } catch (err) {
+        console.error('Konvertatsiya xatosi:', err);
+        if (progressBox) progressBox.style.display = 'none';
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = 'Qayta urinish';
+        if (typeof showToast === 'function') {
+            showToast("Xatolik: " + err.message, 'error');
+        } else {
+            alert("Xatolik: " + err.message);
+        }
+    }
+}
+
+function initConverterDropzone() {
+    const dropzone = document.getElementById('converterDropzone');
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files[0]) {
+            handleConverterFileSelected(dt.files[0]);
+        }
+    }, false);
+}
+
+// Global scope bindings for inline HTML onclick attributes
+window.handleConverterFileSelected = handleConverterFileSelected;
+window.selectConverterTarget = selectConverterTarget;
+window.resetConverterState = resetConverterState;
+window.executeFileConversion = executeFileConversion;
+window.initConverterDropzone = initConverterDropzone;
+
+/* ==========================================================================
+   STATISTIKA VA MAVZULAR TAHLILI (CALL TOPIC ANALYTICS & VOICE-TO-TEXT INSIGHTS)
+   ========================================================================== */
+let currentStatPeriod = 'month'; // 'day', 'month' or 'year'
+let currentStatYear = new Date().getFullYear();
+let currentStatMonth = new Date().getMonth() + 1;
+let currentStatDate = ''; // 'YYYY-MM-DD'
+let currentStatTopicFilter = 'all';
+let currentStatSearchQuery = '';
+let currentStatCallsPage = 1;
+let statSearchDebounceTimer = null;
+let chartTopicDistInstance = null;
+let chartTopicTrendInstance = null;
+let isStatDataLoading = false;
+
+async function initStatControls() {
+    const yearSelect = document.getElementById('statYearSelect');
+    const monthSelect = document.getElementById('statMonthSelect');
+    const dateInput = document.getElementById('statDateInput');
+    if (!yearSelect || !monthSelect) return;
+
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    yearSelect.innerHTML = '';
+    for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y + " yil";
+        if (y === currentYear) opt.selected = true;
+        yearSelect.appendChild(opt);
+    }
+    monthSelect.value = currentMonth;
+
+    currentStatYear = currentYear;
+    currentStatMonth = currentMonth;
+
+    try {
+        const res = await fetch('/api/analytics/topics/dates');
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.dates) && data.dates.length > 0) {
+            const latest = data.dates[0];
+            if (dateInput) dateInput.value = latest;
+            currentStatDate = latest;
+        } else {
+            const today = new Date().toISOString().split('T')[0];
+            if (dateInput) dateInput.value = today;
+            currentStatDate = today;
+        }
+    } catch (e) {
+        const today = new Date().toISOString().split('T')[0];
+        if (dateInput) dateInput.value = today;
+        currentStatDate = today;
+    }
+}
+
+function setStatPeriod(period) {
+    currentStatPeriod = period;
+
+    const btnDay = document.getElementById('statPeriodDay');
+    const btnMonth = document.getElementById('statPeriodMonth');
+    const btnYear = document.getElementById('statPeriodYear');
+    const dateInput = document.getElementById('statDateInput');
+    const yearSelect = document.getElementById('statYearSelect');
+    const monthSelect = document.getElementById('statMonthSelect');
+
+    const setBtnStyle = (btn, active) => {
+        if (!btn) return;
+        if (active) {
+            btn.style.background = '#0284c7';
+            btn.style.color = '#fff';
+            btn.classList.add('active');
+        } else {
+            btn.style.background = 'transparent';
+            btn.style.color = '#94a3b8';
+            btn.classList.remove('active');
+        }
+    };
+
+    setBtnStyle(btnDay, period === 'day');
+    setBtnStyle(btnMonth, period === 'month');
+    setBtnStyle(btnYear, period === 'year');
+
+    if (period === 'day') {
+        if (dateInput) {
+            dateInput.style.display = 'inline-block';
+            if (!dateInput.value && currentStatDate) {
+                dateInput.value = currentStatDate;
+            }
+        }
+        if (yearSelect) yearSelect.style.display = 'none';
+        if (monthSelect) monthSelect.style.display = 'none';
+    } else if (period === 'month') {
+        if (dateInput) dateInput.style.display = 'none';
+        if (yearSelect) yearSelect.style.display = 'inline-block';
+        if (monthSelect) monthSelect.style.display = 'inline-block';
+    } else if (period === 'year') {
+        if (dateInput) dateInput.style.display = 'none';
+        if (yearSelect) yearSelect.style.display = 'inline-block';
+        if (monthSelect) monthSelect.style.display = 'none';
+    }
+
+    loadStatisticsData();
+}
+
+function onStatFilterChange() {
+    const yearSelect = document.getElementById('statYearSelect');
+    const monthSelect = document.getElementById('statMonthSelect');
+    const dateInput = document.getElementById('statDateInput');
+
+    if (dateInput && dateInput.value) currentStatDate = dateInput.value;
+    if (yearSelect) currentStatYear = parseInt(yearSelect.value, 10) || new Date().getFullYear();
+    if (monthSelect) currentStatMonth = parseInt(monthSelect.value, 10) || (new Date().getMonth() + 1);
+
+    loadStatisticsData();
+}
+
+async function loadStatisticsData() {
+    if (isStatDataLoading) return;
+    isStatDataLoading = true;
+
+    try {
+        const queryParams = new URLSearchParams({
+            period: currentStatPeriod,
+            year: currentStatYear,
+            month: currentStatMonth
+        });
+        if (currentStatPeriod === 'day' && currentStatDate) {
+            queryParams.set('date', currentStatDate);
+        }
+
+        const [summaryRes, trendRes] = await Promise.all([
+            fetch(`/api/analytics/topics/summary?${queryParams.toString()}`).then(r => r.json()).catch(() => null),
+            fetch(`/api/analytics/topics/trend?${queryParams.toString()}`).then(r => r.json()).catch(() => null)
+        ]);
+
+        if (summaryRes && summaryRes.success) {
+            if (currentStatPeriod === 'day') {
+                const resolvedDate = summaryRes.data.date || summaryRes.data.latestDate;
+                if (resolvedDate) {
+                    currentStatDate = resolvedDate;
+                    const dateInput = document.getElementById('statDateInput');
+                    if (dateInput && !dateInput.value) {
+                        dateInput.value = resolvedDate;
+                    }
+                }
+            }
+            renderStatKpis(summaryRes.data);
+            renderTopicCharts(summaryRes.data, trendRes && trendRes.success ? trendRes.data : null);
+        }
+
+        await loadStatCallsPage(1);
+
+    } catch (err) {
+        console.error('[Statistics] Error loading statistics:', err);
+    } finally {
+        isStatDataLoading = false;
+    }
+}
+
+function renderStatKpis(data) {
+    if (!data) return;
+    const { topics = {}, total_calls = 0 } = data;
+
+    const setCard = (key, countElId, percentElId, durationElId) => {
+        const topic = topics[key] || { count: 0, percentage: 0, avg_duration_sec: 0 };
+        const countEl = document.getElementById(countElId);
+        const percentEl = document.getElementById(percentElId);
+        const durationEl = document.getElementById(durationElId);
+
+        if (countEl) countEl.textContent = Number(topic.count || 0).toLocaleString();
+        if (percentEl) percentEl.textContent = `${topic.percentage || 0}%`;
+        if (durationEl) {
+            const sec = topic.avg_duration_sec || 0;
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            durationEl.textContent = m > 0 ? `${m} daq ${s} son` : `${s} son`;
+        }
+    };
+
+    setCard('kalit', 'statKalitCount', 'statKalitPercent', 'statKalitDuration');
+    setCard('edo', 'statEdoCount', 'statEdoPercent', 'statEdoDuration');
+    setCard('ehuquqshunos', 'statEhuquqCount', 'statEhuquqPercent', 'statEhuquqDuration');
+    setCard('other', 'statOtherCount', 'statOtherPercent', 'statOtherDuration');
+
+    const totalBadge = document.getElementById('statTotalCallsBadge');
+    if (totalBadge) totalBadge.textContent = `Jami: ${Number(total_calls || 0).toLocaleString()} ta`;
+}
+
+function renderTopicCharts(summaryData, trendData) {
+    if (!summaryData) return;
+    const topics = summaryData.topics || {};
+
+    const chartData = [
+        { name: 'Kalit uzaytirish (E-imzo)', y: topics.kalit?.count || 0, color: '#38bdf8' },
+        { name: 'EDO & Fakturalar', y: topics.edo?.count || 0, color: '#10b981' },
+        { name: 'E-Huquqshunos', y: topics.ehuquqshunos?.count || 0, color: '#a855f7' },
+        { name: 'Boshqa masalalar', y: topics.other?.count || 0, color: '#f59e0b' }
+    ];
+
+    if (typeof Highcharts !== 'undefined') {
+        try {
+            chartTopicDistInstance = Highcharts.chart('chartTopicDistribution', {
+                chart: {
+                    type: 'pie',
+                    backgroundColor: 'transparent',
+                    style: { fontFamily: 'Inter, sans-serif' }
+                },
+                title: { text: null },
+                credits: { enabled: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: 8,
+                    style: { color: '#f8fafc', fontSize: '13px' },
+                    pointFormat: '<b>{point.y} ta</b> ({point.percentage:.1f}%)'
+                },
+                plotOptions: {
+                    pie: {
+                        innerSize: '62%',
+                        borderWidth: 2,
+                        borderColor: '#0f172a',
+                        dataLabels: {
+                            enabled: true,
+                            distance: 14,
+                            format: '<span style="color:#f8fafc; font-weight:600;">{point.percentage:.0f}%</span>',
+                            style: { textOutline: 'none', fontSize: '12px' }
+                        },
+                        showInLegend: true
+                    }
+                },
+                legend: {
+                    itemStyle: { color: '#94a3b8', fontSize: '12px', fontWeight: '500' },
+                    itemHoverStyle: { color: '#f8fafc' },
+                    align: 'center',
+                    verticalAlign: 'bottom',
+                    layout: 'horizontal'
+                },
+                series: [{
+                    name: 'Qo\'ng\'iroqlar',
+                    colorByPoint: true,
+                    data: chartData
+                }]
+            });
+        } catch (e) {
+            console.error('[Statistics] Error creating distribution chart:', e);
+        }
+
+        const timelineList = trendData && Array.isArray(trendData.timeline) && trendData.timeline.length > 0
+            ? trendData.timeline
+            : (currentStatPeriod === 'day'
+                ? ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'].map(h => ({ displayLabel: h, kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }))
+                : (currentStatPeriod === 'year'
+                    ? ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'].map(m => ({ displayLabel: m, kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }))
+                    : [{ displayLabel: '1-kun', kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }]
+                  )
+              );
+
+        const trendTitleEl = document.getElementById('statTrendTitle');
+        if (trendTitleEl) {
+            if (currentStatPeriod === 'day') {
+                trendTitleEl.textContent = `${currentStatDate || 'Tanlangan kun'} soatlar bo'yicha dinamikasi`;
+            } else if (currentStatPeriod === 'year') {
+                trendTitleEl.textContent = `${currentStatYear} yil oylar bo'yicha dinamikasi`;
+            } else {
+                trendTitleEl.textContent = `${currentStatYear} yil ${currentStatMonth}-oy kunlar bo'yicha dinamikasi`;
+            }
+        }
+
+        try {
+            const categories = timelineList.map(item => item.displayLabel || item.label);
+            const seriesKalit = timelineList.map(item => item.topics?.kalit || item.kalit || 0);
+            const seriesEdo = timelineList.map(item => item.topics?.edo || item.edo || 0);
+            const seriesEhuquq = timelineList.map(item => item.topics?.ehuquqshunos || item.ehuquqshunos || 0);
+            const seriesOther = timelineList.map(item => item.topics?.other || item.other || 0);
+
+                chartTopicTrendInstance = Highcharts.chart('chartTopicTrend', {
+                    chart: {
+                        type: 'column',
+                        backgroundColor: 'transparent',
+                        style: { fontFamily: 'Inter, sans-serif' }
+                    },
+                    title: { text: null },
+                    credits: { enabled: false },
+                    xAxis: {
+                        categories: categories,
+                        labels: { style: { color: '#94a3b8', fontSize: '11px' } },
+                        lineColor: 'rgba(255, 255, 255, 0.1)',
+                        tickColor: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    yAxis: {
+                        min: 0,
+                        title: { text: null },
+                        gridLineColor: 'rgba(255, 255, 255, 0.06)',
+                        labels: { style: { color: '#94a3b8', fontSize: '11px' } }
+                    },
+                    tooltip: {
+                        shared: true,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(255, 255, 255, 0.15)',
+                        borderRadius: 8,
+                        style: { color: '#f8fafc', fontSize: '12px' }
+                    },
+                    plotOptions: {
+                        column: {
+                            stacking: 'normal',
+                            borderRadius: 3,
+                            borderWidth: 0
+                        }
+                    },
+                    legend: {
+                        itemStyle: { color: '#94a3b8', fontSize: '12px', fontWeight: '500' },
+                        itemHoverStyle: { color: '#f8fafc' },
+                        align: 'right',
+                        verticalAlign: 'top',
+                        layout: 'horizontal'
+                    },
+                    series: [
+                        { name: 'Kalit uzaytirish', data: seriesKalit, color: '#38bdf8' },
+                        { name: 'EDO', data: seriesEdo, color: '#10b981' },
+                        { name: 'E-Huquqshunos', data: seriesEhuquq, color: '#a855f7' },
+                        { name: 'Boshqa masalalar', data: seriesOther, color: '#f59e0b' }
+                    ]
+                });
+            } catch (e) {
+                console.error('[Statistics] Error creating trend chart:', e);
+            }
+        }
+    }
+}
+
+async function loadStatCallsPage(page = 1) {
+    currentStatCallsPage = page;
+    const tbody = document.getElementById('statCallsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="6" style="text-align: center; padding: 32px; color: #94a3b8; font-size: 13px;">
+                <svg class="isax isax-refresh spin" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                Qo'ng'iroqlar yuklanmoqda...
+            </td>
+        </tr>
+    `;
+
+    try {
+        const queryParams = new URLSearchParams({
+            period: currentStatPeriod,
+            year: currentStatYear,
+            month: currentStatMonth,
+            topic: currentStatTopicFilter,
+            search: currentStatSearchQuery.trim(),
+            page: currentStatCallsPage,
+            limit: 12
+        });
+        if (currentStatPeriod === 'day' && currentStatDate) {
+            queryParams.set('date', currentStatDate);
+        }
+
+        const res = await fetch(`/api/analytics/topics/calls?${queryParams.toString()}`);
+        const result = await res.json();
+
+        if (!result || !result.success || !Array.isArray(result.data) || result.data.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 36px; color: #94a3b8; font-size: 13px;">
+                        Tanlangan davr va filtrlar bo'yicha qo'ng'iroqlar topilmadi
+                    </td>
+                </tr>
+            `;
+            updateStatPagination(0, 1, 1);
+            return;
+        }
+
+        const topicBadges = {
+            kalit: { 
+                name: 'Kalit uzaytirish', 
+                bg: 'rgba(56, 189, 248, 0.15)', 
+                border: 'rgba(56, 189, 248, 0.35)', 
+                color: '#38bdf8', 
+                iconHtml: '<img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">' 
+            },
+            edo: { 
+                name: 'EDO & Fakturalar', 
+                bg: 'rgba(16, 185, 129, 0.15)', 
+                border: 'rgba(16, 185, 129, 0.35)', 
+                color: '#34d399', 
+                iconHtml: '<svg class="isax isax-document-text" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document-text"></use></svg>' 
+            },
+            ehuquqshunos: { 
+                name: 'E-Huquqshunos', 
+                bg: 'rgba(168, 85, 247, 0.15)', 
+                border: 'rgba(168, 85, 247, 0.35)', 
+                color: '#c084fc', 
+                iconHtml: '<img src="/icons/e-huquqshunos-logo.svg" alt="E-Huquqshunos" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">' 
+            },
+            other: { 
+                name: 'Umumiy maslahat', 
+                bg: 'rgba(245, 158, 11, 0.15)', 
+                border: 'rgba(245, 158, 11, 0.35)', 
+                color: '#fbbf24', 
+                iconHtml: '<svg class="isax isax-call" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call"></use></svg>' 
+            }
+        };
+
+        tbody.innerHTML = result.data.map(row => {
+            const tb = topicBadges[row.topic_key] || topicBadges.other;
+            const durMin = Math.floor((row.duration_sec || 0) / 60);
+            const durSec = (row.duration_sec || 0) % 60;
+            const durStr = durMin > 0 ? `${durMin}m ${durSec}s` : `${durSec}s`;
+
+            const phoneFormatted = typeof formatPhoneNumber === 'function' ? formatPhoneNumber(row.caller_id) : row.caller_id;
+
+            return `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.15s ease;">
+                    <td style="padding: 12px 14px; font-size: 12.5px; color: #cbd5e1; white-space: nowrap;">
+                        ${row.call_date ? row.call_date.replace('T', ' ').slice(0, 19) : '—'}
+                    </td>
+                    <td style="padding: 12px 14px; font-size: 13px; font-weight: 600; color: #f8fafc; white-space: nowrap;">
+                        <a href="javascript:void(0)" onclick="openClientHistoryModal('${row.caller_id}')" style="color: #38bdf8; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-call" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call"></use></svg>
+                            <span>${phoneFormatted}</span>
+                        </a>
+                    </td>
+                    <td style="padding: 12px 14px; font-size: 12px; color: #94a3b8; white-space: nowrap;">
+                        ${durStr}
+                    </td>
+                    <td style="padding: 12px 14px; white-space: nowrap;">
+                        <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; border-radius: 6px; background: ${tb.bg}; border: 1px solid ${tb.border}; color: ${tb.color};">
+                            ${tb.iconHtml}
+                            <span>${tb.name}</span>
+                        </span>
+                    </td>
+                    <td style="padding: 12px 14px; font-size: 12.5px; color: #cbd5e1; max-width: 320px;">
+                        <div style="font-weight: 600; color: #f1f5f9; font-size: 12px; margin-bottom: 2px;">
+                            ${row.sub_topic || 'Umumiy konsultatsiya'}
+                        </div>
+                        <div style="font-size: 11.5px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(row.snippet || '')}">
+                            ${row.snippet ? escapeHtml(row.snippet) : '—'}
+                        </div>
+                    </td>
+                    <td style="padding: 12px 14px; font-size: 12px; color: #94a3b8; white-space: nowrap;">
+                        <span style="display: inline-flex; align-items: center; gap: 5px;">
+                            <svg class="isax isax-user" style="width: 13px; height: 13px; color: #94a3b8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
+                            <span>${row.operator || 'Avtomatik'}</span>
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        updateStatPagination(result.total || 0, result.page || 1, result.totalPages || 1);
+
+    } catch (err) {
+        console.error('[Statistics] Error rendering calls:', err);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 32px; color: #ef4444; font-size: 13px;">
+                    Qo'ng'iroqlarni yuklashda xatolik yuz berdi
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function updateStatPagination(total, page, totalPages) {
+    const info = document.getElementById('statCallsPaginationInfo');
+    const label = document.getElementById('statCurrentPageLabel');
+    const prevBtn = document.getElementById('btnStatPrevPage');
+    const nextBtn = document.getElementById('btnStatNextPage');
+
+    if (info) info.textContent = `${Number(total || 0).toLocaleString()} ta qo'ng'iroq aniqlangan`;
+    if (label) label.textContent = `${page} / ${totalPages || 1}`;
+
+    if (prevBtn) {
+        prevBtn.disabled = page <= 1;
+        prevBtn.style.opacity = page <= 1 ? '0.45' : '1';
+        prevBtn.style.cursor = page <= 1 ? 'not-allowed' : 'pointer';
+    }
+    if (nextBtn) {
+        nextBtn.disabled = page >= totalPages;
+        nextBtn.style.opacity = page >= totalPages ? '0.45' : '1';
+        nextBtn.style.cursor = page >= totalPages ? 'not-allowed' : 'pointer';
+    }
+}
+
+function changeStatCallsPage(delta) {
+    const targetPage = currentStatCallsPage + delta;
+    if (targetPage >= 1) {
+        loadStatCallsPage(targetPage);
+    }
+}
+
+function filterStatCallsByTopic(topicKey) {
+    currentStatTopicFilter = topicKey;
+    const filterBtns = document.querySelectorAll('.btn-topic-filter');
+    filterBtns.forEach(btn => {
+        if (btn.getAttribute('data-topic') === topicKey) {
+            btn.classList.add('active');
+            btn.style.background = '#0284c7';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#38bdf8';
+        } else {
+            btn.classList.remove('active');
+            btn.style.background = 'rgba(255, 255, 255, 0.05)';
+            btn.style.color = '#94a3b8';
+            btn.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+        }
+    });
+
+    loadStatCallsPage(1);
+}
+
+function handleStatSearch(query) {
+    clearTimeout(statSearchDebounceTimer);
+    statSearchDebounceTimer = setTimeout(() => {
+        currentStatSearchQuery = query;
+        loadStatCallsPage(1);
+    }, 300);
+}
+
+let isRunningTopicAnalysis = false;
+async function runTopicAnalysis() {
+    if (isRunningTopicAnalysis) return;
+    isRunningTopicAnalysis = true;
+
+    const btn = document.getElementById('btnRunTopicAnalysis');
+    const btnText = document.getElementById('btnRunTopicAnalysisText');
+    const icon = document.getElementById('iconRunTopicAnalysis');
+
+    const originalText = btnText ? btnText.textContent : 'Tahlil qilish';
+    if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+    }
+    if (btnText) btnText.textContent = "Tahlil qilinmoqda...";
+    if (icon) icon.classList.add('spin');
+
+    try {
+        const dateInput = document.getElementById('statDateInput');
+        const payload = {
+            period: currentStatPeriod,
+            year: currentStatYear,
+            month: currentStatMonth,
+            date: (currentStatPeriod === 'day' && dateInput && dateInput.value) ? dateInput.value : currentStatDate
+        };
+
+        const res = await fetch('/api/analytics/topics/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data && data.success) {
+            alert(data.message || `${data.analyzedCount} ta qo'ng'iroq muvaffaqiyatli tahlil qilindi!`);
+            await loadStatisticsData();
+        } else {
+            alert('Tahlil qilishda xatolik: ' + (data?.error || 'Noma\'lum xatolik'));
+        }
+    } catch (err) {
+        console.error('[runTopicAnalysis] Error:', err);
+        alert('Server bilan bog\'lanishda xatolik yuz berdi: ' + err.message);
+    } finally {
+        isRunningTopicAnalysis = false;
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+        }
+        if (btnText) btnText.textContent = originalText;
+        if (icon) icon.classList.remove('spin');
+    }
+}
+
+// Global scope assignments for inline HTML onclick/onchange attributes
+window.setStatPeriod = setStatPeriod;
+window.onStatFilterChange = onStatFilterChange;
+window.loadStatisticsData = loadStatisticsData;
+window.loadStatCallsPage = loadStatCallsPage;
+window.filterStatCallsByTopic = filterStatCallsByTopic;
+window.handleStatSearch = handleStatSearch;
+window.changeStatCallsPage = changeStatCallsPage;
+window.initStatControls = initStatControls;
+window.runTopicAnalysis = runTopicAnalysis;
+
+
 

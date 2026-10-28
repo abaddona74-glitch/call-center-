@@ -1,0 +1,2303 @@
+/* ==========================================================================
+   TICKETS & KDS MONITOR SYSTEM STYLES (VIEWER PORT 3005)
+   Design: Modern Dark Glassmorphism, Responsive, Iconsax-driven
+   ========================================================================== */
+
+:root {
+    --tk-bg-primary: #0b1120;
+    --tk-bg-card: rgba(15, 23, 42, 0.85);
+    --tk-bg-card-hover: rgba(30, 41, 59, 0.95);
+    --tk-bg-input: rgba(15, 23, 42, 0.7);
+    --tk-border: rgba(59, 130, 246, 0.22);
+    --tk-border-focus: rgba(56, 189, 248, 0.6);
+    --tk-text-main: #f8fafc;
+    --tk-text-muted: #94a3b8;
+    --tk-text-dim: #64748b;
+    --tk-primary: #38bdf8;
+    --tk-pending: #38bdf8;
+    --tk-in-progress: #f59e0b;
+    --tk-completed: #10b981;
+    --tk-danger: #ef4444;
+}
+
+/* Sidebar on Main Viewer (Right Docked Panel) */
+.ticket-sidebar-toggle-btn {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 990;
+    width: 54px;
+    height: 54px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.45), 0 0 0 1px rgba(59, 130, 246, 0.3);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+}
+
+.ticket-sidebar-toggle-btn:hover {
+    transform: translateY(-3px) scale(1.05);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.6), 0 0 20px rgba(56, 189, 248, 0.4);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+.ticket-sidebar-toggle-btn svg {
+    width: 26px;
+    height: 26px;
+    display: block;
+    stroke: currentColor;
+}
+
+/* Red Notification Badges (Floating & Header) */
+.ticket-floating-red-badge,
+.ticket-badge-pill {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    font-family: 'Inter', sans-serif;
+    border-radius: 11px;
+    border: 2px solid #0b1120;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    z-index: 10;
+    animation: tkRedPulse 2s infinite ease-in-out;
+}
+
+#ticketHeaderBadge.has-tickets {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.85) !important;
+    animation: tkRedPulse 2s infinite ease-in-out;
+}
+
+@keyframes tkRedPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+    }
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 0 18px rgba(239, 68, 68, 1);
+    }
+}
+
+/* Sidebar Panel Container */
+.ticket-sidebar {
+    position: fixed;
+    top: 0;
+    right: -440px;
+    width: 420px;
+    max-width: 92vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.96);
+    border-left: 1px solid var(--tk-border);
+    backdrop-filter: blur(20px);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -15px 0 40px rgba(0, 0, 0, 0.7);
+    transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ticket-sidebar.open {
+    right: 0;
+}
+
+.ticket-sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 995;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.ticket-sidebar-backdrop.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Sidebar Header */
+.tk-sb-header,
+.ticket-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.92);
+}
+
+.tk-sb-title,
+.ticket-sidebar-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.tk-sb-title svg,
+.ticket-sidebar-title-group svg {
+    width: 20px;
+    height: 20px;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-sb-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(56, 189, 248, 0.16);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.32);
+}
+
+.tk-sb-actions,
+.ticket-sidebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Icon Buttons (Close & External Link) */
+.tk-sb-icon-btn,
+.tk-btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 8px !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+
+.tk-sb-icon-btn:hover,
+.tk-btn-icon:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(56, 189, 248, 0.45) !important;
+    transform: translateY(-1px);
+}
+
+.tk-sb-icon-btn svg,
+.tk-btn-icon svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+    stroke: currentColor;
+}
+
+/* Create Ticket Button in Sidebar */
+.tk-sb-top-cta {
+    padding: 14px 16px 8px 16px;
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.tk-create-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.tk-create-btn:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+}
+
+.tk-create-btn svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    display: block;
+}
+
+/* Sidebar Quick Filter Tabs */
+.tk-sb-tabs,
+.ticket-sidebar-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px 8px 16px;
+    background: rgba(11, 17, 32, 0.65);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(56, 189, 248, 0.45) rgba(255, 255, 255, 0.06);
+    -webkit-overflow-scrolling: touch;
+}
+
+.tk-sb-tabs::-webkit-scrollbar,
+.ticket-sidebar-filter::-webkit-scrollbar {
+    height: 5px !important;
+    display: block !important;
+}
+
+.tk-sb-tabs::-webkit-scrollbar-track,
+.ticket-sidebar-filter::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.7);
+    border-radius: 999px;
+}
+
+.tk-sb-tabs::-webkit-scrollbar-thumb,
+.ticket-sidebar-filter::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.45);
+    border-radius: 999px;
+}
+
+.tk-sb-tabs::-webkit-scrollbar-thumb:hover,
+.ticket-sidebar-filter::-webkit-scrollbar-thumb:hover {
+    background: rgba(56, 189, 248, 0.75);
+}
+
+.tk-tab-btn,
+.tk-filter-pill {
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 6px 11px !important;
+    background: rgba(30, 41, 59, 0.65) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    color: #94a3b8 !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+    user-select: none !important;
+}
+
+.tk-tab-btn:hover,
+.tk-filter-pill:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Barchasi */
+.tk-tab-btn[data-filter="all"].active,
+.tk-filter-pill[data-filter="all"].active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.6), rgba(59, 130, 246, 0.45)) !important;
+    border-color: rgba(59, 130, 246, 0.8) !important;
+    box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4) !important;
+}
+
+/* Yangi (pending) - Ko'k */
+.tk-tab-btn[data-filter="pending"],
+.tk-filter-pill[data-filter="pending"] {
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+    background: rgba(56, 189, 248, 0.08) !important;
+}
+.tk-tab-btn[data-filter="pending"]:hover,
+.tk-filter-pill[data-filter="pending"]:hover {
+    color: #ffffff !important;
+    border-color: rgba(56, 189, 248, 0.6) !important;
+    background: rgba(56, 189, 248, 0.2) !important;
+}
+.tk-tab-btn[data-filter="pending"].active,
+.tk-filter-pill[data-filter="pending"].active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #0284c7, #38bdf8) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 2px 12px rgba(56, 189, 248, 0.45) !important;
+}
+
+/* Jarayonda (in_progress) - Sariq */
+.tk-tab-btn[data-filter="in_progress"],
+.tk-filter-pill[data-filter="in_progress"] {
+    color: #fbbf24 !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+}
+.tk-tab-btn[data-filter="in_progress"]:hover,
+.tk-filter-pill[data-filter="in_progress"]:hover {
+    color: #ffffff !important;
+    border-color: rgba(245, 158, 11, 0.6) !important;
+    background: rgba(245, 158, 11, 0.2) !important;
+}
+.tk-tab-btn[data-filter="in_progress"].active,
+.tk-filter-pill[data-filter="in_progress"].active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #d97706, #f59e0b) !important;
+    border-color: #f59e0b !important;
+    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.45) !important;
+}
+
+/* Bajarildi (completed) - Yashil */
+.tk-tab-btn[data-filter="completed"],
+.tk-filter-pill[data-filter="completed"] {
+    color: #34d399 !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    background: rgba(16, 185, 129, 0.08) !important;
+}
+.tk-tab-btn[data-filter="completed"]:hover,
+.tk-filter-pill[data-filter="completed"]:hover {
+    color: #ffffff !important;
+    border-color: rgba(16, 185, 129, 0.6) !important;
+    background: rgba(16, 185, 129, 0.2) !important;
+}
+.tk-tab-btn[data-filter="completed"].active,
+.tk-filter-pill[data-filter="completed"].active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #059669, #10b981) !important;
+    border-color: #10b981 !important;
+    box-shadow: 0 2px 12px rgba(16, 185, 129, 0.45) !important;
+}
+
+/* Rad etilgan (rejected) - Qizil */
+.tk-tab-btn[data-filter="rejected"],
+.tk-filter-pill[data-filter="rejected"] {
+    color: #f87171 !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+.tk-tab-btn[data-filter="rejected"]:hover,
+.tk-filter-pill[data-filter="rejected"]:hover {
+    color: #ffffff !important;
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    background: rgba(239, 68, 68, 0.2) !important;
+}
+.tk-tab-btn[data-filter="rejected"].active,
+.tk-filter-pill[data-filter="rejected"].active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.45) !important;
+}
+
+/* Sidebar & Tab Filter Count Badges */
+.tk-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.2;
+    min-width: 17px;
+    background: rgba(255, 255, 255, 0.12);
+    color: inherit;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tk-tab-btn[data-filter="all"] .tk-tab-badge {
+    background: rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+}
+.tk-tab-btn[data-filter="all"].active .tk-tab-badge {
+    background: #ffffff;
+    color: #1e3a8a;
+}
+
+.tk-tab-btn[data-filter="mine"] .tk-tab-badge,
+.kds-tab-btn[data-filter="mine"] .kds-tab-badge {
+    background: rgba(14, 165, 233, 0.25);
+    color: #38bdf8;
+}
+.tk-tab-btn[data-filter="mine"].active .tk-tab-badge,
+.kds-tab-btn[data-filter="mine"].active .kds-tab-badge {
+    background: #ffffff;
+    color: #0369a1;
+}
+.tk-tab-btn[data-filter="mine"].active,
+.kds-tab-btn[data-filter="mine"].active {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+}
+
+.tk-tab-btn[data-filter="pending"] .tk-tab-badge {
+    background: rgba(56, 189, 248, 0.22);
+    color: #38bdf8;
+}
+.tk-tab-btn[data-filter="pending"].active .tk-tab-badge {
+    background: #ffffff;
+    color: #0284c7;
+}
+
+.tk-tab-btn[data-filter="in_progress"] .tk-tab-badge {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fbbf24;
+}
+.tk-tab-btn[data-filter="in_progress"].active .tk-tab-badge {
+    background: #ffffff;
+    color: #b45309;
+}
+
+.tk-tab-btn[data-filter="completed"] .tk-tab-badge {
+    background: rgba(16, 185, 129, 0.22);
+    color: #34d399;
+}
+.tk-tab-btn[data-filter="completed"].active .tk-tab-badge {
+    background: #ffffff;
+    color: #047857;
+}
+
+.tk-tab-btn[data-filter="rejected"] .tk-tab-badge {
+    background: rgba(239, 68, 68, 0.22);
+    color: #f87171;
+}
+.tk-tab-btn[data-filter="rejected"].active .tk-tab-badge {
+    background: #ffffff;
+    color: #b91c1c;
+}
+
+/* Sidebar Tickets List */
+.tk-sb-body,
+.ticket-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Ticket Mini Card (in Sidebar) */
+.tk-mini-card {
+    background: rgba(30, 41, 59, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.tk-mini-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--tk-pending);
+}
+
+.tk-mini-card.status-in_progress::before {
+    background: var(--tk-in-progress);
+}
+
+.tk-mini-card.status-completed::before {
+    background: var(--tk-completed);
+}
+
+.tk-mini-card.status-rejected::before {
+    background: var(--tk-danger);
+}
+
+.tk-mini-card:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(56, 189, 248, 0.4);
+    transform: translateX(-3px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.tk-mini-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.tk-mini-id {
+    font-family: monospace;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.tk-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.tk-status-badge.pending {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.tk-status-badge.in_progress {
+    background: rgba(245, 158, 11, 0.18);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.tk-status-badge.completed {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.tk-status-badge.rejected {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.tk-mini-creator {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tk-mini-snippet {
+    font-size: 12px;
+    color: var(--tk-text-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.tk-mini-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--tk-text-dim);
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tk-mini-assigned {
+    color: #c084fc;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tk-mini-attachments {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   MODAL: QUTINI OCHISH (BOX DETAIL UNPACK EFFECT)
+   Xuddi qutini ochgandek 3D/Zoom animatsiyasi bilan to'liq ochiladi
+   ========================================================================== */
+.tk-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 7, 18, 0.8);
+    backdrop-filter: blur(12px);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+
+.tk-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Unpack box animation */
+.tk-box-modal {
+    background: #0f172a;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    border-radius: 18px;
+    width: 780px;
+    max-width: 95vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15);
+    transform: scale(0.85) translateY(20px);
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.32s ease;
+    overflow: hidden;
+}
+
+.tk-modal-overlay.active .tk-box-modal {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.tk-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tk-box-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tk-box-id {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 800;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.tk-box-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+/* Metadata Bar */
+.tk-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+}
+
+.tk-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tk-meta-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--tk-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tk-meta-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+}
+
+/* Comment Box */
+.tk-comment-content {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 13.5px;
+    color: #e2e8f0;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Image Gallery in Box */
+.tk-gallery-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tk-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+}
+
+.tk-gallery-thumb {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    aspect-ratio: 4 / 3;
+    background: #000000;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.tk-gallery-thumb:hover {
+    transform: scale(1.03);
+    border-color: #38bdf8;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.tk-gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.tk-thumb-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: #ffffff;
+}
+
+.tk-gallery-thumb:hover .tk-thumb-overlay {
+    opacity: 1;
+}
+
+/* Box Actions Bar */
+.tk-box-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: rgba(15, 23, 42, 0.95);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 12px;
+}
+
+.tk-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.tk-action-btn.accept {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+.tk-action-btn.accept:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.5);
+}
+
+.tk-action-btn.complete {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+.tk-action-btn.complete:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.5);
+}
+
+.tk-action-btn.reject {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+.tk-action-btn.reject:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.5);
+}
+
+.tk-action-btn.delete {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.tk-action-btn.delete:hover {
+    background: rgba(239, 68, 68, 0.25);
+}
+
+/* Discussion / Reply Section */
+.tk-replies-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tk-reply-card {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+.tk-reply-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    font-size: 11.5px;
+}
+
+.tk-reply-author {
+    color: #38bdf8;
+    font-weight: 700;
+}
+
+.tk-reply-time {
+    color: var(--tk-text-dim);
+}
+
+.tk-reply-text {
+    font-size: 12.5px;
+    color: #e2e8f0;
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   FORM: YANGI TICKET OCHISH MODALI
+   Drag & Drop, Button & Ctrl+V Paste Area
+   ========================================================================== */
+.tk-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.tk-form-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tk-form-input,
+.tk-form-textarea {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13.5px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.tk-form-input:focus,
+.tk-form-textarea:focus {
+    outline: none;
+    border-color: var(--tk-border-focus);
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.tk-form-textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+/* Drag & Drop Zone */
+.tk-dropzone {
+    border: 2px dashed rgba(56, 189, 248, 0.35);
+    border-radius: 12px;
+    background: rgba(30, 41, 59, 0.35);
+    padding: 22px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.22s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+}
+
+.tk-dropzone:hover,
+.tk-dropzone.drag-over {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    transform: translateY(-1px);
+}
+
+.tk-dropzone-icon {
+    width: 36px;
+    height: 36px;
+    color: #38bdf8;
+}
+
+.tk-dropzone-text {
+    font-size: 13px;
+    color: #f1f5f9;
+    font-weight: 600;
+}
+
+.tk-dropzone-hint {
+    font-size: 11.5px;
+    color: #94a3b8;
+}
+
+.tk-dropzone-keys {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.tk-kbd {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+/* Attached Preview Strip */
+.tk-preview-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.tk-preview-item {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #000;
+}
+
+.tk-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tk-preview-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    background: rgba(239, 68, 68, 0.85);
+    color: #fff;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* Fullscreen Lightbox for Images */
+.tk-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s;
+}
+
+.tk-lightbox-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tk-lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.tk-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ==========================================================================
+   URGENT / SHOSHILINCH SLIDER & BADGES
+   ========================================================================== */
+.tk-urgent-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 10px;
+    margin-bottom: 14px;
+    transition: all 0.25s ease;
+}
+
+.tk-urgent-toggle-row:has(input:checked) {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+}
+
+.tk-urgent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tk-urgent-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+    cursor: pointer;
+}
+
+.tk-urgent-desc {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.tk-switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.tk-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.tk-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(71, 85, 105, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 24px;
+}
+
+.tk-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ffffff;
+    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.tk-switch input:checked + .tk-slider {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    border-color: #ef4444;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+
+.tk-switch input:checked + .tk-slider:before {
+    transform: translateX(22px);
+}
+
+.tk-urgent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(249, 115, 22, 0.25));
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    color: #fca5a5;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 6px;
+    animation: tkUrgentPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes tkUrgentPulse {
+    0%, 100% {
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(239, 68, 68, 0.9);
+    }
+}
+
+.tk-mini-card.is-urgent {
+    border-color: rgba(239, 68, 68, 0.45);
+    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.12);
+}
+
+.tk-mini-card.is-urgent::before {
+    background: linear-gradient(180deg, #ef4444, #f97316) !important;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+/* Target Operator Select & Badges */
+.tk-form-select {
+    width: 100%;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 13.5px;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.tk-form-select:focus {
+    outline: none;
+    border-color: var(--tk-border-focus);
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.tk-form-select option {
+    background: #0f172a;
+    color: #f1f5f9;
+    padding: 8px 10px;
+}
+
+.tk-target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    background: rgba(168, 85, 247, 0.18);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    color: #d8b4fe;
+}
+
+.tk-target-badge.all {
+    background: rgba(148, 163, 184, 0.14);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #94a3b8;
+}
+
+.tk-action-btn.edit {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+}
+
+.tk-action-btn.edit:hover {
+    background: rgba(56, 189, 248, 0.28);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+}
+
+.tk-lock-notice {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 6px 12px;
+    border-radius: 8px;
+}
+
+/* Impersonate Quick Modal (Ctrl + ;) */
+.impersonate-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(10, 15, 29, 0.85);
+    backdrop-filter: blur(14px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 16px;
+}
+
+.impersonate-modal-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.impersonate-modal-card {
+    background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 18px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.15);
+    overflow: hidden;
+}
+
+.impersonate-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.impersonate-card-body {
+    padding: 20px 22px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.impersonate-op-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+.impersonate-op-card {
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.impersonate-op-card:hover {
+    border-color: rgba(56, 189, 248, 0.5);
+    background: rgba(56, 189, 248, 0.1);
+    transform: translateY(-2px);
+}
+
+.btn-session-switch {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.btn-session-switch:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+}
+
+.btn-session-copy {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.btn-session-copy:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* ========================================================================== */
+/* AUDIO & VISUAL ALERTS: PULSING GLOW & TOAST NOTIFICATIONS                  */
+/* ========================================================================== */
+
+@keyframes tkUrgentGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7), inset 0 0 0 1px rgba(245, 158, 11, 0.9);
+        border-color: #f59e0b;
+    }
+    50% {
+        box-shadow: 0 0 22px 4px rgba(245, 158, 11, 0.45), inset 0 0 12px rgba(245, 158, 11, 0.25);
+        border-color: #fbbf24;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0), inset 0 0 0 1px rgba(245, 158, 11, 0.4);
+        border-color: #f59e0b;
+    }
+}
+
+@keyframes tkNewGlow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7), inset 0 0 0 1px rgba(56, 189, 248, 0.8);
+        border-color: #38bdf8;
+    }
+    50% {
+        box-shadow: 0 0 18px 3px rgba(56, 189, 248, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.2);
+        border-color: #60a5fa;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(56, 189, 248, 0), inset 0 0 0 1px rgba(56, 189, 248, 0.4);
+        border-color: #38bdf8;
+    }
+}
+
+.tk-card.pulse-urgent,
+.kds-card.pulse-urgent,
+.tk-mini-card.pulse-urgent {
+    animation: tkUrgentGlow 1.8s infinite ease-in-out !important;
+}
+
+.tk-card.pulse-new,
+.kds-card.pulse-new,
+.tk-mini-card.pulse-new {
+    animation: tkNewGlow 2.2s infinite ease-in-out !important;
+}
+
+/* Sound Mute/Unmute Toggle Button in Sidebar Header */
+.tk-sound-toggle-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.tk-sound-toggle-btn:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.tk-sound-toggle-btn.muted {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Floating Toast Container */
+#ticketToastContainer {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10005;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+    max-width: 400px;
+    width: calc(100vw - 48px);
+}
+
+.tk-toast {
+    pointer-events: auto;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.18);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    transform: translateX(110%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.tk-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.tk-toast.urgent {
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(245, 158, 11, 0.3);
+    animation: tkUrgentGlow 2s infinite ease-in-out;
+}
+
+.tk-toast-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.tk-toast-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tk-toast-badge.urgent {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tk-toast-badge.normal {
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.tk-toast-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s;
+}
+
+.tk-toast-close:hover {
+    color: #ffffff;
+}
+
+.tk-toast-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tk-toast-body {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.45;
+    max-height: 52px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.tk-toast-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tk-toast-btn {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.tk-toast-btn:hover {
+    filter: brightness(1.15);
+}
+
+/* Target Operator Badges */
+.tk-target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+.tk-target-badge.for-me {
+    background: rgba(14, 165, 233, 0.22);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+.tk-target-badge.specific {
+    background: rgba(139, 92, 246, 0.16);
+    color: #c084fc;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+.tk-target-badge.all {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+/* Card assigned directly to current user */
+.tk-mini-card.is-assigned-to-me {
+    border-color: rgba(56, 189, 248, 0.45) !important;
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.88) 0%, rgba(14, 165, 233, 0.1) 100%) !important;
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.12);
+}
+.tk-mini-card.is-assigned-to-me::before {
+    background: #0ea5e9 !important;
+}
+
+/* Toast assigned directly to current user */
+.tk-toast.assigned-to-me {
+    border-color: rgba(14, 165, 233, 0.7);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 24px rgba(14, 165, 233, 0.35);
+}
+
+/* ==========================================================================
+   DOCUMENT & IN-PLACE PREVIEW STYLES (PDF, WORD DOCX, IMAGES)
+   ========================================================================== */
+
+/* Attached document cards in ticket gallery and chat */
+.tk-docs-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.tk-doc-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.tk-doc-card:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(56, 189, 248, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tk-doc-icon-badge {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.tk-doc-icon-badge.pdf {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.tk-doc-icon-badge.word {
+    background: rgba(37, 99, 235, 0.18);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.tk-doc-icon-badge.image {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.tk-doc-icon-badge.generic {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.tk-doc-info {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.tk-doc-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.tk-doc-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tk-doc-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tk-doc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.tk-doc-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+}
+
+.tk-doc-btn.view-btn {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: rgba(14, 165, 233, 0.3);
+    color: #38bdf8;
+    width: auto;
+    padding: 0 10px;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.tk-doc-btn.view-btn:hover {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+/* Upload preview strip document thumbnails */
+.tk-preview-item .tk-doc-badge-preview {
+    width: 68px;
+    height: 68px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.tk-doc-badge-preview.pdf {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+}
+
+.tk-doc-badge-preview.word {
+    background: rgba(37, 99, 235, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #60a5fa;
+}
+
+.tk-doc-badge-preview.generic {
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: #cbd5e1;
+}
+
+.tk-doc-badge-preview .badge-ext {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.tk-doc-badge-preview .badge-name {
+    font-size: 9px;
+    color: #94a3b8;
+    max-width: 60px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+
+/* ==========================================================================
+   MODERN FULLSCREEN IN-PLACE DOCUMENT MODAL
+   ========================================================================== */
+.tk-doc-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.2s;
+}
+
+.tk-doc-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tk-doc-modal-container {
+    width: 95vw;
+    max-width: 1200px;
+    height: 92vh;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(14, 165, 233, 0.15);
+    transform: scale(0.97);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tk-doc-modal-overlay.active .tk-doc-modal-container {
+    transform: scale(1);
+}
+
+.tk-doc-modal-header {
+    height: 58px;
+    padding: 0 18px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.tk-doc-modal-title-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.tk-doc-modal-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tk-doc-modal-icon.pdf {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.tk-doc-modal-icon.word {
+    background: rgba(37, 99, 235, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.tk-doc-modal-icon.image {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.tk-doc-modal-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tk-doc-modal-sub {
+    font-size: 11.5px;
+    color: #94a3b8;
+}
+
+.tk-doc-modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tk-doc-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+    transition: all 0.15s ease;
+}
+
+.tk-doc-action-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+}
+
+.tk-doc-action-btn.secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: #cbd5e1;
+}
+
+.tk-doc-action-btn.close-btn {
+    padding: 7px 10px;
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+}
+
+.tk-doc-action-btn.close-btn:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+    color: #ffffff;
+}
+
+/* Modal Body */
+.tk-doc-modal-body {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    background: #090d16;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+}
+
+/* PDF iframe view */
+.tk-doc-modal-body iframe.tk-doc-viewer-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #ffffff;
+}
+
+/* Image preview view */
+.tk-doc-modal-body .tk-doc-img-view {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: auto;
+}
+
+.tk-doc-modal-body .tk-doc-img-view img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+}
+
+/* Word Document Paper View */
+.tk-doc-paper-wrap {
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 24px 16px;
+    background: #0b1120;
+}
+
+.tk-docx-paper {
+    max-width: 880px;
+    margin: 0 auto;
+    background: #ffffff;
+    color: #1e293b;
+    padding: 56px 64px;
+    border-radius: 6px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55);
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14.5px;
+    line-height: 1.7;
+}
+
+.tk-docx-paper h1,
+.tk-docx-paper h2,
+.tk-docx-paper h3,
+.tk-docx-paper h4,
+.tk-docx-paper h5,
+.tk-docx-paper h6 {
+    color: #0f172a;
+    font-weight: 700;
+    margin-top: 1.4em;
+    margin-bottom: 0.6em;
+    line-height: 1.3;
+}
+
+.tk-docx-paper h1 { font-size: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+.tk-docx-paper h2 { font-size: 20px; }
+.tk-docx-paper h3 { font-size: 17px; }
+
+.tk-docx-paper p {
+    margin-bottom: 1em;
+}
+
+.tk-docx-paper table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2em 0;
+    font-size: 13.5px;
+}
+
+.tk-docx-paper table,
+.tk-docx-paper th,
+.tk-docx-paper td {
+    border: 1px solid #cbd5e1;
+}
+
+.tk-docx-paper th {
+    background: #f1f5f9;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 700;
+}
+
+.tk-docx-paper td {
+    padding: 7px 12px;
+}
+
+.tk-docx-paper tr:nth-child(even) td {
+    background: #f8fafc;
+}
+
+.tk-docx-paper ul,
+.tk-docx-paper ol {
+    padding-left: 28px;
+    margin-bottom: 1em;
+}
+
+.tk-docx-paper li {
+    margin-bottom: 4px;
+}
+
+.tk-docx-paper blockquote {
+    border-left: 4px solid #3b82f6;
+    background: #f8fafc;
+    padding: 10px 16px;
+    margin: 1em 0;
+    font-style: italic;
+    color: #475569;
+}
+
+.tk-docx-paper img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+}
+
+/* Loading & Notice States */
+.tk-doc-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    height: 100%;
+    color: #94a3b8;
+    font-size: 13.5px;
+}
+
+.tk-doc-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: tkSpin 0.8s linear infinite;
+}
+
+@keyframes tkSpin {
+    to { transform: rotate(360deg); }
+}
+
+.doc-legacy-notice {
+    max-width: 600px;
+    margin: 60px auto;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 12px;
+    padding: 32px 28px;
+    text-align: center;
+    color: #f1f5f9;
+}
+
+.doc-legacy-notice .notice-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 16px;
+    background: rgba(245, 158, 11, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fbbf24;
+}
+
+.doc-legacy-notice h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #f8fafc;
+}
+
+.doc-legacy-notice p {
+    font-size: 13.5px;
+    color: #94a3b8;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+/* ==========================================================================
+   Design Engineering Motion & Smooth Transitions (Tickets & KDS)
+   ========================================================================== */
+
+/* 1. Ticket Cards & Rows Smooth Entrance */
+@keyframes tkCardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tk-card,
+.ticket-row,
+.tk-kds-ticket,
+.tk-kds-col,
+.tk-comment-bubble {
+    animation: tkCardFadeIn var(--duration-normal, 220ms) var(--ease-out, cubic-bezier(0.23, 1, 0.32, 1));
+    will-change: transform, opacity;
+}
+
+/* 2. Interactive Card Hover Effects */
+.tk-card,
+.tk-kds-ticket {
+    transition: transform 220ms cubic-bezier(0.23, 1, 0.32, 1),
+                box-shadow 220ms cubic-bezier(0.23, 1, 0.32, 1),
+                border-color 220ms ease !important;
+}
+
+.tk-card:hover,
+.tk-kds-ticket:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* 3. Button Tactile Feedback (Active Press Scale) */
+.tk-create-btn,
+.tk-btn,
+.tk-action-btn,
+.tk-tab,
+.tk-status-btn,
+.ticket-sidebar-toggle-btn,
+.tk-sb-icon-btn,
+.tk-btn-icon {
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1),
+                background-color 140ms ease,
+                border-color 140ms ease,
+                box-shadow 140ms ease,
+                color 140ms ease !important;
+}
+
+.tk-create-btn:hover,
+.tk-btn:hover,
+.ticket-sidebar-toggle-btn:hover {
+    transform: translateY(-1px);
+}
+
+.tk-create-btn:active,
+.tk-btn:active,
+.tk-action-btn:active,
+.tk-tab:active,
+.tk-status-btn:active,
+.ticket-sidebar-toggle-btn:active,
+.tk-sb-icon-btn:active,
+.tk-btn-icon:active {
+    transform: scale(0.96) !important;
+}
+
+
+

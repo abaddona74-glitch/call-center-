@@ -22,6 +22,13 @@ const exportService = require('./services/exportService');
 const blacklistService = require('./services/blacklistService');
 const issabelDbService = require('./services/issabelDbService');
 const voicePrintService = require('./services/voicePrintService');
+const authService = require('./services/authService');
+const proxmoxService = require('./services/proxmoxService');
+const zipJobService = require('./services/zipJobService');
+const converterService = require('./services/converterService');
+
+// Initialize Auth Service & Ensure Superuser (@Abaddon2004)
+authService.init();
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
@@ -39,7 +46,33 @@ let isMultiplexed = false;
 const wss = new WebSocket.Server({ noServer: true });
 
 const handleUpgrade = (request, socket, head) => {
+    // 1. Agar lokal ichki xizmat (call-center-viewer 3005-portdan 127.0.0.1 orqali) ulanayotgan bo'lsa -> ruxsat berish
+    const remoteIp = socket.remoteAddress;
+    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !request.headers['x-forwarded-for'];
+    if (isLocalInternal) {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            ws.user = { username: 'internal-viewer', role: 'system' };
+            wss.emit('connection', ws, request);
+        });
+        return;
+    }
+
+    // 2. Tashqi mijozlar uchun WebSocket sessiyasini tekshirish - Ruxsatsiz mijozlar ulanishi darhol rad etiladi
+    const token = authService.extractToken(request);
+    const session = authService.validateSession(token);
+    if (!session) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+    // Operator roli faqat 3005-portdagi Viewerga ulanishi kerak, 3535 dagi admin WS man etiladi
+    if (session.role === 'operator') {
+        socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+    }
     wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.user = session;
         wss.emit('connection', ws, request);
     });
 };
@@ -84,7 +117,639 @@ if (hasSsl) {
 }
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// HTTP -> HTTPS Redirect Gateway (Har qanday HTTP so'rovni avtomatik HTTPS ga yo'naltirish)
+app.use((req, res, next) => {
+    // Let's Encrypt tekshiruvini HTTP da o'tkazish
+    if (req.path.startsWith('/.well-known/')) {
+        return next();
+    }
+
+    // Lokal 127.0.0.1 ichki xizmatlar (3005 viewer orqali) HTTP qolishi mumkin
+    const remoteIp = req.socket?.remoteAddress;
+    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !req.headers['x-forwarded-for'];
+    if (isLocalInternal) {
+        return next();
+    }
+
+    // 3CX Desktop agent lokal mashinadan keluvchi heartbeat / eventlar HTTP da ishlashi mumkin
+    if (req.path.startsWith('/api/agent/')) {
+        return next();
+    }
+
+    const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+    if (!isHttps && hasSsl) {
+        const host = req.headers.host || req.hostname;
+        return res.redirect(301, `https://${host}${req.originalUrl || req.url}`);
+    }
+
+    next();
+});
+
+// --- AUTHENTICATION & SECURITY GATEWAY ---
+
+// 1. Kirish (Login) sahifasi
+app.get('/login', (req, res) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (session) {
+        if (session.role === 'operator') {
+            const host = req.hostname || '127.0.0.1';
+            const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+            return res.redirect(`${req.protocol}://${host}:3005/${tokenParam}`);
+        }
+        return res.redirect('/');
+    }
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+// Operatorlar yo'lagi (3005-portdagi Viewerga yo'naltirish)
+app.get('/operators', (req, res) => {
+    const token = authService.extractToken(req);
+    const host = req.hostname || '127.0.0.1';
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    return res.redirect(`${req.protocol}://${host}:3005/${tokenParam}`);
+});
+
+// 2. Tizimga kirish API (Brute-force va Lockout himoyasi bilan)
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body || {};
+    const ip = authService.getClientIp(req);
+    const userAgent = req.headers['user-agent'] || '';
+
+    const result = authService.login(username, password, ip, userAgent);
+    if (!result.success) {
+        return res.status(result.locked ? 429 : 401).json(result);
+    }
+
+    // 7 kunlik xavfsiz HttpOnly cookie o'rnatish
+    res.cookie('cc_session', result.token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({
+        success: true,
+        user: { username: result.username, role: result.role },
+        token: result.token
+    });
+});
+
+// 3. Tizimdan chiqish (Logout) API va Route
+app.all(['/logout', '/api/auth/logout'], (req, res) => {
+    const token = authService.extractToken(req);
+    if (token) {
+        authService.logout(token);
+    }
+    res.clearCookie('cc_session', { path: '/' });
+    if (req.path === '/logout') {
+        return res.redirect('/login');
+    }
+    res.json({ success: true });
+});
+
+// 4. Joriy foydalanuvchi tekshiruvi API
+app.get('/api/auth/me', (req, res) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session) {
+        return res.status(401).json({ authenticated: false });
+    }
+    res.json({ authenticated: true, user: session });
+});
+
+// 4b. Joriy foydalanuvchining o'z Gmail manzilini biriktirish / yangilash (Self-service Profile)
+// Xavfsizlik: Begona shaxslar akkauntni o'g'irlay olmasligi uchun to'g'ridan-to'g'ri o'zgartirish taqiqlangan, faqat 2 bosqichli kod orqali ruxsat beriladi
+app.put('/api/auth/profile/email', (req, res) => {
+    return res.status(403).json({
+        success: false,
+        error: "Xavfsizlik yuzasidan Gmail manzilini to'g'ridan-to'g'ri o'zgartirib bo'lmaydi. Iltimos, 2 bosqichli tasdiqlash kodidan foydalaning!"
+    });
+});
+
+// 4c. Gmail bog'lash yoki uzish uchun 6 xonali tasdiqlash kodini jo'natish (Joriy parol tasdig'i bilan)
+app.post('/api/auth/profile/email/send-code', async (req, res) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session) {
+        return res.status(401).json({ success: false, error: "Avtorizatsiyadan o'tilmagan" });
+    }
+    const { email, password, action } = req.body || {};
+    const ip = authService.getClientIp(req);
+    try {
+        const result = await authService.requestEmailVerificationCode(session.username, email, ip, password, action);
+        if (!result.success) {
+            return res.status(result.locked ? 429 : 400).json(result);
+        }
+        res.json(result);
+    } catch (e) {
+        console.error('profile/email/send-code error:', e);
+        res.status(500).json({ success: false, error: "Serverda kutilmagan xatolik yuz berdi" });
+    }
+});
+
+// 4d. Tasdiqlash kodini tekshirish va Gmail manzilini rasman hisobga bog'lash / uzish
+app.post('/api/auth/profile/email/verify', async (req, res) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session) {
+        return res.status(401).json({ success: false, error: "Avtorizatsiyadan o'tilmagan" });
+    }
+    const { email, code, step, targetNewEmail } = req.body || {};
+    const ip = authService.getClientIp(req);
+    try {
+        const result = await authService.verifyEmailAndBind(session.username, email, code, ip, step, targetNewEmail);
+        if (!result.success) {
+            return res.status(result.locked ? 429 : 400).json(result);
+        }
+        res.json(result);
+    } catch (e) {
+        console.error('profile/email/verify error:', e);
+        res.status(500).json({ success: false, error: "Serverda kutilmagan xatolik yuz berdi" });
+    }
+});
+
+// 5. Parolni tiklash: 1-qadam (Tasdiqlash kodini so'rash va emailga jo'natish)
+app.post('/api/auth/forgot-password/request', async (req, res) => {
+    try {
+        const { identifier, email } = req.body || {};
+        const ip = authService.getClientIp(req);
+        const result = await authService.requestPasswordReset(identifier, email, ip);
+        if (!result.success) {
+            return res.status(result.locked ? 429 : 400).json(result);
+        }
+        res.json(result);
+    } catch (e) {
+        console.error('forgot-password/request error:', e);
+        res.status(500).json({ success: false, error: "Serverda kutilmagan xatolik yuz berdi" });
+    }
+});
+
+// 6. Parolni tiklash: 2-qadam (6 xonali kodni tekshirish, 3 ta urinish chegarasi bilan)
+app.post('/api/auth/forgot-password/verify', (req, res) => {
+    try {
+        const { username, code } = req.body || {};
+        const ip = authService.getClientIp(req);
+        const result = authService.verifyPasswordResetCode(username, code, ip);
+        if (!result.success) {
+            return res.status(result.locked ? 429 : 400).json(result);
+        }
+        res.json(result);
+    } catch (e) {
+        console.error('forgot-password/verify error:', e);
+        res.status(500).json({ success: false, error: "Serverda kutilmagan xatolik yuz berdi" });
+    }
+});
+
+// 7. Parolni tiklash: 3-qadam (Yangi parolni o'rnatish)
+app.post('/api/auth/forgot-password/reset', (req, res) => {
+    try {
+        const { username, resetToken, newPassword } = req.body || {};
+        const result = authService.completePasswordReset(username, resetToken, newPassword);
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+        res.json(result);
+    } catch (e) {
+        console.error('forgot-password/reset error:', e);
+        res.status(500).json({ success: false, error: "Serverda kutilmagan xatolik yuz berdi" });
+    }
+});
+
+// --- SYSTEM SETTINGS & RBAC API (Faqat superuser uchun) ---
+
+function requireSuperuser(req, res, next) {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session || session.role !== 'superuser') {
+        return res.status(403).json({ success: false, error: 'Ushbu amalni bajarish uchun faqat superuser huquqi talab etiladi' });
+    }
+    req.user = session;
+    next();
+}
+
+// 1. Xavfsizlik & Rate Limit sozlamalari
+app.get('/api/settings/security', requireSuperuser, (req, res) => {
+    res.json({
+        success: true,
+        lockoutThreshold: authService.getLockoutThreshold(),
+        lockoutDurationMinutes: authService.getLockoutDurationMinutes()
+    });
+});
+
+app.post('/api/settings/security', requireSuperuser, (req, res) => {
+    let { lockoutThreshold, lockoutDurationMinutes } = req.body || {};
+    lockoutThreshold = parseInt(lockoutThreshold, 10);
+    lockoutDurationMinutes = parseInt(lockoutDurationMinutes, 10);
+
+    if (isNaN(lockoutThreshold) || lockoutThreshold < 3 || lockoutThreshold > 10) {
+        return res.status(400).json({ success: false, error: 'Xato urinishlar chegarasi 3 tadan 10 tagacha bo\'lishi kerak' });
+    }
+    if (isNaN(lockoutDurationMinutes) || lockoutDurationMinutes < 1 || lockoutDurationMinutes > 1440) {
+        return res.status(400).json({ success: false, error: 'Bloklanish muddati 1 dan 1440 daqiqagacha bo\'lishi kerak' });
+    }
+
+    authService.setSetting('auth_lockout_threshold', String(lockoutThreshold));
+    authService.setSetting('auth_lockout_duration_min', String(lockoutDurationMinutes));
+
+    res.json({
+        success: true,
+        message: 'Xavfsizlik sozlamalari muvaffaqiyatli saqlandi',
+        lockoutThreshold,
+        lockoutDurationMinutes
+    });
+});
+
+app.get('/api/settings/lockouts', requireSuperuser, (req, res) => {
+    try {
+        const lockouts = authService.getActiveLockouts();
+        res.json({ success: true, lockouts });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/settings/unlock', requireSuperuser, (req, res) => {
+    try {
+        const { key } = req.body || {};
+        if (!key) {
+            return res.status(400).json({ success: false, error: 'Kalit (IP yoki login) ko\'rsatilmadi' });
+        }
+        const ok = authService.unlockKey(key);
+        res.json({ success: true, ok, message: ok ? `'${key}' blokdan muvaffaqiyatli chiqarildi` : 'Topilmadi yoki o\'chirib bo\'lmadi' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/settings/unlock-all', requireSuperuser, (req, res) => {
+    try {
+        const count = authService.unlockAll();
+        res.json({ success: true, count, message: `Barcha bloklar (${count} ta) bekor qilindi` });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 2. Statistika & Exclude list sozlamalari
+app.get('/api/settings/exclude-list', requireSuperuser, async (req, res) => {
+    const excluded = authService.getExcludedOperators();
+    const seen = new Set();
+    const availableOps = [];
+
+    // 1. Issabel Asterisk bazasidagi haqiqiy mavjud (exist) operatorlarni olish
+    try {
+        if (typeof issabelDbService !== 'undefined' && typeof issabelDbService.getExistingAsteriskUsers === 'function') {
+            const dbUsers = await issabelDbService.getExistingAsteriskUsers();
+            for (const u of dbUsers) {
+                const sid = String(u.id).trim();
+                if (sid && !seen.has(sid)) {
+                    availableOps.push({
+                        id: sid,
+                        name: u.name || `Operator ${sid}`,
+                        isExcluded: excluded.includes(sid)
+                    });
+                    seen.add(sid);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('exclude-list getExistingAsteriskUsers error:', e.message);
+    }
+
+    // 2. AMI faol agentlarini ham tekshirish (agar bazada bo'lmasa)
+    try {
+        if (typeof amiService !== 'undefined' && amiService.getAgents) {
+            const amiOps = amiService.getAgents() || [];
+            for (const op of amiOps) {
+                const sid = String(op.id || op.extension || '').trim();
+                if (sid && !seen.has(sid)) {
+                    availableOps.push({
+                        id: sid,
+                        name: op.name || `Operator ${sid}`,
+                        isExcluded: excluded.includes(sid)
+                    });
+                    seen.add(sid);
+                }
+            }
+        }
+    } catch (e) {}
+
+    // Agar excluded ichida bo'lib, lekin Asterisk bazasidan kelmagan bo'lsa (masalan 118), uni ham availableOps ga qo'shamiz
+    for (const exId of excluded) {
+        if (!seen.has(exId)) {
+            availableOps.push({
+                id: exId,
+                name: (typeof issabelDbService !== 'undefined' ? issabelDbService.getOperatorName(exId) : '') || `Operator ${exId}`,
+                isExcluded: true
+            });
+            seen.add(exId);
+        }
+    }
+
+    // Saralash: raqam bo'yicha
+    availableOps.sort((a, b) => {
+        const numA = parseInt(a.id, 10) || 0;
+        const numB = parseInt(b.id, 10) || 0;
+        return numA - numB;
+    });
+
+    res.json({
+        success: true,
+        excluded: excluded,
+        operators: availableOps
+    });
+});
+
+app.post('/api/settings/exclude-list', requireSuperuser, (req, res) => {
+    const { excluded } = req.body || {};
+    if (!Array.isArray(excluded)) {
+        return res.status(400).json({ success: false, error: 'Operatorlar ro\'yxati massiv bo\'lishi shart' });
+    }
+
+    const saved = authService.setExcludedOperators(excluded);
+    if (!saved) {
+        return res.status(500).json({ success: false, error: 'Sozlamani saqlashda xatolik yuz berdi' });
+    }
+
+    try {
+        if (typeof issabelDbService !== 'undefined' && typeof issabelDbService.updateExcludedOperators === 'function') {
+            issabelDbService.updateExcludedOperators(excluded);
+        }
+    } catch (e) {}
+
+    // amiService operators xotirasidan excluded bo'lganlarni darhol tozalash va real-time broadcast qilish
+    try {
+        if (typeof amiService !== 'undefined' && amiService.operators) {
+            for (const exId of excluded) {
+                amiService.operators.delete(String(exId));
+            }
+            if (typeof amiService.broadcast === 'function') {
+                amiService.broadcast('operators_update', amiService.getOperatorList());
+                amiService.broadcast('excluded_operators_update', excluded);
+            }
+        }
+    } catch (e) {}
+
+    res.json({
+        success: true,
+        message: 'Statistikadan chiqarilganlar ro\'yxati muvaffaqiyatli saqlandi',
+        excluded: authService.getExcludedOperators()
+    });
+});
+
+// 3. Foydalanuvchilar (RBAC) boshqaruvi
+app.get('/api/settings/users', requireSuperuser, (req, res) => {
+    const users = authService.listUsers();
+    res.json({ success: true, users });
+});
+
+app.post('/api/settings/users', requireSuperuser, (req, res) => {
+    const { username, password, role, operatorId, email } = req.body || {};
+    const result = authService.createUser(username, password, role, operatorId, email);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: `'${result.username}' foydalanuvchisi yaratildi`, user: result });
+});
+
+app.put('/api/settings/users/:username/email', requireSuperuser, (req, res) => {
+    const { email } = req.body || {};
+    const { username } = req.params;
+    const result = authService.updateUserEmail(username, email);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: `'${username}' foydalanuvchisiga Gmail manzili yangilandi`, email: result.email });
+});
+
+app.put('/api/settings/users/:username/operator-id', requireSuperuser, (req, res) => {
+    const { operatorId } = req.body || {};
+    const { username } = req.params;
+    const result = authService.updateUserOperatorId(username, operatorId);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: `'${username}' foydalanuvchisiga operator ID (${operatorId || 'biriktirilmagan'}) yangilandi`, user: result });
+});
+
+app.put('/api/settings/users/:username/password', requireSuperuser, (req, res) => {
+    const { password } = req.body || {};
+    const { username } = req.params;
+    const result = authService.updateUserPassword(username, password);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+
+    // 1. 3535 portdagi faol WebSocket ulanishlarini darhol uzish (kick)
+    if (typeof wss !== 'undefined' && wss && wss.clients) {
+        wss.clients.forEach(client => {
+            if (client.user && client.user.username === username) {
+                try {
+                    client.send(JSON.stringify({ type: 'session_terminated', message: 'Parolingiz o\'zgartirildi. Iltimos, qayta kiring.' }));
+                    client.close(4001, 'Password changed');
+                } catch (e) {}
+            }
+        });
+    }
+
+    // 2. 3005 (Viewer) ga ham xabar berib, keshni va faol ulanishlarni darhol tozalash
+    try {
+        const postData = JSON.stringify({ username });
+        const vReq = http.request({
+            hostname: '127.0.0.1',
+            port: 3005,
+            path: '/api/internal/invalidate-sessions',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            },
+            timeout: 1000
+        });
+        vReq.on('error', () => {});
+        vReq.write(postData);
+        vReq.end();
+    } catch (e) {}
+
+    res.json({ 
+        success: true, 
+        message: `'${username}' foydalanuvchisi paroli yangilandi va barcha faol qurilmalardan chiqarildi (kick qilindi)`,
+        kickedCount: result.kickedCount || 0
+    });
+});
+
+app.put('/api/settings/users/:username/role', requireSuperuser, (req, res) => {
+    const { role } = req.body || {};
+    const { username } = req.params;
+    const result = authService.updateUserRole(username, role);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: `'${username}' foydalanuvchisi roli yangilandi`, role: result.role });
+});
+
+app.delete('/api/settings/users/:username', requireSuperuser, (req, res) => {
+    const { username } = req.params;
+    const result = authService.deleteUser(username, req.user.username);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: `'${username}' foydalanuvchisi o'chirildi` });
+});
+
+// 3. Faol Sessiyalar & Tokenlar (Active Sessions & Impersonation)
+app.get('/api/settings/sessions', requireSuperuser, (req, res) => {
+    try {
+        const rawSessions = authService.listActiveSessions();
+        const operatorsList = (typeof amiService !== 'undefined' && amiService.getOperatorList) ? (amiService.getOperatorList() || []) : [];
+        const opIpMap = new Map();
+        for (const op of operatorsList) {
+            if (op && op.ip && op.ip !== '-none-') {
+                opIpMap.set(op.ip, {
+                    id: op.id || op.extension,
+                    name: op.realName || op.name || `Operator ${op.id || op.extension}`
+                });
+            }
+        }
+        // Known fallback IPs
+        const fallbackIpMap = {
+            '192.168.0.17': { id: '101', name: 'Oybek' },
+            '192.168.0.100': { id: '103', name: 'Feruza' },
+            '192.168.0.19': { id: '111', name: 'Nozima' },
+            '192.168.0.18': { id: '120', name: 'Navruzoy' },
+            '192.168.0.15': { id: '119', name: 'Muattar' },
+            '192.168.0.114': { id: '114', name: 'Maxmudbek' },
+            '192.168.0.106': { id: '106', name: 'Ubaydullayeva Gulchehra' }
+        };
+
+        const enrichedSessions = rawSessions.map(s => {
+            const matchedOp = opIpMap.get(s.ip) || fallbackIpMap[s.ip] || null;
+            return {
+                token: s.token,
+                username: s.username,
+                role: s.role,
+                ip: s.ip,
+                userAgent: s.user_agent,
+                createdAt: s.created_at,
+                expiresAt: s.expires_at,
+                operator: matchedOp,
+                isCurrent: s.token === authService.extractToken(req)
+            };
+        });
+
+        res.json({ success: true, count: enrichedSessions.length, sessions: enrichedSessions });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.delete('/api/settings/sessions/:token', requireSuperuser, (req, res) => {
+    const { token } = req.params;
+    const currentToken = authService.extractToken(req);
+    if (token === currentToken) {
+        return res.status(400).json({ success: false, error: "O'zingizning joriy sessiyangizni bu yerdan o'chira olmaysiz! (Chiqish uchun Logout tugmasini bosing)" });
+    }
+    const result = authService.terminateSession(token);
+    if (!result.success) {
+        return res.status(400).json(result);
+    }
+    res.json({ success: true, message: "Sessiya muvaffaqiyatli yakunlandi" });
+});
+
+app.use((req, res, next) => {
+    const p = req.path;
+
+    // 0. Lokal ichki xizmatlar (masalan call-center-viewer 3005-portdan 127.0.0.1 orqali keluvchi so'rovlar)
+    const remoteIp = req.socket?.remoteAddress;
+    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !req.headers['x-forwarded-for'];
+    if (isLocalInternal) {
+        return next();
+    }
+
+    // Ochiq qoldiriladigan resurslar (Whitelisted)
+    if (
+        p === '/login' ||
+        p === '/logout' ||
+        p === '/api/auth/login' ||
+        p === '/api/auth/logout' ||
+        p === '/api/version' ||
+        p === '/version.json' ||
+        p === '/favicon.ico' ||
+        p.startsWith('/css/') ||
+        p.startsWith('/js/') ||
+        p.startsWith('/icons/') ||
+        p.startsWith('/images/') ||
+        p.startsWith('/fonts/') ||
+        p.startsWith('/.well-known/') ||
+        // 3CX Desktop Agent lokal fondagi event lari (faqat mashina eventlari)
+        p === '/api/agent/heartbeat' ||
+        p === '/api/agent/call-event' ||
+        p === '/api/agent/sync-batch' ||
+        p === '/api/agent/version' ||
+        p === '/api/agent/update-log' ||
+        p === '/api/agent/release' ||
+        p === '/api/agent/reject'
+    ) {
+        return next();
+    }
+
+    const isApi = p.startsWith('/api/') || 
+                  p.startsWith('/api-docs') || 
+                  p.startsWith('/swagger') ||
+                  req.xhr || 
+                  (req.headers.accept && req.headers.accept.includes('application/json'));
+
+    // Sessiya tokenini tekshirish
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+
+    if (session) {
+        req.user = session;
+
+        // Operator roli bilan admin paneliga (3535) kirishni taqiqlash - faqat 3005-portdagi Viewerga yo'naltirish
+        if (session.role === 'operator') {
+            const host = req.hostname || '127.0.0.1';
+            const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+            const viewerUrl = `${req.protocol}://${host}:3005/${tokenParam}`;
+
+            // Operatorlarga faqat o'z ma'lumotlarini tekshirish (me) va chiqish (logout) ga ruxsat
+            if (p === '/api/auth/me' || p === '/api/auth/logout' || p === '/logout') {
+                return next();
+            }
+
+            // Agar API so'rov bo'lsa -> 403 Forbidden
+            if (isApi) {
+                return res.status(403).json({
+                    error: 'forbidden',
+                    message: 'Operator roli uchun ushbu admin bo\'limi taqiqlangan',
+                    redirect: viewerUrl
+                });
+            }
+
+            // Agar brauzer sahifasi bo'lsa (/, /history, /explorer, va h.k.) -> darhol 3005 dagi Viewerga yo'naltirish
+            return res.redirect(viewerUrl);
+        }
+
+        return next();
+    }
+
+    // Agar tizimga kirmagan bo'lsa:
+    if (isApi) {
+        return res.status(401).json({
+            error: 'unauthorized',
+            message: 'Tizimga kirish talab qilinadi',
+            redirect: '/login'
+        });
+    }
+
+    return res.redirect('/login');
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
 
 // Swagger API Hujjatlari (UI & JSON)
@@ -117,6 +782,14 @@ sftpService.connect().then(connected => {
     if (connected) {
         console.log('📁 SFTP Monitor papkasi faol!');
     }
+});
+
+// 3. Proxmox VM avtomatik/qo'lda tiklash hodisalarini barcha dashboardlarga uzatish
+proxmoxService.setEventCallback((evt) => {
+    broadcastWs({
+        type: 'vm_recovery_event',
+        data: evt
+    });
 });
 
 // Build / Versiya ma'lumotlari (Deploy avtomatik aniqlanishi uchun)
@@ -154,9 +827,11 @@ wss.on('connection', async (ws) => {
             amiStatus: amiService.isConnected,
             sftpStatus: sftpService.isConnected,
             stats: amiService.getSummaryStats(),
+            queueStrategy: amiService.getActiveQueueStrategy(),
             activeChannels: amiService.getActiveChannelsList(),
             conversations: Array.from(amiService.activeConversations ? amiService.activeConversations.values() : []),
             queues: amiService.getQueueSummaryList(),
+            excludedOperators: authService.getExcludedOperators(),
             operators: amiService.getOperatorList(),
             callHistory: amiService.getCallHistory(50),
             callbacks: amiService.getCallbacksWithActiveCalls(),
@@ -298,8 +973,14 @@ app.get('/api/history', async (req, res) => {
         return res.json(result);
     }
 
+    // 2. Agar aynan Muattar tanlangan bo'lsa va qidiruv bo'sh bo'lsa, 119-operatorni qidiruvga biriktiramiz
+    let effectiveSearch = search;
+    if (speaker === 'muattar' && !search) {
+        effectiveSearch = '119';
+    }
+
     try {
-        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, search, dateStr, direction, status);
+        const paginatedData = await issabelDbService.fetchCallsPaginated(page, limit, effectiveSearch, dateStr, direction, status);
         
         if (paginatedData && Array.isArray(paginatedData.data)) {
             paginatedData.data.forEach(call => {
@@ -332,6 +1013,97 @@ app.get('/api/history', async (req, res) => {
 // Barcha ovoz identifikatsiyalari ro'yxati (AI statusini ko'rish uchun)
 app.get('/api/voice-identifications', (req, res) => {
     res.json(voicePrintService.getAll());
+});
+
+// =========================================================================
+// TOPIC ANALYTICS & STATISTICS API (Kalit uzaytirish, EDO, E-Huquqshunos)
+// =========================================================================
+const topicAnalyticsService = require('./services/topicAnalyticsService');
+
+app.get('/api/analytics/topics/summary', (req, res) => {
+    try {
+        const { period, year, month, date, startDate, endDate } = req.query || {};
+        const data = topicAnalyticsService.getTopicSummary({ period, year, month, date, startDate, endDate });
+        res.json({ success: true, data, ...data });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/analytics/topics/trend', (req, res) => {
+    try {
+        const { period, year, month, date, startDate, endDate } = req.query || {};
+        const data = topicAnalyticsService.getTopicTrend({ period, year, month, date, startDate, endDate });
+        res.json({ success: true, data, ...data });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/analytics/topics/calls', (req, res) => {
+    try {
+        const { page, limit, search, topic, period, year, month, date, startDate, endDate } = req.query || {};
+        const data = topicAnalyticsService.getTopicCalls({ page, limit, search, topic, period, year, month, date, startDate, endDate });
+        res.json({ success: true, data: data.items || [], items: data.items || [], ...data });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/analytics/topics/dates', (req, res) => {
+    try {
+        const dates = topicAnalyticsService.getAvailableDates();
+        res.json({ success: true, dates });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/analytics/topics/analyze', async (req, res) => {
+    try {
+        const { period, year, month, date } = req.body || {};
+        const result = await topicAnalyticsService.runTopicAnalysis({ period, year, month, date });
+        res.json({ success: true, ...result });
+    } catch (e) {
+        console.error('Topic analysis error:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Fayllarni konvertatsiya qilish API (DOCX, PDF, TXT, Rasmlar)
+// Qoida: Fayllar konvertatsiyadan so'ng server xotirasidan darhol avtomatik o'chiriladi (Zero Storage footprint)
+app.post('/api/converter/convert', async (req, res) => {
+    try {
+        const { filename, fileName, targetFormat, base64, fileData } = req.body || {};
+        const rawData = base64 || fileData;
+        const rawName = filename || fileName;
+
+        if (!rawData || !targetFormat) {
+            return res.status(400).json({ success: false, error: "Fayl ma'lumotlari yoki maqsadli format yetishmaydi." });
+        }
+
+        const cleanBase64 = rawData.replace(/^data:[^;]+;base64,/, '');
+        const inputBuffer = Buffer.from(cleanBase64, 'base64');
+
+        if (inputBuffer.length > 35 * 1024 * 1024) {
+            return res.status(400).json({ success: false, error: "Fayl hajmi 35 MB dan oshmasligi kerak." });
+        }
+
+        const result = await converterService.convertFile(inputBuffer, rawName, targetFormat);
+        const encoded = `data:${result.mimeType};base64,${result.buffer.toString('base64')}`;
+
+        res.json({
+            success: true,
+            filename: result.filename,
+            mimeType: result.mimeType,
+            size: result.buffer.length,
+            base64: encoded,
+            fileData: encoded
+        });
+    } catch (err) {
+        console.error('Konvertatsiya xatosi:', err.message);
+        res.status(500).json({ success: false, error: err.message || "Faylni konvertatsiya qilishda xatolik yuz berdi." });
+    }
 });
 
 // Ovozli skan jarayoni progress sahifasi
@@ -816,8 +1588,25 @@ app.post('/api/voice-scan/restart-ack', (req, res) => {
 });
 
 // So'nggi qo'ng'iroqlar oqimi buferi (Dashboard va zaxira yuklash uchun)
-app.get('/api/calls/recent', (req, res) => {
+app.get('/api/calls/recent', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    const dateStr = req.query.date || '';
+    try {
+        let paginated = await issabelDbService.fetchCallsPaginated(1, limit, '', dateStr, '', '', true);
+        if (paginated && paginated.data && paginated.data.length > 0) {
+            return res.json(paginated.data);
+        }
+        // Agar tanlangan sana yoki bugun bo'yicha qo'ng'iroqlar hali bo'lmasa (masalan tunda),
+        // butun tarixni sanamasdan, oxirgi 7 kunlik eng so'nggi qo'ng'iroqlarni tezkor olamiz
+        const recentStartDate = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const fallback = await issabelDbService.fetchCallsPaginated(1, limit, '', `${recentStartDate}_${todayIso}`, '', '', true);
+        if (fallback && fallback.data && fallback.data.length > 0) {
+            return res.json(fallback.data);
+        }
+    } catch (e) {
+        console.error('Error in /api/calls/recent:', e);
+    }
     res.json(amiService.getCallHistory(limit));
 });
 
@@ -1087,6 +1876,240 @@ app.get('/api/recordings/stream', async (req, res) => {
     await sftpService.streamFile(filePath, req, res);
 });
 
+// Bir nechta audio fayllarni ZIP arxiv shaklida yuklab olish (Windows Explorer uslubida tanlangan barcha fayllar)
+app.post('/api/recordings/download-zip', async (req, res) => {
+    let files = req.body.files;
+    if (typeof files === 'string') {
+        try { files = JSON.parse(files); } catch (e) { files = [files]; }
+    }
+    if (!Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: 'Yuklab olish uchun fayllar ro\'yxati berilmadi' });
+    }
+    const zipName = req.body.zipName || `call_recordings_${new Date().toISOString().slice(0, 10)}.zip`;
+    await sftpService.downloadFilesAsZip(files, req, res, zipName);
+});
+
+app.get('/api/recordings/download-zip', async (req, res) => {
+    let files = req.query.files;
+    if (typeof files === 'string') {
+        try { files = JSON.parse(files); } catch (e) { files = files.split(',').filter(Boolean); }
+    }
+    if (!Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: 'Yuklab olish uchun fayllar ro\'yxati berilmadi' });
+    }
+    const zipName = req.query.zipName || `call_recordings_${new Date().toISOString().slice(0, 10)}.zip`;
+    await sftpService.downloadFilesAsZip(files, req, res, zipName);
+});
+
+// Sana oralig'i bo'yicha mavjud audio yozuvlar sonini va umumiy davomiyligini hisoblash
+app.get('/api/recordings/range-count', async (req, res) => {
+    try {
+        const { startDate, endDate, search, direction, status, speaker } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ success: false, error: 'startDate va endDate ko\'rsatilishi shart' });
+        }
+        const stats = await issabelDbService.countRecordingsByDateRange(startDate, endDate, search, direction, status, speaker);
+        res.json({
+            success: true,
+            startDate,
+            endDate,
+            count: stats.count,
+            durationSec: stats.durationSec
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Sana oralig'i bo'yicha barcha audio yozuvlarni ZIP arxiv qilib yuklab olish
+app.get('/api/recordings/download-range-zip', async (req, res) => {
+    try {
+        const { startDate, endDate, search, direction, status, speaker } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate va endDate ko\'rsatilishi shart' });
+        }
+        const s = String(startDate).slice(0, 10);
+        const e = String(endDate).slice(0, 10);
+        const recordings = await issabelDbService.fetchRecordingsByDateRange(s, e, 5000, search, direction, status, speaker);
+        const cleanTag = (search || speaker || '').trim().replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
+        const tagSuffix = cleanTag ? `_${cleanTag}` : '';
+        const zipName = `ovozlar_${s}_${e}${tagSuffix}_(${recordings.length}_ta).zip`;
+        await sftpService.downloadFilesAsZip(recordings, req, res, zipName);
+    } catch (err) {
+        console.error('download-range-zip xatolik:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Arxivni shakllantirishda xatolik yuz berdi: ' + err.message });
+        }
+    }
+});
+
+app.post('/api/recordings/download-range-zip', async (req, res) => {
+    try {
+        const startDate = req.body.startDate || req.query.startDate;
+        const endDate = req.body.endDate || req.query.endDate;
+        const search = req.body.search || req.query.search || '';
+        const direction = req.body.direction || req.query.direction || '';
+        const status = req.body.status || req.query.status || '';
+        const speaker = req.body.speaker || req.query.speaker || '';
+
+        if (!startDate || !endDate) {
+            return res.status(400).json({ error: 'startDate va endDate ko\'rsatilishi shart' });
+        }
+        const s = String(startDate).slice(0, 10);
+        const e = String(endDate).slice(0, 10);
+        const recordings = await issabelDbService.fetchRecordingsByDateRange(s, e, 5000, search, direction, status, speaker);
+        const cleanTag = (search || speaker || '').trim().replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
+        const tagSuffix = cleanTag ? `_${cleanTag}` : '';
+        const zipName = req.body.zipName || `ovozlar_${s}_${e}${tagSuffix}_(${recordings.length}_ta).zip`;
+        await sftpService.downloadFilesAsZip(recordings, req, res, zipName);
+    } catch (err) {
+        console.error('POST download-range-zip xatolik:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Arxivni shakllantirishda xatolik yuz berdi: ' + err.message });
+        }
+    }
+});
+
+// ==========================================
+// FONDA ZIP ARXIVLASH VAZIFALARI (Resilient Background Zip Jobs)
+// ==========================================
+
+// 1. Yangi fonda ZIP yig'ish vazifasini yaratish
+app.post('/api/recordings/zip-jobs', async (req, res) => {
+    try {
+        let files = req.body.files;
+        let zipName = req.body.zipName;
+
+        if (typeof files === 'string') {
+            try { files = JSON.parse(files); } catch (e) { files = [files]; }
+        }
+
+        // Agar fayllar to'g'ridan-to'g'ri berilmagan bo'lsa, sana oralig'i bo'yicha bazadan olamiz
+        if (!Array.isArray(files) || files.length === 0) {
+            const startDate = req.body.startDate || req.query.startDate;
+            const endDate = req.body.endDate || req.query.endDate;
+            const search = req.body.search || req.query.search || '';
+            const direction = req.body.direction || req.query.direction || '';
+            const status = req.body.status || req.query.status || '';
+            const speaker = req.body.speaker || req.query.speaker || '';
+
+            if (!startDate || !endDate) {
+                return res.status(400).json({ success: false, error: 'Fayllar ro\'yxati yoki startDate va endDate ko\'rsatilishi shart' });
+            }
+
+            const s = String(startDate).slice(0, 10);
+            const e = String(endDate).slice(0, 10);
+            files = await issabelDbService.fetchRecordingsByDateRange(s, e, 5000, search, direction, status, speaker);
+
+            if (!zipName) {
+                const cleanTag = (search || speaker || '').trim().replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20);
+                const tagSuffix = cleanTag ? `_${cleanTag}` : '';
+                zipName = `ovozlar_${s}_${e}${tagSuffix}_(${files.length}_ta).zip`;
+            }
+        }
+
+        if (!Array.isArray(files) || files.length === 0) {
+            return res.status(404).json({ success: false, error: 'Tanlangan filtrlar bo\'yicha birorta ham audio yozuv topilmadi' });
+        }
+
+        const job = await zipJobService.startZipJob({
+            fileList: files,
+            zipName: zipName || `recordings_${Date.now()}.zip`,
+            metadata: {
+                totalFiles: files.length,
+                initiatedBy: req.session && req.session.user ? req.session.user.username : 'anonymous'
+            }
+        });
+
+        res.json({
+            success: true,
+            jobId: job.id,
+            total: job.total,
+            zipName: job.zipName,
+            status: job.status,
+            queuePosition: job.queuePosition || 0
+        });
+    } catch (err) {
+        console.error('zip-jobs create xatolik:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 2. Fon vazifasi holatini (progress, %) tekshirish
+app.get('/api/recordings/zip-jobs/:id', (req, res) => {
+    try {
+        const job = zipJobService.getJob(req.params.id);
+        if (!job) {
+            return res.status(404).json({ success: false, error: 'Bunday arxiv vazifasi topilmadi' });
+        }
+        res.json({
+            success: true,
+            job: {
+                id: job.id,
+                status: job.status,
+                queuePosition: job.queuePosition || 0,
+                progress: job.progress,
+                processed: job.processed,
+                total: job.total,
+                added: job.added,
+                currentFile: job.currentFile,
+                fileSize: job.fileSize,
+                fileSizeFormatted: job.fileSizeFormatted,
+                zipName: job.zipName,
+                createdAt: job.createdAt,
+                completedAt: job.completedAt,
+                error: job.error
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 3. Tayyor bo'lgan ZIP faylni statik fayl sifatida tezkor va uzilishsiz yuklab olish (Accept-Ranges qo'llab-quvvatlanadi)
+app.get('/api/recordings/zip-jobs/:id/download', (req, res) => {
+    try {
+        const jobId = req.params.id;
+        const readyInfo = zipJobService.getReadyFilePath(jobId);
+        if (!readyInfo) {
+            const job = zipJobService.getJob(jobId);
+            if (!job) {
+                return res.status(404).json({ success: false, error: 'Bunday arxiv vazifasi topilmadi' });
+            }
+            if (job.status === 'processing') {
+                return res.status(202).json({ success: false, error: 'Arxiv hali tayyorlanmoqda', progress: job.progress });
+            }
+            if (job.status === 'failed') {
+                return res.status(500).json({ success: false, error: 'Arxivlashda xatolik yuz berdi: ' + (job.error || 'Noma\'lum xato') });
+            }
+            return res.status(404).json({ success: false, error: 'Arxiv fayli topilmadi' });
+        }
+
+        res.download(readyInfo.filePath, readyInfo.fileName, (err) => {
+            if (err && !res.headersSent) {
+                console.error(`❌ [ZipJob download] ${jobId} uzatishda xato:`, err.message);
+            }
+        });
+    } catch (err) {
+        console.error('zip-job download xatolik:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ success: false, error: err.message });
+        }
+    }
+});
+
+// 4. Fon vazifasini bekor qilish (Cancel)
+app.post('/api/recordings/zip-jobs/:id/cancel', (req, res) => {
+    try {
+        const jobId = req.params.id;
+        const ok = zipJobService.cancelJob(jobId);
+        res.json({ success: true, cancelled: ok });
+    } catch (err) {
+        console.error('zip-job cancel xatolik:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 const audioIndexService = require('./services/audioIndexService');
 
 // Tezkor Audio Indeks API (RAM dagi xaritadan 0.2ms da topadi)
@@ -1129,6 +2152,155 @@ app.get('/api/recordings/index-status', (req, res) => {
     });
 });
 
+const sttService = require('./services/sttService');
+const sttCleanerService = require('./services/sttCleanerService');
+
+// On-demand Speech-to-Text (STT) transkripsiya qilish yoki keshdan olish
+app.post('/api/recordings/transcribe', async (req, res) => {
+    try {
+        const { recFile, callerId, duration, callKey } = req.body || {};
+        if (!recFile && !callKey) {
+            return res.status(400).json({ success: false, error: 'recFile yoki callKey berilmadi' });
+        }
+        const result = await sttService.transcribe({ recFile, callerId, duration, callKey });
+        res.json(result);
+    } catch (err) {
+        console.error('API /api/recordings/transcribe xatosi:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.get('/api/recordings/transcribe', async (req, res) => {
+    try {
+        const { recFile, callerId, duration, callKey } = req.query || {};
+        if (!recFile && !callKey) {
+            return res.status(400).json({ success: false, error: 'recFile yoki callKey berilmadi' });
+        }
+        const result = await sttService.transcribe({ recFile, callerId, duration: parseInt(duration || '0', 10), callKey });
+        res.json(result);
+    } catch (err) {
+        console.error('API GET /api/recordings/transcribe xatosi:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// STT O'z-o'zini o'qitish va lug'at statistikasi
+app.get('/api/recordings/transcribe/stats', (req, res) => {
+    try {
+        const stats = sttCleanerService.getLearnedStats();
+        res.json({
+            success: true,
+            totalWords: stats.totalWords || 0,
+            learnedWordsCount: stats.totalWords || 0,
+            ...stats
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// STT Barcha o'girilgan yozuvlar ro'yxati (Kesh holatini va "Tayyor" belgilarini ko'rsatish uchun)
+app.get('/api/recordings/transcribed-list', (req, res) => {
+    try {
+        const list = sttService.getAllTranscribed();
+        res.json({ success: true, count: list.length, data: list });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// STT Bir nechta yozuvlarni bir vaqtda tekshirish (batch check)
+app.post('/api/recordings/transcribe/check-batch', (req, res) => {
+    try {
+        const { keys = [], files = [], calls = [] } = req.body || {};
+        const all = sttService.getAllTranscribed();
+        const map = {};
+        all.forEach(item => {
+            if (item.call_key) {
+                map[item.call_key] = item;
+                const parts = item.call_key.split('_');
+                if (parts.length >= 2) {
+                    map[`${parts[0]}_${parts[1]}`] = item;
+                }
+            }
+            if (item.caller_id) {
+                const cleanCaller = String(item.caller_id).replace(/[^0-9]/g, '');
+                if (cleanCaller) {
+                    map[cleanCaller] = item;
+                    map[item.caller_id] = item;
+                    if (item.duration_sec !== undefined && item.duration_sec !== null) {
+                        map[`${cleanCaller}_${Math.round(Number(item.duration_sec))}`] = item;
+                    }
+                }
+            }
+            if (item.recording_file) {
+                const base = path.basename(item.recording_file);
+                map[base] = item;
+                map[item.recording_file] = item;
+            }
+        });
+        const result = {};
+        keys.forEach(k => {
+            if (k && map[k]) result[k] = map[k];
+        });
+        files.forEach(f => {
+            if (!f) return;
+            const base = path.basename(f);
+            if (map[base]) result[base] = map[base];
+            else if (map[f]) result[f] = map[f];
+        });
+        calls.forEach(c => {
+            const rowKey = c.rowKey || '';
+            const callerId = c.callerId ? String(c.callerId).replace(/[^0-9]/g, '') : '';
+            const dur = Math.round(Number(c.duration) || 0);
+            const rec = c.recording ? path.basename(c.recording) : '';
+            const match = (rowKey && map[rowKey]) ||
+                          (rec && map[rec]) ||
+                          (callerId && dur && map[`${callerId}_${dur}`]) ||
+                          (callerId && map[callerId]);
+            if (match) {
+                if (rowKey) result[rowKey] = match;
+                if (rec) result[rec] = match;
+                if (callerId) result[callerId] = match;
+                if (callerId && dur) result[`${callerId}_${dur}`] = match;
+            }
+        });
+        res.json({ success: true, map: result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Mavjud xom transkripsiyani AI orqali qayta o'qitish va tozalash
+app.post('/api/recordings/transcribe/reprocess', async (req, res) => {
+    try {
+        const { callKey, recFile } = req.body || {};
+        const cached = sttService.getCached(callKey, recFile);
+        if (!cached || !cached.rawText) {
+            return res.status(404).json({ success: false, error: 'Xom transkripsiya topilmadi' });
+        }
+        const formatted = await sttService.cleanAndLearn(cached.rawText);
+        sttService.saveToCache(callKey, recFile, '', cached.duration, cached.rawText, formatted);
+        res.json({ success: true, text: formatted, rawText: cached.rawText });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Transkripsiyani foydalanuvchi tomonidan qo'lda tahrirlangan holatini saqlash
+app.post('/api/recordings/transcribe/save', async (req, res) => {
+    try {
+        const { callKey, recFile, formattedText } = req.body || {};
+        if (typeof formattedText !== 'string') {
+            return res.status(400).json({ success: false, error: 'Matn bo\'sh' });
+        }
+        const result = sttService.saveManualTranscription(callKey, recFile, formattedText);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 const systemService = require('./services/systemService');
 
 // Server va Tizim holati (CPU, RAM, Disk, PM2, Services)
@@ -1140,8 +2312,6 @@ app.get('/api/system/status', async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
-
-const proxmoxService = require('./services/proxmoxService');
 
 // Proxmox VM lar holati
 app.get('/api/system/vms', async (req, res) => {
@@ -1156,8 +2326,28 @@ app.get('/api/system/vms', async (req, res) => {
 // Proxmox LVM tiklash va Kerio + Issabel ni yoqish (Svet o'chib yonganda)
 app.post('/api/system/vms/recover', async (req, res) => {
     try {
-        const result = await proxmoxService.recoverAndStartAll();
+        const result = await proxmoxService.recoverAndStartAll('manual');
         res.json(result);
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Proxmox VM lar avtomatik tiklash holati
+app.get('/api/system/vms/auto-recover', (req, res) => {
+    try {
+        res.json({ success: true, ...proxmoxService.getAutoRecoverStatus() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Proxmox VM lar avtomatik tiklashni yoqish / o'chirish
+app.post('/api/system/vms/auto-recover', (req, res) => {
+    try {
+        const { enabled } = req.body;
+        const status = proxmoxService.setAutoRecover(enabled);
+        res.json({ success: true, ...status });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
@@ -1836,9 +3026,8 @@ app.get('/api/export/excel', async (req, res) => {
     }
 });
 
-
 // SPA Navigation Routes
-['/', '/dashboard', '/explorer', '/audio', '/operators', '/history', '/clients', '/customers', '/mijozlar'].forEach(route => {
+['/', '/dashboard', '/explorer', '/audio', '/operators', '/history', '/clients', '/customers', '/mijozlar', '/statistics', '/statistika', '/analytics', '/tools', '/converter', '/asboblar'].forEach(route => {
     app.get(route, (req, res) => {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });

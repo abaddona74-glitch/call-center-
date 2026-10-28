@@ -50,7 +50,7 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `-C "${projectRoot}" ` +
     `--exclude="node_modules" ` +
     `--exclude="*.log" ` +
-    `app.js config.js package.json .env services public`;
+    `app.js config.js package.json .env services public ssl`;
 
 try {
     execSync(tarCmd, { stdio: 'inherit' });
@@ -123,7 +123,7 @@ async function deploy() {
     const checkConn = new Client();
     await new Promise((resolve, reject) => {
         checkConn.on('ready', () => {
-            checkConn.exec('curl -s -I http://localhost:3005 | head -n 3', (err, stream) => {
+            checkConn.exec('curl -k -s -I https://localhost:3005 | head -n 3', (err, stream) => {
                 if (err) return reject(err);
                 stream.on('close', () => {
                     checkConn.end();
@@ -142,8 +142,8 @@ async function deploy() {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log('====================================================');
     console.log(`🎉 VIEWER DEPLOY MUVAFFAQIYATLI YAKUNLANDI! (${elapsed} soniya)`);
-    console.log(`🌐 Jonli Cheklangan Manzil: http://${SERVER_HOST}:3005`);
-    console.log(`👥 Operatorlar:             http://${SERVER_HOST}:3005/operators`);
+    console.log(`🌐 Jonli Manzil (HTTPS): https://${SERVER_HOST}:3005`);
+    console.log(`👥 Operatorlar:          https://${SERVER_HOST}:3005/operators`);
     console.log('====================================================');
 }
 

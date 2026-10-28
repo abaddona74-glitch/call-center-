@@ -7,7 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+const EXCLUDED_OPERATORS = new Set();
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',
@@ -1130,6 +1130,7 @@ class DbService {
                 WHERE phone NOT LIKE '%2020159%'
                   AND phone != '712020159'
                   AND LENGTH(phone) >= 7
+                  AND source != 'ivr_non_working'
             `;
             if (includeResolved) {
                 sql += ` AND status IN ('pending', 'resolved')`;
@@ -1157,7 +1158,40 @@ class DbService {
             `;
 
             const stmt = this.db.prepare(sql);
-            return stmt.all(...params);
+            const rawRows = stmt.all(...params);
+
+            // Unikal mijozlar bo'yicha guruhlash:
+            // - Agar 'pending' bo'lsa: bir xil raqam bo'yicha bitta qilib jamlaymiz (operator bitta qo'ng'iroq qilishi uchun)
+            // - Agar 'resolved' bo'lsa: sana bo'yicha ajratamiz (chunki o'tgan haftadagi hal qilingan qo'ng'iroq bugungisiga qo'shilib ketmasligi kerak)
+            // - today_attempts esa FAQAT bugungi (Toshkent vaqti) urinishlarni hisoblaydi!
+            const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const map = new Map();
+            for (const r of rawRows) {
+                const isPending = (r.status === 'pending' || !r.status);
+                const callDate = r.call_time ? r.call_time.slice(0, 10) : (r.created_at ? r.created_at.slice(0, 10) : todayStr);
+                const groupKey = isPending ? `pending_${r.phone}` : `${r.phone}_${callDate}`;
+
+                const isToday = Boolean(r.call_time && r.call_time.startsWith(todayStr));
+                const att = Number(r.attempts_count) || 1;
+
+                if (!map.has(groupKey)) {
+                    map.set(groupKey, {
+                        ...r,
+                        today_attempts: isToday ? att : 0,
+                        attempts_count: att
+                    });
+                } else {
+                    const existing = map.get(groupKey);
+                    if (isToday) {
+                        existing.today_attempts = (existing.today_attempts || 0) + att;
+                    }
+                    existing.attempts_count = (existing.attempts_count || 1) + att;
+                    if (r.call_time && (!existing.call_time || r.call_time > existing.call_time)) {
+                        existing.call_time = r.call_time;
+                    }
+                }
+            }
+            return Array.from(map.values());
         } catch (err) {
             console.error('getCallbacks error:', err.message);
             return [];
@@ -1165,16 +1199,22 @@ class DbService {
     }
 
     /**
-     * Navbatdan chiqqan qo'ng'iroqlarning kutilmoqda va gaplashildi bo'yicha taqsimoti
+     * Navbatdan chiqqan qo'ng'iroqlarning kutilmoqda, ulanilmadi va gaplashildi bo'yicha taqsimoti
      */
     getAbandonedBreakdown(dateFilter = 'today') {
         try {
             const list = this.getCallbacks(dateFilter, true).filter(c => c.source === 'abandoned');
-            const pendingCount = list.filter(c => c.status === 'pending').length;
-            const resolvedCount = list.filter(c => c.status === 'resolved').length;
-            return { pendingCount, resolvedCount };
+            const pendingList = list.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0));
+            const unreachableList = list.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0);
+            const resolvedList = list.filter(c => c.status === 'resolved');
+
+            const pendingCount = pendingList.length;
+            const unreachableCount = unreachableList.length;
+            const resolvedCount = resolvedList.length;
+
+            return { pendingCount, unreachableCount, resolvedCount };
         } catch (e) {
-            return { pendingCount: 0, resolvedCount: 0 };
+            return { pendingCount: 0, unreachableCount: 0, resolvedCount: 0 };
         }
     }
 
@@ -1276,7 +1316,7 @@ class DbService {
 
         try {
             let cleanOpName = operatorName;
-            if (cleanOpName === 'NULL' || cleanOpName === 'null' || cleanOpName === '\\N' || cleanOpName === '') {
+            if (cleanOpName === 'NULL' || cleanOpName === 'null' || cleanOpName === '\\N' || cleanOpName === '' || (typeof cleanOpName === 'string' && (cleanOpName.includes('cdr_sync') || cleanOpName.includes('hangup')))) {
                 cleanOpName = null;
             }
 
@@ -1358,7 +1398,7 @@ class DbService {
      * 'pending' mijozning chiquvchi urinishlar sonini (outbound_attempts) oshirish va
      * oxirgi uringan operator va vaqtni belgilash ("Bog'lanib bo'lmadi" ro'yxatiga o'tadi)
      */
-    recordFailedOutboundAttempt({ phone, operator, cause = '', time = null }) {
+    recordFailedOutboundAttempt({ phone, operator, cause = '', time = null, attempts = null }) {
         const cleanPhone = this.normalizePhone(phone);
         if (!cleanPhone) return null;
 
@@ -1375,13 +1415,18 @@ class DbService {
 
             if (!row) return null;
 
-            // Takroriy hisoblanishni oldini olish (20 soniya ichida bir xil qo'ng'iroq kanallari yopilishi mumkin)
-            let attempts = (row.outbound_attempts || 0) + 1;
-            if (row.last_outbound_time) {
-                const prevTime = new Date(row.last_outbound_time.replace(' ', 'T')).getTime();
-                const currTime = new Date(timeStr.replace(' ', 'T')).getTime();
-                if (!isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 20000) {
-                    attempts = Math.max(1, row.outbound_attempts || 1);
+            // Takroriy hisoblanishni oldini olish yoki CDR dan aniq urinishlar sonini olish
+            let finalAttempts = 1;
+            if (attempts !== null && attempts !== undefined) {
+                finalAttempts = Math.max(parseInt(attempts, 10) || 1, row.outbound_attempts || 0, 1);
+            } else {
+                finalAttempts = (row.outbound_attempts || 0) + 1;
+                if (row.last_outbound_time) {
+                    const prevTime = new Date(row.last_outbound_time.replace(' ', 'T')).getTime();
+                    const currTime = new Date(timeStr.replace(' ', 'T')).getTime();
+                    if (!isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 20000) {
+                        finalAttempts = Math.max(1, row.outbound_attempts || 1);
+                    }
                 }
             }
 
@@ -1390,7 +1435,7 @@ class DbService {
             if (cause) {
                 const c = String(cause).toLowerCase();
                 if (c.includes('busy') || c === '17') cleanCause = 'Mijoz band';
-                else if (c.includes('no answer') || c.includes('no user') || c === '18' || c === '19') cleanCause = 'Javob bermadi';
+                else if (c.includes('no answer') || c.includes('no user') || c === '18' || c === '19' || c.includes('failed')) cleanCause = 'Javob bermadi';
                 else if (c.includes('reject') || c === '21') cleanCause = 'Rad etildi';
                 else if (c.includes('absent') || c.includes('unavail') || c === '20') cleanCause = 'Aloqa doirasidan tashqarida';
             }
@@ -1405,8 +1450,8 @@ class DbService {
                     updated_at = datetime('now', 'localtime')
                 WHERE id = ?
             `);
-            stmt.run(attempts, timeStr, operator || 'Operator', cleanCause, row.id);
-            return { id: row.id, phone: cleanPhone, outbound_attempts: attempts, updated: true };
+            stmt.run(finalAttempts, timeStr, operator || 'Operator', cleanCause, row.id);
+            return { id: row.id, phone: cleanPhone, outbound_attempts: finalAttempts, updated: true };
         } catch (err) {
             console.error('recordFailedOutboundAttempt error:', err.message);
             return null;

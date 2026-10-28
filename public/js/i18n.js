@@ -14,6 +14,9 @@ const I18N_TRANSLATIONS = {
         tab_history: "Qo'ng'iroqlar Tarixi",
         tab_explorer: "Audio Explorer",
         tab_clients: "Mijozlar",
+        tab_tools: "Asboblar",
+        tab_statistics: "Statistika",
+        tab_statistics_title: "Mavzular Statistikasi & Tahlili",
         live_monitor: "Jonli Monitor",
         live_clock_title: "Hozirgi aniq vaqt",
 
@@ -36,6 +39,9 @@ const I18N_TRANSLATIONS = {
         kpi_outbound_calls: "Chiquvchi Qo'ng'iroqlar",
         kpi_answered_calls: "Muvaffaqiyatli Qo'ng'iroqlar",
         kpi_abandoned_calls: "Navbatdan chiqdi",
+        kpi_abandoned_clients: "Mijozlar Soni",
+        kpi_abandoned_clients_desc: "Jami unikal mijozlar soni (takroriy qo'ng'iroqlarsiz)",
+        kpi_waiting_callback: "bog'lanishi kerak",
         kpi_missed_calls: "O‘tkazib yuborilgan",
         kpi_denied_calls: "Rad etilgan (Band)",
         kpi_avg_duration: "O'rtacha Suhbat Vaqti",
@@ -56,6 +62,7 @@ const I18N_TRANSLATIONS = {
         op_status_ready: "Qabul qilishga tayyor",
         op_status_talking: "Suhbatda",
         op_status_offline: "Oflayn",
+        op_status_offline_group: "Oflayn operatorlar",
         op_status_ringing: "Jiringlamoqda",
         op_status_agent_online: "Agent ulangan",
         op_badge_next: "NAVBATDAGI",
@@ -93,7 +100,7 @@ const I18N_TRANSLATIONS = {
         party_not_answered: "Ko'tarilmadi",
         party_busy: "Band",
         party_no_answer: "Javobsiz",
-        party_transfer: "Transfer (Operatorga)",
+        party_transfer: "Transfer",
         party_unknown: "Noma'lum",
         op_not_connected: "Operatorga ulanmadi",
         unit_item: "ta",
@@ -130,6 +137,14 @@ const I18N_TRANSLATIONS = {
         audio_listen: "Tinglash",
         audio_not_available: "Mavjud emas",
         audio_download: "Yuklab olish",
+        hist_download_all: "Hammasini yuklab olish (.zip)",
+        hist_selected_count: "{n} ta tanlandi",
+        hist_selected_audios: "{n} ta audio mavjud",
+        hist_btn_download_zip_count: "Tanlangan {n} ta audioni yuklab olish (.zip)",
+        hist_select_first_alert: "Iltimos, avval yuklab olmoqchi bo'lgan qo'ng'iroqlaringizni checkbox orqali tanlang.",
+        hist_download_no_audio: "Tanlangan qo'ng'iroqlarda audio yozuv mavjud emas (suhbat bo'lmagan yoki 0 soniyali).",
+        hist_download_preparing: "Arxiv tayyorlanmoqda...",
+        hist_download_error: "Audio fayllarni yuklashda xatolik yuz berdi: ",
 
         // Excel Export Modal
         export_modal_title: "Qo'ng'iroqlar Tarixini Excel Formatida Yuklab Olish",
@@ -187,11 +202,12 @@ const I18N_TRANSLATIONS = {
         // Live Monitor Sidebar
         live_queue_title: "NAVBATDA KUTAYOTGANLAR",
         live_queue_empty: "Hozircha navbatda kutayotganlar yo'q",
-        live_active_calls: "FAOL SUHBATLAR",
+        live_active_calls: "Faol suhbatlar",
         live_lines: "Liniyalar",
         live_active_empty: "Hozircha faol suhbatlar yo'q",
-        live_callbacks_title: "BOG'LANISHI KERAK",
+        live_callbacks_title: "Qayta bog‘lanish kerak",
         live_callbacks_empty: "Bog'lanishi kerak bo'lgan mijozlar yo'q",
+        cb_resolved_today_only_label: "Faqat bugungi mijozlar",
         callback_refresh_title: "Qayta tekshirish",
         callback_delete_confirm: "Ushbu mijozni ro'yxatdan o'chirishni tasdiqlaysizmi?",
         callback_delete_modal_title: "Mijozni o'chirish",
@@ -239,6 +255,19 @@ const I18N_TRANSLATIONS = {
         caller_collapse_title: "Qisqartirish (yig'ish)",
         caller_collapse_btn: "▲ yig'ish",
 
+        // Speech-to-Text (STT) Transkripsiya
+        stt_btn_title: "O'zbekcha nutqni matnga o'girish (Speech-to-Text)",
+        stt_btn_text: "Matn",
+        stt_modal_title: "Suhbat transkripsiyasi (Speech-to-Text)",
+        stt_badge_cached: "⚡ Keshdan olindi",
+        stt_loading_title: "O'zbekcha nutq matnga o'girilmoqda...",
+        stt_loading_desc: "Wav2Vec2 Uzbek AI modeli audio yozuvni tahlil qilmoqda. Audio davomiyligiga qarab 10–25 soniya vaqt olishi mumkin.",
+        stt_error_header: "Transkripsiya xatosi",
+        stt_transcription_ready: "Transkripsiya matni tayyor:",
+        stt_copy_btn: "Nusxa olish",
+        stt_copied: "Nusxalandi!",
+        stt_close_btn: "Yopish",
+
         // Audio Explorer
         audio_explorer_title: "Audio Yozuvlar Explorer",
         audio_explorer_search: "Raqam yoki fayl nomi bo'yicha qidirish...",
@@ -259,16 +288,21 @@ const I18N_TRANSLATIONS = {
 
         // Charts
         chart_dynamics_title: "Qo'ng'iroqlar Dinamikasi",
-        chart_distribution_title: "Qo'ng'iroqlar Taqsimoti",
+        chart_distribution_title: "Mijozlar Taqsimoti",
+        chart_distribution_calls_title: "Qo'ng'iroqlar Taqsimoti",
+        chart_dist_by_clients: "Mijozlar",
+        chart_dist_by_calls: "Qo'ng'iroqlar",
         chart_operator_title: "Operatorlar bo'yicha Qo'ng'iroqlar Taqsimoti (3CX Agent)",
         chart_series_inbound: "Jami Kiruvchi (Inbound)",
         chart_series_answered: "Javob berilgan (Answered)",
         chart_series_outbound: "Chiquvchi (Outbound)",
         chart_series_missed: "O'tkazib yuborilgan",
         chart_series_calls: "Qo'ng'iroqlar",
-        chart_slice_success: "Muvaffaqiyatli",
+        chart_series_clients: "Mijozlar",
+        chart_slice_success: "Kiruvchi Muvaffaqiyatli",
         chart_slice_abandoned: "Navbatdan chiqdi",
         chart_slice_abandoned_pending: "Kutilmoqda",
+        chart_slice_abandoned_unreachable: "Ulanilmadi",
         chart_slice_abandoned_resolved: "Gaplashildi",
         chart_slice_outbound: "Chiquvchi",
         chart_suffix_calls: "ta",
@@ -284,9 +318,8 @@ const I18N_TRANSLATIONS = {
         hist_all_operators: "Barcha Operatorlar",
         hist_loading: "Tarix yuklanmoqda...",
         hist_opt_answered: "Javob berilgan",
-        hist_opt_missed: "📵 Javobsiz / Chiqdi",
-        hist_prev: "⬅ Oldingi",
-        hist_next: "Keyingi ➡",
+        hist_prev: "Oldingi",
+        hist_next: "Keyingi",
         hist_page: "Sahifa {page} / {total}",
 
         // Audio player
@@ -357,6 +390,8 @@ const I18N_TRANSLATIONS = {
         detail_col_client_phone: "Mijoz Raqami",
         detail_col_queue_name: "Navbat Nomi",
         detail_col_wait_time: "Kutish Vaqti",
+        audio_listen: "Tinglash",
+        audio_pause: "To'xtatish",
 
         // Encoding logs
         logs_title: "Qo'ng'iroqlar Jurnali",
@@ -400,8 +435,11 @@ const I18N_TRANSLATIONS = {
         srv_part_dashboard: "1. Tizim & Dashboard (Root /)",
         srv_part_issabel: "2. Issabel PBX & Ovozlar Xotirasi (192.168.0.124)",
         srv_vm_title: "Proxmox Virtual Mashinalari (VM)",
-        srv_vm_sub: "Kerio Firewall (200) & Issabel PBX (101)",
+        srv_vm_sub: "Kerio Firewall (101) & Issabel PBX (200)",
         srv_power_btn: "Svet o'chib yonganda: 1-Bosishda LVM Fix + VMlarni Yoqish",
+        srv_auto_recover_label: "Avtomatik tiklash",
+        srv_auto_recover_enabled: "Avtomatik tiklash yoqildi. Svet o'chib yonganda tizim o'zi LVM Fix qilib, VMlarni yoqadi.",
+        srv_auto_recover_disabled: "Avtomatik tiklash o'chirildi.",
 
         // Agent settings modal
         set_official_version: "Serverdagi Rasmiy Versiya",
@@ -445,6 +483,14 @@ const I18N_TRANSLATIONS = {
         export_btn_cancel: "Bekor qilish",
         export_loading_msg: "Hisobot tayyorlanmoqda va yuklanmoqda...",
         export_range_prefix: "Tanlangan oraliq:",
+        audio_range_modal_heading: "Ovozlarni Yuklab Olish",
+        audio_range_modal_subheading: "ZIP arxiv formatida sana oralig'i bo'yicha",
+        audio_range_download_btn: "Ovozlarni yuklab olish (.zip)",
+        audio_range_apply_table: "Jadvalda ko'rish",
+        hist_date_range_btn: "Sana oralig'i",
+        audio_range_filter_label: "Qidiruv / Operator filtri:",
+        audio_range_computing: "Tanlangan oraliq: Hisoblanmoqda...",
+        audio_range_counting: "Audio yozuvlar hisoblanmoqda...",
 
         // Misc
         opt_50: "50 ta", opt_100: "100 ta", opt_200: "200 ta", opt_500: "500 ta (Barchasi)",
@@ -658,7 +704,22 @@ const I18N_TRANSLATIONS = {
         clients_deleted_success: "Mijoz o'chirildi!",
         clients_badge_saved: "Bazaga saqlangan",
         clients_badge_unsaved: "Yangi raqam",
-        clients_quick_add: "Bazaga qo'shish"
+        clients_quick_add: "Bazaga qo'shish",
+
+        // STT Speech-to-Text
+        stt_modal_title: "Suhbat transkripsiyasi (Speech-to-Text)",
+        stt_badge_cached: "⚡ Keshdan olindi",
+        stt_loading_title: "O'zbekcha nutq matnga o'girilmoqda...",
+        stt_loading_desc: "Wav2Vec2 Uzbek AI modeli audio yozuvni tahlil qilmoqda. Bu bir necha soniya vaqt oladi.",
+        stt_error_header: "Transkripsiya xatosi",
+        stt_transcription_ready: "Transkripsiya matni tayyor:",
+        stt_tab_cleaned: "✨ Qayta ishlangan",
+        stt_tab_raw: "Asl xom matn",
+        stt_copy_btn: "Nusxa olish",
+        stt_copied: "Nusxalandi!",
+        stt_close_btn: "Yopish",
+        stt_btn_text: "Matn",
+        stt_btn_title: "O'zbekcha nutqni matnga o'girish (Speech-to-Text)"
     },
     ru: {
         // Navigation & Branding
@@ -670,6 +731,9 @@ const I18N_TRANSLATIONS = {
         tab_history: "История звонков",
         tab_explorer: "Аудио записи",
         tab_clients: "Клиенты",
+        tab_tools: "Инструменты",
+        tab_statistics: "Статистика",
+        tab_statistics_title: "Статистика и Аналитика Тем",
         live_monitor: "Прямой эфир",
         live_clock_title: "Текущее точное время",
 
@@ -692,6 +756,9 @@ const I18N_TRANSLATIONS = {
         kpi_outbound_calls: "Исходящие звонки",
         kpi_answered_calls: "Успешные звонки",
         kpi_abandoned_calls: "Вышли из очереди",
+        kpi_abandoned_clients: "Количество клиентов",
+        kpi_abandoned_clients_desc: "Количество уникальных клиентов (без повторов)",
+        kpi_waiting_callback: "нужно связаться",
         kpi_missed_calls: "Пропущенные",
         kpi_denied_calls: "Отклоненные (Занято)",
         kpi_avg_duration: "Среднее время разговора",
@@ -712,6 +779,7 @@ const I18N_TRANSLATIONS = {
         op_status_ready: "Готов к приему",
         op_status_talking: "В разговоре",
         op_status_offline: "Офлайн",
+        op_status_offline_group: "Офлайн операторы",
         op_status_ringing: "Звонит",
         op_status_agent_online: "Агент активен",
         op_badge_next: "СЛЕДУЮЩИЙ",
@@ -749,7 +817,7 @@ const I18N_TRANSLATIONS = {
         party_not_answered: "Не отвечен",
         party_busy: "Занято",
         party_no_answer: "Без ответа",
-        party_transfer: "Перевод (Оператору)",
+        party_transfer: "Перевод",
         party_unknown: "Неизвестно",
         op_not_connected: "Не соединен с оператором",
         unit_item: "шт.",
@@ -786,6 +854,14 @@ const I18N_TRANSLATIONS = {
         audio_listen: "Слушать",
         audio_not_available: "Нет записи",
         audio_download: "Скачать",
+        hist_download_all: "Скачать все (.zip)",
+        hist_selected_count: "Выбрано: {n}",
+        hist_selected_audios: "Доступно аудио: {n}",
+        hist_btn_download_zip_count: "Скачать выбранные {n} аудио (.zip)",
+        hist_select_first_alert: "Пожалуйста, сначала выберите нужные звонки с помощью чекбоксов.",
+        hist_download_no_audio: "В выбранных звонках нет аудиозаписей (разговор не состоялся или длился 0 секунд).",
+        hist_download_preparing: "Подготовка архива...",
+        hist_download_error: "Ошибка при скачивании аудиофайлов: ",
 
         // Excel Export Modal
         export_modal_title: "Экспорт Истории Звонков в Формате Excel",
@@ -843,11 +919,12 @@ const I18N_TRANSLATIONS = {
         // Live Monitor Sidebar
         live_queue_title: "ОЖИДАЮТ В ОЧЕРЕДИ",
         live_queue_empty: "Сейчас в очереди никого нет",
-        live_active_calls: "АКТИВНЫЕ РАЗГОВОРЫ",
+        live_active_calls: "Активные разговоры",
         live_lines: "Линии",
         live_active_empty: "Сейчас активных разговоров нет",
-        live_callbacks_title: "ТРЕБУЮТ СВЯЗИ",
+        live_callbacks_title: "Требуют связи",
         live_callbacks_empty: "Нет клиентов, требующих связи",
+        cb_resolved_today_only_label: "Только сегодняшние клиенты",
         callback_refresh_title: "Проверить заново",
         callback_delete_confirm: "Удалить этого клиента из списка?",
         callback_delete_modal_title: "Удаление клиента",
@@ -895,6 +972,19 @@ const I18N_TRANSLATIONS = {
         caller_collapse_title: "Свернуть",
         caller_collapse_btn: "▲ свернуть",
 
+        // Speech-to-Text (STT) Транскрипция
+        stt_btn_title: "Преобразование узбекской речи в текст (Speech-to-Text)",
+        stt_btn_text: "Текст",
+        stt_modal_title: "Транскрипция разговора (Speech-to-Text)",
+        stt_badge_cached: "⚡ Из кэша",
+        stt_loading_title: "Преобразование речи в текст...",
+        stt_loading_desc: "ИИ модель Wav2Vec2 Uzbek анализирует запись. Это может занять 10–25 секунд в зависимости от длительности.",
+        stt_error_header: "Ошибка транскрипции",
+        stt_transcription_ready: "Текст разговора готов:",
+        stt_copy_btn: "Скопировать",
+        stt_copied: "Скопировано!",
+        stt_close_btn: "Закрыть",
+
         // Audio Explorer
         audio_explorer_title: "Проводник аудио записей",
         audio_explorer_search: "Поиск по номеру или имени файла...",
@@ -915,16 +1005,21 @@ const I18N_TRANSLATIONS = {
 
         // Charts
         chart_dynamics_title: "Динамика звонков",
-        chart_distribution_title: "Распределение звонков",
+        chart_distribution_title: "Распределение клиентов",
+        chart_distribution_calls_title: "Распределение звонков",
+        chart_dist_by_clients: "Клиенты",
+        chart_dist_by_calls: "Звонки",
         chart_operator_title: "Распределение звонков по операторам (3CX Agent)",
         chart_series_inbound: "Всего входящих (Inbound)",
         chart_series_answered: "Отвеченные (Answered)",
         chart_series_outbound: "Исходящие (Outbound)",
         chart_series_missed: "Пропущенные",
         chart_series_calls: "Звонки",
-        chart_slice_success: "Успешные",
+        chart_series_clients: "Клиенты",
+        chart_slice_success: "Входящие успешные",
         chart_slice_abandoned: "Вышли из очереди",
         chart_slice_abandoned_pending: "Ожидают",
+        chart_slice_abandoned_unreachable: "Не дозвонились",
         chart_slice_abandoned_resolved: "Разговор состоялся",
         chart_slice_outbound: "Исходящие",
         chart_suffix_calls: "шт",
@@ -940,9 +1035,8 @@ const I18N_TRANSLATIONS = {
         hist_all_operators: "Все операторы",
         hist_loading: "Загрузка истории...",
         hist_opt_answered: "Отвеченные",
-        hist_opt_missed: "📵 Без ответа / Вышли",
-        hist_prev: "⬅ Назад",
-        hist_next: "Вперед ➡",
+        hist_prev: "Назад",
+        hist_next: "Вперед",
         hist_page: "Страница {page} / {total}",
 
         // Audio player
@@ -1056,8 +1150,11 @@ const I18N_TRANSLATIONS = {
         srv_part_dashboard: "1. Система и Dashboard (Root /)",
         srv_part_issabel: "2. Issabel PBX и хранилище записей (192.168.0.124)",
         srv_vm_title: "Виртуальные машины Proxmox (VM)",
-        srv_vm_sub: "Kerio Firewall (200) & Issabel PBX (101)",
+        srv_vm_sub: "Kerio Firewall (101) & Issabel PBX (200)",
         srv_power_btn: "При отключении света: 1-Нажатие LVM Fix + запуск VM",
+        srv_auto_recover_label: "Авто-восстановление",
+        srv_auto_recover_enabled: "Авто-восстановление включено. При отключении света система автоматически выполнит LVM Fix и запустит VM.",
+        srv_auto_recover_disabled: "Авто-восстановление отключено.",
 
         // Agent settings modal
         set_official_version: "Официальная версия на сервере",
@@ -1230,6 +1327,14 @@ const I18N_TRANSLATIONS = {
         export_range_text: "Выбранный диапазон: <b>{days} дн.</b> ({start} — {end})",
         export_err_start_after_end: "⚠️ Начальная дата не может быть больше конечной даты!",
         export_alert_select_dates: "Пожалуйста, выберите начальную и конечную даты!",
+        audio_range_modal_heading: "Скачивание аудиозаписей",
+        audio_range_modal_subheading: "В формате ZIP-архива по диапазону дат",
+        audio_range_download_btn: "Скачать записи (.zip)",
+        audio_range_apply_table: "Показать в таблице",
+        hist_date_range_btn: "Диапазон дат",
+        audio_range_filter_label: "Поиск / Фильтр оператора:",
+        audio_range_computing: "Выбранный период: Подсчет...",
+        audio_range_counting: "Подсчет аудиозаписей...",
         unit_days: "дн.",
 
         aud_empty_file_alert: "⚠️ Этот аудиофайл пуст (разговора не было или звонок завершился без соединения с оператором).",
@@ -1313,7 +1418,22 @@ const I18N_TRANSLATIONS = {
         clients_deleted_success: "Клиент удален!",
         clients_badge_saved: "Сохранен в базе",
         clients_badge_unsaved: "Новый номер",
-        clients_quick_add: "Добавить в базу"
+        clients_quick_add: "Добавить в базу",
+
+        // STT Speech-to-Text
+        stt_modal_title: "Транскрипция разговора (Speech-to-Text)",
+        stt_badge_cached: "⚡ Из кэша",
+        stt_loading_title: "Распознавание узбекской речи в текст...",
+        stt_loading_desc: "Модель Wav2Vec2 Uzbek AI анализирует запись. Это займет несколько секунд.",
+        stt_error_header: "Ошибка транскрипции",
+        stt_transcription_ready: "Текст разговора готов:",
+        stt_tab_cleaned: "✨ Исправленный",
+        stt_tab_raw: "Исходный текст",
+        stt_copy_btn: "Копировать",
+        stt_copied: "Скопировано!",
+        stt_close_btn: "Закрыть",
+        stt_btn_text: "Текст",
+        stt_btn_title: "Распознавание речи в текст (Speech-to-Text)"
     }
 };
 
@@ -1378,13 +1498,15 @@ function switchLanguage(lang) {
 function applyTranslations() {
     document.documentElement.setAttribute('lang', currentLang);
 
+    // Update Language Container Active Attribute
+    const langContainer = document.getElementById('langSwitchContainer');
+    if (langContainer) langContainer.setAttribute('data-active', currentLang);
+
     // Update Language Buttons Active State
     document.querySelectorAll('.lang-btn').forEach(btn => {
-        if (btn.getAttribute('data-lang') === currentLang) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
+        const isActive = btn.getAttribute('data-lang') === currentLang;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
     // Translate DOM elements with data-i18n

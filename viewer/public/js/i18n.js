@@ -15,6 +15,9 @@ const I18N_TRANSLATIONS = {
         live_monitor: "Jonli Monitor",
         live_clock_title: "Hozirgi aniq vaqt",
         header_client_directory: "Mijozlar bazasi",
+        header_converter: "Fayl konvertor",
+        header_logout: "Chiqish",
+        header_logout_title: "Tizimdan chiqish",
 
         op_section_title: "Operatorlar",
         op_group_main: "Asosiy (100-199)",
@@ -27,6 +30,8 @@ const I18N_TRANSLATIONS = {
         op_status_talking: "Suhbatda",
         op_status_paused: "Pauzada",
         op_status_offline: "Oflayn",
+        op_status_ready_group: "Kutmoqda (Tayyor)",
+        op_status_offline_group: "Oflayn operatorlar",
         op_status_ringing: "Jiringlamoqda",
         op_status_agent_online: "Agent ulangan",
         op_badge_next: "NAVBATDAGI",
@@ -36,6 +41,7 @@ const I18N_TRANSLATIONS = {
         op_denied_short: "Rad etildi",
         op_total_time: "Umumiy",
         op_avg_time: "O'rtacha",
+        op_request_help_title: "{name} ga yordam so'rab qo'ng'iroq qilish",
         op_no_operators: "Hozircha operatorlar mavjud emas.",
 
         viewer_callback_title: "Bog'lanishi kerak bo'lgan mijozlar",
@@ -45,6 +51,7 @@ const I18N_TRANSLATIONS = {
         tab_callbacks_pending: "Kutilmoqda (Yangi)",
         tab_callbacks_unreachable: "Bog'lanib bo'lmadi",
         tab_callbacks_resolved: "Gaplashildi",
+        cb_resolved_today_only_label: "Faqat bugungi mijozlar",
         viewer_callback_pending_hint: "* Hali operatorlar bog'lanmagan yangi mijozlar (Eng yangilari #1 dan boshlanadi)",
         viewer_callback_unreachable_hint: "* Operator qo'ng'iroq qilgan, ammo mijoz go'shakni ko'tarmagan",
         viewer_callback_resolved_hint: "* Operatorlar gaplashib bo'lgan mijozlar",
@@ -81,7 +88,7 @@ const I18N_TRANSLATIONS = {
         party_not_answered: "Ko'tarilmadi",
         party_busy: "Band",
         party_no_answer: "Javobsiz",
-        party_transfer: "Transfer (Operatorga)",
+        party_transfer: "Transfer",
         party_unknown: "Noma'lum",
         op_not_connected: "Operatorga ulanmadi",
         unit_item: "ta",
@@ -192,7 +199,25 @@ const I18N_TRANSLATIONS = {
         deploy_banner_countdown: "Sahifa {sec} soniyada avtomatik yangilanadi...",
         deploy_banner_paused: "Avtomatik yangilanish to'xtatildi. Iltimos, ish tugagach sahifani yangilang.",
         btn_deploy_reload: "Hozir yangilash",
-        btn_deploy_cancel: "To'xtatish"
+        btn_deploy_cancel: "To'xtatish",
+
+        tools_title: "Tools",
+        tools_badge: "Qo'shimcha vositalar",
+        tool_status_active: "Faol",
+        tool_tg_desc: "Maʼlumot shakli va Telegram arizalarini to'ldirish hamda monitoring qilish paneli.",
+        tool_regions_title: "Viloyat mas'ullari",
+        tool_regions_desc: "Viloyatlar bo'yicha mas'ul rahbarlar, ofis va telefon raqamlari jadvali.",
+        tool_tashkent_title: "Toshkent shahar mas'ullari",
+        tool_tashkent_desc: "Toshkent shahridagi tumanlarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.",
+        tool_ministry_title: "Vazirlik mas'ullari",
+        tool_ministry_desc: "Vazirliklarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.",
+        tool_uzb2026_title: "Yangi O'zbek Alifbosi (2026)",
+        tool_uzb2026_desc: "Yangi lotin alifbosi (ş, ç, ö, ğ) klaviatura drayveri, o'rnatish paketi va foydalanish yo'riqnomasi.",
+        tool_open: "Ochish",
+        tool_open_here: "🖥️ Shu yerda ochish",
+        tool_open_new_window: "Yangi oynada ochish ↗",
+        tool_zoom_in: "🔍 Kattalashtirish",
+        tool_zoom_out: "🔍 Kichiklashtirish"
     },
     ru: {
         app_title: "Call Center",
@@ -205,6 +230,9 @@ const I18N_TRANSLATIONS = {
         live_monitor: "Прямой эфир",
         live_clock_title: "Текущее точное время",
         header_client_directory: "База клиентов",
+        header_converter: "Конвертер файлов",
+        header_logout: "Выход",
+        header_logout_title: "Выйти из системы",
 
         op_section_title: "Операторы",
         op_group_main: "Основные (100-199)",
@@ -217,6 +245,8 @@ const I18N_TRANSLATIONS = {
         op_status_talking: "В разговоре",
         op_status_paused: "На паузе",
         op_status_offline: "Офлайн",
+        op_status_ready_group: "Ожидают (Готовы)",
+        op_status_offline_group: "Офлайн операторы",
         op_status_ringing: "Звонит",
         op_status_agent_online: "Агент активен",
         op_badge_next: "СЛЕДУЮЩИЙ",
@@ -226,6 +256,7 @@ const I18N_TRANSLATIONS = {
         op_denied_short: "Отклонено",
         op_total_time: "Всего",
         op_avg_time: "Среднее",
+        op_request_help_title: "Позвонить {name} за помощью",
         op_no_operators: "На данный момент операторы отсутствуют.",
 
         status_answered: "Отвечен",
@@ -247,7 +278,7 @@ const I18N_TRANSLATIONS = {
         party_client: "Клиент",
         party_operator: "Оператор",
         party_not_answered: "Не отвечен",
-        party_transfer: "Перевод (Оператору)",
+        party_transfer: "Перевод",
 
         col_num: "№",
         col_time: "ВРЕМЯ",
@@ -286,6 +317,7 @@ const I18N_TRANSLATIONS = {
         tab_callbacks_pending: "Ожидают (Новые)",
         tab_callbacks_unreachable: "Не дозвонились",
         tab_callbacks_resolved: "Разговор состоялся",
+        cb_resolved_today_only_label: "Только сегодняшние клиенты",
         viewer_callback_pending_hint: "* Новые клиенты, которым еще не звонили (Самые новые начинаются с #1)",
         viewer_callback_unreachable_hint: "* Оператор звонил, но клиент не ответил",
         viewer_callback_resolved_hint: "* Клиенты, с которыми операторы успешно поговорили",
@@ -367,7 +399,7 @@ const I18N_TRANSLATIONS = {
         party_not_answered: "Не отвечен",
         party_busy: "Занято",
         party_no_answer: "Без ответа",
-        party_transfer: "Перевод (Оператору)",
+        party_transfer: "Перевод",
         party_unknown: "Неизвестно",
         op_not_connected: "Не соединен с оператором",
         unit_item: "шт.",
@@ -390,6 +422,8 @@ const I18N_TRANSLATIONS = {
         tool_tashkent_desc: "Список ответственных сотрудников и контактных телефонов по районам г. Ташкента.",
         tool_ministry_title: "Ответственные по министерствам",
         tool_ministry_desc: "Список ответственных сотрудников и контактов, прикрепленных к министерствам.",
+        tool_uzb2026_title: "Новый узбекский алфавит (2026)",
+        tool_uzb2026_desc: "Драйвер раскладки нового латинского алфавита (ş, ç, ö, ğ), инсталлятор и инструкция.",
         tool_open: "Открыть",
         tool_open_here: "🖥️ Открыть здесь",
         tool_open_new_window: "Открыть в новом окне ↗",
@@ -457,12 +491,14 @@ function switchLanguage(lang) {
 function applyTranslations() {
     document.documentElement.setAttribute('lang', currentLang);
 
+    // Update Language Container Active Attribute
+    const langContainer = document.getElementById('langSwitchContainer');
+    if (langContainer) langContainer.setAttribute('data-active', currentLang);
+
     document.querySelectorAll('.lang-btn').forEach(btn => {
-        if (btn.getAttribute('data-lang') === currentLang) {
-            btn.classList.add('active');
-        } else {
-            btn.classList.remove('active');
-        }
+        const isActive = btn.getAttribute('data-lang') === currentLang;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
     });
 
     document.querySelectorAll('[data-i18n]').forEach(el => {

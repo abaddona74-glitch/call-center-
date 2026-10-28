@@ -4,8 +4,10 @@ const { execSync } = require('child_process');
 const { Client } = require('ssh2');
 const SftpClient = require('ssh2-sftp-client');
 
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 // Production Server Configuration
-const SERVER_HOST = process.env.DEPLOY_HOST || '192.168.0.2';
+const SERVER_HOST = process.env.DEPLOY_HOST || '213.230.110.9';
 const SERVER_PORT = parseInt(process.env.DEPLOY_PORT || '22', 10);
 const SERVER_USER = process.env.DEPLOY_USER || 'root';
 const SERVER_PASS = process.env.DEPLOY_PASS || 'ZAQ!2wsx123';
@@ -51,6 +53,32 @@ const currentBuild = {
     app: 'call-center'
 };
 fs.writeFileSync(versionFilePath, JSON.stringify(currentBuild, null, 2), 'utf8');
+
+// Update <meta name="build-id" content="..."> in public/index.html
+const indexHtmlPath = path.join(projectRoot, 'public', 'index.html');
+if (fs.existsSync(indexHtmlPath)) {
+    let html = fs.readFileSync(indexHtmlPath, 'utf8');
+    if (html.includes('<meta name="build-id"')) {
+        html = html.replace(/<meta name="build-id" content="[^"]*">/, `<meta name="build-id" content="${currentBuild.buildId}">`);
+    } else {
+        html = html.replace('<head>', `<head>\n    <meta name="build-id" content="${currentBuild.buildId}">`);
+    }
+    html = html.replace(/\/js\/dashboard\.js\?v=[^"]*/g, `/js/dashboard.js?v=${currentBuild.buildId}`);
+    html = html.replace(/\/css\/style\.css\?v=[^"]*/g, `/css/style.css?v=${currentBuild.buildId}`);
+    fs.writeFileSync(indexHtmlPath, html, 'utf8');
+}
+
+// Update viewer version.json as well so viewer stays in sync
+const viewerVersionPath = path.join(projectRoot, 'viewer', 'public', 'version.json');
+if (fs.existsSync(viewerVersionPath)) {
+    fs.writeFileSync(viewerVersionPath, JSON.stringify({
+        buildId: currentBuild.buildId,
+        buildTime: currentBuild.buildTime,
+        version: currentBuild.version,
+        app: 'call-center-viewer'
+    }, null, 2), 'utf8');
+}
+
 console.log(`🏷️  Versiya tayyorlandi: Build ${currentBuild.buildId} (${currentBuild.version})`);
 
 // 1. Pack files
@@ -68,7 +96,8 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="scratch" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
-    `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data`;
+    `--exclude="data/temp_zips" ` +
+    `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data system_settings.json`;
 
 try {
     execSync(tarCmd, { stdio: 'inherit' });
@@ -165,6 +194,37 @@ async function deploy() {
     console.log(`🌐 Jonli Web Manzil: http://${SERVER_HOST}:3535`);
     console.log(`👥 Operatorlar: http://${SERVER_HOST}:3535/operators`);
     console.log('====================================================');
+
+    // 5. Telegram Bot orqali muvaffaqiyatli deploy bildirishnomasini yuborish
+    try {
+        console.log('📱 Telegram bot orqali bildirishnoma yuborilmoqda...');
+        const telegramService = require('../services/telegramService');
+        const nowFormatted = new Date().toLocaleString('uz-UZ', { 
+            timeZone: 'Asia/Tashkent', 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
+        });
+
+        const deployNotificationText = 
+            `🚀 <b>CALL CENTER AI — DEPLOY MUVAFFAQIYATLI O'TDI!</b>\n\n` +
+            `🏷️ <b>Versiya:</b> Build ${currentBuild.buildId} (v${currentBuild.version})\n` +
+            `⏱️ <b>Vaqt:</b> ${nowFormatted}\n` +
+            `⚡ <b>Davomiyligi:</b> ${elapsed} soniya\n` +
+            `🌐 <b>Asosiy Portal:</b> http://${SERVER_HOST}:3535\n` +
+            `📊 <b>Viewer Portali:</b> http://${SERVER_HOST}:3005\n\n` +
+            `✅ <b>O'zgarishlar:</b>\n` +
+            `• Oflayn va suhbatdagi operatorlarni ajratib turuvchi divider liniyasi tiklandi\n` +
+            `• Barcha xizmatlar (Node.js, PM2, Asterisk AMI, WebSocket) to'liq barqaror holatda ishga tushirildi.`;
+
+        await telegramService.broadcast(deployNotificationText);
+        console.log('✅ Telegram bot bildirishnomasi muvaffaqiyatli jo\'natildi!\n');
+    } catch (tgErr) {
+        console.error('⚠️ Telegram bot bildirishnomasini jo\'natishda xatolik:', tgErr.message);
+    }
 }
 
 deploy().catch(err => {

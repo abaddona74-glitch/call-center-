@@ -144,6 +144,15 @@ async function main() {
         dbService.db.prepare(`DELETE FROM pending_callbacks WHERE phone = ?`).run(phoneNull);
     });
 
+    // Test 7: Answered caller (like 998396673) is NEVER inserted into pending_callbacks
+    await runAsyncTest('Normal answered caller (998396673) is NEVER inserted into callbacks', async () => {
+        // Ensure not in DB
+        dbService.db.prepare(`DELETE FROM pending_callbacks WHERE phone = '998396673'`).run();
+        await issabelDbService.syncPendingCallbacks(1);
+        const checkBogus = dbService.db.prepare(`SELECT * FROM pending_callbacks WHERE phone = '998396673'`).get();
+        assert(!checkBogus, 'Caller 998396673 was answered and must NEVER be inserted into callbacks!');
+    });
+
     console.log('\n======================================================');
     console.log(`🏁 NATIJA: ${passedTests}/${totalTests} ta test muvaffaqiyatli o'tdi.`);
     console.log('======================================================\n');

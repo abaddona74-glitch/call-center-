@@ -3,7 +3,7 @@ require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+const EXCLUDED_OPERATORS = new Set();
 
 const DEFAULT_OPERATOR_NAMES = {
     '101': 'Oybek',
@@ -47,7 +47,58 @@ class IssabelDbService {
     }
 
     getExcludedOperators() {
+        if (EXCLUDED_OPERATORS.size === 0) {
+            this.loadExcludedFromDb();
+        }
         return EXCLUDED_OPERATORS;
+    }
+
+    updateExcludedOperators(newList) {
+        if (!Array.isArray(newList)) return;
+        EXCLUDED_OPERATORS.clear();
+        for (const item of newList) {
+            if (item) EXCLUDED_OPERATORS.add(String(item).trim());
+        }
+    }
+
+    loadExcludedFromDb() {
+        try {
+            const dbSvc = require('./dbService');
+            if (dbSvc && dbSvc.db) {
+                const row = dbSvc.db.prepare("SELECT value FROM system_settings WHERE key = 'excluded_operators'").get();
+                if (row && row.value) {
+                    const parsed = JSON.parse(row.value);
+                    if (Array.isArray(parsed)) {
+                        this.updateExcludedOperators(parsed);
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    async getExistingAsteriskUsers() {
+        try {
+            const sql = "USE asterisk; SELECT extension, name FROM users WHERE extension REGEXP '^[0-9]+$' ORDER BY CAST(extension AS UNSIGNED) ASC;";
+            const raw = await this.execQuery(sql);
+            const list = [];
+            if (raw) {
+                const lines = raw.trim().split('\n');
+                for (const line of lines) {
+                    if (!line) continue;
+                    const [ext, name] = line.split('\t');
+                    const cleanExt = (ext || '').trim();
+                    if (cleanExt) {
+                        const cleanName = cleanExt === '114' ? 'Maxmudbek' : ((name || '').trim() || `Operator ${cleanExt}`);
+                        list.push({ id: cleanExt, name: cleanName });
+                        this.operatorNames.set(cleanExt, cleanName);
+                    }
+                }
+            }
+            return list;
+        } catch (e) {
+            console.error('getExistingAsteriskUsers error:', e.message);
+            return Array.from(this.operatorNames.entries()).map(([id, name]) => ({ id, name }));
+        }
     }
 
     startBackgroundSync() {
@@ -177,7 +228,7 @@ class IssabelDbService {
                     if (!l) continue;
                     const [ext, name] = l.split('\t');
                     const cleanExt = ext ? ext.trim() : '';
-                    if (cleanExt && !EXCLUDED_OPERATORS.has(cleanExt)) {
+                    if (cleanExt) {
                         if (cleanExt === '114') {
                             this.operatorNames.set('114', 'Maxmudbek');
                         } else {
@@ -1266,7 +1317,7 @@ class IssabelDbService {
 
                 if (isXfer) {
                     direction = 'transfer';
-                    hangupParty = 'Transfer (Operatorga)';
+                    hangupParty = 'Transfer';
 
                     // Multi-hop transfer zanjiri (masalan: Navruzoy (120) ➔ Muattar (119) [➔ ...])
                     const initOp = (xferFromRaw && xferFromRaw !== 'NULL' && xferFromRaw !== '\\N' ? xferFromRaw : opExt || '').trim();
@@ -1296,6 +1347,26 @@ class IssabelDbService {
                 const isOut = direction === 'outbound';
                 const callerNumber = isOut ? (dst || 'Yashirin') : (src || 'Yashirin');
 
+                let calculatedWait = !isRealAnswered 
+                    ? Math.max(waitSecVal, talkSec) 
+                    : (ansLagSec > 0 ? ansLagSec : Math.max(0, waitSecVal - talkSec));
+
+                if (isRealAnswered && calculatedWait === 0 && rec) {
+                    const match = rec.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-/);
+                    if (match) {
+                        const [_, Y, M, D, h, m, s] = match;
+                        const recDate = new Date(Y, parseInt(M, 10) - 1, D, h, m, s);
+                        const callDate = new Date(calldate.replace(/-/g, '/'));
+                        const diff = Math.round((recDate.getTime() - callDate.getTime()) / 1000);
+                        if (diff > 0 && diff < 3600) {
+                            calculatedWait = diff;
+                        }
+                    }
+                }
+                if (isRealAnswered && calculatedWait === 0 && !isOut && rec && rec.includes('q-')) {
+                    calculatedWait = Math.max(1, Math.min(60, waitSecVal - talkSec)) || 12;
+                }
+
                 calls.push({
                     id: uid,
                     time: calldate,
@@ -1304,7 +1375,7 @@ class IssabelDbService {
                     operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
                     direction: direction,
                     duration: isRealAnswered ? talkSec : 0,
-                    waitSec: isRealAnswered ? Math.max(0, ansLagSec) : waitSecVal,
+                    waitSec: calculatedWait,
                     status: isRealAnswered ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'ABANDONED'),
                     hangupParty: hangupParty,
                     recording: isRealAnswered ? (rec || '') : ''
@@ -1567,7 +1638,7 @@ class IssabelDbService {
                 let finalOpExt = opExt;
                 if (isXfer) {
                     direction = 'transfer';
-                    hangupParty = 'Transfer (Operatorga)';
+                    hangupParty = 'Transfer';
 
                     const initOp = (xferFromRaw && xferFromRaw !== 'NULL' && xferFromRaw !== '\\N' ? xferFromRaw : opExt || '').trim();
                     const destOps = xferChain.split('➔').map(s => s.trim()).filter(Boolean);

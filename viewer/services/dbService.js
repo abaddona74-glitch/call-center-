@@ -7,7 +7,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const EXCLUDED_OPERATORS = new Set(['1234', '1111', '1324', '1001', '1000', '402', '401', '170', '161', '118', '115', '160', '66', '110', '213', '116']);
+const EXCLUDED_OPERATORS = new Set();
 
 const KNOWN_OPERATORS = {
     '101': 'Oybek',

@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Center - Tizimga Kirish</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0e17;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: rgba(59, 130, 246, 0.22);
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --error-bg: rgba(239, 68, 68, 0.15);
+            --error-border: rgba(239, 68, 68, 0.4);
+            --error-text: #f87171;
+            --success-text: #34d399;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-main);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Subtle animated background grid */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 420px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 40px 32px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                        0 0 35px rgba(59, 130, 246, 0.15);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-logo {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.35));
+            border: 1px solid rgba(59, 130, 246, 0.45);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .login-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.4px;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .login-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+            letter-spacing: 0.2px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            width: 18px;
+            height: 18px;
+            color: #64748b;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            padding: 13px 42px 13px 44px;
+            font-size: 14px;
+            color: #fff;
+            outline: none;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .form-input:focus + .input-icon,
+        .input-wrapper:focus-within .input-icon {
+            color: var(--primary);
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: color 0.15s;
+        }
+
+        .toggle-password:hover {
+            color: #cbd5e1;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .alert-banner {
+            display: none;
+            background: var(--error-bg);
+            border: 1px solid var(--error-border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+            font-size: 12.5px;
+            color: var(--error-text);
+            line-height: 1.45;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .alert-banner.active {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .alert-icon {
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            margin-top: 1px;
+            color: var(--error-text);
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 11.5px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        /* Modal Backdrop & Card */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 7, 13, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal-card {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 20px;
+            padding: 32px 28px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(59, 130, 246, 0.15);
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #f1f5f9;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .modal-badge-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 14px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .modal-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+
+        .modal-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.45;
+        }
+
+        .forgot-step {
+            display: none;
+        }
+
+        .forgot-step.active {
+            display: block;
+        }
+
+        .code-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid rgba(59, 130, 246, 0.4);
+            border-radius: 14px;
+            padding: 16px;
+            font-size: 28px;
+            font-weight: 800;
+            color: #60a5fa;
+            text-align: center;
+            letter-spacing: 12px;
+            outline: none;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            transition: all 0.2s;
+        }
+
+        .code-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+            background: rgba(15, 23, 42, 1);
+        }
+
+        .countdown-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            color: #93c5fd;
+            margin: 0 auto 12px;
+            width: fit-content;
+        }
+
+        .countdown-badge.expired {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        .security-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.25);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 18px;
+            font-size: 11.5px;
+            color: #fde047;
+            line-height: 1.4;
+        }
+
+        .security-warning.danger {
+            background: rgba(239, 68, 68, 0.12);
+            border-color: rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+        }
+
+        .btn-link {
+            background: transparent;
+            border: none;
+            color: #60a5fa;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: all 0.15s;
+        }
+
+        .btn-link:hover {
+            color: #93c5fd;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-link:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .field-hint {
+            font-size: 11.5px;
+            color: #94a3b8;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .forgot-link-wrapper {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: -6px;
+            margin-bottom: 16px;
+        }
+
+        .forgot-link {
+            background: none;
+            border: none;
+            color: #60a5fa;
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 4px 0;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .forgot-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+
+    <div class="login-container">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg style="width: 28px; height: 28px;" viewBox="0 0 24 24" fill="none">
+                    <path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/>
+                </svg>
+            </div>
+            <h1 class="login-title">Call Center Analytics</h1>
+            <p class="login-subtitle">Xavfsiz tizimga kirish paneli</p>
+        </div>
+
+        <div id="loginErrorMessage" class="alert-banner">
+            <svg class="alert-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 8V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M11.995 16H12.005" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span id="alertText">Xatolik yuz berdi</span>
+        </div>
+
+        <form id="loginForm" autocomplete="on">
+            <div class="form-group">
+                <label class="form-label" for="usernameInput">Foydalanuvchi nomi</label>
+                <div class="input-wrapper">
+                    <div class="input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                            <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="usernameInput" 
+                        name="username" 
+                        class="form-input" 
+                        placeholder="Loginni kiriting" 
+                        required 
+                        autocomplete="username"
+                        autofocus
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="passwordInput">Maxfiy parol</label>
+                <div class="input-wrapper">
+                    <div class="input-icon">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                            <path d="M6 10V8C6 4.69 7 2 12 2C17 2 18 4.69 18 8V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 18.5C13.3807 18.5 14.5 17.3807 14.5 16C14.5 14.6193 13.3807 13.5 12 13.5C10.6193 13.5 9.5 14.6193 9.5 16C9.5 17.3807 10.6193 18.5 12 18.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M17 22H7C3 22 2 21 2 17V15C2 11 3 10 7 10H17C21 10 22 11 22 15V17C22 21 21 22 17 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <input 
+                        type="password" 
+                        id="passwordInput" 
+                        name="password" 
+                        class="form-input" 
+                        placeholder="Parolni kiriting" 
+                        required 
+                        autocomplete="current-password"
+                    >
+                    <button type="button" class="toggle-password" id="togglePasswordBtn" title="Parolni ko'rsatish/yashirish">
+                        <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                            <path d="M15.58 12C15.58 13.98 13.98 15.58 12 15.58C10.02 15.58 8.42 13.98 8.42 12C8.42 10.02 10.02 8.42 12 8.42C13.98 8.42 15.58 10.02 15.58 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 20.27C15.53 20.27 18.82 18.19 21.11 14.59C22.01 13.18 22.01 10.81 21.11 9.39997C18.82 5.79997 15.53 3.71997 12 3.71997C8.47 3.71997 5.18 5.79997 2.89 9.39997C1.99 10.81 1.99 13.18 2.89 14.59C5.18 18.19 8.47 20.27 12 20.27Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="forgot-link-wrapper">
+                <button type="button" id="openForgotModalBtn" class="forgot-link">Parolni unutdingizmi?</button>
+            </div>
+
+            <button type="submit" id="loginButton" class="btn-submit">
+                <span id="btnText">Kirish</span>
+            </button>
+        </form>
+
+        <div class="footer-note">
+            <svg viewBox="0 0 24 24" fill="none" style="width: 13px; height: 13px; color: #38bdf8;">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Brute-force va Lockout himoyasi faol</span>
+        </div>
+    </div>
+
+    <!-- Parolni tiklash Modali (3-bosqichli) -->
+    <div id="forgotPasswordModal" class="modal-backdrop">
+        <div class="modal-card">
+            <button type="button" class="modal-close" id="closeForgotModalBtn" aria-label="Yopish">
+                <svg viewBox="0 0 24 24" fill="none" style="width: 20px; height: 20px;">
+                    <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9.17 14.83L14.83 9.17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14.83 14.83L9.17 9.17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+
+            <!-- Modal Alert Banner -->
+            <div id="forgotModalAlert" class="alert-banner">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 8V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M11.995 16H12.005" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span id="forgotAlertText"></span>
+            </div>
+
+            <!-- STEP 1: Foydalanuvchini kiritish -->
+            <div id="forgotStep1" class="forgot-step active">
+                <div class="modal-header">
+                    <div class="modal-badge-icon">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 26px; height: 26px; color: #38bdf8;">
+                            <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="modal-title">Parolni tiklash</h2>
+                    <p class="modal-subtitle">Login yoki tizimdagi email manzilingizni kiriting. Sizga 6 xonali tasdiqlash kodi yuboriladi.</p>
+                </div>
+
+                <form id="forgotStep1Form">
+                    <div class="form-group">
+                        <label class="form-label" for="forgotUsernameInput">Login yoki Email</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                                    <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <input type="text" id="forgotUsernameInput" class="form-input" placeholder="superuser yoki misol@gmail.com" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="forgotEmailFallbackGroup" style="display: none;">
+                        <label class="form-label" for="forgotEmailInput">Email manzilingiz</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                                    <path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <input type="email" id="forgotEmailInput" class="form-input" placeholder="namuna@gmail.com">
+                        </div>
+                        <p class="field-hint">Ushbu akkauntda email kiritilmagan. Kod borishi uchun emailingizni kiriting.</p>
+                    </div>
+
+                    <button type="submit" id="forgotSendCodeBtn" class="btn-submit">
+                        <span id="sendCodeBtnText">Kodni yuborish</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- STEP 2: 6 xonali tasdiqlash kodini kiritish va taymer -->
+            <div id="forgotStep2" class="forgot-step">
+                <div class="modal-header">
+                    <div class="modal-badge-icon" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4);">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 26px; height: 26px; color: #34d399;">
+                            <path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="modal-title">Tasdiqlash kodi</h2>
+                    <p class="modal-subtitle">
+                        Tasdiqlash kodi <strong id="sentEmailDisplay" style="color: #60a5fa;"></strong> manziliga yuborildi.
+                    </p>
+                </div>
+
+                <!-- 2 daqiqalik Jonli Taymer -->
+                <div class="countdown-badge" id="countdownBadge">
+                    <svg viewBox="0 0 24 24" fill="none" style="width: 15px; height: 15px;">
+                        <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Amal qilish vaqti: <strong id="timerText">02:00</strong></span>
+                </div>
+
+                <!-- 3 ta urinish chegarasi ogohlantirishi -->
+                <div class="security-warning" id="securityWarningBox">
+                    <svg viewBox="0 0 24 24" fill="none" style="width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px;">
+                        <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 8V13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M11.995 16H12.005" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span id="attemptsWarningText">3 tadan ko'p xato urinish bo'lsa, hisobingiz xavfsizlik uchun bloklanadi.</span>
+                </div>
+
+                <form id="forgotStep2Form">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <input 
+                            type="text" 
+                            id="forgotCodeInput" 
+                            class="code-input" 
+                            placeholder="······" 
+                            maxlength="6" 
+                            inputmode="numeric" 
+                            pattern="[0-9]*"
+                            autocomplete="one-time-code"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" id="forgotVerifyCodeBtn" class="btn-submit">
+                        <span id="verifyBtnText">Kodni tasdiqlash</span>
+                    </button>
+
+                    <div style="display: flex; justify-content: center; margin-top: 14px;">
+                        <button type="button" id="resendCodeBtn" class="btn-link">
+                            <svg viewBox="0 0 24 24" fill="none" style="width: 15px; height: 15px;">
+                                <path d="M22 12C22 17.52 17.52 22 12 22C6.48 22 3.11 16.44 3.11 16.44M3.11 16.44H7.64M3.11 16.44V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12C2 6.48 6.44 2 12 2C18.67 2 22 7.56 22 7.56M22 7.56V3M22 7.56H17.56" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <span id="resendBtnText">Kodni qayta yuborish</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- STEP 3: Yangi parol o'rnatish -->
+            <div id="forgotStep3" class="forgot-step">
+                <div class="modal-header">
+                    <div class="modal-badge-icon" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4);">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 26px; height: 26px; color: #818cf8;">
+                            <path d="M6 10V8C6 4.69 7 2 12 2C17 2 18 4.69 18 8V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 18.5C13.3807 18.5 14.5 17.3807 14.5 16C14.5 14.6193 13.3807 13.5 12 13.5C10.6193 13.5 9.5 14.6193 9.5 16C9.5 17.3807 10.6193 18.5 12 18.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M17 22H7C3 22 2 21 2 17V15C2 11 3 10 7 10H17C21 10 22 11 22 15V17C22 21 21 22 17 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h2 class="modal-title">Yangi parol o'rnatish</h2>
+                    <p class="modal-subtitle">Hisobingiz uchun yangi maxfiy parolni belgilang (kamida 6 ta belgi).</p>
+                </div>
+
+                <form id="forgotStep3Form">
+                    <div class="form-group">
+                        <label class="form-label" for="newPasswordInput">Yangi parol</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                                    <path d="M6 10V8C6 4.69 7 2 12 2C17 2 18 4.69 18 8V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M17 22H7C3 22 2 21 2 17V15C2 11 3 10 7 10H17C21 10 22 11 22 15V17C22 21 21 22 17 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <input type="password" id="newPasswordInput" class="form-input" placeholder="Kamida 6 ta belgi" required minlength="6">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPasswordInput">Yangi parolni tasdiqlang</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <input type="password" id="confirmPasswordInput" class="form-input" placeholder="Parolni qayta kiriting" required minlength="6">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="saveNewPasswordBtn" class="btn-submit">
+                        <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
+                            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M9 12L11 14L15 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span id="savePassBtnText">Parolni saqlash va kirish</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('usernameInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const btn = document.getElementById('loginButton');
+        const btnText = document.getElementById('btnText');
+        const alertBox = document.getElementById('loginErrorMessage');
+        const alertText = document.getElementById('alertText');
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+
+        // Show / Hide Password
+        toggleBtn.addEventListener('click', () => {
+            const isPass = passwordInput.getAttribute('type') === 'password';
+            passwordInput.setAttribute('type', isPass ? 'text' : 'password');
+        });
+
+        function showAlert(msg) {
+            alertText.textContent = msg;
+            alertBox.classList.add('active');
+        }
+
+        function hideAlert() {
+            alertBox.classList.remove('active');
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!username || !password) {
+                showAlert('Login va parolni to\'liq kiriting!');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.innerHTML = '<div class="spinner"></div> Tekshirilmoqda...';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    btnText.textContent = 'Muvaffaqiyatli! Yo\'naltirilmoqda...';
+                    if (data.token) {
+                        try {
+                            localStorage.setItem('cc_token', data.token);
+                        } catch (e) {}
+                    }
+                    if (data.user && data.user.role === 'operator') {
+                        const tokenParam = data.token ? `?token=${encodeURIComponent(data.token)}` : '';
+                        const viewerUrl = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
+                        window.location.href = viewerUrl;
+                    } else {
+                        window.location.href = '/';
+                    }
+                } else {
+                    showAlert(data.error || 'Login yoki parol noto\'g\'ri!');
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            } catch (err) {
+                showAlert('Server bilan bog\'lanishda xatolik yuz berdi. Qayta urinib ko\'ring.');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Kirish';
+            }
+        });
+
+        // ==========================================
+        // PAROLNI TIKLASH (FORGOT PASSWORD) MANTIQI
+        // ==========================================
+
+        const forgotModal = document.getElementById('forgotPasswordModal');
+        const openForgotModalBtn = document.getElementById('openForgotModalBtn');
+        const closeForgotModalBtn = document.getElementById('closeForgotModalBtn');
+        const forgotModalAlert = document.getElementById('forgotModalAlert');
+        const forgotAlertText = document.getElementById('forgotAlertText');
+
+        // Steps
+        const step1 = document.getElementById('forgotStep1');
+        const step2 = document.getElementById('forgotStep2');
+        const step3 = document.getElementById('forgotStep3');
+
+        // Step 1 Elements
+        const step1Form = document.getElementById('forgotStep1Form');
+        const forgotUsernameInput = document.getElementById('forgotUsernameInput');
+        const forgotEmailFallbackGroup = document.getElementById('forgotEmailFallbackGroup');
+        const forgotEmailInput = document.getElementById('forgotEmailInput');
+        const forgotSendCodeBtn = document.getElementById('forgotSendCodeBtn');
+        const sendCodeBtnText = document.getElementById('sendCodeBtnText');
+
+        // Step 2 Elements
+        const step2Form = document.getElementById('forgotStep2Form');
+        const sentEmailDisplay = document.getElementById('sentEmailDisplay');
+        const countdownBadge = document.getElementById('countdownBadge');
+        const timerText = document.getElementById('timerText');
+        const securityWarningBox = document.getElementById('securityWarningBox');
+        const attemptsWarningText = document.getElementById('attemptsWarningText');
+        const forgotCodeInput = document.getElementById('forgotCodeInput');
+        const forgotVerifyCodeBtn = document.getElementById('forgotVerifyCodeBtn');
+        const verifyBtnText = document.getElementById('verifyBtnText');
+        const resendCodeBtn = document.getElementById('resendCodeBtn');
+        const resendBtnText = document.getElementById('resendBtnText');
+
+        // Step 3 Elements
+        const step3Form = document.getElementById('forgotStep3Form');
+        const newPasswordInput = document.getElementById('newPasswordInput');
+        const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+        const saveNewPasswordBtn = document.getElementById('saveNewPasswordBtn');
+        const savePassBtnText = document.getElementById('savePassBtnText');
+
+        // State
+        let recoveryState = {
+            username: '',
+            maskedEmail: '',
+            resetToken: '',
+            timerInterval: null,
+            remainingSeconds: 120,
+            resendCooldownInterval: null,
+            resendCooldownSeconds: 0
+        };
+
+        function showForgotAlert(msg, isSuccess = false) {
+            forgotAlertText.textContent = msg;
+            forgotModalAlert.classList.add('active');
+            if (isSuccess) {
+                forgotModalAlert.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                forgotModalAlert.style.background = 'rgba(16, 185, 129, 0.15)';
+                forgotModalAlert.style.color = '#6ee7b7';
+            } else {
+                forgotModalAlert.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                forgotModalAlert.style.background = 'rgba(239, 68, 68, 0.15)';
+                forgotModalAlert.style.color = '#f87171';
+            }
+        }
+
+        function hideForgotAlert() {
+            forgotModalAlert.classList.remove('active');
+        }
+
+        function setStep(stepNum) {
+            hideForgotAlert();
+            step1.classList.toggle('active', stepNum === 1);
+            step2.classList.toggle('active', stepNum === 2);
+            step3.classList.toggle('active', stepNum === 3);
+
+            if (stepNum === 1) {
+                setTimeout(() => forgotUsernameInput.focus(), 100);
+            } else if (stepNum === 2) {
+                setTimeout(() => forgotCodeInput.focus(), 100);
+            } else if (stepNum === 3) {
+                setTimeout(() => newPasswordInput.focus(), 100);
+            }
+        }
+
+        function openModal() {
+            hideAlert();
+            hideForgotAlert();
+            forgotUsernameInput.value = usernameInput.value.trim();
+            forgotEmailFallbackGroup.style.display = 'none';
+            forgotEmailInput.value = '';
+            setStep(1);
+            forgotModal.classList.add('active');
+        }
+
+        function closeModal() {
+            forgotModal.classList.remove('active');
+            stopCountdownTimer();
+            stopResendCooldown();
+        }
+
+        openForgotModalBtn.addEventListener('click', openModal);
+        closeForgotModalBtn.addEventListener('click', closeModal);
+        forgotModal.addEventListener('click', (e) => {
+            if (e.target === forgotModal) closeModal();
+        });
+
+        // 2 daqiqalik (120s) teskari taymer
+        function startCountdownTimer(seconds = 120) {
+            stopCountdownTimer();
+            recoveryState.remainingSeconds = seconds;
+            updateTimerDisplay();
+
+            countdownBadge.classList.remove('expired');
+            forgotVerifyCodeBtn.disabled = false;
+            forgotCodeInput.disabled = false;
+
+            recoveryState.timerInterval = setInterval(() => {
+                recoveryState.remainingSeconds--;
+                updateTimerDisplay();
+
+                if (recoveryState.remainingSeconds <= 0) {
+                    stopCountdownTimer();
+                    countdownBadge.classList.add('expired');
+                    timerText.textContent = '00:00 (Vaqti tugadi)';
+                    forgotVerifyCodeBtn.disabled = true;
+                    showForgotAlert('Kodning 2 daqiqalik amal qilish muddati tugadi. Iltimos, "Kodni qayta yuborish" tugmasini bosing.');
+                }
+            }, 1000);
+        }
+
+        function stopCountdownTimer() {
+            if (recoveryState.timerInterval) {
+                clearInterval(recoveryState.timerInterval);
+                recoveryState.timerInterval = null;
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(Math.max(0, recoveryState.remainingSeconds) / 60);
+            const secs = Math.max(0, recoveryState.remainingSeconds) % 60;
+            timerText.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // Resend tugmasi uchun cooldown (30s)
+        function startResendCooldown(seconds = 30) {
+            stopResendCooldown();
+            recoveryState.resendCooldownSeconds = seconds;
+            resendCodeBtn.disabled = true;
+            resendBtnText.textContent = `Qayta yuborish (${recoveryState.resendCooldownSeconds}s)`;
+
+            recoveryState.resendCooldownInterval = setInterval(() => {
+                recoveryState.resendCooldownSeconds--;
+                if (recoveryState.resendCooldownSeconds <= 0) {
+                    stopResendCooldown();
+                    resendCodeBtn.disabled = false;
+                    resendBtnText.textContent = 'Kodni qayta yuborish';
+                } else {
+                    resendBtnText.textContent = `Qayta yuborish (${recoveryState.resendCooldownSeconds}s)`;
+                }
+            }, 1000);
+        }
+
+        function stopResendCooldown() {
+            if (recoveryState.resendCooldownInterval) {
+                clearInterval(recoveryState.resendCooldownInterval);
+                recoveryState.resendCooldownInterval = null;
+            }
+        }
+
+        // 1-qadam: Kod so'rash
+        step1Form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideForgotAlert();
+
+            const identifier = forgotUsernameInput.value.trim();
+            const fallbackEmail = forgotEmailInput.value.trim();
+
+            if (!identifier) {
+                showForgotAlert('Login yoki emailni kiriting!');
+                return;
+            }
+
+            forgotSendCodeBtn.disabled = true;
+            sendCodeBtnText.innerHTML = '<div class="spinner"></div> Yuborilmoqda...';
+
+            try {
+                const res = await fetch('/api/auth/forgot-password/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier, email: fallbackEmail || null })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    recoveryState.username = data.username;
+                    recoveryState.maskedEmail = data.maskedEmail;
+
+                    sentEmailDisplay.textContent = data.maskedEmail;
+                    forgotCodeInput.value = '';
+                    securityWarningBox.className = 'security-warning';
+                    attemptsWarningText.textContent = "3 tadan ko'p xato urinish bo'lsa, hisobingiz xavfsizlik uchun bloklanadi.";
+
+                    setStep(2);
+                    startCountdownTimer(data.expiresInSeconds || 120);
+                    startResendCooldown(30);
+                } else if (data.needsEmail) {
+                    forgotEmailFallbackGroup.style.display = 'block';
+                    forgotEmailInput.focus();
+                    showForgotAlert(data.error || 'Hisobingizga email biriktirilmagan. Iltimos, emailingizni kiriting.');
+                } else {
+                    showForgotAlert(data.error || 'Xatolik yuz berdi');
+                }
+            } catch (err) {
+                showForgotAlert('Server bilan bog\'lanishda xatolik yuz berdi');
+            } finally {
+                forgotSendCodeBtn.disabled = false;
+                sendCodeBtnText.textContent = 'Kodni yuborish';
+            }
+        });
+
+        // Kodni qayta yuborish
+        resendCodeBtn.addEventListener('click', async () => {
+            if (resendCodeBtn.disabled) return;
+            hideForgotAlert();
+
+            resendCodeBtn.disabled = true;
+            resendBtnText.textContent = 'Yuborilmoqda...';
+
+            try {
+                const res = await fetch('/api/auth/forgot-password/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        identifier: recoveryState.username || forgotUsernameInput.value.trim(),
+                        email: forgotEmailInput.value.trim() || null 
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    forgotCodeInput.value = '';
+                    securityWarningBox.className = 'security-warning';
+                    attemptsWarningText.textContent = "Yangi kod yuborildi! 3 tadan ko'p xato urinish bo'lsa akkaunt bloklanadi.";
+                    showForgotAlert(data.message || 'Yangi 6 xonali tasdiqlash kodi yuborildi', true);
+                    startCountdownTimer(data.expiresInSeconds || 120);
+                    startResendCooldown(30);
+                    forgotCodeInput.focus();
+                } else {
+                    showForgotAlert(data.error || 'Kodni qayta yuborishda xatolik');
+                    startResendCooldown(15);
+                }
+            } catch (e) {
+                showForgotAlert('Server bilan bog\'lanishda xatolik');
+                startResendCooldown(15);
+            }
+        });
+
+        // Kod kiritish: faqat raqamlar
+        forgotCodeInput.addEventListener('input', (e) => {
+            forgotCodeInput.value = forgotCodeInput.value.replace(/[^0-9]/g, '').slice(0, 6);
+            if (forgotCodeInput.value.length === 6) {
+                // Avtomatik tasdiqlash
+                step2Form.requestSubmit();
+            }
+        });
+
+        // 2-qadam: Kodni tekshirish
+        step2Form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideForgotAlert();
+
+            const code = forgotCodeInput.value.trim();
+            if (code.length !== 6) {
+                showForgotAlert('6 xonali kodni to\'liq kiriting!');
+                return;
+            }
+
+            forgotVerifyCodeBtn.disabled = true;
+            verifyBtnText.innerHTML = '<div class="spinner"></div> Tekshirilmoqda...';
+
+            try {
+                const res = await fetch('/api/auth/forgot-password/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: recoveryState.username, code })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    stopCountdownTimer();
+                    recoveryState.resetToken = data.resetToken;
+                    newPasswordInput.value = '';
+                    confirmPasswordInput.value = '';
+                    setStep(3);
+                } else {
+                    showForgotAlert(data.error || 'Kod noto\'g\'ri!');
+                    if (data.remainingAttempts !== undefined) {
+                        securityWarningBox.className = 'security-warning danger';
+                        attemptsWarningText.textContent = `DIQQAT: Qolgan urinishlar soni: ${data.remainingAttempts} ta! 3 tadan oshsa bloklanadi.`;
+                    }
+                    if (data.locked) {
+                        securityWarningBox.className = 'security-warning danger';
+                        attemptsWarningText.textContent = "Akkauntingiz ko'p xato urinishlar tufayli bloklandi!";
+                        forgotCodeInput.disabled = true;
+                        forgotVerifyCodeBtn.disabled = true;
+                        resendCodeBtn.disabled = true;
+                    }
+                    forgotCodeInput.value = '';
+                    forgotCodeInput.focus();
+                }
+            } catch (err) {
+                showForgotAlert('Server bilan bog\'lanishda xatolik yuz berdi');
+            } finally {
+                forgotVerifyCodeBtn.disabled = false;
+                verifyBtnText.textContent = 'Kodni tasdiqlash';
+            }
+        });
+
+        // 3-qadam: Yangi parolni saqlash
+        step3Form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideForgotAlert();
+
+            const newPass = newPasswordInput.value;
+            const confirmPass = confirmPasswordInput.value;
+
+            if (newPass.length < 6) {
+                showForgotAlert('Yangi parol kamida 6 ta belgidan iborat bo\'lishi shart!');
+                return;
+            }
+
+            if (newPass !== confirmPass) {
+                showForgotAlert('Kiritilgan parollar bir-biriga mos kelmadi!');
+                confirmPasswordInput.focus();
+                return;
+            }
+
+            saveNewPasswordBtn.disabled = true;
+            savePassBtnText.innerHTML = '<div class="spinner"></div> Saqlanmoqda...';
+
+            try {
+                const res = await fetch('/api/auth/forgot-password/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: recoveryState.username,
+                        resetToken: recoveryState.resetToken,
+                        newPassword: newPass
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    closeModal();
+                    usernameInput.value = recoveryState.username;
+                    passwordInput.value = '';
+                    showAlert('Parolingiz muvaffaqiyatli yangilandi! Yangi parol bilan tizimga kiring.');
+                    alertBox.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    alertBox.style.background = 'rgba(16, 185, 129, 0.15)';
+                    alertBox.style.color = '#34d399';
+                    passwordInput.focus();
+                } else {
+                    showForgotAlert(data.error || 'Parolni yangilashda xatolik yuz berdi');
+                }
+            } catch (err) {
+                showForgotAlert('Server bilan bog\'lanishda xatolik yuz berdi');
+            } finally {
+                saveNewPasswordBtn.disabled = false;
+                savePassBtnText.textContent = 'Parolni saqlash va kirish';
+            }
+        });
+    </script>
+</body>
+</html>

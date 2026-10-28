@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "node app.js",
+    "test": "node -c app.js config.js services/ticketService.js public/js/tickets.js public/js/viewer.js",
+    "build": "node -c app.js config.js services/ticketService.js public/js/tickets.js public/js/viewer.js",
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
@@ -15,6 +17,7 @@
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",
+    "mammoth": "^1.13.0",
     "ssh2": "^1.16.0",
     "ws": "^8.21.3"
   }
