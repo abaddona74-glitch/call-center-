@@ -1,7 +1,7 @@
 # Graph Report - call center  (2026-10-30)
 
 ## Corpus Check
-- 85 files · ~586,584 words
+- 85 files · ~587,060 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 26 file(s) not represented in the graph (top: .ttf 6, (none) 4, .bat 4)
 

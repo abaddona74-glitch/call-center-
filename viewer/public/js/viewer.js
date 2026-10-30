@@ -647,6 +647,104 @@ function sortOperatorsWithPriority(operators, sortedByScoreList, activeConversat
     });
 }
 
+/* ==========================================================================
+   Operator Cards Smooth FLIP Animation (Prevent Jarring Teleporting)
+   ========================================================================== */
+let _lastRenderedOperatorGroup = null;
+
+function captureCardsBoundingRects(container) {
+    const rects = new Map();
+    if (!container) return rects;
+    const containerRect = container.getBoundingClientRect();
+    const elements = container.querySelectorAll('[data-flip-id]');
+    elements.forEach(el => {
+        const id = el.getAttribute('data-flip-id');
+        if (!id) return;
+        const r = el.getBoundingClientRect();
+        rects.set(id, {
+            left: r.left - containerRect.left,
+            top: r.top - containerRect.top
+        });
+    });
+    return rects;
+}
+
+function playCardsFlipAnimation(container, firstRects) {
+    if (!container || !firstRects || firstRects.size === 0) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const newElements = container.querySelectorAll('[data-flip-id]');
+    const animatingList = [];
+
+    newElements.forEach(el => {
+        const id = el.getAttribute('data-flip-id');
+        if (!id) return;
+        const first = firstRects.get(id);
+        if (!first) {
+            // Yangi paydo bo'lgan karta (masalan, yangi ro'yxatga kirgan operator)
+            el.style.opacity = '0';
+            el.style.transform = 'scale(0.96)';
+            el.style.transition = 'none';
+            requestAnimationFrame(() => {
+                void el.offsetWidth;
+                el.style.transition = 'opacity 220ms ease-out, transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)';
+                el.style.opacity = '';
+                el.style.transform = '';
+                const onEnd = (e) => {
+                    if (e && e.target !== el) return;
+                    el.style.transition = '';
+                    el.removeEventListener('transitionend', onEnd);
+                };
+                el.addEventListener('transitionend', onEnd);
+            });
+            return;
+        }
+
+        const r = el.getBoundingClientRect();
+        const lastLeft = r.left - containerRect.left;
+        const lastTop = r.top - containerRect.top;
+
+        const dx = first.left - lastLeft;
+        const dy = first.top - lastTop;
+
+        // Agar 1.5px dan ko'proq siljish bo'lsa (tepaga, pastga yoki qatorlar bo'yicha)
+        if (Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5) {
+            // INVERT: Darhol eski o'rniga surib qo'yamiz (sakrashni to'xtatish)
+            el.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+            el.style.transition = 'none';
+            el.style.zIndex = '6';
+            el.classList.add('op-flip-moving');
+            animatingList.push(el);
+        }
+    });
+
+    if (animatingList.length === 0) return;
+
+    // PLAY: Keyingi frame'da o'zining yangi o'rniga silliq siljitish
+    requestAnimationFrame(() => {
+        void container.offsetWidth;
+        requestAnimationFrame(() => {
+            animatingList.forEach(el => {
+                // Apple & Emil Kowalski smooth ease: cubic-bezier(0.2, 0.9, 0.3, 1)
+                el.style.transition = 'transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1)';
+                el.style.transform = 'translate3d(0, 0, 0)';
+
+                const cleanup = (e) => {
+                    if (e && e.target !== el) return;
+                    el.style.transition = '';
+                    el.style.transform = '';
+                    el.style.zIndex = '';
+                    el.classList.remove('op-flip-moving');
+                    el.removeEventListener('transitionend', cleanup);
+                };
+                el.addEventListener('transitionend', cleanup);
+                setTimeout(cleanup, 360);
+            });
+        });
+    });
+}
+
 function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
@@ -700,6 +798,11 @@ function renderOperators(operators) {
 
     const grid = document.getElementById('operatorsGrid');
     if (!grid) return;
+
+    // FLIP animatsiyasi uchun DOM o'zgarishidan oldingi koordinatalarni saqlash
+    const isSameGroup = (_lastRenderedOperatorGroup === currentOperatorGroup);
+    _lastRenderedOperatorGroup = currentOperatorGroup;
+    const firstRects = isSameGroup ? captureCardsBoundingRects(grid) : new Map();
 
     if (currentOperators.length === 0) {
         grid.innerHTML = `
@@ -1017,7 +1120,11 @@ function renderOperators(operators) {
             : `class="op-mockup-name" title="${cleanName}"`;
 
         return `
-            <div class="${cardClass}" onclick="openOperatorDetail('${op.id}')" title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini ko'rish uchun bosing`)}">
+            <div class="${cardClass}" 
+                 data-op-id="${op.id}"
+                 data-flip-id="op-${op.id}"
+                 onclick="openOperatorDetail('${op.id}')" 
+                 title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini ko'rish uchun bosing`)}">
                 ${ringingNow ? `<div class="call-live-strip ${isOutbound ? 'outbound-ringing' : 'ringing'}"></div>` : (isTalking ? '<div class="call-live-strip talking"></div>' : '')}
                 ${nextInLineBadgeHtml}
                 <div class="op-mockup-body">
@@ -1207,7 +1314,7 @@ function renderOperators(operators) {
     // 1-LINIYA (Divider): Kutmoqda (Tayyor)
     if (readyOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider divider-ready" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
+            <div class="op-grid-divider divider-ready" data-flip-id="div-ready" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -1224,7 +1331,7 @@ function renderOperators(operators) {
     // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar
     if (offlineOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
+            <div class="op-grid-divider" data-flip-id="div-offline" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -1238,6 +1345,9 @@ function renderOperators(operators) {
     }
 
     grid.innerHTML = finalHtml;
+
+    // FLIP Layout Animation: kartalar va dividerlarni teleport bo'lishdan asrash (silliq siljitish)
+    playCardsFlipAnimation(grid, firstRects);
 
     // Yangi kartalardagi jonli taymerlarni darhol hisoblab ko'rsatish
     updateAllTalkingTimers();

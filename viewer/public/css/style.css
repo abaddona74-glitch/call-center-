@@ -2344,6 +2344,28 @@ tr.row-transfer {
     overflow: visible !important;
     z-index: 1;
 }
+.operator-card.op-v2-card[data-flip-id] {
+    will-change: transform;
+}
+.operator-card.op-v2-card.op-flip-moving {
+    pointer-events: none;
+    z-index: 8 !important;
+}
+.op-grid-divider[data-flip-id] {
+    will-change: transform;
+}
+.op-grid-divider.op-flip-moving {
+    pointer-events: none;
+    z-index: 7 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .operator-card.op-v2-card[data-flip-id],
+    .op-grid-divider[data-flip-id] {
+        will-change: auto !important;
+        transition: none !important;
+        transform: none !important;
+    }
+}
 
 .operator-card.op-v2-card:hover {
     z-index: 15;

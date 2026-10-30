@@ -2477,6 +2477,28 @@ body.sidebar-collapsed .navbar-sidebar-toggle-btn {
     font-family: 'Onest', system-ui, -apple-system, sans-serif;
     transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
+.operator-card.op-redesign[data-flip-id] {
+    will-change: transform;
+}
+.operator-card.op-redesign.op-flip-moving {
+    pointer-events: none;
+    z-index: 8 !important;
+}
+.op-grid-divider[data-flip-id] {
+    will-change: transform;
+}
+.op-grid-divider.op-flip-moving {
+    pointer-events: none;
+    z-index: 7 !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .operator-card.op-redesign[data-flip-id],
+    .op-grid-divider[data-flip-id] {
+        will-change: auto !important;
+        transition: none !important;
+        transform: none !important;
+    }
+}
 .operator-card.op-redesign:hover {
     border-color: rgba(62, 166, 255, 0.45);
     transform: translateY(-2px);

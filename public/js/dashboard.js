@@ -5296,6 +5296,106 @@ function toggleOfflineCardsView(e) {
 }
 window.toggleOfflineCardsView = toggleOfflineCardsView;
 
+/* ==========================================================================
+   Operator Cards Smooth FLIP Animation (Prevent Jarring Teleporting)
+   ========================================================================== */
+let _lastRenderedOperatorGroup = null;
+
+function captureCardsBoundingRects(container) {
+    const rects = new Map();
+    if (!container) return rects;
+    const containerRect = container.getBoundingClientRect();
+    const elements = container.querySelectorAll('[data-flip-id]');
+    elements.forEach(el => {
+        const id = el.getAttribute('data-flip-id');
+        if (!id) return;
+        const r = el.getBoundingClientRect();
+        // Containerga nisbatan koordinatalarni saqlash
+        rects.set(id, {
+            left: r.left - containerRect.left,
+            top: r.top - containerRect.top
+        });
+    });
+    return rects;
+}
+
+function playCardsFlipAnimation(container, firstRects) {
+    if (!container || !firstRects || firstRects.size === 0) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const newElements = container.querySelectorAll('[data-flip-id]');
+    const animatingList = [];
+
+    newElements.forEach(el => {
+        const id = el.getAttribute('data-flip-id');
+        if (!id) return;
+        const first = firstRects.get(id);
+        if (!first) {
+            // Yangi paydo bo'lgan karta (masalan, yangi ro'yxatga kirgan operator)
+            // Emil Kowalski: never scale(0). Start from scale(0.96) + opacity 0
+            el.style.opacity = '0';
+            el.style.transform = 'scale(0.96)';
+            el.style.transition = 'none';
+            requestAnimationFrame(() => {
+                void el.offsetWidth;
+                el.style.transition = 'opacity 220ms ease-out, transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)';
+                el.style.opacity = '';
+                el.style.transform = '';
+                const onEnd = (e) => {
+                    if (e && e.target !== el) return;
+                    el.style.transition = '';
+                    el.removeEventListener('transitionend', onEnd);
+                };
+                el.addEventListener('transitionend', onEnd);
+            });
+            return;
+        }
+
+        const r = el.getBoundingClientRect();
+        const lastLeft = r.left - containerRect.left;
+        const lastTop = r.top - containerRect.top;
+
+        const dx = first.left - lastLeft;
+        const dy = first.top - lastTop;
+
+        // Agar 1.5px dan ko'proq siljish bo'lsa (tepaga, pastga yoki qatorlar bo'yicha)
+        if (Math.abs(dx) > 1.5 || Math.abs(dy) > 1.5) {
+            // INVERT: Darhol eski o'rniga surib qo'yamiz (sakrashni to'xtatish)
+            el.style.transform = `translate3d(${dx}px, ${dy}px, 0)`;
+            el.style.transition = 'none';
+            el.style.zIndex = '6';
+            el.classList.add('op-flip-moving');
+            animatingList.push(el);
+        }
+    });
+
+    if (animatingList.length === 0) return;
+
+    // PLAY: Keyingi frame'da o'zining yangi o'rniga silliq siljitish
+    requestAnimationFrame(() => {
+        void container.offsetWidth;
+        requestAnimationFrame(() => {
+            animatingList.forEach(el => {
+                // Apple & Emil Kowalski smooth ease: cubic-bezier(0.2, 0.9, 0.3, 1)
+                el.style.transition = 'transform 320ms cubic-bezier(0.2, 0.9, 0.3, 1)';
+                el.style.transform = 'translate3d(0, 0, 0)';
+
+                const cleanup = (e) => {
+                    if (e && e.target !== el) return;
+                    el.style.transition = '';
+                    el.style.transform = '';
+                    el.style.zIndex = '';
+                    el.classList.remove('op-flip-moving');
+                    el.removeEventListener('transitionend', cleanup);
+                };
+                el.addEventListener('transitionend', cleanup);
+                setTimeout(cleanup, 360);
+            });
+        });
+    });
+}
+
 function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
@@ -5348,6 +5448,12 @@ function renderOperators(operators) {
     }
 
     const grid = document.getElementById('operatorsGrid');
+
+    // FLIP animatsiyasi uchun DOM o'zgarishidan oldingi koordinatalarni saqlash
+    // Agar guruh o'zgarmagan bo'lsa, koordinatalarni olamiz
+    const isSameGroup = (_lastRenderedOperatorGroup === currentOperatorGroup);
+    _lastRenderedOperatorGroup = currentOperatorGroup;
+    const firstRects = (isSameGroup && grid) ? captureCardsBoundingRects(grid) : new Map();
 
     // Eng faol operatorni aniqlash (MVP reyting) jami qo'ng'iroqlar bo'yicha
     const sortedByScore = [...currentOperators]
@@ -5642,6 +5748,8 @@ function renderOperators(operators) {
 
         return `
             <article class="operator-card op-redesign clickable-card ${stateClass} ${isNextInLine ? 'next-in-line' : ''}" 
+                     data-op-id="${op.id}"
+                     data-flip-id="op-${op.id}"
                      onclick="openOperatorDetail('${op.id}')" 
                      title="${tf('op_card_click_detail', { name: cleanName }, `${cleanName} tafsilotlarini ko'rish uchun bosing`)}">
                 <div class="head">
@@ -5704,7 +5812,7 @@ function renderOperators(operators) {
     let readyDividerHtml = '';
     if (readyOperators.length > 0) {
         readyDividerHtml = `
-            <div class="op-grid-divider divider-ready" title="Qabul qilishga tayyor operatorlar">
+            <div class="op-grid-divider divider-ready" data-flip-id="div-ready" title="Qabul qilishga tayyor operatorlar">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -5728,7 +5836,7 @@ function renderOperators(operators) {
                     ${offlineOperators.map(o => {
                         const cName = getCleanOperatorName(o.realName || o.name, o.id);
                         return `
-                            <div class="row" onclick="openOperatorDetail('${o.id}')" title="${cName} tafsilotlarini ko'rish uchun bosing">
+                            <div class="row" data-op-id="${o.id}" data-flip-id="op-${o.id}" onclick="openOperatorDetail('${o.id}')" title="${cName} tafsilotlarini ko'rish uchun bosing">
                                 <div class="av">${o.id}</div>
                                 <div class="who">
                                     <strong>${cName}</strong>
@@ -5745,7 +5853,7 @@ function renderOperators(operators) {
         }
 
         offlineSectionHtml = `
-            <div class="op-grid-divider" id="opOfflineSep" title="Oflayn operatorlar">
+            <div class="op-grid-divider" id="opOfflineSep" data-flip-id="div-offline" title="Oflayn operatorlar">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label" style="display: flex; align-items: center; gap: 8px;">
                     <span class="op-divider-dot"></span>
@@ -5770,6 +5878,9 @@ function renderOperators(operators) {
 
     if (_operatorsIsCompact) grid.classList.add('compact');
     if (_operatorsIsFocus) applyOperatorsFocusUI();
+
+    // FLIP Layout Animation: kartalar va dividerlarni teleport bo'lishdan asrash (silliq siljitish)
+    playCardsFlipAnimation(grid, firstRects);
 
     // Scroll reveal animatsiyasini operator kartalariga qo'llash
     applyOperatorCardsScrollReveal();
