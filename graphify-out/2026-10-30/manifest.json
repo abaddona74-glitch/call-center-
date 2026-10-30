@@ -72,9 +72,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "public/js/dashboard.js": {
-    "mtime": 1793339557.9995599,
-    "seen": 1793339627.1549914,
-    "ast_hash": "6e7c2dc9008b6a5039a12cc474d22189",
+    "mtime": 1793340338.8643465,
+    "seen": 1793340502.1218321,
+    "ast_hash": "fe18bb8ea2d6f2b7af938f62c7329a24",
     "semantic_hash": ""
   },
   "public/js/i18n.js": {
@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793337955.182871,
-    "seen": 1793339627.1549914,
-    "ast_hash": "5cdf17b69d5d19bb9b79a8f898753786",
+    "mtime": 1793339648.392509,
+    "seen": 1793340502.1218321,
+    "ast_hash": "77686cb60f5d525203c138e819916355",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -390,9 +390,9 @@
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
-    "mtime": 1793103585.4957473,
-    "seen": 1793103684.355219,
-    "ast_hash": "73d218ba60bca3c2c11ae62e9b48973f",
+    "mtime": 1793340413.6488135,
+    "seen": 1793340502.1218321,
+    "ast_hash": "cfb5ae08637bc39cdfad255c0d39e21b",
     "semantic_hash": ""
   },
   "viewer/public/vendor/mammoth.browser.min.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793337955.1968458,
-    "seen": 1793339627.1549914,
-    "ast_hash": "fef9836b96e85a1dfe80ca062cac57df",
+    "mtime": 1793339648.401493,
+    "seen": 1793340502.1218321,
+    "ast_hash": "824eaee4b778e373c00735f99ccecba4",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -480,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793339352.1592393,
-    "seen": 1793339627.1549914,
-    "ast_hash": "0846ad784c5afab1160a4ce987bd9b58",
+    "mtime": 1793339648.401493,
+    "seen": 1793340502.1218321,
+    "ast_hash": "5b8c620d2797b401f25f3c38a67998eb",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {

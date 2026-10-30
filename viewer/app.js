@@ -110,10 +110,29 @@ function logoutUpstream(token) {
 }
 
 const app = express();
+app.disable('x-powered-by');
 app.set('json spaces', 2);
+
+// HTTP Xavfsizlik sarlavhalari (Security Headers)
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Katta hajmdagi fayllar va ticket biriktirmalari uchun alohida 50mb limit
+app.use('/api/converter/convert', express.json({ limit: '50mb' }));
+app.use('/api/converter/convert', express.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/api/tickets', express.json({ limit: '50mb' }));
+app.use('/api/tickets', express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Qolgan barcha standart so'rovlar uchun xavfsiz 2mb limit (DoS xurujlariga qarshi)
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // HTTP -> HTTPS Redirect Gateway
 app.use((req, res, next) => {
@@ -227,7 +246,7 @@ app.use(async (req, res, next) => {
     return res.redirect(loginUrl);
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
 
 // SSL sertifikatlari mavjud bo'lsa, to'g'ridan-to'g'ri 3005-portda HTTPS ishga tushadi
 const wss = new WebSocket.Server({ noServer: true, maxPayload: 15 * 1024 * 1024 });

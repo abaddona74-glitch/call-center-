@@ -95,12 +95,26 @@ class AmiService {
         const target9 = this.getMatchablePhone9(phone);
         if (!target9) return null;
 
+        // Operator haqiqatda online ekanligini aniqlash yordamchisi
+        const isOperatorOnline = (opId) => {
+            if (!opId || !this.operators) return false;
+            const op = this.operators.get(String(opId));
+            if (!op) return false;
+            // 3CX Desktop Agent ulanganmi yoki Asteriskda faol SIP IP bormi
+            const hasIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)' && !String(op.latency || '').toUpperCase().includes('UNREACHABLE');
+            const hasAgent = Boolean(op.agentConnected);
+            return hasIp || hasAgent;
+        };
+
         // 1. Faol suhbatlar (talking)
         if (this.activeConversations) {
             for (const conv of this.activeConversations.values()) {
                 const c9 = this.getMatchablePhone9(conv.callerId);
                 if (c9 && c9 === target9) {
                     const opExten = conv.operatorExten || '';
+                    // Agar operator offline bo'lsa, bu soxta yoki eskirgan suhbat!
+                    if (opExten && !isOperatorOnline(opExten)) continue;
+
                     const rawName = conv.operator || '';
                     const cleanName = String(rawName).replace(/\s*\(\d+\)\s*/g, '').trim() || (opExten ? `Operator ${opExten}` : 'Operator');
                     return {
@@ -119,6 +133,8 @@ class AmiService {
         if (this.operators) {
             for (const [opId, op] of this.operators.entries()) {
                 if (op.presence === 'ringing' && op.ringingCaller) {
+                    if (!isOperatorOnline(opId)) continue; // OFFLINE operator jiringlay olmaydi!
+
                     const r9 = this.getMatchablePhone9(op.ringingCaller);
                     if (r9 && r9 === target9) {
                         const cleanName = op.realName || op.name || `Operator ${opId}`;
@@ -140,6 +156,8 @@ class AmiService {
             for (const chan of this.activeChannels.values()) {
                 const ch9 = this.getMatchablePhone9(chan.callerId) || this.getMatchablePhone9(chan.extension);
                 if (ch9 && ch9 === target9 && chan.operator) {
+                    if (!isOperatorOnline(chan.operator)) continue; // OFFLINE operator suhbatda bo'la olmaydi!
+
                     const op = this.operators ? this.operators.get(chan.operator) : null;
                     const cleanName = op ? (op.realName || op.name || `Operator ${chan.operator}`) : `Operator ${chan.operator}`;
                     const isTalking = (chan.state || '').toLowerCase().includes('talk') || (chan.state || '').toLowerCase().includes('up') || chan.state === '6';
@@ -155,9 +173,20 @@ class AmiService {
             }
         }
 
-        // 4. 3CX Desktop Agent real-time faol qo'ng'iroqlari
+        // 4. 3CX Desktop Agent real-time faol qo'ng'iroqlari (faqat haqiqiy online operatorlar va 45s dan yangi bo'lsa)
         if (this.agentActiveCalls) {
+            const now = Date.now();
             for (const [opId, callInfo] of this.agentActiveCalls.entries()) {
+                if (!isOperatorOnline(opId)) {
+                    this.agentActiveCalls.delete(opId);
+                    continue;
+                }
+                // 45 soniyadan oshgan eskirgan jiringlashni tozalaymiz
+                if (callInfo.eventType === 'RINGING' && (now - (callInfo.timestamp || 0) > 45000)) {
+                    this.agentActiveCalls.delete(opId);
+                    continue;
+                }
+
                 const a9 = this.getMatchablePhone9(callInfo.callerId);
                 if (a9 && a9 === target9) {
                     const op = this.operators ? this.operators.get(opId) : null;
@@ -2693,6 +2722,16 @@ class AmiService {
             const isPingActive = !!(op.lastAgentPing && (now - op.lastAgentPing < TIMEOUT_MS));
             if (op.agentConnected && !isPingActive) {
                 op.agentConnected = false;
+                // Offline bo'lganda uning barcha faol suhbat va chaqiruvlarini darhol tozalash!
+                if (this.agentActiveCalls) this.agentActiveCalls.delete(opId);
+                if (this.operatorOutboundCalls) this.operatorOutboundCalls.delete(opId);
+                op.ringingCaller = null;
+                op.ringingSince = null;
+                op.talkingSince = null;
+                const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)' && !String(op.latency || '').toUpperCase().includes('UNREACHABLE');
+                if (!hasValidIp) {
+                    op.presence = 'offline';
+                }
                 stateChanged = true;
                 const secAgo = Math.round((now - (op.lastAgentPing || now)) / 1000);
                 console.log(`🔴 [3CX Desktop Agent] Operator ${opId} (${op.realName || ''}) ping to'xtadi (${secAgo}s oldin) -> O'chiq (Offline)`);
@@ -2702,11 +2741,10 @@ class AmiService {
             }
 
             // Xavfsizlik tarmog'i: agar biror sabab bilan "Jiringlamoqda" holatini
-            // tozalovchi AMI hodisasi (AgentRingNoAnswer/DialEnd/QueueCallerAbandon...)
-            // kelmay qolsa, karta cheksiz "jiringlab" qolib ketmasligi uchun 45 soniyadan
-            // keyin avtomatik tozalanadi.
+            // tozalovchi AMI hodisasi kelmay qolsa, karta cheksiz "jiringlab" qolib ketmasligi uchun 45s dan keyin tozalanadi.
             if (op.presence === 'ringing' && op.ringingSince && (now - op.ringingSince > STALE_RINGING_MS)) {
-                op.presence = 'ready';
+                const hasValidIp = op.ip && op.ip !== '-none-' && op.ip !== '' && op.ip !== '(null)';
+                op.presence = hasValidIp ? 'ready' : 'offline';
                 op.ringingCaller = null;
                 op.ringingSince = null;
                 stateChanged = true;
@@ -2714,8 +2752,24 @@ class AmiService {
             }
         }
 
+        // agentActiveCalls dagi eskirgan yoki offline operatorlar qo'ng'iroqlarini tozalash
+        if (this.agentActiveCalls) {
+            for (const [opId, callInfo] of this.agentActiveCalls.entries()) {
+                const op = this.operators ? this.operators.get(opId) : null;
+                const isOpOnline = op && (op.agentConnected || (op.ip && op.ip !== '-none-' && !String(op.latency || '').toUpperCase().includes('UNREACHABLE')));
+                const isRingingStale = (callInfo.eventType === 'RINGING' || callInfo.eventType === 'DIALLED') && (now - (callInfo.timestamp || 0) > 45000);
+                const isTalkStale = (now - (callInfo.timestamp || 0) > 3600000);
+
+                if (!isOpOnline || isRingingStale || isTalkStale) {
+                    this.agentActiveCalls.delete(opId);
+                    stateChanged = true;
+                }
+            }
+        }
+
         if (stateChanged) {
             this.broadcast('operators_update', this.getOperatorList());
+            this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
             if (typeof this.onAgentStateChange === 'function') {
                 this.onAgentStateChange();
             }

@@ -2247,23 +2247,11 @@ function switchAdminCallbackDateFilter(filter) {
     }
 }
 
-let adminCbResolvedTodayOnly = false;
+let adminCbResolvedTodayOnly = true;
 
 function toggleAdminCbResolvedTodayOnly(checked) {
-    if (typeof checked === 'boolean') {
-        adminCbResolvedTodayOnly = checked;
-    } else {
-        adminCbResolvedTodayOnly = !adminCbResolvedTodayOnly;
-    }
-    const input = document.getElementById('toggleAdminCbResolvedTodayOnly');
-    const slider = document.getElementById('sliderAdminCbResolvedTodayOnly');
-    const knob = document.getElementById('knobAdminCbResolvedTodayOnly');
-    if (input) input.checked = adminCbResolvedTodayOnly;
-    if (slider) slider.style.backgroundColor = adminCbResolvedTodayOnly ? '#10b981' : '#334155';
-    if (knob) knob.style.transform = adminCbResolvedTodayOnly ? 'translateX(16px)' : 'translateX(0px)';
+    adminCbResolvedTodayOnly = true;
     renderCallbacks(currentCallbacksList);
-    // Toggle o'zgarganda taqsimot diagrammasini ham yangilash
-    // (chunki cbResolved hisob-kitobi adminCbResolvedTodayOnly ga bog'liq)
     updateDistributionChartDisplay();
 }
 window.toggleAdminCbResolvedTodayOnly = toggleAdminCbResolvedTodayOnly;
@@ -2275,17 +2263,6 @@ function switchAdminCallbackTab(tab) {
     const btnPending = document.getElementById('adminCbTabPending');
     const btnUnreachable = document.getElementById('adminCbTabUnreachable');
     const btnResolved = document.getElementById('adminCbTabResolved');
-    const filterBar = document.getElementById('adminCbResolvedFilterBar');
-
-    if (filterBar) {
-        filterBar.style.display = (tab === 'resolved') ? 'flex' : 'none';
-        const slider = document.getElementById('sliderAdminCbResolvedTodayOnly');
-        const knob = document.getElementById('knobAdminCbResolvedTodayOnly');
-        const input = document.getElementById('toggleAdminCbResolvedTodayOnly');
-        if (input) input.checked = adminCbResolvedTodayOnly;
-        if (slider) slider.style.backgroundColor = adminCbResolvedTodayOnly ? '#10b981' : '#334155';
-        if (knob) knob.style.transform = adminCbResolvedTodayOnly ? 'translateX(16px)' : 'translateX(0px)';
-    }
 
     if (btnPending && btnUnreachable) {
         btnPending.classList.toggle('on', tab === 'pending');
@@ -2497,7 +2474,7 @@ function renderCallbacks(callbacks) {
 
         const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
         const attemptsCount = (adminCbDateFilter === 'today' || isToday)
-            ? (Number(item.today_attempts) || (isToday ? Number(item.attempts_count) || 1 : 1))
+            ? (Number(item.today_attempts) || 1)
             : (Number(item.attempts_count || item.today_attempts) || 1);
         const attemptBadge = attemptsCount > 1
             ? `<span class="cc-tag cc-tag-miss">${attemptsCount} marta</span>`

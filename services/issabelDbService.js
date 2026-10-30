@@ -702,6 +702,7 @@ class IssabelDbService {
                     client_phone,
                     MAX(calldate) as callback_time,
                     COUNT(DISTINCT channel) as total_attempts,
+                    COUNT(DISTINCT CASE WHEN DATE(calldate) = CURDATE() THEN channel END) as today_attempts,
                     CASE 
                         WHEN SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dcontext != 'from-internal' THEN CONCAT(TIME(calldate), '|||', COALESCE(lastdata,'')) END ORDER BY calldate DESC SEPARATOR '###'), '###', 1) REGEXP 'working-time|music-working-time' 
                              OR SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dcontext != 'from-internal' THEN TIME(calldate) END ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) < '08:00:00'
@@ -801,8 +802,9 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [clientPhone, callbackTime, totalAttemptsStr, sourceType] = line.split('\t');
+                const [clientPhone, callbackTime, totalAttemptsStr, todayAttemptsStr, sourceType] = line.split('\t');
                 const totalAttempts = parseInt(totalAttemptsStr, 10) || 1;
+                const todayAttempts = parseInt(todayAttemptsStr, 10) || 0;
 
                 const cleanPhone = dbService.normalizePhone(clientPhone);
                 if (!cleanPhone || cleanPhone === '712020159' || cleanPhone.endsWith('2020159')) {
@@ -841,7 +843,8 @@ class IssabelDbService {
                         phone: cleanPhone,
                         source: sourceType,
                         callTime: callbackTime,
-                        attemptsCount: totalAttempts
+                        attemptsCount: totalAttempts,
+                        todayAttempts: todayAttempts
                     });
                     if (upsertRes && (upsertRes.inserted || upsertRes.updated)) changed = true;
                 }
@@ -2258,7 +2261,12 @@ class IssabelDbService {
                     MAX(c.dcontext) as dcontext,
                     MAX(c.lastdata) as lastdata,
                     MAX(xfer.xfer_from) as xfer_from,
-                    MAX(xfer.xfer_chain) as xfer_chain
+                    MAX(xfer.xfer_chain) as xfer_chain,
+                    MAX(CASE 
+                        WHEN '${operatorExt}' != '' AND (c.dst = '${operatorExt}' OR c.dstchannel LIKE 'SIP/${operatorExt}-%' OR c.channel LIKE 'SIP/${operatorExt}-%' OR c.dstchannel LIKE 'Local/${operatorExt}@%') 
+                        THEN c.billsec 
+                        ELSE 0 
+                    END) as op_billsec
                 FROM cdr c
                 ${isAbandoned ? `LEFT JOIN (${opAnsSub}) op_ans ON c.uniqueid = op_ans.uniqueid` : ''}
                 LEFT JOIN (
@@ -2282,8 +2290,9 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [uid, callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, dcontext, lastdata, xferFromRaw, xferChainRaw] = line.split('\t');
+                const [uid, callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, dcontext, lastdata, xferFromRaw, xferChainRaw, opBillsecStr] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
+                const opBillsec = parseInt(opBillsecStr, 10) || 0;
                 const waitSec = parseInt(waitSecStr, 10) || 0;
                 const ansLagSec = parseInt(ansLagStr, 10) || 0;
                 const xferChain = (xferChainRaw || '').trim();
@@ -2372,7 +2381,7 @@ class IssabelDbService {
                     direction: direction,
                     operator: opName,
                     operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
-                    duration: isAns ? talkSec : 0,
+                    duration: isAns ? ((operatorExt && opBillsec > 0) ? opBillsec : talkSec) : 0,
                     waitSec: calculatedWait,
                     status: isAns ? 'ANSWERED' : (type === 'abandoned' ? 'ABANDONED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED'))),
                     recording: isAns ? (rec || '') : '',

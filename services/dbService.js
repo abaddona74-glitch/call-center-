@@ -138,6 +138,7 @@ class DbService {
                 source TEXT NOT NULL, -- 'abandoned' | 'ivr_non_working' | 'manual'
                 call_time TEXT NOT NULL,
                 attempts_count INTEGER DEFAULT 1,
+                today_attempts INTEGER DEFAULT 1,
                 status TEXT DEFAULT 'pending', -- 'pending' | 'resolved' | 'dismissed'
                 dismissed_at TEXT,
                 dismissed_by TEXT,
@@ -189,6 +190,9 @@ class DbService {
         } catch (e) {}
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN resolution_type TEXT;`);
+        } catch (e) {}
+        try {
+            this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN today_attempts INTEGER DEFAULT 1;`);
         } catch (e) {}
 
         try {
@@ -1173,19 +1177,22 @@ class DbService {
 
                 const isToday = Boolean(r.call_time && r.call_time.startsWith(todayStr));
                 const att = Number(r.attempts_count) || 1;
+                const rTodayAtt = (r.today_attempts !== undefined && r.today_attempts !== null)
+                    ? Number(r.today_attempts)
+                    : (isToday ? att : 0);
 
                 if (!map.has(groupKey)) {
                     map.set(groupKey, {
                         ...r,
-                        today_attempts: isToday ? att : 0,
+                        today_attempts: rTodayAtt,
                         attempts_count: att
                     });
                 } else {
                     const existing = map.get(groupKey);
                     if (isToday) {
-                        existing.today_attempts = (existing.today_attempts || 0) + att;
+                        existing.today_attempts = Math.max(existing.today_attempts || 0, rTodayAtt);
                     }
-                    existing.attempts_count = (existing.attempts_count || 1) + att;
+                    existing.attempts_count = Math.max(existing.attempts_count || 1, att);
                     if (r.call_time && (!existing.call_time || r.call_time > existing.call_time)) {
                         existing.call_time = r.call_time;
                     }
@@ -1224,16 +1231,18 @@ class DbService {
      * Agar mijoz avval dismissed yoki resolved bo'lsa: faqatgina yangi qo'ng'iroq vaqti (callTime)
      * o'chirilgan/hal qilingan vaqtdan KEYIN bo'lsagina yangi pending yozuv ochiladi (eski qo'ng'iroqlar qaytib chiqmaydi)
      */
-    upsertCallback({ phone, callerName = '', source = 'abandoned', callTime = null, attemptsCount = 1 }) {
+    upsertCallback({ phone, callerName = '', source = 'abandoned', callTime = null, attemptsCount = 1, todayAttempts = null }) {
         const cleanPhone = this.normalizePhone(phone);
         if (!cleanPhone) return null;
 
         const timeStr = callTime || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).replace('T', ' ');
+        const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+        const isCallToday = Boolean(timeStr && timeStr.startsWith(todayStr));
 
         try {
             // 1. Agar 'pending' holatida mavjud bo'lsa - uni yangilaymiz
             const pendingStmt = this.db.prepare(`
-                SELECT id, attempts_count, call_time FROM pending_callbacks 
+                SELECT id, attempts_count, today_attempts, call_time FROM pending_callbacks 
                 WHERE phone = ? AND status = 'pending'
                 ORDER BY id DESC LIMIT 1
             `);
@@ -1242,11 +1251,21 @@ class DbService {
             if (pendingRecord) {
                 // Mavjud yozuvni yangilash
                 let newAttempts = pendingRecord.attempts_count;
+                let newTodayAttempts = pendingRecord.today_attempts !== undefined && pendingRecord.today_attempts !== null
+                    ? pendingRecord.today_attempts
+                    : (isCallToday ? pendingRecord.attempts_count : 0);
+
                 const isNewCall = timeStr && timeStr > (pendingRecord.call_time || '');
                 if (attemptsCount !== undefined && attemptsCount !== null && Number.isInteger(attemptsCount)) {
                     newAttempts = attemptsCount;
                 } else if (isNewCall) {
-                    newAttempts = pendingRecord.attempts_count + 1;
+                    newAttempts = (pendingRecord.attempts_count || 1) + 1;
+                }
+
+                if (todayAttempts !== undefined && todayAttempts !== null && Number.isInteger(todayAttempts)) {
+                    newTodayAttempts = todayAttempts;
+                } else if (isNewCall && isCallToday) {
+                    newTodayAttempts = (newTodayAttempts || 0) + 1;
                 }
 
                 const newerTime = (!pendingRecord.call_time || timeStr >= pendingRecord.call_time) ? timeStr : pendingRecord.call_time;
@@ -1257,13 +1276,14 @@ class DbService {
                     SET 
                         call_time = ?,
                         attempts_count = ?,
+                        today_attempts = ?,
                         source = ?,
                         caller_name = COALESCE(NULLIF(?, ''), caller_name),
                         outbound_attempts = CASE WHEN ? = 1 THEN 0 ELSE outbound_attempts END,
                         updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                 `);
-                updateStmt.run(newerTime, newAttempts, source, callerName || '', isNewCall ? 1 : 0, pendingRecord.id);
+                updateStmt.run(newerTime, newAttempts, newTodayAttempts, source, callerName || '', isNewCall ? 1 : 0, pendingRecord.id);
                 return { id: pendingRecord.id, phone: cleanPhone, updated: true };
             }
 
@@ -1294,11 +1314,15 @@ class DbService {
             }
 
             // 3. Yangi kiritish (faqatgina yangi raqam yoki o'chirilgandan/hal qilingandan KEYIN kelgan yangi qo'ng'iroq bo'lsa)
+            const initialTodayAttempts = (todayAttempts !== undefined && todayAttempts !== null && Number.isInteger(todayAttempts))
+                ? todayAttempts
+                : (isCallToday ? attemptsCount : 0);
+
             const insertStmt = this.db.prepare(`
-                INSERT INTO pending_callbacks (phone, caller_name, source, call_time, attempts_count, status, outbound_attempts)
-                VALUES (?, ?, ?, ?, ?, 'pending', 0)
+                INSERT INTO pending_callbacks (phone, caller_name, source, call_time, attempts_count, today_attempts, status, outbound_attempts)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
             `);
-            const res = insertStmt.run(cleanPhone, callerName || '', source, timeStr, attemptsCount);
+            const res = insertStmt.run(cleanPhone, callerName || '', source, timeStr, attemptsCount, initialTodayAttempts);
             return { id: res.lastInsertRowid, phone: cleanPhone, inserted: true };
         } catch (err) {
             console.error('upsertCallback error:', err.message);

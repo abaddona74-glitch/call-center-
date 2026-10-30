@@ -4082,49 +4082,15 @@ let currentActiveConversations = [];
 let currentViewerOperators = [];
 let currentCallbackDateFilter = 'today'; // 'today' | 'all'
 let currentCallbackTab = 'pending'; // 'pending' | 'unreachable' | 'resolved'
-let viewerCbResolvedTodayOnly = false; // by default disabled (off)
-try {
-    viewerCbResolvedTodayOnly = localStorage.getItem('viewerCbResolvedTodayOnly') === 'true';
-} catch (e) {}
+let viewerCbResolvedTodayOnly = true; // permanently true (doimiy faqat bugun)
 
 function toggleViewerCbResolvedTodayOnly(checked) {
-    viewerCbResolvedTodayOnly = !!checked;
-    try {
-        localStorage.setItem('viewerCbResolvedTodayOnly', viewerCbResolvedTodayOnly ? 'true' : 'false');
-    } catch (e) {}
-    const slider = document.getElementById('sliderViewerCbResolvedTodayOnly');
-    const knob = document.getElementById('knobViewerCbResolvedTodayOnly');
-    if (slider && knob) {
-        if (viewerCbResolvedTodayOnly) {
-            slider.style.backgroundColor = '#10b981';
-            slider.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-            slider.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.35)';
-            knob.style.transform = 'translateX(16px)';
-        } else {
-            slider.style.backgroundColor = '#334155';
-            slider.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-            slider.style.boxShadow = 'none';
-            knob.style.transform = 'translateX(0px)';
-        }
-    }
+    viewerCbResolvedTodayOnly = true;
     renderViewerCallbacks(currentViewerCallbacks);
 }
 
 function initViewerCbResolvedToggle() {
-    try {
-        if (viewerCbResolvedTodayOnly) {
-            const chk = document.getElementById('toggleViewerCbResolvedTodayOnly');
-            if (chk) chk.checked = true;
-            const slider = document.getElementById('sliderViewerCbResolvedTodayOnly');
-            const knob = document.getElementById('knobViewerCbResolvedTodayOnly');
-            if (slider && knob) {
-                slider.style.backgroundColor = '#10b981';
-                slider.style.borderColor = 'rgba(16, 185, 129, 0.5)';
-                slider.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.35)';
-                knob.style.transform = 'translateX(16px)';
-            }
-        }
-    } catch (e) {}
+    viewerCbResolvedTodayOnly = true;
 }
 
 function getPhone9(phone) {
@@ -4212,11 +4178,6 @@ function switchCallbackTab(tab) {
     const btnUnreachable = document.getElementById('tabUnreachableBtn');
     const btnResolved = document.getElementById('tabResolvedBtn');
     const hintEl = document.getElementById('cbTabHint');
-    const filterBar = document.getElementById('viewerCbResolvedFilterBar');
-
-    if (filterBar) {
-        filterBar.style.display = (tab === 'resolved') ? 'flex' : 'none';
-    }
 
     if (btnPending && btnUnreachable) {
         // Reset all 3
@@ -4664,7 +4625,7 @@ function renderViewerCallbacks(callbacks) {
         const cbContact = getClientContact(phone);
         const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
         const attemptsCount = (currentCallbackDateFilter === 'today' || isToday)
-            ? (Number(item.today_attempts) || (isToday ? Number(item.attempts_count) || 1 : 1))
+            ? (Number(item.today_attempts) || 1)
             : (Number(item.attempts_count || item.today_attempts) || 1);
         const attemptBadge = attemptsCount > 1
             ? `<span style="background: rgba(239, 68, 68, 0.22); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.45); font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin-left: 5px; display: inline-flex; align-items: center;" title="Bugun ${attemptsCount} marta tushgan">x${attemptsCount}</span>`

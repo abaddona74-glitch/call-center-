@@ -34,6 +34,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
 
 const app = express();
+app.disable('x-powered-by');
 app.set('json spaces', 2);
 
 // SSL Sertifikatlari (Self-Signed yoki Custom SSL)
@@ -116,9 +117,24 @@ if (hasSsl) {
     server.on('upgrade', handleUpgrade);
 }
 
+// HTTP Xavfsizlik sarlavhalari (Security Headers)
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Katta hajmdagi fayllarni konvertatsiya qilish uchun alohida 50mb limit
+app.use('/api/converter/convert', express.json({ limit: '50mb' }));
+app.use('/api/converter/convert', express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Qolgan barcha standart so'rovlar uchun xavfsiz 2mb limit (DoS xurujlariga qarshi)
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // HTTP -> HTTPS Redirect Gateway (Har qanday HTTP so'rovni avtomatik HTTPS ga yo'naltirish)
 app.use((req, res, next) => {
@@ -165,12 +181,30 @@ app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Operatorlar yo'lagi (3005-portdagi Viewerga yo'naltirish)
-app.get('/operators', (req, res) => {
+// Viewer yo'lagi (Faqat 3005-portdagi Viewer portaliga to'g'ridan-to'g'ri o'tish uchun maxsus yo'lak)
+app.get(['/viewer', '/viewers'], (req, res) => {
     const token = authService.extractToken(req);
     const host = req.hostname || '127.0.0.1';
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
     return res.redirect(`${req.protocol}://${host}:3005/${tokenParam}`);
+});
+
+// Operatorlar yo'lagi (3535 SPA: admin va superuser uchun boshqaruv sahifasi, faqat operator roli uchun Viewerga yo'naltirish)
+app.get(['/operators', '/operator'], (req, res, next) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (session) {
+        if (session.role === 'admin' || session.role === 'superuser') {
+            return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+        }
+        if (session.role === 'operator') {
+            const host = req.hostname || '127.0.0.1';
+            const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+            return res.redirect(`${req.protocol}://${host}:3005/${tokenParam}`);
+        }
+    }
+    // Sessiya bo'lmasa, auth middleware uni /login ga yo'naltirishi uchun next() qilamiz
+    next();
 });
 
 // 2. Tizimga kirish API (Brute-force va Lockout himoyasi bilan)
@@ -750,7 +784,10 @@ app.use((req, res, next) => {
     return res.redirect('/login');
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
+// ACME / Let's Encrypt SSL sertifikat tekshiruvlari uchun .well-known papkasiga ruxsat berish
+app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known'), { dotfiles: 'allow' }));
+// Qolgan barcha yashirin fayllar (.env, .git va h.k.) ommaga chiqishini bloklash
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
 
 // Swagger API Hujjatlari (UI & JSON)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -808,9 +845,55 @@ function getAppVersionInfo() {
     };
 }
 
+// Jonli Multiplayer Kursorlar ranglar palitrasi (AnyDesk / Figma uslubida)
+const MULTIPLAYER_CURSOR_COLORS = [
+    '#38bdf8', // sky blue
+    '#10b981', // emerald green
+    '#f59e0b', // amber orange
+    '#ec4899', // pink
+    '#8b5cf6', // purple
+    '#06b6d4', // cyan
+    '#f43f5e', // rose red
+    '#14b8a6', // teal
+    '#eab308', // gold yellow
+    '#6366f1'  // indigo
+];
+
 // WebSocket yangi mijoz ulanganda
-wss.on('connection', async (ws) => {
+wss.on('connection', async (ws, req) => {
     console.log('🔗 Yangi Web dashboard mijozi ulandi');
+
+    // Har bir ulanishga (hatto bitta akkaunt bo'lsa ham) unikal Client ID va rang beramiz
+    const clientId = 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    ws.clientId = clientId;
+
+    const colorIdx = Math.abs(clientId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % MULTIPLAYER_CURSOR_COLORS.length;
+    ws.cursorColor = MULTIPLAYER_CURSOR_COLORS[colorIdx];
+
+    // Ulanuvchi kompyuterning IP manzilini aniqlash
+    const rawIp = (req && req.headers && req.headers['x-forwarded-for']) || (req && req.socket && req.socket.remoteAddress) || '';
+    const clientIp = String(rawIp).replace('::ffff:', '').split(',')[0].trim();
+    ws.clientIp = clientIp;
+    ws.appType = '';
+    ws.deviceId = '';
+    ws.tabId = '';
+    ws.lastActiveAt = Date.now();
+    ws.isActiveTab = false;
+    ws.isVisible = false;
+
+    // Agar bu IP 3CX agent orqali tanilgan operator bo'lsa, uning rasmiy hostname (PC nomi) ni taklif qilamiz
+    let suggestedPc = '';
+    try {
+        const ops = typeof amiService.getOperatorList === 'function' ? amiService.getOperatorList() : [];
+        const matchedOp = ops.find(o => o.ip && clientIp && (o.ip === clientIp || clientIp.includes(o.ip)));
+        if (matchedOp && matchedOp.agentHostname) {
+            suggestedPc = matchedOp.agentHostname;
+        }
+    } catch (e) {}
+    if (!suggestedPc) {
+        suggestedPc = (ws.user && ws.user.username && ws.user.username !== 'superuser') ? `PC-${ws.user.username.toUpperCase()}` : `Admin PC #${clientId.slice(-3).toUpperCase()}`;
+    }
+    ws.suggestedPcName = suggestedPc;
     
     // Birinchi sinxronizatsiya yakunlanishini kutamiz (bo'sh yoki 0 ma'lumot ketmasligi uchun)
     try {
@@ -835,7 +918,10 @@ wss.on('connection', async (ws) => {
             operators: amiService.getOperatorList(),
             callHistory: amiService.getCallHistory(50),
             callbacks: amiService.getCallbacksWithActiveCalls(),
-            contacts: dbService.getAllContacts()
+            contacts: dbService.getAllContacts(),
+            clientId: ws.clientId,
+            suggestedPcName: ws.suggestedPcName,
+            cursorColor: ws.cursorColor
         }
     }));
 
@@ -845,13 +931,134 @@ wss.on('connection', async (ws) => {
         data: versionInfo
     }));
 
+    // Mijozga o'zining unikal Client ID, PC nomi va rangini bildirish
+    ws.send(JSON.stringify({
+        type: 'client_assigned',
+        data: {
+            clientId: ws.clientId,
+            suggestedPcName: ws.suggestedPcName,
+            color: ws.cursorColor
+        }
+    }));
+
+    // Barcha ochiq mijozlarga yangilangan online foydalanuvchilar sonini bildirish
+    // Qoida: Faqat 3535 dashboard mijozlari, va bitta kompyuter/brauzerda 3 ta tab bo'lsa ham
+    // faqat 1 ta (eng oxirgi aktiv / ko'rinib turgan tab) 1 ta online deb hisoblanadi.
+    const broadcastPresenceCount = () => {
+        try {
+            // 1. Faqat 3535 dashboardini ishlatayotgan haqiqiy mijozlarni filtrlash
+            const dashboardClients = Array.from(wss.clients).filter(c => {
+                if (c.readyState !== 1) return false;
+                if (c.isViewerProxy || c.isViewer) return false;
+                if (c.appType === 'dashboard_3535') return true;
+                return !c.appType && c.clientIp !== '127.0.0.1' && c.clientIp !== '::1';
+            });
+
+            // 2. Qurilma / brauzer (deviceId) bo'yicha guruhlash:
+            // Bir nechta tab bo'lsa ham, faqat 1 ta (oxirgi ishlatilgan aktiv tab) hisoblanadi
+            const uniqueDevicesMap = new Map();
+
+            for (const client of dashboardClients) {
+                const devKey = client.deviceId || (client.clientIp + '_' + (client.suggestedPcName || 'pc'));
+                const existing = uniqueDevicesMap.get(devKey);
+
+                if (!existing) {
+                    uniqueDevicesMap.set(devKey, client);
+                } else {
+                    // Qaysi tab hozir aktiv yoki oxirgi harakatlangan bo'lsa, o'shasini tanlash
+                    if (client.isVisible && !existing.isVisible) {
+                        uniqueDevicesMap.set(devKey, client);
+                    } else if (client.isActiveTab && !existing.isActiveTab) {
+                        uniqueDevicesMap.set(devKey, client);
+                    } else if ((client.lastActiveAt || 0) > (existing.lastActiveAt || 0)) {
+                        uniqueDevicesMap.set(devKey, client);
+                    }
+                }
+            }
+
+            const onlineCount = Math.max(1, uniqueDevicesMap.size);
+            const msg = JSON.stringify({
+                type: 'presence_stats',
+                data: { onlineCount }
+            });
+            for (const client of wss.clients) {
+                if (client.readyState === 1) client.send(msg);
+            }
+        } catch (e) {}
+    };
+    broadcastPresenceCount();
+
     ws.on('message', (message) => {
         try {
             const parsed = JSON.parse(message);
             if (parsed.action === 'refresh_channels') {
                 amiService.pollQueueAndChannels();
+            } else if (parsed.type === 'cursor_move') {
+                ws.appType = 'dashboard_3535';
+                ws.lastActiveAt = Date.now();
+                ws.isActiveTab = true;
+                ws.isVisible = true;
+                if (parsed.deviceId) ws.deviceId = parsed.deviceId;
+                if (parsed.tabId) ws.tabId = parsed.tabId;
+
+                // Jonli kursor koordinatalarini (kontent scroll va gorizontal nisbat bilan) tarqatish
+                const moveData = JSON.stringify({
+                    type: 'remote_cursor_move',
+                    data: {
+                        clientId: ws.clientId,
+                        deviceId: ws.deviceId,
+                        xRatio: parsed.xRatio !== undefined ? parsed.xRatio : parsed.x,
+                        contentY: parsed.contentY,
+                        tab: parsed.tab || parsed.activeTab || 'dashboard',
+                        x: parsed.xRatio !== undefined ? parsed.xRatio : parsed.x,
+                        y: parsed.contentY !== undefined ? parsed.contentY : parsed.y,
+                        pcName: parsed.pcName || ws.suggestedPcName || 'PC',
+                        color: parsed.color || ws.cursorColor
+                    }
+                });
+                for (const client of wss.clients) {
+                    if (client !== ws && client.readyState === 1) {
+                        // Bir xil kompyuterning boshqa tabiga o'z kursorini aks ettirmaymiz
+                        if (ws.deviceId && client.deviceId === ws.deviceId) continue;
+                        client.send(moveData);
+                    }
+                }
+            } else if (parsed.type === 'presence_ping') {
+                if (parsed.appType) ws.appType = parsed.appType;
+                if (parsed.deviceId) ws.deviceId = parsed.deviceId;
+                if (parsed.tabId) ws.tabId = parsed.tabId;
+                if (parsed.isActiveTab !== undefined) ws.isActiveTab = Boolean(parsed.isActiveTab);
+                if (parsed.isVisible !== undefined) ws.isVisible = Boolean(parsed.isVisible);
+                if (parsed.pcName) ws.suggestedPcName = parsed.pcName;
+                ws.lastActiveAt = Date.now();
+                broadcastPresenceCount();
+            } else if (parsed.type === 'cursor_leave') {
+                // Kursor ekrandan chiqqanda boshqalardan ham o'chirish
+                const leaveData = JSON.stringify({
+                    type: 'remote_cursor_remove',
+                    data: { clientId: ws.clientId }
+                });
+                for (const client of wss.clients) {
+                    if (client !== ws && client.readyState === 1) {
+                        client.send(leaveData);
+                    }
+                }
             }
         } catch (e) {}
+    });
+
+    ws.on('close', () => {
+        // Mijoz sahifani yopganda uning kursorini o'chirish
+        const leaveData = JSON.stringify({
+            type: 'remote_cursor_remove',
+            data: { clientId: ws.clientId }
+        });
+        for (const client of wss.clients) {
+            if (client !== ws && client.readyState === 1) {
+                client.send(leaveData);
+            }
+        }
+        broadcastPresenceCount();
     });
 });
 
@@ -3027,7 +3234,7 @@ app.get('/api/export/excel', async (req, res) => {
 });
 
 // SPA Navigation Routes
-['/', '/dashboard', '/explorer', '/audio', '/operators', '/history', '/clients', '/customers', '/mijozlar', '/statistics', '/statistika', '/analytics', '/tools', '/converter', '/asboblar'].forEach(route => {
+['/', '/dashboard', '/explorer', '/audio', '/operators', '/operator', '/history', '/clients', '/customers', '/mijozlar', '/statistics', '/statistika', '/analytics', '/tools', '/converter', '/asboblar'].forEach(route => {
     app.get(route, (req, res) => {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });

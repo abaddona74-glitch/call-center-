@@ -535,7 +535,23 @@ class TopicAnalyticsService {
             };
         }
 
-        const timeline = Array.from(timelineMap.values());
+        let timeline = Array.from(timelineMap.values());
+
+        // Dam olish kunlarida (shanba va yakshanba) ish bo'lmagani sababli oylik dinamikadan chiqarib tashlaymiz
+        if (period === 'month') {
+            timeline = timeline.filter(item => {
+                const p = String(item.label).split('-');
+                if (p.length === 3) {
+                    const y = parseInt(p[0], 10);
+                    const m = parseInt(p[1], 10) - 1;
+                    const d = parseInt(p[2], 10);
+                    const dayOfWeek = new Date(y, m, d).getDay(); // 0 = Yakshanba, 6 = Shanba
+                    return dayOfWeek !== 0 && dayOfWeek !== 6;
+                }
+                return true;
+            });
+        }
+
         timeline.forEach(item => {
             // Short date: '2026-10-21' -> '21-Okt'
             const p = item.label.split('-');
@@ -665,12 +681,13 @@ class TopicAnalyticsService {
             whereClause = "WHERE 1=1";
         }
 
+        const queryLimit = period === 'day' ? 1000 : (period === 'month' ? 25000 : 100000);
         let calls = this.db.prepare(`
             SELECT id, caller_id, duration, operator, created_at, status, cause
             FROM calls
             ${whereClause}
-            ORDER BY id DESC
-            LIMIT 500
+            ORDER BY id ASC
+            LIMIT ${queryLimit}
         `).all(...params);
 
         // If no calls match that exact criteria in calls table, fallback to recent calls
@@ -753,88 +770,94 @@ class TopicAnalyticsService {
         `);
 
         let analyzedCount = 0;
-
-        for (let i = 0; i < calls.length; i++) {
-            const call = calls[i];
-            const rawDt = call.created_at || (period === 'day' ? targetDay + ' 12:00:00' : '2026-10-21 12:00:00');
-            const dtParts = rawDt.split(' ');
-            const callDate = period === 'day' ? targetDay : (dtParts[0] || targetDay);
-            const callTime = dtParts[1] || '12:00:00';
-            let callHour = parseInt(callTime.split(':')[0], 10);
-            if (isNaN(callHour) || (period === 'day' && (callHour < 8 || callHour > 20))) {
-                callHour = 8 + ((i * 2 + (Number(call.id) % 5)) % 12);
-            }
-
-            const yParts = callDate.split('-');
-            const callYear = parseInt(yParts[0], 10) || Number(year) || 2026;
-            const callMonth = parseInt(yParts[1], 10) || Number(month) || 10;
-
-            // 1. Check if real transcription exists in call_transcriptions
-            let transcriptionText = '';
-            try {
-                const transRow = this.db.prepare(`
-                    SELECT transcription, formatted_transcription 
-                    FROM call_transcriptions 
-                    WHERE call_key = ? OR caller_id = ?
-                    ORDER BY id DESC LIMIT 1
-                `).get(call.id, call.caller_id);
-
-                if (transRow) {
-                    transcriptionText = transRow.formatted_transcription || transRow.transcription || '';
+        this.db.exec('BEGIN TRANSACTION');
+        try {
+            for (let i = 0; i < calls.length; i++) {
+                const call = calls[i];
+                const rawDt = call.created_at || (period === 'day' ? targetDay + ' 12:00:00' : '2026-10-21 12:00:00');
+                const dtParts = rawDt.split(' ');
+                const callDate = period === 'day' ? targetDay : (dtParts[0] || targetDay);
+                const callTime = dtParts[1] || '12:00:00';
+                let callHour = parseInt(callTime.split(':')[0], 10);
+                if (isNaN(callHour) || (period === 'day' && (callHour < 8 || callHour > 20))) {
+                    callHour = 8 + ((i * 2 + (Number(call.id) % 5)) % 12);
                 }
-            } catch (e) {}
 
-            let topicKey = 'other';
-            let subTopic = 'Umumiy maslahat';
-            let conf = 0.85;
-            let snippet = '';
+                const yParts = callDate.split('-');
+                const callYear = parseInt(yParts[0], 10) || Number(year) || 2026;
+                const callMonth = parseInt(yParts[1], 10) || Number(month) || 10;
 
-            if (transcriptionText && transcriptionText.trim().length > 10) {
-                // Real text classification!
-                const classification = this.classifyText(transcriptionText);
-                topicKey = classification.topicKey;
-                subTopic = classification.subTopic;
-                conf = classification.confidence;
-                snippet = transcriptionText.length > 200 ? transcriptionText.slice(0, 197) + '...' : transcriptionText;
-            } else {
-                // Realistic keyword classification based on call metadata & deterministic hash
-                const hash = (String(call.id).split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + i) % 100;
-                if (hash < 46) {
-                    topicKey = 'kalit';
-                    subTopic = hash % 2 === 0 ? 'Muddati uzaytirish' : 'Parolni tiklash';
-                } else if (hash < 79) {
-                    topicKey = 'edo';
-                    subTopic = hash % 2 === 0 ? 'Hisob-faktura yuborish' : 'Hujjat imzolash';
-                } else if (hash < 94) {
-                    topicKey = 'ehuquqshunos';
-                    subTopic = hash % 2 === 0 ? 'Buyruq rasmiylashtirish' : 'Mehnat munosabatlari';
+                // 1. Check if real transcription exists in call_transcriptions
+                let transcriptionText = '';
+                try {
+                    const transRow = this.db.prepare(`
+                        SELECT transcription, formatted_transcription 
+                        FROM call_transcriptions 
+                        WHERE call_key = ? OR caller_id = ?
+                        ORDER BY id DESC LIMIT 1
+                    `).get(call.id, call.caller_id);
+
+                    if (transRow) {
+                        transcriptionText = transRow.formatted_transcription || transRow.transcription || '';
+                    }
+                } catch (e) {}
+
+                let topicKey = 'other';
+                let subTopic = 'Umumiy maslahat';
+                let conf = 0.85;
+                let snippet = '';
+
+                if (transcriptionText && transcriptionText.trim().length > 10) {
+                    // Real text classification!
+                    const classification = this.classifyText(transcriptionText);
+                    topicKey = classification.topicKey;
+                    subTopic = classification.subTopic;
+                    conf = classification.confidence;
+                    snippet = transcriptionText.length > 200 ? transcriptionText.slice(0, 197) + '...' : transcriptionText;
                 } else {
-                    topicKey = 'other';
-                    subTopic = 'Umumiy maslahat';
+                    // Realistic keyword classification based on call metadata & deterministic hash
+                    const hash = (String(call.id).split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + i) % 100;
+                    if (hash < 46) {
+                        topicKey = 'kalit';
+                        subTopic = hash % 2 === 0 ? 'Muddati uzaytirish' : 'Parolni tiklash';
+                    } else if (hash < 79) {
+                        topicKey = 'edo';
+                        subTopic = hash % 2 === 0 ? 'Hisob-faktura yuborish' : 'Hujjat imzolash';
+                    } else if (hash < 94) {
+                        topicKey = 'ehuquqshunos';
+                        subTopic = hash % 2 === 0 ? 'Buyruq rasmiylashtirish' : 'Mehnat munosabatlari';
+                    } else {
+                        topicKey = 'other';
+                        subTopic = 'Umumiy maslahat';
+                    }
+
+                    const snippets = sampleSnippets[topicKey];
+                    snippet = snippets[hash % snippets.length];
+                    conf = 0.82 + ((hash % 15) / 100);
                 }
 
-                const snippets = sampleSnippets[topicKey];
-                snippet = snippets[hash % snippets.length];
-                conf = 0.82 + ((hash % 15) / 100);
+                upsertStmt.run(
+                    call.id,
+                    call.caller_id || '998901234567',
+                    callDate,
+                    callYear,
+                    callMonth,
+                    callHour,
+                    Number(call.duration) || 60,
+                    call.operator || 'Operator',
+                    topicKey,
+                    subTopic,
+                    conf,
+                    snippet,
+                    transcriptionText ? 'stt_transcribed' : 'stt_keyword_analysis'
+                );
+
+                analyzedCount++;
             }
-
-            upsertStmt.run(
-                call.id,
-                call.caller_id || '998901234567',
-                callDate,
-                callYear,
-                callMonth,
-                callHour,
-                Number(call.duration) || 60,
-                call.operator || 'Operator',
-                topicKey,
-                subTopic,
-                conf,
-                snippet,
-                transcriptionText ? 'stt_transcribed' : 'stt_keyword_analysis'
-            );
-
-            analyzedCount++;
+            this.db.exec('COMMIT');
+        } catch (txErr) {
+            this.db.exec('ROLLBACK');
+            throw txErr;
         }
 
         const summary = this.getTopicSummary({ period, year: Number(year), month: Number(month), date: targetDay });
