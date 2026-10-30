@@ -4799,6 +4799,7 @@ try {
 function switchOperatorGroup(group) {
     if (!['main', 'secondary', 'all'].includes(group)) return;
     _hasRevealedOperators = false;
+    window._lastRenderedOperatorsHtml = '';
     currentOperatorGroup = group;
     try {
         localStorage.setItem('callcenter_op_group', group);
@@ -5287,6 +5288,7 @@ function toggleOfflineCardsView(e) {
     if (e && e.stopPropagation) e.stopPropagation();
     _offlineIsCompact = !_offlineIsCompact;
     localStorage.setItem('dashboard_offline_compact', _offlineIsCompact ? 'true' : 'false');
+    window._lastRenderedOperatorsHtml = '';
     if (window._rawLastOperators && window._rawLastOperators.length > 0) {
         renderOperators(window._rawLastOperators);
     }
@@ -5331,23 +5333,7 @@ function playCardsFlipAnimation(container, firstRects) {
         if (!id) return;
         const first = firstRects.get(id);
         if (!first) {
-            // Yangi paydo bo'lgan karta (masalan, yangi ro'yxatga kirgan operator)
-            // Emil Kowalski: never scale(0). Start from scale(0.96) + opacity 0
-            el.style.opacity = '0';
-            el.style.transform = 'scale(0.96)';
-            el.style.transition = 'none';
-            requestAnimationFrame(() => {
-                void el.offsetWidth;
-                el.style.transition = 'opacity 220ms ease-out, transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)';
-                el.style.opacity = '';
-                el.style.transform = '';
-                const onEnd = (e) => {
-                    if (e && e.target !== el) return;
-                    el.style.transition = '';
-                    el.removeEventListener('transitionend', onEnd);
-                };
-                el.addEventListener('transitionend', onEnd);
-            });
+            // Yangi paydo bo'lgan karta darhol normal ko'rinsin (ochib-yonishsiz)
             return;
         }
 
@@ -5873,16 +5859,22 @@ function renderOperators(operators) {
         `;
     }
 
-    grid.innerHTML = talkingCardsHtml + readyDividerHtml + readyCardsHtml + offlineSectionHtml;
+    const newHtml = talkingCardsHtml + readyDividerHtml + readyCardsHtml + offlineSectionHtml;
+
+    // Agar operatorlar tarkibi o'zgarmagan bo'lsa, DOM ni behuda qayta yuvib tashlamaslik (miltillash va titrashni oldini olish)
+    if (window._lastRenderedOperatorsHtml === newHtml) {
+        updateAllTalkingTimers();
+        return;
+    }
+    window._lastRenderedOperatorsHtml = newHtml;
+
+    grid.innerHTML = newHtml;
 
     if (_operatorsIsCompact) grid.classList.add('compact');
     if (_operatorsIsFocus) applyOperatorsFocusUI();
 
-    // FLIP Layout Animation: kartalar va dividerlarni teleport bo'lishdan asrash (silliq siljitish)
+    // FLIP Layout Animation: faqat o'rni o'zgargan kartalarni silliq siljitish
     playCardsFlipAnimation(grid, firstRects);
-
-    // Scroll reveal animatsiyasini operator kartalariga qo'llash
-    applyOperatorCardsScrollReveal();
 
     // Jonli taymerlarni yangilash
     updateAllTalkingTimers();

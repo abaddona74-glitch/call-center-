@@ -4187,24 +4187,6 @@ body:not(.show-op-pause-btn) .op-card-pause-btn {
     text-align: left;
 }
 
-/* Ekrandan tashqaridagi elementlarning layout/paint ishini brauzerga o'tkazib yuborish
-   (arzon "virtualizatsiya") — uzun jadval yoki o'nlab kartochkalar scroll qilinganda
-   kuchsiz kompyuterlarda "qotish" va freym sakrashlarini bartaraf etadi. */
-.detail-table tbody tr,
-.recent-calls-table tbody tr,
-.history-table tbody tr {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 44px;
-}
-
-.operator-card {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 180px;
-}
-
-.modern-recent-panel {
-    contain: content;
-}
 
 .detail-table tr:hover td {
     background: rgba(59, 130, 246, 0.08);
