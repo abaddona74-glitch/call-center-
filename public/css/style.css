@@ -2485,16 +2485,13 @@ body.sidebar-collapsed .navbar-sidebar-toggle-btn {
     pointer-events: none;
     z-index: 8 !important;
 }
-.op-grid-divider[data-flip-id] {
-    will-change: transform;
-}
-.op-grid-divider.op-flip-moving {
-    pointer-events: none;
-    z-index: 7 !important;
+.op-grid-divider {
+    transform: none !important;
+    transition: none !important;
+    will-change: auto !important;
 }
 @media (prefers-reduced-motion: reduce) {
-    .operator-card.op-redesign[data-flip-id],
-    .op-grid-divider[data-flip-id] {
+    .operator-card.op-redesign[data-flip-id] {
         will-change: auto !important;
         transition: none !important;
         transform: none !important;

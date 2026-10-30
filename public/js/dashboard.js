@@ -234,7 +234,7 @@ function applyOperatorCardsScrollReveal() {
     const grid = document.getElementById('operatorsGrid');
     if (!grid) return;
 
-    const cards = Array.from(grid.querySelectorAll('.operator-card:not(.skeleton), .op-grid-divider'));
+    const cards = Array.from(grid.querySelectorAll('.operator-card:not(.skeleton)'));
     if (!cards.length) return;
 
     if (_hasRevealedOperators) {
@@ -5302,8 +5302,9 @@ function captureCardsBoundingRects(container) {
     const rects = new Map();
     if (!container) return rects;
     const containerRect = container.getBoundingClientRect();
-    const elements = container.querySelectorAll('[data-flip-id]');
+    const elements = container.querySelectorAll('.operator-card[data-flip-id], #opOfflineGrid .row[data-flip-id]');
     elements.forEach(el => {
+        if (el.classList.contains('op-grid-divider')) return;
         const id = el.getAttribute('data-flip-id');
         if (!id) return;
         const r = el.getBoundingClientRect();
@@ -5321,10 +5322,11 @@ function playCardsFlipAnimation(container, firstRects) {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const containerRect = container.getBoundingClientRect();
-    const newElements = container.querySelectorAll('[data-flip-id]');
+    const newElements = container.querySelectorAll('.operator-card[data-flip-id], #opOfflineGrid .row[data-flip-id]');
     const animatingList = [];
 
     newElements.forEach(el => {
+        if (el.classList.contains('op-grid-divider')) return;
         const id = el.getAttribute('data-flip-id');
         if (!id) return;
         const first = firstRects.get(id);
@@ -5809,7 +5811,7 @@ function renderOperators(operators) {
     let readyDividerHtml = '';
     if (readyOperators.length > 0) {
         readyDividerHtml = `
-            <div class="op-grid-divider divider-ready" data-flip-id="div-ready" title="Qabul qilishga tayyor operatorlar">
+            <div class="op-grid-divider divider-ready" title="Qabul qilishga tayyor operatorlar">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -5850,7 +5852,7 @@ function renderOperators(operators) {
         }
 
         offlineSectionHtml = `
-            <div class="op-grid-divider" id="opOfflineSep" data-flip-id="div-offline" title="Oflayn operatorlar">
+            <div class="op-grid-divider" id="opOfflineSep" title="Oflayn operatorlar">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label" style="display: flex; align-items: center; gap: 8px;">
                     <span class="op-divider-dot"></span>
