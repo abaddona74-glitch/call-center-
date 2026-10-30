@@ -2473,9 +2473,9 @@ function renderCallbacks(callbacks) {
         const relTime = getAdminCallbackRelativeTime(item.call_time);
 
         const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
-        const attemptsCount = (adminCbDateFilter === 'today' || isToday)
-            ? (Number(item.today_attempts) || 1)
-            : (Number(item.attempts_count || item.today_attempts) || 1);
+        const attemptsCount = (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'all')
+            ? (Number(item.attempts_count || item.today_attempts) || 1)
+            : (Number(item.today_attempts) || 1);
         const attemptBadge = attemptsCount > 1
             ? `<span class="cc-tag cc-tag-miss">${attemptsCount} marta</span>`
             : '';

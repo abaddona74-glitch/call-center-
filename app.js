@@ -787,7 +787,14 @@ app.use((req, res, next) => {
 // ACME / Let's Encrypt SSL sertifikat tekshiruvlari uchun .well-known papkasiga ruxsat berish
 app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-known'), { dotfiles: 'allow' }));
 // Qolgan barcha yashirin fayllar (.env, .git va h.k.) ommaga chiqishini bloklash
-app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
+app.use(express.static(path.join(__dirname, 'public'), { 
+    dotfiles: 'ignore',
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+}));
 
 // Swagger API Hujjatlari (UI & JSON)
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

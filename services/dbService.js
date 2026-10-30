@@ -1119,6 +1119,7 @@ class DbService {
                     source,
                     call_time,
                     attempts_count,
+                    COALESCE(today_attempts, 1) as today_attempts,
                     COALESCE(outbound_attempts, 0) as outbound_attempts,
                     last_outbound_time,
                     last_outbound_operator,

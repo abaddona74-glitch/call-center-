@@ -4624,9 +4624,9 @@ function renderViewerCallbacks(callbacks) {
 
         const cbContact = getClientContact(phone);
         const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
-        const attemptsCount = (currentCallbackDateFilter === 'today' || isToday)
-            ? (Number(item.today_attempts) || 1)
-            : (Number(item.attempts_count || item.today_attempts) || 1);
+        const attemptsCount = (typeof currentCallbackDateFilter !== 'undefined' && currentCallbackDateFilter === 'all')
+            ? (Number(item.attempts_count || item.today_attempts) || 1)
+            : (Number(item.today_attempts) || 1);
         const attemptBadge = attemptsCount > 1
             ? `<span style="background: rgba(239, 68, 68, 0.22); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.45); font-size: 10.5px; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin-left: 5px; display: inline-flex; align-items: center;" title="Bugun ${attemptsCount} marta tushgan">x${attemptsCount}</span>`
             : '';
