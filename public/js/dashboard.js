@@ -15,6 +15,7 @@ window.handleLogout = async function(e) {
 
 // Global State
 let socket = null;
+let ws = null;
 let currentPath = '';
 let explorerHistory = [''];
 let explorerHistoryIndex = 0;
@@ -34,6 +35,19 @@ let currentSelectedDate = ''; // 'YYYY-MM-DD' or '' for today
 let calViewYear = 2026;
 let calViewMonth = 8; // 0-based, 8 = September
 let calClockTimer = null;
+
+// Statistics & Topics Analytics State (hoisted to prevent TDZ in initStatControls)
+let currentStatPeriod = 'month'; // 'day', 'month' or 'year'
+let currentStatYear = new Date().getFullYear();
+let currentStatMonth = new Date().getMonth() + 1;
+let currentStatDate = ''; // 'YYYY-MM-DD'
+let currentStatTopicFilter = 'all';
+let currentStatSearchQuery = '';
+let currentStatCallsPage = 1;
+let statSearchDebounceTimer = null;
+let chartTopicDistInstance = null;
+let chartTopicTrendInstance = null;
+let isStatDataLoading = false;
 
 const UZ_MONTHS = [
     'Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun',
@@ -73,7 +87,7 @@ let callDistributionChart2D = null;
 let operatorChart = null;
 let pieChartMode = localStorage.getItem('pie_chart_mode') || '3d';
 let currentDistributionType = localStorage.getItem('distribution_type') || 'clients';
-let latestPieData = [0, 0, 0, 0];
+let latestPieData = [0, 0, 0, 0, 0];
 
 // WaveSurfer Instance
 let wavesurfer = null;
@@ -146,6 +160,8 @@ function runInit() {
     initDeployWatcher();
     initConverterDropzone();
     initStatControls();
+    initMultiplayerCursors();
+    initSubtleScrollReveal();
 
     // Avtomatik har 5 soniyada yangilash (foydalanuvchi bosishi shart emas)
     setInterval(() => {
@@ -153,6 +169,136 @@ function runInit() {
             socket.send(JSON.stringify({ action: 'refresh_channels' }));
         }
     }, 5000);
+}
+
+/**
+ * Subtle Scroll Reveal (Faqat statik KPI kartalari va diagrammalar uchun)
+ * Qoida: Dinamik innerHTML elementlarga tegmaydi, unobserve bilan 1 marta ishlaydi.
+ */
+function initSubtleScrollReveal() {
+    const kpiCards = Array.from(document.querySelectorAll('#kpiMainGrid > .kpi-card'));
+    const chartPanels = Array.from(document.querySelectorAll('.charts-grid > .glass-panel'));
+    const targets = [...kpiCards, ...chartPanels];
+
+    if (!targets.length) return;
+
+    // Har biriga unikal staggered delay berish (max 245ms)
+    kpiCards.forEach((card, idx) => {
+        card.classList.add('reveal-on-scroll');
+        const delayMs = Math.min(245, idx * 35);
+        card.style.setProperty('--reveal-delay', `${delayMs}ms`);
+    });
+
+    chartPanels.forEach((panel, idx) => {
+        panel.classList.add('reveal-on-scroll');
+        const delayMs = Math.min(100, idx * 50);
+        panel.style.setProperty('--reveal-delay', `${delayMs}ms`);
+    });
+
+    // Brauzer qo'llab-quvvatlamasa yoki prefers-reduced-motion bo'lsa darhol ochish
+    if (!('IntersectionObserver' in window) || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        targets.forEach(el => el.classList.add('is-revealed'));
+        return;
+    }
+
+    const scrollRoot = document.querySelector('.main-area') || null;
+
+    const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-revealed');
+                io.unobserve(entry.target);
+            }
+        });
+    }, {
+        root: scrollRoot,
+        threshold: 0.08,
+        rootMargin: '0px 0px -10px 0px'
+    });
+
+    targets.forEach(el => io.observe(el));
+
+    // Xavfsizlik fallbacki: 800ms ichida birorta karta yashirin holatda qolib ketmasligini ta'minlash
+    setTimeout(() => {
+        targets.forEach(el => {
+            if (!el.classList.contains('is-revealed')) {
+                el.classList.add('is-revealed');
+            }
+        });
+    }, 800);
+}
+
+let _hasRevealedOperators = false;
+
+function applyOperatorCardsScrollReveal() {
+    const grid = document.getElementById('operatorsGrid');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.operator-card:not(.skeleton), .op-grid-divider'));
+    if (!cards.length) return;
+
+    if (_hasRevealedOperators) {
+        cards.forEach(c => {
+            c.classList.remove('reveal-on-scroll');
+            c.classList.add('is-revealed');
+        });
+        return;
+    }
+
+    cards.forEach((card, idx) => {
+        card.classList.add('reveal-on-scroll');
+        const delayMs = Math.min(280, idx * 30);
+        card.style.setProperty('--reveal-delay', `${delayMs}ms`);
+    });
+
+    if (!('IntersectionObserver' in window) || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        cards.forEach(el => {
+            el.classList.add('is-revealed');
+            el.classList.remove('reveal-on-scroll');
+        });
+        _hasRevealedOperators = true;
+        return;
+    }
+
+    const scrollRoot = document.querySelector('.main-area') || null;
+
+    const opIo = new IntersectionObserver((entries) => {
+        let anyVisible = false;
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                anyVisible = true;
+                entry.target.classList.add('is-revealed');
+                opIo.unobserve(entry.target);
+            }
+        });
+        if (anyVisible) {
+            // Operatorlar maydoniga ozgina yaqinlashilgandayoq 400ms ichida barcha kartalar ochiladi
+            setTimeout(() => {
+                _hasRevealedOperators = true;
+                cards.forEach(el => {
+                    el.classList.add('is-revealed');
+                    el.classList.remove('reveal-on-scroll');
+                });
+                try { opIo.disconnect(); } catch (e) {}
+            }, 400);
+        }
+    }, {
+        root: scrollRoot,
+        threshold: 0.01,
+        rootMargin: '100px 0px 220px 0px' // 220px oldindan sezadi — hech qanday chiziqda qotib yoki yashirinib qolmaydi
+    });
+
+    cards.forEach(el => opIo.observe(el));
+
+    // Fallback: 1.5 soniyada barcha kartalarni kafolatlangan holda to'liq ochish
+    setTimeout(() => {
+        cards.forEach(el => {
+            el.classList.add('is-revealed');
+            el.classList.remove('reveal-on-scroll');
+        });
+        _hasRevealedOperators = true;
+        try { opIo.disconnect(); } catch (e) {}
+    }, 1500);
 }
 
 /* ==========================================================================
@@ -479,6 +625,7 @@ const ROUTE_MAP = {
     '/explorer': 'explorer',
     '/audio': 'explorer',
     '/operators': 'operators',
+    '/operator': 'operators',
     '/history': 'history',
     '/clients': 'clients',
     '/customers': 'clients',
@@ -534,6 +681,10 @@ function switchRoute(tabName, pushState = true) {
     const canonicalPath = target === 'dashboard' ? '/' : `/${target}`;
     if (pushState && window.location.pathname !== canonicalPath) {
         window.history.pushState({ tab: target }, '', canonicalPath);
+    }
+
+    if (window.innerWidth <= 768) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     if (target === 'explorer' && explorerFilesData.length === 0) {
@@ -797,12 +948,39 @@ function initCharts() {
             plotOptions: {
                 pie: {
                     allowPointSelect: false,
-                    cursor: 'default',
+                    cursor: 'pointer',
                     depth: 35,
                     size: '80%',
-                    slicedOffset: 0,
+                    slicedOffset: 14,
                     startAngle: -45,
                     center: ['50%', '48%'],
+                    states: {
+                        hover: {
+                            enabled: true,
+                            brightness: 0.2,
+                            halo: {
+                                size: 14,
+                                opacity: 0.35
+                            }
+                        },
+                        inactive: {
+                            opacity: 0.32
+                        }
+                    },
+                    point: {
+                        events: {
+                            mouseOver: function() {
+                                if (typeof setDistributionFocusHighlight === 'function') {
+                                    setDistributionFocusHighlight(this.index, true);
+                                }
+                            },
+                            mouseOut: function() {
+                                if (typeof setDistributionFocusHighlight === 'function') {
+                                    setDistributionFocusHighlight(this.index, false);
+                                }
+                            }
+                        }
+                    },
                     dataLabels: {
                         enabled: true,
                         distance: 12,
@@ -824,8 +1002,9 @@ function initCharts() {
                 data: [
                     { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: 1, color: '#10b981', sliced: false, selected: false },
                     { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: 0, color: '#f59e0b', sliced: false, selected: false },
-                    { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: 0, color: '#38bdf8', sliced: false, selected: false },
-                    { name: t('chart_slice_outbound', 'Chiquvchi'), y: 0, color: '#a855f7', sliced: false, selected: false }
+                    { name: t('chart_slice_abandoned_unreachable', 'Ulanilmadi'), y: 0, color: '#f43f5e', sliced: false, selected: false },
+                    { name: t('chart_slice_outbound', 'Chiquvchi'), y: 0, color: '#a855f7', sliced: false, selected: false },
+                    { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: 0, color: '#38bdf8', sliced: false, selected: false }
                 ]
             }]
         });
@@ -871,9 +1050,169 @@ function initCharts() {
         }
     });
 
+    // 2D SVG halqalari hover (1..5)
+    for (let i = 1; i <= 5; i++) {
+        const seg = document.getElementById(`dist2DSeg${i}`);
+        if (seg) {
+            seg.addEventListener('mouseenter', () => setDistributionFocusHighlight(i - 1, true));
+            seg.addEventListener('mouseleave', () => setDistributionFocusHighlight(i - 1, false));
+        }
+    }
+
+    // 2D & 3D Interactive Legend Hover highlight
+    const legendItems = document.querySelectorAll('#dist2DLegend li');
+    legendItems.forEach((li, idx) => {
+        li.addEventListener('mouseenter', () => setDistributionFocusHighlight(idx, true));
+        li.addEventListener('mouseleave', () => setDistributionFocusHighlight(idx, false));
+    });
+
+    // Sidebar callback chiplari orqali sinxron highlight
+    const pendingChip = document.getElementById('adminCbTabPending');
+    if (pendingChip) {
+        pendingChip.addEventListener('mouseenter', () => setDistributionFocusHighlight(1, true));
+        pendingChip.addEventListener('mouseleave', () => setDistributionFocusHighlight(1, false));
+    }
+    const unreachableChip = document.getElementById('adminCbTabUnreachable');
+    if (unreachableChip) {
+        unreachableChip.addEventListener('mouseenter', () => setDistributionFocusHighlight(2, true));
+        unreachableChip.addEventListener('mouseleave', () => setDistributionFocusHighlight(2, false));
+    }
+    const resolvedChip = document.getElementById('adminCbTabResolved');
+    if (resolvedChip) {
+        resolvedChip.addEventListener('mouseenter', () => setDistributionFocusHighlight(4, true));
+        resolvedChip.addEventListener('mouseleave', () => setDistributionFocusHighlight(4, false));
+    }
+
     // Diagramma rejimini (2D yoki 3D) va taqsimot turini (Mijozlar yoki Qo'ng'iroqlar) dastlabki yuklash
     setDistributionType(currentDistributionType);
     setChartMode(pieChartMode);
+}
+
+/**
+ * Taqsimot diagrammasi (2D/3D), Legend va tegishli panel/kartalar o'rtasida
+ * o'zaro sinxron Glow + Focus Blur effektini boshqarish.
+ * idx: 0 (Muvaffaqiyatli), 1 (Kutilmoqda), 2 (Chiquvchi), 3 (Gaplashildi)
+ */
+function setDistributionFocusHighlight(idx, active) {
+    const distPanel = document.getElementById('distributionGlassPanel');
+    const colorThemes = ['green', 'amber', 'rose', 'purple', 'cyan'];
+    const theme = colorThemes[idx] || 'amber';
+
+    if (!active) {
+        // Hammasini tiklash
+        document.body.classList.remove('dist-focus-active');
+        if (distPanel) distPanel.classList.remove('dist-focus-target');
+
+        document.querySelectorAll('.kpi-parent-section').forEach(el => el.classList.remove('dist-focus-has-target'));
+        document.querySelectorAll('.dist-focus-target').forEach(el => {
+            el.classList.remove('dist-focus-target', 'dist-focus-glow-amber', 'dist-focus-glow-green', 'dist-focus-glow-rose', 'dist-focus-glow-purple', 'dist-focus-glow-cyan');
+        });
+
+        // Legend qatorlarini tiklash
+        document.querySelectorAll('#dist2DLegend li').forEach(li => {
+            li.classList.remove('dist-active-row-amber', 'dist-active-row-green', 'dist-active-row-rose', 'dist-active-row-purple', 'dist-active-row-cyan');
+        });
+
+        // 2D SVG halqalarini tiklash
+        document.querySelectorAll('#dist2DSvg circle.dist-sg').forEach(s => {
+            s.style.strokeWidth = '';
+            s.style.filter = '';
+            s.style.opacity = '';
+        });
+
+        // 3D Highcharts bo'laklarini tiklash
+        if (typeof callDistributionChart !== 'undefined' && callDistributionChart && callDistributionChart.series && callDistributionChart.series[0]) {
+            callDistributionChart.series[0].points.forEach(pt => {
+                if (pt && typeof pt.slice === 'function' && pt.sliced) {
+                    pt.slice(false);
+                }
+            });
+        }
+        return;
+    }
+
+    // 1. Aktiv holatga o'tish: Orqa fonni xiralashtirish (Focus blur)
+    document.body.classList.add('dist-focus-active');
+    if (distPanel) {
+        distPanel.classList.add('dist-focus-target');
+    }
+
+    // 2. Legend qatorini ajratish va yoritish
+    const legendItems = document.querySelectorAll('#dist2DLegend li');
+    if (legendItems && legendItems[idx]) {
+        legendItems[idx].classList.add(`dist-active-row-${theme}`);
+    }
+
+    // 3. 2D SVG doirasini kattalashtirish va glow berish
+    const segId = `dist2DSeg${idx + 1}`;
+    const seg = document.getElementById(segId);
+    if (seg) {
+        seg.style.strokeWidth = '6.8';
+        seg.style.filter = 'drop-shadow(0 0 8px currentColor)';
+        seg.style.opacity = '1';
+        document.querySelectorAll('#dist2DSvg circle.dist-sg').forEach(s => {
+            if (s !== seg) s.style.opacity = '0.35';
+        });
+    }
+
+    // 4. 3D Highcharts bo'lagini tashqariga ajratish (slice pop-out)
+    if (typeof callDistributionChart !== 'undefined' && callDistributionChart && callDistributionChart.series && callDistributionChart.series[0]) {
+        const pt = callDistributionChart.series[0].points[idx];
+        if (pt && typeof pt.slice === 'function') {
+            pt.slice(true);
+        }
+    }
+
+    // 5. Tegishli joylarni (kartalar, panellar) yoritish
+    const kpiParent = document.querySelector('.kpi-parent-section');
+    if (idx === 0) {
+        // "Muvaffaqiyatli" -> Muvaffaqiyatli KPI kartasi + Operatorlar diagrammasi
+        const kpiAns = document.getElementById('kpiCardAnswered');
+        if (kpiAns) {
+            if (kpiParent) kpiParent.classList.add('dist-focus-has-target');
+            kpiAns.classList.add('dist-focus-target', 'dist-focus-glow-green');
+        }
+        const opChartEl = document.getElementById('operatorChart');
+        const opPanel = opChartEl ? opChartEl.closest('.glass-panel') : null;
+        if (opPanel) {
+            opPanel.classList.add('dist-focus-target', 'dist-focus-glow-green');
+        }
+    } else if (idx === 1) {
+        // "Kutilmoqda" -> Qayta bog'lanish kerak (callbacksPanel) + Navbatdan chiqdi KPI kartasi
+        const cbPanel = document.getElementById('callbacksPanel');
+        if (cbPanel) {
+            cbPanel.classList.add('dist-focus-target', 'dist-focus-glow-amber');
+        }
+        const kpiAb = document.getElementById('kpiCardAbandoned');
+        if (kpiAb) {
+            if (kpiParent) kpiParent.classList.add('dist-focus-has-target');
+            kpiAb.classList.add('dist-focus-target', 'dist-focus-glow-amber');
+        }
+    } else if (idx === 2) {
+        // "Ulanilmadi" -> Qayta bog'lanish kerak (callbacksPanel) + Navbatdan chiqdi KPI kartasi
+        const cbPanel = document.getElementById('callbacksPanel');
+        if (cbPanel) {
+            cbPanel.classList.add('dist-focus-target', 'dist-focus-glow-rose');
+        }
+        const kpiAb = document.getElementById('kpiCardAbandoned');
+        if (kpiAb) {
+            if (kpiParent) kpiParent.classList.add('dist-focus-has-target');
+            kpiAb.classList.add('dist-focus-target', 'dist-focus-glow-rose');
+        }
+    } else if (idx === 3) {
+        // "Chiquvchi" -> Chiquvchi KPI kartasi
+        const kpiOut = document.getElementById('kpiCardOutbound');
+        if (kpiOut) {
+            if (kpiParent) kpiParent.classList.add('dist-focus-has-target');
+            kpiOut.classList.add('dist-focus-target', 'dist-focus-glow-purple');
+        }
+    } else if (idx === 4) {
+        // "Gaplashildi" -> Qayta bog'lanish kerak (callbacksPanel) - Gaplashildi holati
+        const cbPanel = document.getElementById('callbacksPanel');
+        if (cbPanel) {
+            cbPanel.classList.add('dist-focus-target', 'dist-focus-glow-cyan');
+        }
+    }
 }
 
 /**
@@ -995,63 +1334,168 @@ function setDistributionType(type) {
 }
 window.setDistributionType = setDistributionType;
 
+let _last2DDistValues = {
+    total: 0,
+    vSuccess: 0,
+    vWait: 0,
+    vUnreachable: 0,
+    vOutbound: 0,
+    vResolved: 0,
+    p1: 0,
+    p2: 0,
+    p3: 0,
+    p4: 0,
+    p5: 0
+};
+// Animatsiya davomida joriy interpolyatsiya qiymatlarini saqlash
+// (yangi animatsiya boshlanganida to'g'ri boshlang'ich nuqta uchun)
+let _currentDist2DInterp = null;
+let _activeDist2DAnim = null;
+
+function animate2DDistributionNumbers(targetValues, duration = 550) {
+    // Qiymatlar o'zgarmagan bo'lsa animatsiya kerak emas
+    const prev = _currentDist2DInterp || _last2DDistValues;
+    if (
+        prev.total === targetValues.total &&
+        prev.vSuccess === targetValues.vSuccess &&
+        prev.vWait === targetValues.vWait &&
+        prev.vUnreachable === targetValues.vUnreachable &&
+        prev.vOutbound === targetValues.vOutbound &&
+        prev.vResolved === targetValues.vResolved
+    ) {
+        return;
+    }
+
+    if (_activeDist2DAnim) {
+        cancelAnimationFrame(_activeDist2DAnim);
+        _activeDist2DAnim = null;
+        // Joriy interpolyatsiya qiymatini boshlang'ich sifatida ishlatish
+        // (Eski _last2DDistValues emas — bu animatsiya "sakrab" ko'rinmasligi uchun)
+        if (_currentDist2DInterp) {
+            _last2DDistValues = { ..._currentDist2DInterp };
+        }
+    }
+
+    const startValues = { ..._last2DDistValues };
+    const startTime = performance.now();
+    _currentDist2DInterp = { ...startValues };
+
+    const elTotal = document.getElementById('dist2DTotal');
+    const val1El = document.getElementById('dist2DVal1');
+    const val2El = document.getElementById('dist2DVal2');
+    const val3El = document.getElementById('dist2DVal3');
+    const val4El = document.getElementById('dist2DVal4');
+    const val5El = document.getElementById('dist2DVal5');
+    const pct1El = document.getElementById('dist2DPct1');
+    const pct2El = document.getElementById('dist2DPct2');
+    const pct3El = document.getElementById('dist2DPct3');
+    const pct4El = document.getElementById('dist2DPct4');
+    const pct5El = document.getElementById('dist2DPct5');
+
+    function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        // Easing: cubic-bezier(0.16, 1, 0.3, 1) -> 1 - (1 - t)^3
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        const currentTotal = Math.round(startValues.total + (targetValues.total - startValues.total) * ease);
+        const curS1 = Math.round(startValues.vSuccess + (targetValues.vSuccess - startValues.vSuccess) * ease);
+        const curS2 = Math.round(startValues.vWait + (targetValues.vWait - startValues.vWait) * ease);
+        const curS3 = Math.round(startValues.vUnreachable + (targetValues.vUnreachable - startValues.vUnreachable) * ease);
+        const curS4 = Math.round(startValues.vOutbound + (targetValues.vOutbound - startValues.vOutbound) * ease);
+        const curS5 = Math.round(startValues.vResolved + (targetValues.vResolved - startValues.vResolved) * ease);
+
+        const curP1 = (startValues.p1 + (targetValues.p1 - startValues.p1) * ease).toFixed(1);
+        const curP2 = (startValues.p2 + (targetValues.p2 - startValues.p2) * ease).toFixed(1);
+        const curP3 = (startValues.p3 + (targetValues.p3 - startValues.p3) * ease).toFixed(1);
+        const curP4 = (startValues.p4 + (targetValues.p4 - startValues.p4) * ease).toFixed(1);
+        const curP5 = (startValues.p5 + (targetValues.p5 - startValues.p5) * ease).toFixed(1);
+
+        if (elTotal) elTotal.textContent = currentTotal.toLocaleString();
+        if (val1El) val1El.textContent = curS1.toLocaleString();
+        if (val2El) val2El.textContent = curS2.toLocaleString();
+        if (val3El) val3El.textContent = curS3.toLocaleString();
+        if (val4El) val4El.textContent = curS4.toLocaleString();
+        if (val5El) val5El.textContent = curS5.toLocaleString();
+
+        if (pct1El) pct1El.textContent = curP1 + '%';
+        if (pct2El) pct2El.textContent = curP2 + '%';
+        if (pct3El) pct3El.textContent = curP3 + '%';
+        if (pct4El) pct4El.textContent = curP4 + '%';
+        if (pct5El) pct5El.textContent = curP5 + '%';
+
+        // Joriy interpolyatsiya qiymatlarini saqlash
+        _currentDist2DInterp = {
+            total: currentTotal,
+            vSuccess: curS1, vWait: curS2, vUnreachable: curS3, vOutbound: curS4, vResolved: curS5,
+            p1: parseFloat(curP1), p2: parseFloat(curP2), p3: parseFloat(curP3),
+            p4: parseFloat(curP4), p5: parseFloat(curP5)
+        };
+
+        if (progress < 1) {
+            _activeDist2DAnim = requestAnimationFrame(step);
+        } else {
+            // Animatsiya tugagach, aniq target qiymatlarni saqlash
+            _last2DDistValues = { ...targetValues };
+            _currentDist2DInterp = null;
+            _activeDist2DAnim = null;
+        }
+    }
+
+    _activeDist2DAnim = requestAnimationFrame(step);
+}
+
 /**
  * 2D SVG Donut & Horizontal Legend renderer (Call Center Yangi Dizayn uslubida)
- * @param {Array<number>} vals - [Muvaffaqiyatli, Kutilmoqda, Chiquvchi, Gaplashildi]
+ * @param {Array<number>} vals - [Muvaffaqiyatli, Kutilmoqda, Ulanilmadi, Chiquvchi, Gaplashildi]
  * @param {string} sublabel - 'jami mijoz' yoki 'jami qo‘ng‘iroq'
  */
 function render2DDistribution(vals, sublabel) {
     const vSuccess = Math.max(0, Number(vals[0]) || 0);
     const vWait = Math.max(0, Number(vals[1]) || 0);
-    const vOutbound = Math.max(0, Number(vals[2]) || 0);
-    const vResolved = Math.max(0, Number(vals[3]) || 0);
-    const total = vSuccess + vWait + vOutbound + vResolved;
+    const vUnreachable = Math.max(0, Number(vals[2]) || 0);
+    const vOutbound = Math.max(0, Number(vals[3]) || 0);
+    const vResolved = Math.max(0, Number(vals[4]) || 0);
+    const total = vSuccess + vWait + vUnreachable + vOutbound + vResolved;
 
-    const elTotal = document.getElementById('dist2DTotal');
     const elLabel = document.getElementById('dist2DLabel');
     const seg1 = document.getElementById('dist2DSeg1');
     const seg2 = document.getElementById('dist2DSeg2');
     const seg3 = document.getElementById('dist2DSeg3');
     const seg4 = document.getElementById('dist2DSeg4');
+    const seg5 = document.getElementById('dist2DSeg5');
 
-    const pct1El = document.getElementById('dist2DPct1');
-    const val1El = document.getElementById('dist2DVal1');
-    const pct2El = document.getElementById('dist2DPct2');
-    const val2El = document.getElementById('dist2DVal2');
-    const pct3El = document.getElementById('dist2DPct3');
-    const val3El = document.getElementById('dist2DVal3');
-    const pct4El = document.getElementById('dist2DPct4');
-    const val4El = document.getElementById('dist2DVal4');
-
-    if (elTotal) elTotal.textContent = total.toLocaleString();
     if (elLabel) elLabel.textContent = sublabel || 'jami mijoz';
 
-    if (val1El) val1El.textContent = vSuccess.toLocaleString();
-    if (val2El) val2El.textContent = vWait.toLocaleString();
-    if (val3El) val3El.textContent = vOutbound.toLocaleString();
-    if (val4El) val4El.textContent = vResolved.toLocaleString();
+    const p1 = total > 0 ? (vSuccess / total) * 100 : 0;
+    const p2 = total > 0 ? (vWait / total) * 100 : 0;
+    const p3 = total > 0 ? (vUnreachable / total) * 100 : 0;
+    const p4 = total > 0 ? (vOutbound / total) * 100 : 0;
+    const p5 = total > 0 ? (vResolved / total) * 100 : 0;
+
+    // Raqamlarni silliq hisoblab o'sish (Count-Up Animation)
+    animate2DDistributionNumbers({
+        total,
+        vSuccess,
+        vWait,
+        vUnreachable,
+        vOutbound,
+        vResolved,
+        p1,
+        p2,
+        p3,
+        p4,
+        p5
+    }, 550);
 
     if (total === 0) {
-        if (pct1El) pct1El.textContent = '0.0%';
-        if (pct2El) pct2El.textContent = '0.0%';
-        if (pct3El) pct3El.textContent = '0.0%';
-        if (pct4El) pct4El.textContent = '0.0%';
         if (seg1) { seg1.setAttribute('stroke-dasharray', '0 100'); seg1.setAttribute('stroke-dashoffset', '25'); }
         if (seg2) { seg2.setAttribute('stroke-dasharray', '0 100'); seg2.setAttribute('stroke-dashoffset', '25'); }
         if (seg3) { seg3.setAttribute('stroke-dasharray', '0 100'); seg3.setAttribute('stroke-dashoffset', '25'); }
         if (seg4) { seg4.setAttribute('stroke-dasharray', '0 100'); seg4.setAttribute('stroke-dashoffset', '25'); }
+        if (seg5) { seg5.setAttribute('stroke-dasharray', '0 100'); seg5.setAttribute('stroke-dashoffset', '25'); }
         return;
     }
-
-    const p1 = (vSuccess / total) * 100;
-    const p2 = (vWait / total) * 100;
-    const p3 = (vOutbound / total) * 100;
-    const p4 = (vResolved / total) * 100;
-
-    if (pct1El) pct1El.textContent = p1.toFixed(1) + '%';
-    if (pct2El) pct2El.textContent = p2.toFixed(1) + '%';
-    if (pct3El) pct3El.textContent = p3.toFixed(1) + '%';
-    if (pct4El) pct4El.textContent = p4.toFixed(1) + '%';
 
     // SVG stroke-dashoffset: 12 o'clock soat mili bo'yicha 25 dan boshlanadi
     let currentOffset = 25;
@@ -1073,14 +1517,21 @@ function render2DDistribution(vals, sublabel) {
     if (seg3) {
         seg3.setAttribute('stroke-dasharray', `${p3.toFixed(2)} ${(100 - p3).toFixed(2)}`);
         seg3.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
-        seg3.innerHTML = `<title>Chiquvchi: ${vOutbound} (${p3.toFixed(1)}%)</title>`;
+        seg3.innerHTML = `<title>Ulanilmadi: ${vUnreachable} (${p3.toFixed(1)}%)</title>`;
     }
     currentOffset -= p3;
 
     if (seg4) {
         seg4.setAttribute('stroke-dasharray', `${p4.toFixed(2)} ${(100 - p4).toFixed(2)}`);
         seg4.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
-        seg4.innerHTML = `<title>Gaplashildi: ${vResolved} (${p4.toFixed(1)}%)</title>`;
+        seg4.innerHTML = `<title>Chiquvchi: ${vOutbound} (${p4.toFixed(1)}%)</title>`;
+    }
+    currentOffset -= p4;
+
+    if (seg5) {
+        seg5.setAttribute('stroke-dasharray', `${p5.toFixed(2)} ${(100 - p5).toFixed(2)}`);
+        seg5.setAttribute('stroke-dashoffset', currentOffset.toFixed(2));
+        seg5.innerHTML = `<title>Gaplashildi: ${vResolved} (${p5.toFixed(1)}%)</title>`;
     }
 }
 
@@ -1091,14 +1542,50 @@ function updateDistributionChartDisplay() {
     const stats = window._latestStats || {};
 
     const answeredCalls = Number(stats.answeredCalls) || 0;
-    const abandonedCalls = Number(stats.abandonedCalls) || 0;
     const outboundCalls = Number(stats.outboundCalls) || 0;
-    const abandonedPending = stats.abandonedPendingCalls !== undefined 
-        ? Number(stats.abandonedPendingCalls) 
-        : (abandonedCalls > 0 ? Math.round(abandonedCalls * 0.38) : 0);
-    const abandonedResolved = stats.abandonedResolvedCalls !== undefined 
-        ? Number(stats.abandonedResolvedCalls) 
-        : Math.max(0, abandonedCalls - abandonedPending);
+    const abandonedCalls = Number(stats.abandonedCalls) || 0;
+    const totalCalls = stats.totalCalls !== undefined ? Number(stats.totalCalls) : (answeredCalls + outboundCalls + abandonedCalls);
+
+    // Sidebar'dagi "Qayta bog'lanish kerak" widgeti bilan 100% bir xil real qiymatlar
+    const todayStr = getTodayDateString();
+    let cbPending = 0;
+    let cbUnreachable = 0;
+    let cbResolved = 0;
+
+    if (Array.isArray(currentCallbacksList) && currentCallbacksList.length > 0) {
+        const isTodayCallback = (c) => {
+            if (!c) return false;
+            if (c.call_time && c.call_time.startsWith(todayStr)) return true;
+            if (!adminCbResolvedTodayOnly && c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(todayStr)) return true;
+            return false;
+        };
+        const dateFiltered = (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'all')
+            ? currentCallbacksList
+            : currentCallbacksList.filter(isTodayCallback);
+
+        cbPending = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0)).length;
+        cbUnreachable = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0).length;
+
+        // renderCallbacks() dagi resolvedList bilan AYNAN bir xil mantiq
+        // (adminCbResolvedTodayOnly toggle'ni hurmat qilish)
+        cbResolved = currentCallbacksList.filter(c => {
+            if (c.status !== 'resolved') return false;
+            const timeStr = c.call_time || c.created_at || '';
+            if (typeof adminCbResolvedTodayOnly !== 'undefined' && adminCbResolvedTodayOnly) {
+                // Toggle ON: faqat dastlabki qo'ng'irog'i BUGUN bo'lganlar
+                return timeStr.startsWith(todayStr);
+            }
+            if (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'today') {
+                const dismStr = c.dismissed_at || '';
+                return timeStr.startsWith(todayStr) || dismStr.startsWith(todayStr);
+            }
+            return true;
+        }).length;
+    } else {
+        cbPending = Number(stats.callbacksPendingCount) || 0;
+        cbUnreachable = Number(stats.callbacksUnreachableCount) || 0;
+        cbResolved = Number(stats.callbacksResolvedCount) || 0;
+    }
 
     // Unikal Mijozlar
     const totalClients = stats.totalClients !== undefined ? Number(stats.totalClients) : (((Number(stats.inboundClients || stats.uniqueClients || 0)) + (Number(stats.outboundClients || 0))) || Number(stats.uniqueClients || 0));
@@ -1106,37 +1593,29 @@ function updateDistributionChartDisplay() {
     const outboundClients = stats.outboundClients !== undefined ? Number(stats.outboundClients) : Math.min(outboundCalls, totalClients);
     const answeredClients = stats.answeredClients !== undefined ? Number(stats.answeredClients) : Math.min(answeredCalls, inboundClients);
 
-    // Qolgan (bog'lanilmagan / navbatdan chiqqan) unikal mijozlar soni
-    const remainingClients = Math.max(0, totalClients - answeredClients - outboundClients);
-
-    // Bugungi kun bo'yicha kutilayotgan vs gaplashilgan callbacklar
-    const todayStr = getTodayDateString();
-    let todayPendingCb = 0;
-    let todayResolvedCb = 0;
-    if (Array.isArray(currentCallbacksList)) {
-        todayPendingCb = currentCallbacksList.filter(c => c.call_time && c.call_time.startsWith(todayStr) && (c.status === 'pending' || !c.status)).length;
-        todayResolvedCb = currentCallbacksList.filter(c => c.call_time && c.call_time.startsWith(todayStr) && c.status === 'resolved').length;
-    }
-
-    let clientPending = 0;
-    let clientResolved = 0;
-    if (remainingClients > 0) {
-        if (todayPendingCb + todayResolvedCb > 0) {
-            clientPending = Math.round((todayPendingCb / (todayPendingCb + todayResolvedCb)) * remainingClients);
-            clientResolved = remainingClients - clientPending;
-        } else {
-            clientPending = remainingClients;
-            clientResolved = 0;
-        }
-    }
-
     let vals = [];
     let sublabel = '';
     if (currentDistributionType === 'clients') {
-        vals = [answeredClients, clientPending, outboundClients, clientResolved];
+        // MIJOZLAR TAQSIMOTI: Yig'indi 100% totalClients (masalan 79) ga teng bo'ladi
+        // pureAnswered: faqat to'g'ridan-to'g'ri operatorga ulangan (qayta bog'lanish kerak bo'lmagan) mijozlar
+        const pureAnswered = Math.max(0, totalClients - cbPending - cbUnreachable - outboundClients - cbResolved);
+        vals = [pureAnswered, cbPending, cbUnreachable, outboundClients, cbResolved];
         sublabel = 'jami mijoz';
     } else {
-        vals = [answeredCalls, abandonedPending, outboundCalls, abandonedResolved];
+        // QO'NG'IROQLAR TAQSIMOTI: Yig'indi 100% totalCalls (masalan 103) ga teng bo'ladi
+        // Navbatdan chiqqan barcha qo'ng'iroqlar (abandonedCalls) sidebar proportsiyasi bo'yicha taqsimlanadi
+        const totalCb = cbPending + cbUnreachable + cbResolved;
+        let callPending = 0;
+        let callUnreachable = 0;
+        let callResolved = 0;
+        if (totalCb > 0 && abandonedCalls > 0) {
+            callPending = Math.round(abandonedCalls * (cbPending / totalCb));
+            callUnreachable = Math.round(abandonedCalls * (cbUnreachable / totalCb));
+            callResolved = Math.max(0, abandonedCalls - callPending - callUnreachable);
+        } else {
+            callPending = abandonedCalls;
+        }
+        vals = [answeredCalls, callPending, callUnreachable, outboundCalls, callResolved];
         sublabel = 'jami qo‘ng‘iroq';
     }
 
@@ -1152,7 +1631,7 @@ function updateDistributionChartDisplay() {
                 if (p && p.slice && p.sliced) p.slice(false);
             });
         }
-        const total = vals[0] + vals[1] + vals[2] + vals[3];
+        const total = vals[0] + vals[1] + vals[2] + vals[3] + vals[4];
         if (total === 0) {
             callDistributionChart.series[0].setData([
                 { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: 1, color: '#334155', sliced: false, selected: false }
@@ -1161,8 +1640,9 @@ function updateDistributionChartDisplay() {
             callDistributionChart.series[0].setData([
                 { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: vals[0], color: '#10b981', sliced: false, selected: false },
                 { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: vals[1], color: '#f59e0b', sliced: false, selected: false },
-                { name: t('chart_slice_outbound', 'Chiquvchi'), y: vals[2], color: '#a855f7', sliced: false, selected: false },
-                { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: vals[3], color: '#38bdf8', sliced: false, selected: false }
+                { name: t('chart_slice_abandoned_unreachable', 'Ulanilmadi'), y: vals[2], color: '#f43f5e', sliced: false, selected: false },
+                { name: t('chart_slice_outbound', 'Chiquvchi'), y: vals[3], color: '#a855f7', sliced: false, selected: false },
+                { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: vals[4], color: '#38bdf8', sliced: false, selected: false }
             ], true, { duration: 500 });
         }
     }
@@ -1178,10 +1658,19 @@ function initWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}`;
     ws = new WebSocket(wsUrl);
+    socket = ws;
 
     ws.onopen = () => {
         console.log('WebSocket ulandi');
         updateAmiStatus(true);
+        // Ulanish zahoti faol tab sifatida ro'yxatdan o'tish va presence yuborish
+        try {
+            if (typeof claimActiveTab === 'function') {
+                claimActiveTab();
+            } else if (typeof sendPresenceHeartbeat === 'function') {
+                sendPresenceHeartbeat(true);
+            }
+        } catch (e) {}
     };
 
     ws.onmessage = (event) => {
@@ -1213,10 +1702,343 @@ function initWebSocket() {
     }
 }
 
+// =========================================================================
+// MULTIPLAYER LIVE CURSORS & PRESENCE MODULE (AnyDesk / Figma Style)
+// =========================================================================
+let myClientId = '';
+let myAssignedColor = '#38bdf8';
+let isMultiplayerCursorsEnabled = true;
+const remoteCursorsMap = new Map(); // clientId -> { element, timer, xRatio, contentY, tab, pcName, color }
+let lastCursorSendTime = 0;
+
+// Har bir brauzer / kompyuter uchun yagona unikal qurilma ID (localStorage orqali barcha tablar o'rtasida umumiy)
+function getOrCreateDeviceId() {
+    let id = localStorage.getItem('cc_multiplayer_device_id');
+    if (!id || typeof id !== 'string' || id.length < 8) {
+        id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        localStorage.setItem('cc_multiplayer_device_id', id);
+    }
+    return id;
+}
+
+// Ushbu vkladka (tab) uchun unikal in-memory ID (boshqa tablardan ajratish uchun)
+const currentTabId = 'tab_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+
+function isThisTabActive() {
+    return localStorage.getItem('cc_active_tab_id') === currentTabId;
+}
+
+function claimActiveTab() {
+    localStorage.setItem('cc_active_tab_id', currentTabId);
+    sendPresenceHeartbeat(true);
+}
+
+function sendPresenceHeartbeat(isDirectlyActive) {
+    if (!ws || ws.readyState !== 1) return;
+    const isVisible = (document.visibilityState === 'visible');
+    const isStoredActive = isThisTabActive();
+    const isActive = (isDirectlyActive === true) || (isVisible && isStoredActive);
+
+    try {
+        ws.send(JSON.stringify({
+            type: 'presence_ping',
+            appType: 'dashboard_3535',
+            deviceId: getOrCreateDeviceId(),
+            tabId: currentTabId,
+            isActiveTab: Boolean(isActive),
+            isVisible: isVisible,
+            pcName: getMyPcName(),
+            tab: getActiveTabName()
+        }));
+    } catch (e) {}
+}
+
+function getActiveTabName() {
+    return document.documentElement.getAttribute('data-tab') || 'dashboard';
+}
+
+function getMyPcName() {
+    let name = localStorage.getItem('multiplayer_pc_name');
+    if (!name || name === 'undefined' || name === 'null') {
+        const storedSuggested = localStorage.getItem('suggested_pc_name') || 'Admin PC';
+        name = storedSuggested;
+        localStorage.setItem('multiplayer_pc_name', name);
+    }
+    return name;
+}
+
+function setMyPcName(name) {
+    if (!name) return;
+    const clean = String(name).trim().slice(0, 24);
+    if (!clean) return;
+    localStorage.setItem('multiplayer_pc_name', clean);
+    const lbl = document.getElementById('lblMyPcName');
+    if (lbl) lbl.textContent = clean;
+    // Serverga yangilangan nom haqida xabar berish
+    sendPresenceHeartbeat(true);
+}
+
+function promptChangePcName(e) {
+    if (e) e.stopPropagation();
+    const current = getMyPcName();
+    const newName = prompt("Kompyuter nomini kiriting (masalan, PC-ZUHRA yoki OPERATOR-101):", current);
+    if (newName && newName.trim()) {
+        setMyPcName(newName);
+    }
+}
+
+function toggleMultiplayerCursors(e) {
+    if (e) e.stopPropagation();
+    isMultiplayerCursorsEnabled = !isMultiplayerCursorsEnabled;
+    const overlay = document.getElementById('multiplayerCursorsOverlay');
+    if (overlay) {
+        overlay.style.display = isMultiplayerCursorsEnabled ? 'block' : 'none';
+    }
+    const txt = document.getElementById('txtOnlineCursorsCount');
+    if (txt) {
+        txt.style.opacity = isMultiplayerCursorsEnabled ? '1' : '0.5';
+    }
+    localStorage.setItem('multiplayer_cursors_enabled', isMultiplayerCursorsEnabled ? '1' : '0');
+}
+
+function initMultiplayerCursors() {
+    // Saqlangan sozlamalarni yuklash
+    const savedEnabled = localStorage.getItem('multiplayer_cursors_enabled');
+    if (savedEnabled === '0') {
+        isMultiplayerCursorsEnabled = false;
+        const overlay = document.getElementById('multiplayerCursorsOverlay');
+        if (overlay) overlay.style.display = 'none';
+        const txt = document.getElementById('txtOnlineCursorsCount');
+        if (txt) txt.style.opacity = '0.5';
+    }
+
+    const lbl = document.getElementById('lblMyPcName');
+    if (lbl) lbl.textContent = getMyPcName();
+
+    // Tab faolligi va diqqatni (focus) aniqlash
+    window.addEventListener('focus', claimActiveTab);
+    window.addEventListener('click', () => {
+        if (!isThisTabActive()) claimActiveTab();
+    }, { passive: true });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            claimActiveTab();
+        } else {
+            sendPresenceHeartbeat(false);
+        }
+    });
+
+    // Mouse harakatini sahifa kontentiga bog'langan koordinatalar bilan uzatish (~35ms throttle)
+    window.addEventListener('mousemove', (e) => {
+        // Agar bu tabga kelib sichqoncha harakatlansa, uni aktiv tab deb qayd etish
+        if (!isThisTabActive() && document.visibilityState === 'visible') {
+            localStorage.setItem('cc_active_tab_id', currentTabId);
+        }
+
+        if (!ws || ws.readyState !== 1) return; // 1 = WebSocket.OPEN
+        const now = performance.now();
+        if (now - lastCursorSendTime < 35) return;
+        lastCursorSendTime = now;
+
+        const mainArea = document.getElementById('mainArea') || document.querySelector('.main-area');
+        if (!mainArea) return;
+
+        const rect = mainArea.getBoundingClientRect();
+        const scrollLeft = mainArea.scrollLeft || 0;
+        const scrollTop = mainArea.scrollTop || 0;
+
+        // Kontentning boshiga nisbatan mutlaq koordinata
+        const contentX = (e.clientX - rect.left) + scrollLeft;
+        const contentY = (e.clientY - rect.top) + scrollTop;
+
+        const mainWidth = Math.max(1, mainArea.clientWidth);
+        const xRatio = Math.max(0, Math.min(1.2, contentX / mainWidth));
+
+        try {
+            ws.send(JSON.stringify({
+                type: 'cursor_move',
+                deviceId: getOrCreateDeviceId(),
+                tabId: currentTabId,
+                xRatio: Number(xRatio.toFixed(4)),
+                contentY: Math.round(contentY),
+                tab: getActiveTabName(),
+                pcName: getMyPcName()
+            }));
+        } catch (err) {}
+    }, { passive: true });
+
+    // Sichqoncha darchadan chiqqanda kursor holatini bildirish
+    document.addEventListener('mouseleave', () => {
+        if (ws && ws.readyState === 1) {
+            try {
+                ws.send(JSON.stringify({ type: 'cursor_leave' }));
+            } catch (err) {}
+        }
+    });
+
+    // Har 10 soniyada mavjudlikni (presence heartbeat) yangilab turish
+    setInterval(() => {
+        sendPresenceHeartbeat();
+    }, 10000);
+
+    // Oyna o'lchami o'zgarganda kursorlarni to'g'ri qayta joylashtirish
+    window.addEventListener('resize', () => {
+        const mainArea = document.getElementById('mainArea') || document.querySelector('.main-area');
+        if (!mainArea) return;
+        const mainWidth = mainArea.clientWidth;
+        remoteCursorsMap.forEach((data) => {
+            if (data.element) {
+                const px = Math.round((data.xRatio || 0) * mainWidth);
+                const py = Math.round(data.contentY || 0);
+                data.element.style.transform = `translate3d(${px}px, ${py}px, 0)`;
+            }
+        });
+    });
+}
+
+function handleClientAssigned(data) {
+    if (!data) return;
+    if (data.clientId) myClientId = data.clientId;
+    if (data.color) myAssignedColor = data.color;
+    if (data.suggestedPcName) {
+        localStorage.setItem('suggested_pc_name', data.suggestedPcName);
+        if (!localStorage.getItem('multiplayer_pc_name')) {
+            setMyPcName(data.suggestedPcName);
+        }
+    }
+    const lbl = document.getElementById('lblMyPcName');
+    if (lbl) lbl.textContent = getMyPcName();
+}
+
+function handleRemoteCursorMove(data) {
+    if (!data || !data.clientId) return;
+    if (myClientId && data.clientId === myClientId) return;
+    if (!isMultiplayerCursorsEnabled) return;
+
+    const overlay = document.getElementById('multiplayerCursorsOverlay');
+    if (!overlay) return;
+
+    const mainArea = document.getElementById('mainArea') || document.querySelector('.main-area');
+    if (!mainArea) return;
+
+    let cursorItem = remoteCursorsMap.get(data.clientId);
+    const color = data.color || '#38bdf8';
+    const pcName = data.pcName || 'Noma\'lum PC';
+    const remoteTab = data.tab || 'dashboard';
+    const currentTab = getActiveTabName();
+    const isSameTab = (remoteTab === currentTab);
+
+    // xRatio va contentY ni aniqlash (eski x, y formatlarini ham qo'llab-quvvatlaydi)
+    const xRatio = (data.xRatio !== undefined) ? data.xRatio : (data.x !== undefined ? data.x : 0.5);
+    const contentY = (data.contentY !== undefined) ? data.contentY : Math.round((data.y || 0) * (mainArea.clientHeight || window.innerHeight));
+
+    if (!cursorItem || !cursorItem.element) {
+        // AnyDesk / Figma uslubidagi kursor va uning yorlig'i
+        const el = document.createElement('div');
+        el.className = 'remote-cursor';
+        el.id = `remoteCursor-${data.clientId}`;
+        el.innerHTML = `
+            <svg class="cursor-arrow-svg" viewBox="0 0 16 16">
+                <path d="M0 0 L15 10.5 L8.5 10.5 L13 16 L10.5 16 L6 10.5 L0 15 Z" fill="${color}" stroke="#ffffff" stroke-width="0.8"/>
+            </svg>
+            <div class="cursor-label" style="background: ${color};">
+                <span class="cursor-pc-icon">💻</span>
+                <span class="cursor-name">${escapeHtml(pcName)}</span>
+                <span class="cursor-tab-tag" style="display: none; font-size: 9.5px; opacity: 0.9; margin-left: 2px;"></span>
+            </div>
+        `;
+        overlay.appendChild(el);
+
+        cursorItem = {
+            element: el,
+            timer: null,
+            xRatio: xRatio,
+            contentY: contentY,
+            tab: remoteTab,
+            pcName: pcName,
+            color: color
+        };
+        remoteCursorsMap.set(data.clientId, cursorItem);
+    } else {
+        cursorItem.xRatio = xRatio;
+        cursorItem.contentY = contentY;
+        cursorItem.tab = remoteTab;
+        if (cursorItem.pcName !== pcName) {
+            cursorItem.pcName = pcName;
+            const nameEl = cursorItem.element.querySelector('.cursor-name');
+            if (nameEl) nameEl.textContent = pcName;
+        }
+    }
+
+    // Agar boshqa bo'limda (tabda) bo'lsa, xiralashtirib qaysi bo'limdaligini ko'rsatish
+    const tabTag = cursorItem.element.querySelector('.cursor-tab-tag');
+    if (tabTag) {
+        if (!isSameTab) {
+            tabTag.style.display = 'inline';
+            tabTag.textContent = `• [${remoteTab}]`;
+            cursorItem.element.style.opacity = '0.35';
+        } else {
+            tabTag.style.display = 'none';
+            cursorItem.element.style.opacity = '1';
+        }
+    }
+
+    // Element koordinatasini mainArea kontenti bo'yicha aniq joylashtirish
+    const mainWidth = mainArea.clientWidth || window.innerWidth;
+    const px = Math.round(cursorItem.xRatio * mainWidth);
+    const py = Math.round(cursorItem.contentY);
+
+    cursorItem.element.style.transform = `translate3d(${px}px, ${py}px, 0)`;
+    cursorItem.element.classList.remove('is-idle', 'is-hidden');
+
+    // 8 soniya harakat bo'lmasa xiralashadi
+    if (cursorItem.timer) clearTimeout(cursorItem.timer);
+    cursorItem.timer = setTimeout(() => {
+        if (cursorItem.element) {
+            cursorItem.element.classList.add('is-idle');
+        }
+    }, 8000);
+
+    updateOnlineCursorsCount();
+}
+
+function handleRemoteCursorRemove(data) {
+    if (!data || !data.clientId) return;
+    const cursorItem = remoteCursorsMap.get(data.clientId);
+    if (cursorItem) {
+        if (cursorItem.timer) clearTimeout(cursorItem.timer);
+        if (cursorItem.element && cursorItem.element.parentNode) {
+            cursorItem.element.parentNode.removeChild(cursorItem.element);
+        }
+        remoteCursorsMap.delete(data.clientId);
+    }
+    updateOnlineCursorsCount();
+}
+
+function updateOnlineCursorsCount(serverCount) {
+    const txt = document.getElementById('txtOnlineCursorsCount');
+    if (!txt) return;
+    const count = (typeof serverCount === 'number') ? serverCount : Math.max(1, remoteCursorsMap.size + 1);
+    txt.textContent = `${count} online`;
+}
+
 function handleWsMessage(msg) {
-    if (msg.type === 'server_version' && msg.data) {
+    if (msg.type === 'client_assigned') {
+        handleClientAssigned(msg.data);
+    } else if (msg.type === 'presence_stats') {
+        if (msg.data && typeof msg.data.onlineCount === 'number') {
+            updateOnlineCursorsCount(msg.data.onlineCount);
+        }
+    } else if (msg.type === 'remote_cursor_move') {
+        handleRemoteCursorMove(msg.data);
+    } else if (msg.type === 'remote_cursor_remove') {
+        handleRemoteCursorRemove(msg.data);
+    } else if (msg.type === 'server_version' && msg.data) {
         handleServerBuildId(msg.data.buildId);
     } else if (msg.type === 'initial_state') {
+        if (msg.data && msg.data.clientId) {
+            handleClientAssigned(msg.data);
+        }
         if (msg.data && msg.data.serverVersion && msg.data.serverVersion.buildId) {
             handleServerBuildId(msg.data.serverVersion.buildId);
         }
@@ -1346,7 +2168,17 @@ function getPhone9(phone) {
 }
 
 function findActiveCallForPhone(phone, itemActiveCall) {
+    const isOpOnline = (opId) => {
+        if (!opId || typeof currentOperators === 'undefined' || !Array.isArray(currentOperators)) return true;
+        const found = currentOperators.find(o => String(o.id) === String(opId));
+        if (!found) return true;
+        return found.presence !== 'offline';
+    };
+
     if (itemActiveCall && itemActiveCall.operator) {
+        if (itemActiveCall.operatorExten && !isOpOnline(itemActiveCall.operatorExten)) {
+            return null; // Offline operator faol qo'ng'iroqda bo'la olmaydi!
+        }
         return itemActiveCall;
     }
     const target9 = getPhone9(phone);
@@ -1357,6 +2189,7 @@ function findActiveCallForPhone(phone, itemActiveCall) {
         for (const conv of currentConversations) {
             const c9 = getPhone9(conv.callerId);
             if (c9 && c9 === target9) {
+                if (conv.operatorExten && !isOpOnline(conv.operatorExten)) continue;
                 const rawName = conv.operator || '';
                 const cleanName = String(rawName).replace(/\s*\(\d+\)\s*/g, '').trim() || (conv.operatorExten ? `Operator ${conv.operatorExten}` : 'Operator');
                 return {
@@ -1372,6 +2205,7 @@ function findActiveCallForPhone(phone, itemActiveCall) {
     // 2. Chiquvchi yoki kiruvchi qo'ng'iroq jiringlayotgan (ringing)
     if (typeof currentOperators !== 'undefined' && Array.isArray(currentOperators)) {
         for (const op of currentOperators) {
+            if (op.presence === 'offline') continue;
             if (op.presence === 'ringing' && op.ringingCaller) {
                 const r9 = getPhone9(op.ringingCaller);
                 if (r9 && r9 === target9) {
@@ -1428,6 +2262,9 @@ function toggleAdminCbResolvedTodayOnly(checked) {
     if (slider) slider.style.backgroundColor = adminCbResolvedTodayOnly ? '#10b981' : '#334155';
     if (knob) knob.style.transform = adminCbResolvedTodayOnly ? 'translateX(16px)' : 'translateX(0px)';
     renderCallbacks(currentCallbacksList);
+    // Toggle o'zgarganda taqsimot diagrammasini ham yangilash
+    // (chunki cbResolved hisob-kitobi adminCbResolvedTodayOnly ga bog'liq)
+    updateDistributionChartDisplay();
 }
 window.toggleAdminCbResolvedTodayOnly = toggleAdminCbResolvedTodayOnly;
 
@@ -1561,6 +2398,11 @@ function renderCallbacks(callbacks) {
     const clearAllBtn = document.getElementById('btnClearAllCallbacks');
     if (clearAllBtn) {
         clearAllBtn.style.display = totalNeedAttention > 0 ? 'inline-flex' : 'none';
+    }
+
+    // Taqsimot diagrammasidagi "Kutilmoqda" qiymatini sidebar bilan 100% sinxron yangilash
+    if (typeof updateDistributionChartDisplay === 'function') {
+        updateDistributionChartDisplay();
     }
 
     if (!container) return;
@@ -3959,6 +4801,7 @@ try {
 
 function switchOperatorGroup(group) {
     if (!['main', 'secondary', 'all'].includes(group)) return;
+    _hasRevealedOperators = false;
     currentOperatorGroup = group;
     try {
         localStorage.setItem('callcenter_op_group', group);
@@ -4927,6 +5770,9 @@ function renderOperators(operators) {
 
     if (_operatorsIsCompact) grid.classList.add('compact');
     if (_operatorsIsFocus) applyOperatorsFocusUI();
+
+    // Scroll reveal animatsiyasini operator kartalariga qo'llash
+    applyOperatorCardsScrollReveal();
 
     // Jonli taymerlarni yangilash
     updateAllTalkingTimers();
@@ -10491,6 +11337,18 @@ function createDayCell(dayNum, fullDateStr, isOtherMonth, todayStr, activeDateSt
     cell.innerText = dayNum;
     cell.dataset.date = fullDateStr;
 
+    // Shanba va yakshanba kunlarini belgilash (dam olish kunlari)
+    if (fullDateStr) {
+        const parts = fullDateStr.split('-');
+        if (parts.length === 3) {
+            const dateObj = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            const dayOfWeek = dateObj.getDay(); // 0 = Yakshanba, 6 = Shanba
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                cell.classList.add('is-weekend');
+            }
+        }
+    }
+
     if (isOtherMonth) cell.classList.add('other-month');
     if (fullDateStr === todayStr) cell.classList.add('is-today');
     if (fullDateStr === activeDateStr) cell.classList.add('is-selected');
@@ -13453,17 +14311,6 @@ window.initConverterDropzone = initConverterDropzone;
 /* ==========================================================================
    STATISTIKA VA MAVZULAR TAHLILI (CALL TOPIC ANALYTICS & VOICE-TO-TEXT INSIGHTS)
    ========================================================================== */
-let currentStatPeriod = 'month'; // 'day', 'month' or 'year'
-let currentStatYear = new Date().getFullYear();
-let currentStatMonth = new Date().getMonth() + 1;
-let currentStatDate = ''; // 'YYYY-MM-DD'
-let currentStatTopicFilter = 'all';
-let currentStatSearchQuery = '';
-let currentStatCallsPage = 1;
-let statSearchDebounceTimer = null;
-let chartTopicDistInstance = null;
-let chartTopicTrendInstance = null;
-let isStatDataLoading = false;
 
 async function initStatControls() {
     const yearSelect = document.getElementById('statYearSelect');
@@ -13645,7 +14492,7 @@ function renderTopicCharts(summaryData, trendData) {
 
     const chartData = [
         { name: 'Kalit uzaytirish (E-imzo)', y: topics.kalit?.count || 0, color: '#38bdf8' },
-        { name: 'EDO & Fakturalar', y: topics.edo?.count || 0, color: '#10b981' },
+        { name: 'EDO', y: topics.edo?.count || 0, color: '#10b981' },
         { name: 'E-Huquqshunos', y: topics.ehuquqshunos?.count || 0, color: '#a855f7' },
         { name: 'Boshqa masalalar', y: topics.other?.count || 0, color: '#f59e0b' }
     ];
@@ -13698,7 +14545,7 @@ function renderTopicCharts(summaryData, trendData) {
             console.error('[Statistics] Error creating distribution chart:', e);
         }
 
-        const timelineList = trendData && Array.isArray(trendData.timeline) && trendData.timeline.length > 0
+        let timelineList = trendData && Array.isArray(trendData.timeline) && trendData.timeline.length > 0
             ? trendData.timeline
             : (currentStatPeriod === 'day'
                 ? ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'].map(h => ({ displayLabel: h, kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }))
@@ -13707,6 +14554,22 @@ function renderTopicCharts(summaryData, trendData) {
                     : [{ displayLabel: '1-kun', kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }]
                   )
               );
+
+        // Oylik dinamika grafigida shanba va yakshanba (dam olish kunlari) chiqarilmaydi
+        if (currentStatPeriod === 'month') {
+            timelineList = timelineList.filter(item => {
+                if (!item.label) return true;
+                const p = String(item.label).split('-');
+                if (p.length === 3) {
+                    const y = parseInt(p[0], 10);
+                    const m = parseInt(p[1], 10) - 1;
+                    const d = parseInt(p[2], 10);
+                    const dayOfWeek = new Date(y, m, d).getDay(); // 0 = Yakshanba, 6 = Shanba
+                    return dayOfWeek !== 0 && dayOfWeek !== 6;
+                }
+                return true;
+            });
+        }
 
         const trendTitleEl = document.getElementById('statTrendTitle');
         if (trendTitleEl) {
@@ -13779,7 +14642,6 @@ function renderTopicCharts(summaryData, trendData) {
             }
         }
     }
-}
 
 async function loadStatCallsPage(page = 1) {
     currentStatCallsPage = page;
@@ -13833,11 +14695,11 @@ async function loadStatCallsPage(page = 1) {
                 iconHtml: '<img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">' 
             },
             edo: { 
-                name: 'EDO & Fakturalar', 
+                name: 'EDO', 
                 bg: 'rgba(16, 185, 129, 0.15)', 
                 border: 'rgba(16, 185, 129, 0.35)', 
                 color: '#34d399', 
-                iconHtml: '<svg class="isax isax-document-text" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document-text"></use></svg>' 
+                iconHtml: '<img src="/icons/edo-symbol.svg" alt="EDO" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px; background: #fff; padding: 1px;">' 
             },
             ehuquqshunos: { 
                 name: 'E-Huquqshunos', 

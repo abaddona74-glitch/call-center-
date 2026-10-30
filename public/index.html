@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793196927398">
+    <meta name="build-id" content="1793339648391">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,13 +22,13 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793196927398">
+    <link rel="stylesheet" href="/css/style.css?v=1793339648391">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
         (function() {
             var path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/';
-            var map = { '/': 'dashboard', '/dashboard': 'dashboard', '/operators': 'operators', '/history': 'history', '/explorer': 'explorer', '/audio': 'explorer', '/clients': 'clients', '/statistics': 'statistics', '/statistika': 'statistics', '/analytics': 'statistics', '/tools': 'statistics' };
+            var map = { '/': 'dashboard', '/dashboard': 'dashboard', '/operators': 'operators', '/operator': 'operators', '/history': 'history', '/explorer': 'explorer', '/audio': 'explorer', '/clients': 'clients', '/statistics': 'statistics', '/statistika': 'statistics', '/analytics': 'statistics', '/tools': 'statistics' };
             var activeTab = map[path] || 'dashboard';
             document.documentElement.setAttribute('data-tab', activeTab);
         })();
@@ -190,7 +190,9 @@
 <body>
     <div class="app-container">
         <!-- Main Application Area -->
-        <main class="main-area">
+        <main class="main-area" id="mainArea">
+            <!-- Multiplayer Live Cursors Overlay Container (joylashuvi: sahifa kontenti bilan birga scroll bo'ladi) -->
+            <div id="multiplayerCursorsOverlay"></div>
             <!-- Top Navbar -->
             <header class="top-navbar">
                 <div class="brand-section">
@@ -375,7 +377,7 @@
                             </div>
 
                                 <div class="cal-weekdays-grid">
-                                    <span data-i18n="cal_week_mon">Du</span><span data-i18n="cal_week_tue">Se</span><span data-i18n="cal_week_wed">Ch</span><span data-i18n="cal_week_thu">Pa</span><span data-i18n="cal_week_fri">Ju</span><span data-i18n="cal_week_sat">Sh</span><span data-i18n="cal_week_sun">Ya</span>
+                                    <span data-i18n="cal_week_mon">Du</span><span data-i18n="cal_week_tue">Se</span><span data-i18n="cal_week_wed">Ch</span><span data-i18n="cal_week_thu">Pa</span><span data-i18n="cal_week_fri">Ju</span><span class="cal-weekend-header" data-i18n="cal_week_sat">Sh</span><span class="cal-weekend-header" data-i18n="cal_week_sun">Ya</span>
                                 </div>
 
                                 <div class="cal-days-matrix" id="calDaysMatrix">
@@ -408,6 +410,19 @@
                     </div>
 
                     <div class="date-filter-right">
+                        <!-- Multiplayer Cursors (Presence) Widget -->
+                        <div class="presence-cursor-widget" id="presenceCursorWidget" style="display: inline-flex; align-items: center; gap: 7px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; padding: 6px 12px; backdrop-filter: blur(8px);">
+                            <button type="button" id="btnToggleCursors" onclick="toggleMultiplayerCursors(event)" title="Jonli kursorlarni ko'rsatish / yashirish" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #38bdf8; font-size: 12px; font-weight: 600; padding: 0;">
+                                <span style="display: inline-block; width: 7.5px; height: 7.5px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                                <span id="txtOnlineCursorsCount">1 online</span>
+                            </button>
+                            <span style="width: 1px; height: 13px; background: rgba(255, 255, 255, 0.18);"></span>
+                            <button type="button" id="btnChangePcName" onclick="promptChangePcName(event)" title="Kompyuter nomini o'zgartirish" style="background: none; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; color: #cbd5e1; font-size: 12px; font-weight: 600; padding: 0;">
+                                <svg class="isax isax-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; display: inline-block; vertical-align: middle; color: #94a3b8;"><path d="M3 4C3 3.44772 3.44772 3 4 3H20C20.5523 3 21 3.44772 21 4V16C21 16.5523 20.5523 17 20 17H4C3.44772 17 3 16.5523 3 16V4Z"/><path d="M12 17V21"/><path d="M8 21H16"/></svg>
+                                <span id="lblMyPcName" style="max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">PC</span>
+                            </button>
+                        </div>
+
                         <button type="button" class="btn-action" id="btnExportExcel" onclick="openExportModal()" data-i18n-title="export_excel_title" title="Hisobotni yuklab olish (Sana oralig'i bo'yicha)" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); color: #ffffff; align-items: center; gap: 8px; font-weight: 500; padding: 7px 14px; border-radius: 8px; transition: all 0.2s ease;">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
                                 <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
@@ -463,7 +478,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="kpi-card purple clickable-kpi" onclick="openCallsDetail('outbound', t('kpi_outbound_calls', 'Chiquvchi Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-card purple clickable-kpi" id="kpiCardOutbound" onclick="openCallsDetail('outbound', t('kpi_outbound_calls', 'Chiquvchi Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                             <div class="kpi-icon"><img src="/images/outgoingcall.png?v=2" alt="Chiquvchi" width="54" height="54"></div>
                             <div class="kpi-details">
                                 <p data-i18n="kpi_outbound_calls">Chiquvchi Qo'ng'iroqlar</p>
@@ -478,7 +493,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="kpi-card green clickable-kpi" onclick="openCallsDetail('answered', t('kpi_answered_calls', 'Muvaffaqiyatli Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-card green clickable-kpi" id="kpiCardAnswered" onclick="openCallsDetail('answered', t('kpi_answered_calls', 'Muvaffaqiyatli Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                             <div class="kpi-icon"><img src="/images/answered-calls-icon.png?v=2" alt="Muvaffaqiyatli" width="54" height="54"></div>
                             <div class="kpi-details">
                                 <p data-i18n="kpi_answered_calls">Muvaffaqiyatli</p>
@@ -493,7 +508,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="kpi-card amber clickable-kpi" onclick="openCallsDetail('abandoned', t('kpi_abandoned_calls', 'Navbatdan chiqdi'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
+                        <div class="kpi-card amber clickable-kpi" id="kpiCardAbandoned" onclick="openCallsDetail('abandoned', t('kpi_abandoned_calls', 'Navbatdan chiqdi'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                             <div class="kpi-icon"><img src="/images/queue.png?v=2" alt="Navbatdan chiqdi" width="54" height="54"></div>
                             <div class="kpi-details">
                                 <p data-i18n="kpi_abandoned_calls">Navbatdan chiqdi</p>
@@ -576,7 +591,7 @@
                         </div>
 
                         <!-- Right: Inbound vs Outbound Pie -->
-                        <div class="glass-panel">
+                        <div class="glass-panel" id="distributionGlassPanel">
                             <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
                                 <h3 class="panel-title" id="distributionChartTitle" data-i18n="chart_distribution_title" style="margin: 0;">Mijozlar Taqsimoti</h3>
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
@@ -609,36 +624,43 @@
                                                 <circle id="dist2DSegBg" cx="21" cy="21" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4.8"></circle>
                                                 <circle id="dist2DSeg1" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#10b981" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
                                                 <circle id="dist2DSeg2" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#f59e0b" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
-                                                <circle id="dist2DSeg3" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#a855f7" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
-                                                <circle id="dist2DSeg4" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#38bdf8" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                                                <circle id="dist2DSeg3" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#f43f5e" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                                                <circle id="dist2DSeg4" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#a855f7" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
+                                                <circle id="dist2DSeg5" class="dist-sg" cx="21" cy="21" r="15.915" fill="none" stroke="#38bdf8" stroke-width="4.8" stroke-dasharray="0 100" stroke-dashoffset="25"></circle>
                                                 <text id="dist2DTotal" x="21" y="21.5" font-size="7.5" font-weight="700" text-anchor="middle" fill="#f8fafc" style="font-family: inherit;">0</text>
                                                 <text id="dist2DLabel" x="21" y="26.2" font-size="2.7" font-weight="500" text-anchor="middle" fill="#94a3b8" style="font-family: inherit;">jami mijoz</text>
                                             </svg>
                                         </div>
                                         <ul class="dist-2d-legend" id="dist2DLegend" style="flex: 1; min-width: 190px; list-style: none; margin: 0; padding: 0;">
-                                            <li style="display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: none; font-size: 13px;">
+                                            <li style="display: flex; align-items: center; gap: 8px; padding: 4.5px 0; border-top: none; font-size: 12.5px;">
                                                 <i style="width: 10px; height: 10px; border-radius: 3px; background: #10b981; flex-shrink: 0;"></i>
                                                 <span style="color: #cbd5e1; flex: 1;">Muvaffaqiyatli</span>
-                                                <span id="dist2DPct1" style="color: #94a3b8; width: 52px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
-                                                <b id="dist2DVal1" style="color: #ffffff; width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
+                                                <span id="dist2DPct1" style="color: #94a3b8; width: 50px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
+                                                <b id="dist2DVal1" style="color: #ffffff; width: 40px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
                                             </li>
-                                            <li style="display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px;">
+                                            <li style="display: flex; align-items: center; gap: 8px; padding: 4.5px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12.5px;">
                                                 <i style="width: 10px; height: 10px; border-radius: 3px; background: #f59e0b; flex-shrink: 0;"></i>
                                                 <span style="color: #cbd5e1; flex: 1;">Kutilmoqda</span>
-                                                <span id="dist2DPct2" style="color: #94a3b8; width: 52px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
-                                                <b id="dist2DVal2" style="color: #ffffff; width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
+                                                <span id="dist2DPct2" style="color: #94a3b8; width: 50px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
+                                                <b id="dist2DVal2" style="color: #ffffff; width: 40px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
                                             </li>
-                                            <li style="display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px;">
+                                            <li style="display: flex; align-items: center; gap: 8px; padding: 4.5px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12.5px;">
+                                                <i style="width: 10px; height: 10px; border-radius: 3px; background: #f43f5e; flex-shrink: 0;"></i>
+                                                <span style="color: #cbd5e1; flex: 1;">Ulanilmadi</span>
+                                                <span id="dist2DPct3" style="color: #94a3b8; width: 50px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
+                                                <b id="dist2DVal3" style="color: #ffffff; width: 40px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
+                                            </li>
+                                            <li style="display: flex; align-items: center; gap: 8px; padding: 4.5px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12.5px;">
                                                 <i style="width: 10px; height: 10px; border-radius: 3px; background: #a855f7; flex-shrink: 0;"></i>
                                                 <span style="color: #cbd5e1; flex: 1;">Chiquvchi</span>
-                                                <span id="dist2DPct3" style="color: #94a3b8; width: 52px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
-                                                <b id="dist2DVal3" style="color: #ffffff; width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
+                                                <span id="dist2DPct4" style="color: #94a3b8; width: 50px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
+                                                <b id="dist2DVal4" style="color: #ffffff; width: 40px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
                                             </li>
-                                            <li style="display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 13px;">
+                                            <li style="display: flex; align-items: center; gap: 8px; padding: 4.5px 0; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12.5px;">
                                                 <i style="width: 10px; height: 10px; border-radius: 3px; background: #38bdf8; flex-shrink: 0;"></i>
                                                 <span style="color: #cbd5e1; flex: 1;">Gaplashildi</span>
-                                                <span id="dist2DPct4" style="color: #94a3b8; width: 52px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
-                                                <b id="dist2DVal4" style="color: #ffffff; width: 42px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
+                                                <span id="dist2DPct5" style="color: #94a3b8; width: 50px; text-align: right; font-variant-numeric: tabular-nums;">0.0%</span>
+                                                <b id="dist2DVal5" style="color: #ffffff; width: 40px; text-align: right; font-variant-numeric: tabular-nums;">0</b>
                                             </li>
                                         </ul>
                                     </div>
@@ -1451,11 +1473,11 @@
                     <div class="glass-panel" style="padding: 20px; border-radius: 14px; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(16, 185, 129, 0.25); border-left: 4px solid #10b981; position: relative;">
                         <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
                             <div>
-                                <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #34d399;">EDO & Fakturalar</span>
+                                <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #34d399;">EDO</span>
                                 <h4 style="font-size: 13.5px; color: #94a3b8; margin: 4px 0 0 0; font-weight: 500;">Elektron hujjat aylanishi</h4>
                             </div>
-                            <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; display: flex; align-items: center; justify-content: center;">
-                                <svg class="isax isax-document-text" style="width: 20px; height: 20px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-document-text"></use></svg>
+                            <div style="height: 38px; border-radius: 10px; background: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 4px 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);">
+                                <img src="/icons/edo-logo.svg" alt="EDO" style="height: 24px; width: auto; max-width: 80px; object-fit: contain;">
                             </div>
                         </div>
                         <div style="display: flex; align-items: baseline; gap: 10px;">
@@ -1564,7 +1586,7 @@
                     <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
                         <button type="button" class="btn-topic-filter active" data-topic="all" onclick="filterStatCallsByTopic('all')" style="border: 1px solid rgba(255, 255, 255, 0.15); background: #0284c7; color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Barchasi</button>
                         <button type="button" class="btn-topic-filter" data-topic="kalit" onclick="filterStatCallsByTopic('kalit')" style="border: 1px solid rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.08); color: #38bdf8; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Kalit uzaytirish</button>
-                        <button type="button" class="btn-topic-filter" data-topic="edo" onclick="filterStatCallsByTopic('edo')" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); color: #34d399; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">EDO & Fakturalar</button>
+                        <button type="button" class="btn-topic-filter" data-topic="edo" onclick="filterStatCallsByTopic('edo')" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.08); color: #34d399; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">EDO</button>
                         <button type="button" class="btn-topic-filter" data-topic="ehuquqshunos" onclick="filterStatCallsByTopic('ehuquqshunos')" style="border: 1px solid rgba(168, 85, 247, 0.3); background: rgba(168, 85, 247, 0.08); color: #c084fc; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">E-Huquqshunos</button>
                         <button type="button" class="btn-topic-filter" data-topic="other" onclick="filterStatCallsByTopic('other')" style="border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.08); color: #fbbf24; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">Boshqa masalalar</button>
                     </div>
@@ -3798,6 +3820,59 @@
         </div>
     </div>
 
+    <!-- MOBILE BOTTOM NAVIGATION BAR (Telefonda ko'rsatiladigan zamonaviy navigatsiya) -->
+    <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Mobil navigatsiya">
+        <button type="button" class="mobile-nav-btn tab-btn active" data-tab="dashboard" aria-label="Dashboard">
+            <svg class="isax isax-element-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <path d="M10.5 4.5H4.5C3.4 4.5 2.5 5.4 2.5 6.5V10.5C2.5 11.6 3.4 12.5 4.5 12.5H10.5C11.6 12.5 12.5 11.6 12.5 10.5V6.5C12.5 5.4 11.6 4.5 10.5 4.5Z"/>
+                <path d="M19.5 4.5H15.5C14.4 4.5 13.5 5.4 13.5 6.5V8.5C13.5 9.6 14.4 10.5 15.5 10.5H19.5C20.6 10.5 21.5 9.6 21.5 8.5V6.5C21.5 5.4 20.6 4.5 19.5 4.5Z"/>
+                <path d="M19.5 13.5H15.5C14.4 13.5 13.5 14.4 13.5 15.5V19.5C13.5 20.6 14.4 21.5 15.5 21.5H19.5C20.6 21.5 21.5 20.6 21.5 19.5V15.5C21.5 14.4 20.6 13.5 19.5 13.5Z"/>
+                <path d="M10.5 15.5H4.5C3.4 15.5 2.5 16.4 2.5 17.5V19.5C2.5 20.6 3.4 21.5 4.5 21.5H10.5C11.6 21.5 12.5 20.6 12.5 19.5V17.5C12.5 16.4 11.6 15.5 10.5 15.5Z"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_dashboard">Dashboard</span>
+        </button>
+
+        <button type="button" class="mobile-nav-btn tab-btn" data-tab="operators" aria-label="Operatorlar">
+            <svg class="isax isax-headphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <path d="M12 2C6.48 2 2 6.48 2 12V17C2 19.21 3.79 21 6 21H7C8.1 21 9 20.1 9 19V15C9 13.9 8.1 13 7 13H4V12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12V13H17C15.9 13 15 13.9 15 15V19C15 20.1 15.9 21 17 21H18C20.21 21 22 19.21 22 17V12C22 6.48 17.52 2 12 2Z"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_operators_short">Operator</span>
+        </button>
+
+        <button type="button" class="mobile-nav-btn tab-btn" data-tab="history" aria-label="Qo'ng'iroqlar Tarixi">
+            <svg class="isax isax-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/>
+                <path d="M12 6V12L16 14"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_history_short">Tarix</span>
+        </button>
+
+        <button type="button" class="mobile-nav-btn tab-btn" data-tab="explorer" aria-label="Audio Explorer">
+            <svg class="isax isax-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-miterlimit="10" style="width: 20px; height: 20px;">
+                <path d="M22 11V17C22 21 21 22 17 22H7C3 22 2 21 2 17V7C2 3 3 2 7 2H8.5C10 2 10.33 2.44 10.9 3.2L12.4 5.2C12.78 5.7 13 6 14 6H17C21 6 22 7 22 11Z"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_explorer_short">Explorer</span>
+        </button>
+
+        <button type="button" class="mobile-nav-btn tab-btn" data-tab="clients" aria-label="Mijozlar">
+            <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/>
+                <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_clients">Mijozlar</span>
+        </button>
+
+        <button type="button" class="mobile-nav-btn tab-btn" data-tab="statistics" aria-label="Statistika">
+            <svg class="isax isax-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+                <path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z"/>
+                <path d="M15.5 16.5V13.5"/>
+                <path d="M12 16.5V10.5"/>
+                <path d="M8.5 16.5V7.5"/>
+            </svg>
+            <span class="mobile-nav-label" data-i18n="tab_statistics">Statistika</span>
+        </button>
+    </nav>
+
     <!-- Smart Page Elevator (Lift) Floating Navigation Button -->
     <button type="button" id="pageElevatorBtn" class="page-elevator-btn mode-down" aria-label="Sahifa bo'yicha harakatlanish" title="Eng pastga tushish">
         <svg class="isax isax-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -3812,6 +3887,6 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793196927398" defer></script>
+    <script src="/js/dashboard.js?v=1793339648391" defer></script>
 </body>
 </html>

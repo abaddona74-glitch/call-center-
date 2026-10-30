@@ -30,9 +30,9 @@
     "semantic_hash": "b05fc700bc4f76257cf4d1856261ba0b"
   },
   "app.js": {
-    "mtime": 1793196264.899498,
-    "seen": 1793197023.081041,
-    "ast_hash": "f77d97dd9b336486fef524e1f8ed71f0",
+    "mtime": 1793278520.8127472,
+    "seen": 1793278697.1712294,
+    "ast_hash": "9bcf807f074a5c9fda0c99bac9c2df1f",
     "semantic_hash": ""
   },
   "config.js": {
@@ -72,15 +72,15 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "public/js/dashboard.js": {
-    "mtime": 1793196843.0041971,
-    "seen": 1793197023.081041,
-    "ast_hash": "95b82b201151e1355e88b6de01ff7153",
+    "mtime": 1793339557.9995599,
+    "seen": 1793339627.1549914,
+    "ast_hash": "6e7c2dc9008b6a5039a12cc474d22189",
     "semantic_hash": ""
   },
   "public/js/i18n.js": {
-    "mtime": 1793188284.7022793,
-    "seen": 1793189423.598231,
-    "ast_hash": "8abfba71e2722e2fcc66d4bf98b655de",
+    "mtime": 1793269416.883894,
+    "seen": 1793269712.5173578,
+    "ast_hash": "1a56fcbda409fcd8271d96d9703b90fa",
     "semantic_hash": ""
   },
   "public/js/iconsax.js": {
@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793196927.3994877,
-    "seen": 1793197023.081041,
-    "ast_hash": "4017d0961b247f1eb292efa130f20880",
+    "mtime": 1793337955.182871,
+    "seen": 1793339627.1549914,
+    "ast_hash": "5cdf17b69d5d19bb9b79a8f898753786",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -198,9 +198,9 @@
     "semantic_hash": "c397602d4d94e441f08708e170f94187"
   },
   "services/amiService.js": {
-    "mtime": 1793193520.8303893,
-    "seen": 1793193674.9206748,
-    "ast_hash": "20a4a6ae7942e0d4c3bd431740098dcd",
+    "mtime": 1793271681.9961014,
+    "seen": 1793271854.8580742,
+    "ast_hash": "766e58348fcc6e84a07f2f23e5208f28",
     "semantic_hash": ""
   },
   "services/audioIndexService.js": {
@@ -246,9 +246,9 @@
     "semantic_hash": "61244eff2a5bb9182c734be9f842854c"
   },
   "services/issabelDbService.js": {
-    "mtime": 1793087541.97411,
-    "seen": 1793087626.4210634,
-    "ast_hash": "1e8ba0157655d932ebd6c6962412a359",
+    "mtime": 1793270102.3496048,
+    "seen": 1793270270.7179086,
+    "ast_hash": "f5d52c1c427887f6f79ce56baeae21bd",
     "semantic_hash": ""
   },
   "services/proxmoxService.js": {
@@ -323,12 +323,6 @@
     "ast_hash": "f2ab718d2c33a1b73f5bd96cb114fc8d",
     "semantic_hash": "f2ab718d2c33a1b73f5bd96cb114fc8d"
   },
-  "test-results/.last-run.json": {
-    "mtime": 1791964708.9843884,
-    "seen": 1792750533.1234722,
-    "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
-    "semantic_hash": "f196824657d8858bc7fa44eecbba38b1"
-  },
   "tests/e2e/auth-settings.spec.js": {
     "mtime": 1791964373.0755029,
     "seen": 1792750533.1234722,
@@ -354,9 +348,9 @@
     "semantic_hash": ""
   },
   "viewer/app.js": {
-    "mtime": 1793099068.5785038,
-    "seen": 1793099124.28698,
-    "ast_hash": "25f8beb2b62f144d9a1c492bfc439102",
+    "mtime": 1793264987.05923,
+    "seen": 1793265091.8428953,
+    "ast_hash": "2a362e9f52714e0b9feb3fceb79993de",
     "semantic_hash": ""
   },
   "viewer/config.js": {
@@ -408,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793196927.4054754,
-    "seen": 1793197023.0815392,
-    "ast_hash": "891b8269ea43d39fbe8952346c4d19ab",
+    "mtime": 1793337955.1968458,
+    "seen": 1793339627.1549914,
+    "ast_hash": "fef9836b96e85a1dfe80ca062cac57df",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -486,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793196927.404977,
-    "seen": 1793197023.0815392,
-    "ast_hash": "c179e0384c65ec8fc50c2dad5738dd46",
+    "mtime": 1793339352.1592393,
+    "seen": 1793339627.1549914,
+    "ast_hash": "0846ad784c5afab1160a4ce987bd9b58",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
@@ -1692,9 +1686,9 @@
     "semantic_hash": ""
   },
   "services/topicAnalyticsService.js": {
-    "mtime": 1793196732.694285,
-    "seen": 1793197023.0815392,
-    "ast_hash": "04392c38b93ab54bb7ae7853fc8f1753",
+    "mtime": 1793265852.6771398,
+    "seen": 1793266124.4378724,
+    "ast_hash": "593208f042dd8e010da5b43497ec647a",
     "semantic_hash": ""
   },
   "public/icons/e-huquqshunos-logo.svg": {
@@ -1731,6 +1725,24 @@
     "mtime": 1793190212.128159,
     "seen": 1793191116.5156872,
     "ast_hash": "c23a50363d43783f869fe590b0c892d3",
+    "semantic_hash": ""
+  },
+  "\u041c\u0443\u0437\u0430\u0444\u0444\u0430\u0440\u043e\u0432 \u041c\u0430\u0445\u043c\u0443\u0434\u0431\u0435\u043a \u041a\u043e\u0437\u0438\u043c \u0443\u0433\u043b\u0438.pdf": {
+    "mtime": 1793261124.3472705,
+    "seen": 1793264582.196048,
+    "ast_hash": "4d85bc56b2c041ffbc4a3673ce36877e",
+    "semantic_hash": ""
+  },
+  "public/icons/edo-logo.svg": {
+    "mtime": 1793257793.2287118,
+    "seen": 1793264582.196048,
+    "ast_hash": "3175de7f201624dfabb5b94d03e2d01a",
+    "semantic_hash": ""
+  },
+  "public/icons/edo-symbol.svg": {
+    "mtime": 1793258001.7099166,
+    "seen": 1793264582.196048,
+    "ast_hash": "444f042267a9635633d57565fff33b53",
     "semantic_hash": ""
   }
 }

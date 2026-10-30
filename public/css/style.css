@@ -188,6 +188,7 @@ body {
 
 /* Main Content Area */
 .main-area {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1067,20 +1068,196 @@ td.history-col-hidden {
     user-select: none;
 }
 .dist-2d-svg-wrap svg circle.dist-sg {
-    transition: stroke-width 0.18s ease;
+    transition: stroke-dasharray 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                stroke-width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+                opacity 0.22s ease,
+                filter 0.22s ease;
     cursor: pointer;
 }
 .dist-2d-svg-wrap svg circle.dist-sg:hover {
-    stroke-width: 6.2 !important;
+    stroke-width: 6.8 !important;
+    filter: drop-shadow(0 0 7px currentColor);
+    opacity: 1 !important;
+}
+.dist-2d-svg-wrap svg:hover circle.dist-sg:not(:hover) {
+    opacity: 0.35;
 }
 .dist-2d-legend li {
     transition: background 0.15s ease, transform 0.15s ease;
-    border-radius: 4px;
-    padding-left: 4px !important;
-    padding-right: 4px !important;
+    border-radius: 6px;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    cursor: pointer;
 }
 .dist-2d-legend li:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(3px);
+}
+
+/* 3D Highcharts Donut Hover Glow & Shrine Effect */
+#callDistributionChartContainer .highcharts-point {
+    transition: filter 0.25s ease, opacity 0.25s ease;
+    cursor: pointer;
+}
+#callDistributionChartContainer .highcharts-point-hover {
+    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.5));
+}
+
+/* ========================================================
+   Interactive Focus Blur & Cross-Component Glow Highlighting
+   ======================================================== */
+body.dist-focus-active .top-navbar,
+body.dist-focus-active .date-filter-bar,
+body.dist-focus-active .kpi-parent-section:not(.dist-focus-has-target),
+body.dist-focus-active .operators-parent-section,
+body.dist-focus-active .charts-grid > .glass-panel:not(.dist-focus-target),
+body.dist-focus-active #activeConversationsPanel,
+body.dist-focus-active #queueSection,
+body.dist-focus-active .sidebar-footer,
+body.dist-focus-active .table-card,
+body.dist-focus-active .audio-explorer-section {
+    filter: blur(4px) opacity(0.35) !important;
+    transition: filter 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    pointer-events: none !important;
+}
+
+/* If KPI section has a target card (e.g. green, purple, amber), blur only other cards */
+body.dist-focus-active .kpi-parent-section.dist-focus-has-target .kpi-card:not(.dist-focus-target) {
+    filter: blur(4px) opacity(0.28) !important;
+    transition: filter 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Focused targets stay crisp and elevated */
+.dist-focus-target {
+    filter: none !important;
+    opacity: 1 !important;
+    position: relative;
+    z-index: 50 !important;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Glowing Border effects for Target Panels & Cards */
+.dist-focus-glow-amber {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.55), 0 0 50px rgba(245, 158, 11, 0.2) !important;
+}
+.dist-focus-glow-green {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.55), 0 0 50px rgba(16, 185, 129, 0.2) !important;
+}
+.dist-focus-glow-cyan {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.55), 0 0 50px rgba(56, 189, 248, 0.2) !important;
+}
+.dist-focus-glow-purple {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 25px rgba(168, 85, 247, 0.55), 0 0 50px rgba(168, 85, 247, 0.2) !important;
+}
+.dist-focus-glow-rose {
+    border-color: #f43f5e !important;
+    box-shadow: 0 0 25px rgba(244, 63, 94, 0.55), 0 0 50px rgba(244, 63, 94, 0.2) !important;
+}
+
+/* 2D Donut Legend row active styles */
+.dist-2d-legend li {
+    border-radius: 8px !important;
+    transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important;
+    padding: 7px 8px !important;
+    margin: 2px 0 !important;
+    border: 1px solid transparent !important;
+}
+.dist-2d-legend li.dist-active-row-amber {
+    background: rgba(245, 158, 11, 0.16) !important;
+    border-color: rgba(245, 158, 11, 0.7) !important;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.4) !important;
+    transform: translateX(4px);
+}
+.dist-2d-legend li.dist-active-row-green {
+    background: rgba(16, 185, 129, 0.16) !important;
+    border-color: rgba(16, 185, 129, 0.7) !important;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4) !important;
+    transform: translateX(4px);
+}
+.dist-2d-legend li.dist-active-row-rose {
+    background: rgba(244, 63, 94, 0.16) !important;
+    border-color: rgba(244, 63, 94, 0.7) !important;
+    box-shadow: 0 0 14px rgba(244, 63, 94, 0.4) !important;
+    transform: translateX(4px);
+}
+.dist-2d-legend li.dist-active-row-purple {
+    background: rgba(168, 85, 247, 0.16) !important;
+    border-color: rgba(168, 85, 247, 0.7) !important;
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.4) !important;
+    transform: translateX(4px);
+}
+.dist-2d-legend li.dist-active-row-cyan {
+    background: rgba(56, 189, 248, 0.16) !important;
+    border-color: rgba(56, 189, 248, 0.7) !important;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.4) !important;
+    transform: translateX(4px);
+}
+
+/* Callbacks panel inner items glow when focused */
+#callbacksPanel.dist-focus-glow-amber .cc-cb {
+    border-left: 3px solid #f59e0b !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.18) !important;
+}
+#callbacksPanel.dist-focus-glow-amber #adminCbTabPending {
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.9) !important;
+    border-color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.25) !important;
+    color: #fbbf24 !important;
+}
+#callbacksPanel.dist-focus-glow-rose .cc-cb {
+    border-left: 3px solid #f43f5e !important;
+    background: rgba(244, 63, 94, 0.08) !important;
+    box-shadow: 0 0 8px rgba(244, 63, 94, 0.18) !important;
+}
+#callbacksPanel.dist-focus-glow-rose #adminCbTabUnreachable {
+    box-shadow: 0 0 14px rgba(244, 63, 94, 0.9) !important;
+    border-color: #f43f5e !important;
+    background: rgba(244, 63, 94, 0.25) !important;
+    color: #fb7185 !important;
+}
+#callbacksPanel.dist-focus-glow-cyan #adminCbTabResolved {
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.9) !important;
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.25) !important;
+    color: #38bdf8 !important;
+}
+
+/* ========================================================
+   Subtle Scroll Reveal Animation (KPI Cards, Charts & Operator Cards)
+   ======================================================== */
+.reveal-on-scroll {
+    opacity: 0 !important;
+    transform: translateY(22px) !important;
+    transition: opacity 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.2s ease,
+                border-color 0.2s ease !important;
+    transition-delay: var(--reveal-delay, 0ms) !important;
+    will-change: opacity, transform;
+}
+
+.reveal-on-scroll.is-revealed {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+.reveal-on-scroll.is-revealed:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
 }
 
 /* Windows-like Audio Explorer */
@@ -4486,6 +4663,13 @@ html[data-tab="operators"] #btnExportExcel {
     margin-bottom: 8px;
 }
 
+.cal-weekdays-grid span.cal-weekend-header,
+.cal-weekdays-grid span:nth-child(6),
+.cal-weekdays-grid span:nth-child(7) {
+    color: #f87171;
+    font-weight: 700;
+}
+
 .cal-days-matrix {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -4519,6 +4703,28 @@ html[data-tab="operators"] #btnExportExcel {
 .cal-day-cell.other-month:hover {
     color: #94a3b8;
     background: rgba(255, 255, 255, 0.05);
+}
+
+/* Weekend style (Shanba va Yakshanba) */
+.cal-day-cell.is-weekend {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.08);
+    font-weight: 600;
+}
+
+.cal-day-cell.is-weekend:hover {
+    color: #fca5a5;
+    background: rgba(248, 113, 113, 0.2);
+}
+
+.cal-day-cell.is-weekend.other-month {
+    color: rgba(248, 113, 113, 0.38);
+    background: transparent;
+}
+
+.cal-day-cell.is-weekend.other-month:hover {
+    color: rgba(248, 113, 113, 0.65);
+    background: rgba(248, 113, 113, 0.1);
 }
 
 /* Today style: distinct subtle border box (like 13 in image 2) */
@@ -8530,6 +8736,365 @@ body.sidebar-collapsed .page-elevator-btn {
         scroll-behavior: auto !important;
     }
 }
+
+/* =========================================================================
+   MULTIPLAYER LIVE CURSORS & PRESENCE (AnyDesk / Figma Style)
+   ========================================================================= */
+#multiplayerCursorsOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+.remote-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    will-change: transform;
+    transition: transform 0.05s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+    z-index: 1000000;
+}
+
+.remote-cursor.is-idle {
+    opacity: 0.35;
+}
+
+.remote-cursor.is-hidden {
+    opacity: 0;
+}
+
+.remote-cursor .cursor-arrow-svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7));
+    transform-origin: top left;
+}
+
+.remote-cursor .cursor-label {
+    position: absolute;
+    left: 13px;
+    top: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    user-select: none;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+    animation: cursorBadgePop 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.remote-cursor .cursor-label .cursor-pc-icon {
+    font-size: 10.5px;
+    opacity: 0.95;
+}
+
+@keyframes cursorBadgePop {
+    0% { transform: scale(0.7); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.presence-cursor-widget button:hover {
+    filter: brightness(1.2);
+}
+
+/* ==========================================================================
+   MOBILE BOTTOM NAVIGATION & RESPONSIVE TELEFON DIZAYNI
+   ========================================================================== */
+
+/* Standart desktopda bottom nav yashirin */
+.mobile-bottom-nav {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* 1. Yuqori navigatsiya paneli (Header) telefonga moslashtirish */
+    .top-navbar {
+        padding: 8px 12px;
+        min-height: 56px;
+        height: auto;
+        gap: 8px;
+    }
+
+    /* Asosiy menyu havolalari (nav-tabs) headerdan olib tashlanadi va pastki panelga o'tadi */
+    .top-navbar .nav-tabs {
+        display: none !important;
+    }
+
+    .brand-section {
+        gap: 8px;
+    }
+
+    .logo-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .brand-info h1 {
+        font-size: 15px;
+        letter-spacing: -0.3px;
+    }
+
+    .brand-info p {
+        display: none;
+    }
+
+    .header-live-clock {
+        display: none !important;
+    }
+
+    #btnServerStatus {
+        padding: 4px 7px;
+        font-size: 11px;
+        gap: 4px;
+    }
+
+    #btnServerStatus span[data-i18n="server_status"] {
+        display: none; /* Telefonda faqat ixcham yashil miltillovchi belgi */
+    }
+
+    .user-profile-avatar-btn {
+        width: 34px;
+        height: 34px;
+    }
+
+    .lang-switch-container {
+        padding: 2px;
+        gap: 2px;
+    }
+
+    .lang-btn {
+        padding: 3px 7px;
+        font-size: 10.5px;
+    }
+
+    /* 2. Sana filtri paneli (Sub-bar) telefonga moslashishi */
+    .date-filter-bar {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .date-filter-left {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: nowrap;
+    }
+
+    .cal-trigger-btn {
+        padding: 7px 12px;
+        font-size: 12px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .cal-selected-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .cal-quick-group {
+        display: flex;
+        gap: 4px;
+        flex-shrink: 0;
+    }
+
+    .cal-quick-pill {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .date-filter-right {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 2px;
+    }
+
+    .presence-cursor-widget {
+        padding: 5px 9px !important;
+        gap: 6px !important;
+        font-size: 11px !important;
+        border-radius: 7px !important;
+    }
+
+    #lblMyPcName {
+        max-width: 75px !important;
+    }
+
+    #btnExportExcel {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+    }
+
+    /* 3. Asosiy kontent maydoni va pastki bo'shliq */
+    .page-content {
+        padding: 14px 12px calc(80px + env(safe-area-inset-bottom, 0px)) 12px !important;
+    }
+
+    .main-area {
+        padding-right: 0 !important;
+    }
+
+    /* 4. KPI kartalar telefonda chiroyli 1 ustun (yoki 480px+ bo'lsa 2 ustun) */
+    .kpi-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .kpi-card {
+        padding: 14px 16px;
+        min-height: auto;
+    }
+
+    /* 5. Mobil Bottom Navigation Bar */
+    .mobile-bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 0px)) 6px;
+        background: rgba(15, 23, 42, 0.94);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55);
+        z-index: 1000;
+        align-items: center;
+        justify-content: space-around;
+        gap: 2px;
+        box-sizing: border-box;
+    }
+
+    .mobile-nav-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        background: transparent;
+        border: none;
+        border-radius: 9px;
+        padding: 4px 1px;
+        color: #94a3b8;
+        cursor: pointer;
+        text-decoration: none;
+        position: relative;
+        transition: color 0.18s ease, transform 0.12s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .mobile-nav-btn:active {
+        transform: scale(0.92);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .mobile-nav-btn svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+        stroke: currentColor;
+        flex-shrink: 0;
+        transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.2s ease, filter 0.2s ease;
+    }
+
+    .mobile-nav-label {
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 1.1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        transition: color 0.2s ease, font-weight 0.2s ease;
+    }
+
+    .mobile-nav-btn.active {
+        color: #38bdf8;
+    }
+
+    .mobile-nav-btn.active .mobile-nav-label {
+        font-weight: 700;
+        color: #38bdf8;
+    }
+
+    .mobile-nav-btn.active svg {
+        transform: translateY(-1px);
+        stroke: #38bdf8;
+        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+    }
+
+    .mobile-nav-btn.active::before {
+        content: '';
+        position: absolute;
+        top: 1px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 18px;
+        height: 2.5px;
+        border-radius: 999px;
+        background: #38bdf8;
+        box-shadow: 0 0 10px #38bdf8;
+    }
+
+    /* 6. Page Elevator & Floating tugmalarni bottom nav ustiga siljitish */
+    .page-elevator-btn {
+        bottom: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+        right: 14px !important;
+        width: 38px !important;
+        height: 38px !important;
+        z-index: 990;
+    }
+
+    .sidebar-floating-expand-btn {
+        bottom: calc(122px + env(safe-area-inset-bottom, 0px)) !important;
+        right: 10px !important;
+        z-index: 990;
+    }
+
+    /* 7. Right sidebar mobil drawer holatida butun ekranni egallaydi */
+    .right-sidebar {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        z-index: 1050;
+    }
+}
+
+@media (min-width: 480px) and (max-width: 768px) {
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+
 
 
 
