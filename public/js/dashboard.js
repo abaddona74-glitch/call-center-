@@ -518,25 +518,33 @@ function initPageElevator() {
 
     function setDirection(mode) {
         if (mode === 'down') {
-            btn.classList.remove('mode-up');
-            btn.classList.add('mode-down');
-            btn.setAttribute('title', "Eng pastga tushish");
-            btn.setAttribute('aria-label', "Eng pastga tushish");
+            if (!btn.classList.contains('mode-down')) {
+                btn.classList.remove('mode-up');
+                btn.classList.add('mode-down');
+                btn.setAttribute('title', "Eng pastga tushish");
+                btn.setAttribute('aria-label', "Eng pastga tushish");
+            }
         } else {
-            btn.classList.remove('mode-down');
-            btn.classList.add('mode-up');
-            btn.setAttribute('title', "Eng tepaga chiqish");
-            btn.setAttribute('aria-label', "Eng tepaga chiqish");
+            if (!btn.classList.contains('mode-up')) {
+                btn.classList.remove('mode-down');
+                btn.classList.add('mode-up');
+                btn.setAttribute('title', "Eng tepaga chiqish");
+                btn.setAttribute('aria-label', "Eng tepaga chiqish");
+            }
         }
     }
 
-    function handleScroll() {
+    let scrollRafId = null;
+
+    function updateElevatorState() {
         const target = getActiveScrollTarget();
         const { scrollTop, scrollHeight, clientHeight } = getMetrics(target);
 
         // Sahifada skroll qilish imkoni bo'lmasa, ko'rinmaydi
         if (scrollHeight <= clientHeight + 80) {
-            btn.classList.remove('visible');
+            if (btn.classList.contains('visible')) {
+                btn.classList.remove('visible');
+            }
             return;
         }
 
@@ -565,10 +573,20 @@ function initPageElevator() {
         lastScrollTop = Math.max(0, scrollTop);
 
         // Faqat skroll qilganda paydo bo'ladi
-        btn.classList.add('visible');
+        if (!btn.classList.contains('visible')) {
+            btn.classList.add('visible');
+        }
 
         // Va skroll to'xtagach sekin disappear bo'lib yo'qoladi
         scheduleHide(1800);
+    }
+
+    function handleScroll() {
+        if (scrollRafId !== null) return;
+        scrollRafId = requestAnimationFrame(() => {
+            scrollRafId = null;
+            updateElevatorState();
+        });
     }
 
     btn.addEventListener('mouseenter', () => {
@@ -1828,16 +1846,18 @@ function initMultiplayerCursors() {
         }
     });
 
-    // Mouse harakatini sahifa kontentiga bog'langan koordinatalar bilan uzatish (~35ms throttle)
+    // Mouse harakatini sahifa kontentiga bog'langan koordinatalar bilan uzatish (~50ms throttle)
     window.addEventListener('mousemove', (e) => {
+        if (!isMultiplayerCursorsEnabled) return;
+        if (!ws || ws.readyState !== 1) return; // 1 = WebSocket.OPEN
+
         // Agar bu tabga kelib sichqoncha harakatlansa, uni aktiv tab deb qayd etish
         if (!isThisTabActive() && document.visibilityState === 'visible') {
             localStorage.setItem('cc_active_tab_id', currentTabId);
         }
 
-        if (!ws || ws.readyState !== 1) return; // 1 = WebSocket.OPEN
         const now = performance.now();
-        if (now - lastCursorSendTime < 35) return;
+        if (now - lastCursorSendTime < 50) return;
         lastCursorSendTime = now;
 
         const mainArea = document.getElementById('mainArea') || document.querySelector('.main-area');

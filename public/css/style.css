@@ -1245,6 +1245,7 @@ body.dist-focus-active .kpi-parent-section.dist-focus-has-target .kpi-card:not(.
 .reveal-on-scroll.is-revealed {
     opacity: 1 !important;
     transform: translateY(0) !important;
+    will-change: auto !important;
 }
 
 .reveal-on-scroll.is-revealed:hover {
@@ -4189,13 +4190,23 @@ body:not(.show-op-pause-btn) .op-card-pause-btn {
     text-align: left;
 }
 
-/* Ekrandan tashqaridagi qatorlarning layout/paint ishini brauzerga o'tkazib yuborish
-   (arzon "virtualizatsiya") — uzun jadval (yuzlab qator) scroll qilinganda kuchsiz
-   kompyuterlarda "tortishib qolish"ni kamaytiradi. Qo'llab-quvvatlamaydigan brauzerda
-   sodda ravishda e'tiborga olinmaydi, hech narsa buzilmaydi. */
-.detail-table tbody tr {
+/* Ekrandan tashqaridagi elementlarning layout/paint ishini brauzerga o'tkazib yuborish
+   (arzon "virtualizatsiya") — uzun jadval yoki o'nlab kartochkalar scroll qilinganda
+   kuchsiz kompyuterlarda "qotish" va freym sakrashlarini bartaraf etadi. */
+.detail-table tbody tr,
+.recent-calls-table tbody tr,
+.history-table tbody tr {
     content-visibility: auto;
-    contain-intrinsic-size: auto 42px;
+    contain-intrinsic-size: auto 44px;
+}
+
+.operator-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 180px;
+}
+
+.modern-recent-panel {
+    contain: content;
 }
 
 .detail-table tr:hover td {
@@ -6914,9 +6925,7 @@ html[data-tab="operators"] #btnExportExcel {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: rgba(15, 23, 42, 0.88);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: #0f172a;
     border: 1px solid rgba(56, 189, 248, 0.4);
     color: #38bdf8;
     box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.28);
