@@ -218,6 +218,58 @@ class AudioIndexService {
     }
 
     /**
+     * Aniq qo'ng'iroq (callerId, operatorExt, callTime, durationSec) bo'yicha audio faylni topish
+     */
+    findAudioForCall({ callerId, operatorExt, callTime, durationSec = 0 }) {
+        if (!callerId) return null;
+        const cleanPhone = String(callerId).replace(/[^0-9]/g, '');
+        if (!cleanPhone) return null;
+        const shortPhone = cleanPhone.slice(-9);
+
+        // 1. Shu raqamga tegishli barcha audio fayllar ro'yxatini olamiz
+        let candidates = this.callerIndex.get(cleanPhone) || [];
+        if (candidates.length === 0 && shortPhone.length === 9) {
+            for (const [phone, files] of this.callerIndex.entries()) {
+                if (phone.endsWith(shortPhone) && files.length > 0) {
+                    candidates = candidates.concat(files);
+                }
+            }
+        }
+
+        if (candidates.length === 0) return null;
+
+        const targetTs = callTime ? new Date(String(callTime).replace(/-/g, '/')).getTime() : 0;
+        const targetOp = operatorExt ? String(operatorExt).trim() : '';
+
+        // Nomzodlarni baholaymiz:
+        const scored = candidates.map(c => {
+            let score = 0;
+            const fn = c.filename || '';
+
+            if (targetOp && (fn.includes(`-${targetOp}-`) || fn.includes(`_${targetOp}_`))) {
+                score += 100;
+            }
+
+            if (targetTs > 0 && c.timestamp > 0) {
+                const diffMin = Math.abs(c.timestamp - targetTs) / 60000;
+                if (diffMin <= 3) score += 50;
+                else if (diffMin <= 10) score += 20;
+            }
+
+            if (durationSec > 0 && c.duration > 0) {
+                const diffSec = Math.abs(c.duration - durationSec);
+                if (diffSec <= 60) score += 30;
+                else if (diffSec <= 180) score += 10;
+            }
+
+            return { entry: c, score };
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        return scored[0]?.entry || candidates[0];
+    }
+
+    /**
      * Uniqueid bo'yicha audio faylni topish
      */
     findAudioByUniqueId(uniqueid) {

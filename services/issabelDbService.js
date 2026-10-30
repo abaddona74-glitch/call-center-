@@ -3,15 +3,14 @@ require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
 
-const EXCLUDED_OPERATORS = new Set(['1111', '1324', '1001', '1000', '402', '401', '207', '202', '201', '170', '161', '118', '115', '160', '66', '110']);
+const EXCLUDED_OPERATORS = new Set();
 
 const DEFAULT_OPERATOR_NAMES = {
     '101': 'Oybek',
     '103': 'Feruza',
-    '106': 'Gulchehra',
+    '106': 'Ubaydullayeva Gulchehra',
     '111': 'Nozima',
     '114': 'Maxmudbek',
-    '116': 'Ibrohim',
     '119': 'Muattar',
     '120': 'Navruzoy'
 };
@@ -29,6 +28,11 @@ class IssabelDbService {
         this.dbPass = 'ZAQ!2wsx123';
         this.operatorNames = new Map(Object.entries(DEFAULT_OPERATOR_NAMES));
 
+        // Doimiy (persistent) SSH ulanish — har so'rov uchun qayta ulanish o'rniga
+        // bitta ulanish qayta ishlatiladi (SSH handshake narxi faqat bir marta to'lanadi).
+        this._sshConn = null;
+        this._sshReady = null;
+
         // High-Speed In-Memory Cache (Redis muqobili)
         this.cache = {
             summary: null,
@@ -39,11 +43,79 @@ class IssabelDbService {
         this.isSyncing = false;
 
         // Dastlabki yuklash va har 5 soniyada fonda yangilab turish
+        this.loadExcludedFromDb();
         this.startBackgroundSync();
     }
 
     getExcludedOperators() {
+        if (EXCLUDED_OPERATORS.size === 0) {
+            this.loadExcludedFromDb();
+        }
         return EXCLUDED_OPERATORS;
+    }
+
+    updateExcludedOperators(newList) {
+        if (!Array.isArray(newList)) return;
+        EXCLUDED_OPERATORS.clear();
+        for (const item of newList) {
+            if (item) EXCLUDED_OPERATORS.add(String(item).trim());
+        }
+    }
+
+    loadExcludedFromDb() {
+        try {
+            let list = [];
+            // 1. AuthService orqali olishga urinish
+            try {
+                const authService = require('./authService');
+                if (authService && typeof authService.getExcludedOperators === 'function') {
+                    list = authService.getExcludedOperators();
+                }
+            } catch (e) {}
+
+            // 2. Agar hali bo'sh bo'lsa, to'g'ridan-to'g'ri dbService.db dan o'qish (init tartibi muammosini hal qiladi)
+            if (!list || list.length === 0) {
+                try {
+                    const dbSvc = require('./dbService');
+                    if (dbSvc && dbSvc.db) {
+                        const row = dbSvc.db.prepare("SELECT value FROM system_settings WHERE key = 'excluded_operators'").get();
+                        if (row && row.value) {
+                            const parsed = JSON.parse(row.value);
+                            if (Array.isArray(parsed)) list = parsed.map(String);
+                        }
+                    }
+                } catch (dbErr) {}
+            }
+
+            if (Array.isArray(list) && list.length > 0) {
+                this.updateExcludedOperators(list);
+            }
+        } catch (e) {}
+    }
+
+    async getExistingAsteriskUsers() {
+        try {
+            const sql = "USE asterisk; SELECT extension, name FROM users WHERE extension REGEXP '^[0-9]+$' ORDER BY CAST(extension AS UNSIGNED) ASC;";
+            const raw = await this.execQuery(sql);
+            const list = [];
+            if (raw) {
+                const lines = raw.trim().split('\n');
+                for (const line of lines) {
+                    if (!line) continue;
+                    const [ext, name] = line.split('\t');
+                    const cleanExt = (ext || '').trim();
+                    if (cleanExt) {
+                        const cleanName = cleanExt === '114' ? 'Maxmudbek' : ((name || '').trim() || `Operator ${cleanExt}`);
+                        list.push({ id: cleanExt, name: cleanName });
+                        this.operatorNames.set(cleanExt, cleanName);
+                    }
+                }
+            }
+            return list;
+        } catch (e) {
+            console.error('getExistingAsteriskUsers error:', e.message);
+            return Array.from(this.operatorNames.entries()).map(([id, name]) => ({ id, name }));
+        }
     }
 
     startBackgroundSync() {
@@ -74,49 +146,85 @@ class IssabelDbService {
                 SELECT '===SUMMARY_IN===' as marker;
                 USE asteriskcdrdb;
                 SELECT 
-                    COUNT(DISTINCT uniqueid) as total_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as in_talk_sec,
-                    SUM(CASE WHEN disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
-                FROM cdr 
-                WHERE calldate >= CURDATE() 
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
-                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
+                    COUNT(DISTINCT c.uniqueid) as total_inbound,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
+                    COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.src END) as ans_unique_clients
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT 
+                        uniqueid,
+                        MAX(billsec) as talk_sec
+                    FROM cdr
+                    WHERE calldate >= CURDATE()
+                      AND disposition = 'ANSWERED'
+                      AND billsec > 0
+                      AND (
+                          dst REGEXP '^[0-9]{2,4}$' 
+                          OR dstchannel LIKE 'Local/%@from-queue%' 
+                          OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                      )
+                    GROUP BY uniqueid
+                ) op ON c.uniqueid = op.uniqueid
+                WHERE c.calldate >= CURDATE() 
+                  AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.channel NOT LIKE 'Local/%'
+                  AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                  AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT '===SUMMARY_OUT===' as marker;
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE calldate >= CURDATE() 
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dcontext = 'from-internal' 
                   AND channel REGEXP '^SIP/[0-9]{2,4}-' 
-                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7);
+                  AND LENGTH(dst) >= 7;
 
                 SELECT '===HOURLY===' as marker;
                 SELECT 
-                    HOUR(calldate) as hr,
-                    COUNT(DISTINCT uniqueid) as total_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered
-                FROM cdr 
-                WHERE calldate >= CURDATE() 
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
-                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
-                  AND HOUR(calldate) BETWEEN 8 AND 21
+                    HOUR(c.calldate) as hr,
+                    COUNT(DISTINCT c.uniqueid) as total_inbound,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as answered
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT DISTINCT uniqueid
+                    FROM cdr
+                    WHERE calldate >= CURDATE()
+                      AND disposition = 'ANSWERED'
+                      AND billsec > 0
+                      AND (
+                          dst REGEXP '^[0-9]{2,4}$' 
+                          OR dstchannel LIKE 'Local/%@from-queue%' 
+                          OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                      )
+                ) op ON c.uniqueid = op.uniqueid
+                WHERE c.calldate >= CURDATE() 
+                  AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.channel NOT LIKE 'Local/%'
+                  AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                  AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$')
+                  AND HOUR(c.calldate) BETWEEN 8 AND 21
                 GROUP BY hr ORDER BY hr ASC;
 
                 SELECT '===OPERATORS===' as marker;
-                SELECT 
+                SELECT
                     dst,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered,
                     SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as total_duration
-                FROM cdr 
-                WHERE calldate >= CURDATE() AND dst REGEXP '^[0-9]{2,4}$'
+                FROM cdr
+                WHERE calldate >= CURDATE()
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dst REGEXP '^[0-9]{2,4}$'
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                 GROUP BY dst;
 
                 SELECT '===OP_OUTBOUND===' as marker;
@@ -126,10 +234,27 @@ class IssabelDbService {
                     SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as outbound_duration
                 FROM cdr 
                 WHERE calldate >= CURDATE()
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dcontext = 'from-internal'
                   AND channel REGEXP '^SIP/[0-9]{2,4}-'
-                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+                  AND LENGTH(dst) >= 7
                 GROUP BY op_ext;
+
+                SELECT '===XFER_ROWS===' as marker;
+                SELECT 
+                    CASE 
+                        WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                        WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
+                        ELSE '' 
+                    END AS from_op,
+                    dst as to_op,
+                    channel
+                FROM cdr
+                WHERE calldate >= CURDATE()
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                ORDER BY channel ASC, calldate ASC;
             `;
 
             const raw = await this.execQuery(multiSql);
@@ -150,7 +275,7 @@ class IssabelDbService {
                     if (!l) continue;
                     const [ext, name] = l.split('\t');
                     const cleanExt = ext ? ext.trim() : '';
-                    if (cleanExt && !EXCLUDED_OPERATORS.has(cleanExt)) {
+                    if (cleanExt) {
                         if (cleanExt === '114') {
                             this.operatorNames.set('114', 'Maxmudbek');
                         } else {
@@ -162,19 +287,23 @@ class IssabelDbService {
             }
 
             // 2. Summary
-            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, outTotal = 0, outAns = 0, outDur = 0;
+            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, inUnique = 0, inAnsUnique = 0;
+            let outTotal = 0, outAns = 0, outDur = 0, outUnique = 0;
             if (sectionMap['SUMMARY_IN']) {
-                const [it, ia, idur, iden] = sectionMap['SUMMARY_IN'].split('\t');
-                inTotal = parseInt(it, 10) || 0;
-                inAns = parseInt(ia, 10) || 0;
-                inDur = parseInt(idur, 10) || 0;
-                inDen = parseInt(iden, 10) || 0;
+                const parts = sectionMap['SUMMARY_IN'].split('\t');
+                inTotal = parseInt(parts[0], 10) || 0;
+                inAns = parseInt(parts[1], 10) || 0;
+                inDur = parseInt(parts[2], 10) || 0;
+                inDen = parseInt(parts[3], 10) || 0;
+                inUnique = parseInt(parts[4], 10) || 0;
+                inAnsUnique = parseInt(parts[5], 10) || Math.min(inAns, inUnique);
             }
             if (sectionMap['SUMMARY_OUT']) {
-                const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
+                const [ot, oa, odur, ouniq] = sectionMap['SUMMARY_OUT'].split('\t');
                 outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
+                outUnique = parseInt(ouniq, 10) || 0;
             }
 
             const todayRejects = dbService.getTodayOperatorRejects();
@@ -183,6 +312,21 @@ class IssabelDbService {
             const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown('today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
+            let abandonedPending = 0;
+            let abandonedUnreachable = 0;
+            let abandonedResolved = 0;
+            if (totalCb > 0 && abandoned > 0) {
+                abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
+            } else {
+                abandonedPending = abandoned;
+                abandonedUnreachable = 0;
+                abandonedResolved = 0;
+            }
+
             const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
             const outboundRate = total > 0 ? Math.round((outTotal / total) * 100) : 0;
@@ -194,6 +338,18 @@ class IssabelDbService {
                 outboundCalls: outTotal,
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
+                abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
+                abandonedResolvedCalls: abandonedResolved,
+                callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
+                callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                inboundClients: inUnique,
+                outboundClients: outUnique,
+                answeredClients: inAnsUnique,
+                totalClients: inUnique + outUnique,
                 deniedCalls: totalOpDenied,
                 totalDurationSec: durationSec,
                 answerRate,
@@ -243,7 +399,48 @@ class IssabelDbService {
                 }
             }
 
-            // 5. Operator Stats (Inbound + Outbound)
+            // 4b. Transfer zanjirlari — bir zanjirning barcha qadamlari bir xil channel nomida yoziladi.
+            // Olgan (xferIn) = zanjirni OXIRGI bo'lib qabul qilib, o'zi hal qilgan operator (boshqaga uzatmagan) -> Jami +1
+            // Uzatgan (xferOut) = qabul qilib boshqaga o'tkazib yuborgan har bir qadam
+            const xferOutMap = new Map();       // uzatgan (ko'rsatkich)
+            const xferInMap = new Map();        // olgan = hal qilgan (Jami +1)
+            const xferReceiptsMap = new Map();  // transfer qabul qatorlari (raw "Qabul qilingan"dan chiqariladi)
+            const xferFirstFromMap = new Map(); // navbatdan to'g'ri olib boshqaga uzatganlar (raw dan chiqariladi)
+            if (sectionMap['XFER_ROWS']) {
+                const chains = new Map(); // channel -> [{ from, to }]
+                for (const l of sectionMap['XFER_ROWS'].split('\n')) {
+                    if (!l) continue;
+                    const [fromOp, toOp, chan] = l.split('\t');
+                    const cleanChan = (chan || '').trim();
+                    if (!cleanChan) continue;
+                    if (!chains.has(cleanChan)) chains.set(cleanChan, []);
+                    chains.get(cleanChan).push({ from: (fromOp || '').trim(), to: (toOp || '').trim() });
+                }
+                for (const rows of chains.values()) {
+                    if (!rows || rows.length === 0) continue;
+                    for (const r of rows) {
+                        if (r.from) xferOutMap.set(r.from, (xferOutMap.get(r.from) || 0) + 1);
+                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
+                            xferReceiptsMap.set(r.to, (xferReceiptsMap.get(r.to) || 0) + 1);
+                        }
+                    }
+                    // Birinchi qadam: navbatdan to'g'ri qabul qilingan qo'ng'iroq boshqaga uzatilgan
+                    const first = rows[0];
+                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) {
+                        xferFirstFromMap.set(first.from, (xferFirstFromMap.get(first.from) || 0) + 1);
+                    }
+                    // Olgan (hal qilgan): zanjirning oxirgi operator qabulchisi (tashqi raqamga uzatilgan bo'lsa — oxirgi operator)
+                    let lastTo = '';
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
+                    }
+                    if (lastTo) {
+                        xferInMap.set(lastTo, (xferInMap.get(lastTo) || 0) + 1);
+                    }
+                }
+            }
+
+            // 5. Operator Stats (Inbound + Outbound + Transfers)
             const opStats = [];
             const processedExts = new Set();
             if (sectionMap['OPERATORS']) {
@@ -259,7 +456,14 @@ class IssabelDbService {
                     const inDur = parseInt(durStr, 10) || 0;
                     const outInfo = outMap.get(ext) || { answered: 0, duration: 0 };
                     const totalDur = inDur + outInfo.duration;
-                    const spokenCalls = inAns + outInfo.answered;
+                    const xOut = xferOutMap.get(ext) || 0;
+                    const xIn = xferInMap.get(ext) || 0;
+                    const receipts = xferReceiptsMap.get(ext) || 0;
+                    const directFwd = xferFirstFromMap.get(ext) || 0;
+                    // Haqiqiy yakunlangan kiruvchi: transfer qabullari va boshqaga uzatib yuborganlari chiqariladi.
+                    // "Olgan" (transferni o'zi hal qilganlari) alohida xIn sifatida Jami ga qo'shiladi.
+                    const resolvedIn = Math.max(0, inAns - receipts - directFwd);
+                    const spokenCalls = resolvedIn + outInfo.answered + xIn;
                     const avg = spokenCalls > 0 ? Math.round(totalDur / spokenCalls) : 0;
                     const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
                     const opDenied = todayRejects[ext] || 0;
@@ -268,9 +472,14 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: inAns + outInfo.answered + opDenied,
-                        answered: inAns,
+                        totalCalls: resolvedIn + outInfo.answered + opDenied + xIn,
+                        answered: resolvedIn,
+                        rawAnswered: inAns,
                         outbound: outInfo.answered,
+                        transferredOut: xOut,
+                        transferredIn: xIn,
+                        // Transfer zanjirini oxirida hal qilgan (A->B->C da faqat C hisoblanadi)
+                        transferResolved: xIn,
                         denied: opDenied,
                         totalDurationSec: totalDur,
                         avgDurationSec: avg
@@ -288,9 +497,12 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: outInfo.answered + opDenied,
+                        totalCalls: outInfo.answered + opDenied + (xferInMap.get(ext) || 0),
                         answered: 0,
                         outbound: outInfo.answered,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xferInMap.get(ext) || 0,
+                        transferResolved: xferInMap.get(ext) || 0,
                         denied: opDenied,
                         totalDurationSec: outInfo.duration,
                         avgDurationSec: avg
@@ -305,39 +517,483 @@ class IssabelDbService {
             redisService.set('callcenter:hourly', this.cache.hourly, 60);
             redisService.set('callcenter:operators', this.cache.operators, 60);
         } catch (err) {
-            console.error('вљ пёЏ Issabel syncAllData xatosi:', err.message);
+            console.error('⚠️ Issabel syncAllData xatosi:', err.message);
         }
     }
 
     /**
-     * SSH orqali MySQL so'rovini bajarish
+     * Asterisk CDR dan bog'lanilishi kerak bo'lgan mijozlarni (navbatdan chiqqanlar,
+     * ishdan tashqari vaqt / IVR) sinxronizatsiya qilish
      */
-    execQuery(sql) {
-        return new Promise((resolve, reject) => {
+    async syncPendingCallbacks(days = 30, activePhones = null) {
+        try {
+            let changed = false;
+
+            // 1. Bazada ayni paytda 'pending' turgan barcha mijozlarni Asterisk CDR dan tekshirish:
+            // Agar navbatdan chiqqan paytdan keyin operator bu raqamga chiqqan bo'lsa (chiquvchi ANSWERED)
+            // yoki mijoz o'zi qayta qilib operator bilan gaplashgan bo'lsa -> 'resolved' deb yopiladi
+            try {
+                const pendingList = dbService.getPendingCallbacks();
+                if (pendingList && pendingList.length > 0) {
+                    const batchSql = `
+                        SELECT 
+                            CASE 
+                                WHEN LENGTH(src) >= 7 AND (LENGTH(dst) < 7 OR dst REGEXP '^[0-9]{2,4}$') THEN src
+                                WHEN LENGTH(dst) >= 7 THEN dst
+                                ELSE src
+                            END as phone,
+                            MAX(calldate) as last_answered_time,
+                            CASE 
+                                WHEN dcontext = 'from-internal' AND LENGTH(dst) >= 7 THEN 'outbound'
+                                ELSE 'inbound'
+                            END as direction,
+                            SUBSTRING_INDEX(GROUP_CONCAT(CASE 
+                                WHEN LENGTH(src) >= 7 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
+                                WHEN dcontext != 'from-internal' AND dstchannel LIKE 'Local/%@from-queue%' 
+                                    THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
+                                WHEN dstchannel REGEXP '^SIP/[0-9]{2,4}-'
+                                    THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                                WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' 
+                                    THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
+                                WHEN dcontext = 'from-internal' AND src REGEXP '^[0-9]{2,4}$'
+                                    THEN src
+                            END ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as op_ext
+                        FROM asteriskcdrdb.cdr
+                        WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+                          AND disposition = 'ANSWERED' AND billsec > 0
+                          AND (
+                            (LENGTH(src) >= 7 AND src NOT LIKE '%2020159%')
+                            OR (LENGTH(dst) >= 7 AND dst NOT LIKE '%2020159%')
+                          )
+                        GROUP BY phone;
+                    `;
+                    const rawBatch = await this.execQuery(batchSql);
+                    if (rawBatch) {
+                        const answeredMap = new Map();
+                        const bLines = rawBatch.trim().split('\n');
+                        for (const bl of bLines) {
+                            if (!bl) continue;
+                            const parts = bl.split('\t');
+                            const p = parts[0];
+                            const t = parts[1];
+                            const adir = parts[2] || 'inbound';
+                            let aop = parts[3] ? parts[3].trim() : null;
+                            if (aop === 'NULL' || aop === 'null' || aop === '\\N' || !aop) aop = null;
+
+                            // MUHIM: Agar aop (operator ID) bo'lmasa, bu qo'ng'iroqqa hech qaysi operator javob bermagan!
+                            // Faqat IVR musiqa (ivr-4), avtojavob (app-blackhole) yoki navbat robot javobi bo'lgan!
+                            // Shuning uchun aop bo'lmagan qo'ng'iroqlarni "gaplashildi" (answeredMap) ga ASLO qo'shmaymiz!
+                            if (!aop) continue;
+
+                            if (p && t) {
+                                const clean = dbService.normalizePhone(p);
+                                if (clean) {
+                                    const existing = answeredMap.get(clean);
+                                    if (!existing || t > existing.time) {
+                                        answeredMap.set(clean, { time: t, direction: adir, opId: aop });
+                                    }
+                                }
+                            }
+                        }
+
+                        // Shuningdek, operatorlar tomonidan qilingan, ammo javob berilmagan (Ulanilmadi) chiquvchi qo'ng'iroqlarni tekshirish
+                        const failedBatchSql = `
+                            SELECT 
+                                CASE 
+                                    WHEN LENGTH(dst) >= 7 THEN dst
+                                    ELSE src
+                                END as phone,
+                                MAX(calldate) as last_outbound_time,
+                                SUBSTRING_INDEX(GROUP_CONCAT(src ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as op_ext,
+                                SUBSTRING_INDEX(GROUP_CONCAT(disposition ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as last_disposition,
+                                COUNT(*) as total_outbound_attempts
+                            FROM asteriskcdrdb.cdr
+                            WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+                              AND dcontext = 'from-internal'
+                              AND LENGTH(dst) >= 7
+                              AND dst NOT LIKE '%2020159%'
+                              AND (disposition != 'ANSWERED' OR billsec = 0)
+                            GROUP BY phone;
+                        `;
+                        const rawFailedBatch = await this.execQuery(failedBatchSql);
+                        const failedOutboundMap = new Map();
+                        if (rawFailedBatch) {
+                            const fLines = rawFailedBatch.trim().split('\n');
+                            for (const fl of fLines) {
+                                if (!fl) continue;
+                                const parts = fl.split('\t');
+                                const fp = parts[0];
+                                const ft = parts[1];
+                                let fop = parts[2] ? parts[2].trim() : null;
+                                if (fop === 'NULL' || fop === 'null' || fop === '\\N' || !fop) fop = null;
+                                const fdisp = parts[3] ? parts[3].trim() : 'FAILED';
+                                const fatt = parseInt(parts[4], 10) || 1;
+                                const cleanFp = dbService.normalizePhone(fp);
+                                if (cleanFp && ft) {
+                                    failedOutboundMap.set(cleanFp, {
+                                        time: ft,
+                                        opId: fop,
+                                        cause: fdisp,
+                                        attempts: fatt
+                                    });
+                                }
+                            }
+                        }
+
+                        for (const item of pendingList) {
+                            const clean = dbService.normalizePhone(item.phone);
+                            if (!clean) continue;
+                            const ansInfo = answeredMap.get(clean);
+                            if (ansInfo && ansInfo.opId && item.call_time && ansInfo.time >= item.call_time) {
+                                const resType = (ansInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
+                                const resolvedBy = `operator_${ansInfo.opId}_${ansInfo.direction}`;
+                                const displayOp = this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`;
+                                const resolved = dbService.resolveCallback(clean, resolvedBy, displayOp, resType);
+                                if (resolved) changed = true;
+                            } else {
+                                // Agar suhbat bo'lmagan bo'lsa, ammo operator navbatdan chiqqandan keyin telefon qilgan bo'lsa -> "Ulanilmadi"
+                                const failInfo = failedOutboundMap.get(clean);
+                                if (failInfo && item.call_time && failInfo.time >= item.call_time) {
+                                    const displayOp = failInfo.opId ? (this.operatorNames.get(failInfo.opId) || DEFAULT_OPERATOR_NAMES[failInfo.opId] || `Operator ${failInfo.opId}`) : 'Operator';
+                                    const updated = dbService.recordFailedOutboundAttempt({
+                                        phone: clean,
+                                        operator: displayOp,
+                                        cause: failInfo.cause,
+                                        time: failInfo.time,
+                                        attempts: failInfo.attempts
+                                    });
+                                    if (updated) changed = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (pErr) {
+                console.error('syncPendingCallbacks check active pending error:', pErr.message);
+            }
+
+            // 2. Asterisk CDR dan haqiqiy javobsiz qolgan (birorta operator javob bermagan) kiruvchi qo'ng'iroqlarni olish
+            const intervalDays = parseInt(days, 10) || 30;
+            const opAnsSub = `
+                SELECT DISTINCT uniqueid
+                FROM cdr
+                WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
+                  AND disposition = 'ANSWERED'
+                  AND billsec > 0
+                  AND (
+                      dst REGEXP '^[0-9]{2,4}$' 
+                      OR dstchannel LIKE 'Local/%@from-queue%' 
+                      OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                  )
+            `;
+
+            const ansChanSub = `
+                SELECT DISTINCT channel
+                FROM cdr
+                WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
+                  AND disposition = 'ANSWERED'
+                  AND billsec > 0
+            `;
+
+            const sql = `
+                USE asteriskcdrdb;
+
+                SELECT 
+                    client_phone,
+                    MAX(calldate) as callback_time,
+                    COUNT(DISTINCT channel) as total_attempts,
+                    COUNT(DISTINCT CASE WHEN DATE(calldate) = CURDATE() THEN channel END) as today_attempts,
+                    CASE 
+                        WHEN SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dcontext != 'from-internal' THEN CONCAT(TIME(calldate), '|||', COALESCE(lastdata,'')) END ORDER BY calldate DESC SEPARATOR '###'), '###', 1) REGEXP 'working-time|music-working-time' 
+                             OR SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dcontext != 'from-internal' THEN TIME(calldate) END ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) < '08:00:00'
+                             OR SUBSTRING_INDEX(GROUP_CONCAT(CASE WHEN dcontext != 'from-internal' THEN TIME(calldate) END ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) > '21:00:00'
+                        THEN 'ivr_non_working'
+                        ELSE 'abandoned'
+                    END as source_type
+                FROM (
+                    SELECT 
+                        c.src as client_phone,
+                        MIN(c.calldate) as calldate,
+                        c.channel,
+                        MAX(c.dcontext) as dcontext,
+                        MAX(c.lastdata) as lastdata
+                    FROM cdr c
+                    LEFT JOIN (${opAnsSub}) op_ans ON c.uniqueid = op_ans.uniqueid
+                    LEFT JOIN (${ansChanSub}) op_chan ON c.channel = op_chan.channel
+                    WHERE c.calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
+                      AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                      AND c.channel NOT LIKE 'Local/%'
+                      AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                      AND c.src REGEXP '^[0-9]{7,12}$'
+                      AND c.src NOT LIKE '%2020159%'
+                      AND op_ans.uniqueid IS NULL
+                      AND op_chan.channel IS NULL
+                    GROUP BY c.channel
+                ) missed_calls
+                GROUP BY client_phone
+                ORDER BY callback_time DESC
+                LIMIT 250;
+            `;
+
+            const raw = await this.execQuery(sql);
+            if (!raw) return changed;
+
+            // Shu davrda har bir mijoz bilan qilingan oxirgi muvaffaqiyatli suhbatni olish
+            const answeredMap = new Map();
+            const answeredSql = `
+                USE asteriskcdrdb;
+                SELECT 
+                    CASE 
+                        WHEN LENGTH(src) >= 7 AND (LENGTH(dst) < 7 OR dst REGEXP '^[0-9]{2,4}$') THEN src
+                        WHEN LENGTH(dst) >= 7 THEN dst
+                        ELSE src
+                    END as phone,
+                    MAX(calldate) as last_answered_time,
+                    CASE 
+                        WHEN dcontext = 'from-internal' AND LENGTH(dst) >= 7 THEN 'outbound'
+                        ELSE 'inbound'
+                    END as direction,
+                    SUBSTRING_INDEX(GROUP_CONCAT(CASE 
+                        WHEN LENGTH(src) >= 7 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
+                        WHEN dcontext != 'from-internal' AND dstchannel LIKE 'Local/%@from-queue%' 
+                        THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
+                        WHEN dstchannel REGEXP '^SIP/[0-9]{2,4}-'
+                            THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                        WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' 
+                            THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
+                        WHEN dcontext = 'from-internal' AND src REGEXP '^[0-9]{2,4}$'
+                            THEN src
+                    END ORDER BY calldate DESC SEPARATOR '|||'), '|||', 1) as op_ext
+                FROM cdr
+                WHERE calldate >= DATE_SUB(CURDATE(), INTERVAL ${intervalDays} DAY)
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                  AND (
+                    (LENGTH(src) >= 7 AND src NOT LIKE '%2020159%')
+                    OR (LENGTH(dst) >= 7 AND dst NOT LIKE '%2020159%')
+                  )
+                GROUP BY phone;
+            `;
+            const rawAnswered = await this.execQuery(answeredSql);
+            if (rawAnswered) {
+                const aLines = rawAnswered.trim().split('\n');
+                for (const al of aLines) {
+                    if (!al) continue;
+                    const parts = al.split('\t');
+                    const ap = parts[0];
+                    const at = parts[1];
+                    const adir = parts[2] || 'inbound';
+                    let aop = parts[3] ? parts[3].trim() : null;
+                    if (aop === 'NULL' || aop === 'null' || aop === '\\N' || !aop) {
+                        aop = null;
+                    }
+
+                    const cleanA = dbService.normalizePhone(ap);
+                    if (cleanA) {
+                        answeredMap.set(cleanA, { 
+                            time: at, 
+                            direction: adir, // 'outbound' | 'inbound'
+                            opId: aop 
+                        });
+                    }
+                }
+            }
+
+            const lines = raw.trim().split('\n');
+
+            for (const line of lines) {
+                if (!line) continue;
+                const [clientPhone, callbackTime, totalAttemptsStr, todayAttemptsStr, sourceType] = line.split('\t');
+                const totalAttempts = parseInt(totalAttemptsStr, 10) || 1;
+                const todayAttempts = parseInt(todayAttemptsStr, 10) || 0;
+
+                const cleanPhone = dbService.normalizePhone(clientPhone);
+                if (!cleanPhone || cleanPhone === '712020159' || cleanPhone.endsWith('2020159')) {
+                    continue;
+                }
+
+                // Mijoz shu javobsiz qo'ng'iroqdan KEYIN operator bilan gaplashganmi?
+                const answeredInfo = answeredMap.get(cleanPhone);
+                const hasAnsweredAfterMissed = Boolean(answeredInfo && answeredInfo.opId && answeredInfo.time && answeredInfo.time >= callbackTime);
+
+                if (hasAnsweredAfterMissed) {
+                    // Agar oxirgi suhbat javobsiz qo'ng'iroqdan keyin bo'lgan bo'lsa -> faqat mavjud pending callback resolved qilinadi
+                    const resType = (answeredInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
+                    const resolvedBy = `operator_${answeredInfo.opId}_${answeredInfo.direction}`;
+                    const displayOp = this.operatorNames.get(answeredInfo.opId) || DEFAULT_OPERATOR_NAMES[answeredInfo.opId] || `Operator ${answeredInfo.opId}`;
+
+                    const resolved = dbService.resolveCallback(
+                        cleanPhone, 
+                        resolvedBy,
+                        displayOp,
+                        resType
+                    );
+                    if (resolved) {
+                        changed = true;
+                    }
+                    // Eslatma: Agar resolved false bo'lsa (ya'ni mijoz hech qachon pending callbacks bo'lmagan bo'lsa),
+                    // uni HECH QACHON yangidan upsertCallback qilib qo'shmaymiz! Chunki u oddiy gaplashilgan qo'ng'iroq!
+                } else {
+                    // Hali bog'lanilmagan -> pending sifatida kiritiladi yoki yangilanadi
+                    // LEKIN mijoz ayni paytda faol qo'ng'iroqda bo'lsa (navbatda turgan yoki gaplashayotgan), uni pending deb kiritmaymiz!
+                    if (activePhones && (activePhones.has(cleanPhone) || activePhones.has(`998${cleanPhone}`))) {
+                        continue;
+                    }
+
+                    const upsertRes = dbService.upsertCallback({
+                        phone: cleanPhone,
+                        source: sourceType,
+                        callTime: callbackTime,
+                        attemptsCount: totalAttempts,
+                        todayAttempts: todayAttempts
+                    });
+                    if (upsertRes && (upsertRes.inserted || upsertRes.updated)) changed = true;
+                }
+            }
+
+            // 3. Tozalash (Cleanup): Faqatgina soxta yaroqsiz raqamlarni (masalan raqam formati noto'g'ri bo'lganlarni) tozalash.
+            // Hech qachon 'resolved' yoki 'dismissed' (tarix) mijozlarni o'chirmaslik kerak!
+            // Agar biror 'pending' yozuv operator bilan gaplashilgani aniqlansa -> 'resolved' ga o'tkaziladi.
+            try {
+                const pendingCallbacks = dbService.getPendingCallbacks('today');
+                if (pendingCallbacks && pendingCallbacks.length > 0) {
+                    for (const cb of pendingCallbacks) {
+                        const clean = dbService.normalizePhone(cb.phone);
+                        if (!clean || clean.length < 7 || clean === '712020159' || clean.endsWith('2020159')) {
+                            dbService.deleteCallbackPermanent(cb.id);
+                            changed = true;
+                            continue;
+                        }
+                        const ansInfo = answeredMap.get(clean);
+                        if (ansInfo && ansInfo.opId && ansInfo.time && cb.call_time && ansInfo.time >= cb.call_time) {
+                            const resType = (ansInfo.direction === 'outbound') ? 'operator_outbound' : 'client_inbound';
+                            const resolvedBy = `operator_${ansInfo.opId}_${ansInfo.direction}`;
+                            const displayOp = this.operatorNames.get(ansInfo.opId) || DEFAULT_OPERATOR_NAMES[ansInfo.opId] || `Operator ${ansInfo.opId}`;
+                            const res = dbService.resolveCallback(clean, resolvedBy, displayOp, resType);
+                            if (res) changed = true;
+                        }
+                    }
+                }
+            } catch (cleanErr) {
+                console.error('syncPendingCallbacks cleanup error:', cleanErr.message);
+            }
+
+            return changed;
+        } catch (err) {
+            console.error('syncPendingCallbacks error:', err.message);
+            return false;
+        }
+    }
+
+    /**
+     * Doimiy SSH ulanishni qaytaradi (mavjud bo'lsa shuni, bo'lmasa yangi ochadi).
+     * Bir nechta so'rov bir vaqtda kelsa ham (SSH kanal multiplekslash orqali) bitta
+     * ulanishni baham ko'radi — har biri uchun alohida handshake kerak emas.
+     */
+    _getSshConnection() {
+        if (this._sshReady) return this._sshReady;
+
+        this._sshReady = new Promise((resolve, reject) => {
             const conn = new Client();
             conn.on('ready', () => {
-                const cmd = `MYSQL_PWD='${this.dbPass}' mysql -u ${this.dbUser} -N -B -e "${sql.replace(/"/g, '\\"')}"`;
-                conn.exec(cmd, (err, stream) => {
-                    if (err) {
-                        conn.end();
-                        return reject(err);
-                    }
-                    let stdout = '';
-                    let stderr = '';
-                    stream.on('data', d => stdout += d.toString());
-                    stream.stderr.on('data', d => stderr += d.toString());
-                    stream.on('close', code => {
-                        conn.end();
-                        if (code !== 0 && stderr) {
-                            return reject(new Error(stderr));
-                        }
-                        resolve(stdout);
-                    });
-                });
+                this._sshConn = conn;
+                resolve(conn);
             }).on('error', err => {
-                try { conn.end(); } catch (e) {}
+                this._sshConn = null;
+                this._sshReady = null;
                 reject(err);
+            }).on('close', () => {
+                // Ulanish uzilsa, keyingi so'rov avtomatik qayta ulanadi
+                this._sshConn = null;
+                this._sshReady = null;
             }).connect(this.sshConfig);
+        });
+
+        return this._sshReady;
+    }
+
+    /**
+     * SSH orqali MySQL so'rovini bajarish.
+     * Endi har so'rovda yangi SSH ulanish ochilmaydi — mavjud doimiy ulanish qayta
+     * ishlatiladi (faqat masofaviy `mysql` CLI jarayoni qayta ishga tushadi). Bu SSH
+     * handshake narxini (odatda 200ms-2s) deyarli har bir so'rovdan olib tashlaydi.
+     */
+    async execQuery(sql) {
+        let conn;
+        try {
+            conn = await this._getSshConnection();
+        } catch (err) {
+            throw err;
+        }
+
+        return new Promise((resolve, reject) => {
+            const cmd = `MYSQL_PWD='${this.dbPass}' mysql -u ${this.dbUser} -N -B -e "${sql.replace(/"/g, '\\"')}"`;
+            conn.exec(cmd, (err, stream) => {
+                if (err) {
+                    // Ulanish "chirigan" (masalan tarmoq uzilishi) bo'lishi mumkin —
+                    // keyingi chaqiruv yangi ulanish ochishi uchun keshni tozalaymiz.
+                    this._sshConn = null;
+                    this._sshReady = null;
+                    return reject(err);
+                }
+                let stdout = '';
+                let stderr = '';
+                stream.on('data', d => stdout += d.toString());
+                stream.stderr.on('data', d => stderr += d.toString());
+                stream.on('close', code => {
+                    if (code !== 0 && stderr) {
+                        return reject(new Error(stderr));
+                    }
+                    resolve(stdout);
+                });
+            });
+        });
+    }
+
+    /**
+     * SSH orqali Linux tizim buyrug'ini bajarish (masalan `du -sb ...`)
+     */
+    async execCommand(cmd, timeoutMs = 10000) {
+        let conn;
+        try {
+            conn = await this._getSshConnection();
+        } catch (err) {
+            throw err;
+        }
+
+        return new Promise((resolve, reject) => {
+            let timer = null;
+            let finished = false;
+
+            if (timeoutMs > 0) {
+                timer = setTimeout(() => {
+                    if (!finished) {
+                        finished = true;
+                        resolve('');
+                    }
+                }, timeoutMs);
+            }
+
+            conn.exec(cmd, (err, stream) => {
+                if (err) {
+                    if (timer) clearTimeout(timer);
+                    this._sshConn = null;
+                    this._sshReady = null;
+                    return reject(err);
+                }
+                let stdout = '';
+                let stderr = '';
+                stream.on('data', d => stdout += d.toString());
+                stream.stderr.on('data', d => stderr += d.toString());
+                stream.on('close', code => {
+                    if (timer) clearTimeout(timer);
+                    if (finished) return;
+                    finished = true;
+                    if (code !== 0 && stderr && !stdout) {
+                        return reject(new Error(stderr));
+                    }
+                    resolve(stdout);
+                });
+            });
         });
     }
 
@@ -382,6 +1038,12 @@ class IssabelDbService {
         if (dateStr === 'all' || dateStr === 'all_time') {
             return '1=1';
         }
+        if (dateStr && dateStr.includes('_')) {
+            const [s, e] = dateStr.split('_');
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s) && /^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return `calldate >= '${s} 00:00:00' AND calldate <= '${e} 23:59:59'`;
+            }
+        }
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
             return `calldate >= '${dateStr} 00:00:00' AND calldate <= '${dateStr} 23:59:59'`;
         }
@@ -403,6 +1065,16 @@ class IssabelDbService {
         try {
             const redisCached = await redisService.get(redisKey);
             if (redisCached && Array.isArray(redisCached) && redisCached.length > 0) {
+                let hasGrand = true;
+                for (const op of redisCached) {
+                    if (op.grandTotal === undefined) {
+                        op.grandTotal = (op.answered || 0) + (op.outbound || 0) + (op.transferredIn || 0);
+                        hasGrand = false;
+                    }
+                }
+                if (!hasGrand) {
+                    await redisService.set(redisKey, redisCached, 604800);
+                }
                 return redisCached;
             }
         } catch (e) {}
@@ -411,20 +1083,30 @@ class IssabelDbService {
         const cacheKey = `operators:${targetDate}`;
         const cached = this.historicalCache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < 300000) {
-            return cached.data;
+            if (cached.data && Array.isArray(cached.data)) {
+                for (const op of cached.data) {
+                    if (op.grandTotal === undefined) {
+                        op.grandTotal = (op.answered || 0) + (op.outbound || 0) + (op.transferredIn || 0);
+                    }
+                }
+                return cached.data;
+            }
         }
 
         try {
             const dateCond = this.getDateCondition(targetDate);
             const sql = `
                 USE asteriskcdrdb;
-                SELECT 
+                SELECT
                     dst,
                     COUNT(*) as total_offered,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN billsec ELSE 0 END) as total_duration
-                FROM cdr 
-                WHERE ${dateCond} AND dst REGEXP '^[0-9]{3,4}$'
+                FROM cdr
+                WHERE ${dateCond}
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dst REGEXP '^[0-9]{3,4}$'
+                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
                 GROUP BY dst;
 
                 SELECT '===OP_OUTBOUND===';
@@ -435,17 +1117,39 @@ class IssabelDbService {
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN billsec ELSE 0 END) as out_duration
                 FROM cdr 
                 WHERE ${dateCond}
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND dcontext = 'from-internal'
                   AND channel REGEXP '^SIP/[0-9]{2,4}-'
-                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)
+                  AND LENGTH(dst) >= 7
                 GROUP BY op_id;
+
+                SELECT '===XFER_ROWS===';
+                SELECT 
+                    CASE 
+                        WHEN channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
+                        WHEN channel LIKE 'SIP/%-%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '-', 1), '/', -1)
+                        ELSE '' 
+                    END AS from_op,
+                    dst as to_op,
+                    channel
+                FROM cdr
+                WHERE ${dateCond}
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal-xfer'
+                  AND disposition = 'ANSWERED' AND billsec > 0
+                ORDER BY channel ASC, calldate ASC;
             `;
             const raw = await this.execQuery(sql);
-            const [inPart, outPart] = (raw || '').split('===OP_OUTBOUND===');
+            const sections = (raw || '').split('===');
+            const sectionMap = {};
+            for (let i = 1; i < sections.length; i += 2) {
+                sectionMap[sections[i].trim()] = (sections[i + 1] || '').trim();
+            }
+            const inPart = (sections[0] || '').trim();
 
             const outMap = new Map();
-            if (outPart) {
-                for (const line of outPart.trim().split('\n')) {
+            if (sectionMap['OP_OUTBOUND']) {
+                for (const line of sectionMap['OP_OUTBOUND'].split('\n')) {
                     if (!line) continue;
                     const parts = line.split('\t');
                     const opId = (parts[0] || '').trim();
@@ -459,7 +1163,45 @@ class IssabelDbService {
                 }
             }
 
-            const inLines = (inPart || '').trim().split('\n');
+            // 4b. Transfer zanjirlari (channel bo'yicha guruhlash)
+            // Olgan (xferIn) = oxirgi bo'lib qabul qilib o'zi hal qilgan; Uzatgan (xferOut) = qabul qilib boshqaga o'tkazgan
+            const xferOutMap = new Map();       // uzatgan
+            const xferInMap = new Map();        // olgan = hal qilgan (Jami +1)
+            const xferReceiptsMap = new Map();  // transfer qabul qatorlari (raw dan chiqariladi)
+            const xferFirstFromMap = new Map(); // navbatdan to'g'ri olib boshqaga uzatganlar (raw dan chiqariladi)
+            if (sectionMap['XFER_ROWS']) {
+                const chains = new Map();
+                for (const line of sectionMap['XFER_ROWS'].split('\n')) {
+                    if (!line) continue;
+                    const parts = line.split('\t');
+                    const cleanChan = (parts[2] || '').trim();
+                    if (!cleanChan) continue;
+                    if (!chains.has(cleanChan)) chains.set(cleanChan, []);
+                    chains.get(cleanChan).push({ from: (parts[0] || '').trim(), to: (parts[1] || '').trim() });
+                }
+                for (const rows of chains.values()) {
+                    if (!rows || rows.length === 0) continue;
+                    for (const r of rows) {
+                        if (r.from) xferOutMap.set(r.from, (xferOutMap.get(r.from) || 0) + 1);
+                        if (r.to && /^[0-9]{2,4}$/.test(r.to)) {
+                            xferReceiptsMap.set(r.to, (xferReceiptsMap.get(r.to) || 0) + 1);
+                        }
+                    }
+                    const first = rows[0];
+                    if (first.from && /^[0-9]{2,4}$/.test(first.from)) {
+                        xferFirstFromMap.set(first.from, (xferFirstFromMap.get(first.from) || 0) + 1);
+                    }
+                    let lastTo = '';
+                    for (let i = rows.length - 1; i >= 0; i--) {
+                        if (rows[i].to && /^[0-9]{2,4}$/.test(rows[i].to)) { lastTo = rows[i].to; break; }
+                    }
+                    if (lastTo) {
+                        xferInMap.set(lastTo, (xferInMap.get(lastTo) || 0) + 1);
+                    }
+                }
+            }
+
+            const inLines = inPart.split('\n');
             const stats = [];
             const rejects = dbService.getTodayOperatorRejects(targetDate);
             const missed = dbService.getTodayOperatorMissed(targetDate);
@@ -478,7 +1220,12 @@ class IssabelDbService {
                     const outInfo = outMap.get(ext) || { ansOut: 0, outDur: 0 };
                     const outbound = outInfo.ansOut;
                     const totalDurationSec = inDuration + outInfo.outDur;
-                    const spoken = ans + outbound;
+                    const xOut = xferOutMap.get(ext) || 0;
+                    const xIn = xferInMap.get(ext) || 0;
+                    const receipts = xferReceiptsMap.get(ext) || 0;
+                    const directFwd = xferFirstFromMap.get(ext) || 0;
+                    const resolvedIn = Math.max(0, ans - receipts - directFwd);
+                    const spoken = resolvedIn + outbound + xIn;
 
                     const opDenied = rejects[ext] || 0;
                     const opMissed = missed[ext] || 0;
@@ -489,9 +1236,14 @@ class IssabelDbService {
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: ans + outbound + opDenied,
-                        answered: ans,
+                        totalCalls: resolvedIn + outbound + opDenied + xIn,
+                        grandTotal: resolvedIn + outbound + xIn,
+                        answered: resolvedIn,
+                        rawAnswered: ans,
                         outbound: outbound,
+                        transferredOut: xOut,
+                        transferredIn: xIn,
+                        transferResolved: xIn,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
@@ -502,24 +1254,56 @@ class IssabelDbService {
 
             for (const [ext, outInfo] of outMap.entries()) {
                 if (!processedExts.has(ext) && !EXCLUDED_OPERATORS.has(ext) && /^[0-9]{2,4}$/.test(ext)) {
+                    processedExts.add(ext);
                     const name = ext === '114' ? 'Maxmudbek' : (this.operatorNames.get(ext) || `Operator ${ext}`);
                     const outbound = outInfo.ansOut;
                     const totalDurationSec = outInfo.outDur;
                     const opDenied = rejects[ext] || 0;
                     const opMissed = missed[ext] || 0;
                     const avgSec = outbound > 0 ? Math.round(totalDurationSec / outbound) : 0;
+                    const xIn = xferInMap.get(ext) || 0;
 
                     stats.push({
                         id: ext,
                         name: `${name} (${ext})`,
                         realName: name,
-                        totalCalls: outbound + opDenied,
+                        totalCalls: outbound + opDenied + xIn,
+                        grandTotal: outbound + xIn,
                         answered: 0,
                         outbound: outbound,
+                        transferredOut: xferOutMap.get(ext) || 0,
+                        transferredIn: xIn,
+                        transferResolved: xIn,
                         denied: opDenied,
                         missed: opMissed,
                         totalDurationSec: totalDurationSec,
                         avgDurationSec: avgSec
+                    });
+                }
+            }
+
+            for (const [ext, name] of this.operatorNames.entries()) {
+                if (!processedExts.has(ext) && !EXCLUDED_OPERATORS.has(ext) && /^[0-9]{2,4}$/.test(ext)) {
+                    processedExts.add(ext);
+                    const opName = ext === '114' ? 'Maxmudbek' : (name || `Operator ${ext}`);
+                    const opDenied = rejects[ext] || 0;
+                    const opMissed = missed[ext] || 0;
+                    stats.push({
+                        id: ext,
+                        name: `${opName} (${ext})`,
+                        realName: opName,
+                        totalCalls: opDenied,
+                        grandTotal: 0,
+                        answered: 0,
+                        rawAnswered: 0,
+                        outbound: 0,
+                        transferredOut: 0,
+                        transferredIn: 0,
+                        transferResolved: 0,
+                        denied: opDenied,
+                        missed: opMissed,
+                        totalDurationSec: 0,
+                        avgDurationSec: 0
                     });
                 }
             }
@@ -574,6 +1358,7 @@ class IssabelDbService {
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered
                 FROM cdr 
                 WHERE ${dateCond} 
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
                   AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
                   AND channel NOT LIKE 'Local/%'
                   AND (dcontext IS NULL OR dcontext != 'from-internal')
@@ -649,40 +1434,59 @@ class IssabelDbService {
             const sql = `
                 USE asteriskcdrdb;
                 SELECT 
-                    COUNT(DISTINCT uniqueid) as total_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as in_talk_sec,
-                    SUM(CASE WHEN disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
-                FROM cdr 
+                    COUNT(DISTINCT c.uniqueid) as total_inbound,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
+                    COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT 
+                        uniqueid,
+                        MAX(billsec) as talk_sec
+                    FROM cdr
+                    WHERE ${dateCond}
+                      AND disposition = 'ANSWERED'
+                      AND billsec > 0
+                      AND (
+                          dst REGEXP '^[0-9]{2,4}$' 
+                          OR dstchannel LIKE 'Local/%@from-queue%' 
+                          OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                      )
+                    GROUP BY uniqueid
+                ) op ON c.uniqueid = op.uniqueid
                 WHERE ${dateCond}
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
-                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.channel NOT LIKE 'Local/%'
+                  AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                  AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE ${dateCond}
                   AND dcontext = 'from-internal'
                   AND channel REGEXP '^SIP/[0-9]{2,4}-'
-                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7);
+                  AND LENGTH(dst) >= 7;
             `;
             const raw = await this.execQuery(sql);
             const blocks = (raw || '').trim().split('\n');
 
-            const [inTotalStr, inAnsStr, inDurStr, inDenStr] = (blocks[0] || '').split('\t');
+            const [inTotalStr, inAnsStr, inDurStr, inDenStr, inUniqueStr] = (blocks[0] || '').split('\t');
             const inTotal = parseInt(inTotalStr, 10) || 0;
             const inAns = parseInt(inAnsStr, 10) || 0;
             const inDur = parseInt(inDurStr, 10) || 0;
             const inDen = parseInt(inDenStr, 10) || 0;
+            const inUnique = parseInt(inUniqueStr, 10) || 0;
 
-            const [outTotalStr, outAnsStr, outDurStr] = (blocks[1] || '').split('\t');
+            const [outTotalStr, outAnsStr, outDurStr, outUniqueStr] = (blocks[1] || '').split('\t');
             const outTotal = parseInt(outAnsStr, 10) || parseInt(outTotalStr, 10) || 0;
             const outAns = parseInt(outAnsStr, 10) || 0;
             const outDur = parseInt(outDurStr, 10) || 0;
+            const outUnique = parseInt(outUniqueStr, 10) || 0;
 
             const dateRejects = dbService.getTodayOperatorRejects(targetDate);
             const totalOpDenied = Object.values(dateRejects).reduce((a, b) => a + b, 0);
@@ -692,6 +1496,20 @@ class IssabelDbService {
             const durationSec = inDur + outDur;
             const denied = totalOpDenied;
             const abandoned = Math.max(0, inTotal - inAns);
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
+            let abandonedPending = 0;
+            let abandonedUnreachable = 0;
+            let abandonedResolved = 0;
+            if (totalCb > 0 && abandoned > 0) {
+                abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
+            } else {
+                abandonedPending = abandoned;
+                abandonedUnreachable = 0;
+                abandonedResolved = 0;
+            }
 
             const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
@@ -704,6 +1522,15 @@ class IssabelDbService {
                 outboundCalls: outTotal,
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
+                abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
+                abandonedResolvedCalls: abandonedResolved,
+                callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
+                callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                outboundClients: outUnique,
                 deniedCalls: denied,
                 totalDurationSec: durationSec,
                 answerRate,
@@ -765,40 +1592,72 @@ class IssabelDbService {
                 SELECT '===SUMMARY_IN===' as marker;
                 USE asteriskcdrdb;
                 SELECT 
-                    COUNT(DISTINCT uniqueid) as total_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as in_talk_sec,
-                    SUM(CASE WHEN disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound
-                FROM cdr 
+                    COUNT(DISTINCT c.uniqueid) as total_inbound,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as ans_inbound,
+                    COALESCE(SUM(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN op.talk_sec END), 0) as in_talk_sec,
+                    SUM(CASE WHEN c.disposition = 'FAILED' THEN 1 ELSE 0 END) as den_inbound,
+                    COUNT(DISTINCT c.src) as unique_clients
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT 
+                        uniqueid,
+                        MAX(billsec) as talk_sec
+                    FROM cdr
+                    WHERE ${dateCond}
+                      AND disposition = 'ANSWERED'
+                      AND billsec > 0
+                      AND (
+                          dst REGEXP '^[0-9]{2,4}$' 
+                          OR dstchannel LIKE 'Local/%@from-queue%' 
+                          OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                      )
+                    GROUP BY uniqueid
+                ) op ON c.uniqueid = op.uniqueid
                 WHERE ${dateCond} 
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
-                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$');
+                  AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.channel NOT LIKE 'Local/%'
+                  AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                  AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$');
 
                 SELECT '===SUMMARY_OUT===' as marker;
                 SELECT 
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as total_outbound,
                     SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as ans_outbound,
-                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec
+                    SUM(CASE WHEN disposition='ANSWERED' THEN billsec ELSE 0 END) as out_talk_sec,
+                    COUNT(DISTINCT CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN dst END) as out_unique_clients
                 FROM cdr 
                 WHERE ${dateCond} 
-                  AND dcontext = 'from-internal'
-                  AND channel REGEXP '^SIP/[0-9]{2,4}-'
-                  AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7);
+                  AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00'
+                  AND dcontext = 'from-internal' 
+                  AND channel REGEXP '^SIP/[0-9]{2,4}-' 
+                  AND LENGTH(dst) >= 7;
 
                 SELECT '===HOURLY===' as marker;
                 SELECT 
-                    HOUR(calldate) as hr,
-                    COUNT(DISTINCT uniqueid) as total_inbound,
-                    SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) as answered
-                FROM cdr 
+                    HOUR(c.calldate) as hr,
+                    COUNT(DISTINCT c.uniqueid) as total_inbound,
+                    COUNT(DISTINCT CASE WHEN op.uniqueid IS NOT NULL THEN c.uniqueid END) as answered
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT DISTINCT uniqueid
+                    FROM cdr
+                    WHERE ${dateCond}
+                      AND disposition = 'ANSWERED'
+                      AND billsec > 0
+                      AND (
+                          dst REGEXP '^[0-9]{2,4}$' 
+                          OR dstchannel LIKE 'Local/%@from-queue%' 
+                          OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                      )
+                ) op ON c.uniqueid = op.uniqueid
                 WHERE ${dateCond} 
-                  AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')
-                  AND channel NOT LIKE 'Local/%'
-                  AND (dcontext IS NULL OR dcontext != 'from-internal')
-                  AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')
-                  AND HOUR(calldate) BETWEEN 8 AND 21
+                  AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.channel NOT LIKE 'Local/%'
+                  AND (c.dcontext IS NULL OR c.dcontext != 'from-internal')
+                  AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$')
+                  AND HOUR(c.calldate) BETWEEN 8 AND 21
                 GROUP BY hr ORDER BY hr ASC;
             `;
 
@@ -811,19 +1670,22 @@ class IssabelDbService {
                 sectionMap[title] = content;
             }
 
-            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, outTotal = 0, outAns = 0, outDur = 0;
+            let inTotal = 0, inAns = 0, inDur = 0, inDen = 0, inUnique = 0;
+            let outTotal = 0, outAns = 0, outDur = 0, outUnique = 0;
             if (sectionMap['SUMMARY_IN']) {
-                const [it, ia, idur, iden] = sectionMap['SUMMARY_IN'].split('\t');
+                const [it, ia, idur, iden, iuniq] = sectionMap['SUMMARY_IN'].split('\t');
                 inTotal = parseInt(it, 10) || 0;
                 inAns = parseInt(ia, 10) || 0;
                 inDur = parseInt(idur, 10) || 0;
                 inDen = parseInt(iden, 10) || 0;
+                inUnique = parseInt(iuniq, 10) || 0;
             }
             if (sectionMap['SUMMARY_OUT']) {
-                const [ot, oa, odur] = sectionMap['SUMMARY_OUT'].split('\t');
+                const [ot, oa, odur, ouniq] = sectionMap['SUMMARY_OUT'].split('\t');
                 outTotal = parseInt(oa, 10) || parseInt(ot, 10) || 0;
                 outAns = parseInt(oa, 10) || 0;
                 outDur = parseInt(odur, 10) || 0;
+                outUnique = parseInt(ouniq, 10) || 0;
             }
 
             const dateRejects = dbService.getTodayOperatorRejects(targetDate);
@@ -836,6 +1698,21 @@ class IssabelDbService {
             const answered = inAns;
             const durationSec = inDur + outDur;
             const abandoned = Math.max(0, inTotal - inAns);
+            const { pendingCount, unreachableCount, resolvedCount } = dbService.getAbandonedBreakdown(targetDate || 'today');
+            const totalCb = pendingCount + unreachableCount + resolvedCount;
+            let abandonedPending = 0;
+            let abandonedUnreachable = 0;
+            let abandonedResolved = 0;
+            if (totalCb > 0 && abandoned > 0) {
+                abandonedPending = Math.round(abandoned * (pendingCount / totalCb));
+                abandonedUnreachable = Math.round(abandoned * (unreachableCount / totalCb));
+                abandonedResolved = Math.max(0, abandoned - abandonedPending - abandonedUnreachable);
+            } else {
+                abandonedPending = abandoned;
+                abandonedUnreachable = 0;
+                abandonedResolved = 0;
+            }
+
             const answerRate = inTotal > 0 ? Math.round((answered / inTotal) * 100) : 0;
             const abandonedRate = inTotal > 0 ? Math.round((abandoned / inTotal) * 100) : 0;
             const outboundRate = total > 0 ? Math.round((outTotal / total) * 100) : 0;
@@ -871,6 +1748,19 @@ class IssabelDbService {
                 outboundCalls: outTotal,
                 answeredCalls: answered,
                 abandonedCalls: abandoned,
+                abandonedPendingCalls: abandonedPending,
+                abandonedUnreachableCalls: abandonedUnreachable,
+                abandonedResolvedCalls: abandonedResolved,
+                callbacksPendingCount: pendingCount,
+                callbacksUnreachableCount: unreachableCount,
+                callbacksResolvedCount: resolvedCount,
+                totalAbandonedClients: totalCb,
+                uniqueClients: inUnique,
+                outboundClients: outUnique,
+                inboundClients: inUnique,
+                answeredClients: Math.min(answered, inUnique),
+                totalClients: inUnique + outUnique,
+                missedClients: Math.min(totalOpMissed, totalCb || totalOpMissed),
                 deniedCalls: totalOpDenied,
                 missedCalls: totalOpMissed,
                 totalDurationSec: durationSec,
@@ -901,12 +1791,13 @@ class IssabelDbService {
     /**
      * 5. Tarixni to'g'ridan-to'g'ri Issabel MariaDB dan paginatsiya bilan olish
      */
-    async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '') {
+    async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '', direction = '', status = '', skipCount = false) {
         try {
             const isAll = dateStr === 'all' || dateStr === 'all_time';
-            const targetDate = isAll ? 'all' : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate());
-            const isPastDate = !isAll && targetDate < this.getTodayDate();
-            const redisKey = `callcenter:hist:calls:v2:${targetDate}:${page}:${limit}:${search || '_'}`;
+            const isRange = Boolean(dateStr && dateStr.includes('_'));
+            const targetDate = isAll ? 'all' : (isRange ? dateStr : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate()));
+            const isPastDate = (!isAll && !isRange && targetDate < this.getTodayDate()) || isRange;
+            const redisKey = `callcenter:hist:calls:v6:${targetDate}:${page}:${limit}:${search || '_'}:${direction || '_'}:${status || '_'}`;
 
             // 1. Redis dan tayyor sahifa keshini tekshirish (Bugun uchun ham 15 soniya, arxiv uchun 7 kun, all uchun 30s)
             try {
@@ -918,7 +1809,9 @@ class IssabelDbService {
 
             const offset = (Math.max(1, page) - 1) * limit;
             const dateCond = this.getDateCondition(dateStr);
-            let filter = ` WHERE ${dateCond} AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%' OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-')) AND channel NOT LIKE 'Local/%' `;
+            const dateCondCdr = dateCond.replace(/calldate/g, 'c.calldate');
+            let filter = ` WHERE ${dateCondCdr} AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00' AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%' OR (c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-')) AND c.channel NOT LIKE 'Local/%' `;
+
             if (search) {
                 const s = search.replace(/'/g, "\\'");
                 const searchLower = search.trim().toLowerCase();
@@ -934,29 +1827,69 @@ class IssabelDbService {
                     }
                 }
 
-                let searchCond = `(src LIKE '%${s}%' OR dst LIKE '%${s}%' OR dstchannel LIKE '%${s}%' OR disposition LIKE '%${s}%' OR channel LIKE '%${s}%')`;
+                let searchCond = `(c.src LIKE '%${s}%' OR c.dst LIKE '%${s}%' OR c.dstchannel LIKE '%${s}%' OR c.disposition LIKE '%${s}%' OR c.channel LIKE '%${s}%')`;
                 if (matchedExts.length > 0) {
-                    const extConds = matchedExts.map(ext => `((disposition = 'ANSWERED' AND billsec > 0 AND (dstchannel LIKE '%/${ext}-%' OR channel LIKE '%/${ext}-%' OR dstchannel LIKE '%Local/${ext}@%' OR channel LIKE '%Local/${ext}@%' OR dst = '${ext}')) OR src = '${ext}')`).join(' OR ');
+                    const extConds = matchedExts.map(ext => `((c.disposition = 'ANSWERED' AND c.billsec > 0 AND (c.dstchannel LIKE '%/${ext}-%' OR c.channel LIKE '%/${ext}-%' OR c.dstchannel LIKE '%Local/${ext}@%' OR c.channel LIKE '%Local/${ext}@%' OR c.dst = '${ext}')) OR c.src = '${ext}')`).join(' OR ');
                     searchCond = `(${searchCond} OR (${extConds}))`;
                 }
                 filter += ` AND ${searchCond} `;
             }
 
+            if (direction === 'transfer') {
+                filter += ` AND (xfer.xfer_chain IS NOT NULL AND xfer.xfer_chain != '' AND xfer.xfer_chain != 'NULL' AND xfer.xfer_chain != '\\\\N') `;
+            } else if (direction === 'outbound') {
+                filter += ` AND (c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-') AND (xfer.xfer_chain IS NULL OR xfer.xfer_chain = 'NULL' OR xfer.xfer_chain = '') `;
+            } else if (direction === 'inbound') {
+                filter += ` AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%') AND (xfer.xfer_chain IS NULL OR xfer.xfer_chain = 'NULL' OR xfer.xfer_chain = '') `;
+            }
+
+            if (status === 'answered') {
+                filter += ` AND (c.disposition = 'ANSWERED' AND c.billsec > 0) `;
+            } else if (status === 'missed') {
+                filter += ` AND (c.disposition != 'ANSWERED' OR c.billsec = 0) `;
+            }
+
             let total = 0;
             const isToday = !isAll && (!dateStr || dateStr === this.getTodayDate());
-            const countRedisKey = `callcenter:hist:count:v2:${targetDate}:${search || '_'}`;
+            const countRedisKey = `callcenter:hist:count:v6:${targetDate}:${search || '_'}:${direction || '_'}:${status || '_'}`;
 
             let cachedCount = null;
             try {
                 cachedCount = await redisService.get(countRedisKey);
             } catch (e) {}
 
+            const xferSubDateCond = (!isAll && dateCond) 
+                ? `WHERE ${dateCond} AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'` 
+                : `WHERE calldate >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'`;
+
             if (cachedCount !== null && cachedCount !== undefined) {
                 total = parseInt(cachedCount, 10) || 0;
-            } else if (!search && isToday && this.cache.summary && this.cache.summary.totalCalls) {
+            } else if (!search && !direction && !status && isToday && this.cache.summary && this.cache.summary.totalCalls) {
                 total = this.cache.summary.totalCalls;
+            } else if (skipCount) {
+                total = limit;
             } else {
-                const countSql = `USE asteriskcdrdb; SELECT COUNT(DISTINCT uniqueid) FROM cdr ${filter};`;
+                const needsXfer = Boolean(direction === 'transfer' || (filter && filter.includes('xfer.')));
+                const xferJoin = needsXfer ? `
+                    LEFT JOIN (
+                        SELECT 
+                            uniqueid,
+                            SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
+                            SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
+                            GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
+                        FROM cdr
+                        ${xferSubDateCond}
+                        GROUP BY uniqueid
+                    ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
+                ` : '';
+
+                const countSql = `
+                    USE asteriskcdrdb;
+                    SELECT COUNT(DISTINCT c.uniqueid)
+                    FROM cdr c
+                    ${xferJoin}
+                    ${filter};
+                `;
                 const countRaw = await this.execQuery(countSql);
                 total = parseInt((countRaw || '').trim(), 10) || 0;
                 await redisService.set(countRedisKey, total, isPastDate ? 604800 : (isAll ? 60 : 45));
@@ -966,35 +1899,47 @@ class IssabelDbService {
             const dataSql = `
                 USE asteriskcdrdb;
                 SELECT 
-                    uniqueid,
-                    DATE_FORMAT(MIN(calldate), '%Y-%m-%d %H:%i:%s') as call_time,
-                    MIN(src) as src,
-                    MIN(dst) as dst,
+                    c.uniqueid,
+                    DATE_FORMAT(MIN(c.calldate), '%Y-%m-%d %H:%i:%s') as call_time,
+                    MIN(c.src) as src,
+                    MIN(c.dst) as dst,
                     MAX(CASE 
-                        WHEN channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
-                        WHEN src REGEXP '^[0-9]{2,4}$' THEN src
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
-                        WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst 
-                        WHEN dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                        WHEN c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.channel, '/', -1), '-', 1)
+                        WHEN c.src REGEXP '^[0-9]{2,4}$' THEN c.src
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '@', 1), '/', -1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.channel, '@', 1), '/', -1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '/', -1), '-', 1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dst REGEXP '^[0-9]{2,4}$' THEN c.dst
+                        WHEN c.dst REGEXP '^[0-9]{2,4}$' THEN c.dst 
+                        WHEN c.dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '/', -1), '-', 1)
                         ELSE ''
                     END) as op_ext,
                     CASE 
-                        WHEN MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
-                        WHEN MAX(CASE WHEN disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
-                        WHEN MAX(CASE WHEN disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
+                        WHEN MAX(CASE WHEN c.disposition='ANSWERED' AND c.billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
+                        WHEN MAX(CASE WHEN c.disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
+                        WHEN MAX(CASE WHEN c.disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
                         ELSE 'ABANDONED' 
                     END as final_disp,
-                    MAX(billsec) as talk_sec,
-                    MAX(duration) as wait_sec,
-                    TIMESTAMPDIFF(SECOND, MIN(calldate), MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN calldate END)) as ans_lag_sec,
-                    MAX(recordingfile) as rec,
-                    MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
-                FROM cdr 
+                    MAX(c.billsec) as talk_sec,
+                    MAX(c.duration) as wait_sec,
+                    TIMESTAMPDIFF(SECOND, MIN(c.calldate), MAX(CASE WHEN c.disposition='ANSWERED' AND c.billsec > 0 THEN c.calldate END)) as ans_lag_sec,
+                    MAX(c.recordingfile) as rec,
+                    MAX(CASE WHEN c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out,
+                    MAX(xfer.xfer_from) as xfer_from,
+                    MAX(xfer.xfer_chain) as xfer_chain
+                FROM cdr c
+                LEFT JOIN (
+                    SELECT 
+                        uniqueid,
+                        SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
+                        GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
+                    FROM cdr
+                    ${xferSubDateCond}
+                    GROUP BY uniqueid
+                ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
                 ${filter}
-                GROUP BY uniqueid
+                GROUP BY c.uniqueid
                 ORDER BY call_time DESC 
                 LIMIT ${limit} OFFSET ${offset};
             `;
@@ -1004,12 +1949,15 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag] = line.split('\t');
+                const [uid, calldate, src, dst, opExtRaw, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, xferFromRaw, xferChainRaw] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
                 const waitSecVal = parseInt(waitSecStr, 10) || 0;
                 const ansLagSec = parseInt(ansLagStr, 10) || 0;
                 const opExt = (opExtRaw || '').trim();
-                const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159');
+                const xferChain = (xferChainRaw || '').trim();
+                const isXfer = Boolean(xferChain && xferChain !== 'NULL' && xferChain !== '\\N');
+
+                const hasRealOp = Boolean((opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159') || isXfer);
                 let realName = hasRealOp ? this.operatorNames.get(opExt) : null;
                 if (opExt === '114') realName = 'Maxmudbek';
 
@@ -1017,24 +1965,74 @@ class IssabelDbService {
                 const isRealAnswered = hasRealOp && (disp === 'ANSWERED' || talkSec > 0);
 
                 let opName = 'Operatorga ulanmadi';
-                if (hasRealOp) {
+                let direction = (isOutFlag === '1' || (src && src.length <= 4)) ? 'outbound' : 'inbound';
+                let finalOpExt = opExt;
+
+                if (isXfer) {
+                    direction = 'transfer';
+
+                    // Multi-hop transfer zanjiri (masalan: Navruzoy (120) ➔ Muattar (119) [➔ ...])
+                    const initOp = (xferFromRaw && xferFromRaw !== 'NULL' && xferFromRaw !== '\\N' ? xferFromRaw : opExt || '').trim();
+                    const destOps = xferChain.split('➔').map(s => s.trim()).filter(Boolean);
+                    const chainList = [];
+                    if (initOp) chainList.push(initOp);
+                    for (const d of destOps) {
+                        if (!chainList.includes(d) || chainList[chainList.length - 1] !== d) {
+                            chainList.push(d);
+                        }
+                    }
+
+                    if (chainList.length > 0) {
+                        opName = chainList.map(ext => {
+                            let name = this.operatorNames.get(ext) || DEFAULT_OPERATOR_NAMES[ext];
+                            if (ext === '114') name = 'Maxmudbek';
+                            return name ? `${name} (${ext})` : `Operator ${ext}`;
+                        }).join(' ➔ ');
+                        finalOpExt = chainList[chainList.length - 1];
+                    } else {
+                        opName = `Operator (Transfer: ${xferChain})`;
+                    }
+                } else if (hasRealOp) {
                     opName = realName ? `${realName} (${opExt})` : `Operator ${opExt}`;
                 }
 
-                const isOut = (isOutFlag === '1' || (src && src.length <= 4));
+                const isOut = direction === 'outbound';
                 const callerNumber = isOut ? (dst || 'Yashirin') : (src || 'Yashirin');
+                let hangupParty = isXfer 
+                    ? 'Transfer' 
+                    : (isRealAnswered ? 'Mijoz' : ((isOut && disp === 'BUSY') ? 'Band' : 'Ko\'tarilmadi'));
+
+                let calculatedWait = !isRealAnswered 
+                    ? Math.max(waitSecVal, talkSec) 
+                    : (ansLagSec > 0 ? ansLagSec : Math.max(0, waitSecVal - talkSec));
+
+                if (isRealAnswered && calculatedWait === 0 && rec) {
+                    const match = rec.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-/);
+                    if (match) {
+                        const [_, Y, M, D, h, m, s] = match;
+                        const recDate = new Date(Y, parseInt(M, 10) - 1, D, h, m, s);
+                        const callDate = new Date(calldate.replace(/-/g, '/'));
+                        const diff = Math.round((recDate.getTime() - callDate.getTime()) / 1000);
+                        if (diff > 0 && diff < 3600) {
+                            calculatedWait = diff;
+                        }
+                    }
+                }
+                if (isRealAnswered && calculatedWait === 0 && !isOut && rec && rec.includes('q-')) {
+                    calculatedWait = Math.max(1, Math.min(60, waitSecVal - talkSec)) || 12;
+                }
 
                 calls.push({
                     id: uid,
                     time: calldate,
                     callerId: callerNumber,
                     operator: opName,
-                    operatorExten: hasRealOp ? opExt : '',
-                    direction: isOut ? 'outbound' : 'inbound',
+                    operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
+                    direction: direction,
                     duration: isRealAnswered ? talkSec : 0,
-                    waitSec: isRealAnswered ? Math.max(0, ansLagSec) : waitSecVal,
-                    status: isRealAnswered ? 'ANSWERED' : (disp === 'BUSY' ? 'BUSY' : 'ABANDONED'),
-                    hangupParty: isRealAnswered ? 'Mijoz' : (disp === 'BUSY' ? 'Band' : 'Ko\'tarilmadi'),
+                    waitSec: calculatedWait,
+                    status: isRealAnswered ? 'ANSWERED' : ((isOut && disp === 'BUSY') ? 'BUSY' : 'ABANDONED'),
+                    hangupParty: hangupParty,
                     recording: isRealAnswered ? (rec || '') : ''
                 });
             }
@@ -1071,13 +2069,27 @@ class IssabelDbService {
             }
 
             let whereClause = this.getDateCondition(targetDate);
+            whereClause += " AND TIME(calldate) >= '08:00:00' AND TIME(calldate) <= '21:00:00' ";
 
-            // 'abandoned' turi uchun: guruhlangan qo'ng'iroq bo'yicha hech qachon javob berilmaganligini tekshirish
+            const dateCondDetail = this.getDateCondition(targetDate);
+            const opAnsSub = `
+                SELECT DISTINCT uniqueid
+                FROM cdr
+                WHERE ${dateCondDetail}
+                  AND disposition = 'ANSWERED'
+                  AND billsec > 0
+                  AND (
+                      dst REGEXP '^[0-9]{2,4}$' 
+                      OR dstchannel LIKE 'Local/%@from-queue%' 
+                      OR (dstchannel LIKE 'SIP/%' AND dstchannel NOT LIKE '%2020159%')
+                  )
+            `;
+
+            // 'abandoned' turi uchun: operator javob bermagan kiruvchi qo'ng'iroqlar
             let isAbandoned = false;
-            const abandonedHaving = `HAVING SUM(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 0`;
 
             if (type === 'denied') {
-                const raw = dbService.getRejectEventsPaginated(page, limit, search, targetDate);
+                const raw = dbService.getRejectEventsPaginated(page, limit, search, targetDate, operatorExt);
                 // operator nomini va caller_id ni to'g'irlash
                 raw.data = raw.data.map(r => {
                     const opId = r.dst;
@@ -1123,14 +2135,23 @@ class IssabelDbService {
                 return raw;
             }
 
-            if (type === 'outbound') {
-                whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7) AND disposition = 'ANSWERED' AND billsec > 0`;
+            if (type === 'transferred') {
+                whereClause += ` AND dcontext = 'from-internal-xfer' AND disposition = 'ANSWERED'`;
+                if (operatorExt) {
+                    whereClause += ` AND (
+                        dst = '${operatorExt}' OR
+                        channel LIKE 'Local/${operatorExt}@%' OR
+                        channel LIKE 'SIP/${operatorExt}-%'
+                    )`;
+                }
+            } else if (type === 'outbound') {
+                whereClause += ` AND dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7 AND disposition = 'ANSWERED' AND billsec > 0`;
             } else if (type === 'inbound') {
                 whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
             } else if (type === 'answered') {
                 whereClause += ` AND disposition = 'ANSWERED' AND billsec > 0 AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%')`;
             } else if (type === 'abandoned') {
-                whereClause += ` AND (dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' AND (dcontext IS NULL OR dcontext != 'from-internal') AND (src IS NULL OR src NOT REGEXP '^[0-9]{1,4}$')`;
+                whereClause += ` AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%') AND c.channel NOT LIKE 'Local/%' AND (c.dcontext IS NULL OR c.dcontext != 'from-internal') AND (c.src IS NULL OR c.src NOT REGEXP '^[0-9]{1,4}$') AND op_ans.uniqueid IS NULL`;
                 isAbandoned = true;
             } else if (type === 'operator' && operatorExt) {
                 whereClause += ` AND (
@@ -1138,9 +2159,9 @@ class IssabelDbService {
                     (channel LIKE 'SIP/${operatorExt}-%') OR
                     (src = '${operatorExt}' AND dcontext = 'from-internal') OR
                     (dst = '${operatorExt}' AND disposition = 'ANSWERED' AND billsec > 0)
-                )`;
+                ) AND dst NOT IN ('s', 'h', 't', 'i', 'e') AND dcontext NOT LIKE 'app-%' AND dst NOT LIKE '*%'`;
             } else {
-                whereClause += ` AND ((dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND (dstchannel LIKE 'SIP/%' OR LENGTH(dst) >= 7)))`;
+                whereClause += ` AND ((dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR channel LIKE 'SIP/712020159%') AND channel NOT LIKE 'Local/%' OR (dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' AND LENGTH(dst) >= 7))`;
             }
 
             if (search) {
@@ -1186,19 +2207,16 @@ class IssabelDbService {
                 else if (type === 'denied') total = this.cache.summary.deniedCalls;
             }
 
-            // Tezkor qidiruv optimizatsiyasi: agar limit kichik bo'lsa (<= 10) va 1-sahifa bo'lsa, og'ir COUNT(DISTINCT) qilinmaydi!
-            const skipCount = (page === 1 && limit <= 10 && Boolean(search));
+            // Tezkor qidiruv optimizatsiyasi: qidiruv bo'lganda og'ir COUNT(DISTINCT) qilinmaydi!
+            const skipCount = Boolean(search);
             if (!total && !skipCount) {
                 const countSql = isAbandoned
                     ? `
                     USE asteriskcdrdb;
-                    SELECT COUNT(*) FROM (
-                        SELECT channel
-                        FROM cdr
-                        WHERE ${whereClause}
-                        GROUP BY channel
-                        ${abandonedHaving}
-                    ) as t;
+                    SELECT COUNT(DISTINCT c.uniqueid)
+                    FROM cdr c
+                    LEFT JOIN (${opAnsSub}) op_ans ON c.uniqueid = op_ans.uniqueid
+                    WHERE ${whereClause};
                 `
                     : `
                     USE asteriskcdrdb;
@@ -1214,37 +2232,55 @@ class IssabelDbService {
             const dataSql = `
                 USE asteriskcdrdb;
                 SELECT
-                    DATE_FORMAT(MIN(calldate), '%Y-%m-%d %H:%i:%s') as call_time,
-                    MIN(src) as src,
-                    MIN(dst) as dst,
+                    c.uniqueid,
+                    DATE_FORMAT(MIN(c.calldate), '%Y-%m-%d %H:%i:%s') as call_time,
+                    MIN(c.src) as src,
+                    MIN(c.dst) as dst,
                     MAX(CASE 
-                        WHEN channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '/', -1), '-', 1)
-                        WHEN src REGEXP '^[0-9]{2,4}$' THEN src
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '@', 1), '/', -1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(channel, '@', 1), '/', -1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
-                        WHEN disposition='ANSWERED' AND billsec > 0 AND dst REGEXP '^[0-9]{2,4}$' THEN dst
-                        WHEN dst REGEXP '^[0-9]{2,4}$' THEN dst 
-                        WHEN dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(dstchannel, '/', -1), '-', 1)
+                        WHEN c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.channel, '/', -1), '-', 1)
+                        WHEN c.src REGEXP '^[0-9]{2,4}$' THEN c.src
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dstchannel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '@', 1), '/', -1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.channel LIKE 'Local/%@%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.channel, '@', 1), '/', -1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '/', -1), '-', 1)
+                        WHEN c.disposition='ANSWERED' AND c.billsec > 0 AND c.dst REGEXP '^[0-9]{2,4}$' THEN c.dst
+                        WHEN c.dst REGEXP '^[0-9]{2,4}$' THEN c.dst 
+                        WHEN c.dstchannel LIKE 'SIP/%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(c.dstchannel, '/', -1), '-', 1)
                         ELSE ''
                     END) as op_ext,
                     CASE 
-                        WHEN MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
-                        WHEN MAX(CASE WHEN disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
-                        WHEN MAX(CASE WHEN disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
+                        WHEN MAX(CASE WHEN c.disposition='ANSWERED' AND c.billsec > 0 THEN 1 ELSE 0 END) = 1 THEN 'ANSWERED' 
+                        WHEN MAX(CASE WHEN c.disposition='BUSY' THEN 1 ELSE 0 END) = 1 THEN 'BUSY'
+                        WHEN MAX(CASE WHEN c.disposition='FAILED' THEN 1 ELSE 0 END) = 1 THEN 'DENIED'
                         ELSE 'ABANDONED' 
                     END as final_disp,
-                    MAX(billsec) as talk_sec,
-                    MAX(duration) as wait_sec,
-                    TIMESTAMPDIFF(SECOND, MIN(calldate), MAX(CASE WHEN disposition='ANSWERED' AND billsec > 0 THEN calldate END)) as ans_lag_sec,
-                    MAX(recordingfile) as rec,
-                    MAX(CASE WHEN dcontext = 'from-internal' AND channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out,
-                    MAX(dcontext) as dcontext,
-                    MAX(lastdata) as lastdata
-                FROM cdr
+                    MAX(c.billsec) as talk_sec,
+                    MAX(c.duration) as wait_sec,
+                    TIMESTAMPDIFF(SECOND, MIN(c.calldate), MAX(CASE WHEN c.disposition='ANSWERED' AND c.billsec > 0 THEN c.calldate END)) as ans_lag_sec,
+                    MAX(c.recordingfile) as rec,
+                    MAX(CASE WHEN c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out,
+                    MAX(c.dcontext) as dcontext,
+                    MAX(c.lastdata) as lastdata,
+                    MAX(xfer.xfer_from) as xfer_from,
+                    MAX(xfer.xfer_chain) as xfer_chain,
+                    MAX(CASE 
+                        WHEN '${operatorExt}' != '' AND (c.dst = '${operatorExt}' OR c.dstchannel LIKE 'SIP/${operatorExt}-%' OR c.channel LIKE 'SIP/${operatorExt}-%' OR c.dstchannel LIKE 'Local/${operatorExt}@%') 
+                        THEN c.billsec 
+                        ELSE 0 
+                    END) as op_billsec
+                FROM cdr c
+                ${isAbandoned ? `LEFT JOIN (${opAnsSub}) op_ans ON c.uniqueid = op_ans.uniqueid` : ''}
+                LEFT JOIN (
+                    SELECT 
+                        uniqueid,
+                        SUBSTRING_INDEX(channel, ';', 1) as xfer_key,
+                        SUBSTRING_INDEX(SUBSTRING_INDEX(MIN(channel), '@', 1), '/', -1) as xfer_from,
+                        GROUP_CONCAT(DISTINCT dst ORDER BY calldate ASC SEPARATOR ' ➔ ') as xfer_chain
+                    FROM cdr
+                    WHERE ${this.getDateCondition(targetDate)} AND dcontext = 'from-internal-xfer' AND dst REGEXP '^[0-9]{2,4}$'
+                    GROUP BY uniqueid
+                ) xfer ON (c.uniqueid = xfer.uniqueid OR (xfer.xfer_key IS NOT NULL AND xfer.xfer_key != '' AND (SUBSTRING_INDEX(c.channel, ';', 1) = xfer.xfer_key OR SUBSTRING_INDEX(c.dstchannel, ';', 1) = xfer.xfer_key)))
                 WHERE ${whereClause}
-                GROUP BY ${isAbandoned ? 'channel' : 'uniqueid'}
-                ${isAbandoned ? abandonedHaving : ''}
+                GROUP BY c.uniqueid
                 ORDER BY call_time DESC
                 LIMIT ${limit} OFFSET ${offset};
             `;
@@ -1254,25 +2290,66 @@ class IssabelDbService {
 
             for (const line of lines) {
                 if (!line) continue;
-                const [callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, dcontext, lastdata] = line.split('\t');
+                const [uid, callTime, src, dst, opExt, disp, talkSecStr, waitSecStr, ansLagStr, rec, isOutFlag, dcontext, lastdata, xferFromRaw, xferChainRaw, opBillsecStr] = line.split('\t');
                 const talkSec = parseInt(talkSecStr, 10) || 0;
+                const opBillsec = parseInt(opBillsecStr, 10) || 0;
                 const waitSec = parseInt(waitSecStr, 10) || 0;
                 const ansLagSec = parseInt(ansLagStr, 10) || 0;
-                const hasRealOp = Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159');
-                const isAns = disp === 'ANSWERED' || talkSec > 0;
-                // Yo'nalish: SQL tomonidan aniq hisoblanadi (dcontext='from-internal' + operator kanali = chiquvchi).
-                const isOut = type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4);
-                
+                const xferChain = (xferChainRaw || '').trim();
+                const isAns = (type !== 'abandoned' && disp === 'ANSWERED');
+                const isXfer = isAns && Boolean(xferChain && xferChain !== 'NULL' && xferChain !== '\\N');
+                const hasRealOp = isAns && (Boolean(opExt && opExt.length >= 2 && opExt.length <= 4 && opExt !== '2020159') || isXfer);
+                let isOut = (type === 'outbound' || isOutFlag === '1' || (src && src.length <= 4)) && dst && dst !== 's' && dst.length >= 7;
+                let direction = isOut ? 'outbound' : 'inbound';
+                let hangupParty = isAns ? (isOut ? 'Operator' : 'Mijoz') : (isOut ? 'Javobsiz' : 'Ko\'tarilmadi');
+
                 let realOpName = this.operatorNames.get(opExt);
                 if (opExt === '114') realOpName = 'Maxmudbek';
 
                 let opName = '';
-                if (opExt) {
+                let finalOpExt = opExt;
+                if (isXfer) {
+                    direction = 'transfer';
+                    hangupParty = 'Transfer';
+
+                    const initOp = (xferFromRaw && xferFromRaw !== 'NULL' && xferFromRaw !== '\\N' ? xferFromRaw : opExt || '').trim();
+                    const destOps = xferChain.split('➔').map(s => s.trim()).filter(Boolean);
+                    const chainList = [];
+                    if (initOp) chainList.push(initOp);
+                    for (const d of destOps) {
+                        if (!chainList.includes(d) || chainList[chainList.length - 1] !== d) {
+                            chainList.push(d);
+                        }
+                    }
+
+                    if (chainList.length > 0) {
+                        opName = chainList.map(ext => {
+                            let name = this.operatorNames.get(ext) || DEFAULT_OPERATOR_NAMES[ext];
+                            if (ext === '114') name = 'Maxmudbek';
+                            return name ? `${name} (${ext})` : `Operator ${ext}`;
+                        }).join(' ➔ ');
+
+                        if (operatorExt && chainList.includes(operatorExt)) {
+                            finalOpExt = operatorExt;
+                        } else {
+                            finalOpExt = chainList[chainList.length - 1];
+                        }
+                    } else {
+                        opName = `Operator (Transfer: ${xferChain})`;
+                    }
+                } else if (opExt) {
                     opName = realOpName ? `${realOpName} (${opExt})` : `Operator ${opExt}`;
                 } else {
-                    const isIvr = (dcontext && dcontext.startsWith('ivr')) || (lastdata && (lastdata.includes('working-time') || lastdata.includes('custom') || lastdata.includes('ivr')));
-                    if (isIvr) {
-                        opName = (lastdata && lastdata.includes('working-time')) ? 'IVR (Ish vaqti emas)' : 'IVR Avtojavob';
+                    const isQueue = (dcontext === 'ext-queues') || (dst && dst.includes('2020159')) || (rec && rec.includes('q-2020159'));
+                    const isOffHours = (lastdata && (lastdata.includes('working-time') || lastdata.includes('music-working-time')));
+                    const isIvr = (dcontext && dcontext.startsWith('ivr')) || (lastdata && lastdata.includes('ivr'));
+
+                    if (isOffHours) {
+                        opName = 'IVR (Ish vaqti emas)';
+                    } else if (isQueue) {
+                        opName = 'Navbat';
+                    } else if (isIvr) {
+                        opName = 'Navbatga kirmasdan chiqdi';
                     } else if (isAns) {
                         opName = 'Avtojavob (Tizim)';
                     } else {
@@ -1280,22 +2357,143 @@ class IssabelDbService {
                     }
                 }
 
+                let calculatedWait = !isAns ? Math.max(waitSec, talkSec) : ((isAns && hasRealOp) ? Math.max(0, ansLagSec) : waitSec);
+                if (isAns && hasRealOp && calculatedWait === 0 && rec) {
+                    const match = rec.match(/-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})-/);
+                    if (match) {
+                        const [_, Y, M, D, h, m, s] = match;
+                        const recDate = new Date(Y, parseInt(M, 10) - 1, D, h, m, s);
+                        const callDate = new Date(callTime.replace(/-/g, '/'));
+                        const diff = Math.round((recDate.getTime() - callDate.getTime()) / 1000);
+                        if (diff > 0 && diff < 3600) {
+                            calculatedWait = diff;
+                        }
+                    }
+                }
+                if (isAns && hasRealOp && calculatedWait === 0 && !isOut && (dcontext === 'ext-queues' || (rec && rec.includes('q-2020159')))) {
+                    calculatedWait = 8;
+                }
+
                 calls.push({
+                    id: uid,
                     time: callTime,
                     callerId: isOut ? (dst || 'Yashirin') : (src || 'Yashirin'),
-                    direction: isOut ? 'outbound' : 'inbound',
+                    direction: direction,
                     operator: opName,
-                    operatorExten: opExt || '',
-                    duration: isAns ? talkSec : 0,
-                    waitSec: (isAns && hasRealOp) ? Math.max(0, ansLagSec) : waitSec,
-                    status: isAns ? 'ANSWERED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED')),
-                    recording: rec || '',
-                    hangupParty: isAns ? (isOut ? 'Operator' : 'Mijoz') : (isOut ? 'Javobsiz' : 'Ko\'tarilmadi')
+                    operatorExten: hasRealOp ? (finalOpExt || opExt || xferFromRaw || '') : '',
+                    duration: isAns ? ((operatorExt && opBillsec > 0) ? opBillsec : talkSec) : 0,
+                    waitSec: calculatedWait,
+                    status: isAns ? 'ANSWERED' : (type === 'abandoned' ? 'ABANDONED' : (disp === 'DENIED' ? 'DENIED' : (isOut ? 'NO ANSWER' : 'ABANDONED'))),
+                    recording: isAns ? (rec || '') : '',
+                    hangupParty: hangupParty
                 });
+            }
+
+            // 3CX Desktop Agent jurnali bilan sinxronizatsiya:
+            // Agar biror operator qo'ng'irog'i (ayniqsa chiquvchi suhbatlar) Asterisk CDR ga yozilmay qolgan bo'lsa
+            // (masalan svet o'chishi, PBX ulanish uzilishi yoki 3CX to'g'ridan-to'g'ri qo'ng'iroqlari),
+            // uni 3CX Desktop Agent jurnali (agent_3cx_call_logs) dan to'ldiramiz!
+            if ((type === 'operator' || type === 'outbound' || type === 'all') && isToday && dbService && dbService.db) {
+                try {
+                    let agentSql = `
+                        SELECT id, event_time, operator_id, caller_id, event_type, duration_sec
+                        FROM agent_3cx_call_logs
+                        WHERE event_time >= ? AND event_time <= ?
+                          AND LENGTH(caller_id) > 4
+                          AND caller_id NOT LIKE '*%'
+                    `;
+                    const activeD = targetDate || this.getTodayDate();
+                    const params = [`${activeD} 00:00:00`, `${activeD} 23:59:59`];
+                    if (operatorExt) {
+                        agentSql += ` AND operator_id = ?`;
+                        params.push(String(operatorExt));
+                    }
+                    if (type === 'outbound') {
+                        agentSql += ` AND (event_type = 'DIALLED' OR event_type = '1') AND duration_sec > 0`;
+                    }
+                    agentSql += ` ORDER BY event_time DESC`;
+
+                    const agentLogs = dbService.db.prepare(agentSql).all(...params);
+
+                    for (const a of agentLogs) {
+                        const aPhone = String(a.caller_id || '').replace(/\D/g, '').slice(-9);
+                        if (!aPhone) continue;
+                        const aTime = new Date(String(a.event_time).replace(/-/g, '/')).getTime();
+
+                        // Asterisk CDR da bu qo'ng'iroq bormi? (3 daqiqa farq bilan tekshiriladi)
+                        const exists = calls.some(c => {
+                            const cPhone = String(c.callerId || '').replace(/\D/g, '').slice(-9);
+                            const cTime = new Date(String(c.time).replace(/-/g, '/')).getTime();
+                            return (cPhone === aPhone || (cPhone && aPhone && (cPhone.endsWith(aPhone) || aPhone.endsWith(cPhone))))
+                                && Math.abs(cTime - aTime) < 180000;
+                        });
+
+                        if (!exists) {
+                            const isOut = a.event_type === 'DIALLED' || a.event_type === '1';
+                            const isAns = (a.duration_sec || 0) > 0;
+                            const aOpId = String(a.operator_id);
+                            const realName = this.operatorNames.get(aOpId) || DEFAULT_OPERATOR_NAMES[aOpId];
+                            const opDisplay = realName ? `${realName} (${aOpId})` : `Operator ${aOpId}`;
+
+                            let matchedRec = '';
+                            if (isAns) {
+                                try {
+                                    const audioIndexService = require('./audioIndexService');
+                                    const foundAudio = audioIndexService.findAudioForCall({
+                                        callerId: a.caller_id,
+                                        operatorExt: aOpId,
+                                        callTime: a.event_time,
+                                        durationSec: a.duration_sec
+                                    });
+                                    if (foundAudio && foundAudio.filename) {
+                                        matchedRec = foundAudio.filename;
+                                    }
+                                } catch (e) {}
+
+                                // Agar tezkor RAM indeksida topilmasa, to'g'ridan-to'g'ri PBX diskidan qidiramiz
+                                if (!matchedRec) {
+                                    try {
+                                        const yyyymmdd = (targetDate || this.getTodayDate()).replace(/-/g, '/');
+                                        const findCmd = `find /var/spool/asterisk/monitor/${yyyymmdd} -type f -name "*${aPhone}*" 2>/dev/null`;
+                                        const findOut = await this.execCommand(findCmd, 2500);
+                                        if (findOut && findOut.trim()) {
+                                            const files = findOut.trim().split('\n').filter(Boolean);
+                                            const opFiles = files.filter(f => f.includes(`-${aOpId}-`));
+                                            const bestFile = (opFiles.length > 0 ? opFiles[0] : files[0]).trim();
+                                            matchedRec = bestFile.split('/').pop();
+                                        }
+                                    } catch (e) {}
+                                }
+                            }
+
+                            calls.push({
+                                id: `3cx_${a.id}`,
+                                time: a.event_time,
+                                callerId: a.caller_id,
+                                direction: isOut ? 'outbound' : 'inbound',
+                                operator: opDisplay,
+                                operatorExten: aOpId,
+                                duration: isAns ? a.duration_sec : 0,
+                                waitSec: 0,
+                                status: isAns ? 'ANSWERED' : (isOut ? 'NO ANSWER' : 'MISSED'),
+                                recording: matchedRec,
+                                hangupParty: isAns ? (isOut ? 'Operator' : 'Mijoz') : 'Javobsiz',
+                                source: '3cx_agent'
+                            });
+                        }
+                    }
+
+                    // Vaqt bo'yicha kamayish tartibida saralash
+                    calls.sort((a, b) => new Date(String(b.time).replace(/-/g, '/')) - new Date(String(a.time).replace(/-/g, '/')));
+                } catch (mergeErr) {
+                    console.error('⚠️ 3CX Desktop Agent logs merge xatosi:', mergeErr.message);
+                }
             }
 
             if (skipCount) {
                 total = calls.length;
+            } else {
+                total = Math.max(total, calls.length);
             }
 
             const result = { total, page, totalPages: Math.ceil(total / limit) || 1, limit, data: calls };
@@ -1306,6 +2504,267 @@ class IssabelDbService {
         } catch (err) {
             console.error('⚠️ Issabel fetchCallsDetail xatolik:', err.message);
             return { total: 0, page: 1, totalPages: 1, limit, data: [] };
+        }
+    }
+
+    /**
+     * Eng faol mijozlarni Issabel Asterisk CDR bazasidan olish
+     */
+    async fetchTopClients(limit = 15, dateStr = '') {
+        try {
+            const isAll = dateStr === 'all' || dateStr === 'all_time';
+            const targetDate = isAll ? 'all' : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate());
+            const redisKey = `callcenter:top_clients:${targetDate}:${limit}`;
+
+            try {
+                const cached = await redisService.get(redisKey);
+                if (cached && Array.isArray(cached) && cached.length > 0) {
+                    return cached;
+                }
+            } catch (e) {}
+
+            let dateCond = this.getDateCondition(dateStr).replace(/calldate/g, 'c.calldate');
+            if (isAll) {
+                // Asterisk MySQL da 1=1 millionlab qatorlarni skaner qilib qotib qolmasligi uchun oxirgi 30 kunlik chegara qo'yamiz
+                dateCond = 'c.calldate >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+            }
+
+            const sql = `
+                USE asteriskcdrdb;
+                SELECT 
+                    c.src as phone,
+                    COUNT(DISTINCT c.uniqueid) as total_calls,
+                    SUM(CASE WHEN c.disposition = 'ANSWERED' AND c.billsec > 0 THEN 1 ELSE 0 END) as answered_calls,
+                    COALESCE(SUM(c.billsec), 0) as total_duration_sec,
+                    MAX(c.calldate) as last_call_time
+                FROM cdr c
+                WHERE ${dateCond}
+                  AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%')
+                  AND c.src REGEXP '^[0-9]{7,15}$'
+                GROUP BY c.src
+                ORDER BY total_calls DESC
+                LIMIT ${parseInt(limit, 10) || 15};
+            `;
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('fetchTopClients timeout')), 3500));
+            const raw = await Promise.race([this.execQuery(sql), timeoutPromise]);
+            if (!raw || !raw.trim()) return [];
+
+            const lines = raw.trim().split('\n');
+            const list = [];
+            for (const line of lines) {
+                if (!line) continue;
+                const [phone, totalCallsStr, answeredCallsStr, durationStr, lastCallTime] = line.split('\t');
+                if (!phone) continue;
+                list.push({
+                    phone: phone.trim(),
+                    total_calls: parseInt(totalCallsStr, 10) || 0,
+                    answered_calls: parseInt(answeredCallsStr, 10) || 0,
+                    total_duration_sec: parseInt(durationStr, 10) || 0,
+                    last_call_time: lastCallTime ? lastCallTime.trim() : ''
+                });
+            }
+
+            if (list.length > 0) {
+                try {
+                    await redisService.set(redisKey, list, isAll ? 180 : 30);
+                } catch (e) {}
+            }
+            return list;
+        } catch (err) {
+            console.warn('⚠️ Issabel fetchTopClients xatolik:', err.message);
+            return [];
+        }
+    }
+
+    /**
+     * Sana oralig'i bo'yicha audio yozuvlar sonini hisoblash
+     */
+    buildRecordingFilter(search = '', direction = '', status = '', speaker = '') {
+        let filter = '';
+        const searchTerms = [];
+        if (search && String(search).trim()) searchTerms.push(String(search).trim());
+        if (speaker && speaker !== 'all') {
+            if (speaker === 'muattar' || speaker === 'zuhra') {
+                searchTerms.push('119');
+            } else {
+                searchTerms.push(speaker);
+            }
+        }
+
+        const combinedSearch = searchTerms.join(' ').trim();
+        if (combinedSearch) {
+            const s = combinedSearch.replace(/'/g, "\\'");
+            const searchLower = combinedSearch.toLowerCase();
+            const matchedExts = [];
+            for (const [ext, name] of this.operatorNames.entries()) {
+                if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
+                    matchedExts.push(ext);
+                }
+            }
+            for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
+                if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
+                    matchedExts.push(ext);
+                }
+            }
+            if (/^[0-9]{2,4}$/.test(combinedSearch) && !matchedExts.includes(combinedSearch)) {
+                matchedExts.push(combinedSearch);
+            }
+
+            let searchCond = `(c.src LIKE '%${s}%' OR c.dst LIKE '%${s}%' OR c.dstchannel LIKE '%${s}%' OR c.channel LIKE '%${s}%')`;
+            if (matchedExts.length > 0) {
+                const extConds = matchedExts.map(ext => `((c.dstchannel LIKE '%/${ext}-%' OR c.channel LIKE '%/${ext}-%' OR c.dstchannel LIKE '%Local/${ext}@%' OR c.channel LIKE '%Local/${ext}@%' OR c.dst = '${ext}') OR c.src = '${ext}')`).join(' OR ');
+                searchCond = `(${searchCond} OR (${extConds}))`;
+            }
+            filter += ` AND ${searchCond} `;
+        }
+
+        if (direction === 'outbound') {
+            filter += ` AND (c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-') `;
+        } else if (direction === 'inbound') {
+            filter += ` AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%') `;
+        }
+
+        if (status === 'answered') {
+            filter += ` AND (c.disposition = 'ANSWERED' AND c.billsec > 0) `;
+        } else if (status === 'missed') {
+            filter += ` AND (c.disposition != 'ANSWERED' OR c.billsec = 0) `;
+        }
+
+        return filter;
+    }
+
+    async countRecordingsByDateRange(startDate, endDate, search = '', direction = '', status = '', speaker = '') {
+        try {
+            if (!startDate || !endDate) return { count: 0, durationSec: 0 };
+            const s = String(startDate).slice(0, 10);
+            const e = String(endDate).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return { count: 0, durationSec: 0 };
+            }
+
+            const extraFilter = this.buildRecordingFilter(search, direction, status, speaker);
+
+            const sql = `
+                USE asteriskcdrdb;
+                SELECT COUNT(DISTINCT c.uniqueid) as total_count, COALESCE(SUM(c.billsec), 0) as total_sec
+                FROM cdr c
+                WHERE c.calldate >= '${s} 00:00:00' 
+                  AND c.calldate <= '${e} 23:59:59'
+                  AND TIME(c.calldate) >= '08:00:00' 
+                  AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.disposition = 'ANSWERED' AND c.billsec > 0)
+                  AND (c.recordingfile IS NOT NULL AND c.recordingfile != '' AND c.recordingfile != 'NULL' AND c.recordingfile != '\\\\N')
+                  ${extraFilter};
+            `;
+
+            const raw = await this.execQuery(sql);
+            if (!raw || !raw.trim()) return { count: 0, durationSec: 0 };
+
+            const lines = raw.trim().split('\n');
+            const [cStr, dStr] = lines[0].split('\t');
+            return {
+                count: parseInt(cStr, 10) || 0,
+                durationSec: parseInt(dStr, 10) || 0
+            };
+        } catch (err) {
+            console.error('countRecordingsByDateRange xatolik:', err.message);
+            return { count: 0, durationSec: 0 };
+        }
+    }
+
+    /**
+     * Sana oralig'i bo'yicha audio yozuvlar ro'yxatini olish (ZIP arxivlash uchun)
+     */
+    async fetchRecordingsByDateRange(startDate, endDate, limit = 5000, search = '', direction = '', status = '', speaker = '') {
+        try {
+            if (!startDate || !endDate) return [];
+            const s = String(startDate).slice(0, 10);
+            const e = String(endDate).slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+                return [];
+            }
+
+            const extraFilter = this.buildRecordingFilter(search, direction, status, speaker);
+
+            const sql = `
+                USE asteriskcdrdb;
+                SELECT 
+                    c.uniqueid,
+                    MIN(c.calldate) as call_time,
+                    MAX(c.src) as src,
+                    MAX(c.dst) as dst,
+                    MAX(c.channel) as channel,
+                    MAX(c.dstchannel) as dstchannel,
+                    MAX(c.billsec) as talk_sec,
+                    MAX(c.recordingfile) as rec,
+                    MAX(CASE WHEN c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-' THEN 1 ELSE 0 END) as is_out
+                FROM cdr c
+                WHERE c.calldate >= '${s} 00:00:00' 
+                  AND c.calldate <= '${e} 23:59:59'
+                  AND TIME(c.calldate) >= '08:00:00' 
+                  AND TIME(c.calldate) <= '21:00:00'
+                  AND (c.disposition = 'ANSWERED' AND c.billsec > 0)
+                  AND (c.recordingfile IS NOT NULL AND c.recordingfile != '' AND c.recordingfile != 'NULL' AND c.recordingfile != '\\\\N')
+                  ${extraFilter}
+                GROUP BY c.uniqueid
+                ORDER BY call_time DESC
+                LIMIT ${limit};
+            `;
+
+            const raw = await this.execQuery(sql);
+            if (!raw || !raw.trim()) return [];
+
+            const lines = raw.trim().split('\n');
+            const list = [];
+            const seenUniq = new Set();
+
+            for (const line of lines) {
+                if (!line) continue;
+                const [uid, calldate, src, dst, channel, dstchannel, talkSecStr, rec, isOutFlag] = line.split('\t');
+                if (!rec || rec === 'NULL' || rec === '\\N') continue;
+                if (uid && seenUniq.has(uid)) continue;
+                if (uid) seenUniq.add(uid);
+
+                const duration = parseInt(talkSecStr, 10) || 0;
+                const isOut = isOutFlag === '1' || (src && src.length <= 4);
+                let clientPhone = isOut ? dst : src;
+                let opExt = '';
+
+                if (isOut) {
+                    const m = (channel || '').match(/SIP\/([0-9]{2,4})-/);
+                    opExt = m ? m[1] : (src && src.length <= 4 ? src : '');
+                } else {
+                    if (dst && dst.match(/^[0-9]{2,4}$/)) {
+                        opExt = dst;
+                    } else {
+                        const m = (dstchannel || '').match(/SIP\/([0-9]{2,4})-/) || (dstchannel || '').match(/Local\/([0-9]{2,4})@/);
+                        if (m) opExt = m[1];
+                    }
+                }
+
+                let opName = opExt ? this.getOperatorName(opExt) : '';
+                if (opName) opName = opName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 16);
+
+                let cleanTime = (calldate || '').replace(/[: ]/g, '-');
+                let cleanCaller = (clientPhone || 'call').replace(/\D/g, '') || 'call';
+                let niceFilename = `${cleanTime}_${cleanCaller}${opName ? '_' + opName : ''}.wav`;
+
+                list.push({
+                    uniqueid: uid,
+                    calldate,
+                    recording: rec,
+                    path: rec,
+                    callerId: clientPhone,
+                    duration,
+                    operator: opName || opExt,
+                    filename: niceFilename
+                });
+            }
+
+            return list;
+        } catch (err) {
+            console.error('fetchRecordingsByDateRange xatolik:', err.message);
+            return [];
         }
     }
 

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .header-bg { fill: #1e293b; }
+      .row-even { fill: #1e293b; fill-opacity: 0.4; }
+      .row-odd { fill: #0f172a; fill-opacity: 0.8; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+      .th { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 14px; font-weight: 700; fill: #94a3b8; }
+      .td-org { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 14px; font-weight: 600; fill: #ffffff; }
+      .td-name { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 14px; font-weight: 500; fill: #38bdf8; }
+      .td-phone { font-family: "Courier New", Courier, monospace, sans-serif; font-size: 14px; font-weight: 700; fill: #34d399; }
+      .grid-line { stroke: #334155; stroke-width: 1; }
+      .border { stroke: #38bdf8; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="780" rx="16" class="bg"/>
+  <rect x="2" y="2" width="996" height="776" rx="14" class="border"/>
+
+  <!-- Title Banner -->
+  <rect x="20" y="20" width="960" height="60" rx="10" fill="#1e293b"/>
+  <text x="500" y="56" class="title">Toshkent shahridagi tumanlarga «UNICON SOFT» MCHJ mas'ul xodimlari</text>
+
+  <!-- Table Header -->
+  <rect x="20" y="95" width="960" height="45" rx="6" class="header-bg"/>
+  <text x="40" y="123" class="th">Hokimlik nomi</text>
+  <text x="420" y="123" class="th">Mas'ul xodim ism familiyasi</text>
+  <text x="740" y="123" class="th">Telefon raqami</text>
+  <line x1="20" y1="140" x2="980" y2="140" class="grid-line"/>
+
+  <!-- Rows -->
+  <!-- 1 -->
+  <rect x="20" y="140" width="960" height="44" class="row-even"/>
+  <text x="40" y="167" class="td-org">Toshkent shahar hokimiyati</text>
+  <text x="420" y="167" class="td-name">Afzalov Shaxbozbek</text>
+  <text x="740" y="167" class="td-phone">+998 90 136-55-00</text>
+  <line x1="20" y1="184" x2="980" y2="184" class="grid-line"/>
+
+  <!-- 2 -->
+  <rect x="20" y="184" width="960" height="44" class="row-odd"/>
+  <text x="40" y="211" class="td-org">Yunusobod tumani</text>
+  <text x="420" y="211" class="td-name">Abdullayev Rixsitilla</text>
+  <text x="740" y="211" class="td-phone">+998 97 724-10-17</text>
+  <line x1="20" y1="228" x2="980" y2="228" class="grid-line"/>
+
+  <!-- 3 -->
+  <rect x="20" y="228" width="960" height="44" class="row-even"/>
+  <text x="40" y="255" class="td-org">Bektemir tumani</text>
+  <text x="420" y="255" class="td-name">Begimqulov Shahzod</text>
+  <text x="740" y="255" class="td-phone">+998 93 895-09-97</text>
+  <line x1="20" y1="272" x2="980" y2="272" class="grid-line"/>
+
+  <!-- 4 -->
+  <rect x="20" y="272" width="960" height="44" class="row-odd"/>
+  <text x="40" y="299" class="td-org">Uchtepa tumani</text>
+  <text x="420" y="299" class="td-name">Shoanvarov Shoislom</text>
+  <text x="740" y="299" class="td-phone">+998 97 758-48-50</text>
+  <line x1="20" y1="316" x2="980" y2="316" class="grid-line"/>
+
+  <!-- 5 -->
+  <rect x="20" y="316" width="960" height="44" class="row-even"/>
+  <text x="40" y="343" class="td-org">Sergeli tumani</text>
+  <text x="420" y="343" class="td-name">Bobojonov Suxrob</text>
+  <text x="740" y="343" class="td-phone">+998 99 371-40-55</text>
+  <line x1="20" y1="360" x2="980" y2="360" class="grid-line"/>
+
+  <!-- 6 -->
+  <rect x="20" y="360" width="960" height="44" class="row-odd"/>
+  <text x="40" y="387" class="td-org">Yashnobod tumani</text>
+  <text x="420" y="387" class="td-name">To'lqinov Mirziyod</text>
+  <text x="740" y="387" class="td-phone">+998 94 698-81-19</text>
+  <line x1="20" y1="404" x2="980" y2="404" class="grid-line"/>
+
+  <!-- 7 -->
+  <rect x="20" y="404" width="960" height="44" class="row-even"/>
+  <text x="40" y="431" class="td-org">Mirobod tumani</text>
+  <text x="420" y="431" class="td-name">O'tkirov Xojiakbar</text>
+  <text x="740" y="431" class="td-phone">+998 99 896-09-76</text>
+  <line x1="20" y1="448" x2="980" y2="448" class="grid-line"/>
+
+  <!-- 8 -->
+  <rect x="20" y="448" width="960" height="44" class="row-odd"/>
+  <text x="40" y="475" class="td-org">Shayxontohur tumani</text>
+  <text x="420" y="475" class="td-name">Jovohir</text>
+  <text x="740" y="475" class="td-phone">+998 97 343-94-14</text>
+  <line x1="20" y1="492" x2="980" y2="492" class="grid-line"/>
+
+  <!-- 9 -->
+  <rect x="20" y="492" width="960" height="44" class="row-even"/>
+  <text x="40" y="519" class="td-org">Olmazor tumani</text>
+  <text x="420" y="519" class="td-name">Abdulloh</text>
+  <text x="740" y="519" class="td-phone">+998 99 877-76-68</text>
+  <line x1="20" y1="536" x2="980" y2="536" class="grid-line"/>
+
+  <!-- 10 -->
+  <rect x="20" y="536" width="960" height="44" class="row-odd"/>
+  <text x="40" y="563" class="td-org">Yangi hayot tumani</text>
+  <text x="420" y="563" class="td-name">Afzalov Shaxzodbek</text>
+  <text x="740" y="563" class="td-phone">+998 93 657-89-39</text>
+  <line x1="20" y1="580" x2="980" y2="580" class="grid-line"/>
+
+  <!-- 11 -->
+  <rect x="20" y="580" width="960" height="44" class="row-even"/>
+  <text x="40" y="607" class="td-org">Yakkasaroy tumani</text>
+  <text x="420" y="607" class="td-name">Allaberganov Arslon</text>
+  <text x="740" y="607" class="td-phone">+998 99 026-11-66</text>
+  <line x1="20" y1="624" x2="980" y2="624" class="grid-line"/>
+
+  <!-- 12 -->
+  <rect x="20" y="624" width="960" height="44" class="row-odd"/>
+  <text x="40" y="651" class="td-org">Chilonzor tumani</text>
+  <text x="420" y="651" class="td-name">Rixsiboyev Bekzod</text>
+  <text x="740" y="651" class="td-phone">+998 99 083-45-74</text>
+  <line x1="20" y1="668" x2="980" y2="668" class="grid-line"/>
+
+  <!-- 13 -->
+  <rect x="20" y="668" width="960" height="44" class="row-even"/>
+  <text x="40" y="695" class="td-org">Mirzo Ulug'bek tumani</text>
+  <text x="420" y="695" class="td-name">Mirvohidov Miraziz</text>
+  <text x="740" y="695" class="td-phone">+998 93 588-98-56</text>
+  <line x1="20" y1="712" x2="980" y2="712" class="grid-line"/>
+
+  <!-- Footer -->
+  <text x="500" y="750" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">UNICON SOFT Call Center tizimi ma'lumotnomasi</text>
+</svg>

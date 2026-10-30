@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNICON SOFT — Yangi O'zbek Alifbosi (2026) Klaviaturasi</title>
+    <link rel="icon" type="image/png" href="/images/title-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0b1120;
+            --bg-card: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(59, 130, 246, 0.25);
+            --border-highlight: rgba(56, 189, 248, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-green: #10b981;
+            --accent-purple: #a855f7;
+            --accent-amber: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Top Header */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .header-title-block {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #0284c7, #6366f1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+            flex-shrink: 0;
+        }
+
+        .header-title-block h1 {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #ffffff;
+        }
+
+        .header-title-block p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 11px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13.5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
+            background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+        }
+
+        /* Banner info */
+        .info-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 16px 20px;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+
+        .info-alert svg {
+            color: var(--accent-blue);
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .info-alert-text {
+            font-size: 13.5px;
+            color: #e2e8f0;
+        }
+
+        .info-alert-text strong {
+            color: var(--accent-blue);
+        }
+
+        /* Grid */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .card-badge {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* Key Map Table */
+        .key-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .key-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 14px;
+            transition: all 0.2s ease;
+        }
+
+        .key-item:hover {
+            border-color: var(--border-highlight);
+            background: rgba(30, 41, 59, 0.9);
+            transform: translateY(-1px);
+        }
+
+        .key-combo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .kbd-key {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #1e293b;
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-bottom: 2px solid rgba(56, 189, 248, 0.6);
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            font-family: monospace;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .key-arrow {
+            color: var(--text-dim);
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .key-result {
+            font-size: 18px;
+            font-weight: 800;
+            color: #ffffff;
+            background: rgba(56, 189, 248, 0.15);
+            padding: 2px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            min-width: 32px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .key-result:hover {
+            background: var(--accent-blue);
+            color: #0b1120;
+            transform: scale(1.08);
+        }
+
+        /* Playground */
+        .playground-textarea {
+            width: 100%;
+            height: 140px;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+            color: #ffffff;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .playground-textarea:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+        }
+
+        .playground-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .quick-insert-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .quick-key-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .quick-key-btn:hover {
+            background: var(--accent-blue);
+            color: #0b1120;
+            border-color: var(--accent-blue);
+        }
+
+        .copy-text-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .copy-text-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        /* Step guide */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 14px 16px;
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+        }
+
+        .step-content h4 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .step-content p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .step-content code {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--accent-blue);
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #10b981;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header class="header-bar">
+            <div class="header-title-block">
+                <div class="header-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                        <line x1="6" y1="8" x2="6" y2="8.01"></line>
+                        <line x1="10" y1="8" x2="10" y2="8.01"></line>
+                        <line x1="14" y1="8" x2="14" y2="8.01"></line>
+                        <line x1="18" y1="8" x2="18" y2="8.01"></line>
+                        <line x1="6" y1="12" x2="6" y2="12.01"></line>
+                        <line x1="10" y1="12" x2="10" y2="12.01"></line>
+                        <line x1="14" y1="12" x2="14" y2="12.01"></line>
+                        <line x1="18" y1="12" x2="18" y2="12.01"></line>
+                        <line x1="7" y1="16" x2="17" y2="16"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h1>Yangi O'zbek Alifbosi (2026) Klaviaturasi</h1>
+                    <p>Operatorlar uchun rasmiy klaviatura drayveri, o'rnatish paketi va foydalanish yo'riqnomasi</p>
+                </div>
+            </div>
+
+            <a href="/downloads/uzb2026-setup.zip" download class="download-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2V14M12 14L8.5 10.5M12 14L15.5 10.5"></path>
+                    <path d="M2 13V15C2 18.87 3.13 22 7 22H17C20.87 22 22 18.87 22 15V13"></path>
+                </svg>
+                <span>Paketni yuklab olish (.zip)</span>
+            </a>
+        </header>
+
+        <!-- INFO BANNER -->
+        <div class="info-alert">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <div class="info-alert-text">
+                <strong>Muhim qoida:</strong> Yangi alifbo harflarini yozish uchun klaviaturaning <strong>O'NG tomonidagi Alt (AltGr)</strong> tugmasi bosiladi! Chap Alt esa Windows'da tizim menyulari va dastur qisqartmalari uchun ajratilgan. Agar klaviaturangizda o'ng Alt bo'lmasa, <strong>Ctrl + chap Alt</strong> kombinatsiyasi ham xuddi shunday ishlaydi.
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- TUGMALAR JADVALI -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                            <line x1="7" y1="16" x2="17" y2="16"></line>
+                        </svg>
+                        <span>Tugmalar birikmasi (Cheat Sheet)</span>
+                    </div>
+                    <span class="card-badge">Tezkor</span>
+                </div>
+
+                <div class="key-cards-grid">
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">S</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('ş')" title="Nusxa olish uchun bosing">ş</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">Shift</span>
+                            <span>+</span>
+                            <span class="kbd-key">S</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('Ş')" title="Nusxa olish uchun bosing">Ş</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">C</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('ç')" title="Nusxa olish uchun bosing">ç</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">Shift</span>
+                            <span>+</span>
+                            <span class="kbd-key">C</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('Ç')" title="Nusxa olish uchun bosing">Ç</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">G</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('ğ')" title="Nusxa olish uchun bosing">ğ</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">Shift</span>
+                            <span>+</span>
+                            <span class="kbd-key">G</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('Ğ')" title="Nusxa olish uchun bosing">Ğ</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">O</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('ö')" title="Nusxa olish uchun bosing">ö</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">Shift</span>
+                            <span>+</span>
+                            <span class="kbd-key">O</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('Ö')" title="Nusxa olish uchun bosing">Ö</span>
+                    </div>
+
+                    <div class="key-item">
+                        <div class="key-combo">
+                            <span class="kbd-key">O'ng Alt</span>
+                            <span>+</span>
+                            <span class="kbd-key">'</span>
+                        </div>
+                        <span class="key-arrow">→</span>
+                        <span class="key-result" onclick="copyChar('ʼ')" title="Nusxa olish uchun bosing">ʼ</span>
+                    </div>
+                </div>
+
+                <!-- PLAYGROUND -->
+                <div style="margin-top: 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 700; color: #ffffff; font-size: 13px;">Jonli sinov maydoni (Shu yerda yozib ko'ring):</span>
+                        <span style="font-size: 12px; color: var(--text-dim);" id="charCount">0 belgi</span>
+                    </div>
+                    <textarea class="playground-textarea" id="testArea" placeholder="Tilni UZB ga o'tkazib, O'ng Alt + s, c, g, o tugmalarini bosib yozib ko'ring..."></textarea>
+                    <div class="playground-actions">
+                        <div class="quick-insert-bar">
+                            <span style="font-size: 12px; color: var(--text-muted); margin-right: 4px;">Tezkor kiritish:</span>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('ş')">ş</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('Ş')">Ş</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('ç')">ç</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('Ç')">Ç</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('ğ')">ğ</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('Ğ')">Ğ</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('ö')">ö</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('Ö')">Ö</button>
+                            <button type="button" class="quick-key-btn" onclick="insertChar('ʼ')">ʼ</button>
+                        </div>
+                        <button type="button" class="copy-text-btn" onclick="copyPlayground()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            <span>Matnni nusxalash</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- O'RNATISH YO'RIQNOMASI -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                        <span>O'rnatish yo'riqnomasi (4 qadam)</span>
+                    </div>
+                    <span class="card-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.3);">Oddiy & Tezkor</span>
+                </div>
+
+                <div class="step-list">
+                    <div class="step-item">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h4>Paketni yuklab oling va oching</h4>
+                            <p>Yuqoridagi <strong>"Paketni yuklab olish (.zip)"</strong> tugmasini bosing va yuklangan <code>uzb2026-setup.zip</code> faylini arxivdan chiqaring.</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h4>O'rnatishni ishga tushiring</h4>
+                            <p>Arxiv ichidagi <code>setup.exe</code> faylini ikki marta bosib ishga tushiring. O'rnatish avtomatik tarzda 5-10 soniya ichida yakunlanadi.</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h4>Tizimdan chiqib qayta kiring (Sign out)</h4>
+                            <p>Windows yangi klaviatura drayverini to'liq yuklashi uchun <code>Start → Sign out</code> qiling yoki kompyuterni qayta yoqing (Restart).</p>
+                        </div>
+                    </div>
+
+                    <div class="step-item">
+                        <div class="step-num">4</div>
+                        <div class="step-content">
+                            <h4>Tilni UZB ga o'tkazib yozishni boshlang</h4>
+                            <p>Pastki o'ng burchakdagi til panelidan yoki <code>Win + Bo'sh joy</code> tugmalari bilan <strong>UZB</strong> ga o'tkazing. Klaviaturadagi <strong>O'ng Alt</strong> tugmasi orqali yangi harflarni yozing!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; padding: 14px 16px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <strong style="color: #f59e0b; font-size: 13px;">Nega aynan O'ng Alt (AltGr)?</strong>
+                    </div>
+                    <p style="font-size: 12.5px; color: #cbd5e1; line-height: 1.5;">
+                        Windows arxitekturasida chap <code>Alt</code> faqat menyular (masalan, Fayl, Sozlamalar) va tizim buyruqlari uchun ajratilgan. Shuning uchun barcha xalqaro standartlarda (Turkcha, Nemischa, Polsha) qo'shimcha milliy harflar aynan <strong>O'ng Alt</strong> ga biriktiriladi. Bu yozishda dastur qisqartmalari bilan to'qnashuv bo'lmasligini ta'minlaydi.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span id="toastMsg">Nusxalandi!</span>
+    </div>
+
+    <script>
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        function copyChar(ch) {
+            navigator.clipboard.writeText(ch).then(() => {
+                showToast(`"${ch}" nusxalandi!`);
+            }).catch(() => {
+                insertChar(ch);
+            });
+        }
+
+        function insertChar(ch) {
+            const ta = document.getElementById('testArea');
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            const text = ta.value;
+            ta.value = text.substring(0, start) + ch + text.substring(end);
+            ta.selectionStart = ta.selectionEnd = start + ch.length;
+            ta.focus();
+            updateCharCount();
+        }
+
+        function copyPlayground() {
+            const ta = document.getElementById('testArea');
+            if (!ta.value.trim()) {
+                showToast("Matn kiritilmagan!");
+                return;
+            }
+            navigator.clipboard.writeText(ta.value).then(() => {
+                showToast("Barcha matn nusxalandi!");
+            });
+        }
+
+        function updateCharCount() {
+            const ta = document.getElementById('testArea');
+            document.getElementById('charCount').textContent = ta.value.length + " belgi";
+        }
+
+        document.getElementById('testArea').addEventListener('input', updateCharCount);
+    </script>
+</body>
+</html>

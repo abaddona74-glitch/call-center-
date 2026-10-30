@@ -27,6 +27,13 @@ scratch/
 
 # Maxfiy SSL sertifikatlari
 ssl/
+*.pfx
 
 # Katta Excel va eksport fayllari
 *.xlsx
+*.docx
+callcenter.db
+.env*
+!.env.example
+test-results/
+__pycache__/

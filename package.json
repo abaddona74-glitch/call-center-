@@ -4,22 +4,30 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
+    "dev": "nodemon --config nodemon.json app.js",
+    "test": "node -c app.js config.js swaggerSpec.js scripts/deploy.js services/sftpService.js services/zipJobService.js services/authService.js services/emailService.js services/converterService.js services/topicAnalyticsService.js",
+    "test:e2e": "playwright test",
+    "build": "node -c app.js config.js public/js/dashboard.js",
+    "predeploy": "npm test && npm run build",
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
+    "acme-client": "^5.4.0",
+    "archiver": "^5.3.2",
     "asterisk-manager": "^0.2.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "ioredis": "^6.0.0",
+    "nodemailer": "^10.2.0",
     "pngjs": "^7.0.0",
     "ssh2-sftp-client": "^12.1.1",
     "swagger-ui-express": "^5.0.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "nodemon": "^3.1.14"
   }
 }

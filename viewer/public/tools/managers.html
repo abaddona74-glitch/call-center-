@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNICON SOFT — Mas'ul Xodimlar Ma'lumotnomasi</title>
+    <link rel="icon" type="image/png" href="/images/title-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0b1120;
+            --bg-card: rgba(15, 23, 42, 0.85);
+            --border-color: rgba(59, 130, 246, 0.25);
+            --border-highlight: rgba(56, 189, 248, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent-blue: #38bdf8;
+            --accent-green: #10b981;
+            --accent-purple: #a855f7;
+            --accent-amber: #f59e0b;
+            --font-scale: 1;
+            /* Design Engineering Motion Tokens */
+            --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+            --duration-fast: 140ms;
+            --duration-normal: 220ms;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-body);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 20px;
+            font-size: calc(14px * var(--font-scale));
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Top Header */
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 22px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .header-title-block {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+
+        .header-title-block h1 {
+            font-size: calc(18px * var(--font-scale));
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            color: #ffffff;
+        }
+
+        .header-title-block p {
+            font-size: calc(12px * var(--font-scale));
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Font Zoom Controls */
+        .zoom-controls {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .zoom-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        .zoom-badge {
+            font-family: 'Inter', monospace;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            padding: 0 6px;
+            min-width: 42px;
+            text-align: center;
+        }
+
+        /* Tabs Navigation */
+        .tabs-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: calc(13.5px * var(--font-scale));
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.18));
+            color: #60a5fa;
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+        }
+
+        .tab-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: inherit;
+        }
+
+        .tab-btn.active .tab-badge {
+            background: rgba(59, 130, 246, 0.4);
+            color: #ffffff;
+        }
+
+        /* Search Bar */
+        .search-box {
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 18px 12px 46px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: calc(14px * var(--font-scale));
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15), 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .search-clear {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-muted);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        /* Table Card Container */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px);
+        }
+
+        .table-header-info {
+            padding: 16px 22px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.5);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .table-subtitle {
+            font-size: calc(14px * var(--font-scale));
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-count {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.06);
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        /* Modern Vector Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: calc(13.5px * var(--font-scale));
+        }
+
+        thead {
+            background: rgba(15, 23, 42, 0.95);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 14px 18px;
+            font-weight: 700;
+            color: #cbd5e1;
+            font-size: calc(12px * var(--font-scale));
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.35);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            vertical-align: middle;
+            transition: background 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Typography & Badges inside table */
+        .org-name {
+            font-weight: 700;
+            color: #ffffff;
+            font-family: 'Golos Text', 'Inter', sans-serif;
+            font-size: calc(14px * var(--font-scale));
+        }
+
+        .officer-name {
+            font-weight: 600;
+            color: #38bdf8;
+            font-size: calc(13.5px * var(--font-scale));
+        }
+
+        .lead-officer {
+            font-weight: 700;
+            color: #fcd34d;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            display: inline-block;
+        }
+
+        /* Phone Item styling with Copy & Call */
+        .phone-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .phone-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 8px;
+            padding: 5px 10px;
+            font-family: 'Inter', monospace;
+            font-weight: 700;
+            font-size: calc(13px * var(--font-scale));
+            color: #38bdf8;
+            transition: all 0.2s ease;
+            width: fit-content;
+        }
+
+        .phone-pill:hover {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .phone-pill.office {
+            border-color: rgba(245, 158, 11, 0.4);
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .phone-pill.office:hover {
+            border-color: #fbbf24;
+            background: rgba(245, 158, 11, 0.18);
+        }
+
+        .phone-action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .phone-action-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .phone-call-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        /* Ministry tags */
+        .ministry-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .ministry-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: calc(12.5px * var(--font-scale));
+            color: #ddd6fe;
+        }
+
+        .ministry-item svg {
+            color: #a78bfa;
+            flex-shrink: 0;
+        }
+
+        /* Row entrance & hover animation */
+        @keyframes rowGlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        tbody tr {
+            animation: rowGlideIn var(--duration-normal) var(--ease-out) both;
+            will-change: transform, opacity;
+        }
+
+        /* Tactile Button Feedback */
+        .tab-btn:active,
+        .zoom-btn:active,
+        .phone-pill:active,
+        .phone-action-btn:active,
+        .search-clear:active {
+            transform: scale(0.96) !important;
+        }
+
+        /* Copy Toast notification */
+        .copy-toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #10b981;
+            color: #ffffff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 13px;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(12px) scale(0.96);
+            transition: opacity var(--duration-normal) var(--ease-out),
+                        transform var(--duration-normal) var(--ease-out);
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+
+        .copy-toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            tbody tr, .copy-toast, .tab-btn, .zoom-btn {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 50px 20px;
+            text-align: center;
+            color: var(--text-muted);
+            animation: rowGlideIn var(--duration-normal) var(--ease-out) both;
+        }
+
+        .empty-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                padding: 0;
+            }
+            .header-bar, .tabs-nav, .search-box, .zoom-controls, .copy-toast {
+                display: none !important;
+            }
+            .table-card {
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+                background: #ffffff !important;
+            }
+            th, td {
+                color: #000000 !important;
+                border: 1px solid #ccc !important;
+            }
+            .phone-pill {
+                border: none !important;
+                color: #000000 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <header class="header-bar">
+        <div class="header-title-block">
+            <div class="header-icon"><svg style="width: 26px; height: 26px;" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 12.5H16" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M8 16.5H13" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></div>
+            <div>
+                <h1>UNICON SOFT — Mas'ul Xodimlar Ma'lumotnomasi</h1>
+                <p>Toshkent shahri, Vazirliklar va Viloyatlar bo'yicha mas'ullar hamda aloqa telefonlari</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <!-- Font Zoom Scaler -->
+            <div class="zoom-controls" title="Matn hajmini moslashtirish (Vektor masshtab)">
+                <button type="button" class="zoom-btn" onclick="changeFontScale(-0.1)" title="Kichikroq">A-</button>
+                <span class="zoom-badge" id="zoomBadge">100%</span>
+                <button type="button" class="zoom-btn" onclick="changeFontScale(0.1)" title="Kattaroq">A+</button>
+                <button type="button" class="zoom-btn" onclick="resetFontScale()" title="Asl o'lcham">↺ 100%</button>
+            </div>
+
+            <button type="button" onclick="window.print()" class="zoom-btn" style="background: rgba(255,255,255,0.08); padding: 7px 14px; border-radius: 8px;" title="Chop etish yoki PDF saqlash">
+                🖨️ Chop etish
+            </button>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="tabs-nav" id="tabsNav">
+        <button type="button" class="tab-btn active" data-tab="tashkent" onclick="switchTab('tashkent')">
+            <span>🏙️</span>
+            <span>Toshkent shahar</span>
+            <span class="tab-badge" id="badgeTashkent">13</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="ministry" onclick="switchTab('ministry')">
+            <span>🏛️</span>
+            <span>Vazirlik mas'ullari</span>
+            <span class="tab-badge" id="badgeMinistry">7</span>
+        </button>
+        <button type="button" class="tab-btn" data-tab="regions" onclick="switchTab('regions')">
+            <span>🗺️</span>
+            <span>Viloyat mas'ullari</span>
+            <span class="tab-badge" id="badgeRegions">14</span>
+        </button>
+    </nav>
+
+    <!-- Search Box -->
+    <div class="search-box">
+        <span class="search-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </span>
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Tuman, vazirlik, viloyat, mas'ul shaxs yoki telefon raqami bo'yicha qidirish..." oninput="handleSearch(this.value)">
+        <button type="button" id="searchClearBtn" class="search-clear" onclick="clearSearch()" title="Tozalash"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M18 6L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M6 6L18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></button>
+    </div>
+
+    <!-- Active Table Card -->
+    <div class="table-card">
+        <div class="table-header-info">
+            <div class="table-subtitle" id="tableSubtitle">
+                <span>🏙️ Toshkent shahridagi tumanlarga biriktirilgan mas'ullar</span>
+            </div>
+            <div class="result-count" id="resultCountBadge">
+                Jami: 13 ta yozuv
+            </div>
+        </div>
+
+        <div class="table-responsive" id="tableContainer">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Copy Success Toast -->
+<div id="copyToast" class="copy-toast">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M7.75 12L10.58 14.83L16.25 9.17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+    <span id="copyToastText">Raqamdan nusxa olindi!</span>
+</div>
+
+<script>
+/* ==========================================================================
+   DATA DEFINITIONS (100% Exact grounded data)
+   ========================================================================== */
+const DATA_TASHKENT = [
+    { org: "Toshkent shahar shartnoma bo'limi", name: "Shartnoma bo'limi (Ofis)", phone: "+998 71 202-46-46", isSpecial: true },
+    { org: "Toshkent shahar hokimiyati", name: "Afzalov Shaxbozbek", phone: "+998 90 136-55-00" },
+    { org: "Yunusobod tumani", name: "Abdullayev Rixsitilla", phone: "+998 97 724-10-17" },
+    { org: "Bektemir tumani", name: "Begimqulov Shahzod", phone: "+998 93 895-09-97" },
+    { org: "Uchtepa tumani", name: "Shoanvarov Shoislom", phone: "+998 97 758-48-50" },
+    { org: "Sergeli tumani", name: "Bobojonov Suxrob", phone: "+998 99 371-40-55" },
+    { org: "Yashnobod tumani", name: "To'lqinov Mirziyod", phone: "+998 94 698-81-19" },
+    { org: "Mirobod tumani", name: "O'tkirov Xojiakbar", phone: "+998 99 896-09-76" },
+    { org: "Shayxontohur tumani", name: "Jovohir", phone: "+998 97 343-94-14" },
+    { org: "Olmazor tumani", name: "Abdulloh", phone: "+998 99 877-76-68" },
+    { org: "Yangi hayot tumani", name: "Afzalov Shaxzodbek", phone: "+998 93 657-89-39" },
+    { org: "Yakkasaroy tumani", name: "Allaberganov Arslon", phone: "+998 99 026-11-66" },
+    { org: "Chilonzor tumani", name: "Rixsiboyev Bekzod", phone: "+998 99 083-45-74" },
+    { org: "Mirzo Ulug'bek tumani", name: "Mirvohidov Miraziz", phone: "+998 93 588-98-56" }
+];
+
+const DATA_MINISTRY = [
+    {
+        name: "Abdumannonov A'zamjon",
+        phone: "+998 99 488 38 38",
+        ministries: [
+            "Oliy ta'lim, fan va innovatsiyalar vazirligi",
+            "Raqamli texnologiyalar vazirligi",
+            "Iqtisodiyot va moliya vazirligi"
+        ]
+    },
+    {
+        name: "Avazxonov Nosirxon",
+        phone: "+998 99 313 07 17",
+        ministries: [
+            "Favqulodda vaziyatlar vazirligi",
+            "Suv xo'jaligi vazirligi",
+            "Tashqi ishlar vazirligi"
+        ]
+    },
+    {
+        name: "Sobirov Shohrux",
+        phone: "+998 93 512 90 90",
+        ministries: [
+            "Tog'-kon sanoati va geologiya vazirligi",
+            "Sport vazirligi",
+            "Qishloq xo'jaligi vazirligi"
+        ]
+    },
+    {
+        name: "Xudoyberdiyev Qahramon",
+        phone: "+998 90 999 49 86",
+        ministries: [
+            "Sog'liqni saqlash vazirligi",
+            "Kambag'allikni qisqartirish va bandlik vazirligi"
+        ]
+    },
+    {
+        name: "Rahmatullayev Javohir",
+        phone: "+998 97 710 30 08",
+        ministries: [
+            "Qurilish va uy-joy kommunal xo'jaligi vazirligi",
+            "Energetika vazirligi",
+            "Investitsiyalar, sanoat va savdo vazirligi"
+        ]
+    },
+    {
+        name: "Murodjonov Shahzod",
+        phone: "+998 90 324 45 23",
+        ministries: [
+            "Transport vazirligi",
+            "Maktabgacha va maktab ta'limi vazirligi",
+            "Madaniyat vazirligi"
+        ]
+    },
+    {
+        name: "Mirzakarimov Mustafo",
+        phone: "+998 99 644 44 47",
+        ministries: [
+            "Ichki ishlar vazirligi",
+            "Adliya vazirligi",
+            "Mudofaa vazirligi"
+        ]
+    }
+];
+
+const DATA_REGIONS = [
+    // Guruh 1
+    {
+        num: 1,
+        region: "Toshkent viloyati",
+        lead: "Ibragimov Avaz",
+        leadPhone: "+998 99 850-06-92",
+        offices: ["998 95 507 46 46", "998 95 509 46 46"],
+        head: "Axmedov Nabixo'ja",
+        headPhone: "97 706-17-17"
+    },
+    {
+        num: 2,
+        region: "Namangan viloyati",
+        lead: "Abdug'affarov Doniyor",
+        leadPhone: "+998 99 396-02-96",
+        offices: ["998 95 340-46-46", "998 95 508 46 46"],
+        head: "Axmedov Nabixo'ja",
+        headPhone: "97 706-17-17"
+    },
+    {
+        num: 3,
+        region: "Farg'ona viloyati",
+        lead: "Jo'rayev Nuriddin",
+        leadPhone: "+998 97-337-70-10",
+        offices: ["998 95 341-46-46", "998 95 510 46 46"],
+        head: "Axmedov Nabixo'ja",
+        headPhone: "97 706-17-17"
+    },
+    {
+        num: 4,
+        region: "Andijon viloyati",
+        lead: "Muhamatibrohimov Islombek Rahimjanovich",
+        leadPhone: "+998 94 617-02-04",
+        offices: ["998 95 513-46-46", "998 95 680 46 46"],
+        head: "Axmedov Nabixo'ja",
+        headPhone: "97 706-17-17"
+    },
+    // Guruh 2
+    {
+        num: 5,
+        region: "Sirdaryo viloyati",
+        lead: "Rahmatullayev Temurbek Ibrohim o'g'li",
+        leadPhone: "+998 99 923-41-79",
+        offices: ["998 95 342-46-46", "998 95 505-46-46", "998 67 236-46-46"],
+        head: "Muzaffarov Hasan",
+        headPhone: "99 846-12-07"
+    },
+    {
+        num: 6,
+        region: "Samarqand viloyati",
+        lead: "Keldiyorov Akmal Toirovich",
+        leadPhone: "+998 95 032-46-46",
+        offices: ["998 95 512-46-46", "998 95 412-46-46"],
+        head: "Muzaffarov Hasan",
+        headPhone: "99 846-12-07"
+    },
+    {
+        num: 7,
+        region: "Buxoro viloyati",
+        lead: "Qudratov Alisher Shuhratovich",
+        leadPhone: "+998 90 635-44-33",
+        extraPhone: "+998 99 700-01-85",
+        offices: ["998 95 511-46-46", "998 95 681-46-46"],
+        head: "Muzaffarov Hasan",
+        headPhone: "99 846-12-07"
+    },
+    {
+        num: 8,
+        region: "Qashqadaryo viloyati",
+        lead: "Do'sqobilov Akrom Botir o'g'li",
+        leadPhone: "+998 91 455-07-07",
+        offices: ["998 95 515-46-46", "998 95 502-46-46"],
+        head: "Muzaffarov Hasan",
+        headPhone: "99 846-12-07"
+    },
+    {
+        num: 9,
+        region: "Jizzax viloyati",
+        lead: "Bazorov Hasan Tursunbekovich",
+        leadPhone: "+998 98 561-08-28",
+        offices: ["998 95 479-46-46", "998 95 411-46-46"],
+        head: "Muzaffarov Hasan",
+        headPhone: "99 846-12-07"
+    },
+    // Guruh 3
+    {
+        num: 10,
+        region: "Navoiy viloyati",
+        lead: "Mardiyev Jumaqul Aliqulovich",
+        leadPhone: "+998 97 335-91-55",
+        offices: ["998 95 514-46-46", "998 95 503-46-46"],
+        head: "Mahkamov Saidalo",
+        headPhone: "99 408 51 11"
+    },
+    {
+        num: 11,
+        region: "Xorazm viloyati",
+        lead: "Ataboyev A'zamjon Ahmedjonovich",
+        leadPhone: "+998 97 211-44-26",
+        offices: ["998 95 475-46-46", "998 95 501-46-46"],
+        head: "Mahkamov Saidalo",
+        headPhone: "99 408 51 11"
+    },
+    {
+        num: 12,
+        region: "Surxondaryo viloyati",
+        lead: "Qudirov Shohrux Shaydullayevich",
+        leadPhone: "+998 93 526 17-77",
+        offices: ["998 95 324-46-46", "998 95 682-46-46"],
+        head: "Mahkamov Saidalo",
+        headPhone: "99 408 51 11"
+    },
+    {
+        num: 13,
+        region: "Qoraqalpog'iston Respublikasi",
+        lead: "Ashirbekov Batirbek Ubbiniyazovich",
+        leadPhone: "+998 93 365-37-76",
+        offices: ["998 95 478-46-46", "998 95 650-46-46"],
+        head: "Mahkamov Saidalo",
+        headPhone: "99 408 51 11"
+    }
+];
+
+/* ==========================================================================
+   STATE & CONTROLLERS
+   ========================================================================== */
+let activeTab = 'tashkent';
+let searchQuery = '';
+let currentFontScale = 1.0;
+
+function init() {
+    // Parse URL params (?tab=tashkent | ministry | regions & q=...)
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['tashkent', 'ministry', 'regions'].includes(tabParam)) {
+        activeTab = tabParam;
+    }
+    const qParam = params.get('q');
+    if (qParam) {
+        searchQuery = qParam;
+        document.getElementById('searchInput').value = searchQuery;
+    }
+
+    renderTabs();
+    renderContent();
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    renderTabs();
+    renderContent();
+}
+
+function renderTabs() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.getAttribute('data-tab') === activeTab) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    const subTitleEl = document.getElementById('tableSubtitle');
+    if (activeTab === 'tashkent') {
+        subTitleEl.innerHTML = `<span>🏙️ Toshkent shahridagi tumanlar va shartnoma bo'limiga biriktirilgan mas'ullar</span>`;
+    } else if (activeTab === 'ministry') {
+        subTitleEl.innerHTML = `<span>🏛️ Vazirliklarga biriktirilgan mas'ul xodimlar</span>`;
+    } else {
+        subTitleEl.innerHTML = `<span>🗺️ Viloyatlar bo'yicha mas'ul rahbarlar va ofis raqamlari</span>`;
+    }
+}
+
+function handleSearch(val) {
+    searchQuery = (val || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('searchClearBtn');
+    if (clearBtn) clearBtn.style.display = searchQuery ? 'flex' : 'none';
+    renderContent();
+}
+
+function clearSearch() {
+    searchQuery = '';
+    const input = document.getElementById('searchInput');
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+    const clearBtn = document.getElementById('searchClearBtn');
+    if (clearBtn) clearBtn.style.display = 'none';
+    renderContent();
+}
+
+/* ==========================================================================
+   RENDER TABLES
+   ========================================================================== */
+function renderContent() {
+    const container = document.getElementById('tableContainer');
+    const countBadge = document.getElementById('resultCountBadge');
+    if (!container) return;
+
+    if (activeTab === 'tashkent') {
+        let items = DATA_TASHKENT;
+        if (searchQuery) {
+            items = items.filter(it => 
+                it.org.toLowerCase().includes(searchQuery) ||
+                it.name.toLowerCase().includes(searchQuery) ||
+                it.phone.replace(/[\s\-\+]/g, '').includes(searchQuery.replace(/[\s\-\+]/g, ''))
+            );
+        }
+        countBadge.innerText = `Jami: ${items.length} ta tashkilot / tuman`;
+
+        if (items.length === 0) {
+            container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>Qidiruv bo'yicha ma'lumot topilmadi</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 12px 18px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 22px;">📑</span>
+                    <div>
+                        <div style="font-size: calc(14px * var(--font-scale)); font-weight: 700; color: #ffffff;">Toshkent shahar shartnoma bo'limi</div>
+                        <div style="font-size: calc(12px * var(--font-scale)); color: var(--text-muted);">Shartnomalar va hisob-kitob masalalari uchun to'g'ridan-to'g'ri aloqa</div>
+                    </div>
+                </div>
+                <div>
+                    ${renderPhonePill('+998 71 202-46-46', true)}
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">№</th>
+                        <th>Hokimlik / Bo'lim nomi</th>
+                        <th>Mas'ul xodim ism familiyasi</th>
+                        <th>Telefon raqami</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((it, idx) => `
+                        <tr style="${it.isSpecial ? 'background: rgba(14, 165, 233, 0.08);' : ''}">
+                            <td style="color: var(--text-dim); font-weight: 700;">${idx + 1}</td>
+                            <td>
+                                <span class="org-name" style="${it.isSpecial ? 'color: var(--accent-blue); font-weight: 700;' : ''}">
+                                    ${it.isSpecial ? '⭐ ' : ''}${highlight(it.org, searchQuery)}
+                                </span>
+                            </td>
+                            <td><span class="officer-name">${highlight(it.name, searchQuery)}</span></td>
+                            <td>${renderPhonePill(it.phone, it.isSpecial)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } 
+    else if (activeTab === 'ministry') {
+        let items = DATA_MINISTRY;
+        if (searchQuery) {
+            items = items.filter(it => 
+                it.name.toLowerCase().includes(searchQuery) ||
+                it.phone.replace(/[\s\-\+]/g, '').includes(searchQuery.replace(/[\s\-\+]/g, '')) ||
+                it.ministries.some(m => m.toLowerCase().includes(searchQuery))
+            );
+        }
+        countBadge.innerText = `Jami: ${items.length} ta mas'ul xodim`;
+
+        if (items.length === 0) {
+            container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>Qidiruv bo'yicha ma'lumot topilmadi</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">№</th>
+                        <th style="width: 300px;">Mas'ul xodim (F.I.O) & Telefon</th>
+                        <th>Biriktirilgan Vazirliklar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((it, idx) => `
+                        <tr>
+                            <td style="color: var(--text-dim); font-weight: 700;">${idx + 1}</td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <span class="officer-name" style="font-size: calc(15px * var(--font-scale)); font-weight: 700;">
+                                        ${highlight(it.name, searchQuery)}
+                                    </span>
+                                    ${renderPhonePill(it.phone)}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="ministry-list">
+                                    ${it.ministries.map(m => `
+                                        <div class="ministry-item">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                            <span>${highlight(m, searchQuery)}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+    else if (activeTab === 'regions') {
+        let items = DATA_REGIONS;
+        if (searchQuery) {
+            items = items.filter(it => 
+                it.region.toLowerCase().includes(searchQuery) ||
+                it.lead.toLowerCase().includes(searchQuery) ||
+                it.leadPhone.replace(/[\s\-\+]/g, '').includes(searchQuery.replace(/[\s\-\+]/g, '')) ||
+                (it.head && it.head.toLowerCase().includes(searchQuery)) ||
+                it.offices.some(o => o.replace(/[\s\-\+]/g, '').includes(searchQuery.replace(/[\s\-\+]/g, '')))
+            );
+        }
+        countBadge.innerText = `Jami: ${items.length} ta viloyat/hudud`;
+
+        if (items.length === 0) {
+            container.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>Qidiruv bo'yicha ma'lumot topilmadi</div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 45px;">№</th>
+                        <th>Viloyati</th>
+                        <th>Rahbar (Mas'ul)</th>
+                        <th>Shaxsiy Tel</th>
+                        <th>Ofis telefonlari</th>
+                        <th>Umumiy mas'ul rahbar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map((it, idx) => `
+                        <tr>
+                            <td style="color: var(--text-dim); font-weight: 700;">${idx + 1}</td>
+                            <td><span class="org-name">${highlight(it.region, searchQuery)}</span></td>
+                            <td><span class="officer-name">${highlight(it.lead, searchQuery)}</span></td>
+                            <td>
+                                <div class="phone-group">
+                                    ${renderPhonePill(it.leadPhone)}
+                                    ${it.extraPhone ? renderPhonePill(it.extraPhone) : ''}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="phone-group">
+                                    ${it.offices.map(o => renderPhonePill(o, true)).join('')}
+                                </div>
+                            </td>
+                            <td>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <span class="lead-officer">${highlight(it.head, searchQuery)}</span>
+                                    ${it.headPhone ? renderPhonePill(it.headPhone) : ''}
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+/* Helpers */
+function renderPhonePill(rawPhone, isOffice = false) {
+    if (!rawPhone) return '';
+    const cleanDigits = rawPhone.replace(/[^\d\+]/g, '');
+    const telHref = cleanDigits.startsWith('+') ? cleanDigits : ('+998' + cleanDigits.replace(/^998/, ''));
+
+    return `
+        <div class="phone-pill ${isOffice ? 'office' : ''}">
+            <a href="tel:${telHref}" class="phone-call-link" title="Qo'ng'iroq qilish">${escapeHtml(rawPhone)}</a>
+            <button type="button" class="phone-action-btn" onclick="copyPhone('${escapeHtml(rawPhone)}', event)" title="Nusxa olish"><svg style="width: 13px; height: 13px;" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 12.5H16" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M8 16.5H13" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg></button>
+            <a href="tel:${telHref}" class="phone-action-btn" title="To'g'ridan-to'g'ri qo'ng'iroq"><svg style="width: 13px; height: 13px;" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/>
+</svg></a>
+        </div>
+    `;
+}
+
+function highlight(text, query) {
+    if (!query || !text) return escapeHtml(text);
+    const escaped = escapeHtml(text);
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, `<mark style="background: rgba(245, 158, 11, 0.4); color: #fff; border-radius: 3px; padding: 0 2px;">$1</mark>`);
+}
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function copyPhone(phone, event) {
+    if (event) event.stopPropagation();
+    const clean = phone.trim();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(clean).then(() => showToast(clean));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = clean;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(clean);
+    }
+}
+
+let toastTimer = null;
+function showToast(text) {
+    const toast = document.getElementById('copyToast');
+    const toastText = document.getElementById('copyToastText');
+    if (!toast) return;
+    if (toastText) toastText.innerText = `${text} — nusxalandi!`;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2200);
+}
+
+/* ==========================================================================
+   FONT ZOOM CONTROLS (VECTOR SCALING)
+   ========================================================================== */
+function changeFontScale(delta) {
+    currentFontScale = Math.max(0.8, Math.min(1.8, Math.round((currentFontScale + delta) * 10) / 10));
+    applyFontScale();
+}
+
+function resetFontScale() {
+    currentFontScale = 1.0;
+    applyFontScale();
+}
+
+function applyFontScale() {
+    document.documentElement.style.setProperty('--font-scale', currentFontScale);
+    const badge = document.getElementById('zoomBadge');
+    if (badge) badge.innerText = `${Math.round(currentFontScale * 100)}%`;
+}
+
+// Global hotkeys (Ctrl + wheel / Ctrl + / Ctrl -)
+window.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault();
+        changeFontScale(e.deltaY < 0 ? 0.1 : -0.1);
+    }
+}, { passive: false });
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>
