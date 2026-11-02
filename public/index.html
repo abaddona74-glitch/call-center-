@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793353770018">
+    <meta name="build-id" content="1793604138897">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793353770018">
+    <link rel="stylesheet" href="/css/style.css?v=1793604138897">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -596,20 +596,20 @@
                                 <h3 class="panel-title" id="distributionChartTitle" data-i18n="chart_distribution_title" style="margin: 0;">Mijozlar Taqsimoti</h3>
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
                                     <!-- Taqsimot turi: Mijozlar vs Qo'ng'iroqlar -->
-                                    <div class="chart-dist-type-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 2px; gap: 2px;">
-                                        <button type="button" id="btnDistTypeClients" onclick="setDistributionType('clients')" title="Mijozlar soni bo'yicha taqsimot" data-i18n="chart_dist_by_clients" style="padding: 4px 9px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);">
+                                    <div class="chart-dist-type-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 2px; gap: 2px;">
+                                        <button type="button" id="btnDistTypeClients" onclick="setDistributionType('clients')" title="Mijozlar soni bo'yicha taqsimot" data-i18n="chart_dist_by_clients" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; transition: all 0.15s; background: rgba(255, 255, 255, 0.12); color: #f8fafc; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);">
                                             Mijozlar
                                         </button>
-                                        <button type="button" id="btnDistTypeCalls" onclick="setDistributionType('calls')" title="Qo'ng'iroqlar soni bo'yicha taqsimot" data-i18n="chart_dist_by_calls" style="padding: 4px 9px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                        <button type="button" id="btnDistTypeCalls" onclick="setDistributionType('calls')" title="Qo'ng'iroqlar soni bo'yicha taqsimot" data-i18n="chart_dist_by_calls" style="padding: 4px 10px; font-size: 11px; font-weight: 500; border-radius: 6px; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--text-muted); box-shadow: none;">
                                             Qo'ng'iroqlar
                                         </button>
                                     </div>
                                     <!-- 2D / 3D rejim -->
-                                    <div class="chart-mode-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 8px; padding: 2px; gap: 2px;">
-                                        <button type="button" id="btnChartMode2D" onclick="setChartMode('2d')" title="2D Tekis Donut diagramma" style="padding: 4px 8px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);">
+                                    <div class="chart-mode-switch" style="display: inline-flex; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 2px; gap: 2px;">
+                                        <button type="button" id="btnChartMode2D" onclick="setChartMode('2d')" title="2D Tekis Donut diagramma" style="padding: 4px 9px; font-size: 11px; font-weight: 500; border-radius: 6px; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--text-muted); box-shadow: none;">
                                             2D
                                         </button>
-                                        <button type="button" id="btnChartMode3D" onclick="setChartMode('3d')" title="3D Hajmdor diagramma" style="padding: 4px 8px; font-size: 11px; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);">
+                                        <button type="button" id="btnChartMode3D" onclick="setChartMode('3d')" title="3D Hajmdor diagramma" style="padding: 4px 9px; font-size: 11px; font-weight: 600; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.14); cursor: pointer; transition: all 0.15s; background: rgba(255, 255, 255, 0.12); color: #f8fafc; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);">
                                             3D
                                         </button>
                                     </div>
@@ -3875,6 +3875,6 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793353770018" defer></script>
+    <script src="/js/dashboard.js?v=1793604138897" defer></script>
 </body>
 </html>

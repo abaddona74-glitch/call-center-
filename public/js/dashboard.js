@@ -958,10 +958,14 @@ function initCharts() {
             credits: { enabled: false },
             tooltip: {
                 backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                borderColor: 'rgba(59, 130, 246, 0.4)',
+                borderColor: 'rgba(255, 255, 255, 0.12)',
                 borderRadius: 8,
-                style: { color: '#ffffff', fontSize: '13px' },
-                pointFormat: '<b>{point.y} ta</b> ({point.percentage:.1f}%)'
+                style: { color: '#ffffff', fontSize: '12px' },
+                formatter: function() {
+                    const yVal = (Number.isFinite(this.y) && this.y >= 0) ? this.y : 0;
+                    const pct = (Number.isFinite(this.percentage) && this.percentage >= 0) ? this.percentage.toFixed(1) : '0.0';
+                    return `<b>${this.point.name}</b>: <b>${yVal} ta</b> (${pct}%)`;
+                }
             },
             plotOptions: {
                 pie: {
@@ -1002,8 +1006,11 @@ function initCharts() {
                     dataLabels: {
                         enabled: true,
                         distance: 12,
-                        format: '<b style="color: #f8fafc; font-size: 11px;">{point.name}</b>: <span style="color: #38bdf8; font-weight: 600;">{point.percentage:.1f}%</span>',
-                        connectorColor: 'rgba(255, 255, 255, 0.3)',
+                        formatter: function() {
+                            const pct = (Number.isFinite(this.percentage) && this.percentage >= 0) ? this.percentage.toFixed(1) : '0.0';
+                            return `<b style="color: #f8fafc; font-size: 11px;">${this.point.name}</b>: <span style="color: #38bdf8; font-weight: 600;">${pct}%</span>`;
+                        },
+                        connectorColor: 'rgba(255, 255, 255, 0.2)',
                         connectorPadding: 4,
                         style: {
                             color: '#ffffff',
@@ -1165,8 +1172,7 @@ function setDistributionFocusHighlight(idx, active) {
     const segId = `dist2DSeg${idx + 1}`;
     const seg = document.getElementById(segId);
     if (seg) {
-        seg.style.strokeWidth = '6.8';
-        seg.style.filter = 'drop-shadow(0 0 8px currentColor)';
+        seg.style.strokeWidth = '6.0';
         seg.style.opacity = '1';
         document.querySelectorAll('#dist2DSvg circle.dist-sg').forEach(s => {
             if (s !== seg) s.style.opacity = '0.35';
@@ -1247,23 +1253,28 @@ function setChartMode(mode) {
     const btn2D = document.getElementById('btnChartMode2D');
     const btn3D = document.getElementById('btnChartMode3D');
 
+    const activeStyle = {
+        background: 'rgba(255, 255, 255, 0.12)',
+        color: '#f8fafc',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+        fontWeight: '600'
+    };
+    const inactiveStyle = {
+        background: 'transparent',
+        color: 'var(--text-muted, #94a3b8)',
+        border: '1px solid transparent',
+        boxShadow: 'none',
+        fontWeight: '500'
+    };
+
     if (btn2D && btn3D) {
         if (pieChartMode === '2d') {
-            btn2D.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-            btn2D.style.color = '#ffffff';
-            btn2D.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.35)';
-
-            btn3D.style.background = 'transparent';
-            btn3D.style.color = 'var(--text-muted)';
-            btn3D.style.boxShadow = 'none';
+            Object.assign(btn2D.style, activeStyle);
+            Object.assign(btn3D.style, inactiveStyle);
         } else {
-            btn3D.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-            btn3D.style.color = '#ffffff';
-            btn3D.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.35)';
-
-            btn2D.style.background = 'transparent';
-            btn2D.style.color = 'var(--text-muted)';
-            btn2D.style.boxShadow = 'none';
+            Object.assign(btn3D.style, activeStyle);
+            Object.assign(btn2D.style, inactiveStyle);
         }
     }
 
@@ -1318,31 +1329,30 @@ function setDistributionType(type) {
     const btnCalls = document.getElementById('btnDistTypeCalls');
     const titleEl = document.getElementById('distributionChartTitle');
 
+    const activeStyle = {
+        background: 'rgba(255, 255, 255, 0.12)',
+        color: '#f8fafc',
+        border: '1px solid rgba(255, 255, 255, 0.14)',
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
+        fontWeight: '600'
+    };
+    const inactiveStyle = {
+        background: 'transparent',
+        color: 'var(--text-muted, #94a3b8)',
+        border: '1px solid transparent',
+        boxShadow: 'none',
+        fontWeight: '500'
+    };
+
     if (currentDistributionType === 'clients') {
-        if (btnClients) {
-            btnClients.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            btnClients.style.color = '#ffffff';
-            btnClients.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)';
-        }
-        if (btnCalls) {
-            btnCalls.style.background = 'transparent';
-            btnCalls.style.color = 'var(--text-muted, #94a3b8)';
-            btnCalls.style.boxShadow = 'none';
-        }
+        if (btnClients) Object.assign(btnClients.style, activeStyle);
+        if (btnCalls) Object.assign(btnCalls.style, inactiveStyle);
         if (titleEl) {
             titleEl.textContent = (typeof t === 'function' ? t('chart_dist_title_clients', 'Mijozlar Taqsimoti') : 'Mijozlar Taqsimoti');
         }
     } else {
-        if (btnCalls) {
-            btnCalls.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-            btnCalls.style.color = '#ffffff';
-            btnCalls.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.35)';
-        }
-        if (btnClients) {
-            btnClients.style.background = 'transparent';
-            btnClients.style.color = 'var(--text-muted, #94a3b8)';
-            btnClients.style.boxShadow = 'none';
-        }
+        if (btnCalls) Object.assign(btnCalls.style, activeStyle);
+        if (btnClients) Object.assign(btnClients.style, inactiveStyle);
         if (titleEl) {
             titleEl.textContent = (typeof t === 'function' ? t('chart_dist_title_calls', "Qo'ng'iroqlar Taqsimoti") : "Qo'ng'iroqlar Taqsimoti");
         }
@@ -1366,20 +1376,53 @@ let _last2DDistValues = {
     p5: 0
 };
 // Animatsiya davomida joriy interpolyatsiya qiymatlarini saqlash
-// (yangi animatsiya boshlanganida to'g'ri boshlang'ich nuqta uchun)
 let _currentDist2DInterp = null;
 let _activeDist2DAnim = null;
+let _distChartUpdateTimer = null;
 
-function animate2DDistributionNumbers(targetValues, duration = 550) {
-    // Qiymatlar o'zgarmagan bo'lsa animatsiya kerak emas
+function animate2DDistributionNumbers(targetValues, duration = 450) {
+    const safeNum = (n, min = 0, fallback = 0) => {
+        const v = Number(n);
+        return Number.isFinite(v) ? Math.max(min, v) : fallback;
+    };
+
+    const sanitizedTarget = {
+        total: safeNum(targetValues.total),
+        vSuccess: safeNum(targetValues.vSuccess),
+        vWait: safeNum(targetValues.vWait),
+        vUnreachable: safeNum(targetValues.vUnreachable),
+        vOutbound: safeNum(targetValues.vOutbound),
+        vResolved: safeNum(targetValues.vResolved),
+        p1: Math.min(100, safeNum(targetValues.p1)),
+        p2: Math.min(100, safeNum(targetValues.p2)),
+        p3: Math.min(100, safeNum(targetValues.p3)),
+        p4: Math.min(100, safeNum(targetValues.p4)),
+        p5: Math.min(100, safeNum(targetValues.p5))
+    };
+
+    // Sanitize _last2DDistValues
+    _last2DDistValues = {
+        total: safeNum(_last2DDistValues.total),
+        vSuccess: safeNum(_last2DDistValues.vSuccess),
+        vWait: safeNum(_last2DDistValues.vWait),
+        vUnreachable: safeNum(_last2DDistValues.vUnreachable),
+        vOutbound: safeNum(_last2DDistValues.vOutbound),
+        vResolved: safeNum(_last2DDistValues.vResolved),
+        p1: Math.min(100, safeNum(_last2DDistValues.p1)),
+        p2: Math.min(100, safeNum(_last2DDistValues.p2)),
+        p3: Math.min(100, safeNum(_last2DDistValues.p3)),
+        p4: Math.min(100, safeNum(_last2DDistValues.p4)),
+        p5: Math.min(100, safeNum(_last2DDistValues.p5))
+    };
+
     const prev = _currentDist2DInterp || _last2DDistValues;
     if (
-        prev.total === targetValues.total &&
-        prev.vSuccess === targetValues.vSuccess &&
-        prev.vWait === targetValues.vWait &&
-        prev.vUnreachable === targetValues.vUnreachable &&
-        prev.vOutbound === targetValues.vOutbound &&
-        prev.vResolved === targetValues.vResolved
+        prev.total === sanitizedTarget.total &&
+        prev.vSuccess === sanitizedTarget.vSuccess &&
+        prev.vWait === sanitizedTarget.vWait &&
+        prev.vUnreachable === sanitizedTarget.vUnreachable &&
+        prev.vOutbound === sanitizedTarget.vOutbound &&
+        prev.vResolved === sanitizedTarget.vResolved
     ) {
         return;
     }
@@ -1387,10 +1430,20 @@ function animate2DDistributionNumbers(targetValues, duration = 550) {
     if (_activeDist2DAnim) {
         cancelAnimationFrame(_activeDist2DAnim);
         _activeDist2DAnim = null;
-        // Joriy interpolyatsiya qiymatini boshlang'ich sifatida ishlatish
-        // (Eski _last2DDistValues emas — bu animatsiya "sakrab" ko'rinmasligi uchun)
         if (_currentDist2DInterp) {
-            _last2DDistValues = { ..._currentDist2DInterp };
+            _last2DDistValues = {
+                total: safeNum(_currentDist2DInterp.total),
+                vSuccess: safeNum(_currentDist2DInterp.vSuccess),
+                vWait: safeNum(_currentDist2DInterp.vWait),
+                vUnreachable: safeNum(_currentDist2DInterp.vUnreachable),
+                vOutbound: safeNum(_currentDist2DInterp.vOutbound),
+                vResolved: safeNum(_currentDist2DInterp.vResolved),
+                p1: Math.min(100, safeNum(_currentDist2DInterp.p1)),
+                p2: Math.min(100, safeNum(_currentDist2DInterp.p2)),
+                p3: Math.min(100, safeNum(_currentDist2DInterp.p3)),
+                p4: Math.min(100, safeNum(_currentDist2DInterp.p4)),
+                p5: Math.min(100, safeNum(_currentDist2DInterp.p5))
+            };
         }
     }
 
@@ -1411,23 +1464,24 @@ function animate2DDistributionNumbers(targetValues, duration = 550) {
     const pct5El = document.getElementById('dist2DPct5');
 
     function step(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(1, elapsed / duration);
+        // elapsed har doim >= 0 bo'lishi shart (clock skew yoki microtask jitter xatoliklarini oldini oladi)
+        const elapsed = Math.max(0, now - startTime);
+        const progress = Math.max(0, Math.min(1, elapsed / Math.max(1, duration)));
         // Easing: cubic-bezier(0.16, 1, 0.3, 1) -> 1 - (1 - t)^3
-        const ease = 1 - Math.pow(1 - progress, 3);
+        const ease = Math.max(0, Math.min(1, 1 - Math.pow(1 - progress, 3)));
 
-        const currentTotal = Math.round(startValues.total + (targetValues.total - startValues.total) * ease);
-        const curS1 = Math.round(startValues.vSuccess + (targetValues.vSuccess - startValues.vSuccess) * ease);
-        const curS2 = Math.round(startValues.vWait + (targetValues.vWait - startValues.vWait) * ease);
-        const curS3 = Math.round(startValues.vUnreachable + (targetValues.vUnreachable - startValues.vUnreachable) * ease);
-        const curS4 = Math.round(startValues.vOutbound + (targetValues.vOutbound - startValues.vOutbound) * ease);
-        const curS5 = Math.round(startValues.vResolved + (targetValues.vResolved - startValues.vResolved) * ease);
+        const currentTotal = Math.max(0, Math.round(startValues.total + (sanitizedTarget.total - startValues.total) * ease));
+        const curS1 = Math.max(0, Math.round(startValues.vSuccess + (sanitizedTarget.vSuccess - startValues.vSuccess) * ease));
+        const curS2 = Math.max(0, Math.round(startValues.vWait + (sanitizedTarget.vWait - startValues.vWait) * ease));
+        const curS3 = Math.max(0, Math.round(startValues.vUnreachable + (sanitizedTarget.vUnreachable - startValues.vUnreachable) * ease));
+        const curS4 = Math.max(0, Math.round(startValues.vOutbound + (sanitizedTarget.vOutbound - startValues.vOutbound) * ease));
+        const curS5 = Math.max(0, Math.round(startValues.vResolved + (sanitizedTarget.vResolved - startValues.vResolved) * ease));
 
-        const curP1 = (startValues.p1 + (targetValues.p1 - startValues.p1) * ease).toFixed(1);
-        const curP2 = (startValues.p2 + (targetValues.p2 - startValues.p2) * ease).toFixed(1);
-        const curP3 = (startValues.p3 + (targetValues.p3 - startValues.p3) * ease).toFixed(1);
-        const curP4 = (startValues.p4 + (targetValues.p4 - startValues.p4) * ease).toFixed(1);
-        const curP5 = (startValues.p5 + (targetValues.p5 - startValues.p5) * ease).toFixed(1);
+        const curP1 = Math.max(0, Math.min(100, startValues.p1 + (sanitizedTarget.p1 - startValues.p1) * ease)).toFixed(1);
+        const curP2 = Math.max(0, Math.min(100, startValues.p2 + (sanitizedTarget.p2 - startValues.p2) * ease)).toFixed(1);
+        const curP3 = Math.max(0, Math.min(100, startValues.p3 + (sanitizedTarget.p3 - startValues.p3) * ease)).toFixed(1);
+        const curP4 = Math.max(0, Math.min(100, startValues.p4 + (sanitizedTarget.p4 - startValues.p4) * ease)).toFixed(1);
+        const curP5 = Math.max(0, Math.min(100, startValues.p5 + (sanitizedTarget.p5 - startValues.p5) * ease)).toFixed(1);
 
         if (elTotal) elTotal.textContent = currentTotal.toLocaleString();
         if (val1El) val1El.textContent = curS1.toLocaleString();
@@ -1442,19 +1496,17 @@ function animate2DDistributionNumbers(targetValues, duration = 550) {
         if (pct4El) pct4El.textContent = curP4 + '%';
         if (pct5El) pct5El.textContent = curP5 + '%';
 
-        // Joriy interpolyatsiya qiymatlarini saqlash
         _currentDist2DInterp = {
             total: currentTotal,
             vSuccess: curS1, vWait: curS2, vUnreachable: curS3, vOutbound: curS4, vResolved: curS5,
-            p1: parseFloat(curP1), p2: parseFloat(curP2), p3: parseFloat(curP3),
-            p4: parseFloat(curP4), p5: parseFloat(curP5)
+            p1: parseFloat(curP1) || 0, p2: parseFloat(curP2) || 0, p3: parseFloat(curP3) || 0,
+            p4: parseFloat(curP4) || 0, p5: parseFloat(curP5) || 0
         };
 
         if (progress < 1) {
             _activeDist2DAnim = requestAnimationFrame(step);
         } else {
-            // Animatsiya tugagach, aniq target qiymatlarni saqlash
-            _last2DDistValues = { ...targetValues };
+            _last2DDistValues = { ...sanitizedTarget };
             _currentDist2DInterp = null;
             _activeDist2DAnim = null;
         }
@@ -1469,11 +1521,11 @@ function animate2DDistributionNumbers(targetValues, duration = 550) {
  * @param {string} sublabel - 'jami mijoz' yoki 'jami qo‘ng‘iroq'
  */
 function render2DDistribution(vals, sublabel) {
-    const vSuccess = Math.max(0, Number(vals[0]) || 0);
-    const vWait = Math.max(0, Number(vals[1]) || 0);
-    const vUnreachable = Math.max(0, Number(vals[2]) || 0);
-    const vOutbound = Math.max(0, Number(vals[3]) || 0);
-    const vResolved = Math.max(0, Number(vals[4]) || 0);
+    const vSuccess = Math.max(0, Math.round(Number(vals[0])) || 0);
+    const vWait = Math.max(0, Math.round(Number(vals[1])) || 0);
+    const vUnreachable = Math.max(0, Math.round(Number(vals[2])) || 0);
+    const vOutbound = Math.max(0, Math.round(Number(vals[3])) || 0);
+    const vResolved = Math.max(0, Math.round(Number(vals[4])) || 0);
     const total = vSuccess + vWait + vUnreachable + vOutbound + vResolved;
 
     const elLabel = document.getElementById('dist2DLabel');
@@ -1485,11 +1537,11 @@ function render2DDistribution(vals, sublabel) {
 
     if (elLabel) elLabel.textContent = sublabel || 'jami mijoz';
 
-    const p1 = total > 0 ? (vSuccess / total) * 100 : 0;
-    const p2 = total > 0 ? (vWait / total) * 100 : 0;
-    const p3 = total > 0 ? (vUnreachable / total) * 100 : 0;
-    const p4 = total > 0 ? (vOutbound / total) * 100 : 0;
-    const p5 = total > 0 ? (vResolved / total) * 100 : 0;
+    const p1 = total > 0 ? Math.max(0, Math.min(100, (vSuccess / total) * 100)) : 0;
+    const p2 = total > 0 ? Math.max(0, Math.min(100, (vWait / total) * 100)) : 0;
+    const p3 = total > 0 ? Math.max(0, Math.min(100, (vUnreachable / total) * 100)) : 0;
+    const p4 = total > 0 ? Math.max(0, Math.min(100, (vOutbound / total) * 100)) : 0;
+    const p5 = total > 0 ? Math.max(0, Math.min(100, (vResolved / total) * 100)) : 0;
 
     // Raqamlarni silliq hisoblab o'sish (Count-Up Animation)
     animate2DDistributionNumbers({
@@ -1504,7 +1556,7 @@ function render2DDistribution(vals, sublabel) {
         p3,
         p4,
         p5
-    }, 550);
+    }, 450);
 
     if (total === 0) {
         if (seg1) { seg1.setAttribute('stroke-dasharray', '0 100'); seg1.setAttribute('stroke-dashoffset', '25'); }
@@ -1559,69 +1611,83 @@ function render2DDistribution(vals, sublabel) {
 function updateDistributionChartDisplay() {
     const stats = window._latestStats || {};
 
-    const answeredCalls = Number(stats.answeredCalls) || 0;
-    const outboundCalls = Number(stats.outboundCalls) || 0;
-    const abandonedCalls = Number(stats.abandonedCalls) || 0;
-    const totalCalls = stats.totalCalls !== undefined ? Number(stats.totalCalls) : (answeredCalls + outboundCalls + abandonedCalls);
+    const answeredCalls = Math.max(0, Number(stats.answeredCalls) || 0);
+    const outboundCalls = Math.max(0, Number(stats.outboundCalls) || 0);
+    const abandonedCalls = Math.max(0, Number(stats.abandonedCalls) || 0);
+    const totalCalls = stats.totalCalls !== undefined ? Math.max(0, Number(stats.totalCalls)) : (answeredCalls + outboundCalls + abandonedCalls);
 
-    // Sidebar'dagi "Qayta bog'lanish kerak" widgeti bilan 100% bir xil real qiymatlar
-    const todayStr = getTodayDateString();
+    // Callbacks hisoblash: Taqsimot uchun HAR DOIM joriy tanlangan kun (yoki bugun) bo'yicha hisoblaymiz.
+    // Tarixiy (all) callbacklar faqat sidebar ro'yxatida ko'rinadi, bugungi taqsimot kartasini buzmasligi shart!
+    const targetDateStr = (typeof currentSelectedDate !== 'undefined' && currentSelectedDate) ? currentSelectedDate : getTodayDateString();
     let cbPending = 0;
     let cbUnreachable = 0;
     let cbResolved = 0;
 
     if (Array.isArray(currentCallbacksList) && currentCallbacksList.length > 0) {
-        const isTodayCallback = (c) => {
+        const isTargetDateCallback = (c) => {
             if (!c) return false;
-            if (c.call_time && c.call_time.startsWith(todayStr)) return true;
-            if (!adminCbResolvedTodayOnly && c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(todayStr)) return true;
+            const cTime = c.call_time || c.created_at || '';
+            if (cTime.startsWith(targetDateStr)) return true;
+            if (c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(targetDateStr)) return true;
             return false;
         };
-        const dateFiltered = (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'all')
-            ? currentCallbacksList
-            : currentCallbacksList.filter(isTodayCallback);
+        const dateFiltered = currentCallbacksList.filter(isTargetDateCallback);
 
         cbPending = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0)).length;
         cbUnreachable = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0).length;
-
-        // renderCallbacks() dagi resolvedList bilan AYNAN bir xil mantiq
-        // (adminCbResolvedTodayOnly toggle'ni hurmat qilish)
-        cbResolved = currentCallbacksList.filter(c => {
-            if (c.status !== 'resolved') return false;
-            const timeStr = c.call_time || c.created_at || '';
-            if (typeof adminCbResolvedTodayOnly !== 'undefined' && adminCbResolvedTodayOnly) {
-                // Toggle ON: faqat dastlabki qo'ng'irog'i BUGUN bo'lganlar
-                return timeStr.startsWith(todayStr);
-            }
-            if (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'today') {
-                const dismStr = c.dismissed_at || '';
-                return timeStr.startsWith(todayStr) || dismStr.startsWith(todayStr);
-            }
-            return true;
-        }).length;
+        cbResolved = dateFiltered.filter(c => c.status === 'resolved').length;
     } else {
-        cbPending = Number(stats.callbacksPendingCount) || 0;
-        cbUnreachable = Number(stats.callbacksUnreachableCount) || 0;
-        cbResolved = Number(stats.callbacksResolvedCount) || 0;
+        cbPending = Math.max(0, Number(stats.callbacksPendingCount) || 0);
+        cbUnreachable = Math.max(0, Number(stats.callbacksUnreachableCount) || 0);
+        cbResolved = Math.max(0, Number(stats.callbacksResolvedCount) || 0);
     }
 
     // Unikal Mijozlar
-    const totalClients = stats.totalClients !== undefined ? Number(stats.totalClients) : (((Number(stats.inboundClients || stats.uniqueClients || 0)) + (Number(stats.outboundClients || 0))) || Number(stats.uniqueClients || 0));
-    const inboundClients = stats.inboundClients !== undefined ? Number(stats.inboundClients) : (stats.uniqueClients !== undefined ? Number(stats.uniqueClients) : totalClients);
-    const outboundClients = stats.outboundClients !== undefined ? Number(stats.outboundClients) : Math.min(outboundCalls, totalClients);
-    const answeredClients = stats.answeredClients !== undefined ? Number(stats.answeredClients) : Math.min(answeredCalls, inboundClients);
+    const totalClients = Math.max(0, stats.totalClients !== undefined ? Number(stats.totalClients) : (((Number(stats.inboundClients || stats.uniqueClients || 0)) + (Number(stats.outboundClients || 0))) || Number(stats.uniqueClients || 0)));
+    const inboundClients = Math.max(0, stats.inboundClients !== undefined ? Number(stats.inboundClients) : (stats.uniqueClients !== undefined ? Number(stats.uniqueClients) : totalClients));
+    const outboundClients = Math.max(0, stats.outboundClients !== undefined ? Number(stats.outboundClients) : Math.min(outboundCalls, totalClients));
+    const answeredClients = Math.max(0, stats.answeredClients !== undefined ? Number(stats.answeredClients) : Math.min(answeredCalls, inboundClients));
 
     let vals = [];
     let sublabel = '';
     if (currentDistributionType === 'clients') {
-        // MIJOZLAR TAQSIMOTI: Yig'indi 100% totalClients (masalan 79) ga teng bo'ladi
-        // pureAnswered: faqat to'g'ridan-to'g'ri operatorga ulangan (qayta bog'lanish kerak bo'lmagan) mijozlar
-        const pureAnswered = Math.max(0, totalClients - cbPending - cbUnreachable - outboundClients - cbResolved);
-        vals = [pureAnswered, cbPending, cbUnreachable, outboundClients, cbResolved];
+        // MIJOZLAR TAQSIMOTI:
+        // Kategoriyalar:
+        // 1. Muvaffaqiyatli ulangan (inbound to'g'ridan-to'g'ri bog'langan)
+        // 2. Kutilmoqda (qayta bog'lanish kerak bo'lgan pending mijozlar)
+        // 3. Ulanilmadi (qayta bog'lanishda ulanilmagan mijozlar)
+        // 4. Chiquvchi (faqat chiquvchi orqali gaplashilgan mijozlar)
+        // 5. Gaplashildi (qayta bog'lanib hal etilgan mijozlar)
+        
+        let safeCbPending = cbPending;
+        let safeCbUnreachable = cbUnreachable;
+        let safeOutbound = outboundClients;
+        let safeCbResolved = cbResolved;
+
+        let nonPureSum = safeCbPending + safeCbUnreachable + safeOutbound + safeCbResolved;
+        let pureAnswered = Math.max(0, totalClients - nonPureSum);
+
+        // Agar totalClients > 0 bo'lsa va nonPureSum totalClients dan oshib ketsa,
+        // har bir bo'lakni mutanosib (proportional) qilib totalClients ga moslashtiramiz
+        if (totalClients > 0 && nonPureSum > totalClients) {
+            pureAnswered = 0;
+            const ratio = totalClients / nonPureSum;
+            safeCbPending = Math.round(safeCbPending * ratio);
+            safeCbUnreachable = Math.round(safeCbUnreachable * ratio);
+            safeOutbound = Math.round(safeOutbound * ratio);
+            safeCbResolved = Math.max(0, totalClients - safeCbPending - safeCbUnreachable - safeOutbound);
+        } else if (totalClients === 0) {
+            pureAnswered = 0;
+            safeCbPending = 0;
+            safeCbUnreachable = 0;
+            safeOutbound = 0;
+            safeCbResolved = 0;
+        }
+
+        vals = [pureAnswered, safeCbPending, safeCbUnreachable, safeOutbound, safeCbResolved];
         sublabel = 'jami mijoz';
     } else {
-        // QO'NG'IROQLAR TAQSIMOTI: Yig'indi 100% totalCalls (masalan 103) ga teng bo'ladi
-        // Navbatdan chiqqan barcha qo'ng'iroqlar (abandonedCalls) sidebar proportsiyasi bo'yicha taqsimlanadi
+        // QO'NG'IROQLAR TAQSIMOTI:
         const totalCb = cbPending + cbUnreachable + cbResolved;
         let callPending = 0;
         let callUnreachable = 0;
@@ -1653,7 +1719,7 @@ function updateDistributionChartDisplay() {
         if (total === 0) {
             callDistributionChart.series[0].setData([
                 { name: t('chart_slice_abandoned_pending', 'Kutilmoqda'), y: 1, color: '#334155', sliced: false, selected: false }
-            ]);
+            ], true, { duration: 300 });
         } else {
             callDistributionChart.series[0].setData([
                 { name: t('chart_slice_success', 'Muvaffaqiyatli'), y: vals[0], color: '#10b981', sliced: false, selected: false },
@@ -1661,7 +1727,7 @@ function updateDistributionChartDisplay() {
                 { name: t('chart_slice_abandoned_unreachable', 'Ulanilmadi'), y: vals[2], color: '#f43f5e', sliced: false, selected: false },
                 { name: t('chart_slice_outbound', 'Chiquvchi'), y: vals[3], color: '#a855f7', sliced: false, selected: false },
                 { name: t('chart_slice_abandoned_resolved', 'Gaplashildi'), y: vals[4], color: '#38bdf8', sliced: false, selected: false }
-            ], true, { duration: 500 });
+            ], true, { duration: 300 });
         }
     }
 }
