@@ -504,6 +504,12 @@
                     <div class="tk-mini-snippet">
                         ${escapeHtml(t.comment || t.title)}
                     </div>
+                    ${t.status === 'rejected' && t.rejectedBy && t.rejectedBy.reason ? `
+                        <div class="tk-card-rejected-reason" title="Rad etish sababi: ${escapeHtml(t.rejectedBy.reason)}">
+                            ${ICONS.reject}
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Sabab: ${escapeHtml(t.rejectedBy.reason)}</span>
+                        </div>
+                    ` : ''}
                     <div class="tk-mini-footer">
                         <span>${formatTimeAgo(t.createdAt)}</span>
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -581,6 +587,33 @@
             elStatus.className = `tk-status-badge ${st.cls}`;
         }
 
+        // Rejection Notice Banner
+        const elRejectNotice = document.getElementById('boxRejectNotice');
+        if (elRejectNotice) {
+            if (t.status === 'rejected') {
+                elRejectNotice.style.display = 'flex';
+                elRejectNotice.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <span style="color: #f87171; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                            ${ICONS.reject} Ticket rad etilgan
+                        </span>
+                        <span style="color: #94a3b8; font-size: 11px;">${formatTimeAgo(t.rejectedBy?.at || t.updatedAt)}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                        <span style="color: #94a3b8;">Rad etgan:</span>
+                        <strong style="color: #fca5a5;">${escapeHtml(t.rejectedBy?.name || 'Operator')} (${escapeHtml(t.rejectedBy?.id || '')})</strong>
+                    </div>
+                    <div style="font-size: 12.5px; color: #ffffff; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 7px; padding: 8px 12px; margin-top: 5px; display: flex; flex-direction: column; gap: 3px;">
+                        <span style="color: #fb7185; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">Rad etish sababi:</span>
+                        <span style="color: #fee2e2; font-weight: 500; line-height: 1.45; word-break: break-word;">${escapeHtml(t.rejectedBy?.reason || "Sabab ko'rsatilmagan")}</span>
+                    </div>
+                `;
+            } else {
+                elRejectNotice.style.display = 'none';
+                elRejectNotice.innerHTML = '';
+            }
+        }
+
         // Meta
         const elCreator = document.getElementById('boxCreator');
         const elTime = document.getElementById('boxCreatedAt');
@@ -592,12 +625,16 @@
         if (elAssigned) {
             if (t.status === 'completed') {
                 elAssigned.textContent = t.completedBy ? `${t.completedBy.name} (Bajarildi)` : 'Bajarilgan';
+                elAssigned.style.color = '#34d399';
             } else if (t.status === 'rejected') {
                 elAssigned.textContent = t.rejectedBy ? `${t.rejectedBy.name} (Rad etildi)` : 'Rad etilgan';
+                elAssigned.style.color = '#ef4444';
             } else if (t.acceptedBy) {
                 elAssigned.textContent = `${t.acceptedBy.name} (${formatTimeAgo(t.acceptedBy.at)})`;
+                elAssigned.style.color = '#c084fc';
             } else {
                 elAssigned.textContent = 'Hali qabul qilinmagan';
+                elAssigned.style.color = '#94a3b8';
             }
         }
         if (elCustomer) {
@@ -778,13 +815,17 @@
         const repliesList = document.getElementById('boxRepliesList');
         if (repliesList) {
             if (t.comments && t.comments.length > 0) {
-                repliesList.innerHTML = t.comments.map(c => `
-                    <div class="tk-reply-card">
+                repliesList.innerHTML = t.comments.map(c => {
+                    const isSystem = c.isSystem || (c.text && c.text.startsWith('🚫'));
+                    return `
+                    <div class="tk-reply-card ${isSystem ? 'system-reply' : ''}">
                         <div class="tk-reply-header">
-                            <span class="tk-reply-author">${escapeHtml(c.operatorName)}</span>
+                            <span class="tk-reply-author" style="${isSystem ? 'color: #f87171; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;' : ''}">
+                                ${isSystem ? ICONS.reject : ''}${escapeHtml(c.operatorName)}
+                            </span>
                             <span class="tk-reply-time">${formatTimeAgo(c.createdAt)}</span>
                         </div>
-                        <div class="tk-reply-text">${escapeHtml(c.text)}</div>
+                        <div class="tk-reply-text" style="${isSystem ? 'color: #fecdd3; font-weight: 500;' : ''}">${escapeHtml(c.text)}</div>
                         ${c.files && c.files.length > 0 ? `
                             <div style="margin-top: 8px;">
                                 ${c.files.some(cf => getFileType(cf) === 'image') ? `
@@ -836,7 +877,8 @@
                             </div>
                         ` : ''}
                     </div>
-                `).join('');
+                `;
+            }).join('');
             } else {
                 repliesList.innerHTML = `<div style="color:#64748b;font-size:12px;font-style:italic;">Hozircha qo'shimcha izohlar yo'q</div>`;
             }
@@ -1129,21 +1171,97 @@
         }
     }
 
-    async function rejectCurrentTicket() {
-        if (!state.activeTicket) return;
-        if (!confirm(`${state.activeTicket.id} raqamli ticketni rad etishni tasdiqlaysizmi?`)) return;
+    function openRejectModal(ticketId) {
+        const t = ticketId ? (state.tickets.find(item => item.id === ticketId) || state.activeTicket) : state.activeTicket;
+        if (!t) return;
+        state.rejectingTicket = t;
+
+        const modal = document.getElementById('rejectTicketModal');
+        const badge = document.getElementById('rejectTicketIdBadge');
+        const inputId = document.getElementById('rejectTicketId');
+        const reasonInput = document.getElementById('rejectTicketReason');
+
+        if (badge) badge.textContent = `${t.id}`;
+        if (inputId) inputId.value = t.id;
+        if (reasonInput) {
+            reasonInput.value = '';
+            setTimeout(() => reasonInput.focus(), 80);
+        }
+
+        // Preset chip tanlovlarini tozalash
+        document.querySelectorAll('.tk-preset-chip').forEach(el => el.classList.remove('active'));
+
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+    }
+
+    function closeRejectModal() {
+        const modal = document.getElementById('rejectTicketModal');
+        if (modal) {
+            smoothCloseTicketModal(modal, () => {
+                modal.style.display = 'none';
+            });
+        }
+        state.rejectingTicket = null;
+    }
+
+    function setRejectReason(reasonText, btnEl) {
+        const reasonInput = document.getElementById('rejectTicketReason');
+        if (reasonInput) {
+            reasonInput.value = reasonText;
+            reasonInput.focus();
+        }
+        document.querySelectorAll('.tk-preset-chip').forEach(el => el.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+    }
+
+    async function handleRejectSubmit(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        const t = state.rejectingTicket || state.activeTicket;
+        if (!t) return;
+
+        const reasonInput = document.getElementById('rejectTicketReason');
+        const reason = (reasonInput ? reasonInput.value : '').trim();
+
+        if (!reason) {
+            alert("Iltimos, rad etish sababini ko'rsating!");
+            if (reasonInput) reasonInput.focus();
+            return;
+        }
+
         const opName = state.myOperatorName || (state.myOperatorId ? `Operator ${state.myOperatorId}` : 'Operator');
+        const btn = document.getElementById('btnConfirmRejectTicket');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Rad etilmoqda...';
+        }
 
         try {
-            const updated = await rejectTicketApi(state.activeTicket.id, {
+            const updated = await rejectTicketApi(t.id, {
                 operatorId: state.myOperatorId || '101',
-                operatorName: opName
+                operatorName: opName,
+                reason: reason
             });
+
+            closeRejectModal();
             state.activeTicket = updated;
             renderBoxDetails(updated);
-        } catch (e) {
-            alert('Xatolik: ' + e.message);
+            renderTicketsList();
+        } catch (err) {
+            alert("Xatolik: " + err.message);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Rad etishni tasdiqlash';
+            }
         }
+    }
+
+    function rejectCurrentTicket() {
+        if (!state.activeTicket) return;
+        openRejectModal(state.activeTicket.id);
     }
 
     async function deleteCurrentTicket() {
@@ -2242,6 +2360,10 @@ window.TicketsApp = {
     acceptCurrentTicket,
     completeCurrentTicket,
     rejectCurrentTicket,
+    openRejectModal,
+    closeRejectModal,
+    setRejectReason,
+    handleRejectSubmit,
     deleteCurrentTicket,
     submitReply,
     handleCreateSubmit,

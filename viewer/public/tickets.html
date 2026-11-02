@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css?v=25.0">
-    <link rel="stylesheet" href="/css/tickets.css?v=2.3">
+    <link rel="stylesheet" href="/css/tickets.css?v=2.4">
     <style>
         body {
             background-color: #0b1120 !important;
@@ -466,6 +466,75 @@
     </div>
 
     <!-- ==================================================================== -->
+    <!-- MODAL 1C: TICKETNI RAD ETISH SABABI MODALI                           -->
+    <!-- ==================================================================== -->
+    <div class="tk-modal-overlay" id="rejectTicketModal" style="display: none;" onclick="if(event.target===this) window.TicketsApp && window.TicketsApp.closeRejectModal()">
+        <div class="tk-box-modal" style="width: 520px; max-width: 95vw;" onclick="event.stopPropagation()">
+            <div class="tk-box-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.25);">
+                <div class="tk-box-header-info">
+                    <span class="tk-box-id" id="rejectTicketIdBadge" style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);">RAD ETISH</span>
+                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">Ticketni Rad Etish</h3>
+                </div>
+                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp.closeRejectModal()" title="Yopish (Esc)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+
+            <form onsubmit="window.TicketsApp.handleRejectSubmit(event)" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+                <input type="hidden" id="rejectTicketId">
+                <div class="tk-box-body" style="padding: 18px 20px; gap: 14px;">
+                    <div style="font-size: 13px; color: #cbd5e1; line-height: 1.45;">
+                        Ushbu ticketni nima sababdan rad etayotganingizni ko'rsating. Ushbu sabab ticket kartasida va barcha operatorlarga ko'rinadi:
+                    </div>
+
+                    <!-- Tezkor sabablar (Linear Iconsax ikonkalar bilan) -->
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Tezkor sababni tanlang:</div>
+                        <div class="tk-reject-presets">
+                            <button type="button" class="tk-preset-chip" onclick="window.TicketsApp.setRejectReason('Mijoz bilan bog\'lanib bo\'lmadi', this)">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
+                                <span>Bog'lanib bo'lmadi</span>
+                            </button>
+                            <button type="button" class="tk-preset-chip" onclick="window.TicketsApp.setRejectReason('Dublikat / allaqachon bajarilgan', this)">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M8 12.5H16"/><path d="M8 16.5H13"/><path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z"/><path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02"/></svg>
+                                <span>Dublikat / Bajarilgan</span>
+                            </button>
+                            <button type="button" class="tk-preset-chip" onclick="window.TicketsApp.setRejectReason('Boshqa operatorga / bo\'limga tegishli', this)">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                                <span>Boshqa operatorga tegishli</span>
+                            </button>
+                            <button type="button" class="tk-preset-chip" onclick="window.TicketsApp.setRejectReason('Ma\'lumotlar to\'liq emas / noto\'g\'ri raqam', this)">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                <span>Ma'lumot yetarli emas</span>
+                            </button>
+                            <button type="button" class="tk-preset-chip" onclick="window.TicketsApp.setRejectReason('Mijoz xizmatdan voz kechdi', this)">
+                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                                <span>Mijoz voz kechdi</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="tk-form-group">
+                        <label class="tk-form-label" for="rejectTicketReason">
+                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
+                            <span>Rad etish sababi (Batafsil izoh) *</span>
+                        </label>
+                        <textarea id="rejectTicketReason" class="tk-form-textarea" placeholder="Sababni yozing yoki yuqoridagi variantlardan birini bosing..." required style="min-height: 80px;"></textarea>
+                    </div>
+                </div>
+
+                <div class="tk-box-actions" style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding: 12px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="tk-action-btn delete" onclick="window.TicketsApp.closeRejectModal()">Bekor qilish</button>
+                    <button type="submit" id="btnConfirmRejectTicket" class="tk-action-btn reject" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-weight: 700; border: none; padding: 8px 16px;">
+                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z"/><path d="M9.17 14.83L14.83 9.17"/><path d="M14.83 14.83L9.17 9.17"/></svg>
+                        <span>Rad etishni tasdiqlash</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================================================================== -->
     <!-- MODAL 2: QUTINI OCHISH (BOX DETAIL UNPACK MODAL)                     -->
     <!-- ==================================================================== -->
     <div class="tk-modal-overlay" id="ticketBoxOverlay">
@@ -481,6 +550,9 @@
             </div>
 
             <div class="tk-box-body">
+                <!-- Rejection alert container if ticket is rejected -->
+                <div class="tk-reject-notice-box" id="boxRejectNotice" style="display: none;"></div>
+
                 <!-- Meta stats -->
                 <div class="tk-meta-grid">
                     <div class="tk-meta-item">
@@ -642,7 +714,7 @@
 
     <!-- Scripts -->
     <script src="/vendor/mammoth.browser.min.js"></script>
-    <script src="/js/tickets.js?v=2.4"></script>
+    <script src="/js/tickets.js?v=2.5"></script>
     <script>
         // Standalone WebSocket connection for tickets page
         (function initTicketsWs() {

@@ -375,14 +375,28 @@ function rejectTicket(ticketId, { operatorId, operatorName, reason } = {}) {
 
     checkOperatorPermission(t, operatorId);
 
+    const cleanReason = reason ? String(reason).trim() : null;
     t.status = 'rejected';
     t.rejectedBy = {
         id: String(operatorId || (t.acceptedBy ? t.acceptedBy.id : '101')).trim(),
         name: String(operatorName || (t.acceptedBy ? t.acceptedBy.name : 'Operator')).trim(),
-        reason: reason ? String(reason).trim() : null,
+        reason: cleanReason,
         at: Date.now()
     };
     t.updatedAt = Date.now();
+
+    // Rad etish sababini ichki izohlar (chat tarixi)ga ham avtomatik qayd qilish
+    if (!Array.isArray(t.comments)) t.comments = [];
+    t.comments.push({
+        id: `cm_${Date.now()}_sys`,
+        operatorId: t.rejectedBy.id,
+        operatorName: t.rejectedBy.name,
+        text: cleanReason ? `🚫 Ticket rad etildi. Sabab: ${cleanReason}` : `🚫 Ticket rad etildi.`,
+        isSystem: true,
+        files: [],
+        createdAt: Date.now()
+    });
+
     saveTickets();
     return t;
 }

@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793607697.1714547,
-    "seen": 1793607782.9993906,
-    "ast_hash": "c7864f74718cfef0f1678ed8e8a643d1",
+    "mtime": 1793609215.679689,
+    "seen": 1793609372.3943245,
+    "ast_hash": "284a1b39ba31007e45d8b9c4c3e8c0f8",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -120,9 +120,9 @@
     "semantic_hash": "9203be11d73055a591f51920dc6ca28e"
   },
   "scripts/deploy.js": {
-    "mtime": 1793607664.1403627,
-    "seen": 1793607782.9993906,
-    "ast_hash": "15ed359b2bff7438a84800d1096ebeee",
+    "mtime": 1793609176.523933,
+    "seen": 1793609372.3943245,
+    "ast_hash": "9c1500029b5f1801455429ff3e2ced9a",
     "semantic_hash": ""
   },
   "scripts/extract_snippets.py": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "viewer/public/js/tickets.js": {
-    "mtime": 1793105023.4206111,
-    "seen": 1793105295.265897,
-    "ast_hash": "2b2ff334f6f11f15e05444f9dfe6d58c",
+    "mtime": 1793609112.7377186,
+    "seen": 1793609372.3943245,
+    "ast_hash": "d1b69903ccc14ed941f850cc50a32c59",
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793607697.1799386,
-    "seen": 1793607782.9993906,
-    "ast_hash": "473d3c22a61e4bc9a13cd70f388c51ef",
+    "mtime": 1793609215.690669,
+    "seen": 1793609372.3943245,
+    "ast_hash": "19cbf838d0d75a3af03f55c2c3fd7aff",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -456,10 +456,10 @@
     "semantic_hash": "7e0e7b55034c1c40b2ad385e09bcd004"
   },
   "viewer/services/ticketService.js": {
-    "mtime": 1792416193.7140386,
-    "seen": 1792750533.123971,
-    "ast_hash": "9edac55724ff45d8a743aa998a6b83f4",
-    "semantic_hash": "9edac55724ff45d8a743aa998a6b83f4"
+    "mtime": 1793608524.8952384,
+    "seen": 1793609372.3943245,
+    "ast_hash": "36c655cbac16d1ba3394e81633422848",
+    "semantic_hash": ""
   },
   "3cx-desktop-agent/README.md": {
     "mtime": 1788356169.7700117,
@@ -480,16 +480,16 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793607697.1794395,
-    "seen": 1793607782.9998899,
-    "ast_hash": "09b5bd671e4ce3c96dc24826bf068bbf",
+    "mtime": 1793609215.6891718,
+    "seen": 1793609372.3948233,
+    "ast_hash": "7a095023175f2186cc70fe63c5616dd2",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
-    "mtime": 1792670667.2203093,
-    "seen": 1792750533.123971,
-    "ast_hash": "bf79177f1f121d3f6b103e9e02f13345",
-    "semantic_hash": "bf79177f1f121d3f6b103e9e02f13345"
+    "mtime": 1793608849.2732942,
+    "seen": 1793609372.3948233,
+    "ast_hash": "403f7af0adfab8a26167f9405d4db13c",
+    "semantic_hash": ""
   },
   "operator.wav": {
     "mtime": 1791446898.6401505,
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793607644.2718012,
-    "seen": 1793607782.9998899,
-    "ast_hash": "97d44579b1f50e35961c4f4c1b3ee503",
+    "mtime": 1793608742.562685,
+    "seen": 1793609372.3948233,
+    "ast_hash": "c5a3664c46a32f3311666259f4d31ea1",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {
