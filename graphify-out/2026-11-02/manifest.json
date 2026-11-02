@@ -72,9 +72,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "public/js/dashboard.js": {
-    "mtime": 1793353678.277912,
-    "seen": 1793353915.741441,
-    "ast_hash": "464b577e045c4bcf8f00668f64870516",
+    "mtime": 1793603970.2990887,
+    "seen": 1793604127.4728847,
+    "ast_hash": "68939b02e1572a8084856b4153deea0f",
     "semantic_hash": ""
   },
   "public/js/i18n.js": {
@@ -480,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793353770.0283387,
-    "seen": 1793353915.7419403,
-    "ast_hash": "54df67a2d8024d3cce59e2671954050b",
+    "mtime": 1793604001.1597147,
+    "seen": 1793604127.4733841,
+    "ast_hash": "11560d91962bdbb74c32e75a752c4e20",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {

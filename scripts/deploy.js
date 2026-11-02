@@ -139,7 +139,7 @@ async function deploy() {
                 `cd ${REMOTE_DIR} && npm install --omit=dev`,
                 `cd ${REMOTE_DIR} && (pm2 reload call-center --force || pm2 restart call-center --update-env || pm2 start app.js --name "call-center" --time)`,
                 `mkdir -p /opt/call-center-viewer`,
-                `cp -ru ${REMOTE_DIR}/viewer/* /opt/call-center-viewer/ 2>/dev/null || true`,
+                `cp -rf ${REMOTE_DIR}/viewer/* /opt/call-center-viewer/ 2>/dev/null || true`,
                 `(pm2 reload call-center-viewer --force || pm2 restart call-center-viewer --update-env || true)`,
                 `pm2 save`
             ].join(' && ');
@@ -172,7 +172,7 @@ async function deploy() {
     const checkConn = new Client();
     await new Promise((resolve, reject) => {
         checkConn.on('ready', () => {
-            checkConn.exec('curl -s -I http://localhost:3535 | head -n 3', (err, stream) => {
+            checkConn.exec('echo "--- Port 3535 ---" && curl -s -I http://localhost:3535 | head -n 3 && echo "--- Port 3005 ---" && curl -s -I http://localhost:3005 | head -n 3', (err, stream) => {
                 if (err) return reject(err);
                 stream.on('close', () => {
                     checkConn.end();
@@ -193,6 +193,7 @@ async function deploy() {
     console.log(`🎉 DEPLOY MUVAFFAQIYATLI YAKUNLANDI! (${elapsed} soniya)`);
     console.log(`🌐 Jonli Web Manzil: http://${SERVER_HOST}:3535`);
     console.log(`👥 Operatorlar: http://${SERVER_HOST}:3535/operators`);
+    console.log(`📊 Viewer: http://${SERVER_HOST}:3005`);
     console.log('====================================================');
 
     // 5. Telegram Bot orqali muvaffaqiyatli deploy bildirishnomasini yuborish
@@ -217,7 +218,7 @@ async function deploy() {
             `🌐 <b>Asosiy Portal:</b> http://${SERVER_HOST}:3535\n` +
             `📊 <b>Viewer Portali:</b> http://${SERVER_HOST}:3005\n\n` +
             `✅ <b>O'zgarishlar:</b>\n` +
-            `• Oflayn va suhbatdagi operatorlarni ajratib turuvchi divider liniyasi tiklandi\n` +
+            `• 3005 Viewer'da operator kartalari teleportatsiyasi va divider liniyalari sakrashi bartaraf etildi\n` +
             `• Barcha xizmatlar (Node.js, PM2, Asterisk AMI, WebSocket) to'liq barqaror holatda ishga tushirildi.`;
 
         await telegramService.broadcast(deployNotificationText);

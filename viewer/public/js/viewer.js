@@ -39,6 +39,7 @@ async function loadExcludedOperatorsCache() {
         const data = await res.json();
         if (data && data.success && Array.isArray(data.excluded)) {
             EXCLUDED_OPERATOR_IDS = new Set(data.excluded.map(String));
+            window._lastRenderedOperatorsHtml = '';
             if (window._rawLastOperators || (typeof currentViewerOperators !== 'undefined' && currentViewerOperators.length)) {
                 renderOperators(window._rawLastOperators || currentViewerOperators);
             }
@@ -59,6 +60,7 @@ try {
 function switchOperatorGroup(group) {
     if (!['main', 'secondary', 'all'].includes(group)) return;
     currentOperatorGroup = group;
+    window._lastRenderedOperatorsHtml = '';
     try {
         localStorage.setItem('callcenter_viewer_op_group', group);
     } catch (e) {}
@@ -656,8 +658,9 @@ function captureCardsBoundingRects(container) {
     const rects = new Map();
     if (!container) return rects;
     const containerRect = container.getBoundingClientRect();
-    const elements = container.querySelectorAll('[data-flip-id]');
+    const elements = container.querySelectorAll('.operator-card[data-flip-id]');
     elements.forEach(el => {
+        if (el.classList.contains('op-grid-divider')) return;
         const id = el.getAttribute('data-flip-id');
         if (!id) return;
         const r = el.getBoundingClientRect();
@@ -674,30 +677,16 @@ function playCardsFlipAnimation(container, firstRects) {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const containerRect = container.getBoundingClientRect();
-    const newElements = container.querySelectorAll('[data-flip-id]');
+    const newElements = container.querySelectorAll('.operator-card[data-flip-id]');
     const animatingList = [];
 
     newElements.forEach(el => {
+        if (el.classList.contains('op-grid-divider')) return;
         const id = el.getAttribute('data-flip-id');
         if (!id) return;
         const first = firstRects.get(id);
         if (!first) {
-            // Yangi paydo bo'lgan karta (masalan, yangi ro'yxatga kirgan operator)
-            el.style.opacity = '0';
-            el.style.transform = 'scale(0.96)';
-            el.style.transition = 'none';
-            requestAnimationFrame(() => {
-                void el.offsetWidth;
-                el.style.transition = 'opacity 220ms ease-out, transform 260ms cubic-bezier(0.2, 0.9, 0.3, 1)';
-                el.style.opacity = '';
-                el.style.transform = '';
-                const onEnd = (e) => {
-                    if (e && e.target !== el) return;
-                    el.style.transition = '';
-                    el.removeEventListener('transitionend', onEnd);
-                };
-                el.addEventListener('transitionend', onEnd);
-            });
+            // Yangi paydo bo'lgan karta darhol normal ko'rinsin (ochib-yonishsiz)
             return;
         }
 
@@ -1314,7 +1303,7 @@ function renderOperators(operators) {
     // 1-LINIYA (Divider): Kutmoqda (Tayyor)
     if (readyOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider divider-ready" data-flip-id="div-ready" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
+            <div class="op-grid-divider divider-ready" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -1331,7 +1320,7 @@ function renderOperators(operators) {
     // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar
     if (offlineOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider" data-flip-id="div-offline" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
+            <div class="op-grid-divider" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
                 <div class="op-divider-line"></div>
                 <div class="op-divider-label">
                     <span class="op-divider-dot"></span>
@@ -1344,9 +1333,16 @@ function renderOperators(operators) {
         finalHtml += offlineOps.map(renderViewerCard).join('');
     }
 
+    // Agar operatorlar tarkibi o'zgarmagan bo'lsa, DOM ni behuda qayta yuvib tashlamaslik (miltillash va teleportatsiyani oldini olish)
+    if (window._lastRenderedOperatorsHtml === finalHtml) {
+        updateAllTalkingTimers();
+        return;
+    }
+    window._lastRenderedOperatorsHtml = finalHtml;
+
     grid.innerHTML = finalHtml;
 
-    // FLIP Layout Animation: kartalar va dividerlarni teleport bo'lishdan asrash (silliq siljitish)
+    // FLIP Layout Animation: faqat o'rni o'zgargan kartalarni silliq siljitish
     playCardsFlipAnimation(grid, firstRects);
 
     // Yangi kartalardagi jonli taymerlarni darhol hisoblab ko'rsatish
@@ -4072,6 +4068,7 @@ window.addEventListener('languageChanged', () => {
         if (detailState.currentOp) renderOperatorSummaryPills();
     }
     // Re-render operators with new language
+    window._lastRenderedOperatorsHtml = '';
     if (window._rawLastOperators) {
         renderOperators(window._rawLastOperators);
     }
