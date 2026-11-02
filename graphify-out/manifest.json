@@ -348,9 +348,9 @@
     "semantic_hash": ""
   },
   "viewer/app.js": {
-    "mtime": 1793264987.05923,
-    "seen": 1793265091.8428953,
-    "ast_hash": "2a362e9f52714e0b9feb3fceb79993de",
+    "mtime": 1793609906.2568796,
+    "seen": 1793610254.7418954,
+    "ast_hash": "e0250d75f0f76c8aaca3e1f4b8eb2687",
     "semantic_hash": ""
   },
   "viewer/config.js": {
@@ -360,10 +360,10 @@
     "semantic_hash": "e56803fb05d486628040807888385dc7"
   },
   "viewer/package.json": {
-    "mtime": 1792670959.6303434,
-    "seen": 1792750533.123971,
-    "ast_hash": "3e20a495de54da69f4710ee07967fdde",
-    "semantic_hash": "3e20a495de54da69f4710ee07967fdde"
+    "mtime": 1793610150.2962627,
+    "seen": 1793610254.7418954,
+    "ast_hash": "cd74a6f0aa8d95ad98534920cd8ba13b",
+    "semantic_hash": ""
   },
   "viewer/public/js/blacklist.js": {
     "mtime": 1791274392.7452796,
@@ -384,15 +384,15 @@
     "semantic_hash": ""
   },
   "viewer/public/js/tickets.js": {
-    "mtime": 1793609112.7377186,
-    "seen": 1793609372.3943245,
-    "ast_hash": "d1b69903ccc14ed941f850cc50a32c59",
+    "mtime": 1793610052.1130917,
+    "seen": 1793610254.7418954,
+    "ast_hash": "8e3d99b77134da0a5bf52143999503fd",
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
-    "mtime": 1793607622.7493145,
-    "seen": 1793607782.9993906,
-    "ast_hash": "7d0636320ada89bec7623de2faa22d0c",
+    "mtime": 1793610085.7156298,
+    "seen": 1793610254.7418954,
+    "ast_hash": "6cb5dc124a568c3fbb0256960bd1f5bb",
     "semantic_hash": ""
   },
   "viewer/public/vendor/mammoth.browser.min.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793609215.690669,
-    "seen": 1793609372.3943245,
-    "ast_hash": "19cbf838d0d75a3af03f55c2c3fd7aff",
+    "mtime": 1793610177.5558512,
+    "seen": 1793610254.7423942,
+    "ast_hash": "0a70e3cb52075707350e00db404cdbb4",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -456,9 +456,9 @@
     "semantic_hash": "7e0e7b55034c1c40b2ad385e09bcd004"
   },
   "viewer/services/ticketService.js": {
-    "mtime": 1793608524.8952384,
-    "seen": 1793609372.3943245,
-    "ast_hash": "36c655cbac16d1ba3394e81633422848",
+    "mtime": 1793610104.11756,
+    "seen": 1793610254.7423942,
+    "ast_hash": "70ae4d0c4d7f94638b590ee5c438cff6",
     "semantic_hash": ""
   },
   "3cx-desktop-agent/README.md": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
-    "mtime": 1793608849.2732942,
-    "seen": 1793609372.3948233,
-    "ast_hash": "403f7af0adfab8a26167f9405d4db13c",
+    "mtime": 1793609982.5086179,
+    "seen": 1793610254.7423942,
+    "ast_hash": "1cbd11a761e802acf6e1ccfdd2386ad1",
     "semantic_hash": ""
   },
   "operator.wav": {
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793608742.562685,
-    "seen": 1793609372.3948233,
-    "ast_hash": "c5a3664c46a32f3311666259f4d31ea1",
+    "mtime": 1793609943.222655,
+    "seen": 1793610254.7423942,
+    "ast_hash": "84a944b659d8f9a13ce730e3416fa780",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {

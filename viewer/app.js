@@ -371,23 +371,22 @@ function updateCachedOperators(opsList) {
 
 // Operator ID bo'yicha operator ismini avtomatik aniqlash
 const OPERATOR_NAMES_MAP = {
+    // Asosiy (100+) operatorlar
     '101': 'Oybek',
-    '102': 'Dilnoza',
     '103': 'Feruza',
-    '104': 'Zuhra',
-    '105': 'Shaxnoza',
     '106': 'Gulchehra',
-    '107': 'Madina',
-    '108': 'Xurshida',
-    '109': 'Sitora',
     '111': 'Nozima',
-    '112': 'Nargiza',
-    '113': 'Malika',
     '114': 'Maxmudbek',
-    '115': 'Nilufar',
-    '117': 'Zarnigor',
     '119': 'Muattar',
-    '120': 'Navruzoy'
+    '120': 'Navruzoy',
+    // Zangiota (200+) operatorlar
+    '200': 'Operator 200 (Zangiota)',
+    '203': 'Operator 203 (Zangiota)',
+    '204': 'Operator 204 (Zangiota)',
+    '205': 'Operator 205 (Zangiota)',
+    '206': 'Operator 206 (Zangiota)',
+    '208': 'Operator 208 (Zangiota)',
+    '209': 'Operator 209 (Zangiota)'
 };
 
 function resolveOperatorName(opId) {

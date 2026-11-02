@@ -8,6 +8,7 @@
     "dev": "node app.js",
     "test": "node -c app.js config.js services/ticketService.js public/js/tickets.js public/js/viewer.js",
     "build": "node -c app.js config.js services/ticketService.js public/js/tickets.js public/js/viewer.js",
+    "predeploy": "npm test && npm run build",
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {

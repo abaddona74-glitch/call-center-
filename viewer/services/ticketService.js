@@ -239,8 +239,15 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         }
     }
 
-    const cleanCreatorId = String(creatorId || '101').trim();
-    const cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
+    // Yaratuvchi: Zangiota (200+) operatorlari
+    let cleanCreatorId = String(creatorId || '200').trim();
+    let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
+
+    const numMatch = cleanCreatorName.match(/\b(2\d{2}|1\d{2})\b/);
+    if (numMatch && (!creatorId || cleanCreatorId === '101' || cleanCreatorId === '200')) {
+        cleanCreatorId = numMatch[1];
+    }
+
     const cleanTargetId = targetOperatorId ? String(targetOperatorId).trim() : 'all';
     const cleanTargetName = targetOperatorName ? String(targetOperatorName).trim() : (cleanTargetId === 'all' ? 'Barcha operatorlar' : `Operator ${cleanTargetId}`);
 

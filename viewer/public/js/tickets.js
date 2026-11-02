@@ -43,7 +43,9 @@
         pdf: `<svg class="isax isax-pdf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15V12H10.5C11.3 12 11.5 12.7 11.5 13.5C11.5 14.3 11.3 15 10.5 15H9Z"/><line x1="14" y1="12" x2="14" y2="17"/></svg>`,
         word: `<svg class="isax isax-word" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/><polyline points="14 2 14 8 20 8"/><path d="M7 13L8.5 17L10 13L11.5 17L13 13"/></svg>`,
         download: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M9 11V17L11 15"/><path d="M9 17L7 15"/><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/></svg>`,
-        eye: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M15.58 12C15.58 13.98 13.98 15.58 12 15.58C10.02 15.58 8.42 13.98 8.42 12C8.42 10.02 10.02 8.42 12 8.42C13.98 8.42 15.58 10.02 15.58 12Z"/><path d="M12 20.27C15.53 20.27 18.82 18.19 21.11 14.59C22.01 13.18 22.01 10.81 21.11 9.4C18.82 5.8 15.53 3.72 12 3.72C8.47 3.72 5.18 5.8 2.89 9.4C1.99 10.81 1.99 13.18 2.89 14.59C5.18 18.19 8.47 20.27 12 20.27Z"/></svg>`
+        eye: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M15.58 12C15.58 13.98 13.98 15.58 12 15.58C10.02 15.58 8.42 13.98 8.42 12C8.42 10.02 10.02 8.42 12 8.42C13.98 8.42 15.58 10.02 15.58 12Z"/><path d="M12 20.27C15.53 20.27 18.82 18.19 21.11 14.59C22.01 13.18 22.01 10.81 21.11 9.4C18.82 5.8 15.53 3.72 12 3.72C8.47 3.72 5.18 5.8 2.89 9.4C1.99 10.81 1.99 13.18 2.89 14.59C5.18 18.19 8.47 20.27 12 20.27Z"/></svg>`,
+        target: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+        people: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M18 19C18 16.79 16.21 15 14 15H10C7.79 15 6 16.79 6 19"/><circle cx="12" cy="7" r="4"/><path d="M22 19C22 17.08 20.67 15.48 18.89 15.08"/><circle cx="17.5" cy="8.5" r="2.5"/></svg>`
     };
 
     // Shared AudioContext with unlock on user gesture
@@ -479,9 +481,9 @@
 
             const targetBadge = isTargetSpecific
                 ? (isAssignedToMe
-                    ? `<span class="tk-target-badge for-me" title="Sizga biriktirilgan vazifa">🎯 Menga (${escapeHtml(t.targetOperatorName || t.targetOperatorId)})</span>`
-                    : `<span class="tk-target-badge specific" title="Mas'ul operator: ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}">🎯 ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}</span>`)
-                : `<span class="tk-target-badge all" title="Barcha operatorlarga">👥 Barchaga</span>`;
+                    ? `<span class="tk-target-badge for-me" title="Sizga biriktirilgan vazifa">${ICONS.target} Menga (${escapeHtml(t.targetOperatorName || t.targetOperatorId)})</span>`
+                    : `<span class="tk-target-badge specific" title="Mas'ul operator: ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}">${ICONS.target} ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}</span>`)
+                : `<span class="tk-target-badge all" title="Barcha operatorlarga (Asosiy 100+)">${ICONS.people} Barchaga</span>`;
 
             const assignedText = t.acceptedBy ? `Qabul qildi: ${t.acceptedBy.name}` :
                 (t.status === 'completed' ? `Bajarildi: ${t.completedBy?.name || ''}` :
@@ -889,10 +891,15 @@
     // TICKET CREATION FORM
     // =========================================================================
     function openCreateModal() {
-        // Pre-fill operator if detected
+        // Pre-fill operator if detected (Yaratuvchi 200+ Zangiota)
         const opInput = document.getElementById('newTicketOperator');
-        if (opInput && !opInput.value) {
-            opInput.value = state.myOperatorName || (state.myOperatorId ? `Operator ${state.myOperatorId}` : '101 (Oybek)');
+        if (opInput) {
+            const num = parseInt(state.myOperatorId, 10);
+            if (!isNaN(num) && num >= 200) {
+                opInput.value = state.myOperatorName || `Operator ${state.myOperatorId}`;
+            } else if (!opInput.value) {
+                opInput.value = '200 (Zangiota)';
+            }
         }
 
         state.attachedFiles = [];
@@ -1016,9 +1023,24 @@
                 targetOperatorName = selectedOpt ? (selectedOpt.getAttribute('data-name') || selectedOpt.text) : 'Barcha operatorlar';
             }
 
+            // Extract numeric operator ID from operatorVal or state (Zangiota 200+)
+            let creatorId = null;
+            if (operatorVal) {
+                const m = operatorVal.match(/\b(2\d{2}|1\d{2})\b/);
+                if (m) creatorId = m[1];
+            }
+            if (!creatorId) {
+                const num = parseInt(state.myOperatorId, 10);
+                if (!isNaN(num) && num >= 200) {
+                    creatorId = String(state.myOperatorId);
+                } else {
+                    creatorId = '200'; // Default Zangiota creator
+                }
+            }
+
             await createTicketApi({
-                creatorId: state.myOperatorId || '101',
-                creatorName: operatorVal || state.myOperatorName || 'Operator',
+                creatorId: creatorId,
+                creatorName: operatorVal || state.myOperatorName || `Operator ${creatorId}`,
                 customerPhone: phoneVal,
                 comment: commentVal,
                 files: state.attachedFiles,
@@ -1777,23 +1799,22 @@
     }
 
     const KNOWN_OPERATOR_NAMES = {
+        // Asosiy (100+) operatorlar
         '101': 'Oybek',
-        '102': 'Dilnoza',
         '103': 'Feruza',
-        '104': 'Zuhra',
-        '105': 'Shaxnoza',
         '106': 'Gulchehra',
-        '107': 'Madina',
-        '108': 'Xurshida',
-        '109': 'Sitora',
         '111': 'Nozima',
-        '112': 'Nargiza',
-        '113': 'Malika',
         '114': 'Maxmudbek',
-        '115': 'Nilufar',
-        '117': 'Zarnigor',
         '119': 'Muattar',
-        '120': 'Navruzoy'
+        '120': 'Navruzoy',
+        // Zangiota (200+) operatorlar
+        '200': 'Operator 200 (Zangiota)',
+        '203': 'Operator 203 (Zangiota)',
+        '204': 'Operator 204 (Zangiota)',
+        '205': 'Operator 205 (Zangiota)',
+        '206': 'Operator 206 (Zangiota)',
+        '208': 'Operator 208 (Zangiota)',
+        '209': 'Operator 209 (Zangiota)'
     };
 
     function updateTicketsHeaderProfile(opName, opId, username, role) {

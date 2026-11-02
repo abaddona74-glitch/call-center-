@@ -1,17 +1,17 @@
 # Graph Report - call center  (2026-11-02)
 
 ## Corpus Check
-- 85 files · ~593,380 words
+- 85 files · ~595,468 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .ttf 6, (none) 5, .bat 4)
 
 ## Summary
-- 2229 nodes · 4379 edges · 114 communities (89 shown, 25 thin omitted)
-- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 272 edges (avg confidence: 0.85)
+- 2233 nodes · 4386 edges · 114 communities (89 shown, 25 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 276 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0ab5760f`
+- Built from commit: `1e9a95cd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -36,7 +36,7 @@
 - AudioIndexService
 - Document Processing & Viewer Engine
 - Document Processing & Viewer Engine
-- viewer/scripts/deploy.js
+- scripts/deploy.js
 - Document Processing & Viewer Engine
 - renderViewerCallbacks
 - Call Center Database & CDR
@@ -115,7 +115,7 @@
 - Y
 - Document Processing & Viewer Engine
 - applyOpCardFieldsVisibility
-- sftpService.js
+- ZipJobService
 - Document Processing & Viewer Engine
 - Document Processing & Viewer Engine
 - Graphify Knowledge Graph  Subsystem
@@ -169,8 +169,8 @@ Cohesion: 0.14
 Nodes (19): applyAudioRangeToTable(), applyHistoryFilters(), closeAudioRangeModal(), formatDisplayDate(), initHistoryPagination(), loadHistoryPage(), navAudioRangeCal(), onAudioRangeDateChange() (+11 more)
 
 ### Community 2 - "Ticket Workflow & Management"
-Cohesion: 0.07
-Nodes (65): acceptCurrentTicket(), acceptTicketApi(), addCommentApi(), closeCreateModal(), closeDocViewer(), closeEditModal(), closeImpersonateModal(), closeLightbox() (+57 more)
+Cohesion: 0.06
+Nodes (68): acceptCurrentTicket(), acceptTicketApi(), addCommentApi(), closeCreateModal(), closeDocViewer(), closeEditModal(), closeImpersonateModal(), closeLightbox() (+60 more)
 
 ### Community 3 - "Viewer Portal Client Interface"
 Cohesion: 0.05
@@ -216,9 +216,9 @@ Nodes (25): arrayIndexOf(), read(), bidirectionalIndexOf(), collapseAlternateCon
 Cohesion: 0.15
 Nodes (28): deferredConversion(), DocumentConversion(), convertBreak(), convertComment(), convertCommentReference(), convertElements(), convertParagraph(), convertRun() (+20 more)
 
-### Community 20 - "viewer/scripts/deploy.js"
-Cohesion: 0.12
-Nodes (11): ssh2, conn, archivePath, currentBuild, projectRoot, SERVER_PORT, tempDir, versionFilePath (+3 more)
+### Community 20 - "scripts/deploy.js"
+Cohesion: 0.17
+Nodes (10): ssh2, archivePath, currentBuild, indexHtmlPath, projectRoot, SERVER_PORT, tempDir, versionFilePath (+2 more)
 
 ### Community 21 - "Document Processing & Viewer Engine"
 Cohesion: 0.10
@@ -290,7 +290,7 @@ Nodes (5): _addNamedNode(), _findNodeIndex(), _onAddAttribute(), _onRemoveAttrib
 
 ### Community 41 - "scripts/deploy.js"
 Cohesion: 0.11
-Nodes (15): ssh2-sftp-client, archivePath, currentBuild, indexHtmlPath, projectRoot, SERVER_PORT, tempDir, versionFilePath (+7 more)
+Nodes (13): ssh2-sftp-client, diffData, diffFilePath, filesToPull, projectRoot, SERVER_PORT, skipPatterns, archivePath (+5 more)
 
 ### Community 42 - "initPageElevator"
 Cohesion: 0.60
@@ -331,6 +331,10 @@ Nodes (12): escapeAttr(), escapeHtml(), formatCallerNumber(), generateStarRating
 ### Community 56 - "voice_scan_orchestrator.j Subsystem"
 Cohesion: 0.25
 Nodes (8): CALLS_DIR, checkRemoteRestartFlag(), isInRange(), main(), saveLiveProgress(), syncRemote(), STATUS_FILE, VOICE_ID_FILE
+
+### Community 57 - "AudioIndexService"
+Cohesion: 0.15
+Nodes (6): archiver, SttService, jobs, sanitizeFileName(), TEMP_ZIPS_DIR, waitingQueue
 
 ### Community 58 - "isObject"
 Cohesion: 0.10
@@ -429,8 +433,8 @@ Cohesion: 0.40
 Nodes (5): copy(), _extends(), LiveNodeList(), __set__(), _updateLiveList()
 
 ### Community 84 - "ref_path"
-Cohesion: 0.25
-Nodes (3): DB_FILE, EXCLUDED_OPERATORS, KNOWN_OPERATORS
+Cohesion: 0.18
+Nodes (6): DB_FILE, EXCLUDED_OPERATORS, KNOWN_OPERATORS, DEFAULT_OPERATOR_NAMES, EXCLUDED_OPERATORS, EXCLUDED_OPERATORS
 
 ### Community 85 - "get"
 Cohesion: 0.33
@@ -484,10 +488,6 @@ Nodes (3): cloneNode(), NamedNodeMap(), NodeList()
 Cohesion: 0.33
 Nodes (9): applyOpCardFieldsVisibility(), isOpCardFieldVisible(), openOpCardFieldsModal(), renderOpCardFieldsCheckboxes(), resetOpCardFields(), saveOpCardFieldsSettings(), setAllOpCardFields(), toggleOpCardField() (+1 more)
 
-### Community 100 - "sftpService.js"
-Cohesion: 0.18
-Nodes (6): archiver, jobs, sanitizeFileName(), TEMP_ZIPS_DIR, waitingQueue, ZipJobService
-
 ### Community 101 - "Document Processing & Viewer Engine"
 Cohesion: 0.67
 Nodes (3): getDescendants(), getDescendantsOfType(), visitDescendants()
@@ -518,7 +518,7 @@ Nodes (3): encodeChunk(), fromByteArray(), tripletToBase64()
 
 ## Knowledge Gaps
 - **21 isolated node(s):** `asterisk-manager`, `cors`, `dotenv`, `exceljs`, `express` (+16 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 604 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 605 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
@@ -532,9 +532,9 @@ _Questions this graph is uniquely positioned to answer:_
   _21 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Document Processing & Viewer Engine` be split into smaller, more focused modules?**
   _Cohesion score 0.009977592694372806 - nodes in this community are weakly interconnected._
-- **Why does `ssh2` connect `viewer/scripts/deploy.js` to `services/issabelDbService.js`, `systemService.js`, `scripts/deploy.js`, `viewer/package.json`, `ref_path`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `ssh2` connect `scripts/deploy.js` to `services/issabelDbService.js`, `systemService.js`, `scripts/deploy.js`, `viewer/package.json`, `ref_path`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **Should `loadHistoryPage` be split into smaller, more focused modules?**
   _Cohesion score 0.14035087719298245 - nodes in this community are weakly interconnected._
-- **Why does `SftpService` connect `SftpService Subsystem` to `sftpService.js`?**
+- **Why does `SftpService` connect `SftpService Subsystem` to `AudioIndexService`?**
   _High betweenness centrality (0.016) - this node is a cross-community bridge._
