@@ -708,6 +708,16 @@ function switchRoute(tabName, pushState = true) {
     if (target === 'explorer' && explorerFilesData.length === 0) {
         loadExplorerPath('');
     } else if (target === 'history') {
+        const histInput = document.getElementById('historySearchInput');
+        if (histInput && histInput.value) {
+            const v = histInput.value.trim().toLowerCase();
+            let isAuto = false;
+            try { isAuto = histInput.matches(':-webkit-autofill') || histInput.matches(':autofill'); } catch (_) {}
+            if (v === 'superuser' || isAuto) {
+                histInput.value = '';
+                historySearchQuery = '';
+            }
+        }
         if (typeof updateHistoryScopeUI === 'function') {
             updateHistoryScopeUI();
         }
@@ -6126,7 +6136,30 @@ function initHistoryPagination() {
     let searchTimeout = null;
 
     if (input) {
+        const purgeAutofill = () => {
+            if (input && input.value) {
+                const val = input.value.trim().toLowerCase();
+                let isAuto = false;
+                try { isAuto = input.matches(':-webkit-autofill') || input.matches(':autofill'); } catch (_) {}
+                if (val === 'superuser' || isAuto) {
+                    input.value = '';
+                    historySearchQuery = '';
+                }
+            }
+        };
+
+        purgeAutofill();
+        setTimeout(purgeAutofill, 50);
+        setTimeout(purgeAutofill, 200);
+        setTimeout(purgeAutofill, 600);
+
         input.addEventListener('input', (e) => {
+            const rawVal = e.target.value;
+            if (rawVal && rawVal.trim().toLowerCase() === 'superuser' && (!e.isTrusted || !e.inputType)) {
+                e.target.value = '';
+                historySearchQuery = '';
+                return;
+            }
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 historySearchQuery = e.target.value.trim();
