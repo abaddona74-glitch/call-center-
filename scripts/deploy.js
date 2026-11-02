@@ -218,7 +218,7 @@ async function deploy() {
             `🌐 <b>Asosiy Portal:</b> http://${SERVER_HOST}:3535\n` +
             `📊 <b>Viewer Portali:</b> http://${SERVER_HOST}:3005\n\n` +
             `✅ <b>O'zgarishlar:</b>\n` +
-            `• 3005 Viewer'da operator kartalari teleportatsiyasi va divider liniyalari sakrashi bartaraf etildi\n` +
+            `• 3005 Viewer'da 'Bog'lanishi kerak bo'lgan mijozlar' dastlab 2 qator bilan cheklandi va bosqichma-bosqich (+2 qator) ochish/yig'ish imkoniyati qo'shildi\n` +
             `• Barcha xizmatlar (Node.js, PM2, Asterisk AMI, WebSocket) to'liq barqaror holatda ishga tushirildi.`;
 
         await telegramService.broadcast(deployNotificationText);

@@ -4080,6 +4080,40 @@ let currentViewerOperators = [];
 let currentCallbackDateFilter = 'today'; // 'today' | 'all'
 let currentCallbackTab = 'pending'; // 'pending' | 'unreachable' | 'resolved'
 let viewerCbResolvedTodayOnly = true; // permanently true (doimiy faqat bugun)
+let currentCallbackVisibleRows = 2; // Default limit: 2 rows (max 2 rows initially, expands by 2 rows)
+
+function getCallbackGridColumnCount() {
+    const listEl = document.getElementById('viewerCallbackList');
+    if (!listEl) return 4;
+    try {
+        const computed = window.getComputedStyle(listEl).gridTemplateColumns;
+        if (computed && computed !== 'none') {
+            const cols = computed.split(' ').filter(Boolean).length;
+            if (cols > 0) return cols;
+        }
+    } catch (_) {}
+    const width = listEl.clientWidth || (window.innerWidth ? window.innerWidth - 60 : 1200);
+    const cols = Math.floor((width + 10) / (270 + 10));
+    return Math.max(1, cols);
+}
+
+function expandViewerCallbacks(event) {
+    if (event) event.stopPropagation();
+    currentCallbackVisibleRows += 2;
+    renderViewerCallbacks(currentViewerCallbacks);
+}
+window.expandViewerCallbacks = expandViewerCallbacks;
+
+function collapseViewerCallbacks(event) {
+    if (event) event.stopPropagation();
+    currentCallbackVisibleRows = 2;
+    renderViewerCallbacks(currentViewerCallbacks);
+    const panel = document.getElementById('viewerCallbackPanel');
+    if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+window.collapseViewerCallbacks = collapseViewerCallbacks;
 
 function toggleViewerCbResolvedTodayOnly(checked) {
     viewerCbResolvedTodayOnly = true;
@@ -4164,6 +4198,7 @@ function switchCallbackDateFilter(filter) {
             btnToday.style.color = '#94a3b8';
         }
     }
+    currentCallbackVisibleRows = 2;
     renderViewerCallbacks(currentViewerCallbacks);
 }
 
@@ -4224,6 +4259,7 @@ function switchCallbackTab(tab) {
             }
         }
     }
+    currentCallbackVisibleRows = 2;
     renderViewerCallbacks(currentViewerCallbacks);
 }
 
@@ -4389,9 +4425,15 @@ function renderViewerCallbacks(callbacks) {
         return;
     }
 
+    const totalItems = displayList.length;
+    const cols = getCallbackGridColumnCount();
+    const maxItemsToShow = currentCallbackVisibleRows * cols;
+    const itemsToRender = displayList.slice(0, maxItemsToShow);
+    const remainingCount = Math.max(0, totalItems - itemsToRender.length);
+
     let html = '';
-    for (let index = 0; index < displayList.length; index++) {
-        const item = displayList[index];
+    for (let index = 0; index < itemsToRender.length; index++) {
+        const item = itemsToRender[index];
         const phone = item.phone || '';
         let cleanPhone = String(phone).replace(/[^\d]/g, '');
         if (cleanPhone.length === 12 && cleanPhone.startsWith('998')) {
@@ -4686,6 +4728,45 @@ function renderViewerCallbacks(callbacks) {
                 ` : ''}
             </div>
         `;
+    }
+
+    if (totalItems > itemsToRender.length || currentCallbackVisibleRows > 2) {
+        const nextBatchRows = 2;
+        const nextBatchCards = Math.min(remainingCount, nextBatchRows * cols);
+
+        html += `
+            <div class="callback-expand-toolbar">
+        `;
+
+        if (remainingCount > 0) {
+            const btnMoreText = tf('cb_show_more_rows', { count: nextBatchCards }, `Yana 2 qator ko'rsatish (+${nextBatchCards} ta)`);
+            const remainingText = tf('cb_remaining', { count: remainingCount }, `Qolgan: ${remainingCount} ta`);
+            html += `
+                <button type="button" 
+                        class="btn-cb-expand" 
+                        onclick="expandViewerCallbacks(event)" 
+                        title="${btnMoreText}">
+                    ${isax('arrow-down', '', 'width: 14px; height: 14px;')}
+                    <span>${btnMoreText}</span>
+                    <span style="background: rgba(59, 130, 246, 0.25); border-radius: 6px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${remainingText}</span>
+                </button>
+            `;
+        }
+
+        if (currentCallbackVisibleRows > 2) {
+            const collapseText = t('cb_collapse_rows', `Yig'ish (2 qator)`);
+            html += `
+                <button type="button" 
+                        class="btn-cb-collapse" 
+                        onclick="collapseViewerCallbacks(event)" 
+                        title="${collapseText}">
+                    ${isax('arrow-up', '', 'width: 14px; height: 14px;')}
+                    <span>${collapseText}</span>
+                </button>
+            `;
+        }
+
+        html += `</div>`;
     }
 
     listEl.innerHTML = html;
