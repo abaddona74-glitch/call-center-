@@ -6171,7 +6171,18 @@ let currentHistoryData = [];
 async function loadHistoryPage(page = 1, search = '', isSilent = false) {
     const tbody = document.getElementById('historyTableBody');
     if (tbody && !isSilent) {
-        tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-dim); padding: 24px;"><div class="spinner" style="margin: 0 auto 8px;"></div> ${t('hist_loading_calls', "Qo'ng'iroqlar tarixi yuklanmoqda...")}</td></tr>`;
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="12" style="text-align: center; padding: 0; white-space: normal;">
+                    <div class="table-loading-container">
+                        <div class="spinner spinner-lg"></div>
+                        <div style="font-size: 14px; font-weight: 600; color: #94a3b8; letter-spacing: 0.3px;">
+                            ${t('hist_loading_calls', "Qo'ng'iroqlar tarixi yuklanmoqda...")}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
     }
 
     try {
@@ -6242,7 +6253,17 @@ async function loadHistoryPage(page = 1, search = '', isSilent = false) {
         }
     } catch (e) {
         if (tbody && !isSilent) {
-            tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--danger); padding: 20px;">${tf('hist_error', { msg: e.message }, `Xatolik yuz berdi: ${e.message}`)}</td></tr>`;
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="12" style="text-align: center; padding: 0; white-space: normal;">
+                        <div class="table-loading-container" style="color: var(--danger); gap: 8px;">
+                            <div style="font-size: 14px; font-weight: 600;">
+                                ${tf('hist_error', { msg: e.message }, `Xatolik yuz berdi: ${e.message}`)}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
         }
     }
 }
@@ -11014,9 +11035,11 @@ async function loadTabOperatorLogs(opId, page = 1) {
 
     tabOperatorLogsPage = page;
     container.innerHTML = `
-        <div style="text-align: center; padding: 30px; color: var(--text-muted);">
-            <div class="spinner" style="margin: 0 auto 12px;"></div>
-            ${t('logs_tab_loading', '3CX Desktop Agent jurnali yuklanmoqda...')}
+        <div class="table-loading-container" style="padding: 30px;">
+            <div class="spinner spinner-lg"></div>
+            <div style="font-size: 13px; font-weight: 500; color: var(--text-muted);">
+                ${t('logs_tab_loading', '3CX Desktop Agent jurnali yuklanmoqda...')}
+            </div>
         </div>
     `;
 

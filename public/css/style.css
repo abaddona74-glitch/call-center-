@@ -4220,6 +4220,20 @@ body:not(.show-op-pause-btn) .op-card-pause-btn {
     box-shadow: 0 0 18px rgba(56, 189, 248, 0.3);
 }
 
+.table-loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 48px 20px;
+    box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
+}
+
 .sync-spinner {
     display: inline-block;
     border-radius: 50%;

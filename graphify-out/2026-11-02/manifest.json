@@ -372,9 +372,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "viewer/public/js/i18n.js": {
-    "mtime": 1793607556.2639177,
-    "seen": 1793607782.9993906,
-    "ast_hash": "afe1c4466a60250e84517080d2a2d56b",
+    "mtime": 1793611395.415344,
+    "seen": 1793611616.8092492,
+    "ast_hash": "6ffa570613e04882b5022d6cc75b03b2",
     "semantic_hash": ""
   },
   "viewer/public/js/iconsax.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793610177.5558512,
-    "seen": 1793610254.7423942,
-    "ast_hash": "0a70e3cb52075707350e00db404cdbb4",
+    "mtime": 1793611491.2207346,
+    "seen": 1793611616.8092492,
+    "ast_hash": "bfd58589458e366a6b39e331ab0c9e6e",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -888,9 +888,9 @@
     "semantic_hash": ""
   },
   "public/tools/managers.html": {
-    "mtime": 1791271664.764794,
-    "seen": 1792751550.5250204,
-    "ast_hash": "00b8cf3197e228c8e98e6170fdf9f83b",
+    "mtime": 1793611358.883261,
+    "seen": 1793611616.8092492,
+    "ast_hash": "7d02c5e7d75836b943ca61811a54cd7a",
     "semantic_hash": ""
   },
   "public/voice-status.html": {
@@ -900,15 +900,15 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793609943.222655,
-    "seen": 1793610254.7423942,
-    "ast_hash": "84a944b659d8f9a13ce730e3416fa780",
+    "mtime": 1793611427.8051324,
+    "seen": 1793611616.8092492,
+    "ast_hash": "4ec5b26fed5060f1d873c4ea823c30bf",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {
-    "mtime": 1793104838.6610737,
-    "seen": 1793105295.2663958,
-    "ast_hash": "991d18bddc431598455677381428e9ef",
+    "mtime": 1793611250.3262053,
+    "seen": 1793611616.8092492,
+    "ast_hash": "ac990702123dea5241632cfb025fd7c6",
     "semantic_hash": ""
   },
   "public/favicon.png": {
