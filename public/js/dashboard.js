@@ -1833,6 +1833,7 @@ function sendPresenceHeartbeat(isDirectlyActive) {
     const isStoredActive = isThisTabActive();
     const isActive = (isDirectlyActive === true) || (isVisible && isStoredActive);
 
+    const authU = window.currentAuthUser || {};
     try {
         ws.send(JSON.stringify({
             type: 'presence_ping',
@@ -1842,7 +1843,9 @@ function sendPresenceHeartbeat(isDirectlyActive) {
             isActiveTab: Boolean(isActive),
             isVisible: isVisible,
             pcName: getMyPcName(),
-            tab: getActiveTabName()
+            tab: getActiveTabName(),
+            username: authU.username || '',
+            role: authU.role || ''
         }));
     } catch (e) {}
 }
@@ -1881,9 +1884,186 @@ function promptChangePcName(e) {
     }
 }
 
+let currentOnlineUsersList = [];
+let isOnlineUsersPopoverOpen = false;
+
+function toggleOnlineUsersPopover(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const pop = document.getElementById('onlineUsersPopover');
+    if (!pop) return;
+
+    isOnlineUsersPopoverOpen = !isOnlineUsersPopoverOpen;
+    if (isOnlineUsersPopoverOpen) {
+        pop.style.display = 'block';
+        const chevron = document.getElementById('onlineUsersChevron');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+        renderOnlineUsersPopover();
+        // Serverdan eng so'nggi ro'yxatni yangilab olish
+        fetchOnlineUsersList();
+    } else {
+        closeOnlineUsersPopover();
+    }
+}
+window.toggleOnlineUsersPopover = toggleOnlineUsersPopover;
+
+function closeOnlineUsersPopover() {
+    const pop = document.getElementById('onlineUsersPopover');
+    if (pop) pop.style.display = 'none';
+    const chevron = document.getElementById('onlineUsersChevron');
+    if (chevron) chevron.style.transform = 'none';
+    isOnlineUsersPopoverOpen = false;
+}
+window.closeOnlineUsersPopover = closeOnlineUsersPopover;
+
+async function fetchOnlineUsersList() {
+    try {
+        const res = await fetch('/api/presence/online-users');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.users)) {
+                currentOnlineUsersList = data.users;
+                if (isOnlineUsersPopoverOpen) {
+                    renderOnlineUsersPopover();
+                }
+            }
+        }
+    } catch (_) {}
+}
+window.fetchOnlineUsersList = fetchOnlineUsersList;
+
+function getTabDisplayName(tabKey) {
+    switch (tabKey) {
+        case 'dashboard': return 'Monitoring';
+        case 'history': return 'Jurnal';
+        case 'operators': return 'Operatorlar';
+        case 'explorer': return 'Audio yozuvlar';
+        case 'analytics': return 'Tahlil';
+        case 'settings': return 'Sozlamalar';
+        default: return 'Monitoring';
+    }
+}
+
+function renderOnlineUsersPopover() {
+    const pop = document.getElementById('onlineUsersPopover');
+    if (!pop) return;
+
+    const myDevId = getOrCreateDeviceId();
+    const myPc = getMyPcName();
+    const users = currentOnlineUsersList && currentOnlineUsersList.length > 0
+        ? currentOnlineUsersList
+        : [{
+            deviceId: myDevId,
+            clientId: myClientId,
+            pcName: myPc,
+            username: (window.currentAuthUser && window.currentAuthUser.username) || 'superuser',
+            role: (window.currentAuthUser && window.currentAuthUser.role) || 'superuser',
+            clientIp: '127.0.0.1',
+            color: myAssignedColor,
+            tab: getActiveTabName(),
+            isActive: true,
+            lastActiveAt: Date.now()
+        }];
+
+    let itemsHtml = '';
+    users.forEach(u => {
+        const isMe = (u.deviceId && u.deviceId === myDevId) || (u.clientId && u.clientId === myClientId) || (u.pcName && u.pcName === myPc);
+        const color = u.color || '#38bdf8';
+        const roleClass = (u.role === 'superuser') ? 'superuser' : 'operator';
+        const roleLabel = (u.role === 'superuser') ? 'Administrator' : 'Viewer';
+        const tabName = getTabDisplayName(u.tab);
+
+        let detailsText = '';
+        if (u.operator && u.operator.name) {
+            detailsText = `Operator: ${escapeHtml(u.operator.id)} - ${escapeHtml(u.operator.name)}`;
+        } else {
+            detailsText = `Login: ${escapeHtml(u.username || 'superuser')}`;
+        }
+
+        const ipDisplay = u.clientIp ? escapeHtml(u.clientIp) : 'Lokal';
+
+        // Faollik holati
+        const now = Date.now();
+        const diffSec = Math.round((now - (u.lastActiveAt || now)) / 1000);
+        let statusBadge = '';
+        if (diffSec < 30) {
+            statusBadge = `<span style="font-size: 10.5px; color: #34d399; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"><span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981;"></span>Faol</span>`;
+        } else if (diffSec < 120) {
+            statusBadge = `<span style="font-size: 10px; color: #fbbf24;">1 daq oldin</span>`;
+        } else {
+            const min = Math.round(diffSec / 60);
+            statusBadge = `<span style="font-size: 10px; color: #94a3b8;">${min} daq oldin</span>`;
+        }
+
+        itemsHtml += `
+            <div class="online-user-item ${isMe ? 'is-me' : ''}">
+                <div class="online-user-avatar" style="color: ${color}; border-color: ${color};">
+                    <svg class="isax isax-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 4C3 3.44772 3.44772 3 4 3H20C20.5523 3 21 3.44772 21 4V16C21 16.5523 20.5523 17 20 17H4C3.44772 17 3 16.5523 3 16V4Z"/>
+                        <path d="M12 17V21"/>
+                        <path d="M8 21H16"/>
+                    </svg>
+                    <span class="avatar-dot"></span>
+                </div>
+                <div class="online-user-info">
+                    <div class="online-user-top">
+                        <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                            <span class="online-user-name" title="${escapeHtml(u.pcName || 'PC')}">${escapeHtml(u.pcName || 'PC')}</span>
+                            ${isMe ? '<span class="online-user-me-tag">Siz</span>' : ''}
+                        </div>
+                        ${statusBadge}
+                    </div>
+                    <div class="online-user-bottom">
+                        <span class="online-user-role ${roleClass}">${roleLabel}</span>
+                        <span class="online-user-ip" title="IP manzil">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            ${ipDisplay}
+                        </span>
+                        <span class="online-user-tab-badge">${tabName}</span>
+                    </div>
+                    <div style="font-size: 10.5px; color: #64748b; margin-top: 2px;">
+                        ${detailsText}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    pop.innerHTML = `
+        <div class="online-popover-header">
+            <div class="online-popover-title-wrap">
+                <span class="online-popover-title">Faol foydalanuvchilar</span>
+                <span class="online-popover-badge">${users.length} ta onlayn</span>
+            </div>
+            <button type="button" class="online-popover-close" onclick="closeOnlineUsersPopover()" title="Yopish">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="online-users-list">
+            ${itemsHtml}
+        </div>
+        <div class="online-popover-footer">
+            <label style="display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; margin: 0; color: #cbd5e1; font-weight: 500;">
+                <input type="checkbox" ${isMultiplayerCursorsEnabled ? 'checked' : ''} onchange="toggleMultiplayerCursors(event)" style="cursor: pointer; width: 14px; height: 14px; accent-color: #38bdf8;">
+                <span>Jonli kursorlar</span>
+            </label>
+            <button type="button" class="online-popover-footer-btn" onclick="promptChangePcName(event)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                Nomni o'zgartirish
+            </button>
+        </div>
+    `;
+}
+
 function toggleMultiplayerCursors(e) {
-    if (e) e.stopPropagation();
-    isMultiplayerCursorsEnabled = !isMultiplayerCursorsEnabled;
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (e && e.target && e.target.type === 'checkbox') {
+        isMultiplayerCursorsEnabled = e.target.checked;
+    } else {
+        isMultiplayerCursorsEnabled = !isMultiplayerCursorsEnabled;
+    }
     const overlay = document.getElementById('multiplayerCursorsOverlay');
     if (overlay) {
         overlay.style.display = isMultiplayerCursorsEnabled ? 'block' : 'none';
@@ -1893,7 +2073,11 @@ function toggleMultiplayerCursors(e) {
         txt.style.opacity = isMultiplayerCursorsEnabled ? '1' : '0.5';
     }
     localStorage.setItem('multiplayer_cursors_enabled', isMultiplayerCursorsEnabled ? '1' : '0');
+    if (isOnlineUsersPopoverOpen) {
+        renderOnlineUsersPopover();
+    }
 }
+window.toggleMultiplayerCursors = toggleMultiplayerCursors;
 
 function initMultiplayerCursors() {
     // Saqlangan sozlamalarni yuklash
@@ -1908,6 +2092,16 @@ function initMultiplayerCursors() {
 
     const lbl = document.getElementById('lblMyPcName');
     if (lbl) lbl.textContent = getMyPcName();
+
+    // Tashqariga bosilganda onlayn ro'yxat popoverini yopish
+    document.addEventListener('click', (e) => {
+        if (isOnlineUsersPopoverOpen) {
+            const widget = document.getElementById('presenceCursorWidget');
+            if (widget && !widget.contains(e.target)) {
+                closeOnlineUsersPopover();
+            }
+        }
+    });
 
     // Tab faolligi va diqqatni (focus) aniqlash
     window.addEventListener('focus', claimActiveTab);
@@ -2122,8 +2316,16 @@ function handleWsMessage(msg) {
     if (msg.type === 'client_assigned') {
         handleClientAssigned(msg.data);
     } else if (msg.type === 'presence_stats') {
-        if (msg.data && typeof msg.data.onlineCount === 'number') {
-            updateOnlineCursorsCount(msg.data.onlineCount);
+        if (msg.data) {
+            if (typeof msg.data.onlineCount === 'number') {
+                updateOnlineCursorsCount(msg.data.onlineCount);
+            }
+            if (Array.isArray(msg.data.users)) {
+                currentOnlineUsersList = msg.data.users;
+                if (isOnlineUsersPopoverOpen) {
+                    renderOnlineUsersPopover();
+                }
+            }
         }
     } else if (msg.type === 'remote_cursor_move') {
         handleRemoteCursorMove(msg.data);
@@ -13023,6 +13225,10 @@ async function loadUserProfileData() {
         const data = await res.json();
         if (data && data.user) {
             const u = data.user;
+            window.currentAuthUser = u;
+            if (typeof sendPresenceHeartbeat === 'function') {
+                sendPresenceHeartbeat(true);
+            }
             const unameEl = document.getElementById('profileModalUsername');
             const hUname = document.getElementById('headerUsername');
             const hEmail = document.getElementById('headerUserEmail');

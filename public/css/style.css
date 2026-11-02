@@ -8834,6 +8834,266 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 /* ==========================================================================
+   ONLINE USERS POPOVER & PRESENCE ACTIVE DEVICES
+   ========================================================================== */
+
+.presence-pulse-dot {
+    animation: presencePulse 2s infinite ease-in-out;
+}
+
+@keyframes presencePulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 6px #10b981;
+    }
+    50% {
+        transform: scale(1.25);
+        box-shadow: 0 0 12px #10b981, 0 0 18px rgba(16, 185, 129, 0.4);
+    }
+}
+
+.online-users-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 340px;
+    max-width: calc(100vw - 24px);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 14px;
+    box-shadow: 0 20px 48px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(56, 189, 248, 0.12);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    z-index: 1050;
+    overflow: hidden;
+    color: #e2e8f0;
+    font-size: 13px;
+    animation: onlinePopoverIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes onlinePopoverIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.online-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.online-popover-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.online-popover-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.2px;
+}
+
+.online-popover-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.online-popover-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.online-popover-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.online-users-list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.online-user-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.15s ease;
+}
+
+.online-user-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.online-user-item.is-me {
+    background: rgba(56, 189, 248, 0.07);
+    border-color: rgba(56, 189, 248, 0.22);
+}
+
+.online-user-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1.5px solid currentColor;
+}
+
+.online-user-avatar svg {
+    width: 17px;
+    height: 17px;
+}
+
+.online-user-avatar .avatar-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 8.5px;
+    height: 8.5px;
+    border-radius: 50%;
+    background: #10b981;
+    border: 1.5px solid #0f172a;
+}
+
+.online-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.online-user-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.online-user-name {
+    font-weight: 600;
+    color: #f1f5f9;
+    font-size: 12.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.online-user-me-tag {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.18);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    padding: 1px 5px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.online-user-bottom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    font-size: 11px;
+    color: #94a3b8;
+    flex-wrap: wrap;
+}
+
+.online-user-ip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-family: ui-monospace, monospace;
+    font-size: 10.5px;
+    color: #cbd5e1;
+}
+
+.online-user-role {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+}
+
+.online-user-role.superuser {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.online-user-tab-badge {
+    font-size: 10px;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.online-popover-footer {
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+}
+
+.online-popover-footer-btn {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    cursor: pointer;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s ease;
+}
+
+.online-popover-footer-btn:hover {
+    color: #7dd3fc;
+    text-decoration: underline;
+}
+
+/* ==========================================================================
    MOBILE BOTTOM NAVIGATION & RESPONSIVE TELEFON DIZAYNI
    ========================================================================== */
 

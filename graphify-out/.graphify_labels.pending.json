@@ -1,5 +1,5 @@
 {
-  "1": "loadHistoryPage",
+  "1": "onAudioRangeDateChange",
   "10": "package.json",
   "14": "formatSeconds",
   "17": "AudioIndexService",
@@ -17,7 +17,7 @@
   "38": "app.js",
   "39": "renderCallbacks",
   "40": "_addNamedNode",
-  "41": "scripts/deploy.js",
+  "41": "pull_from_server.js",
   "42": "initPageElevator",
   "43": "viewer/package.json",
   "46": "updateQueueInfoModal",
@@ -33,7 +33,7 @@
   "78": "cleanup_missed_dupes.js",
   "81": "resetToolImageZoom",
   "84": "ref_path",
-  "85": "get",
+  "85": "deepEq",
   "87": "_onUpdateChild",
   "88": "createBuffer",
   "91": "s",
@@ -44,9 +44,11 @@
   "108": "TopicAnalyticsService",
   "109": "convert",
   "110": "drainQueue",
-  "111": "readNumberingXml",
-  "112": "sftpService.js",
+  "111": "renderOnlineUsersPopover",
+  "112": "loadClientsTab",
   "113": "converterService.js",
   "114": "codePoint",
-  "115": "elementWithTag"
+  "115": "encodeChunk",
+  "116": "getTextContent",
+  "117": "importNode"
 }

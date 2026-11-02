@@ -751,8 +751,8 @@ app.use((req, res, next) => {
             const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
             const viewerUrl = `${req.protocol}://${host}:3005/${tokenParam}`;
 
-            // Operatorlarga faqat o'z ma'lumotlarini tekshirish (me) va chiqish (logout) ga ruxsat
-            if (p === '/api/auth/me' || p === '/api/auth/logout' || p === '/logout') {
+            // Operatorlarga o'z ma'lumotlarini tekshirish, chiqish va onlayn ro'yxatni ko'rishga ruxsat
+            if (p === '/api/auth/me' || p === '/api/auth/logout' || p === '/logout' || p === '/api/presence/online-users') {
                 return next();
             }
 
@@ -866,6 +866,119 @@ const MULTIPLAYER_CURSOR_COLORS = [
     '#6366f1'  // indigo
 ];
 
+// Onlayn foydalanuvchilar va qurilmalar haqida to'liq xulosani shakllantirish
+const KNOWN_OPERATOR_IPS = {
+    '192.168.0.17': { id: '101', name: 'Oybek' },
+    '192.168.0.100': { id: '103', name: 'Feruza' },
+    '192.168.0.19': { id: '111', name: 'Nozima' },
+    '192.168.0.18': { id: '120', name: 'Navruzoy' },
+    '192.168.0.15': { id: '119', name: 'Muattar' },
+    '192.168.0.114': { id: '114', name: 'Maxmudbek' },
+    '192.168.0.107': { id: '114', name: 'Maxmudbek' },
+    '192.168.0.108': { id: '108', name: 'Operator PC' }
+};
+
+// Takroriy tablar va eskirgan ulanishlarni qurilma bo'yicha tozalash
+function getUniqueDevicesMap(dashboardClients) {
+    const knownIpsWithDevice = new Set();
+    for (const c of dashboardClients) {
+        if (c.deviceId && c.clientIp) {
+            knownIpsWithDevice.add(c.clientIp);
+        }
+    }
+
+    const uniqueDevicesMap = new Map();
+    for (const client of dashboardClients) {
+        // Agar ushbu IP da allaqachon unikal deviceId li ulanish bo'lsa, deviceId siz qolgan eski socketni hisobga olmaslik
+        if (!client.deviceId && client.clientIp && knownIpsWithDevice.has(client.clientIp)) {
+            continue;
+        }
+
+        const devKey = client.deviceId || (client.clientIp ? client.clientIp + '_' + (client.suggestedPcName || 'pc') : client.clientId);
+        const existing = uniqueDevicesMap.get(devKey);
+
+        if (!existing) {
+            uniqueDevicesMap.set(devKey, client);
+        } else {
+            if (client.isVisible && !existing.isVisible) {
+                uniqueDevicesMap.set(devKey, client);
+            } else if (client.isActiveTab && !existing.isActiveTab) {
+                uniqueDevicesMap.set(devKey, client);
+            } else if ((client.lastActiveAt || 0) > (existing.lastActiveAt || 0)) {
+                uniqueDevicesMap.set(devKey, client);
+            }
+        }
+    }
+    return uniqueDevicesMap;
+}
+
+// Onlayn foydalanuvchilar va qurilmalar haqida to'liq xulosani shakllantirish
+function getOnlineUsersSummary(uniqueDevicesMap) {
+    const list = [];
+    const ops = typeof amiService.getOperatorList === 'function' ? amiService.getOperatorList() : [];
+
+    for (const [devKey, client] of uniqueDevicesMap.entries()) {
+        let uname = client.username || (client.user && client.user.username) || '';
+        let urole = client.userRole || (client.user && client.user.role) || '';
+
+        // Agar sessiyadan topilmagan bo'lsa, IP orqali aktiv auth_sessions dan qidirish
+        if (!uname && client.clientIp) {
+            try {
+                const sess = authService.db.prepare(`
+                    SELECT s.username, COALESCE(u.role, 'superuser') as role
+                    FROM auth_sessions s
+                    LEFT JOIN auth_users u ON s.username = u.username
+                    WHERE s.ip LIKE ? AND s.expires_at > datetime('now', 'localtime')
+                    ORDER BY s.created_at DESC LIMIT 1
+                `).get(`%${client.clientIp}%`);
+                if (sess) {
+                    uname = sess.username;
+                    urole = sess.role;
+                }
+            } catch (_) {}
+        }
+
+        if (!uname) {
+            uname = (client.suggestedPcName && client.suggestedPcName.toLowerCase().includes('admin')) ? 'superuser' : 'Foydalanuvchi';
+        }
+
+        // 3CX operatori bilan IP bo'yicha moslashtirish
+        let opInfo = null;
+        try {
+            const matched = ops.find(o => o.ip && client.clientIp && (o.ip === client.clientIp || client.clientIp.includes(o.ip)));
+            if (matched) {
+                opInfo = {
+                    id: matched.id,
+                    name: matched.name,
+                    agentHostname: matched.agentHostname
+                };
+            }
+        } catch (_) {}
+
+        if (!opInfo && client.clientIp && KNOWN_OPERATOR_IPS[client.clientIp]) {
+            opInfo = KNOWN_OPERATOR_IPS[client.clientIp];
+        }
+
+        list.push({
+            clientId: client.clientId,
+            deviceId: client.deviceId || devKey,
+            pcName: client.suggestedPcName || 'PC',
+            username: uname,
+            role: urole || 'superuser',
+            clientIp: client.clientIp || '',
+            color: client.cursorColor || '#38bdf8',
+            tab: client.activeTab || client.tab || 'dashboard',
+            isActive: Boolean(client.isActiveTab),
+            isVisible: Boolean(client.isVisible),
+            lastActiveAt: client.lastActiveAt || Date.now(),
+            operator: opInfo
+        });
+    }
+
+    list.sort((a, b) => (b.lastActiveAt || 0) - (a.lastActiveAt || 0));
+    return list;
+}
+
 // WebSocket yangi mijoz ulanganda
 wss.on('connection', async (ws, req) => {
     console.log('🔗 Yangi Web dashboard mijozi ulandi');
@@ -887,6 +1000,39 @@ wss.on('connection', async (ws, req) => {
     ws.lastActiveAt = Date.now();
     ws.isActiveTab = false;
     ws.isVisible = false;
+    ws.user = null;
+    ws.username = '';
+    ws.userRole = '';
+
+    // Cookie orqali avtorizatsiya sessiyasini aniqlash
+    try {
+        const token = authService.extractToken(req);
+        if (token) {
+            const session = authService.validateSession(token);
+            if (session) {
+                ws.user = session;
+                ws.username = session.username;
+                ws.userRole = session.role;
+            }
+        }
+    } catch (e) {}
+
+    // Agar token orqali aniqlanmagan bo'lsa, IP orqali so'nggi aktiv sessiyani biriktirish
+    if (!ws.username && clientIp) {
+        try {
+            const sess = authService.db.prepare(`
+                SELECT s.username, COALESCE(u.role, 'superuser') as role
+                FROM auth_sessions s
+                LEFT JOIN auth_users u ON s.username = u.username
+                WHERE s.ip LIKE ? AND s.expires_at > datetime('now', 'localtime')
+                ORDER BY s.created_at DESC LIMIT 1
+            `).get(`%${clientIp}%`);
+            if (sess) {
+                ws.username = sess.username;
+                ws.userRole = sess.role;
+            }
+        } catch (_) {}
+    }
 
     // Agar bu IP 3CX agent orqali tanilgan operator bo'lsa, uning rasmiy hostname (PC nomi) ni taklif qilamiz
     let suggestedPc = '';
@@ -898,7 +1044,8 @@ wss.on('connection', async (ws, req) => {
         }
     } catch (e) {}
     if (!suggestedPc) {
-        suggestedPc = (ws.user && ws.user.username && ws.user.username !== 'superuser') ? `PC-${ws.user.username.toUpperCase()}` : `Admin PC #${clientId.slice(-3).toUpperCase()}`;
+        const uname = ws.username || (ws.user && ws.user.username);
+        suggestedPc = (uname && uname !== 'superuser') ? `PC-${uname.toUpperCase()}` : `Admin PC #${clientId.slice(-3).toUpperCase()}`;
     }
     ws.suggestedPcName = suggestedPc;
     
@@ -962,31 +1109,12 @@ wss.on('connection', async (ws, req) => {
             });
 
             // 2. Qurilma / brauzer (deviceId) bo'yicha guruhlash:
-            // Bir nechta tab bo'lsa ham, faqat 1 ta (oxirgi ishlatilgan aktiv tab) hisoblanadi
-            const uniqueDevicesMap = new Map();
-
-            for (const client of dashboardClients) {
-                const devKey = client.deviceId || (client.clientIp + '_' + (client.suggestedPcName || 'pc'));
-                const existing = uniqueDevicesMap.get(devKey);
-
-                if (!existing) {
-                    uniqueDevicesMap.set(devKey, client);
-                } else {
-                    // Qaysi tab hozir aktiv yoki oxirgi harakatlangan bo'lsa, o'shasini tanlash
-                    if (client.isVisible && !existing.isVisible) {
-                        uniqueDevicesMap.set(devKey, client);
-                    } else if (client.isActiveTab && !existing.isActiveTab) {
-                        uniqueDevicesMap.set(devKey, client);
-                    } else if ((client.lastActiveAt || 0) > (existing.lastActiveAt || 0)) {
-                        uniqueDevicesMap.set(devKey, client);
-                    }
-                }
-            }
-
-            const onlineCount = Math.max(1, uniqueDevicesMap.size);
+            const uniqueDevicesMap = getUniqueDevicesMap(dashboardClients);
+            const users = getOnlineUsersSummary(uniqueDevicesMap);
+            const onlineCount = Math.max(1, users.length);
             const msg = JSON.stringify({
                 type: 'presence_stats',
-                data: { onlineCount }
+                data: { onlineCount, users }
             });
             for (const client of wss.clients) {
                 if (client.readyState === 1) client.send(msg);
@@ -1007,6 +1135,9 @@ wss.on('connection', async (ws, req) => {
                 ws.isVisible = true;
                 if (parsed.deviceId) ws.deviceId = parsed.deviceId;
                 if (parsed.tabId) ws.tabId = parsed.tabId;
+                if (parsed.tab) ws.activeTab = parsed.tab;
+                if (parsed.username) ws.username = parsed.username;
+                if (parsed.role) ws.userRole = parsed.role;
 
                 // Jonli kursor koordinatalarini (kontent scroll va gorizontal nisbat bilan) tarqatish
                 const moveData = JSON.stringify({
@@ -1037,6 +1168,9 @@ wss.on('connection', async (ws, req) => {
                 if (parsed.isActiveTab !== undefined) ws.isActiveTab = Boolean(parsed.isActiveTab);
                 if (parsed.isVisible !== undefined) ws.isVisible = Boolean(parsed.isVisible);
                 if (parsed.pcName) ws.suggestedPcName = parsed.pcName;
+                if (parsed.tab) ws.activeTab = parsed.tab;
+                if (parsed.username) ws.username = parsed.username;
+                if (parsed.role) ws.userRole = parsed.role;
                 ws.lastActiveAt = Date.now();
                 broadcastPresenceCount();
             } else if (parsed.type === 'cursor_leave') {
@@ -1070,6 +1204,28 @@ wss.on('connection', async (ws, req) => {
 });
 
 // --- REST API ENDPOINTLARI ---
+
+// Onlayn foydalanuvchilar va ulangan qurilmalar ro'yxati API
+app.get('/api/presence/online-users', (req, res) => {
+    try {
+        const dashboardClients = Array.from(wss.clients).filter(c => {
+            if (c.readyState !== 1) return false;
+            if (c.isViewerProxy || c.isViewer) return false;
+            if (c.appType === 'dashboard_3535') return true;
+            return !c.appType && c.clientIp !== '127.0.0.1' && c.clientIp !== '::1';
+        });
+
+        const uniqueDevicesMap = getUniqueDevicesMap(dashboardClients);
+        const users = getOnlineUsersSummary(uniqueDevicesMap);
+        res.json({
+            success: true,
+            count: users.length,
+            users
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
 
 // Build / Versiya tekshiruvi (Deploy va avtomatik yangilanish uchun)
 app.get('/api/version', (req, res) => {
