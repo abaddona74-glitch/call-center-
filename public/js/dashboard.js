@@ -12846,8 +12846,10 @@ function updateQueueInfoSummaryBadge() {
         summaryEl.textContent = '—';
         return;
     }
-    const counts = ops.map(op => (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0);
-    summaryEl.textContent = counts.join(' · ');
+    const counts = ops
+        .map(op => (op.callsTaken !== null && op.callsTaken !== undefined) ? Number(op.callsTaken) : 0)
+        .filter(c => c > 0);
+    summaryEl.textContent = counts.length > 0 ? counts.join(' · ') : '0';
 }
 
 /* ==========================================================================
