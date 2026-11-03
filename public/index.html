@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793707332616">
+    <meta name="build-id" content="1793707673189">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793707332616">
+    <link rel="stylesheet" href="/css/style.css?v=1793707673189">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -310,7 +310,7 @@
                                 <button type="button" class="gooey-action-btn" onclick="openServerStatusModal(); closeGooeyMenu();" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)">
                                     <svg class="isax isax-flash" style="width: 17px; height: 17px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
                                 </button>
-                                <span class="gooey-label" data-i18n="server_status">Server Holati</span>
+                                <span class="gooey-label" data-i18n="server_status" onclick="openServerStatusModal(); closeGooeyMenu();" title="Server Resurslari">Server Holati</span>
                             </div>
 
                             <!-- Droplet 2: Til O'zgartirish (Language Switcher) -->
@@ -319,7 +319,7 @@
                                     <svg class="isax isax-global" style="width: 17px; height: 17px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
                                     <span class="gooey-lang-tag" id="gooeyLangBadge">O'Z</span>
                                 </button>
-                                <span class="gooey-label" id="gooeyLangLabel">Til: O'zbekcha</span>
+                                <span class="gooey-label" id="gooeyLangLabel" onclick="toggleLanguageGooey(event)" title="Tilni almashtirish">Til: O'zbekcha</span>
                             </div>
 
                             <!-- Droplet 3: Profil & Sozlamalar -->
@@ -327,7 +327,7 @@
                                 <button type="button" class="gooey-action-btn" onclick="toggleProfileFromGooey(event)" title="Foydalanuvchi profili">
                                     <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #c084fc;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
                                 </button>
-                                <span class="gooey-label" id="gooeyProfileLabel">Profil & Sozlamalar</span>
+                                <span class="gooey-label" id="gooeyProfileLabel" onclick="toggleProfileFromGooey(event)" title="Profil va sozlamalar">Profil & Sozlamalar</span>
                             </div>
                         </div>
 
@@ -3932,6 +3932,6 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793707332616" defer></script>
+    <script src="/js/dashboard.js?v=1793707673189" defer></script>
 </body>
 </html>

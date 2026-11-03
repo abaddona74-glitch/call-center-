@@ -9681,13 +9681,44 @@ body.sidebar-collapsed .page-elevator-btn {
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
     opacity: 0;
     transform: translateX(8px);
-    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.24s ease, transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, border-color 0.15s ease;
     pointer-events: none;
+    cursor: pointer;
+    user-select: none;
 }
 
-.gooey-item:hover .gooey-label {
+/* Menyudagi tomchilar ochilishi bilan yozuvlar avtomatik ko'rinsin */
+.gooey-menu-container.open .gooey-label {
     opacity: 1;
     transform: translateX(0);
+    pointer-events: auto;
+}
+
+.gooey-menu-container.open .item-server .gooey-label {
+    transition-delay: 0.06s;
+}
+
+.gooey-menu-container.open .item-lang .gooey-label {
+    transition-delay: 0.11s;
+}
+
+.gooey-menu-container.open .item-profile .gooey-label {
+    transition-delay: 0.16s;
+}
+
+.gooey-item:hover .gooey-label,
+.gooey-label:hover {
+    background: rgba(30, 41, 59, 0.98);
+    border-color: rgba(147, 197, 253, 0.4);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+/* Profil dropdown ochilganda profil yozuvi yopilib turishi */
+.gooey-menu-container.profile-open .item-profile .gooey-label {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(6px);
 }
 
 /* OPEN ANIMATION FOR ITEMS (Staggered Spring Drop) */

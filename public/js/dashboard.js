@@ -13226,6 +13226,7 @@ function toggleGooeyMenu(e) {
     
     // Agar yopilsa, ichidagi profil menyusini ham yopamiz
     if (!isOpening) {
+        container.classList.remove('profile-open');
         const profileMenu = document.getElementById('userProfileMenu');
         if (profileMenu) profileMenu.classList.remove('open');
     }
@@ -13234,7 +13235,10 @@ window.toggleGooeyMenu = toggleGooeyMenu;
 
 function closeGooeyMenu() {
     const container = document.getElementById('gooeyMenuContainer');
-    if (container) container.classList.remove('open');
+    if (container) {
+        container.classList.remove('open');
+        container.classList.remove('profile-open');
+    }
     const profileMenu = document.getElementById('userProfileMenu');
     if (profileMenu) profileMenu.classList.remove('open');
 }
@@ -13268,8 +13272,12 @@ function toggleProfileFromGooey(e) {
         e.stopPropagation();
     }
     const profileMenu = document.getElementById('userProfileMenu');
+    const container = document.getElementById('gooeyMenuContainer');
     if (profileMenu) {
-        profileMenu.classList.toggle('open');
+        const isOpen = profileMenu.classList.toggle('open');
+        if (container) {
+            container.classList.toggle('profile-open', isOpen);
+        }
     }
 }
 window.toggleProfileFromGooey = toggleProfileFromGooey;
