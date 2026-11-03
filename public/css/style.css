@@ -9772,3 +9772,47 @@ body.sidebar-collapsed .page-elevator-btn {
         transition-delay: 0s !important;
     }
 }
+
+/* ==========================================================================
+   VISUAL AI INSPECTOR (v0 / Lovable Style Element Prompting)
+   ========================================================================== */
+body.visual-inspector-on {
+    cursor: crosshair !important;
+}
+
+body.visual-inspector-on * {
+    cursor: crosshair !important;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: scale(1.3);
+    }
+}
+
+@keyframes modalPopIn {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) translateY(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.visual-ai-modal-box textarea:focus {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25) !important;
+}
+
+.visual-ai-modal-box .ai-chip-btn:hover {
+    background: rgba(168, 85, 247, 0.15) !important;
+    border-color: rgba(168, 85, 247, 0.4) !important;
+    color: #e9d5ff !important;
+}
