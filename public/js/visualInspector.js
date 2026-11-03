@@ -272,14 +272,19 @@
             </div>
 
             <!-- Tugmalar -->
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <button type="button" id="btnReselectElement" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                <button type="button" id="btnReselectElement" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 9px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">
                     Boshqa element
                 </button>
-                <button type="button" id="btnCopyVisualPrompt" style="background: #7c3aed; border: none; color: #ffffff; padding: 9px 18px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4); transition: all 0.2s ease;">
-                    <svg class="isax isax-magic-star" style="width: 15px; height: 15px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
-                    <span>Promptni nusxalash</span>
-                </button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" id="btnCopyVisualPrompt" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #f1f5f9; padding: 9px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                        Nusxalash
+                    </button>
+                    <button type="button" id="btnSendToAntigravity" style="background: linear-gradient(135deg, #7c3aed, #4f46e5); border: none; color: #ffffff; padding: 9px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; box-shadow: 0 4px 14px rgba(124, 58, 237, 0.4); transition: all 0.2s ease;">
+                        <svg class="isax isax-magic-star" style="width: 15px; height: 15px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
+                        <span>Antigravity'ga yuborish 🚀</span>
+                    </button>
+                </div>
             </div>
         `;
 
@@ -311,13 +316,9 @@
             if (highlightBox) highlightBox.style.display = 'block';
         });
 
-        // Promptni nusxalash
-        document.getElementById('btnCopyVisualPrompt')?.addEventListener('click', () => {
+        function generateFullPrompt() {
             const userTask = txtInput ? txtInput.value.trim() : '';
-            const copyBtn = document.getElementById('btnCopyVisualPrompt');
-
-            // Tayyor AI Prompt matni yaratish
-            const fullPrompt = [
+            return [
                 `[VISUAL UI O'ZGARTIRISH TALABI]:`,
                 `- Element: <${tag}${id}>`,
                 classes ? `- Klasslar: ${classes}` : null,
@@ -330,19 +331,88 @@
                 `🎯 VAZIFA:`,
                 userTask ? userTask : `Ushbu elementning ko'rinishini yaxshilab ber.`
             ].filter(Boolean).join('\n');
+        }
+
+        // 1. Nusxalash tugmasi
+        document.getElementById('btnCopyVisualPrompt')?.addEventListener('click', () => {
+            const copyBtn = document.getElementById('btnCopyVisualPrompt');
+            const fullPrompt = generateFullPrompt();
 
             navigator.clipboard.writeText(fullPrompt).then(() => {
                 if (copyBtn) {
-                    copyBtn.style.background = '#10b981';
-                    copyBtn.innerHTML = `<span>✅ Nusxalandi! Chatga tashlang</span>`;
+                    copyBtn.textContent = '✅ Nusxalandi!';
                     setTimeout(() => {
                         closePromptModal();
                         stopVisualInspector();
-                    }, 1100);
+                    }, 800);
                 }
             }).catch(err => {
                 console.error('Nusxalashda xatolik:', err);
             });
+        });
+
+        // 2. Antigravity Inbox'ga yuborish tugmasi
+        document.getElementById('btnSendToAntigravity')?.addEventListener('click', async () => {
+            const sendBtn = document.getElementById('btnSendToAntigravity');
+            const userTask = txtInput ? txtInput.value.trim() : '';
+            const fullPrompt = generateFullPrompt();
+
+            // Avval clipboard'ga ham nusxalab qo'yamiz (har ehtimolga qarshi)
+            try { navigator.clipboard.writeText(fullPrompt); } catch (e) {}
+
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = `<span>Yuborilmoqda...</span>`;
+            }
+
+            try {
+                const res = await fetch('/api/dev/visual-prompt', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt: fullPrompt,
+                        task: userTask,
+                        element: {
+                            tag,
+                            id: el.id || '',
+                            classes,
+                            text: textContent,
+                            width: Math.round(rect.width),
+                            height: Math.round(rect.height)
+                        }
+                    })
+                });
+
+                if (res.ok) {
+                    if (sendBtn) {
+                        sendBtn.style.background = '#10b981';
+                        sendBtn.innerHTML = `<span>✅ Qabul qilindi!</span>`;
+                    }
+                    setTimeout(() => {
+                        closePromptModal();
+                        stopVisualInspector();
+                    }, 1100);
+                } else {
+                    if (sendBtn) {
+                        sendBtn.style.background = '#10b981';
+                        sendBtn.innerHTML = `<span>✅ Nusxalandi! Chatga tashlang</span>`;
+                    }
+                    setTimeout(() => {
+                        closePromptModal();
+                        stopVisualInspector();
+                    }, 1200);
+                }
+            } catch (err) {
+                console.error('Yuborishda xatolik:', err);
+                if (sendBtn) {
+                    sendBtn.style.background = '#10b981';
+                    sendBtn.innerHTML = `<span>✅ Nusxalandi! Chatga tashlang</span>`;
+                }
+                setTimeout(() => {
+                    closePromptModal();
+                    stopVisualInspector();
+                }, 1200);
+            }
         });
 
         // Modal tashqarisiga bosilganda
@@ -427,3 +497,4 @@
     window.stopVisualInspector = stopVisualInspector;
 
 })();
+

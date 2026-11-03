@@ -354,6 +354,49 @@ app.post('/api/auth/forgot-password/reset', (req, res) => {
     }
 });
 
+// Visual AI Inspector: Dev UI prompt qabul qilish va Antigravity inbox ga saqlash
+app.post('/api/dev/visual-prompt', (req, res) => {
+    try {
+        const token = authService.extractToken(req);
+        const session = authService.validateSession(token);
+        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
+        if (!isLocal && (!session || (session.role !== 'superuser' && session.role !== 'admin'))) {
+            return res.status(403).json({ success: false, message: 'Faqat superuser/admin uchun ruxsat etilgan' });
+        }
+
+        const { prompt, element, task } = req.body || {};
+        if (!prompt) {
+            return res.status(400).json({ success: false, message: 'Prompt bo\'sh bo\'lishi mumkin emas' });
+        }
+
+        const taskEntry = {
+            id: Date.now(),
+            createdAt: new Date().toISOString(),
+            element: element || {},
+            task: task || '',
+            prompt: prompt,
+            status: 'pending'
+        };
+
+        const scratchDir = path.join(__dirname, 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            fs.mkdirSync(scratchDir, { recursive: true });
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        queue.unshift(taskEntry);
+        fs.writeFileSync(queuePath, JSON.stringify(queue.slice(0, 50), null, 2), 'utf8');
+
+        return res.json({ success: true, message: 'Vazifa Antigravity Inbox ga qabul qilindi', task: taskEntry });
+    } catch (e) {
+        console.error('visual-prompt api error:', e);
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // --- SYSTEM SETTINGS & RBAC API (Faqat superuser uchun) ---
 
 function requireSuperuser(req, res, next) {
