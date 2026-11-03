@@ -8,7 +8,7 @@
   "26": "handleWsMessage",
   "28": "smoothCloseDashboardModal",
   "29": "getTodayDateString",
-  "30": "GeminiService",
+  "30": "telegramService.js",
   "32": "renderDetailTableBody",
   "33": "parseString",
   "34": "dashboard.js",
@@ -16,8 +16,8 @@
   "37": "requestOperatorHelp",
   "38": "app.js",
   "39": "renderCallbacks",
-  "40": "_addNamedNode",
-  "41": "pull_from_server.js",
+  "40": "assertPreReplacementValidityInDocument",
+  "41": "viewer/scripts/deploy.js",
   "42": "initPageElevator",
   "43": "viewer/package.json",
   "46": "updateQueueInfoModal",
@@ -34,7 +34,7 @@
   "81": "resetToolImageZoom",
   "84": "ref_path",
   "85": "deepEq",
-  "87": "_onUpdateChild",
+  "87": "sftpService.js",
   "88": "createBuffer",
   "91": "s",
   "97": "Y",
@@ -48,7 +48,5 @@
   "112": "loadClientsTab",
   "113": "converterService.js",
   "114": "codePoint",
-  "115": "encodeChunk",
-  "116": "getTextContent",
-  "117": "importNode"
+  "115": "readNumberingXml"
 }

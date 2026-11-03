@@ -1051,6 +1051,95 @@ class IssabelDbService {
     }
 
     /**
+     * Aqlli qidiruv shartini shakllantirish (B-Tree index merge dan to'liq foydalanadi):
+     * - Telefon raqamlarni avtomatik tozalaydi: probellar, qavs, chiziqcha, +998 prefikslari
+     * - Aniq raqam bo'lsa (7-15 raqam), B-Tree indeksdan foydalanadigan IN (...) ga o'tkazadi
+     * - Operator ismi yoki ichki raqami bo'lsa, operator xodimlarini topadi
+     * - Matnli qidiruv bo'lsa, LIKE '%...%' fallback ishlatadi
+     */
+    buildSmartSearchCondition(search, tableAlias = 'c', includeDisposition = true) {
+        if (!search || !String(search).trim()) return '';
+
+        const raw = String(search).trim();
+        const p = tableAlias ? `${tableAlias}.` : '';
+        const searchLower = raw.toLowerCase();
+
+        // 1. Operator ismlari bo'yicha qidiruv (masalan: "Oybek", "Muattar", "119")
+        const matchedExts = [];
+        for (const [ext, name] of this.operatorNames.entries()) {
+            if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
+                matchedExts.push(ext);
+            }
+        }
+        for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
+            if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
+                matchedExts.push(ext);
+            }
+        }
+        if (/^[0-9]{2,4}$/.test(raw) && !matchedExts.includes(raw)) {
+            matchedExts.push(raw);
+        }
+
+        let extConds = '';
+        if (matchedExts.length > 0) {
+            extConds = matchedExts.map(ext => {
+                const dispPart = includeDisposition ? `(${p}disposition = 'ANSWERED' AND ${p}billsec > 0 AND ` : '(';
+                const endPart = includeDisposition ? `)` : '';
+                return `(${dispPart}(${p}dstchannel LIKE '%/${ext}-%' OR ${p}channel LIKE '%/${ext}-%' OR ${p}dstchannel LIKE '%Local/${ext}@%' OR ${p}channel LIKE '%Local/${ext}@%' OR ${p}dst = '${ext}')${endPart} OR ${p}src = '${ext}')`;
+            }).join(' OR ');
+        }
+
+        // 2. Raqamlarni tozalash (probel, +, -, (, ), va boshqalar)
+        const cleanDigits = raw.replace(/\D/g, '');
+
+        // Agar bu telefon raqami bo'lsa (kamida 7 xonali raqamlar guruhi)
+        if (cleanDigits.length >= 7) {
+            const variants = new Set();
+            variants.add(cleanDigits);
+
+            // 12 xonali 998... bo'lsa, 9 xonali variantini ham qo'shamiz
+            if (cleanDigits.startsWith('998') && cleanDigits.length === 12) {
+                const d9 = cleanDigits.slice(3);
+                variants.add(d9);
+                variants.add(`+${cleanDigits}`);
+            } else if (cleanDigits.length === 9) {
+                variants.add(`998${cleanDigits}`);
+                variants.add(`+998${cleanDigits}`);
+            }
+
+            const main9 = cleanDigits.length >= 9 ? cleanDigits.slice(-9) : cleanDigits;
+            // Shuningdek 0 bilan yoki 9 bilan chiquvchi prefikslar: 090..., 990...
+            variants.add(`0${main9}`);
+            variants.add(`9${main9}`);
+
+            const exactList = Array.from(variants).map(v => `'${v.replace(/'/g, "\\'")}'`).join(', ');
+
+            // B-Tree indekslaridan to'liq foydalanadigan ultra-tezkor shart
+            let phoneCond = `(${p}src IN (${exactList}) OR ${p}dst IN (${exactList}))`;
+
+            // Agar qidiruv 7-8 xonali qisqa qismi bo'lsa (masalan shahar raqami yoki oxiri)
+            if (cleanDigits.length < 9) {
+                phoneCond = `(${phoneCond} OR ${p}src LIKE '%${cleanDigits}%' OR ${p}dst LIKE '%${cleanDigits}%')`;
+            }
+
+            if (extConds) {
+                return `(${phoneCond} OR (${extConds}))`;
+            }
+            return phoneCond;
+        }
+
+        // 3. Matnli yoki umumiy qidiruv (operator nomi, disposition, va h.k.)
+        const s = raw.replace(/'/g, "\\'");
+        const dispCheck = includeDisposition ? ` OR ${p}disposition LIKE '%${s}%'` : '';
+        let baseCond = `(${p}src LIKE '%${s}%' OR ${p}dst LIKE '%${s}%' OR ${p}dstchannel LIKE '%${s}%' OR ${p}channel LIKE '%${s}%'${dispCheck})`;
+
+        if (extConds) {
+            return `(${baseCond} OR (${extConds}))`;
+        }
+        return baseCond;
+    }
+
+    /**
      * 2. Operatorlar statistikasi (Answered, Talk Time, Rejects, Missed)
      */
     async fetchOperatorStats(dateStr = '') {
@@ -1813,26 +1902,10 @@ class IssabelDbService {
             let filter = ` WHERE ${dateCondCdr} AND TIME(c.calldate) >= '08:00:00' AND TIME(c.calldate) <= '21:00:00' AND (c.dcontext IN ('ext-queues', 'from-trunk', 'ivr-4') OR c.channel LIKE 'SIP/712020159%' OR (c.dcontext = 'from-internal' AND c.channel REGEXP '^SIP/[0-9]{2,4}-')) AND c.channel NOT LIKE 'Local/%' `;
 
             if (search) {
-                const s = search.replace(/'/g, "\\'");
-                const searchLower = search.trim().toLowerCase();
-                const matchedExts = [];
-                for (const [ext, name] of this.operatorNames.entries()) {
-                    if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
-                        matchedExts.push(ext);
-                    }
+                const searchCond = this.buildSmartSearchCondition(search, 'c', true);
+                if (searchCond) {
+                    filter += ` AND ${searchCond} `;
                 }
-                for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
-                    if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
-                        matchedExts.push(ext);
-                    }
-                }
-
-                let searchCond = `(c.src LIKE '%${s}%' OR c.dst LIKE '%${s}%' OR c.dstchannel LIKE '%${s}%' OR c.disposition LIKE '%${s}%' OR c.channel LIKE '%${s}%')`;
-                if (matchedExts.length > 0) {
-                    const extConds = matchedExts.map(ext => `((c.disposition = 'ANSWERED' AND c.billsec > 0 AND (c.dstchannel LIKE '%/${ext}-%' OR c.channel LIKE '%/${ext}-%' OR c.dstchannel LIKE '%Local/${ext}@%' OR c.channel LIKE '%Local/${ext}@%' OR c.dst = '${ext}')) OR c.src = '${ext}')`).join(' OR ');
-                    searchCond = `(${searchCond} OR (${extConds}))`;
-                }
-                filter += ` AND ${searchCond} `;
             }
 
             if (direction === 'transfer') {
@@ -2165,34 +2238,10 @@ class IssabelDbService {
             }
 
             if (search) {
-                const s = search.replace(/'/g, '').trim();
-                const searchLower = s.toLowerCase();
-                const matchedExts = [];
-                for (const [ext, name] of this.operatorNames.entries()) {
-                    if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
-                        matchedExts.push(ext);
-                    }
+                const sCond = this.buildSmartSearchCondition(search, '', false);
+                if (sCond) {
+                    whereClause += ` AND ${sCond}`;
                 }
-                for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
-                    if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
-                        matchedExts.push(ext);
-                    }
-                }
-
-                const isPhone = /^[0-9+]{6,15}$/.test(s);
-                let sCond = '';
-                if (isPhone) {
-                    const cleanPhone = s.replace(/^\+/, '');
-                    sCond = `(src = '${cleanPhone}' OR dst = '${cleanPhone}' OR src LIKE '%${cleanPhone}' OR dst LIKE '%${cleanPhone}')`;
-                } else {
-                    sCond = `(src LIKE '%${s}%' OR dst LIKE '%${s}%' OR dstchannel LIKE '%${s}%' OR channel LIKE '%${s}%')`;
-                }
-
-                if (matchedExts.length > 0) {
-                    const extConds = matchedExts.map(ext => `dstchannel LIKE '%/${ext}-%' OR channel LIKE '%/${ext}-%' OR dstchannel LIKE '%Local/${ext}@%' OR channel LIKE '%Local/${ext}@%' OR dst = '${ext}' OR src = '${ext}'`).join(' OR ');
-                    sCond = `(${sCond} OR (${extConds}))`;
-                }
-                whereClause += ` AND ${sCond}`;
             }
 
             let total = 0;
@@ -2593,29 +2642,10 @@ class IssabelDbService {
 
         const combinedSearch = searchTerms.join(' ').trim();
         if (combinedSearch) {
-            const s = combinedSearch.replace(/'/g, "\\'");
-            const searchLower = combinedSearch.toLowerCase();
-            const matchedExts = [];
-            for (const [ext, name] of this.operatorNames.entries()) {
-                if (name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) {
-                    matchedExts.push(ext);
-                }
+            const searchCond = this.buildSmartSearchCondition(combinedSearch, 'c', false);
+            if (searchCond) {
+                filter += ` AND ${searchCond} `;
             }
-            for (const [ext, name] of Object.entries(DEFAULT_OPERATOR_NAMES)) {
-                if ((name.toLowerCase().includes(searchLower) || searchLower.includes(name.toLowerCase())) && !matchedExts.includes(ext)) {
-                    matchedExts.push(ext);
-                }
-            }
-            if (/^[0-9]{2,4}$/.test(combinedSearch) && !matchedExts.includes(combinedSearch)) {
-                matchedExts.push(combinedSearch);
-            }
-
-            let searchCond = `(c.src LIKE '%${s}%' OR c.dst LIKE '%${s}%' OR c.dstchannel LIKE '%${s}%' OR c.channel LIKE '%${s}%')`;
-            if (matchedExts.length > 0) {
-                const extConds = matchedExts.map(ext => `((c.dstchannel LIKE '%/${ext}-%' OR c.channel LIKE '%/${ext}-%' OR c.dstchannel LIKE '%Local/${ext}@%' OR c.channel LIKE '%Local/${ext}@%' OR c.dst = '${ext}') OR c.src = '${ext}')`).join(' OR ');
-                searchCond = `(${searchCond} OR (${extConds}))`;
-            }
-            filter += ` AND ${searchCond} `;
         }
 
         if (direction === 'outbound') {

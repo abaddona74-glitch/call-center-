@@ -246,9 +246,9 @@
     "semantic_hash": "61244eff2a5bb9182c734be9f842854c"
   },
   "services/issabelDbService.js": {
-    "mtime": 1793342453.7400596,
-    "seen": 1793342885.146528,
-    "ast_hash": "b68b2ac75dddecffca059752920a0476",
+    "mtime": 1793701757.4054012,
+    "seen": 1793701835.5612307,
+    "ast_hash": "74836e87bd396100ef1287f795178e8f",
     "semantic_hash": ""
   },
   "services/proxmoxService.js": {
@@ -348,9 +348,9 @@
     "semantic_hash": ""
   },
   "viewer/app.js": {
-    "mtime": 1793609906.2568796,
-    "seen": 1793610254.7418954,
-    "ast_hash": "e0250d75f0f76c8aaca3e1f4b8eb2687",
+    "mtime": 1793627510.4016345,
+    "seen": 1793701835.5612307,
+    "ast_hash": "8ff789dba55897f1884428d16aec9d0b",
     "semantic_hash": ""
   },
   "viewer/config.js": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "viewer/public/js/tickets.js": {
-    "mtime": 1793610052.1130917,
-    "seen": 1793610254.7418954,
-    "ast_hash": "8e3d99b77134da0a5bf52143999503fd",
+    "mtime": 1793627693.483868,
+    "seen": 1793701835.56173,
+    "ast_hash": "8f74ed3d9df1fb796a3abe41e24e5201",
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
@@ -456,9 +456,9 @@
     "semantic_hash": "7e0e7b55034c1c40b2ad385e09bcd004"
   },
   "viewer/services/ticketService.js": {
-    "mtime": 1793610104.11756,
-    "seen": 1793610254.7423942,
-    "ast_hash": "70ae4d0c4d7f94638b590ee5c438cff6",
+    "mtime": 1793627482.4734116,
+    "seen": 1793701835.56173,
+    "ast_hash": "6cd8aa7e8a1ef630dcd3b8561de81479",
     "semantic_hash": ""
   },
   "3cx-desktop-agent/README.md": {
@@ -486,9 +486,9 @@
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
-    "mtime": 1793609982.5086179,
-    "seen": 1793610254.7423942,
-    "ast_hash": "1cbd11a761e802acf6e1ccfdd2386ad1",
+    "mtime": 1793627344.625608,
+    "seen": 1793701835.56173,
+    "ast_hash": "4d1fb62e7365855071b569ee8cf199e7",
     "semantic_hash": ""
   },
   "operator.wav": {
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793611427.8051324,
-    "seen": 1793611616.8092492,
-    "ast_hash": "4ec5b26fed5060f1d873c4ea823c30bf",
+    "mtime": 1793627251.2245557,
+    "seen": 1793701835.56173,
+    "ast_hash": "e33ba272959d8e8965450547afc3d6fa",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {
