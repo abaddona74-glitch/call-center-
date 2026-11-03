@@ -72,9 +72,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "public/js/dashboard.js": {
-    "mtime": 1793620281.990621,
-    "seen": 1793620787.2762535,
-    "ast_hash": "9d65512a6539883b34a9e628efe62180",
+    "mtime": 1793705726.38361,
+    "seen": 1793705806.334489,
+    "ast_hash": "aad96df3c81cbe5aeddd75f97b55613a",
     "semantic_hash": ""
   },
   "public/js/i18n.js": {
@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793620640.1453755,
-    "seen": 1793620787.2762535,
-    "ast_hash": "e6f1064afc340dd1da7e59c29e63cc37",
+    "mtime": 1793705990.9023988,
+    "seen": 1793706212.8658187,
+    "ast_hash": "ed24798fb3d88805718ab845689cd82f",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -246,8 +246,8 @@
     "semantic_hash": "61244eff2a5bb9182c734be9f842854c"
   },
   "services/issabelDbService.js": {
-    "mtime": 1793701757.4054012,
-    "seen": 1793701835.5612307,
+    "mtime": 1793703133.6023507,
+    "seen": 1793705806.334489,
     "ast_hash": "74836e87bd396100ef1287f795178e8f",
     "semantic_hash": ""
   },
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793620640.168331,
-    "seen": 1793620787.2762535,
-    "ast_hash": "68a53c5573eef3bdc98280f3cee259eb",
+    "mtime": 1793705990.9118817,
+    "seen": 1793706212.8658187,
+    "ast_hash": "56790af8c6815f2338d5191eb1a18350",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -480,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793620640.1678321,
-    "seen": 1793620787.2762535,
-    "ast_hash": "2c89499ef45ca5dfca86a852f646d168",
+    "mtime": 1793705990.910883,
+    "seen": 1793706212.8658187,
+    "ast_hash": "e234f304e567a9f0aa0657c7fad9055a",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {

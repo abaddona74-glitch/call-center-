@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793620640143">
+    <meta name="build-id" content="1793705990900">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793620640143">
+    <link rel="stylesheet" href="/css/style.css?v=1793705990900">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -205,7 +205,7 @@
                             <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
                             <span id="liveClockDisplay">--:--:--</span>
                         </div>
-                        <button id="btnServerStatus" onclick="openServerStatusModal()" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; color: #34d399; cursor: pointer; transition: all 0.2s ease;">
+                        <button id="btnServerStatus" onclick="openServerStatusModal()" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: none;">
                             <svg class="isax isax-flash" style="width: 14px; height: 14px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
                             <span data-i18n="server_status">Server Holati</span>
                         </button>
@@ -272,49 +272,102 @@
                         </a>
                     </nav>
 
-                    <!-- User Profile & Dropdown (Pastga ochiladigan menyu - chapda) -->
-                    <div class="user-profile-menu" id="userProfileMenu">
-                        <button type="button" class="user-profile-avatar-btn" id="userProfileBtn" onclick="toggleUserProfile(event)" title="Foydalanuvchi profili">
-                            <span class="user-profile-icon">
-                                <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; display: block;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
-                            </span>
-                        </button>
-                        
-                        <!-- Dropdown Menu (pastga tushadi) -->
-                        <div class="user-profile-dropdown" id="userProfileDropdown">
-                            <div class="user-dropdown-header">
-                                <div class="user-dropdown-avatar">
-                                    <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
-                                </div>
-                                <div class="user-dropdown-info">
-                                    <span id="headerUsername" class="user-dropdown-name">superuser</span>
-                                    <span id="headerUserEmail" class="user-dropdown-email" style="font-size: 11px; color: #94a3b8; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;"></span>
-                                    <span id="headerUserRole" class="user-dropdown-role">Superuser</span>
-                                </div>
+                    <!-- SVG Filter for Gooey Drop Effect (feGaussianBlur + feColorMatrix for liquid drop physics) -->
+                    <svg class="gooey-svg-def" aria-hidden="true" style="position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none;">
+                        <defs>
+                            <filter id="gooey-header-filter">
+                                <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+                                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="goo" />
+                                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+                            </filter>
+                        </defs>
+                    </svg>
+
+                    <!-- GOOEY HEADER MENU CONTAINER -->
+                    <div class="gooey-menu-container" id="gooeyMenuContainer">
+                        <!-- 1. Background Liquid Blobs Layer (SVG Gooey Filter applied) -->
+                        <div class="gooey-blobs-layer">
+                            <div class="gooey-blob blob-main"></div>
+                            <div class="gooey-blob blob-server"></div>
+                            <div class="gooey-blob blob-lang"></div>
+                            <div class="gooey-blob blob-profile"></div>
+                        </div>
+
+                        <!-- 2. Crisp Foreground Content Layer (No filter, 100% sharp icons) -->
+                        <div class="gooey-items-layer">
+                            <!-- Main Drop Trigger Button -->
+                            <button type="button" class="gooey-main-btn" id="gooeyMainBtn" onclick="toggleGooeyMenu(event)" aria-label="Boshqaruv menyusi" title="Menyu (Server, Til, Profil)">
+                                <span class="gooey-burger-icon">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </span>
+                                <span class="gooey-status-dot" id="gooeyStatusDot" title="Server holati"></span>
+                            </button>
+
+                            <!-- Droplet 1: Server Holati -->
+                            <div class="gooey-item item-server">
+                                <button type="button" class="gooey-action-btn" onclick="openServerStatusModal(); closeGooeyMenu();" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)">
+                                    <svg class="isax isax-flash" style="width: 17px; height: 17px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
+                                </button>
+                                <span class="gooey-label" data-i18n="server_status">Server Holati</span>
                             </div>
-                            <div class="user-dropdown-divider"></div>
-                            <div class="user-dropdown-items">
-                                <button type="button" class="user-dropdown-item" id="btnUserProfile" onclick="openProfileModal(event)">
-                                    <svg class="isax isax-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"/><path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"/></svg>
-                                    <span>Profil & Gmail</span>
+
+                            <!-- Droplet 2: Til O'zgartirish (Language Switcher) -->
+                            <div class="gooey-item item-lang">
+                                <button type="button" class="gooey-action-btn" onclick="toggleLanguageGooey(event)" title="Tilni almashtirish (O'Z / РУ)">
+                                    <svg class="isax isax-global" style="width: 17px; height: 17px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
+                                    <span class="gooey-lang-tag" id="gooeyLangBadge">O'Z</span>
                                 </button>
-                                <button type="button" class="user-dropdown-item" id="btnSettings" onclick="openSettingsModal(event)">
-                                    <svg class="isax isax-setting-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"/><path d="M2 12.88V11.12C2 10.08 2.85 9.22 3.9 9.22C4.71 9.22 5.45 8.7 5.76 7.95C6.07 7.2 5.89 6.35 5.31 5.78L4.36 4.83C3.62 4.09 3.62 2.91 4.36 2.17C5.1 1.43 6.28 1.43 7.02 2.17L7.97 3.12C8.54 3.7 9.39 3.88 10.14 3.57C10.89 3.26 11.41 2.52 11.41 1.71C11.41 0.67 12.26 0 13.3 0H14.7C15.74 0 16.59 0.85 16.59 1.9C16.59 2.71 17.11 3.45 17.86 3.76C18.61 4.07 19.46 3.89 20.03 3.31L20.98 2.36C21.72 1.62 22.9 1.62 23.64 2.36C24.38 3.1 24.38 4.28 23.64 5.02L22.69 5.97C22.11 6.54 21.93 7.39 22.24 8.14C22.55 8.89 23.29 9.41 24.1 9.41C25.14 9.41 26 10.26 26 11.3V12.7C26 13.74 25.15 14.59 24.1 14.59C23.29 14.59 22.55 15.11 22.24 15.86C21.93 16.61 22.11 17.46 22.69 18.03L23.64 18.98C24.38 19.72 24.38 20.9 23.64 21.64C22.9 22.38 21.72 22.38 20.98 21.64L20.03 20.69C19.46 20.11 18.61 19.93 17.86 20.24C17.11 20.55 16.59 21.29 16.59 22.1C16.59 23.14 15.74 24 14.7 24H12.94C11.9 24 11.05 23.15 11.05 22.1C11.05 21.29 10.53 20.55 9.78 20.24C9.03 19.93 8.18 20.11 7.61 20.69L6.66 21.64C5.92 22.38 4.74 22.38 4 21.64C3.26 20.9 3.26 19.72 4 18.98L4.95 18.03C5.53 17.46 5.71 16.61 5.4 15.86C5.09 15.11 4.35 14.59 3.54 14.59C2.5 14.59 1.65 13.74 1.65 12.7"/></svg>
-                                    <span>Sozlamalar</span>
+                                <span class="gooey-label" id="gooeyLangLabel">Til: O'zbekcha</span>
+                            </div>
+
+                            <!-- Droplet 3: Profil & Sozlamalar -->
+                            <div class="gooey-item item-profile">
+                                <button type="button" class="gooey-action-btn" onclick="toggleProfileFromGooey(event)" title="Foydalanuvchi profili">
+                                    <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #c084fc;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
                                 </button>
-                                <button type="button" class="user-dropdown-item logout" id="btnLogout" onclick="handleLogout(event)">
-                                    <svg class="isax isax-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8.9 7.56C9.21 3.96 11.06 2.49 15.11 2.49H15.24C19.71 2.49 21.5 4.28 21.5 8.75V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24 20.08 8.91 16.54"/><path d="M15 12H3.62"/><path d="M5.85 8.65L2.5 12L5.85 15.35"/></svg>
-                                    <span>Tizimdan chiqish</span>
-                                </button>
+                                <span class="gooey-label" id="gooeyProfileLabel">Profil & Sozlamalar</span>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Language Switcher: O'zbekcha / Русский (Spring Animated Glass Pill Toggle - o'ngda) -->
-                    <div class="lang-switch-container" id="langSwitchContainer" data-active="uz" role="tablist" aria-label="Tilni tanlash / Выбрать язык" title="Tilni tanlash / Выбрать язык">
-                        <span class="lang-switch-thumb" id="langSwitchThumb" aria-hidden="true"></span>
-                        <button type="button" class="lang-btn active" data-lang="uz" role="tab" aria-selected="true" onclick="switchLanguage('uz')" title="O'zbek tili"><span>O'Z</span></button>
-                        <button type="button" class="lang-btn" data-lang="ru" role="tab" aria-selected="false" onclick="switchLanguage('ru')" title="Русский язык"><span>РУ</span></button>
+                        <!-- User Profile Dropdown Menu -->
+                        <div class="user-profile-menu" id="userProfileMenu">
+                            <div class="user-profile-dropdown" id="userProfileDropdown">
+                                <div class="user-dropdown-header">
+                                    <div class="user-dropdown-avatar">
+                                        <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+                                    </div>
+                                    <div class="user-dropdown-info">
+                                        <span id="headerUsername" class="user-dropdown-name">superuser</span>
+                                        <span id="headerUserEmail" class="user-dropdown-email" style="font-size: 11px; color: #94a3b8; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;"></span>
+                                        <span id="headerUserRole" class="user-dropdown-role">Superuser</span>
+                                    </div>
+                                </div>
+                                <div class="user-dropdown-divider"></div>
+                                <div class="user-dropdown-items">
+                                    <button type="button" class="user-dropdown-item" id="btnUserProfile" onclick="openProfileModal(event); closeGooeyMenu();">
+                                        <svg class="isax isax-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"/><path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"/></svg>
+                                        <span>Profil & Gmail</span>
+                                    </button>
+                                    <button type="button" class="user-dropdown-item" id="btnSettings" onclick="openSettingsModal(event); closeGooeyMenu();">
+                                        <svg class="isax isax-setting-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"/><path d="M2 12.88V11.12C2 10.08 2.85 9.22 3.9 9.22C4.71 9.22 5.45 8.7 5.76 7.95C6.07 7.2 5.89 6.35 5.31 5.78L4.36 4.83C3.62 4.09 3.62 2.91 4.36 2.17C5.1 1.43 6.28 1.43 7.02 2.17L7.97 3.12C8.54 3.7 9.39 3.88 10.14 3.57C10.89 3.26 11.41 2.52 11.41 1.71C11.41 0.67 12.26 0 13.3 0H14.7C15.74 0 16.59 0.85 16.59 1.9C16.59 2.71 17.11 3.45 17.86 3.76C18.61 4.07 19.46 3.89 20.03 3.31L20.98 2.36C21.72 1.62 22.9 1.62 23.64 2.36C24.38 3.1 24.38 4.28 23.64 5.02L22.69 5.97C22.11 6.54 21.93 7.39 22.24 8.14C22.55 8.89 23.29 9.41 24.1 9.41C25.14 9.41 26 10.26 26 11.3V12.7C26 13.74 25.15 14.59 24.1 14.59C23.29 14.59 22.55 15.11 22.24 15.86C21.93 16.61 22.11 17.46 22.69 18.03L23.64 18.98C24.38 19.72 24.38 20.9 23.64 21.64C22.9 22.38 21.72 22.38 20.98 21.64L20.03 20.69C19.46 20.11 18.61 19.93 17.86 20.24C17.11 20.55 16.59 21.29 16.59 22.1C16.59 23.14 15.74 24 14.7 24H12.94C11.9 24 11.05 23.15 11.05 22.1C11.05 21.29 10.53 20.55 9.78 20.24C9.03 19.93 8.18 20.11 7.61 20.69L6.66 21.64C5.92 22.38 4.74 22.38 4 21.64C3.26 20.9 3.26 19.72 4 18.98L4.95 18.03C5.53 17.46 5.71 16.61 5.4 15.86C5.09 15.11 4.35 14.59 3.54 14.59C2.5 14.59 1.65 13.74 1.65 12.7"/></svg>
+                                        <span>Sozlamalar</span>
+                                    </button>
+                                    <button type="button" class="user-dropdown-item logout" id="btnLogout" onclick="handleLogout(event)">
+                                        <svg class="isax isax-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8.9 7.56C9.21 3.96 11.06 2.49 15.11 2.49H15.24C19.71 2.49 21.5 4.28 21.5 8.75V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24 20.08 8.91 16.54"/><path d="M15 12H3.62"/><path d="M5.85 8.65L2.5 12L5.85 15.35"/></svg>
+                                        <span>Tizimdan chiqish</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Invisible compatibility container for i18n script -->
+                        <div class="lang-switch-container" id="langSwitchContainer" data-active="uz" role="tablist" style="display: none;">
+                            <span class="lang-switch-thumb" id="langSwitchThumb" aria-hidden="true"></span>
+                            <button type="button" class="lang-btn active" data-lang="uz" role="tab" aria-selected="true" onclick="switchLanguage('uz')"><span>O'Z</span></button>
+                            <button type="button" class="lang-btn" data-lang="ru" role="tab" aria-selected="false" onclick="switchLanguage('ru')"><span>РУ</span></button>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -3879,6 +3932,6 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793620640143" defer></script>
+    <script src="/js/dashboard.js?v=1793705990900" defer></script>
 </body>
 </html>

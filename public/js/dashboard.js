@@ -13209,6 +13209,75 @@ let currentProfileBoundEmail = null;
 let profileVerificationStep = 'idle'; // 'idle', 'unlink_current', 'bind_new', 'unlinking_only'
 let profileTargetNewEmail = null;
 
+// ==========================================================================
+// GOOEY HEADER MENU CONTROLLER (Fluid Liquid Droplets Split & Snap Back)
+// ==========================================================================
+function toggleGooeyMenu(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const container = document.getElementById('gooeyMenuContainer');
+    if (!container) return;
+    const isOpening = !container.classList.contains('open');
+    container.classList.toggle('open');
+    
+    // Agar yopilsa, ichidagi profil menyusini ham yopamiz
+    if (!isOpening) {
+        const profileMenu = document.getElementById('userProfileMenu');
+        if (profileMenu) profileMenu.classList.remove('open');
+    }
+}
+window.toggleGooeyMenu = toggleGooeyMenu;
+
+function closeGooeyMenu() {
+    const container = document.getElementById('gooeyMenuContainer');
+    if (container) container.classList.remove('open');
+    const profileMenu = document.getElementById('userProfileMenu');
+    if (profileMenu) profileMenu.classList.remove('open');
+}
+window.closeGooeyMenu = closeGooeyMenu;
+
+function toggleLanguageGooey(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const curr = (typeof currentLang !== 'undefined' ? currentLang : (localStorage.getItem('callcenter_lang') || 'uz'));
+    const next = curr === 'uz' ? 'ru' : 'uz';
+    if (typeof switchLanguage === 'function') {
+        switchLanguage(next);
+    }
+    updateGooeyLangDisplay(next);
+}
+window.toggleLanguageGooey = toggleLanguageGooey;
+
+function updateGooeyLangDisplay(lang) {
+    const badge = document.getElementById('gooeyLangBadge');
+    const label = document.getElementById('gooeyLangLabel');
+    if (badge) badge.textContent = lang === 'uz' ? "O'Z" : 'РУ';
+    if (label) label.textContent = lang === 'uz' ? "Til: O'zbekcha" : 'Язык: Русский';
+}
+window.updateGooeyLangDisplay = updateGooeyLangDisplay;
+
+function toggleProfileFromGooey(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    const profileMenu = document.getElementById('userProfileMenu');
+    if (profileMenu) {
+        profileMenu.classList.toggle('open');
+    }
+}
+window.toggleProfileFromGooey = toggleProfileFromGooey;
+
+window.addEventListener('languageChanged', (e) => {
+    if (e && e.detail && e.detail.lang) {
+        updateGooeyLangDisplay(e.detail.lang);
+    }
+});
+
 function toggleUserProfile(e) {
     if (e) e.stopPropagation();
     const menu = document.getElementById('userProfileMenu');
@@ -14265,6 +14334,10 @@ window.verifyProfileCode = verifyProfileCode;
 
 /* Global Click & Escape Listeners */
 document.addEventListener('click', (e) => {
+    const gooey = document.getElementById('gooeyMenuContainer');
+    if (gooey && gooey.classList.contains('open') && !gooey.contains(e.target)) {
+        closeGooeyMenu();
+    }
     const menu = document.getElementById('userProfileMenu');
     if (menu && menu.classList.contains('open') && !menu.contains(e.target)) {
         menu.classList.remove('open');
@@ -14278,6 +14351,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+        closeGooeyMenu();
         if (currentFocusedSectionId) {
             closeSectionFocus();
         }
