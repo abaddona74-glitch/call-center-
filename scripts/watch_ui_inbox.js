@@ -30,7 +30,10 @@ function checkInbox() {
                             console.log('\n=============================================');
                             console.log('🎯 YANGI VISUAL AI VAZIFA KELDI!');
                             console.log('ID:', pending.id);
-                            console.log('Element:', pending.element.tag, pending.element.id || '');
+                            const elDesc = (pending.elements && pending.elements.length > 1)
+                                ? `${pending.elements.length} ta element (${pending.elements.map(e => `<${e.tag || 'el'}${e.id ? '#' + e.id : ''}>`).join(', ')})`
+                                : `${pending.element?.tag || 'element'}${pending.element?.id ? '#' + pending.element.id : ''}`;
+                            console.log('Element(lar):', elDesc);
                             console.log('Vazifa:', pending.task || 'Ko\'rinishini yaxshilash');
                             console.log('Full Prompt:');
                             console.log(pending.prompt);

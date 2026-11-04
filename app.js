@@ -364,15 +364,21 @@ app.post('/api/dev/visual-prompt', (req, res) => {
             return res.status(403).json({ success: false, message: 'Faqat superuser/admin uchun ruxsat etilgan' });
         }
 
-        const { prompt, element, task } = req.body || {};
+        const { prompt, element, elements, task } = req.body || {};
         if (!prompt) {
             return res.status(400).json({ success: false, message: 'Prompt bo\'sh bo\'lishi mumkin emas' });
         }
 
+        const selectedElements = Array.isArray(elements) && elements.length > 0 
+            ? elements 
+            : (element ? [element] : []);
+
         const taskEntry = {
             id: Date.now(),
             createdAt: new Date().toISOString(),
-            element: element || {},
+            element: selectedElements[0] || {},
+            elements: selectedElements,
+            count: selectedElements.length,
             task: task || '',
             prompt: prompt,
             status: 'pending'

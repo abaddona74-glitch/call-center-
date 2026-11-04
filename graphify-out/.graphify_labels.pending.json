@@ -16,7 +16,7 @@
   "37": "requestOperatorHelp",
   "38": "app.js",
   "39": "renderCallbacks",
-  "40": "assertPreInsertionValidity1to5",
+  "40": "assertPreReplacementValidityInDocument",
   "41": "viewer/scripts/deploy.js",
   "42": "initPageElevator",
   "43": "viewer/package.json",
@@ -35,7 +35,7 @@
   "81": "resetToolImageZoom",
   "84": "ref_path",
   "85": "get",
-  "87": "checkIEEE754",
+  "87": "sftpService.js",
   "88": "visualInspector.js",
   "91": "s",
   "97": "drainQueue",
@@ -44,11 +44,11 @@
   "107": "initPageElevator",
   "108": "TopicAnalyticsService",
   "109": "convert",
-  "110": "Notes",
+  "110": "converterService.js",
   "111": "renderOnlineUsersPopover",
   "112": "loadClientsTab",
-  "113": "encodeChunk",
+  "113": "codePoint",
   "114": "Y",
-  "115": "readNumberingXml",
-  "116": "viewer/scripts/deploy.js"
+  "115": "getTextContent",
+  "116": "obtain_letsencrypt.js"
 }
