@@ -9904,3 +9904,164 @@ body.visual-inspector-on * {
     background: rgba(239, 68, 68, 0.15);
 }
 
+/* Mention / Tagging va Autocomplete Dropdown */
+.visual-ai-editor {
+    min-height: 72px;
+    max-height: 140px;
+    overflow-y: auto;
+    background: #030712;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    color: #f8fafc;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.visual-ai-editor:focus {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25) !important;
+}
+
+.visual-ai-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #64748b;
+    pointer-events: none;
+    display: block;
+}
+
+/* Matn ichidagi maxsus rangli Mention Pill */
+.ai-mention-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(56, 189, 248, 0.18);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 6px;
+    padding: 1px 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    user-select: none;
+    vertical-align: baseline;
+    margin: 0 2px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.15s ease;
+}
+
+.ai-mention-pill:hover {
+    background: rgba(56, 189, 248, 0.28);
+    border-color: #38bdf8;
+}
+
+.ai-mention-pill.pill-emerald {
+    background: rgba(16, 185, 129, 0.18);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.45);
+}
+
+.ai-mention-pill.pill-purple {
+    background: rgba(168, 85, 247, 0.18);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.45);
+}
+
+/* Autocomplete Takliflar Ro'yxati (Dropdown) */
+.visual-mention-dropdown {
+    position: absolute;
+    background: #0f172a;
+    border: 1px solid rgba(139, 92, 246, 0.5);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(139, 92, 246, 0.25);
+    width: 290px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 10000020;
+    padding: 5px;
+    animation: modalPopIn 0.15s ease-out;
+}
+
+.visual-mention-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #cbd5e1;
+    transition: background 0.12s ease;
+}
+
+.visual-mention-item:hover,
+.visual-mention-item.active {
+    background: rgba(139, 92, 246, 0.2);
+    color: #f8fafc;
+}
+
+.visual-mention-item .vmi-num {
+    background: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.visual-mention-item .vmi-tag {
+    font-family: monospace;
+    font-weight: 700;
+    color: #c084fc;
+}
+
+.visual-mention-item .vmi-text {
+    font-style: italic;
+    font-size: 11px;
+    color: #94a3b8;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+    margin-left: auto;
+}
+
+/* Tezkor Otmetka Pill Tugmalari */
+.visual-quick-mentions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.mention-insert-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(56, 189, 248, 0.1);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', Consolas, monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mention-insert-btn:hover {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: #38bdf8;
+    transform: translateY(-1px);
+}
+
+

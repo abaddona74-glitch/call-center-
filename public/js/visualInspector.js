@@ -4,9 +4,10 @@
  * Klaviatura kombinatsiyasi: Alt + Shift + D yoki Profil menyusi orqali.
  * 
  * Asosiy imkoniyatlar:
- *  - Ko'p elementlarni uzluksiz tanlash (har bir element #1, #2... deb belgilanadi)
- *  - Modal birinchi bosishda xalal bermaydi — elementlarni tanlab bo'lib "Prompt berish" yoki Enter bosiladi
- *  - Bitta elementni tezkor ochish uchun 2 marta bosish (double-click) ham ishlaydi
+ *  - Ko'p elementlarni uzluksiz tanlash (har bir element alohida rang va #1, #2... deb belgilanadi)
+ *  - Matnda # yoki @ bosilganda komponentlar avtomatik ro'yxati (Autocomplete podskazka)
+ *  - Otmetka qilingan elementlarni maxsus rangli va yaltiragan chip (Pill) ko'rinishida ko'rsatish
+ *  - Tezkor otmetka tugmalari (bitta bosishda matnga #1, #2 kiritish)
  *  - Antigravity Inbox'ga to'g'ridan-to'g'ri uzatish
  */
 
@@ -22,15 +23,27 @@
     let topBar = null;
     let promptModal = null;
 
+    // Har bir element uchun maxsus ranglar palitrasi
+    const COLOR_PALETTE = [
+        { text: '#38bdf8', bg: 'rgba(56, 189, 248, 0.18)', border: 'rgba(56, 189, 248, 0.5)', solid: '#38bdf8', badgeBg: '#082f49' }, // Cyan
+        { text: '#34d399', bg: 'rgba(16, 185, 129, 0.18)', border: 'rgba(16, 185, 129, 0.5)', solid: '#10b981', badgeBg: '#064e3b' }, // Emerald
+        { text: '#c084fc', bg: 'rgba(168, 85, 247, 0.18)', border: 'rgba(168, 85, 247, 0.5)', solid: '#a855f7', badgeBg: '#3b0764' }, // Purple
+        { text: '#fbbf24', bg: 'rgba(251, 191, 36, 0.18)', border: 'rgba(251, 191, 36, 0.5)', solid: '#f59e0b', badgeBg: '#451a03' }, // Amber
+        { text: '#fb7185', bg: 'rgba(251, 113, 133, 0.18)', border: 'rgba(251, 113, 133, 0.5)', solid: '#f43f5e', badgeBg: '#4c0519' }, // Rose
+        { text: '#818cf8', bg: 'rgba(99, 102, 241, 0.18)', border: 'rgba(99, 102, 241, 0.5)', solid: '#6366f1', badgeBg: '#1e1b4b' }   // Indigo
+    ];
+
+    function getElementColor(index) {
+        return COLOR_PALETTE[index % COLOR_PALETTE.length];
+    }
+
     // 1. Ruxsat tekshiruvi: Faqat superuser/admin yoki localhost/dev rejimda
     function isAllowedToInspect() {
         const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (isLocal) return true;
         
-        // URL da ?dev=true parametri bor bo'lsa
         if (window.location.search.includes('dev=true')) return true;
 
-        // Current auth user roli tekshiruvi
         const user = window.currentAuthUser;
         if (user && user.role) {
             const role = String(user.role).toLowerCase();
@@ -53,7 +66,7 @@
         root.id = 'visualInspectorRoot';
         root.style.cssText = 'position: fixed; inset: 0; pointer-events: none; z-index: 9999999;';
 
-        // Multi-selection container (tanlangan barcha elementlar hoshiyasi)
+        // Multi-selection container
         multiHighlightContainer = document.createElement('div');
         multiHighlightContainer.id = 'visualInspectorMultiContainer';
         multiHighlightContainer.style.cssText = 'position: fixed; inset: 0; pointer-events: none; z-index: 9999999;';
@@ -135,7 +148,7 @@
         updateTopBarUI();
     }
 
-    // 3. TopBar interfeysini yangilash (tanlangan elementlar soniga qarab)
+    // 3. TopBar interfeysini yangilash
     function updateTopBarUI() {
         if (!topBar) return;
 
@@ -223,17 +236,18 @@
         });
     }
 
-    // 4. Tanlangan barcha elementlar hoshiyasini chizish
+    // 4. Tanlangan barcha elementlar hoshiyasini chizish (har biri o'ziga xos rangda)
     function renderMultiHighlights() {
         if (!multiHighlightContainer) return;
         multiHighlightContainer.innerHTML = '';
 
-        // DOM da mavjud bo'lmagan elementlarni tozalash
         selectedElements = selectedElements.filter(el => document.body.contains(el));
 
         selectedElements.forEach((el, idx) => {
             const rect = el.getBoundingClientRect();
             if (rect.width === 0 && rect.height === 0) return;
+
+            const color = getElementColor(idx);
 
             const box = document.createElement('div');
             box.style.cssText = `
@@ -242,9 +256,9 @@
                 left: ${rect.left}px;
                 width: ${rect.width}px;
                 height: ${rect.height}px;
-                border: 2px solid #10b981;
-                background: rgba(16, 185, 129, 0.12);
-                box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25), 0 0 18px rgba(16, 185, 129, 0.3);
+                border: 2px solid ${color.solid};
+                background: ${color.bg};
+                box-shadow: 0 0 0 2px ${color.border}, 0 0 18px ${color.bg};
                 border-radius: 6px;
                 pointer-events: none;
                 z-index: 10000000;
@@ -255,16 +269,16 @@
                 position: absolute;
                 top: ${rect.top < 28 ? '3px' : '-24px'};
                 left: 0;
-                background: #064e3b;
-                color: #a7f3d0;
-                border: 1px solid #10b981;
+                background: ${color.badgeBg};
+                color: ${color.text};
+                border: 1px solid ${color.solid};
                 padding: 1px 7px;
                 border-radius: 4px;
                 font-family: 'JetBrains Mono', Consolas, monospace;
                 font-size: 11px;
                 font-weight: 700;
                 white-space: nowrap;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
             `;
             let name = el.tagName.toLowerCase();
             if (el.id) name += `#${el.id}`;
@@ -308,7 +322,6 @@
         highlightBox.style.width = `${rect.width}px`;
         highlightBox.style.height = `${rect.height}px`;
 
-        // Element klass va tag nomini ko'rsatish
         let label = target.tagName.toLowerCase();
         if (target.id) {
             label += `#${target.id}`;
@@ -341,11 +354,10 @@
         }
     }
 
-    // 6. Element bosilganda tanlash (ketma-ket bir nechta tanlash imkoni)
+    // 6. Element bosilganda tanlash
     function handleClick(e) {
         if (!isInspectorActive) return;
 
-        // Inspector elementlarini bosishiga to'sqinlik qilmaslik
         if (e.target.closest('#visualInspectorRoot') || e.target.closest('#visualInspectorModalContainer')) {
             return;
         }
@@ -356,7 +368,6 @@
         const target = hoveredElement || e.target;
         if (!target) return;
 
-        // Element ro'yxatda bor bo'lsa o'chiramiz, yo'q bo'lsa qo'shamiz
         const existingIdx = selectedElements.indexOf(target);
         if (existingIdx !== -1) {
             selectedElements.splice(existingIdx, 1);
@@ -366,12 +377,10 @@
 
         renderMultiHighlights();
         updateTopBarUI();
-
-        // Hover holatini qayta hisoblash
         handleMouseMove(e);
     }
 
-    // Tezkor ochish uchun: 2 marta bosish (double-click) darhol prompt ochadi
+    // 2 marta tez bosish (double-click) darhol prompt ochadi
     function handleDblClick(e) {
         if (!isInspectorActive) return;
         if (e.target.closest('#visualInspectorRoot') || e.target.closest('#visualInspectorModalContainer')) {
@@ -393,7 +402,7 @@
         }
     }
 
-    // 7. Prompt oynasini ochish
+    // 7. Prompt oynasini ochish (Mention / Podskazka bilan)
     function openPromptModal() {
         closePromptModal();
         if (selectedElements.length === 0) return;
@@ -424,7 +433,7 @@
             border-radius: 16px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(139, 92, 246, 0.25);
             width: 100%;
-            max-width: ${isSingle ? '520px' : '580px'};
+            max-width: ${isSingle ? '520px' : '590px'};
             padding: 22px;
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
@@ -433,13 +442,14 @@
         `;
 
         // Har bir element metadatalari
-        const elementsData = selectedElements.map(el => {
+        const elementsData = selectedElements.map((el, idx) => {
             const rect = el.getBoundingClientRect();
             const tag = el.tagName.toLowerCase();
             const id = el.id ? `#${el.id}` : '';
             const classes = Array.from(el.classList || []).join(' ');
             const textContent = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60);
             const compStyles = window.getComputedStyle(el);
+            const color = getElementColor(idx);
             return {
                 el,
                 rect,
@@ -447,7 +457,8 @@
                 id,
                 classes,
                 textContent,
-                compStyles
+                compStyles,
+                color
             };
         });
 
@@ -456,9 +467,9 @@
         if (isSingle) {
             const item = elementsData[0];
             elementsHtml = `
-                <div style="background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
+                <div style="background: #1e293b; border: 1px solid ${item.color.border}; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
-                        <span style="color: #a855f7; font-family: monospace; font-weight: 700;">&lt;${item.tag}${item.id}&gt;</span>
+                        <span style="color: ${item.color.text}; font-family: monospace; font-weight: 700;">#1 &lt;${item.tag}${item.id}&gt;</span>
                         <span style="color: #64748b; font-size: 11px;">${Math.round(item.rect.width)} × ${Math.round(item.rect.height)} px</span>
                     </div>
                     ${item.classes ? `<div style="color: #94a3b8; font-family: monospace; font-size: 11px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">class: ${item.classes}</div>` : ''}
@@ -475,9 +486,9 @@
                 </div>
                 <div class="visual-ai-elements-list" id="modalElementsList">
                     ${elementsData.map((item, idx) => `
-                        <div class="visual-ai-element-item" data-index="${idx}">
-                            <span class="el-num">#${idx + 1}</span>
-                            <span class="el-tag">&lt;${item.tag}${item.id}&gt;</span>
+                        <div class="visual-ai-element-item" data-index="${idx}" style="border-left: 3px solid ${item.color.solid};">
+                            <span class="el-num" style="background: ${item.color.bg}; color: ${item.color.text}; border-color: ${item.color.border};">#${idx + 1}</span>
+                            <span class="el-tag" style="color: ${item.color.text};">&lt;${item.tag}${item.id}&gt;</span>
                             ${item.textContent ? `<span class="el-text">"${item.textContent}"</span>` : ''}
                             <span class="el-size">${Math.round(item.rect.width)}×${Math.round(item.rect.height)}</span>
                             <button type="button" class="el-remove-btn" data-remove-idx="${idx}" title="O'chirish">
@@ -507,6 +518,21 @@
             </div>
         `;
 
+        // Tezkor Otmetka Tugmalari (Tugmani bitta bosib matnga #1, #2 pill qo'shish)
+        const quickMentionsHtml = `
+            <div class="visual-quick-mentions">
+                <span style="font-size: 11px; color: #94a3b8; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="color: #38bdf8; font-weight: 700;">#</span> Otmetka qilish:
+                </span>
+                ${elementsData.map((item, idx) => `
+                    <button type="button" class="mention-insert-btn" data-insert-idx="${idx}" style="color: ${item.color.text}; background: ${item.color.bg}; border-color: ${item.color.border};" title="Matnga #${idx + 1} ni kiritish">
+                        <span style="font-weight: 700;">#${idx + 1}</span>
+                        <span>&lt;${item.tag}${item.id}&gt;</span>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+
         modal.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -533,12 +559,23 @@
             <!-- Tezkor chip takliflari -->
             ${chipsHtml}
 
-            <!-- Prompt Textarea -->
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
-                    ${isSingle ? "Ushbu elementga qanday o'zgartirish kiritilsin?" : "Tanlangan barcha elementlarga qanday o'zgartirish kiritilsin?"}
-                </label>
-                <textarea id="visualAiPromptInput" rows="3" placeholder="${isSingle ? "Masalan: 'Tugma rangi ko'k bo'lsin, burchaklari yumaloqlansin va ustiga hover qilganda soya bersin...'" : "Masalan: 'Ushbu tugmalarning barchasini bir xil balandlikda qil, oraliqlarini 8px qilib tekisla va...'"}" style="width: 100%; box-sizing: border-box; background: #030712; border: 1px solid #334155; border-radius: 10px; color: #f8fafc; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 13px; resize: vertical; outline: none; transition: border-color 0.2s ease;"></textarea>
+            <!-- Tezkor Otmetka Pill Tugmalari -->
+            ${quickMentionsHtml}
+
+            <!-- Prompt Rich Editor (Contenteditable with Mention Pills) -->
+            <div style="margin-bottom: 16px; position: relative;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8;">
+                        ${isSingle ? "Ushbu elementga qanday o'zgartirish kiritilsin?" : "Tanlangan barcha elementlarga qanday o'zgartirish kiritilsin?"}
+                    </label>
+                    <span style="font-size: 10.5px; color: #64748b; font-family: monospace;"># yoki @: podskazka</span>
+                </div>
+
+                <!-- Rich Input Box -->
+                <div id="visualAiPromptInput" class="visual-ai-editor" contenteditable="true" data-placeholder="${isSingle ? "Masalan: 'Tugma rangi ko'k bo'lsin, burchaklari yumaloqlansin...'" : "Masalan: '#1 dagi soatni #2 ning ichiga joylashtirib ber... (yoki # yozing)'"}"></div>
+
+                <!-- Autocomplete Dropdown (Yashirin boshlanadi) -->
+                <div id="visualMentionDropdown" class="visual-mention-dropdown" style="display: none;"></div>
             </div>
 
             <!-- Tugmalar -->
@@ -563,19 +600,223 @@
         document.body.appendChild(container);
         promptModal = container;
 
-        const txtInput = document.getElementById('visualAiPromptInput');
-        if (txtInput) txtInput.focus();
+        const editor = document.getElementById('visualAiPromptInput');
+        const mentionDropdown = document.getElementById('visualMentionDropdown');
+        if (editor) editor.focus();
 
-        modal.querySelectorAll('.ai-chip-btn').forEach(btn => {
-            btn.style.cssText = 'background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; font-size: 11px; padding: 4px 9px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;';
+        // --- MENTION / TAGGING LOGIKASI ---
+
+        // 1. Maxsus rangli mention pill yaratish va kiritish
+        function insertMentionPill(itemIndex, removeTrigger = false) {
+            const item = elementsData[itemIndex];
+            if (!item || !editor) return;
+
+            const color = item.color;
+            const pill = document.createElement('span');
+            pill.className = 'ai-mention-pill';
+            pill.contentEditable = 'false';
+            pill.dataset.mention = `#${itemIndex + 1}`;
+            pill.style.cssText = `
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                background: ${color.bg};
+                color: ${color.text};
+                border: 1px solid ${color.border};
+                border-radius: 6px;
+                padding: 1px 7px;
+                font-size: 11.5px;
+                font-weight: 700;
+                font-family: 'JetBrains Mono', Consolas, monospace;
+                vertical-align: baseline;
+                margin: 0 2px;
+                box-shadow: 0 0 10px ${color.bg};
+            `;
+            pill.innerHTML = `<span>#${itemIndex + 1}</span><span style="font-weight: 500; font-size: 10px; opacity: 0.85;">&lt;${item.tag}${item.id}&gt;</span>`;
+
+            editor.focus();
+            const sel = window.getSelection();
+
+            if (sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                if (editor.contains(range.commonAncestorContainer)) {
+                    // Agar # yoki @ yozilgan bo'lsa, uni o'chiramiz
+                    if (removeTrigger && range.startContainer.nodeType === Node.TEXT_NODE) {
+                        const txt = range.startContainer.textContent;
+                        const pos = range.startOffset;
+                        if (pos > 0 && (txt[pos - 1] === '#' || txt[pos - 1] === '@')) {
+                            range.setStart(range.startContainer, pos - 1);
+                            range.deleteContents();
+                        }
+                    }
+
+                    range.insertNode(pill);
+                    range.collapse(false);
+
+                    // Orqasiga bo'shliq qo'yish
+                    const space = document.createTextNode('\u00A0');
+                    range.insertNode(space);
+                    range.setStartAfter(space);
+                    range.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    hideMentionDropdown();
+                    return;
+                }
+            }
+
+            // Fallback: oxiriga qo'shish
+            editor.appendChild(pill);
+            const space = document.createTextNode('\u00A0');
+            editor.appendChild(space);
+            const range = document.createRange();
+            range.setStartAfter(space);
+            range.collapse(true);
+            const sel2 = window.getSelection();
+            sel2.removeAllRanges();
+            sel2.addRange(range);
+            hideMentionDropdown();
+        }
+
+        // 2. Tezkor Otmetka tugmalari bosilganda
+        modal.querySelectorAll('.mention-insert-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (txtInput) {
-                    txtInput.value = btn.dataset.chip + txtInput.value;
-                    txtInput.focus();
+                const idx = parseInt(btn.dataset.insertIdx, 10);
+                if (!isNaN(idx)) {
+                    insertMentionPill(idx, false);
                 }
             });
         });
 
+        // 3. Autocomplete Dropdown ko'rsatish
+        let activeDropdownIndex = 0;
+        let isDropdownVisible = false;
+
+        function showMentionDropdown(filterQuery = '') {
+            if (!mentionDropdown) return;
+
+            const filtered = elementsData.map((item, idx) => ({ item, idx }))
+                .filter(({ item, idx }) => {
+                    if (!filterQuery) return true;
+                    const q = filterQuery.toLowerCase();
+                    const numStr = String(idx + 1);
+                    return numStr.includes(q) || item.tag.includes(q) || item.id.toLowerCase().includes(q) || item.textContent.toLowerCase().includes(q);
+                });
+
+            if (filtered.length === 0) {
+                hideMentionDropdown();
+                return;
+            }
+
+            mentionDropdown.innerHTML = `
+                <div style="font-size: 10.5px; font-weight: 700; color: #94a3b8; padding: 4px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>Komponentni tanlang</span>
+                    <span style="font-size: 10px; color: #64748b;">↑↓ va Enter</span>
+                </div>
+                ${filtered.map(({ item, idx }, i) => `
+                    <div class="visual-mention-item ${i === 0 ? 'active' : ''}" data-idx="${idx}">
+                        <span class="vmi-num" style="background: ${item.color.bg}; color: ${item.color.text}; border-color: ${item.color.border};">#${idx + 1}</span>
+                        <span class="vmi-tag" style="color: ${item.color.text};">&lt;${item.tag}${item.id}&gt;</span>
+                        ${item.textContent ? `<span class="vmi-text">"${item.textContent}"</span>` : ''}
+                    </div>
+                `).join('')}
+            `;
+
+            activeDropdownIndex = 0;
+            mentionDropdown.style.display = 'block';
+            isDropdownVisible = true;
+
+            // Element bosilganda tanlash
+            mentionDropdown.querySelectorAll('.visual-mention-item').forEach(elItem => {
+                elItem.addEventListener('click', () => {
+                    const idx = parseInt(elItem.dataset.idx, 10);
+                    if (!isNaN(idx)) {
+                        insertMentionPill(idx, true);
+                    }
+                });
+            });
+        }
+
+        function hideMentionDropdown() {
+            if (mentionDropdown) {
+                mentionDropdown.style.display = 'none';
+                isDropdownVisible = false;
+            }
+        }
+
+        // Dropdown tugmalarini boshqarish (Arrow keys, Enter, Esc)
+        if (editor) {
+            editor.addEventListener('keydown', (e) => {
+                if (isDropdownVisible) {
+                    const items = mentionDropdown.querySelectorAll('.visual-mention-item');
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        activeDropdownIndex = (activeDropdownIndex + 1) % items.length;
+                        items.forEach((it, i) => it.classList.toggle('active', i === activeDropdownIndex));
+                        return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        activeDropdownIndex = (activeDropdownIndex - 1 + items.length) % items.length;
+                        items.forEach((it, i) => it.classList.toggle('active', i === activeDropdownIndex));
+                        return;
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                        e.preventDefault();
+                        if (items[activeDropdownIndex]) {
+                            const idx = parseInt(items[activeDropdownIndex].dataset.idx, 10);
+                            insertMentionPill(idx, true);
+                        }
+                        return;
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        hideMentionDropdown();
+                        return;
+                    }
+                }
+
+                // Ctrl + Enter bo'lsa Antigravity'ga yuborish
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    document.getElementById('btnSendToAntigravity')?.click();
+                }
+            });
+
+            // Input voqeasida # yoki @ tekshiruvi
+            editor.addEventListener('input', () => {
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0) {
+                    hideMentionDropdown();
+                    return;
+                }
+                const range = sel.getRangeAt(0);
+                if (range.startContainer.nodeType === Node.TEXT_NODE) {
+                    const txt = range.startContainer.textContent.slice(0, range.startOffset);
+                    const match = txt.match(/(?:^|\s|[^\w])([#@])(\w*)$/);
+                    if (match) {
+                        showMentionDropdown(match[2]);
+                        return;
+                    }
+                }
+                hideMentionDropdown();
+            });
+        }
+
+        // Chip bosilganda matn qo'shish
+        modal.querySelectorAll('.ai-chip-btn').forEach(btn => {
+            btn.style.cssText = 'background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; font-size: 11px; padding: 4px 9px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;';
+            btn.addEventListener('click', () => {
+                if (editor) {
+                    const textNode = document.createTextNode(btn.dataset.chip + ' ');
+                    editor.prepend(textNode);
+                    editor.focus();
+                }
+            });
+        });
+
+        // Ro'yxatdan alohida elementni o'chirish
         modal.querySelectorAll('.el-remove-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const idx = parseInt(btn.dataset.removeIdx, 10);
@@ -602,8 +843,19 @@
         document.getElementById('btnReselectElement')?.addEventListener('click', handleReselect);
         document.getElementById('btnAddMoreElements')?.addEventListener('click', handleReselect);
 
+        // Editordan toza matnni ajratib olish (Mention pill larni #1 ko'rinishida chiqarish)
+        function getEditorCleanText() {
+            if (!editor) return '';
+            const clone = editor.cloneNode(true);
+            clone.querySelectorAll('.ai-mention-pill').forEach(pill => {
+                const mention = pill.dataset.mention || pill.textContent;
+                pill.replaceWith(document.createTextNode(` ${mention} `));
+            });
+            return (clone.textContent || '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+
         function generateFullPrompt() {
-            const userTask = txtInput ? txtInput.value.trim() : '';
+            const userTask = getEditorCleanText();
 
             if (selectedElements.length === 1) {
                 const item = elementsData[0];
@@ -632,7 +884,7 @@
 
             elementsData.forEach((item, idx) => {
                 lines.push(
-                    `--- ${idx + 1}-element ---`,
+                    `--- ${idx + 1}-element (#${idx + 1}) ---`,
                     `- Teg: <${item.tag}${item.id}>`,
                     item.classes ? `- Klasslar: ${item.classes}` : null,
                     item.textContent ? `- Matn: "${item.textContent}"` : null,
@@ -673,7 +925,7 @@
 
         document.getElementById('btnSendToAntigravity')?.addEventListener('click', async () => {
             const sendBtn = document.getElementById('btnSendToAntigravity');
-            const userTask = txtInput ? txtInput.value.trim() : '';
+            const userTask = getEditorCleanText();
             const fullPrompt = generateFullPrompt();
 
             try { navigator.clipboard.writeText(fullPrompt); } catch (e) {}
@@ -683,7 +935,8 @@
                 sendBtn.innerHTML = `<span>Yuborilmoqda...</span>`;
             }
 
-            const payloadElements = elementsData.map(item => ({
+            const payloadElements = elementsData.map((item, idx) => ({
+                num: idx + 1,
                 tag: item.tag,
                 id: item.el.id || '',
                 classes: item.classes,
@@ -813,16 +1066,14 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi (Alt + Shift + D, ESC, Enter)
+    // 10. Klaviatura boshqaruvi
     window.addEventListener('keydown', (e) => {
-        // Alt + Shift + D
         if (e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
             e.preventDefault();
             toggleVisualInspector();
             return;
         }
 
-        // ESC bosilganda
         if (e.key === 'Escape') {
             if (promptModal) {
                 closePromptModal();
@@ -836,7 +1087,6 @@
             return;
         }
 
-        // Enter bosilganda (agar elementlar tanlangan bo'lsa va modal ochiq bo'lmasa)
         if (e.key === 'Enter' && isInspectorActive && !promptModal && selectedElements.length > 0) {
             e.preventDefault();
             openPromptModal();
@@ -844,7 +1094,6 @@
         }
     });
 
-    // Global eksport
     window.toggleVisualInspector = toggleVisualInspector;
     window.startVisualInspector = startVisualInspector;
     window.stopVisualInspector = stopVisualInspector;
