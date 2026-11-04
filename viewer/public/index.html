@@ -1683,8 +1683,8 @@
             </div>
         </div>
 
-        <!-- Sidebar Create Button -->
-        <div class="tk-sb-top-cta">
+        <!-- Sidebar Create Button (Faqat Zangiota 200+ yoki superuser uchun ko'rinadi) -->
+        <div class="tk-sb-top-cta" id="sidebarCreateTicketWrapper" style="display: none;">
             <button type="button" class="tk-create-btn" style="width: 100%; justify-content: center;" onclick="window.TicketsApp && window.TicketsApp.openCreateModal()">
                 <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 <span>Yangi Ticket Ochish</span>
@@ -1724,7 +1724,7 @@
             <div class="tk-empty-box">
                 <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:#64748b;margin:0 auto 8px auto;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                 <div style="font-weight: 700; color: #94a3b8; font-size: 13px;">Ticketlar yo'q</div>
-                <div style="font-size: 11.5px; color: #64748b;">Yangi ticket ochish uchun yuqoridagi tugmani bosing</div>
+                <div style="font-size: 11.5px; color: #64748b;" id="sbEmptyHint">Zangiota (200+) operatorlaridan yangi vazifalar kelganda bu yerda ko'rinadi</div>
             </div>
         </div>
     </aside>
@@ -1751,7 +1751,15 @@
                             <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
                             <span>Yaratuvchi operator (Zangiota 200+) *</span>
                         </label>
-                        <input type="text" id="newTicketOperator" class="tk-form-input" placeholder="Masalan: 200 (Zangiota)" required>
+                        <select id="newTicketOperator" class="tk-form-select" required>
+                            <option value="200">Operator 200 (Zangiota)</option>
+                            <option value="203">Operator 203 (Zangiota)</option>
+                            <option value="204">Operator 204 (Zangiota)</option>
+                            <option value="205">Operator 205 (Zangiota)</option>
+                            <option value="206">Operator 206 (Zangiota)</option>
+                            <option value="208">Operator 208 (Zangiota)</option>
+                            <option value="209">Operator 209 (Zangiota)</option>
+                        </select>
                     </div>
 
                     <div class="tk-form-group">

@@ -462,7 +462,7 @@
                 <div style="text-align: center; color: #64748b; padding: 40px 20px; font-size: 13px;">
                     ${ICONS.clipboard}
                     <div style="margin-top: 8px; font-weight: 600;">Hozircha ticketlar yo'q</div>
-                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">Yangi ticket ochish uchun tugmani bosing</div>
+                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">Zangiota (200+) dan yangi vazifalar kelganda bu yerda ko'rinadi</div>
                 </div>
             `;
             return;
@@ -888,17 +888,49 @@
     }
 
     // =========================================================================
-    // TICKET CREATION FORM
+    // TICKET CREATION & PERMISSIONS (YARATUVCHI: 200+ ZANGIOTA, QABUL: 100+ ASOSIY)
     // =========================================================================
+    function isCreatorUser() {
+        const rawId = state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && state.currentUser.operatorId);
+        const opNum = parseInt(rawId, 10);
+        // Faqat Zangiota (200+) operatorlari ticket yaratuvchi bo'la oladi!
+        if (!isNaN(opNum) && opNum >= 200) {
+            return true;
+        }
+        // Superuser / admin test va nazorat uchun yarata oladi
+        if (state.myUserRole === 'superuser' || state.myUserRole === 'admin') {
+            return true;
+        }
+        return false;
+    }
+
+    function updateCreateButtonVisibility() {
+        const canCreate = isCreatorUser();
+        const sbWrap = document.getElementById('sidebarCreateTicketWrapper');
+        if (sbWrap) {
+            sbWrap.style.display = canCreate ? 'block' : 'none';
+        }
+        const fullBtn = document.getElementById('fullpageCreateTicketBtn');
+        if (fullBtn) {
+            fullBtn.style.display = canCreate ? 'inline-flex' : 'none';
+        }
+    }
+
     function openCreateModal() {
+        if (!isCreatorUser()) {
+            alert("Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari esa faqat qabul qiluvchi hisoblanadi!");
+            return;
+        }
+
         // Pre-fill operator if detected (Yaratuvchi 200+ Zangiota)
-        const opInput = document.getElementById('newTicketOperator');
-        if (opInput) {
-            const num = parseInt(state.myOperatorId, 10);
+        const opSelect = document.getElementById('newTicketOperator');
+        if (opSelect) {
+            const rawId = state.myOperatorId || localStorage.getItem('viewer_my_operator_id');
+            const num = parseInt(rawId, 10);
             if (!isNaN(num) && num >= 200) {
-                opInput.value = state.myOperatorName || `Operator ${state.myOperatorId}`;
-            } else if (!opInput.value) {
-                opInput.value = '200 (Zangiota)';
+                opSelect.value = String(num);
+            } else if (!opSelect.value) {
+                opSelect.value = '200';
             }
         }
 

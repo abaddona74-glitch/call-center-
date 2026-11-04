@@ -239,14 +239,16 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         }
     }
 
-    // Yaratuvchi: Zangiota (200+) operatorlari
+    // Yaratuvchi: Faqat Zangiota (200+) operatorlari bo'lishi shart!
     let cleanCreatorId = String(creatorId || '200').trim();
-    let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
-
-    const numMatch = cleanCreatorName.match(/\b(2\d{2}|1\d{2})\b/);
-    if (numMatch && (!creatorId || cleanCreatorId === '101' || cleanCreatorId === '200')) {
-        cleanCreatorId = numMatch[1];
+    const creatorNum = parseInt(cleanCreatorId, 10);
+    if (!isNaN(creatorNum) && creatorNum >= 100 && creatorNum < 200) {
+        throw new Error("Asosiy (100+) operatorlari ticket yarata olmaydi! Ticket yaratuvchi faqat Zangiota (200+) operatori bo'lishi kerak. 100+ operatorlari faqat qabul qiluvchi hisoblanadi.");
     }
+    if (isNaN(creatorNum) || creatorNum < 200) {
+        cleanCreatorId = '200';
+    }
+    let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId} (Zangiota)`).trim();
 
     const cleanTargetId = targetOperatorId ? String(targetOperatorId).trim() : 'all';
     const cleanTargetName = targetOperatorName ? String(targetOperatorName).trim() : (cleanTargetId === 'all' ? 'Barcha operatorlar' : `Operator ${cleanTargetId}`);

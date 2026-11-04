@@ -5764,7 +5764,7 @@ function renderOperators(operators) {
     if (!currentOperators || currentOperators.length === 0) {
         const groupLabel = currentOperatorGroup === 'secondary' 
             ? "Zangiota 42 (200+)" 
-            : (currentOperatorGroup === 'main' ? "Asosiy (100-199)" : "operatorlar");
+            : (currentOperatorGroup === 'main' ? "Asosiy" : "operatorlar");
         grid.innerHTML = `
             <div style="color: var(--text-muted); font-size: 13px; padding: 24px; text-align: center; grid-column: 1 / -1;">
                 Hozircha ${groupLabel} bo'yicha operatorlar mavjud emas.

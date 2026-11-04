@@ -1389,6 +1389,17 @@ app.post('/api/tickets', (req, res) => {
         const clientIp = extractClientIp(req);
         const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
         
+        // Ruxsat tekshiruvi: 100+ operatorlari ticket yarata olmaydi
+        const effectiveCreatorId = creatorId || (req.user && req.user.operatorId);
+        const opNum = parseInt(effectiveCreatorId, 10);
+        const isSuperuser = req.user && (req.user.role === 'superuser' || req.user.role === 'admin');
+        if (!isNaN(opNum) && opNum >= 100 && opNum < 200 && !isSuperuser) {
+            return res.status(403).json({
+                success: false,
+                error: "Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari faqat qabul qiluvchi!"
+            });
+        }
+
         const newTicket = ticketService.createTicket({
             creatorId,
             creatorName,

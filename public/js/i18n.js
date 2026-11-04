@@ -56,7 +56,7 @@ const I18N_TRANSLATIONS = {
 
         // Operators Section
         op_section_title: "Operatorlar",
-        op_group_main: "Asosiy (100-199)",
+        op_group_main: "Asosiy",
         op_group_main_title: "100 dan 199 gacha bo'lgan asosiy operatorlar",
         op_group_sec: "Zangiota 42 (200+)",
         op_group_sec_title: "Zangiota 42 operatorlari (200+)",
@@ -776,7 +776,7 @@ const I18N_TRANSLATIONS = {
 
         // Operators Section
         op_section_title: "Операторы",
-        op_group_main: "Основные (100-199)",
+        op_group_main: "Основные",
         op_group_main_title: "Основные операторы с 100 по 199",
         op_group_sec: "Зангиота 42 (200+)",
         op_group_sec_title: "Операторы Зангиота 42 (200+)",
