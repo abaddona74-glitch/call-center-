@@ -117,16 +117,8 @@
         }
 
         .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: #cbd5e1;
-            margin-bottom: 8px;
-            letter-spacing: 0.2px;
+            position: relative;
+            margin-bottom: 22px;
         }
 
         .input-wrapper {
@@ -145,30 +137,94 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color 0.2s;
+            transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2;
         }
 
         .form-input {
             width: 100%;
             background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            border: 1px solid rgba(148, 163, 184, 0.22);
             border-radius: 12px;
-            padding: 13px 42px 13px 44px;
+            padding: 15px 42px 13px 44px;
             font-size: 14px;
             color: #fff;
             outline: none;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
         }
 
         .form-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
-            background: rgba(15, 23, 42, 0.95);
+            border-color: rgba(56, 189, 248, 0.6);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2), 0 0 20px rgba(56, 189, 248, 0.15);
+            background: rgba(15, 23, 42, 0.98);
         }
 
-        .form-input:focus + .input-icon,
+        .form-input:focus ~ .input-icon,
         .input-wrapper:focus-within .input-icon {
-            color: var(--primary);
+            color: #38bdf8;
+        }
+
+        /* 1. FLOATING LABEL */
+        .floating-label {
+            position: absolute;
+            left: 44px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13.5px;
+            color: #94a3b8;
+            pointer-events: none;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 2;
+            padding: 0 5px;
+            border-radius: 4px;
+            background: transparent;
+        }
+
+        .form-input:focus ~ .floating-label,
+        .form-input:not(:placeholder-shown) ~ .floating-label {
+            top: -9px;
+            transform: translateY(0);
+            font-size: 11px;
+            font-weight: 700;
+            color: #38bdf8;
+            background: #0f172a;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 2. ZIGZAG UNDERLINE */
+        .zigzag-underline {
+            position: absolute;
+            bottom: -5px;
+            left: 8px;
+            right: 8px;
+            width: calc(100% - 16px);
+            height: 9px;
+            pointer-events: none;
+            stroke-dasharray: 320;
+            stroke-dashoffset: 320;
+            opacity: 0;
+            transition: stroke-dashoffset 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+            z-index: 3;
+        }
+
+        .input-wrapper.has-error .form-input {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+        }
+
+        .input-wrapper.has-error .zigzag-underline {
+            stroke-dashoffset: 0;
+            opacity: 1;
+            animation: zigzagWiggle 0.45s ease-in-out;
+        }
+
+        @keyframes zigzagWiggle {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-2px); }
+            75% { transform: translateY(1.5px); }
         }
 
         .toggle-password {
@@ -184,45 +240,172 @@
             justify-content: center;
             border-radius: 6px;
             transition: color 0.15s;
+            z-index: 2;
         }
 
         .toggle-password:hover {
             color: #cbd5e1;
         }
 
+        /* 3. FLOW FILL (Button gradient animation when ready) */
         .btn-submit {
+            position: relative;
             width: 100%;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            height: 48px;
+            margin: 12px auto 0;
             border: none;
             border-radius: 12px;
-            padding: 14px;
             font-size: 14px;
             font-weight: 700;
             color: #fff;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.35);
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: width 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-radius 0.35s ease, background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+        }
+
+        .btn-submit.flow-fill-active {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #38bdf8, #3b82f6);
+            background-size: 300% 100%;
+            animation: flowFillGradient 4s linear infinite;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.45);
+        }
+
+        .btn-submit.flow-fill-active:hover {
+            transform: translateY(-1.5px);
+            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.6);
+        }
+
+        @keyframes flowFillGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 4. LOAD & SUCCESS (Morphing Button) */
+        .btn-submit.btn-loading {
+            width: 48px !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            pointer-events: none;
+            background: #2563eb !important;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.65) !important;
+        }
+
+        .btn-submit .btn-content {
+            display: flex;
+            align-items: center;
             gap: 8px;
-            margin-top: 10px;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
         }
 
-        .btn-submit:hover {
-            background: linear-gradient(135deg, #60a5fa, #3b82f6);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+        .btn-submit.btn-loading .btn-content {
+            opacity: 0;
+            transform: scale(0.6);
+            display: none;
         }
 
-        .btn-submit:active {
-            transform: translateY(0);
+        .btn-submit .btn-spinner {
+            display: none;
+            width: 22px;
+            height: 22px;
+            border: 2.5px solid rgba(255, 255, 255, 0.25);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
         }
 
-        .btn-submit:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        .btn-submit.btn-loading .btn-spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 5. CHECK DRAW */
+        .btn-submit.btn-success {
+            width: 48px !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            background: linear-gradient(135deg, #10b981, #059669) !important;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.7) !important;
+            animation: successPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .btn-submit.btn-success .btn-spinner {
+            display: none;
+        }
+
+        .btn-submit.btn-success .btn-content {
+            display: none;
+        }
+
+        .btn-submit .btn-check-icon {
+            display: none;
+            width: 24px;
+            height: 24px;
+        }
+
+        .btn-submit.btn-success .btn-check-icon {
+            display: block;
+        }
+
+        .btn-check-icon path {
+            stroke: #ffffff;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 40;
+            stroke-dashoffset: 40;
+        }
+
+        .btn-submit.btn-success .btn-check-icon path {
+            animation: checkDraw 0.45s 0.1s ease forwards;
+        }
+
+        @keyframes checkDraw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes successPop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        /* 6. BOX BOUNCE (Error Shake) */
+        @keyframes boxBounceShake {
+            0%, 100% { transform: translateX(0); }
+            15%, 45%, 75% { transform: translateX(-9px); }
+            30%, 60%, 90% { transform: translateX(9px); }
+        }
+
+        .login-container.box-bounce-error {
+            animation: boxBounceShake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
+
+        /* 7. PUSH SLIDE (Exit Transition) */
+        .login-container.push-slide-out {
+            animation: pushSlideOut 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes pushSlideOut {
+            0% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                filter: blur(0px);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.92) translateY(-40px);
+                filter: blur(5px);
+            }
         }
 
         .alert-banner {
@@ -513,8 +696,7 @@
 
         <form id="loginForm" autocomplete="on">
             <div class="form-group">
-                <label class="form-label" for="usernameInput">Foydalanuvchi nomi</label>
-                <div class="input-wrapper">
+                <div class="input-wrapper" id="usernameWrapper">
                     <div class="input-icon">
                         <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
                             <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -526,17 +708,20 @@
                         id="usernameInput" 
                         name="username" 
                         class="form-input" 
-                        placeholder="Loginni kiriting" 
+                        placeholder=" " 
                         required 
                         autocomplete="username"
                         autofocus
                     >
+                    <label class="floating-label" for="usernameInput">Foydalanuvchi nomi</label>
+                    <svg class="zigzag-underline" viewBox="0 0 300 12" preserveAspectRatio="none">
+                        <path d="M0,6 Q10,0 20,6 T40,6 T60,6 T80,6 T100,6 T120,6 T140,6 T160,6 T180,6 T200,6 T220,6 T240,6 T260,6 T280,6 T300,6" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
                 </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="passwordInput">Maxfiy parol</label>
-                <div class="input-wrapper">
+                <div class="input-wrapper" id="passwordWrapper">
                     <div class="input-icon">
                         <svg viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
                             <path d="M6 10V8C6 4.69 7 2 12 2C17 2 18 4.69 18 8V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -549,10 +734,14 @@
                         id="passwordInput" 
                         name="password" 
                         class="form-input" 
-                        placeholder="Parolni kiriting" 
+                        placeholder=" " 
                         required 
                         autocomplete="current-password"
                     >
+                    <label class="floating-label" for="passwordInput">Maxfiy parol</label>
+                    <svg class="zigzag-underline" viewBox="0 0 300 12" preserveAspectRatio="none">
+                        <path d="M0,6 Q10,0 20,6 T40,6 T60,6 T80,6 T100,6 T120,6 T140,6 T160,6 T180,6 T200,6 T220,6 T240,6 T260,6 T280,6 T300,6" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
                     <button type="button" class="toggle-password" id="togglePasswordBtn" title="Parolni ko'rsatish/yashirish">
                         <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
                             <path d="M15.58 12C15.58 13.98 13.98 15.58 12 15.58C10.02 15.58 8.42 13.98 8.42 12C8.42 10.02 10.02 8.42 12 8.42C13.98 8.42 15.58 10.02 15.58 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -567,7 +756,16 @@
             </div>
 
             <button type="submit" id="loginButton" class="btn-submit">
-                <span id="btnText">Kirish</span>
+                <div class="btn-content">
+                    <span id="btnText">Kirish</span>
+                    <svg viewBox="0 0 24 24" fill="none" style="width: 16px; height: 16px;">
+                        <path d="M14 5L21 12M21 12L14 19M21 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <div class="btn-spinner"></div>
+                <svg class="btn-check-icon" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 13L9 17L19 7" stroke="currentColor"/>
+                </svg>
             </button>
         </form>
 
@@ -774,12 +972,36 @@
         const btnText = document.getElementById('btnText');
         const alertBox = document.getElementById('loginErrorMessage');
         const alertText = document.getElementById('alertText');
+        const loginContainer = document.querySelector('.login-container');
+        const usernameWrapper = document.getElementById('usernameWrapper');
+        const passwordWrapper = document.getElementById('passwordWrapper');
         const toggleBtn = document.getElementById('togglePasswordBtn');
 
         // Show / Hide Password
         toggleBtn.addEventListener('click', () => {
             const isPass = passwordInput.getAttribute('type') === 'password';
             passwordInput.setAttribute('type', isPass ? 'text' : 'password');
+        });
+
+        // Flow Fill: Ikkala maydon to'ldirilganda tugma gradient bilan to'ladi
+        function checkInputsFill() {
+            const u = usernameInput.value.trim();
+            const p = passwordInput.value;
+            if (u.length > 0 && p.length > 0) {
+                btn.classList.add('flow-fill-active');
+            } else {
+                btn.classList.remove('flow-fill-active');
+            }
+        }
+
+        usernameInput.addEventListener('input', () => {
+            usernameWrapper?.classList.remove('has-error');
+            checkInputsFill();
+        });
+
+        passwordInput.addEventListener('input', () => {
+            passwordWrapper?.classList.remove('has-error');
+            checkInputsFill();
         });
 
         function showAlert(msg) {
@@ -791,20 +1013,49 @@
             alertBox.classList.remove('active');
         }
 
+        // Box Bounce & Zigzag Underline: Xatolik yuz berganda
+        function triggerErrorAnimation(msg, targetField = 'all') {
+            showAlert(msg);
+
+            // Box Bounce: macOS kabi silkinish
+            loginContainer.classList.remove('box-bounce-error');
+            void loginContainer.offsetWidth; // Reflow
+            loginContainer.classList.add('box-bounce-error');
+            setTimeout(() => loginContainer.classList.remove('box-bounce-error'), 550);
+
+            // Zigzag Underline: Qizil to'lqinsimon chiziq
+            if (targetField === 'password' || targetField === 'all') {
+                passwordWrapper?.classList.add('has-error');
+            }
+            if (targetField === 'username' || targetField === 'all') {
+                usernameWrapper?.classList.add('has-error');
+            }
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideAlert();
+            usernameWrapper?.classList.remove('has-error');
+            passwordWrapper?.classList.remove('has-error');
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
 
-            if (!username || !password) {
-                showAlert('Login va parolni to\'liq kiriting!');
+            if (!username) {
+                triggerErrorAnimation('Foydalanuvchi nomini kiriting!', 'username');
+                usernameInput.focus();
                 return;
             }
 
+            if (!password) {
+                triggerErrorAnimation('Maxfiy parolni kiriting!', 'password');
+                passwordInput.focus();
+                return;
+            }
+
+            // 1. LOAD & SUCCESS: Tugma aylanaga qisqaradi va spinner aylanadi
             btn.disabled = true;
-            btnText.innerHTML = '<div class="spinner"></div> Tekshirilmoqda...';
+            btn.classList.add('btn-loading');
 
             try {
                 const res = await fetch('/api/auth/login', {
@@ -816,29 +1067,43 @@
                 const data = await res.json();
 
                 if (res.ok && data.success) {
-                    btnText.textContent = 'Muvaffaqiyatli! Yo\'naltirilmoqda...';
+                    // 2. CHECK DRAW: Yashil doiraga aylanadi va qalam bilan ✓ chiziladi
+                    btn.classList.remove('btn-loading');
+                    btn.classList.add('btn-success');
+
                     if (data.token) {
                         try {
                             localStorage.setItem('cc_token', data.token);
                         } catch (e) {}
                     }
-                    if (data.user && data.user.role === 'operator') {
-                        const tokenParam = data.token ? `?token=${encodeURIComponent(data.token)}` : '';
-                        const viewerUrl = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
-                        window.location.href = viewerUrl;
-                    } else {
-                        window.location.href = '/';
-                    }
+
+                    // 3. PUSH SLIDE: 600ms dan so'ng butun login oynasi silliq surilib Dashboardga o'tadi
+                    setTimeout(() => {
+                        loginContainer.classList.add('push-slide-out');
+
+                        setTimeout(() => {
+                            if (data.user && data.user.role === 'operator') {
+                                const tokenParam = data.token ? `?token=${encodeURIComponent(data.token)}` : '';
+                                const viewerUrl = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
+                                window.location.href = viewerUrl;
+                            } else {
+                                window.location.href = '/';
+                            }
+                        }, 420);
+                    }, 650);
+
                 } else {
-                    showAlert(data.error || 'Login yoki parol noto\'g\'ri!');
+                    btn.classList.remove('btn-loading');
+                    btn.disabled = false;
+                    triggerErrorAnimation(data.error || 'Login yoki parol noto\'g\'ri!', 'password');
                     passwordInput.value = '';
                     passwordInput.focus();
+                    checkInputsFill();
                 }
             } catch (err) {
-                showAlert('Server bilan bog\'lanishda xatolik yuz berdi. Qayta urinib ko\'ring.');
-            } finally {
+                btn.classList.remove('btn-loading');
                 btn.disabled = false;
-                btnText.textContent = 'Kirish';
+                triggerErrorAnimation('Server bilan bog\'lanishda xatolik yuz berdi. Qayta urinib ko\'ring.', 'all');
             }
         });
 
