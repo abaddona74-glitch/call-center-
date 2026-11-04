@@ -65,6 +65,7 @@ if (fs.existsSync(indexHtmlPath)) {
     }
     html = html.replace(/\/js\/dashboard\.js\?v=[^"]*/g, `/js/dashboard.js?v=${currentBuild.buildId}`);
     html = html.replace(/\/css\/style\.css\?v=[^"]*/g, `/css/style.css?v=${currentBuild.buildId}`);
+    html = html.replace(/\/js\/visualInspector\.js\?v=[^"]*/g, `/js/visualInspector.js?v=${currentBuild.buildId}`);
     fs.writeFileSync(indexHtmlPath, html, 'utf8');
 }
 

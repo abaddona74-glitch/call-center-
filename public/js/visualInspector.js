@@ -2,17 +2,18 @@
  * Visual AI Inspector (Lovable / v0 Style Visual Prompt Mode)
  * Faqat Superuser / Admin yoki Localhost uchun xavfsiz faollashadi.
  * Klaviatura kombinatsiyasi: Alt + Shift + D yoki Profil menyusi orqali.
- * Imkoniyatlari:
- *  - Yagona element tanlash (1-click prompt)
- *  - Multi-select: Bir nechta elementni tanlab umumiy prompt berish (Shift + Click yoki Multi-rejim)
- *  - Antigravity Inbox'ga to'g'ridan-to'g'ri integratsiya
+ * 
+ * Asosiy imkoniyatlar:
+ *  - Ko'p elementlarni uzluksiz tanlash (har bir element #1, #2... deb belgilanadi)
+ *  - Modal birinchi bosishda xalal bermaydi — elementlarni tanlab bo'lib "Prompt berish" yoki Enter bosiladi
+ *  - Bitta elementni tezkor ochish uchun 2 marta bosish (double-click) ham ishlaydi
+ *  - Antigravity Inbox'ga to'g'ridan-to'g'ri uzatish
  */
 
 (function () {
     'use strict';
 
     let isInspectorActive = false;
-    let isMultiSelectMode = false;
     let hoveredElement = null;
     let selectedElements = [];
     let highlightBox = null;
@@ -69,7 +70,7 @@
             background: rgba(139, 92, 246, 0.12);
             box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2), 0 0 24px rgba(139, 92, 246, 0.35);
             border-radius: 6px;
-            transition: all 0.06s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.05s cubic-bezier(0.16, 1, 0.3, 1);
             z-index: 10000000;
         `;
 
@@ -110,13 +111,13 @@
             background: rgba(15, 23, 42, 0.96);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(139, 92, 246, 0.45);
-            box-shadow: 0 10px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(139, 92, 246, 0.25);
-            padding: 7px 16px;
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            box-shadow: 0 10px 36px rgba(0, 0, 0, 0.65), 0 0 24px rgba(139, 92, 246, 0.3);
+            padding: 8px 18px;
             border-radius: 50px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
             font-size: 12.5px;
@@ -125,7 +126,7 @@
             transition: transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
             z-index: 10000001;
             user-select: none;
-            max-width: 92vw;
+            max-width: 94vw;
             flex-wrap: nowrap;
         `;
         root.appendChild(topBar);
@@ -134,73 +135,58 @@
         updateTopBarUI();
     }
 
-    // 3. TopBar interfeysini yangilash (tanlangan elementlar soni va rejimlarga qarab)
+    // 3. TopBar interfeysini yangilash (tanlangan elementlar soniga qarab)
     function updateTopBarUI() {
         if (!topBar) return;
 
         const count = selectedElements.length;
-        const isMulti = isMultiSelectMode;
 
         topBar.innerHTML = `
             <div style="display: inline-flex; align-items: center; gap: 7px; color: #c084fc;">
-                <svg class="isax isax-magic-star" style="width: 15px; height: 15px; color: #c084fc;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
+                <svg class="isax isax-magic-star" style="width: 16px; height: 16px; color: #c084fc;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
                 <span style="font-weight: 700; letter-spacing: -0.2px;">Visual AI</span>
             </div>
 
             <span style="color: #475569;">|</span>
 
-            <!-- Rejim tugmasi: Yagona vs Multi -->
-            <button type="button" id="btnToggleMultiMode" style="
-                background: ${isMulti ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.06)'};
-                border: 1px solid ${isMulti ? '#10b981' : 'rgba(255, 255, 255, 0.12)'};
-                color: ${isMulti ? '#34d399' : '#cbd5e1'};
-                padding: 4px 10px;
-                border-radius: 20px;
-                font-size: 11.5px;
-                font-weight: 600;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 5px;
-                transition: all 0.15s ease;
-            " title="Shift bosib tursa ham multi-rejim ishlaydi">
-                <span style="width: 6px; height: 6px; border-radius: 50%; background: ${isMulti ? '#10b981' : '#94a3b8'};"></span>
-                <span>${isMulti ? 'Multi-select: Yoniq' : 'Multi-select'}</span>
-            </button>
-
-            <!-- Holat / Maslahat yoki Tanlov amallari -->
             ${count === 0 ? `
-                <span style="color: #94a3b8; font-size: 11.5px; font-weight: 500;">
-                    Elementni bosing ${isMulti ? '(ko\'p tanlash)' : '(yoki Shift+Click)'}
-                </span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="color: #cbd5e1; font-size: 12px; font-weight: 500;">
+                        Elementlarni ketma-ket bosing
+                    </span>
+                    <span style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); padding: 2px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 600;">
+                        Multi-select faol
+                    </span>
+                </div>
             ` : `
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; font-family: monospace;">
+                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); padding: 3px 9px; border-radius: 12px; font-size: 11.5px; font-weight: 700; font-family: monospace;">
                         ${count} ta tanlandi
                     </span>
                     <button type="button" id="btnOpenMultiPrompt" style="
                         background: linear-gradient(135deg, #7c3aed, #4f46e5);
                         border: none;
                         color: #ffffff;
-                        padding: 5px 12px;
+                        padding: 6px 14px;
                         border-radius: 20px;
-                        font-size: 11.5px;
+                        font-size: 12px;
                         font-weight: 700;
                         cursor: pointer;
                         display: flex;
                         align-items: center;
                         gap: 6px;
-                        box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
+                        box-shadow: 0 4px 14px rgba(124, 58, 237, 0.45);
+                        animation: pulseGlow 2s infinite;
                         transition: all 0.15s ease;
                     ">
-                        <svg class="isax isax-magic-star" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
+                        <svg class="isax isax-magic-star" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
                         <span>Prompt berish (Enter)</span>
                     </button>
                     <button type="button" id="btnClearSelection" style="
                         background: rgba(255, 255, 255, 0.08);
-                        border: 1px solid rgba(255, 255, 255, 0.12);
+                        border: 1px solid rgba(255, 255, 255, 0.14);
                         color: #cbd5e1;
-                        padding: 4px 8px;
+                        padding: 5px 9px;
                         border-radius: 14px;
                         font-size: 11px;
                         font-weight: 600;
@@ -222,13 +208,7 @@
             </button>
         `;
 
-        // Event listeners
         document.getElementById('btnExitVisualInspector')?.addEventListener('click', stopVisualInspector);
-        
-        document.getElementById('btnToggleMultiMode')?.addEventListener('click', () => {
-            isMultiSelectMode = !isMultiSelectMode;
-            updateTopBarUI();
-        });
 
         document.getElementById('btnOpenMultiPrompt')?.addEventListener('click', () => {
             if (selectedElements.length > 0) {
@@ -278,10 +258,10 @@
                 background: #064e3b;
                 color: #a7f3d0;
                 border: 1px solid #10b981;
-                padding: 1px 6px;
+                padding: 1px 7px;
                 border-radius: 4px;
                 font-family: 'JetBrains Mono', Consolas, monospace;
-                font-size: 10.5px;
+                font-size: 11px;
                 font-weight: 700;
                 white-space: nowrap;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -349,11 +329,7 @@
             tagBadge.style.background = '#1e1b4b';
             tagBadge.style.borderColor = '#6366f1';
             tagBadge.style.color = '#c4b5fd';
-            if (isMultiSelectMode || e.shiftKey) {
-                tagBadge.textContent = `+ Qo'shish: <${label}>`;
-            } else {
-                tagBadge.textContent = `<${label}>`;
-            }
+            tagBadge.textContent = `+ Qo'shish: <${label}>`;
         }
 
         if (rect.top < 30) {
@@ -365,7 +341,7 @@
         }
     }
 
-    // 6. Element bosilganda tanlash
+    // 6. Element bosilganda tanlash (ketma-ket bir nechta tanlash imkoni)
     function handleClick(e) {
         if (!isInspectorActive) return;
 
@@ -380,38 +356,44 @@
         const target = hoveredElement || e.target;
         if (!target) return;
 
-        const isMulti = isMultiSelectMode || e.shiftKey || e.ctrlKey || e.metaKey || (selectedElements.length > 0 && isMultiSelectMode);
-
-        if (isMulti) {
-            // Multi-rejim: element bor bo'lsa o'chiramiz, yo'q bo'lsa qo'shamiz
-            const existingIdx = selectedElements.indexOf(target);
-            if (existingIdx !== -1) {
-                selectedElements.splice(existingIdx, 1);
-            } else {
-                selectedElements.push(target);
-            }
-
-            // Agar Shift bilan bosgan bo'lsa, foydalanuvchiga qulay bo'lishi uchun multi-rejimni yoniq deb belgilaymiz
-            if (e.shiftKey) {
-                isMultiSelectMode = true;
-            }
-
-            renderMultiHighlights();
-            updateTopBarUI();
-
-            // Hoverni qayta tekshirish
-            handleMouseMove(e);
+        // Element ro'yxatda bor bo'lsa o'chiramiz, yo'q bo'lsa qo'shamiz
+        const existingIdx = selectedElements.indexOf(target);
+        if (existingIdx !== -1) {
+            selectedElements.splice(existingIdx, 1);
         } else {
-            // Yagona tanlash rejimi
-            selectedElements = [target];
+            selectedElements.push(target);
+        }
+
+        renderMultiHighlights();
+        updateTopBarUI();
+
+        // Hover holatini qayta hisoblash
+        handleMouseMove(e);
+    }
+
+    // Tezkor ochish uchun: 2 marta bosish (double-click) darhol prompt ochadi
+    function handleDblClick(e) {
+        if (!isInspectorActive) return;
+        if (e.target.closest('#visualInspectorRoot') || e.target.closest('#visualInspectorModalContainer')) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const target = hoveredElement || e.target;
+        if (target && !selectedElements.includes(target)) {
+            selectedElements.push(target);
             renderMultiHighlights();
             updateTopBarUI();
-            highlightBox.style.display = 'none';
+        }
+
+        if (selectedElements.length > 0) {
             openPromptModal();
         }
     }
 
-    // 7. Prompt oynasini ochish (Yagona yoki Multi elementlar bilan)
+    // 7. Prompt oynasini ochish
     function openPromptModal() {
         closePromptModal();
         if (selectedElements.length === 0) return;
@@ -450,7 +432,7 @@
             animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         `;
 
-        // Har bir element metadatalarini tayyorlash
+        // Har bir element metadatalari
         const elementsData = selectedElements.map(el => {
             const rect = el.getBoundingClientRect();
             const tag = el.tagName.toLowerCase();
@@ -562,7 +544,7 @@
             <!-- Tugmalar -->
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <button type="button" id="btnReselectElement" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 9px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">
-                    ${isSingle ? "Boshqa element" : "+ Yana tanlash"}
+                    + Yana element tanlash
                 </button>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <button type="button" id="btnCopyVisualPrompt" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #f1f5f9; padding: 9px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
@@ -581,11 +563,9 @@
         document.body.appendChild(container);
         promptModal = container;
 
-        // Fokus textarea ga
         const txtInput = document.getElementById('visualAiPromptInput');
         if (txtInput) txtInput.focus();
 
-        // Chip bosilganda matn qo'shish
         modal.querySelectorAll('.ai-chip-btn').forEach(btn => {
             btn.style.cssText = 'background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; font-size: 11px; padding: 4px 9px; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;';
             btn.addEventListener('click', () => {
@@ -596,9 +576,8 @@
             });
         });
 
-        // Ro'yxatdan alohida elementni o'chirish
         modal.querySelectorAll('.el-remove-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 const idx = parseInt(btn.dataset.removeIdx, 10);
                 if (!isNaN(idx) && selectedElements[idx]) {
                     selectedElements.splice(idx, 1);
@@ -613,20 +592,16 @@
             });
         });
 
-        // Yopish tugmasi
         document.getElementById('btnVisualCloseModal')?.addEventListener('click', closePromptModal);
         
-        // Yana tanlash / Boshqa element tanlash
         const handleReselect = () => {
             closePromptModal();
-            isMultiSelectMode = true;
             updateTopBarUI();
             if (highlightBox) highlightBox.style.display = 'block';
         };
         document.getElementById('btnReselectElement')?.addEventListener('click', handleReselect);
         document.getElementById('btnAddMoreElements')?.addEventListener('click', handleReselect);
 
-        // Prompt generator
         function generateFullPrompt() {
             const userTask = txtInput ? txtInput.value.trim() : '';
 
@@ -647,7 +622,6 @@
                 ].filter(Boolean).join('\n');
             }
 
-            // Multi-element prompt
             const lines = [
                 `[VISUAL UI MULTI-ELEMENT O'ZGARTIRISH TALABI]:`,
                 `Jami tanlangan komponentlar soni: ${elementsData.length} ta`,
@@ -677,7 +651,6 @@
             return lines.filter(Boolean).join('\n');
         }
 
-        // 1. Nusxalash tugmasi
         document.getElementById('btnCopyVisualPrompt')?.addEventListener('click', () => {
             const copyBtn = document.getElementById('btnCopyVisualPrompt');
             const fullPrompt = generateFullPrompt();
@@ -698,13 +671,11 @@
             });
         });
 
-        // 2. Antigravity Inbox'ga yuborish tugmasi
         document.getElementById('btnSendToAntigravity')?.addEventListener('click', async () => {
             const sendBtn = document.getElementById('btnSendToAntigravity');
             const userTask = txtInput ? txtInput.value.trim() : '';
             const fullPrompt = generateFullPrompt();
 
-            // Har ehtimolga qarshi clipboard ga ham yozib qo'yamiz
             try { navigator.clipboard.writeText(fullPrompt); } catch (e) {}
 
             if (sendBtn) {
@@ -774,7 +745,6 @@
             }
         });
 
-        // Modal tashqarisiga bosilganda
         container.addEventListener('click', (e) => {
             if (e.target === container) closePromptModal();
         });
@@ -809,6 +779,7 @@
 
         window.addEventListener('mousemove', handleMouseMove, true);
         window.addEventListener('click', handleClick, true);
+        window.addEventListener('dblclick', handleDblClick, true);
         window.addEventListener('scroll', updateHighlightsPositions, true);
         window.addEventListener('resize', updateHighlightsPositions, true);
     }
@@ -816,7 +787,6 @@
     // 9. Inspector ni o'chirish
     function stopVisualInspector() {
         isInspectorActive = false;
-        isMultiSelectMode = false;
         selectedElements = [];
         document.body.classList.remove('visual-inspector-on');
 
@@ -830,6 +800,7 @@
 
         window.removeEventListener('mousemove', handleMouseMove, true);
         window.removeEventListener('click', handleClick, true);
+        window.removeEventListener('dblclick', handleDblClick, true);
         window.removeEventListener('scroll', updateHighlightsPositions, true);
         window.removeEventListener('resize', updateHighlightsPositions, true);
     }
