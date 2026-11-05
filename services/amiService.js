@@ -1051,12 +1051,14 @@ class AmiService {
                 const ac = this.activeChannels.get(evt.channel);
                 ac.direction = 'inbound';
                 if (opId) ac.operator = opId;
+                if (evt.destchannel) ac.pairedChannel = evt.destchannel;
                 this.activeChannels.set(evt.channel, ac);
             }
             if (evt.destchannel && this.activeChannels.has(evt.destchannel)) {
                 const adc = this.activeChannels.get(evt.destchannel);
                 adc.direction = 'inbound';
                 if (opId) adc.operator = opId;
+                if (evt.channel) adc.pairedChannel = evt.channel;
                 this.activeChannels.set(evt.destchannel, adc);
             }
 
@@ -1191,11 +1193,20 @@ class AmiService {
                 // KIRUVCHI: Navbat operatorga yo'naltirmoqda
                 this.ensureOperatorExists(destOpId);
                 this.setChannelOperator(destChan, destOpId);
+                if (srcChan) {
+                    this.setChannelOperator(srcChan, destOpId);
+                }
                 if (this.activeChannels.has(destChan)) {
-                    this.activeChannels.get(destChan).direction = 'inbound';
+                    const dc = this.activeChannels.get(destChan);
+                    dc.direction = 'inbound';
+                    dc.operator = destOpId;
+                    if (srcChan) dc.pairedChannel = srcChan;
                 }
                 if (srcChan && this.activeChannels.has(srcChan)) {
-                    this.activeChannels.get(srcChan).direction = 'inbound';
+                    const sc = this.activeChannels.get(srcChan);
+                    sc.direction = 'inbound';
+                    sc.operator = destOpId;
+                    if (destChan) sc.pairedChannel = destChan;
                 }
                 const callerId = this.extractCallerNumber(evt.calleridnum, evt.calleridname, srcChan);
 
@@ -1568,6 +1579,32 @@ class AmiService {
 
             let detectedOp = null;
 
+            if (evt.channel1 && evt.channel2) {
+                const op1 = this.extractOperatorExten(evt.channel1) || this.channelToOperator.get(evt.channel1);
+                const op2 = this.extractOperatorExten(evt.channel2) || this.channelToOperator.get(evt.channel2);
+                if (op1 && !op2) {
+                    this.setChannelOperator(evt.channel2, op1);
+                    if (this.activeChannels.has(evt.channel2)) {
+                        const c2 = this.activeChannels.get(evt.channel2);
+                        c2.operator = op1;
+                        c2.pairedChannel = evt.channel1;
+                    }
+                    if (this.activeChannels.has(evt.channel1)) {
+                        this.activeChannels.get(evt.channel1).pairedChannel = evt.channel2;
+                    }
+                } else if (op2 && !op1) {
+                    this.setChannelOperator(evt.channel1, op2);
+                    if (this.activeChannels.has(evt.channel1)) {
+                        const c1 = this.activeChannels.get(evt.channel1);
+                        c1.operator = op2;
+                        c1.pairedChannel = evt.channel2;
+                    }
+                    if (this.activeChannels.has(evt.channel2)) {
+                        this.activeChannels.get(evt.channel2).pairedChannel = evt.channel1;
+                    }
+                }
+            }
+
             for (const channelId of channelsToUpdate) {
                 const rawOp = evt.connectedlinenum || evt.calleridnum || evt.callerid1 || evt.callerid2 || '';
                 const operator = this.extractOperatorExten(rawOp) || this.extractOperatorExten(channelId) || this.channelToOperator.get(channelId);
@@ -1898,10 +1935,25 @@ class AmiService {
         const usedExtChannels = new Set();
 
         for (const [opId, opData] of activeOperators.entries()) {
-            let pairedChan = externalChannels.find(ec => !usedExtChannels.has(ec.chanId) && (ec.op === opId || this.channelToOperator.get(ec.chanId) === opId));
+            // 1-navbatda: Aniq bog'langan kanal (pairedChannel, ec.op === opId, channelToOperator)
+            let pairedChan = externalChannels.find(ec => 
+                !usedExtChannels.has(ec.chanId) && (
+                    ec.op === opId || 
+                    this.channelToOperator.get(ec.chanId) === opId ||
+                    (opData.chan && opData.chan.pairedChannel === ec.chanId) ||
+                    (ec.chan && ec.chan.pairedChannel === opData.chanId)
+                )
+            );
             
+            // 2-navbatda (faqat agar aniq topilmasa): Boshqa hech qaysi operatorga biriktirilmagan va bo'sh bo'lgan kanal!
+            // QAT'IY QOIDA: Boshqa operatorga tegishli kanalni (ec.op yoki channelToOperator) HECH QACHON o'g'irlamaslik!
             if (!pairedChan) {
-                pairedChan = externalChannels.find(ec => !usedExtChannels.has(ec.chanId) && (ec.chan.state.toLowerCase().includes('up') || ec.chan.state === '6'));
+                pairedChan = externalChannels.find(ec => 
+                    !usedExtChannels.has(ec.chanId) && 
+                    !ec.op && 
+                    !this.channelToOperator.has(ec.chanId) && 
+                    (ec.chan.state.toLowerCase().includes('up') || ec.chan.state === '6')
+                );
             }
 
             let callerNum = 'Mijoz (Ulangan)';
