@@ -15726,7 +15726,9 @@ function openTelegramUser(tgId, phone) {
 
     if (cleanTg) {
         if (/^\d+$/.test(cleanTg)) {
-            window.location.href = `tg://user?id=${cleanTg}`;
+            // Telegram protocol link (Desktop / Mobile ilova uchun)
+            // Diqqat: Telegram faqat oldin yozishgan yoki kontaktda bor odamni ochadi (antispam qoidasi)
+            window.location.href = `tg://openmessage?user_id=${cleanTg}`;
             return;
         } else {
             const user = cleanTg.replace(/^@/, '');

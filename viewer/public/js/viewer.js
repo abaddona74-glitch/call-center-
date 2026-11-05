@@ -5531,8 +5531,8 @@ function openTelegramUser(tgId, phone) {
 
     if (cleanTg) {
         if (/^\d+$/.test(cleanTg)) {
-            // Raqamli Telegram User ID: tg://user?id=123456789
-            window.location.href = `tg://user?id=${cleanTg}`;
+            // Raqamli Telegram User ID: tg://openmessage?user_id=123456789
+            window.location.href = `tg://openmessage?user_id=${cleanTg}`;
             return;
         } else {
             // @username: https://t.me/username
