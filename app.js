@@ -26,6 +26,7 @@ const authService = require('./services/authService');
 const proxmoxService = require('./services/proxmoxService');
 const zipJobService = require('./services/zipJobService');
 const converterService = require('./services/converterService');
+const uzcryptoService = require('./services/uzcryptoService');
 
 // Initialize Auth Service & Ensure Superuser (@Abaddon2004)
 authService.init();
@@ -767,6 +768,7 @@ app.use((req, res, next) => {
         p === '/api/auth/logout' ||
         p === '/api/version' ||
         p === '/version.json' ||
+        p.startsWith('/api/tools/uzcrypto') ||
         p === '/favicon.ico' ||
         p.startsWith('/css/') ||
         p.startsWith('/js/') ||
@@ -1527,6 +1529,28 @@ app.post('/api/converter/convert', async (req, res) => {
     } catch (err) {
         console.error('Konvertatsiya xatosi:', err.message);
         res.status(500).json({ success: false, error: err.message || "Faylni konvertatsiya qilishda xatolik yuz berdi." });
+    }
+});
+
+// --- UZCRYPTO DYNAMIC DOWNLOAD & LATEST VERSION API ---
+app.get('/api/tools/uzcrypto/latest', async (req, res) => {
+    try {
+        const force = req.query.force === 'true';
+        const info = await uzcryptoService.resolveLatestUzcrypto(force);
+        res.json(info);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/tools/uzcrypto/download', async (req, res) => {
+    try {
+        const osType = String(req.query.os || '').toLowerCase();
+        const info = await uzcryptoService.resolveLatestUzcrypto();
+        const targetUrl = (osType === 'mac' || osType === 'macos') ? info.macosUrl : info.windowsUrl;
+        return res.redirect(302, targetUrl);
+    } catch (e) {
+        return res.redirect(302, 'https://edo.ijro.uz/welcome');
     }
 });
 

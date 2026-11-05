@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 const ticketService = require('./services/ticketService');
+const uzcryptoService = require('./services/uzcryptoService');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
 // Upstream host (3535) - agar alohida berilmagan bo'lsa 127.0.0.1
@@ -197,6 +198,7 @@ app.use(async (req, res, next) => {
         p === '/favicon.png' ||
         p === '/api/version' ||
         p === '/version.json' ||
+        p.startsWith('/api/tools/uzcrypto') ||
         p.startsWith('/icons/') ||
         p.startsWith('/images/') ||
         p.startsWith('/img/') ||
@@ -1032,6 +1034,28 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
     } catch (e) {
         console.error('visual-prompt api error (viewer):', e);
         return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// --- UZCRYPTO DYNAMIC DOWNLOAD & LATEST VERSION API ---
+app.get('/api/tools/uzcrypto/latest', async (req, res) => {
+    try {
+        const force = req.query.force === 'true';
+        const info = await uzcryptoService.resolveLatestUzcrypto(force);
+        res.json(info);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/tools/uzcrypto/download', async (req, res) => {
+    try {
+        const osType = String(req.query.os || '').toLowerCase();
+        const info = await uzcryptoService.resolveLatestUzcrypto();
+        const targetUrl = (osType === 'mac' || osType === 'macos') ? info.macosUrl : info.windowsUrl;
+        return res.redirect(302, targetUrl);
+    } catch (e) {
+        return res.redirect(302, 'https://edo.ijro.uz/welcome');
     }
 });
 

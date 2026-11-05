@@ -4971,6 +4971,20 @@ function initPageElevator() {
     }
 }
 
+async function initUzcryptoBadge() {
+    try {
+        const badge = document.getElementById('uzcryptoVersionBadge');
+        if (!badge) return;
+        const res = await fetch('/api/tools/uzcrypto/latest');
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.version) {
+                badge.textContent = `Latest v${data.version}`;
+            }
+        }
+    } catch (_) {}
+}
+
 function initViewer() {
     document.title = t('ext_title', 'Call Center — Operatorlar');
     initHeaderClock();
@@ -4985,6 +4999,7 @@ function initViewer() {
     initWebSocket();
     initDeployWatcher();
     initConverterDropzone();
+    initUzcryptoBadge();
 
     // Avtomatik zaxira so'rovi (har 6 soniyada)
     refreshInterval = setInterval(() => {
