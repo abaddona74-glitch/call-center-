@@ -8,3 +8,9 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
+
+## Telegram Deploy Notifications & Dynamic Changelog
+- Har bir deploy amalga oshirilganda Telegram botga hisobot xabari yuboriladi.
+- Telegram bildirishnomasidagi "O'zgarishlar (Changelog)" qismida har doim haqiqiy va aniq o'zgarishlar (oxirgi git commit xabari va o'zgargan fayllar) dinamik aks etishi shart.
+- Hech qachon eskirgan yoki statik (qotib qolgan) matn yuborilmaydi.
+- `deploy.js` avtomatik tarzda `git log` va `git diff-tree` orqali dinamik changelog shakllantiradi yoki `node scripts/deploy.js "O'zgarish tavsifi"` argumenti orqali uzatiladi.

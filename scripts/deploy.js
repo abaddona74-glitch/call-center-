@@ -211,6 +211,9 @@ async function deploy() {
             second: '2-digit' 
         });
 
+        // Dinamik changelog olish (oxirgi git commit xabari va o'zgargan fayllar)
+        const changelogText = getDeployChangelog();
+
         const deployNotificationText = 
             `🚀 <b>CALL CENTER AI — DEPLOY MUVAFFAQIYATLI O'TDI!</b>\n\n` +
             `🏷️ <b>Versiya:</b> Build ${currentBuild.buildId} (v${currentBuild.version})\n` +
@@ -218,15 +221,59 @@ async function deploy() {
             `⚡ <b>Davomiyligi:</b> ${elapsed} soniya\n` +
             `🌐 <b>Asosiy Portal:</b> http://${SERVER_HOST}:3535\n` +
             `📊 <b>Viewer Portali:</b> http://${SERVER_HOST}:3005\n\n` +
-            `✅ <b>O'zgarishlar:</b>\n` +
-            `• 3005 Viewer'da Ticketni 'Rad etish' bosilganda sababini kiritish modali va tezkor sabablar (presets) qo'shildi\n` +
-            `• Rad etilgan ticketlarda rad etish sababi karta va batafsil oynada alohida ko'rsatiladigan qilindi\n` +
-            `• Barcha xizmatlar (Node.js, PM2, Asterisk AMI, WebSocket) to'liq barqaror holatda ishga tushirildi.`;
+            `✅ <b>O'zgarishlar (Changelog):</b>\n` +
+            `${changelogText}`;
 
         await telegramService.broadcast(deployNotificationText);
         console.log('✅ Telegram bot bildirishnomasi muvaffaqiyatli jo\'natildi!\n');
     } catch (tgErr) {
         console.error('⚠️ Telegram bot bildirishnomasini jo\'natishda xatolik:', tgErr.message);
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function getDeployChangelog() {
+    // 1. Agar buyruq argumentida o'zgarish xabari berilgan bo'lsa
+    const rawArgs = process.argv.slice(2).filter(a => !a.startsWith('--'));
+    if (rawArgs.length > 0) {
+        return `• <b>${escapeHtml(rawArgs.join(' '))}</b>\n• Barcha xizmatlar (Node.js, PM2, Asterisk AMI) muvaffaqiyatli qayta yuklandi.`;
+    }
+
+    const descArg = process.argv.find(a => a.startsWith('--desc='));
+    if (descArg) {
+        const customDesc = descArg.replace('--desc=', '').trim();
+        return `• <b>${escapeHtml(customDesc)}</b>\n• Barcha xizmatlar (Node.js, PM2, Asterisk AMI) muvaffaqiyatli qayta yuklandi.`;
+    }
+
+    // 2. Git orqali oxirgi commit xabari va o'zgargan fayllarni aniqlash
+    try {
+        const lastCommitMsg = execSync('git log -1 --pretty=%s', { cwd: projectRoot, encoding: 'utf8' }).trim();
+        const changedFilesRaw = execSync('git diff-tree --no-commit-id --name-only -r HEAD', { cwd: projectRoot, encoding: 'utf8' });
+        const changedFiles = changedFilesRaw
+            .trim()
+            .split('\n')
+            .filter(f => f && !f.includes('version.json') && !f.includes('graphify'))
+            .slice(0, 4)
+            .join(', ');
+
+        const lines = [];
+        if (lastCommitMsg) {
+            lines.push(`• <b>${escapeHtml(lastCommitMsg)}</b>`);
+        }
+        if (changedFiles) {
+            lines.push(`• <i>Fayllar:</i> <code>${escapeHtml(changedFiles)}</code>`);
+        }
+        lines.push(`• Barcha xizmatlar (Node.js, PM2, Asterisk AMI, WebSocket) to'liq barqaror holatda ishga tushirildi.`);
+        return lines.join('\n');
+    } catch (e) {
+        return `• Yangi optimizatsiyalar va o'zgarishlar kiritildi.\n• Barcha xizmatlar barqaror holatda ishga tushirildi.`;
     }
 }
 
