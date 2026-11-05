@@ -15720,36 +15720,101 @@ window.runTopicAnalysis = runTopicAnalysis;
 
 
 
+function openTelegramByPhone(phone) {
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (!cleanPhone) {
+        if (typeof showToast === 'function') {
+            showToast("Mijozning telefon raqami topilmadi!", "warning");
+        } else {
+            alert("Mijozning telefon raqami topilmadi!");
+        }
+        return;
+    }
+    const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
+    window.open(`https://t.me/+${intlPhone}`, '_blank');
+}
+window.openTelegramByPhone = openTelegramByPhone;
+
+function copyTelegramId(tgId) {
+    const clean = String(tgId || '').trim();
+    if (!clean) {
+        if (typeof showToast === 'function') {
+            showToast("Telegram ID yoki raqam kiritilmagan!", "warning");
+        } else {
+            alert("Telegram ID yoki raqam kiritilmagan!");
+        }
+        return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(clean).then(() => {
+            if (typeof showToast === 'function') {
+                showToast(`Nusxalandi: ${clean}`, "success");
+            } else {
+                alert(`Nusxalandi: ${clean}`);
+            }
+        }).catch(() => {
+            prompt("Nusxalab oling:", clean);
+        });
+    } else {
+        prompt("Nusxalab oling:", clean);
+    }
+}
+window.copyTelegramId = copyTelegramId;
+
 function openTelegramUser(tgId, phone) {
     const cleanTg = String(tgId || '').trim();
     const cleanPhone = String(phone || '').replace(/\D/g, '');
 
-    if (cleanTg) {
-        if (/^\d+$/.test(cleanTg)) {
-            // Telegram protocol link (Desktop / Mobile ilova uchun)
-            // Diqqat: Telegram faqat oldin yozishgan yoki kontaktda bor odamni ochadi (antispam qoidasi)
-            window.location.href = `tg://openmessage?user_id=${cleanTg}`;
-            return;
-        } else {
-            const user = cleanTg.replace(/^@/, '');
-            window.open(`https://t.me/${user}`, '_blank');
-            return;
-        }
-    }
-
-    if (cleanPhone) {
-        const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
-        window.open(`https://t.me/+${intlPhone}`, '_blank');
+    // 1. Agar @username bo'lsa (barcha akkauntlarda 100% ochiladi)
+    if (cleanTg && !/^\d+$/.test(cleanTg)) {
+        const user = cleanTg.replace(/^@/, '');
+        window.open(`https://t.me/${user}`, '_blank');
         return;
     }
 
-    alert("Mijozning Telegram ID yoki telefon raqami topilmadi!");
+    // 2. Agar raqamli ID bo'lsa
+    if (cleanTg && /^\d+$/.test(cleanTg)) {
+        // Avval Telegram Desktop tg://user?id= ga o'tishga harakat qiladi
+        window.location.href = `tg://user?id=${cleanTg}`;
+        
+        // Agar boshqa akkauntda bo'lib chat ochilmasa, foydalanuvchiga telefon orqali ochishni eslatamiz
+        if (cleanPhone && typeof showToast === 'function') {
+            const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
+            setTimeout(() => {
+                showToast(`Agar ID bo'yicha chat ochilmasa, 'Telefon orqali ochish' (+${intlPhone}) tugmasidan foydalaning`, 'info', 5500);
+            }, 1200);
+        }
+        return;
+    }
+
+    // 3. Agar faqat telefon raqami bo'lsa
+    if (cleanPhone) {
+        openTelegramByPhone(cleanPhone);
+        return;
+    }
+
+    if (typeof showToast === 'function') {
+        showToast("Mijozning Telegram ID yoki telefon raqami topilmadi!", "warning");
+    } else {
+        alert("Mijozning Telegram ID yoki telefon raqami topilmadi!");
+    }
 }
 window.openTelegramUser = openTelegramUser;
 
-function testOpenAdminClientTelegram() {
+function testOpenAdminClientTelegram(mode = 'smart') {
     const tgId = (document.getElementById('adminClientTelegramIdInput')?.value || '').trim();
     const phone = (document.getElementById('adminClientPhoneInput')?.value || '').trim();
+
+    if (mode === 'phone') {
+        openTelegramByPhone(phone);
+        return;
+    }
+
+    if (mode === 'copy') {
+        copyTelegramId(tgId || phone);
+        return;
+    }
+
     openTelegramUser(tgId, phone);
 }
 window.testOpenAdminClientTelegram = testOpenAdminClientTelegram;
