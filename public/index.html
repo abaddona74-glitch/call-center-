@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793799126842">
+    <meta name="build-id" content="1793860718704">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793799126842">
+    <link rel="stylesheet" href="/css/style.css?v=1793860718704">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -3779,10 +3779,14 @@
                             </div>
                         </label>
                         <div style="position: relative;">
-                            <input type="email" id="profileEmailInput" class="settings-input" placeholder="masalan: sizning_nomingiz@gmail.com" required style="width: 100%; box-sizing: border-box; padding-left: 38px; font-size: 13.5px;">
+                            <input type="email" id="profileEmailInput" class="settings-input" placeholder="masalan: sizning_nomingiz@gmail.com" required style="width: 100%; box-sizing: border-box; padding-left: 38px; padding-right: 38px; font-size: 13.5px; transition: border-color 0.2s ease, box-shadow 0.2s ease;">
                             <svg class="isax isax-sms" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: #64748b; pointer-events: none;"><path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"/><path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"/></svg>
+                            <span id="profileEmailValidationIcon" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0;"></span>
                         </div>
-                        <div id="profileEmailMsg" style="font-size: 11.5px; margin-top: 6px; min-height: 16px;"></div>
+                        <div id="profileEmailMsg" style="font-size: 11.5px; margin-top: 6px; min-height: 18px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                            <span id="profileEmailMsgText"></span>
+                            <span id="profileEmailSuggestion" style="display: none;"></span>
+                        </div>
                     </div>
 
                     <!-- 2 Bosqichli Xavfsizlik Jarayoni Ko'rsatkichi (Security Banner) -->
@@ -3932,8 +3936,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793799126842" defer></script>
+    <script src="/js/dashboard.js?v=1793860718704" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793799126842" defer></script>
+    <script src="/js/visualInspector.js?v=1793860718704" defer></script>
 </body>
 </html>

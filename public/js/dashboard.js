@@ -13357,6 +13357,11 @@ async function loadUserProfileData() {
                 if (unlinkBtn) unlinkBtn.style.display = 'none';
                 if (btnSendText) btnSendText.textContent = "Tasdiqlash kodini olish";
             }
+            if (typeof initProfileEmailLiveValidation === 'function') {
+                initProfileEmailLiveValidation();
+                validateProfileEmailLive({ showErrorOnEmpty: false });
+            
+            }
         }
     } catch (e) {
         console.warn('loadUserProfileData error:', e);
@@ -13372,6 +13377,9 @@ function openProfileModal(e) {
     if (modal) {
         modal.style.display = 'flex';
         loadUserProfileData();
+        if (typeof initProfileEmailLiveValidation === 'function') {
+            initProfileEmailLiveValidation();
+        }
     }
 }
 window.openProfileModal = openProfileModal;
@@ -13959,6 +13967,9 @@ async function startProfileEmailUnlink(e) {
                 stepText.innerHTML = `⚠️ <b>Xavfsizlik tasdig'i:</b> Hisobdan uzish tasdiqlash kodi joriy bog'langan <b>${currentProfileBoundEmail}</b> pochtangizga yuborildi.`;
             }
             if (msgEl) msgEl.textContent = '';
+    if (typeof validateProfileEmailLive === 'function') {
+        validateProfileEmailLive({ showErrorOnEmpty: false });
+    }
             if (verifySec) verifySec.style.display = 'block';
             if (btnSend) btnSend.style.display = 'none';
             if (btnVerify) {
@@ -13991,6 +14002,289 @@ async function startProfileEmailUnlink(e) {
     }
 }
 window.startProfileEmailUnlink = startProfileEmailUnlink;
+
+// =========================================================================
+// PROFILE GMAIL LIVE VALIDATION & SMART HELPERS
+// =========================================================================
+
+function validateProfileEmailLive(options = {}) {
+    const { showErrorOnEmpty = false } = options;
+    const emailInput = document.getElementById('profileEmailInput');
+    const msgContainer = document.getElementById('profileEmailMsg');
+    const msgText = document.getElementById('profileEmailMsgText') || msgContainer;
+    const suggestionEl = document.getElementById('profileEmailSuggestion');
+    const iconContainer = document.getElementById('profileEmailValidationIcon');
+    const btnSend = document.getElementById('btnSendProfileCode');
+
+    if (!emailInput) return { valid: false, reason: 'missing_input' };
+
+    const rawVal = emailInput.value || '';
+    const val = rawVal.trim().toLowerCase();
+
+    const resetStyles = () => {
+        emailInput.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+        emailInput.style.boxShadow = 'none';
+        if (iconContainer) {
+            iconContainer.style.opacity = '0';
+            iconContainer.innerHTML = '';
+        }
+        if (msgText) {
+            msgText.textContent = '';
+            msgText.style.color = '#94a3b8';
+        }
+        if (suggestionEl) {
+            suggestionEl.style.display = 'none';
+            suggestionEl.innerHTML = '';
+        }
+        if (btnSend && !emailInput.disabled) {
+            btnSend.disabled = false;
+        }
+    };
+
+    // 1. Bo'sh maydon tekshiruvi
+    if (!val) {
+        if (showErrorOnEmpty) {
+            emailInput.style.borderColor = '#ef4444';
+            emailInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.18)';
+            if (iconContainer) {
+                iconContainer.style.opacity = '1';
+                iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #ef4444;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+            }
+            if (msgText) {
+                msgText.textContent = 'Gmail manzili kiritilishi shart!';
+                msgText.style.color = '#f87171';
+            }
+            if (btnSend) btnSend.disabled = true;
+            return { valid: false, reason: 'empty' };
+        }
+        resetStyles();
+        return { valid: false, reason: 'empty' };
+    }
+
+    // 2. Bo'sh joy (probel) tekshiruvi
+    if (/\s/.test(rawVal)) {
+        emailInput.style.borderColor = '#ef4444';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #ef4444;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Email manzilida bo'sh joy (probel) bo'lmasligi kerak!";
+            msgText.style.color = '#f87171';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'spaces' };
+    }
+
+    // 3. @ belgisi borligi
+    if (!val.includes('@')) {
+        emailInput.style.borderColor = '#f59e0b';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #f59e0b;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "@ belgisi kiritilishi kerak (masalan: siz@gmail.com)";
+            msgText.style.color = '#fbbf24';
+        }
+        if (suggestionEl) {
+            suggestionEl.style.display = 'inline-flex';
+            suggestionEl.innerHTML = '<button type="button" onclick="applyProfileEmailSuggestion(\'@gmail.com\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="@gmail.com qo\'shish">+ @gmail.com</button>';
+        }
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'missing_at' };
+    }
+
+    // 4. Faqat bitta @ bo'lishi
+    const parts = val.split('@');
+    if (parts.length > 2) {
+        emailInput.style.borderColor = '#ef4444';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #ef4444;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Faqat 1 ta @ belgisi bo'lishi kerak";
+            msgText.style.color = '#f87171';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'multiple_at' };
+    }
+
+    const [userPart, domainPart] = parts;
+
+    // 5. User qismi tekshiruvi
+    if (!userPart) {
+        emailInput.style.borderColor = '#ef4444';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #ef4444;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "@ belgisidan oldin nom kiriting";
+            msgText.style.color = '#f87171';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'missing_user_part' };
+    }
+
+    // 6. Domen qismi tekshiruvi
+    if (!domainPart) {
+        emailInput.style.borderColor = '#f59e0b';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #f59e0b;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Domen nomini to'liq kiriting (masalan: gmail.com)";
+            msgText.style.color = '#fbbf24';
+        }
+        if (suggestionEl) {
+            suggestionEl.style.display = 'inline-flex';
+            suggestionEl.innerHTML = '<button type="button" onclick="applyProfileEmailSuggestion(\'gmail.com\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s;" title="gmail.com qo\'shish">+ gmail.com</button>';
+        }
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'missing_domain' };
+    }
+
+    if (!domainPart.includes('.')) {
+        emailInput.style.borderColor = '#f59e0b';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(245, 158, 11, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #f59e0b;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Domen oxirida nuqta va kengaytma (.com) bo'lishi kerak";
+            msgText.style.color = '#fbbf24';
+        }
+        if (domainPart === 'gmail') {
+            if (suggestionEl) {
+                suggestionEl.style.display = 'inline-flex';
+                suggestionEl.innerHTML = '<button type="button" onclick="applyProfileEmailSuggestion(\'.com\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer; transition: all 0.2s;">+ .com</button>';
+            }
+        } else {
+            if (suggestionEl) suggestionEl.style.display = 'none';
+        }
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'missing_dot' };
+    }
+
+    // 7. Standart email regex tekshiruvi
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+    if (!emailRegex.test(val)) {
+        emailInput.style.borderColor = '#ef4444';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-close-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #ef4444;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Elektron pochta formati noto'g'ri";
+            msgText.style.color = '#f87171';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = true;
+        return { valid: false, reason: 'invalid_format' };
+    }
+
+    // 8. Gmail bo'lmagan boshqa domen tekshiruvi
+    if (!val.endsWith('@gmail.com')) {
+        emailInput.style.borderColor = '#38bdf8';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Format to'g'ri (Eslatma: Gmail tavsiya etiladi)";
+            msgText.style.color = '#38bdf8';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = false;
+        return { valid: true, isGmail: false };
+    }
+
+    // 9. Joriy bog'langan email bilan solishtirish
+    if (typeof currentProfileBoundEmail !== 'undefined' && currentProfileBoundEmail && currentProfileBoundEmail === val) {
+        emailInput.style.borderColor = '#38bdf8';
+        emailInput.style.boxShadow = '0 0 0 3px rgba(56, 189, 248, 0.18)';
+        if (iconContainer) {
+            iconContainer.style.opacity = '1';
+            iconContainer.innerHTML = '<svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>';
+        }
+        if (msgText) {
+            msgText.textContent = "Joriy hisobingizga bog'langan Gmail manzili";
+            msgText.style.color = '#38bdf8';
+        }
+        if (suggestionEl) suggestionEl.style.display = 'none';
+        if (btnSend) btnSend.disabled = false;
+        return { valid: true, isCurrent: true };
+    }
+
+    // 10. Muvaffaqiyatli to'g'ri yangi email manzili
+    emailInput.style.borderColor = '#10b981';
+    emailInput.style.boxShadow = '0 0 0 3px rgba(16, 185, 129, 0.2)';
+    if (iconContainer) {
+        iconContainer.style.opacity = '1';
+        iconContainer.innerHTML = '<svg class="isax isax-tick-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; color: #10b981;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-tick-circle"></use></svg>';
+    }
+    if (msgText) {
+        msgText.textContent = "To'g'ri Gmail manzili kiritildi";
+        msgText.style.color = '#34d399';
+    }
+    if (suggestionEl) suggestionEl.style.display = 'none';
+    if (btnSend) btnSend.disabled = false;
+    return { valid: true, isNew: true };
+}
+window.validateProfileEmailLive = validateProfileEmailLive;
+
+function applyProfileEmailSuggestion(suffix) {
+    const emailInput = document.getElementById('profileEmailInput');
+    if (!emailInput) return;
+    let val = (emailInput.value || '').trim();
+    if (suffix.startsWith('@') && !val.includes('@')) {
+        emailInput.value = val + suffix;
+    } else if (suffix.startsWith('.') && val.endsWith('gmail')) {
+        emailInput.value = val + suffix;
+    } else if (suffix === 'gmail.com' && val.endsWith('@')) {
+        emailInput.value = val + suffix;
+    } else {
+        emailInput.value = val + suffix;
+    }
+    validateProfileEmailLive();
+    emailInput.focus();
+}
+window.applyProfileEmailSuggestion = applyProfileEmailSuggestion;
+
+function initProfileEmailLiveValidation() {
+    const emailInput = document.getElementById('profileEmailInput');
+    if (!emailInput || emailInput.__hasLiveVal) return;
+    emailInput.__hasLiveVal = true;
+
+    emailInput.addEventListener('input', () => {
+        validateProfileEmailLive();
+    });
+
+    emailInput.addEventListener('blur', () => {
+        validateProfileEmailLive({ showErrorOnEmpty: true });
+    });
+
+    emailInput.addEventListener('focus', () => {
+        if (!emailInput.value || !emailInput.value.trim()) {
+            validateProfileEmailLive({ showErrorOnEmpty: false });
+        }
+    });
+}
+window.initProfileEmailLiveValidation = initProfileEmailLiveValidation;
 
 async function sendProfileCode(e) {
     if (e) e.preventDefault();
