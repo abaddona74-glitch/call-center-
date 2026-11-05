@@ -9,6 +9,9 @@ data/
 
 # Qurilgan / yuklab olingan fayllar
 public/downloads/
+!public/downloads/*.bat
+viewer/public/downloads/
+!viewer/public/downloads/*.bat
 3cx-desktop-agent/dist/
 
 # Ish muhiti (workspace) tooling

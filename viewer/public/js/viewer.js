@@ -4642,17 +4642,17 @@ function renderViewerCallbacks(callbacks) {
             }
 
             lastOutboundInfo = `
-                <div style="background: rgba(15, 23, 42, 0.65); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 7px; padding: 6px 9px; margin-top: 3px; font-size: 11px; display: flex; flex-direction: column; gap: 3px;">
+                <div style="background: rgba(15, 23, 42, 0.65); border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 4px 7px; margin-top: 2px; font-size: 10px; display: flex; flex-direction: column; gap: 2px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8; font-size: 10.5px;">Oxirgi operator:</span>
+                        <span style="color: #94a3b8; font-size: 9.5px;">Oxirgi operator:</span>
                         <span style="color: #38bdf8; font-weight: 600;">${item.last_outbound_operator || 'Operator'}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8; font-size: 10.5px;">Oxirgi urinish:</span>
+                        <span style="color: #94a3b8; font-size: 9.5px;">Oxirgi urinish:</span>
                         <span style="color: #f1f5f9; font-weight: 600;">${outTimeDisplay || timeDisplay}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #94a3b8; font-size: 10.5px;">Natija:</span>
+                        <span style="color: #94a3b8; font-size: 9.5px;">Natija:</span>
                         <span style="color: #fb7185; font-weight: 600;">${item.last_outbound_cause || 'Javob bermadi'}</span>
                     </div>
                 </div>
@@ -4669,46 +4669,46 @@ function renderViewerCallbacks(callbacks) {
             : '';
 
         html += `
-            <div class="${isActive ? 'callback-card-talking' : ''}" style="${cardBorder} border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative;" onclick="copyViewerCallbackPhone('${phone}', this)" title="${titleText}">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
+            <div class="${isActive ? 'callback-card-talking' : ''}" style="${cardBorder} border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative;" onclick="copyViewerCallbackPhone('${phone}', this)" title="${titleText}">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
                         ${orderBadge}
-                        <span style="font-size: 13.5px; font-weight: 700; color: #fff; letter-spacing: 0.3px;">${formattedPhone}</span>
+                        <span style="font-size: 12.5px; font-weight: 700; color: #fff; letter-spacing: 0.2px;">${formattedPhone}</span>
                         ${attemptBadge}
                     </div>
                     ${isActive ? `
-                        <div class="callback-active-badge" title="${activeCall.operator} ${activeCall.stateLabel}">
-                            <img src="/img/calling-green.png" alt="Calling" />
+                        <div class="callback-active-badge" style="padding: 2px 6px; font-size: 10px;" title="${activeCall.operator} ${activeCall.stateLabel}">
+                            <img src="/img/calling-green.png" alt="Calling" style="width: 11px; height: 11px;" />
                             <span>${activeCall.operator}</span>
                         </div>
                     ` : `
-                        ${retryBadge || `<span style="font-size: 11px; opacity: 0.7; display: inline-flex;">${isax('clipboard-text', '', 'width: 12px; height: 12px;')}</span>`}
+                        ${retryBadge || `<span style="font-size: 10px; opacity: 0.7; display: inline-flex;">${isax('clipboard-text', '', 'width: 11px; height: 11px;')}</span>`}
                     `}
                 </div>
                 ${cbContact ? (() => {
                     const hasName = Boolean(cbContact.name && cbContact.name.trim());
                     const hasOrg = Boolean(cbContact.organization && cbContact.organization.trim());
                     return `
-                    <div style="font-size: 11.5px; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+                    <div style="font-size: 10.5px; line-height: 1.2; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                          onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(phone)}', event);" title="Mijoz ma'lumotini tahrirlash">
-                        ${hasName ? `<span style="display: inline-flex; align-items: center; gap: 3px;">${isax('user', '', 'width: 11px; height: 11px;')} ${escapeHtml(cbContact.name)}</span>` : ''}
-                        ${hasName && hasOrg ? `<span style="color: #94a3b8; font-size: 10.5px; font-weight: 400;">•</span>` : ''}
-                        ${hasOrg ? `<span style="color: ${hasName ? '#94a3b8' : '#f59e0b'}; font-size: ${hasName ? '10.5px' : '11.5px'}; font-weight: ${hasName ? '400' : '700'}; display: inline-flex; align-items: center; gap: 3px;">${isax('location', '', 'width: 11px; height: 11px;')} ${escapeHtml(cbContact.organization)}</span>` : ''}
-                        <span style="font-size: 10px; opacity: 0.7; margin-left: 2px; display: inline-flex;">${isax('edit', '', 'width: 10px; height: 10px;')}</span>
+                        ${hasName ? `<span style="display: inline-flex; align-items: center; gap: 3px;">${isax('user', '', 'width: 10px; height: 10px;')} ${escapeHtml(cbContact.name)}</span>` : ''}
+                        ${hasName && hasOrg ? `<span style="color: #94a3b8; font-size: 9.5px; font-weight: 400;">•</span>` : ''}
+                        ${hasOrg ? `<span style="color: ${hasName ? '#94a3b8' : '#f59e0b'}; font-size: ${hasName ? '9.5px' : '10.5px'}; font-weight: ${hasName ? '400' : '700'}; display: inline-flex; align-items: center; gap: 3px;">${isax('location', '', 'width: 10px; height: 10px;')} ${escapeHtml(cbContact.organization)}</span>` : ''}
+                        <span style="font-size: 9.5px; opacity: 0.7; margin-left: 2px; display: inline-flex;">${isax('edit', '', 'width: 9px; height: 9px;')}</span>
                     </div>
                     `;
                 })() : `
-                <div style="font-size: 10.5px;" onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(phone)}', event);">
+                <div style="font-size: 9.5px; line-height: 1.2;" onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(phone)}', event);">
                     <span style="color: #38bdf8; opacity: 0.8; cursor: pointer; border-bottom: 1px dashed rgba(56, 189, 248, 0.5);">+ Ism / Qayerdan saqlash</span>
                 </div>
                 `}
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-top: 2px;">
-                    <span style="padding: 2px 7px; border-radius: 5px; font-weight: 600; font-size: 10px; ${badgeStyle}">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-top: 1px;">
+                    <span style="padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; ${badgeStyle}">
                         ${badgeIcon} ${badgeLabel}
                     </span>
-                    <div style="display: flex; align-items: center; gap: 4px; color: #94a3b8; font-size: 10.5px;">
-                        <span style="display: inline-flex; align-items: center; gap: 4px;">
-                            ${isax('clock', '', 'width: 11px; height: 11px; opacity: 0.75;')}
+                    <div style="display: flex; align-items: center; gap: 3px; color: #94a3b8; font-size: 10px;">
+                        <span style="display: inline-flex; align-items: center; gap: 3px;">
+                            ${isax('clock', '', 'width: 10px; height: 10px; opacity: 0.75;')}
                             ${isResolved ? `Gaplashildi: ${resTimeDisplay}` : `Tushgan: ${timeDisplay}`}
                             ${relTime && !isResolved ? `<strong style="color: ${isNewestItem ? '#34d399' : '#cbd5e1'}; font-weight: 600; margin-left: 2px;">(${relTime})</strong>` : ''}
                         </span>
@@ -4716,12 +4716,12 @@ function renderViewerCallbacks(callbacks) {
                 </div>
                 ${lastOutboundInfo}
                 ${isActive ? `
-                    <div class="callback-active-subrow">
-                        <div style="display: flex; align-items: center; gap: 5px;">
-                            <span class="active-dot"></span>
+                    <div class="callback-active-subrow" style="margin-top: 2px; padding: 2px 6px; font-size: 9.5px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span class="active-dot" style="width: 5px; height: 5px;"></span>
                             <span>${activeCall.operator}</span>
                         </div>
-                        <span style="color: #a7f3d0; font-weight: 500; font-size: 10.5px;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
+                        <span style="color: #a7f3d0; font-weight: 500; font-size: 9.5px;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
                     </div>
                 ` : ''}
             </div>

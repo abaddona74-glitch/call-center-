@@ -30,9 +30,9 @@
     "semantic_hash": "b05fc700bc4f76257cf4d1856261ba0b"
   },
   "app.js": {
-    "mtime": 1793869374.598981,
-    "seen": 1793869490.4298084,
-    "ast_hash": "d488cd87643f3130d7cac092026b8b76",
+    "mtime": 1793871460.1742165,
+    "seen": 1793871936.2171578,
+    "ast_hash": "70b49baeb49d63417df4f093f61c98ae",
     "semantic_hash": ""
   },
   "config.js": {
@@ -54,8 +54,8 @@
     "semantic_hash": "8d71aa277aaabc3a38b0c8d9deb08479"
   },
   "package.json": {
-    "mtime": 1793869293.6215477,
-    "seen": 1793869490.4298084,
+    "mtime": 1793869623.083841,
+    "seen": 1793871936.2171578,
     "ast_hash": "917592419239542885d4a7345c5a8ef1",
     "semantic_hash": ""
   },
@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793869389.9919345,
-    "seen": 1793869490.4298084,
-    "ast_hash": "6334c1b02a2a4d053876ce1ae834ba73",
+    "mtime": 1793871635.119284,
+    "seen": 1793871936.2171578,
+    "ast_hash": "52ba41334e6519c1a44a3618f25a3768",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -198,9 +198,9 @@
     "semantic_hash": "c397602d4d94e441f08708e170f94187"
   },
   "services/amiService.js": {
-    "mtime": 1793861448.9544206,
-    "seen": 1793861613.5782049,
-    "ast_hash": "6f53749a3c2b68671ae7c4d04d048095",
+    "mtime": 1793871460.1802058,
+    "seen": 1793871936.2171578,
+    "ast_hash": "1796eac130695c3c3c95a4c62cbcca80",
     "semantic_hash": ""
   },
   "services/audioIndexService.js": {
@@ -390,9 +390,9 @@
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
-    "mtime": 1793869266.9685812,
-    "seen": 1793869490.4323,
-    "ast_hash": "9cb8335fee131ec628a88e8e73106037",
+    "mtime": 1793871409.0273519,
+    "seen": 1793871936.2171578,
+    "ast_hash": "a309fba77e5144caeb4f5e986d3d53f4",
     "semantic_hash": ""
   },
   "viewer/public/vendor/mammoth.browser.min.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793869390.0074089,
-    "seen": 1793869490.4323,
-    "ast_hash": "f0b8dafadf16acbc8515d340a7662376",
+    "mtime": 1793871635.1487262,
+    "seen": 1793871936.2171578,
+    "ast_hash": "687568a835465f6edbccf0538fc47727",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -414,10 +414,10 @@
     "semantic_hash": "7648f3d266276031c3d5ff0d103bf97e"
   },
   "viewer/services/amiService.js": {
-    "mtime": 1792572861.1891367,
-    "seen": 1792750533.123971,
-    "ast_hash": "5ab3733ce05772ebbd79f8c1873a61da",
-    "semantic_hash": "5ab3733ce05772ebbd79f8c1873a61da"
+    "mtime": 1793871460.1836994,
+    "seen": 1793871936.2171578,
+    "ast_hash": "26aedd65a79537b9c68fdb939037ce0a",
+    "semantic_hash": ""
   },
   "viewer/services/blacklistService.js": {
     "mtime": 1790759622.1639519,
@@ -480,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793869390.0009186,
-    "seen": 1793869490.4323,
-    "ast_hash": "7cdf1a85a1768cf4429d57b8b5f601c3",
+    "mtime": 1793871635.1367488,
+    "seen": 1793871936.2176592,
+    "ast_hash": "8885d06e5228ef058ace81dbb2cc3cd4",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793869390.0039155,
-    "seen": 1793869490.4327993,
-    "ast_hash": "aea1951d1fbe66ecf957f979eac7665a",
+    "mtime": 1793871635.1462312,
+    "seen": 1793871936.2176592,
+    "ast_hash": "be467308c61950b7626a85d1c63ab7f3",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {
@@ -1776,9 +1776,9 @@
     "semantic_hash": ""
   },
   "services/uzcryptoService.js": {
-    "mtime": 1793869067.3068316,
-    "seen": 1793869490.4323,
-    "ast_hash": "0e4222955ab6e60897724cc6b8c5f624",
+    "mtime": 1793869510.8353727,
+    "seen": 1793871936.2171578,
+    "ast_hash": "1d3fc690836d11f88fc9c04bcd08b725",
     "semantic_hash": ""
   },
   "viewer/services/uzcryptoService.js": {

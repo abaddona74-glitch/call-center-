@@ -68,3 +68,4 @@ async function resolveLatestUzcrypto(force = false) {
 module.exports = {
     resolveLatestUzcrypto
 };
+

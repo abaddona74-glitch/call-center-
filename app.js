@@ -2866,6 +2866,24 @@ app.post('/api/action/originate', (req, res) => {
         return res.status(400).json({ error: 'from va to parametrlari kerak' });
     }
 
+    if (amiService && amiService.operatorOutboundCalls) {
+        const cleanTo = (typeof dbService.normalizePhone === 'function' ? dbService.normalizePhone(to) : String(to).replace(/\D/g, '')) || to;
+        amiService.operatorOutboundCalls.set(String(from), {
+            dialedNumber: String(to),
+            targetPhone: cleanTo,
+            channel: `SIP/${from}`,
+            destChannel: '',
+            startTime: Date.now()
+        });
+        const op = amiService.operators && amiService.operators.get(String(from));
+        if (op) {
+            op.presence = 'ringing';
+            op.ringingCaller = `📤 ${to}`;
+            op.ringingSince = Date.now();
+            amiService.operators.set(String(from), op);
+        }
+    }
+
     amiService.ami.action({
         action: 'Originate',
         channel: `SIP/${from}`,

@@ -1433,6 +1433,23 @@ class AmiService {
 
             if (opId && isOutbound) {
                 this.setChannelOperator(channelId, opId);
+                const cleanPhone = (typeof dbService.normalizePhone === 'function' ? dbService.normalizePhone(exten) : String(exten).replace(/\D/g, '')) || exten;
+                this.operatorOutboundCalls.set(opId, {
+                    dialedNumber: exten,
+                    targetPhone: cleanPhone,
+                    channel: channelId,
+                    destChannel: '',
+                    startTime: Date.now()
+                });
+                const op = this.operators.get(opId);
+                if (op) {
+                    if (op.presence !== 'talking') {
+                        if (op.presence !== 'ringing') op.ringingSince = Date.now();
+                        op.presence = 'ringing';
+                    }
+                    op.ringingCaller = `📤 ${exten}`;
+                    this.operators.set(opId, op);
+                }
             }
 
             this.stats.totalCalls++;
@@ -1454,6 +1471,7 @@ class AmiService {
                 application: '',
                 state: 'Ring',
                 direction: isOutbound ? 'outbound' : 'inbound',
+                dialedPhone: isOutbound ? exten : null,
                 startTime: now,
                 answeredTime: null,
                 operator: opId || null
@@ -1825,7 +1843,11 @@ class AmiService {
 
             // Yo'nalishni aniqlash (faqat haqiqiy operator tashqariga chiqqan bo'lsa outbound)
             const opObj = this.operators.get(opId);
-            const savedOutbound = this.operatorOutboundCalls.get(opId);
+            const savedOutbound = this.operatorOutboundCalls.get(opId) ||
+                                  Array.from(this.operatorOutboundCalls.values()).find(o => 
+                                      (opData.chanId && (o.channel === opData.chanId || o.destChannel === opData.chanId)) ||
+                                      (pairedChan && (o.channel === pairedChan.chanId || o.destChannel === pairedChan.chanId))
+                                  );
             const isDialedOutbound = Boolean((opObj && opObj.ringingCaller && opObj.ringingCaller.startsWith('📤')) || savedOutbound);
             const isChanOutbound = (opData.chan.direction === 'outbound') || (pairedChan && pairedChan.chan.direction === 'outbound');
 
@@ -1859,14 +1881,19 @@ class AmiService {
 
             if (isOutbound) {
                 // Chiquvchi qo'ng'iroqda terilgan mijoz raqamini chiqarish (bizning trunk raqami o'rniga)
-                const dialedFromSaved = savedOutbound ? savedOutbound.dialedNumber : null;
+                const dialedFromSaved = savedOutbound ? (savedOutbound.dialedNumber || savedOutbound.targetPhone) : null;
                 const dialedFromRinging = opObj && opObj.ringingCaller ? opObj.ringingCaller.replace(/^📤\s*/, '') : null;
                 const dialedCandidate = this.extractCallerNumber(
                     dialedFromSaved,
                     dialedFromRinging,
-                    (pairedChan && pairedChan.chan.extension),
+                    opData.chan.dialedPhone,
+                    (pairedChan && pairedChan.chan.dialedPhone),
                     opData.chan.extension,
-                    (pairedChan && pairedChan.chan.callerName)
+                    (pairedChan && pairedChan.chan.extension),
+                    (pairedChan && pairedChan.chan.callerId),
+                    (pairedChan && pairedChan.chan.callerName),
+                    (pairedChan && pairedChan.chanId),
+                    opData.chanId
                 );
                 if (dialedCandidate && dialedCandidate !== 'Yashirin raqam (Hidden)') {
                     callerNum = dialedCandidate;
@@ -1874,6 +1901,26 @@ class AmiService {
                     callerNum = dialedFromSaved;
                 } else if (dialedFromRinging && dialedFromRinging !== 'Tashqi raqam' && dialedFromRinging !== 'Chiquvchi qo\'ng\'iroq') {
                     callerNum = dialedFromRinging;
+                } else if (opData.chan.dialedPhone) {
+                    callerNum = opData.chan.dialedPhone;
+                } else if (pairedChan && pairedChan.chan.dialedPhone) {
+                    callerNum = pairedChan.chan.dialedPhone;
+                }
+            }
+
+            if (callerNum === 'Mijoz (Ulangan)') {
+                const fallbackNum = this.extractCallerNumber(
+                    opData.chan.dialedPhone,
+                    (pairedChan && pairedChan.chan.dialedPhone),
+                    opData.chan.extension,
+                    (pairedChan && pairedChan.chan.extension),
+                    (pairedChan && pairedChan.chan.callerId),
+                    opData.chan.callerId
+                );
+                if (fallbackNum && fallbackNum !== 'Yashirin raqam (Hidden)') {
+                    callerNum = fallbackNum;
+                } else if (isOutbound) {
+                    callerNum = 'Chiquvchi mijoz';
                 }
             }
 
