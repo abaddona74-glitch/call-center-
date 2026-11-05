@@ -742,10 +742,15 @@
                     <svg class="zigzag-underline" viewBox="0 0 300 12" preserveAspectRatio="none">
                         <path d="M0,6 Q10,0 20,6 T40,6 T60,6 T80,6 T100,6 T120,6 T140,6 T160,6 T180,6 T200,6 T220,6 T240,6 T260,6 T280,6 T300,6" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
                     </svg>
-                    <button type="button" class="toggle-password" id="togglePasswordBtn" title="Parolni ko'rsatish/yashirish">
-                        <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;">
-                            <path d="M15.58 12C15.58 13.98 13.98 15.58 12 15.58C10.02 15.58 8.42 13.98 8.42 12C8.42 10.02 10.02 8.42 12 8.42C13.98 8.42 15.58 10.02 15.58 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M12 20.27C15.53 20.27 18.82 18.19 21.11 14.59C22.01 13.18 22.01 10.81 21.11 9.39997C18.82 5.79997 15.53 3.71997 12 3.71997C8.47 3.71997 5.18 5.79997 2.89 9.39997C1.99 10.81 1.99 13.18 2.89 14.59C5.18 18.19 8.47 20.27 12 20.27Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <button type="button" class="toggle-password" id="togglePasswordBtn" title="Parolni ko'rsatish" aria-label="Parolni ko'rsatish">
+                        <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" style="width: 18px; height: 18px;" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <g id="eyeOpenGroup">
+                                <path d="M15.58 12c0 1.98-1.6 3.58-3.58 3.58S8.42 13.98 8.42 12s1.6-3.58 3.58-3.58 3.58 1.6 3.58 3.58Z"/>
+                                <path d="M12 20.27c3.53 0 6.82-2.08 9.11-5.68.9-1.41.9-3.78 0-5.19C18.82 5.8 15.53 3.73 12 3.73s-6.82 2.08-9.11 5.68c-.9 1.41-.9 3.78 0 5.19 2.29 3.6 5.58 5.67 9.11 5.67Z"/>
+                            </g>
+                            <g id="eyeSlashGroup" style="display: none;">
+                                <path d="M14.53 9.47A3.58 3.58 0 0 0 9.47 14.53M15.58 12c0 .38-.06.74-.17 1.08M12 8.42c.38 0 .74.06 1.08.17M9.47 9.47 14.53 14.53M3 3l18 18M12 20.27c-3.53 0-6.82-2.07-9.11-5.67a6.002 6.002 0 0 1 0-5.19C4.16 7.4 6.2 5.83 8.5 4.88M12 3.73c3.53 0 6.82 2.07 9.11 5.68.9 1.41.9 3.78 0 5.19-.73 1.15-1.6 2.14-2.58 2.94"/>
+                            </g>
                         </svg>
                     </button>
                 </div>
@@ -981,6 +986,21 @@
         toggleBtn.addEventListener('click', () => {
             const isPass = passwordInput.getAttribute('type') === 'password';
             passwordInput.setAttribute('type', isPass ? 'text' : 'password');
+            const openG = document.getElementById('eyeOpenGroup');
+            const slashG = document.getElementById('eyeSlashGroup');
+            if (isPass) {
+                // Parol ochildi -> chizilgan ko'z (eye-slash) belgisi chiqadi
+                if (openG) openG.style.display = 'none';
+                if (slashG) slashG.style.display = '';
+                toggleBtn.setAttribute('title', "Parolni yashirish");
+                toggleBtn.setAttribute('aria-label', "Parolni yashirish");
+            } else {
+                // Parol yashirildi -> ochiq ko'z (eye) belgisi chiqadi
+                if (openG) openG.style.display = '';
+                if (slashG) slashG.style.display = 'none';
+                toggleBtn.setAttribute('title', "Parolni ko'rsatish");
+                toggleBtn.setAttribute('aria-label', "Parolni ko'rsatish");
+            }
         });
 
         // Flow Fill: Ikkala maydon to'ldirilganda tugma gradient bilan to'ladi
