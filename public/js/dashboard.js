@@ -7007,6 +7007,8 @@ function openAdminAddClientModal(presetPhone = '', presetName = '') {
     phoneInput.readOnly = false;
     document.getElementById('adminClientNameInput').value = presetName || '';
     document.getElementById('adminClientOrgInput').value = '';
+    const tgInput = document.getElementById('adminClientTelegramIdInput');
+    if (tgInput) tgInput.value = '';
     document.getElementById('adminClientLangSelect').value = '';
     document.getElementById('adminClientNotesInput').value = '';
 
@@ -7042,6 +7044,8 @@ function openAdminEditClientModal(phone) {
     phoneInput.readOnly = false;
     document.getElementById('adminClientNameInput').value = contact.name || '';
     document.getElementById('adminClientOrgInput').value = contact.organization || '';
+    const tgEditInput = document.getElementById('adminClientTelegramIdInput');
+    if (tgEditInput) tgEditInput.value = contact.telegram_user_id || contact.telegramUserId || '';
     document.getElementById('adminClientLangSelect').value = contact.language || '';
     document.getElementById('adminClientNotesInput').value = contact.notes || '';
 

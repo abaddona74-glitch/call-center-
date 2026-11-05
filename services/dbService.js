@@ -157,6 +157,7 @@ class DbService {
                 organization TEXT,
                 notes TEXT,
                 language TEXT DEFAULT '',
+                telegram_user_id TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now', 'localtime')),
                 updated_at TEXT DEFAULT (datetime('now', 'localtime'))
             );
@@ -166,9 +167,12 @@ class DbService {
 
         try {
             this.db.exec(`ALTER TABLE client_contacts ADD COLUMN language TEXT DEFAULT '';`);
+        } catch (e) {
+            // Already exists
+        }
+
         try {
             this.db.exec(`ALTER TABLE client_contacts ADD COLUMN telegram_user_id TEXT DEFAULT '';`);
-        } catch (e) {}
         } catch (e) {
             // Already exists
         }
