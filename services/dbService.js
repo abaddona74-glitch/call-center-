@@ -166,6 +166,9 @@ class DbService {
 
         try {
             this.db.exec(`ALTER TABLE client_contacts ADD COLUMN language TEXT DEFAULT '';`);
+        try {
+            this.db.exec(`ALTER TABLE client_contacts ADD COLUMN telegram_user_id TEXT DEFAULT '';`);
+        } catch (e) {}
         } catch (e) {
             // Already exists
         }
@@ -1568,22 +1571,24 @@ class DbService {
             const organization = String(contactData.organization || '').trim();
             const notes = String(contactData.notes || '').trim();
             const language = String(contactData.language || '').trim().toLowerCase(); // Optional, default empty
+            const telegramUserId = String(contactData.telegram_user_id || contactData.telegramUserId || '').trim();
 
-            if (!name && !organization) {
-                throw new Error('Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting');
+            if (!name && !organization && !telegramUserId) {
+                throw new Error('Mijoz ismi, tashkilot yoki Telegram ID dan kamida birini kiriting');
             }
 
             const stmt = this.db.prepare(`
-                INSERT INTO client_contacts (phone, name, organization, notes, language, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                INSERT INTO client_contacts (phone, name, organization, notes, language, telegram_user_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
                 ON CONFLICT(phone) DO UPDATE SET
                     name = excluded.name,
                     organization = excluded.organization,
                     notes = excluded.notes,
                     language = excluded.language,
+                    telegram_user_id = excluded.telegram_user_id,
                     updated_at = datetime('now', 'localtime')
             `);
-            stmt.run(cleanPhone, name, organization, notes, language);
+            stmt.run(cleanPhone, name, organization, notes, language, telegramUserId);
 
             return this.getContact(cleanPhone);
         } catch (err) {
@@ -1650,9 +1655,9 @@ class DbService {
 
             let sql = `
                 SELECT * FROM client_contacts
-                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ?)
+                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ? OR telegram_user_id LIKE ?)
             `;
-            const params = [q, q, q, q, q];
+            const params = [q, q, q, q, q, q];
 
             if (cleanLang) {
                 if (cleanLang === 'empty' || cleanLang === 'none') {

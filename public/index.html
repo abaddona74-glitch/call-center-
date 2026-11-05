@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793872633617">
+    <meta name="build-id" content="1793874329153">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793872633617">
+    <link rel="stylesheet" href="/css/style.css?v=1793874329153">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -3366,6 +3366,21 @@
                     <input type="text" id="adminClientOrgInput" placeholder="Masalan: SamAuto, Samarqand filiali" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; outline: none; transition: all 0.2s ease;">
                 </div>
 
+                <!-- Telegram User ID yoki Username -->
+                <div style="margin-bottom: 16px;">
+                    <label for="adminClientTelegramIdInput" style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-send-2" style="width: 14px; height: 14px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg>
+                            <span>Telegram User ID yoki @username</span>
+                        </span>
+                        <button type="button" onclick="testOpenAdminClientTelegram()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Telegramda ochish">
+                            <span>Ochish ↗</span>
+                        </button>
+                    </label>
+                    <input type="text" id="adminClientTelegramIdInput" placeholder="Masalan: 123456789 yoki @username" style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.25); color: #38bdf8; padding: 10px 14px; border-radius: var(--radius-sm); font-size: 13.5px; font-weight: 600; outline: none; transition: all 0.2s ease;">
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 3px; display: block;">Mijozning @userinfobot bergan ID raqami yoki @nik nomi</span>
+                </div>
+
                 <!-- So'zlashuv Tili (Optional, by default empty) -->
                 <div style="margin-bottom: 16px;">
                     <label for="adminClientLangSelect" style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600;">
@@ -4038,8 +4053,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793872633617" defer></script>
+    <script src="/js/dashboard.js?v=1793874329153" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793872633617" defer></script>
+    <script src="/js/visualInspector.js?v=1793874329153" defer></script>
 </body>
 </html>

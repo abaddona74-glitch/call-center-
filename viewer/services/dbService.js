@@ -146,6 +146,9 @@ class DbService {
 
         try {
             this.db.exec(`ALTER TABLE client_contacts ADD COLUMN language TEXT DEFAULT '';`);
+        try {
+            this.db.exec(`ALTER TABLE client_contacts ADD COLUMN telegram_user_id TEXT DEFAULT '';`);
+        } catch (e) {}
         } catch (e) {
             // Already exists
         }
@@ -1120,9 +1123,9 @@ class DbService {
 
             let sql = `
                 SELECT * FROM client_contacts
-                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ?)
+                WHERE (phone LIKE ? OR name LIKE ? OR organization LIKE ? OR notes LIKE ? OR language LIKE ? OR telegram_user_id LIKE ?)
             `;
-            const params = [q, q, q, q, q];
+            const params = [q, q, q, q, q, q];
 
             if (cleanLang) {
                 if (cleanLang === 'empty' || cleanLang === 'none') {

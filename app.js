@@ -2207,15 +2207,16 @@ app.get('/api/contacts/:phone', (req, res) => {
 // 3. Kontaktni saqlash yoki yangilash (Upsert)
 app.post('/api/contacts', (req, res) => {
     try {
-        const { phone, name, organization, notes, language } = req.body || {};
+        const { phone, name, organization, notes, language, telegram_user_id, telegramUserId } = req.body || {};
         if (!phone || !String(phone).trim()) {
             return res.status(400).json({ success: false, message: 'Telefon raqami kiritilmadi' });
         }
         const cleanName = String(name || '').trim();
         const cleanOrg = String(organization || '').trim();
         const cleanLang = String(language || '').trim().toLowerCase();
-        if (!cleanName && !cleanOrg) {
-            return res.status(400).json({ success: false, message: 'Mijoz ismi yoki tashkilot/hudud nomidan kamida birini kiriting' });
+        const cleanTgId = String(telegram_user_id || telegramUserId || '').trim();
+        if (!cleanName && !cleanOrg && !cleanTgId) {
+            return res.status(400).json({ success: false, message: 'Mijoz ismi, tashkilot yoki Telegram ID dan kamida birini kiriting' });
         }
 
         const saved = dbService.saveContact({
@@ -2223,7 +2224,8 @@ app.post('/api/contacts', (req, res) => {
             name: cleanName,
             organization: cleanOrg,
             notes,
-            language: cleanLang
+            language: cleanLang,
+            telegram_user_id: cleanTgId
         });
 
         broadcastWs({

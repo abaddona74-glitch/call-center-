@@ -3667,6 +3667,8 @@ function openEditContactModal(phone, event) {
     phoneInput.readOnly = false;
     nameInput.value = contact.name || '';
     orgInput.value = contact.organization || '';
+    const tgInput = document.getElementById('contactTelegramIdInput');
+    if (tgInput) tgInput.value = contact.telegram_user_id || '';
     if (langSelect) langSelect.value = contact.language || '';
     notesInput.value = contact.notes || '';
     btnDelete.style.display = 'inline-block';
@@ -3700,11 +3702,13 @@ async function handleSaveContactSubmit(e) {
     const statusEl = document.getElementById('contactFormStatus');
     const btnSave = document.getElementById('btnSaveContact');
 
+    const tgInput = document.getElementById('contactTelegramIdInput');
     const phone = phoneInput.value.trim();
     const name = nameInput.value.trim();
     const organization = orgInput.value.trim();
     const language = langSelect ? langSelect.value.trim().toLowerCase() : '';
     const notes = notesInput.value.trim();
+    const telegram_user_id = tgInput ? tgInput.value.trim() : '';
 
     if (!phone) {
         statusEl.style.display = 'block';
@@ -3901,6 +3905,9 @@ function renderClientDirectory(searchQuery = '') {
                             ${c.notes ? escapeHtml(c.notes) : '<span style="color: #64748b;">—</span>'}
                         </td>
                         <td style="text-align: right; white-space: nowrap;">
+                            <button type="button" class="contact-table-action-btn" onclick="openTelegramUser('${escapeAttr(c.telegram_user_id || '')}', '${escapeAttr(c.phone)}')" style="background: rgba(14, 165, 233, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; margin-right: 6px;" title="Telegramda ochish${c.telegram_user_id ? ' (' + escapeAttr(c.telegram_user_id) + ')' : ''}">
+                                <span style="display: inline-flex; align-items: center; gap: 4px;"><svg class="isax isax-send-2" style="width: 12px; height: 12px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg> Telegram</span>
+                            </button>
                             <button type="button" class="contact-table-action-btn" onclick="openEditContactModal('${escapeAttr(c.phone)}', event)" title="Tahrirlash">
                                 <span style="display: inline-flex; align-items: center; gap: 4px;">${isax('edit', '', 'width: 12px; height: 12px;')} Tahrirlash</span>
                             </button>
@@ -4695,6 +4702,9 @@ function renderViewerCallbacks(callbacks) {
                         ${hasName && hasOrg ? `<span style="color: #94a3b8; font-size: 9.5px; font-weight: 400;">•</span>` : ''}
                         ${hasOrg ? `<span style="color: ${hasName ? '#94a3b8' : '#f59e0b'}; font-size: ${hasName ? '9.5px' : '10.5px'}; font-weight: ${hasName ? '400' : '700'}; display: inline-flex; align-items: center; gap: 3px;">${isax('location', '', 'width: 10px; height: 10px;')} ${escapeHtml(cbContact.organization)}</span>` : ''}
                         <span style="font-size: 9.5px; opacity: 0.7; margin-left: 2px; display: inline-flex;">${isax('edit', '', 'width: 9px; height: 9px;')}</span>
+                        <span onclick="event.stopPropagation(); openTelegramUser('${escapeAttr(cbContact.telegram_user_id || '')}', '${escapeAttr(phone)}');" style="color: #38bdf8; margin-left: 4px; padding: 1px 4px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;" title="Telegramda ochish${cbContact.telegram_user_id ? ' (' + escapeAttr(cbContact.telegram_user_id) + ')' : ''}">
+                            <svg class="isax isax-send-2" style="width: 9px; height: 9px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg> TG
+                        </span>
                     </div>
                     `;
                 })() : `
@@ -5511,3 +5521,38 @@ window.resetConverterState = resetConverterState;
 window.executeFileConversion = executeFileConversion;
 window.initConverterDropzone = initConverterDropzone;
 
+
+
+function openTelegramUser(tgId, phone) {
+    const cleanTg = String(tgId || '').trim();
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+
+    if (cleanTg) {
+        if (/^\d+$/.test(cleanTg)) {
+            // Raqamli Telegram User ID: tg://user?id=123456789
+            window.location.href = `tg://user?id=${cleanTg}`;
+            return;
+        } else {
+            // @username: https://t.me/username
+            const user = cleanTg.replace(/^@/, '');
+            window.open(`https://t.me/${user}`, '_blank');
+            return;
+        }
+    }
+
+    if (cleanPhone) {
+        const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
+        window.open(`https://t.me/+${intlPhone}`, '_blank');
+        return;
+    }
+
+    alert("Mijozning Telegram ID yoki telefon raqami topilmadi!");
+}
+window.openTelegramUser = openTelegramUser;
+
+function testOpenContactTelegram() {
+    const tgId = (document.getElementById('contactTelegramIdInput')?.value || '').trim();
+    const phone = (document.getElementById('contactPhoneInput')?.value || '').trim();
+    openTelegramUser(tgId, phone);
+}
+window.testOpenContactTelegram = testOpenContactTelegram;

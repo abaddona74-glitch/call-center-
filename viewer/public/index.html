@@ -1296,6 +1296,21 @@
                 </div>
 
                 <div>
+                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
+                        <span style="display: inline-flex; align-items: center; gap: 6px;">
+                            <svg class="isax isax-send-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 14px; height: 14px; color: #38bdf8;"><path d="M7.39999 6.32003L15.89 3.49003C19.7 2.22003 21.77 4.30003 20.51 8.11003L17.68 16.6C15.78 22.31 12.66 22.31 10.76 16.6L9.91999 14.08L7.39999 13.24C1.68999 11.34 1.68999 8.23003 7.39999 6.32003Z"/><path d="M10.11 13.6501L13.69 10.0601"/></svg>
+                            <span>Telegram User ID yoki @username</span>
+                        </span>
+                        <button type="button" onclick="testOpenContactTelegram()" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Telegramda ochish">
+                            <span>Ochish ↗</span>
+                        </button>
+                    </label>
+                    <input type="text" id="contactTelegramIdInput" placeholder="Masalan: 123456789 yoki @username"
+                           style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(56, 189, 248, 0.25); color: #38bdf8; font-size: 13px; font-weight: 600; padding: 10px 14px; border-radius: 8px; outline: none;">
+                    <span style="font-size: 11px; color: #64748b; margin-top: 3px; display: block;">Mijozning @userinfobot bergan ID raqami yoki @nik nomi</span>
+                </div>
+
+                <div>
                     <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px;">
                         <svg class="isax isax-global" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M7.99998 3H8.99998C7.04998 8.84 7.04998 15.16 8.99998 21H7.99998"/><path d="M15 3C16.95 8.84 16.95 15.16 15 21"/><path d="M3 16V15C8.84 16.95 15.16 16.95 21 15V16"/><path d="M3 9C8.84 7.05 15.16 7.05 21 9"/></svg>
                         <span>Qaysi tilda gaplashadi</span>
@@ -2387,6 +2402,6 @@
     <!-- Viewer Pure Operator Logic -->
     <script src="/js/viewer.js?v=4.4" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793872633617" defer></script>
+    <script src="/js/visualInspector.js?v=1793874329153" defer></script>
 </body>
 </html>

@@ -6839,7 +6839,10 @@ function renderTopActiveClients(callers) {
                             <svg class="isax isax-clock" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-clock"></use></svg>
                         </button>
                         ${isSaved ? `
-                            <button type="button" class="client-action-btn edit" onclick="openAdminEditClientModal('${phone}')" title="Tahrirlash">
+                            <button type="button" class="client-action-btn tg" onclick="openTelegramUser('${safeEscapeAttr(c.telegram_user_id || '')}', '${phone}')" title="Telegramda ochish${c.telegram_user_id ? ' (' + safeEscapeAttr(c.telegram_user_id) + ')' : ''}" style="color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);">
+                            <svg class="isax isax-send-2" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg>
+                        </button>
+                        <button type="button" class="client-action-btn edit" onclick="openAdminEditClientModal('${phone}')" title="Tahrirlash">
                                 <svg class="isax isax-edit" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-edit"></use></svg>
                             </button>
                         ` : `
@@ -6882,7 +6885,8 @@ function renderAdminClientsTable() {
             const org = (c.organization || '').toLowerCase();
             const notes = (c.notes || '').toLowerCase();
             const lang = (c.language || '').toLowerCase();
-            if (!phone.includes(query) && !name.includes(query) && !org.includes(query) && !notes.includes(query) && !lang.includes(query)) {
+            const tgId = (c.telegram_user_id || '').toLowerCase();
+            if (!phone.includes(query) && !name.includes(query) && !org.includes(query) && !notes.includes(query) && !lang.includes(query) && !tgId.includes(query)) {
                 return false;
             }
         }
@@ -7084,6 +7088,7 @@ async function handleAdminClientSubmit(e) {
     const organization = (document.getElementById('adminClientOrgInput').value || '').trim();
     const language = (document.getElementById('adminClientLangSelect').value || '').trim();
     const notes = (document.getElementById('adminClientNotesInput').value || '').trim();
+    const telegram_user_id = (document.getElementById('adminClientTelegramIdInput')?.value || '').trim();
 
     if (!phone) {
         alert("Telefon raqami kiritilishi shart!");
@@ -7095,7 +7100,7 @@ async function handleAdminClientSubmit(e) {
     if (saveBtn) saveBtn.disabled = true;
 
     try {
-        const payload = { phone, name, organization, language, notes };
+        const payload = { phone, name, organization, language, notes, telegram_user_id };
         const res = await fetch('/api/contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -15709,3 +15714,36 @@ window.runTopicAnalysis = runTopicAnalysis;
 
 
 
+
+
+function openTelegramUser(tgId, phone) {
+    const cleanTg = String(tgId || '').trim();
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+
+    if (cleanTg) {
+        if (/^\d+$/.test(cleanTg)) {
+            window.location.href = `tg://user?id=${cleanTg}`;
+            return;
+        } else {
+            const user = cleanTg.replace(/^@/, '');
+            window.open(`https://t.me/${user}`, '_blank');
+            return;
+        }
+    }
+
+    if (cleanPhone) {
+        const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
+        window.open(`https://t.me/+${intlPhone}`, '_blank');
+        return;
+    }
+
+    alert("Mijozning Telegram ID yoki telefon raqami topilmadi!");
+}
+window.openTelegramUser = openTelegramUser;
+
+function testOpenAdminClientTelegram() {
+    const tgId = (document.getElementById('adminClientTelegramIdInput')?.value || '').trim();
+    const phone = (document.getElementById('adminClientPhoneInput')?.value || '').trim();
+    openTelegramUser(tgId, phone);
+}
+window.testOpenAdminClientTelegram = testOpenAdminClientTelegram;
