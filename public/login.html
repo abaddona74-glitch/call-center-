@@ -137,45 +137,65 @@
             will-change: transform;
         }
 
-        /* Blinking Animation */
-        .char-blink {
-            transform: scaleY(0.08);
-            transform-origin: center;
-            transition: transform 0.08s ease-in-out !important;
+        /* Eye unit (Each single eyeball) */
+        .eye-unit {
+            transform-box: fill-box;
+            transform-origin: 50% 50%;
+            transition: transform 0.1s ease-in-out;
+        }
+
+        /* Blinking Animation: centered strictly on each eyeball */
+        .eye-unit.is-blinking {
+            transform: scaleY(0.08) !important;
+        }
+
+        /* Eye Normal vs Closed (Smooth in-place transition) */
+        .eye-normal {
+            transition: opacity 0.16s ease-in-out;
+            opacity: 1;
+        }
+
+        .eye-closed {
+            transition: opacity 0.16s ease-in-out;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
         }
 
         /* State: Looking at Username Input */
         .characters-stage.looking-at-input .characters-svg {
-            transform: translateX(10px) scale(1.02);
+            transform: translateX(8px) scale(1.01);
         }
         .characters-stage.looking-at-input .char-purple {
-            transform: rotate(2.5deg) translateY(-2px);
+            transform: rotate(2deg) translateY(-2px);
         }
         .characters-stage.looking-at-input .char-orange {
-            transform: rotate(2.5deg);
+            transform: rotate(1.5deg);
         }
         .characters-stage.looking-at-input .char-yellow {
-            transform: rotate(-1.5deg) translateX(3px);
+            transform: rotate(-1deg) translateX(2px);
         }
 
-        /* State: Password Focused (Cover / Hide Eyes) */
+        /* State: Password Focused (Cover / Hide Eyes - Calm, cute, in-place) */
         .characters-stage.covering-eyes .char-purple {
-            transform: rotate(-7deg) translateX(-10px) translateY(4px);
+            transform: translateY(2px) rotate(-1.5deg);
         }
         .characters-stage.covering-eyes .char-pink {
-            transform: translateY(24px) rotate(-5deg);
+            transform: translateY(2px) rotate(-1deg);
         }
         .characters-stage.covering-eyes .char-yellow {
-            transform: translateX(14px) rotate(9deg);
+            transform: translateY(1px) rotate(1deg);
         }
         .characters-stage.covering-eyes .char-orange {
-            transform: scaleY(0.96) translateY(2px);
+            transform: scaleY(0.98) translateY(1px);
         }
         .characters-stage.covering-eyes .eye-normal {
-            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
         .characters-stage.covering-eyes .eye-closed {
-            display: inline !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         .characters-stage.covering-eyes .blush-circle {
             opacity: 1 !important;
@@ -183,25 +203,27 @@
 
         /* State: Peeking (Show Password Toggle On) */
         .characters-stage.is-peeking .characters-svg {
-            transform: translateX(14px) scale(1.04);
+            transform: translateX(10px) scale(1.02);
         }
         .characters-stage.is-peeking .char-purple {
-            transform: rotate(5deg) translateY(-8px);
+            transform: rotate(3deg) translateY(-4px);
         }
         .characters-stage.is-peeking .char-pink {
-            transform: translateY(-6px) rotate(4deg);
+            transform: translateY(-3px) rotate(2deg);
         }
         .characters-stage.is-peeking .char-yellow {
-            transform: translateX(-4px) rotate(-4deg);
+            transform: translateX(-2px) rotate(-2deg);
         }
         .characters-stage.is-peeking .char-orange {
-            transform: scaleY(1.04) translateY(-3px);
+            transform: scaleY(1.02) translateY(-2px);
         }
         .characters-stage.is-peeking .eye-normal {
-            display: inline !important;
+            opacity: 1 !important;
+            visibility: visible !important;
         }
         .characters-stage.is-peeking .eye-closed {
-            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
         .characters-stage.is-peeking .mouth-o {
             display: inline !important;
@@ -918,7 +940,7 @@
                         </g>
                     </g>
                     <!-- Eyes Closed (Password Mode) -->
-                    <g class="eye-closed" style="display: none;">
+                    <g class="eye-closed">
                         <path d="M92,82 Q100,77 108,82" stroke="#1e1b4b" stroke-width="2.6" stroke-linecap="round" fill="none"/>
                         <path d="M122,82 Q130,77 138,82" stroke="#1e1b4b" stroke-width="2.6" stroke-linecap="round" fill="none"/>
                     </g>
@@ -946,7 +968,7 @@
                         </g>
                     </g>
                     <!-- Eyes Closed -->
-                    <g class="eye-closed" style="display: none;">
+                    <g class="eye-closed">
                         <path d="M179,142 Q186,138 193,142" stroke="#881337" stroke-width="2.2" stroke-linecap="round" fill="none"/>
                         <path d="M201,142 Q208,138 215,142" stroke="#881337" stroke-width="2.2" stroke-linecap="round" fill="none"/>
                     </g>
@@ -969,7 +991,7 @@
                         </g>
                     </g>
                     <!-- Eye Closed -->
-                    <g class="eye-closed" style="display: none;">
+                    <g class="eye-closed">
                         <path d="M235,182 L245,182" stroke="#713f12" stroke-width="2.2" stroke-linecap="round"/>
                     </g>
                 </g>
@@ -997,7 +1019,7 @@
                         </g>
                     </g>
                     <!-- Eyes Closed (Happy Arc) -->
-                    <g class="eye-closed" style="display: none;">
+                    <g class="eye-closed">
                         <path d="M120,222 Q126,216 132,222" stroke="#7c2d12" stroke-width="2.4" stroke-linecap="round" fill="none"/>
                         <path d="M142,222 Q148,216 154,222" stroke="#7c2d12" stroke-width="2.4" stroke-linecap="round" fill="none"/>
                     </g>
@@ -1326,6 +1348,15 @@
         // ==========================================
         // 🎭 INTERACTIVE MASCOT CONTROLLER (Rive Style)
         // ==========================================
+        function resetPupils() {
+            eyeUnits.forEach(unit => {
+                const pupil = unit.querySelector('.pupil');
+                const shine = unit.querySelector('.pupil-shine');
+                if (pupil) pupil.style.transform = 'translate(0px, 0px)';
+                if (shine) shine.style.transform = 'translate(0px, 0px)';
+            });
+        }
+
         function updatePupils(targetX, targetY, maxRadius = 4.5) {
             if (!charStage || charStage.classList.contains('covering-eyes')) return;
             eyeUnits.forEach(unit => {
@@ -1380,28 +1411,32 @@
             charStage.classList.remove('looking-at-input');
         });
 
-        // 3. Password maydoniga fokus: personajlar ko'zini yopib oladi ("parolni ko'rmaymiz" deb)
-        passwordInput.addEventListener('focus', () => {
+        // 3. Password holatini yangilash (Fokusda yoki parol yozilganda ko'zlar yopiq qoladi)
+        function updatePasswordState() {
             if (!charStage) return;
-            charStage.classList.remove('looking-at-input');
             const isPass = passwordInput.getAttribute('type') === 'password';
-            if (isPass) {
-                charStage.classList.add('covering-eyes');
-                charStage.classList.remove('is-peeking');
-            } else {
-                charStage.classList.add('is-peeking');
-                charStage.classList.remove('covering-eyes');
-                const rect = passwordInput.getBoundingClientRect();
-                updatePupils(rect.left + 50, rect.top + rect.height / 2, 5.5);
-            }
-        });
+            const hasValue = passwordInput.value.length > 0;
+            const isFocused = document.activeElement === passwordInput;
 
-        passwordInput.addEventListener('blur', () => {
-            if (!charStage) return;
-            if (!charStage.classList.contains('is-peeking')) {
-                charStage.classList.remove('covering-eyes');
+            if (isFocused || hasValue) {
+                if (isPass) {
+                    charStage.classList.add('covering-eyes');
+                    charStage.classList.remove('is-peeking', 'looking-at-input');
+                    resetPupils();
+                } else {
+                    charStage.classList.add('is-peeking');
+                    charStage.classList.remove('covering-eyes', 'looking-at-input');
+                    const rect = toggleBtn.getBoundingClientRect();
+                    updatePupils(rect.left, rect.top + rect.height / 2, 5.5);
+                }
+            } else {
+                charStage.classList.remove('covering-eyes', 'is-peeking');
             }
-        });
+        }
+
+        passwordInput.addEventListener('focus', updatePasswordState);
+        passwordInput.addEventListener('input', updatePasswordState);
+        passwordInput.addEventListener('blur', updatePasswordState);
 
         // 4. Parolni ko'rsatish/yashirish (Eye Toggle): Mo'ralash (Peeking) effekti
         toggleBtn.addEventListener('click', () => {
@@ -1410,40 +1445,27 @@
             const openG = document.getElementById('eyeOpenGroup');
             const slashG = document.getElementById('eyeSlashGroup');
             if (isPass) {
-                // Parol ochildi -> chizilgan ko'z chiqadi va personajlar mo'ralab qaraydi!
                 if (openG) openG.style.display = 'none';
-                if (slashG) slashG.style.display = '';
+                if (slashG) slashG.style.display = 'inline';
                 toggleBtn.setAttribute('title', "Parolni yashirish");
                 toggleBtn.setAttribute('aria-label', "Parolni yashirish");
-
-                if (charStage) {
-                    charStage.classList.remove('covering-eyes');
-                    charStage.classList.add('is-peeking');
-                    const rect = toggleBtn.getBoundingClientRect();
-                    updatePupils(rect.left, rect.top + rect.height / 2, 5.5);
-                }
             } else {
-                // Parol yashirildi -> ochiq ko'z chiqadi va personajlar yana ko'zini yopib oladi!
-                if (openG) openG.style.display = '';
+                if (openG) openG.style.display = 'inline';
                 if (slashG) slashG.style.display = 'none';
                 toggleBtn.setAttribute('title', "Parolni ko'rsatish");
                 toggleBtn.setAttribute('aria-label', "Parolni ko'rsatish");
-
-                if (charStage) {
-                    charStage.classList.remove('is-peeking');
-                    charStage.classList.add('covering-eyes');
-                }
             }
+            updatePasswordState();
         });
 
-        // 5. Tabiiy miltillash (Natural Blinking)
+        // 5. Tabiiy miltillash (Natural Blinking - har bir ko'z o'z o'rnida yopiladi, surilmaydi)
         setInterval(() => {
             if (!charStage || charStage.classList.contains('covering-eyes')) return;
-            const normalEyes = document.querySelectorAll('.eye-normal');
-            normalEyes.forEach(el => el.classList.add('char-blink'));
+            const units = document.querySelectorAll('.eye-unit');
+            units.forEach(el => el.classList.add('is-blinking'));
             setTimeout(() => {
-                normalEyes.forEach(el => el.classList.remove('char-blink'));
-            }, 150);
+                units.forEach(el => el.classList.remove('is-blinking'));
+            }, 140);
         }, 3600);
 
         // Flow Fill: Ikkala maydon to'ldirilganda tugma gradient bilan to'ladi
