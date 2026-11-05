@@ -360,8 +360,13 @@ app.post('/api/dev/visual-prompt', (req, res) => {
         const token = authService.extractToken(req);
         const session = authService.validateSession(token);
         const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
-        if (!isLocal && (!session || (session.role !== 'superuser' && session.role !== 'admin'))) {
-            return res.status(403).json({ success: false, message: 'Faqat superuser/admin uchun ruxsat etilgan' });
+        const isSuper = session && (
+            session.role === 'superuser' ||
+            session.username === 'superuser' ||
+            session.email === 'abaddona74@gmail.com'
+        );
+        if (!isLocal && !isSuper) {
+            return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 
         const { prompt, element, elements, task } = req.body || {};

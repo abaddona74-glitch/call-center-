@@ -1,17 +1,17 @@
 # Graph Report - call center  (2026-11-05)
 
 ## Corpus Check
-- 87 files · ~606,270 words
+- 88 files · ~613,045 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 27 file(s) not represented in the graph (top: .ttf 6, (none) 5, .bat 4)
 
 ## Summary
-- 2279 nodes · 4495 edges · 116 communities (92 shown, 24 thin omitted)
-- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 285 edges (avg confidence: 0.85)
+- 2306 nodes · 4560 edges · 114 communities (89 shown, 25 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 294 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4b55fdce`
+- Built from commit: `91a66d00`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -51,7 +51,7 @@
 - renderDetailTableBody
 - parseString
 - dashboard.js
-- checkIEEE754
+- viewer/public/js/visualInspector.js
 - Viewer Portal Client Interface
 - requestOperatorHelp
 - app.js
@@ -74,7 +74,7 @@
 - renderClientDirectory
 - voice_scan_orchestrator.j Subsystem
 - AudioIndexService
-- isObject
+- services/issabelDbService.js
 - BlacklistService Subsystem
 - Document Processing & Viewer Engine
 - BlacklistService Subsystem
@@ -85,10 +85,10 @@
 - Numbering
 - SyncService Subsystem
 - systemService.js
-- viewer/scripts/deploy.js
+- converterService.js
 - i18n.js Subsystem
 - runInit
-- Notes
+- getTextContent
 - SyncService Subsystem
 - Document Processing & Viewer Engine
 - Document Processing & Viewer Engine
@@ -112,7 +112,6 @@
 - Document Processing & Viewer Engine
 - Document Processing & Viewer Engine
 - Document Processing & Viewer Engine
-- drainQueue
 - Document Processing & Viewer Engine
 - applyOpCardFieldsVisibility
 - sftpService.js
@@ -124,7 +123,6 @@
 - convert
 - renderOnlineUsersPopover
 - loadClientsTab
-- Y
 - applyHistoryColumnsVisibility
 - obtain_letsencrypt.js
 - readNumberingXml
@@ -160,11 +158,11 @@
 ## Hyperedges (group relationships)
 - **Call Center Operational Ecosystem** — readme_call_center_system, public_index_dashboard_ui, desktop_agent_3cx, viewer_tickets_ui [INFERRED 0.85]
 
-## Communities (116 total, 24 thin omitted)
+## Communities (114 total, 25 thin omitted)
 
 ### Community 0 - "Document Processing & Viewer Engine"
 Cohesion: 0.01
-Nodes (38): codePoint(), combineMessages(), containsMessage(), contentTypes(), convertElementToRawText(), debounce(), dec(), elementWithTag() (+30 more)
+Nodes (47): checkIEEE754(), cleanUpNextTick(), codePoint(), combineMessages(), containsMessage(), contentTypes(), convertElementToRawText(), debounce() (+39 more)
 
 ### Community 1 - "onAudioRangeDateChange"
 Cohesion: 0.28
@@ -188,7 +186,7 @@ Nodes (29): main(), load_audio(), main(), load_audio(), main(), load_audio(), ma
 
 ### Community 7 - "Document Processing & Viewer Engine"
 Cohesion: 0.09
-Nodes (47): BodyReader(), calculateRowSpans(), findBlipImageFile(), findEmbeddedImageFile(), isBlank(), noteReferenceReader(), parseCurrentInstrText(), parseInstrText() (+39 more)
+Nodes (45): BodyReader(), calculateRowSpans(), findBlipImageFile(), findEmbeddedImageFile(), isBlank(), noteReferenceReader(), parseCurrentInstrText(), parseInstrText() (+37 more)
 
 ### Community 10 - "package.json"
 Cohesion: 0.05
@@ -196,7 +194,7 @@ Nodes (40): dependencies, acme-client, archiver, asterisk-manager, cors, dotenv,
 
 ### Community 12 - "Document Processing & Viewer Engine"
 Cohesion: 0.08
-Nodes (40): baseIteratee(), cb(), contains(), createEscaper(), createIndexFinder(), createPredicateIndexFinder(), createReduce(), createRule() (+32 more)
+Nodes (42): baseIteratee(), cb(), contains(), createEscaper(), createIndexFinder(), createPredicateIndexFinder(), createReduce(), createRule() (+34 more)
 
 ### Community 14 - "formatSeconds"
 Cohesion: 0.09
@@ -266,9 +264,9 @@ Nodes (13): createStyleRule(), describeError(), describeFailure(), documentMatch
 Cohesion: 0.02
 Nodes (112): adminClientsData, adminTopCallersData, appendOtaLog(), audioRangeCalCurrentDate, audioTagBadge, batchSttItems, btnPlayPause, cachedExcludeOperators (+104 more)
 
-### Community 35 - "checkIEEE754"
-Cohesion: 0.67
-Nodes (3): checkIEEE754(), writeDouble(), writeFloat()
+### Community 35 - "viewer/public/js/visualInspector.js"
+Cohesion: 0.25
+Nodes (20): closePromptModal(), ensureInspectorStyles(), getElementColor(), handleClick(), handleDblClick(), handleMouseMove(), initInspectorDOMElements(), isAllowedToInspect() (+12 more)
 
 ### Community 36 - "Viewer Portal Client Interface"
 Cohesion: 0.23
@@ -279,8 +277,8 @@ Cohesion: 0.12
 Nodes (17): cancelOutgoingHelp(), closeOutgoingHelpModal(), executeHelpRequest(), isMicrophoneSupported(), openOperatorSelectSelfModal(), requestOperatorHelp(), resetRecordedVoice(), sendDirectRingHelpRequest() (+9 more)
 
 ### Community 38 - "app.js"
-Cohesion: 0.07
-Nodes (15): agentReleaseConfig, agentUpdateLogsHistory, app, KNOWN_OPERATOR_IPS, MULTIPLAYER_CURSOR_COLORS, sslCertPath, sslKeyPath, wss (+7 more)
+Cohesion: 0.11
+Nodes (8): agentReleaseConfig, agentUpdateLogsHistory, app, KNOWN_OPERATOR_IPS, MULTIPLAYER_CURSOR_COLORS, sslCertPath, sslKeyPath, wss
 
 ### Community 39 - "renderCallbacks"
 Cohesion: 0.07
@@ -291,8 +289,8 @@ Cohesion: 0.14
 Nodes (24): _addNamedNode(), _appendSingleChild(), assertPreInsertionValidity1to5(), assertPreInsertionValidityInDocument(), assertPreReplacementValidityInDocument(), hasDoctypeChildThatIsNotChild(), DOMException(), find() (+16 more)
 
 ### Community 41 - "viewer/scripts/deploy.js"
-Cohesion: 0.22
-Nodes (6): diffData, diffFilePath, filesToPull, projectRoot, SERVER_PORT, skipPatterns
+Cohesion: 0.11
+Nodes (13): ssh2-sftp-client, diffData, diffFilePath, filesToPull, projectRoot, SERVER_PORT, skipPatterns, archivePath (+5 more)
 
 ### Community 42 - "initPageElevator"
 Cohesion: 0.60
@@ -315,8 +313,8 @@ Cohesion: 0.24
 Nodes (11): adjustQueueCalls(), fetchQueueSyncSettings(), openQueueInfoModal(), promptCustomQueueCalls(), setQueueInfoFilter(), setQueueOperatorGroup(), toggleQueueDbSync(), triggerQueueSyncNow() (+3 more)
 
 ### Community 48 - "scripts/deploy.js"
-Cohesion: 0.20
-Nodes (11): archivePath, currentBuild, deploy(), escapeHtml(), getDeployChangelog(), indexHtmlPath, projectRoot, SERVER_PORT (+3 more)
+Cohesion: 0.15
+Nodes (14): archivePath, currentBuild, deploy(), dstInspector, escapeHtml(), getDeployChangelog(), indexHtmlPath, projectRoot (+6 more)
 
 ### Community 50 - "test_dashboard_recent_tab Subsystem"
 Cohesion: 0.14
@@ -334,9 +332,13 @@ Nodes (12): escapeAttr(), escapeHtml(), formatCallerNumber(), generateStarRating
 Cohesion: 0.25
 Nodes (8): CALLS_DIR, checkRemoteRestartFlag(), isInRange(), main(), saveLiveProgress(), syncRemote(), STATUS_FILE, VOICE_ID_FILE
 
-### Community 58 - "isObject"
+### Community 57 - "AudioIndexService"
+Cohesion: 0.16
+Nodes (5): archiver, SttService, jobs, TEMP_ZIPS_DIR, waitingQueue
+
+### Community 58 - "services/issabelDbService.js"
 Cohesion: 0.18
-Nodes (12): baseCreate(), clone(), create(), ctor(), executeBound(), isObject(), random(), sample() (+4 more)
+Nodes (7): EXCLUDED_OPERATORS, KNOWN_OPERATORS, DEFAULT_OPERATOR_NAMES, EXCLUDED_OPERATORS, EXCLUDED_OPERATORS, main(), runAsyncTest()
 
 ### Community 60 - "Document Processing & Viewer Engine"
 Cohesion: 0.24
@@ -367,12 +369,12 @@ Cohesion: 0.36
 Nodes (3): SyncService, cleanPhone(), isDuplicate()
 
 ### Community 68 - "systemService.js"
-Cohesion: 0.21
-Nodes (9): convertFile(), getMimeType(), SCRIPT_PATH, formatBytes(), formatSeconds(), getAudioDiskInfo(), getCpuUsagePromise(), getPhysicalDiskInfo() (+1 more)
+Cohesion: 0.22
+Nodes (9): ssh2, conn, SERVER_PORT, formatBytes(), formatSeconds(), getAudioDiskInfo(), getCpuUsagePromise(), getPhysicalDiskInfo() (+1 more)
 
-### Community 69 - "viewer/scripts/deploy.js"
-Cohesion: 0.14
-Nodes (9): ssh2, conn, SERVER_PORT, archivePath, currentBuild, projectRoot, SERVER_PORT, tempDir (+1 more)
+### Community 69 - "converterService.js"
+Cohesion: 0.29
+Nodes (3): convertFile(), getMimeType(), SCRIPT_PATH
 
 ### Community 70 - "i18n.js Subsystem"
 Cohesion: 0.39
@@ -381,10 +383,6 @@ Nodes (6): applyTranslations(), I18N_TRANSLATIONS, initI18n(), switchLanguage(),
 ### Community 71 - "runInit"
 Cohesion: 0.09
 Nodes (27): applyAudioRangeToTable(), applyHistoryFilters(), checkVersionFromServer(), closeAudioRangeModal(), executeDeployReload(), getTabTitle(), handleServerBuildId(), initDeployWatcher() (+19 more)
-
-### Community 72 - "Notes"
-Cohesion: 0.67
-Nodes (3): Document(), noteKey(), Notes()
 
 ### Community 73 - "SyncService Subsystem"
 Cohesion: 0.36
@@ -431,8 +429,8 @@ Cohesion: 0.40
 Nodes (5): copy(), _extends(), LiveNodeList(), __set__(), _updateLiveList()
 
 ### Community 84 - "ref_path"
-Cohesion: 0.16
-Nodes (7): DB_FILE, parseDurationSec(), EXCLUDED_OPERATORS, KNOWN_OPERATORS, DEFAULT_OPERATOR_NAMES, EXCLUDED_OPERATORS, EXCLUDED_OPERATORS
+Cohesion: 0.17
+Nodes (6): DB_FILE, EXCLUDED_OPERATORS, KNOWN_OPERATORS, DEFAULT_OPERATOR_NAMES, EXCLUDED_OPERATORS, EXCLUDED_OPERATORS
 
 ### Community 85 - "loadUserProfileData"
 Cohesion: 0.25
@@ -443,12 +441,12 @@ Cohesion: 0.67
 Nodes (4): addOrUpdateElement(), updateContentTypes(), updateRelationships(), writeStyleMap()
 
 ### Community 87 - "deepEq"
-Cohesion: 0.12
-Nodes (17): allKeys(), collectNonEnumProps(), deepEq(), deepGet(), emulatedSet(), eq(), get(), has() (+9 more)
+Cohesion: 0.07
+Nodes (29): allKeys(), baseCreate(), clone(), collectNonEnumProps(), create(), ctor(), deepEq(), deepGet() (+21 more)
 
 ### Community 88 - "visualInspector.js"
-Cohesion: 0.28
-Nodes (19): closePromptModal(), getElementColor(), handleClick(), handleDblClick(), handleMouseMove(), initInspectorDOMElements(), isAllowedToInspect(), openPromptModal() (+11 more)
+Cohesion: 0.25
+Nodes (20): closePromptModal(), ensureInspectorStyles(), getElementColor(), handleClick(), handleDblClick(), handleMouseMove(), initInspectorDOMElements(), isAllowedToInspect() (+12 more)
 
 ### Community 89 - "Document Processing & Viewer Engine"
 Cohesion: 0.67
@@ -459,8 +457,8 @@ Cohesion: 0.83
 Nodes (4): createReader(), isFootnoteElement(), readFootnoteElement(), readNotesXml()
 
 ### Community 91 - "s"
-Cohesion: 0.30
-Nodes (19): A(), c(), i(), n(), d(), t(), f(), h() (+11 more)
+Cohesion: 0.23
+Nodes (23): A(), c(), i(), n(), d(), t(), f(), G() (+15 more)
 
 ### Community 92 - "Document Processing & Viewer Engine"
 Cohesion: 0.50
@@ -478,10 +476,6 @@ Nodes (4): XMLDocument(), XMLDocumentCB(), XMLStringifier(), XMLStringWriter()
 Cohesion: 0.67
 Nodes (3): buildErrorHandler(), build(), _locator()
 
-### Community 97 - "drainQueue"
-Cohesion: 0.50
-Nodes (4): cleanUpNextTick(), drainQueue(), runClearTimeout(), runTimeout()
-
 ### Community 98 - "Document Processing & Viewer Engine"
 Cohesion: 0.67
 Nodes (3): cloneNode(), NamedNodeMap(), NodeList()
@@ -489,10 +483,6 @@ Nodes (3): cloneNode(), NamedNodeMap(), NodeList()
 ### Community 99 - "applyOpCardFieldsVisibility"
 Cohesion: 0.33
 Nodes (9): applyOpCardFieldsVisibility(), isOpCardFieldVisible(), openOpCardFieldsModal(), renderOpCardFieldsCheckboxes(), resetOpCardFields(), saveOpCardFieldsSettings(), setAllOpCardFields(), toggleOpCardField() (+1 more)
-
-### Community 100 - "sftpService.js"
-Cohesion: 0.17
-Nodes (7): archiver, ssh2-sftp-client, jobs, sanitizeFileName(), TEMP_ZIPS_DIR, waitingQueue, ZipJobService
 
 ### Community 101 - "Document Processing & Viewer Engine"
 Cohesion: 0.67
@@ -514,10 +504,6 @@ Nodes (17): claimActiveTab(), closeOnlineUsersPopover(), fetchOnlineUsersList(),
 Cohesion: 0.21
 Nodes (12): clearClientsSearch(), closeAdminClientModal(), deleteAdminClient(), deleteAdminClientFromModal(), getClientLangBadgeHtml(), handleAdminClientSubmit(), handleClientsSearch(), loadClientsTab() (+4 more)
 
-### Community 114 - "Y"
-Cohesion: 0.67
-Nodes (4): G(), K(), Y(), Z()
-
 ### Community 115 - "applyHistoryColumnsVisibility"
 Cohesion: 0.38
 Nodes (7): applyHistoryColumnsVisibility(), isHistoryColumnVisible(), renderHistoryColsCheckboxes(), resetHistoryColumns(), saveHistoryColumnsSettings(), toggleHistoryColumn(), toggleHistoryColumnsDropdown()
@@ -532,23 +518,23 @@ Nodes (4): readAbstractNum(), readAbstractNums(), readNumberingXml(), readNums()
 
 ## Knowledge Gaps
 - **21 isolated node(s):** `asterisk-manager`, `cors`, `dotenv`, `exceljs`, `express` (+16 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 614 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **24 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 619 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `IssabelDbService` connect `Call Recording & Audio Indexing` to `app.js`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+- **Why does `IssabelDbService` connect `Call Recording & Audio Indexing` to `services/issabelDbService.js`?**
+  _High betweenness centrality (0.020) - this node is a cross-community bridge._
 - **Are the 11 inferred relationships involving `BodyReader()` (e.g. with `readChildElements()` and `readCommentReference()`) actually correct?**
   _`BodyReader()` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `asterisk-manager`, `cors`, `dotenv` to the rest of the system?**
   _21 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Document Processing & Viewer Engine` be split into smaller, more focused modules?**
-  _Cohesion score 0.00992836496166897 - nodes in this community are weakly interconnected._
-- **Why does `ssh2` connect `viewer/scripts/deploy.js` to `systemService.js`, `app.js`, `viewer/package.json`, `scripts/deploy.js`, `ref_path`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+  _Cohesion score 0.009776644253806322 - nodes in this community are weakly interconnected._
+- **Why does `ssh2` connect `systemService.js` to `viewer/scripts/deploy.js`, `viewer/package.json`, `scripts/deploy.js`, `ref_path`, `services/issabelDbService.js`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
 - **Should `Ticket Workflow & Management` be split into smaller, more focused modules?**
   _Cohesion score 0.05894736842105263 - nodes in this community are weakly interconnected._
-- **Why does `AmiService` connect `Asterisk Telephony & Queue AMI` to `ref_path`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+- **Why does `TelegramService` connect `Telegram Bot Integration` to `GeminiService`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._

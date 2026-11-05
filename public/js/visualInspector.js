@@ -37,25 +37,300 @@
         return COLOR_PALETTE[index % COLOR_PALETTE.length];
     }
 
-    // 1. Ruxsat tekshiruvi: Faqat superuser/admin yoki localhost/dev rejimda
-    function isAllowedToInspect() {
-        const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        if (isLocal) return true;
-        
-        if (window.location.search.includes('dev=true')) return true;
+    let cachedAuthUser = null;
+    let authCheckPromise = null;
 
-        const user = window.currentAuthUser;
-        if (user && user.role) {
-            const role = String(user.role).toLowerCase();
-            if (role.includes('super') || role.includes('admin')) return true;
+    async function fetchAuthUser() {
+        if (window.currentAuthUser) { cachedAuthUser = window.currentAuthUser; return cachedAuthUser; }
+        if (window.currentViewerUser) { cachedAuthUser = window.currentViewerUser; return cachedAuthUser; }
+        if (cachedAuthUser) return cachedAuthUser;
+        if (!authCheckPromise) {
+            authCheckPromise = fetch('/api/auth/me')
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.user) {
+                        cachedAuthUser = data.user;
+                        return data.user;
+                    }
+                    return null;
+                })
+                .catch(() => null);
+        }
+        return authCheckPromise;
+    }
+
+    // Sahifa yuklanganda fon rejimida foydalanuvchini aniqlab qo'yish
+    fetchAuthUser();
+
+    // 1. Ruxsat tekshiruvi: Qat'iy faqat SUPERUSER uchun!
+    // Boshqa adminlarga yoki operatorlarga mutlaqo ruxsat yo'q.
+    function isAllowedToInspect() {
+        const user = window.currentAuthUser || window.currentViewerUser || cachedAuthUser;
+        const role = user?.role || window.myUserRole;
+        const username = user?.username || window.myUsername;
+        const email = user?.email;
+
+        if (user || role || username || email) {
+            const roleStr = String(role || '').toLowerCase().trim();
+            const usernameStr = String(username || '').toLowerCase().trim();
+            const emailStr = String(email || '').toLowerCase().trim();
+
+            const isSuper = (roleStr === 'superuser') ||
+                            (usernameStr === 'superuser') ||
+                            (emailStr === 'abaddona74@gmail.com');
+            return isSuper;
         }
 
-        const roleEl = document.getElementById('headerUserRole');
-        if (roleEl && (roleEl.textContent.toLowerCase().includes('super') || roleEl.textContent.toLowerCase().includes('admin'))) {
-            return true;
+        const roleEl = document.getElementById('headerUserRole') || document.getElementById('headerUserProfileRole');
+        if (roleEl) {
+            const txt = roleEl.textContent.toLowerCase().trim();
+            if (txt === 'superuser') return true;
+            return false;
         }
 
         return false;
+    }
+
+    function ensureInspectorStyles() {
+        if (document.getElementById('visualInspectorStyles')) return;
+        const style = document.createElement('style');
+        style.id = 'visualInspectorStyles';
+        style.textContent = `
+            body.visual-inspector-on, body.visual-inspector-on * {
+                cursor: crosshair !important;
+            }
+            @keyframes pulseGlow {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.4; transform: scale(1.3); }
+            }
+            @keyframes modalPopIn {
+                0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+                100% { opacity: 1; transform: scale(1) translateY(0); }
+            }
+            .visual-ai-modal-box textarea:focus {
+                border-color: #a855f7 !important;
+                box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25) !important;
+            }
+            .visual-ai-modal-box .ai-chip-btn:hover {
+                background: rgba(168, 85, 247, 0.15) !important;
+                border-color: rgba(168, 85, 247, 0.4) !important;
+                color: #e9d5ff !important;
+            }
+            .visual-ai-elements-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                max-height: 190px;
+                overflow-y: auto;
+                padding-right: 4px;
+                margin-bottom: 12px;
+            }
+            .visual-ai-elements-list::-webkit-scrollbar { width: 5px; }
+            .visual-ai-elements-list::-webkit-scrollbar-thumb {
+                background: rgba(148, 163, 184, 0.25);
+                border-radius: 4px;
+            }
+            .visual-ai-element-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                background: #1e293b;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 8px;
+                padding: 7px 10px;
+                font-size: 11.5px;
+                transition: all 0.15s ease;
+            }
+            .visual-ai-element-item:hover {
+                border-color: rgba(16, 185, 129, 0.35);
+                background: #243247;
+            }
+            .visual-ai-element-item .el-num {
+                background: rgba(16, 185, 129, 0.2);
+                color: #34d399;
+                border: 1px solid rgba(16, 185, 129, 0.4);
+                border-radius: 4px;
+                padding: 1px 6px;
+                font-size: 10px;
+                font-weight: 700;
+                font-family: monospace;
+            }
+            .visual-ai-element-item .el-tag {
+                color: #a855f7;
+                font-family: monospace;
+                font-weight: 700;
+            }
+            .visual-ai-element-item .el-text {
+                color: #cbd5e1;
+                font-style: italic;
+                max-width: 140px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .visual-ai-element-item .el-size {
+                color: #64748b;
+                font-size: 10.5px;
+                margin-left: auto;
+            }
+            .visual-ai-element-item .el-remove-btn {
+                background: none;
+                border: none;
+                color: #64748b;
+                cursor: pointer;
+                padding: 2px;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: color 0.15s ease, background 0.15s ease;
+            }
+            .visual-ai-element-item .el-remove-btn:hover {
+                color: #ef4444;
+                background: rgba(239, 68, 68, 0.15);
+            }
+            .visual-ai-editor {
+                min-height: 72px;
+                max-height: 140px;
+                overflow-y: auto;
+                background: #030712;
+                border: 1px solid #334155;
+                border-radius: 10px;
+                color: #f8fafc;
+                padding: 10px 12px;
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                line-height: 1.55;
+                outline: none;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+                word-break: break-word;
+                white-space: pre-wrap;
+            }
+            .visual-ai-editor:focus {
+                border-color: #a855f7 !important;
+                box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.25) !important;
+            }
+            .visual-ai-editor:empty:before {
+                content: attr(data-placeholder);
+                color: #64748b;
+                pointer-events: none;
+                display: block;
+            }
+            .ai-mention-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                background: rgba(56, 189, 248, 0.18);
+                color: #38bdf8;
+                border: 1px solid rgba(56, 189, 248, 0.45);
+                border-radius: 6px;
+                padding: 1px 7px;
+                font-size: 11.5px;
+                font-weight: 700;
+                font-family: 'JetBrains Mono', Consolas, monospace;
+                user-select: none;
+                vertical-align: baseline;
+                margin: 0 2px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+                transition: all 0.15s ease;
+            }
+            .ai-mention-pill:hover {
+                background: rgba(56, 189, 248, 0.28);
+                border-color: #38bdf8;
+            }
+            .ai-mention-pill.pill-emerald {
+                background: rgba(16, 185, 129, 0.18);
+                color: #34d399;
+                border-color: rgba(16, 185, 129, 0.45);
+            }
+            .ai-mention-pill.pill-purple {
+                background: rgba(168, 85, 247, 0.18);
+                color: #c084fc;
+                border-color: rgba(168, 85, 247, 0.45);
+            }
+            .visual-mention-dropdown {
+                position: absolute;
+                background: #0f172a;
+                border: 1px solid rgba(139, 92, 246, 0.5);
+                border-radius: 10px;
+                box-shadow: 0 12px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(139, 92, 246, 0.25);
+                width: 290px;
+                max-height: 220px;
+                overflow-y: auto;
+                z-index: 10000020;
+                padding: 5px;
+                animation: modalPopIn 0.15s ease-out;
+            }
+            .visual-mention-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 10px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 12px;
+                color: #cbd5e1;
+                transition: background 0.12s ease;
+            }
+            .visual-mention-item:hover, .visual-mention-item.active {
+                background: rgba(139, 92, 246, 0.2);
+                color: #f8fafc;
+            }
+            .visual-mention-item .vmi-num {
+                background: rgba(16, 185, 129, 0.25);
+                color: #34d399;
+                border: 1px solid rgba(16, 185, 129, 0.4);
+                border-radius: 4px;
+                padding: 1px 5px;
+                font-size: 10.5px;
+                font-weight: 700;
+                font-family: monospace;
+            }
+            .visual-mention-item .vmi-tag {
+                font-family: monospace;
+                font-weight: 700;
+                color: #c084fc;
+            }
+            .visual-mention-item .vmi-text {
+                font-style: italic;
+                font-size: 11px;
+                color: #94a3b8;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                max-width: 120px;
+                margin-left: auto;
+            }
+            .visual-quick-mentions {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 8px;
+            }
+            .mention-insert-btn {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                background: rgba(56, 189, 248, 0.1);
+                color: #38bdf8;
+                border: 1px solid rgba(56, 189, 248, 0.25);
+                border-radius: 6px;
+                padding: 3px 8px;
+                font-size: 11px;
+                font-weight: 600;
+                font-family: 'JetBrains Mono', Consolas, monospace;
+                cursor: pointer;
+                transition: all 0.15s ease;
+            }
+            .mention-insert-btn:hover {
+                background: rgba(56, 189, 248, 0.22);
+                border-color: #38bdf8;
+                transform: translateY(-1px);
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     // 2. DOM elementlarini tayyorlash
@@ -1013,10 +1288,10 @@
     // 8. Inspector ni yoqish
     function startVisualInspector() {
         if (!isAllowedToInspect()) {
-            console.warn('Visual AI Inspector faqat Superuser yoki Localhost uchun ruxsat etilgan.');
             return;
         }
 
+        ensureInspectorStyles();
         initInspectorDOMElements();
         isInspectorActive = true;
         selectedElements = [];
@@ -1066,11 +1341,16 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi
-    window.addEventListener('keydown', (e) => {
+    // 10. Klaviatura boshqaruvi (Alt + Shift + D) - Faqat Superuser uchun
+    window.addEventListener('keydown', async (e) => {
         if (e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
             e.preventDefault();
-            toggleVisualInspector();
+            if (!cachedAuthUser && !window.currentAuthUser && !window.currentViewerUser) {
+                await fetchAuthUser();
+            }
+            if (isAllowedToInspect()) {
+                toggleVisualInspector();
+            }
             return;
         }
 

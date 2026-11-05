@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793862005024">
+    <meta name="build-id" content="1793865933630">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793862005024">
+    <link rel="stylesheet" href="/css/style.css?v=1793865933630">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -1139,6 +1139,76 @@
                     </div>
                     <div class="chart-wrapper">
                         <canvas id="operatorChart"></canvas>
+                    </div>
+                </div>
+                <!-- Adminkalar va Tizim Kabinetlari Havolalari -->
+                <div class="glass-panel" style="margin-top: 24px; padding: 22px; border-radius: 14px;">
+                    <div class="panel-header" style="margin-bottom: 16px;">
+                        <div>
+                            <h3 class="panel-title" style="display: inline-flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600;">
+                                <svg class="isax isax-unlock" style="width: 18px; height: 18px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-unlock"></use></svg>
+                                <span>Tizim Kabinetlari (Adminka)</span>
+                            </h3>
+                            <p style="font-size: 12.5px; color: #94a3b8; margin: 4px 0 0 0;">
+                                Tashkilotlar, foydalanuvchilar va ma'murlar boshqaruv kabinetlariga tezkor o'tish
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+                        <!-- EDO Kabineti Card -->
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s;">
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <img src="/icons/edo-symbol.svg" alt="EDO" style="width: 22px; height: 22px; filter: brightness(0) invert(1);" onerror="this.outerHTML='<svg class=\'isax isax-document-text\' style=\'width:20px;height:20px;color:#fff;\'><use href=\'/icons/iconsax/iconsax-sprite.svg#isax-document-text\'></use></svg>'">
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">EDO Kabineti</h4>
+                                            <span style="font-size: 11px; color: #94a3b8;">cabinet.ijro.uz</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">Adminka</span>
+                                </div>
+                                <p style="font-size: 12.5px; color: #94a3b8; margin: 0 0 16px 0; line-height: 1.45;">
+                                    Tashkilotlar, foydalanuvchilar va tizim ma'murlari boshqaruv kabineti.
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <a href="https://cabinet.ijro.uz/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #0284c7; color: #fff; text-decoration: none; transition: background 0.2s;">
+                                    <span>Kabinetga o'tish</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- E-Huquqshunos Kabineti Card -->
+                        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s;">
+                            <div>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <img src="/icons/e-huquqshunos-logo.svg" alt="E-Huquqshunos" style="width: 22px; height: 22px; filter: brightness(0) invert(1);" onerror="this.outerHTML='<svg class=\'isax isax-monitor\' style=\'width:20px;height:20px;color:#fff;\'><use href=\'/icons/iconsax/iconsax-sprite.svg#isax-monitor\'></use></svg>'">
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">E-Huquqshunos Kabineti</h4>
+                                            <span style="font-size: 11px; color: #94a3b8;">cabinet.e-huquqshunos.uz</span>
+                                        </div>
+                                    </div>
+                                    <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35);">Adminka</span>
+                                </div>
+                                <p style="font-size: 12.5px; color: #94a3b8; margin: 0 0 16px 0; line-height: 1.45;">
+                                    E-Huquqshunos tizimi ma'murlari va tashkilotlar boshqaruv kabineti.
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <a href="http://cabinet.e-huquqshunos.uz/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; background: #7c3aed; color: #fff; text-decoration: none; transition: background 0.2s;">
+                                    <span>Kabinetga o'tish</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -3936,8 +4006,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793862005024" defer></script>
+    <script src="/js/dashboard.js?v=1793865933630" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793862005024" defer></script>
+    <script src="/js/visualInspector.js?v=1793865933630" defer></script>
 </body>
 </html>

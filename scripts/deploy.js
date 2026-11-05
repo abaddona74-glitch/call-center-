@@ -65,8 +65,23 @@ if (fs.existsSync(indexHtmlPath)) {
     }
     html = html.replace(/\/js\/dashboard\.js\?v=[^"]*/g, `/js/dashboard.js?v=${currentBuild.buildId}`);
     html = html.replace(/\/css\/style\.css\?v=[^"]*/g, `/css/style.css?v=${currentBuild.buildId}`);
-    html = html.replace(/\/js\/visualInspector\.js\?v=[^"]*/g, `/js/visualInspector.js?v=${currentBuild.buildId}`);
+    html = html.replace(/\/js\/visualInspector\.js(?:\?v=[^"]*)?/g, `/js/visualInspector.js?v=${currentBuild.buildId}`);
     fs.writeFileSync(indexHtmlPath, html, 'utf8');
+}
+
+// Update viewer index.html cache buster & copy latest visualInspector.js
+const viewerIndexHtmlPath = path.join(projectRoot, 'viewer', 'public', 'index.html');
+if (fs.existsSync(viewerIndexHtmlPath)) {
+    let viewerHtml = fs.readFileSync(viewerIndexHtmlPath, 'utf8');
+    viewerHtml = viewerHtml.replace(/\/js\/visualInspector\.js(?:\?v=[^"]*)?/g, `/js/visualInspector.js?v=${currentBuild.buildId}`);
+    fs.writeFileSync(viewerIndexHtmlPath, viewerHtml, 'utf8');
+}
+
+// Sync visualInspector.js to viewer
+const srcInspector = path.join(projectRoot, 'public', 'js', 'visualInspector.js');
+const dstInspector = path.join(projectRoot, 'viewer', 'public', 'js', 'visualInspector.js');
+if (fs.existsSync(srcInspector)) {
+    fs.copyFileSync(srcInspector, dstInspector);
 }
 
 // Update viewer version.json as well so viewer stays in sync

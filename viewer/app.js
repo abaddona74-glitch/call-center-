@@ -968,6 +968,73 @@ app.get('/api/auth/me', (req, res) => {
     });
 });
 
+// Visual AI Inspector: Dev UI prompt qabul qilish va Antigravity inbox ga saqlash
+app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, res) => {
+    try {
+        let user = req.user;
+        if (!user) {
+            const token = extractToken(req);
+            user = await validateSessionWithUpstream(token);
+        }
+        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
+        const isSuper = user && (
+            user.role === 'superuser' ||
+            user.username === 'superuser' ||
+            user.email === 'abaddona74@gmail.com'
+        );
+
+        if (!isLocal && !isSuper) {
+            return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
+        }
+
+        const { prompt, element, elements, task } = req.body || {};
+        if (!prompt) {
+            return res.status(400).json({ success: false, message: 'Prompt bo\'sh bo\'lishi mumkin emas' });
+        }
+
+        const selectedElements = Array.isArray(elements) && elements.length > 0 
+            ? elements 
+            : (element ? [element] : []);
+
+        const taskEntry = {
+            id: Date.now(),
+            createdAt: new Date().toISOString(),
+            element: selectedElements[0] || {},
+            elements: selectedElements,
+            count: selectedElements.length,
+            task: task || '',
+            prompt: prompt,
+            status: 'pending',
+            source: 'viewer_3005'
+        };
+
+        // Serverda /opt/call-center/scratch yoki lokal scratch
+        let scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            if (fs.existsSync('/opt/call-center/scratch')) {
+                scratchDir = '/opt/call-center/scratch';
+            } else {
+                scratchDir = path.join(__dirname, 'scratch');
+            }
+        }
+        if (!fs.existsSync(scratchDir)) {
+            fs.mkdirSync(scratchDir, { recursive: true });
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        queue.unshift(taskEntry);
+        fs.writeFileSync(queuePath, JSON.stringify(queue.slice(0, 50), null, 2), 'utf8');
+
+        return res.json({ success: true, message: 'Vazifa Antigravity Inbox ga qabul qilindi', task: taskEntry });
+    } catch (e) {
+        console.error('visual-prompt api error (viewer):', e);
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // Profil Gmail manzilini saqlash / yangilash (Upstream 3535 ga uzatish)
 app.put('/api/auth/profile/email', async (req, res) => {
     if (!req.user) {
