@@ -9260,16 +9260,24 @@ body.sidebar-collapsed .page-elevator-btn {
         right: 0;
         height: calc(60px + env(safe-area-inset-bottom, 0px));
         padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 0px)) 6px;
-        background: rgba(15, 23, 42, 0.94);
+        background: rgba(11, 15, 25, 0.94);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.45);
         z-index: 1000;
         align-items: center;
         justify-content: space-around;
-        gap: 2px;
+        gap: 4px;
         box-sizing: border-box;
+    }
+
+    /* Reset desktop tab-btn styling inside bottom nav so it doesn't clash */
+    .mobile-bottom-nav .tab-btn,
+    .mobile-bottom-nav .tab-btn.active {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
     }
 
     .mobile-nav-btn {
@@ -9281,22 +9289,23 @@ body.sidebar-collapsed .page-elevator-btn {
         flex: 1;
         min-width: 0;
         height: 100%;
-        background: transparent;
-        border: none;
-        border-radius: 9px;
-        padding: 4px 1px;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        border-radius: 12px;
+        padding: 4px 2px;
         color: #94a3b8;
         cursor: pointer;
         text-decoration: none;
         position: relative;
-        transition: color 0.18s ease, transform 0.12s ease;
+        transition: color 0.18s ease, background-color 0.18s ease, transform 0.12s ease;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
     }
 
     .mobile-nav-btn:active {
-        transform: scale(0.92);
-        background: rgba(255, 255, 255, 0.05);
+        transform: scale(0.94);
+        background: rgba(255, 255, 255, 0.04) !important;
     }
 
     .mobile-nav-btn svg {
@@ -9316,35 +9325,38 @@ body.sidebar-collapsed .page-elevator-btn {
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 100%;
+        color: #94a3b8;
         transition: color 0.2s ease, font-weight 0.2s ease;
     }
 
+    /* Soft, balanced, non-distracting active state */
     .mobile-nav-btn.active {
-        color: #38bdf8;
+        color: #38bdf8 !important;
+        background: rgba(56, 189, 248, 0.08) !important;
     }
 
     .mobile-nav-btn.active .mobile-nav-label {
-        font-weight: 700;
+        font-weight: 600;
         color: #38bdf8;
     }
 
     .mobile-nav-btn.active svg {
-        transform: translateY(-1px);
+        transform: translateY(-1px) scale(1.04);
         stroke: #38bdf8;
-        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+        filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.35));
     }
 
     .mobile-nav-btn.active::before {
         content: '';
         position: absolute;
-        top: 1px;
+        top: 2px;
         left: 50%;
         transform: translateX(-50%);
-        width: 18px;
+        width: 16px;
         height: 2.5px;
         border-radius: 999px;
         background: #38bdf8;
-        box-shadow: 0 0 10px #38bdf8;
+        box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
     }
 
     /* 6. Page Elevator & Floating tugmalarni bottom nav ustiga siljitish */
