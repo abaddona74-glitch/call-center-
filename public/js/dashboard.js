@@ -3,11 +3,11 @@
  * Includes: WaveSurfer.js Waveform, Real-time AMI monitoring, SQLite CDR Pagination, and IVR Robot detection
  */
 
-window.handleLogout = async function(e) {
+window.handleLogout = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (err) {}
+    } catch (err) { }
     localStorage.removeItem('auth_token');
     sessionStorage.clear();
     window.location.href = '/login';
@@ -106,7 +106,7 @@ const waveLoadingText = document.getElementById('waveLoadingText');
 /* ==========================================================================
    SIDEBAR TOGGLE ENGINE (Collapsible Live Monitor)
    ========================================================================== */
-window.toggleSidebar = function(forceOpen) {
+window.toggleSidebar = function (forceOpen) {
     const body = document.body;
     let willOpen;
     if (typeof forceOpen === 'boolean') {
@@ -117,10 +117,10 @@ window.toggleSidebar = function(forceOpen) {
 
     if (willOpen) {
         body.classList.remove('sidebar-collapsed');
-        try { localStorage.setItem('cc_sidebar_collapsed', 'false'); } catch (e) {}
+        try { localStorage.setItem('cc_sidebar_collapsed', 'false'); } catch (e) { }
     } else {
         body.classList.add('sidebar-collapsed');
-        try { localStorage.setItem('cc_sidebar_collapsed', 'true'); } catch (e) {}
+        try { localStorage.setItem('cc_sidebar_collapsed', 'true'); } catch (e) { }
     }
 };
 
@@ -139,7 +139,7 @@ function initSidebar() {
                 document.body.classList.remove('sidebar-collapsed');
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function runInit() {
@@ -279,7 +279,7 @@ function applyOperatorCardsScrollReveal() {
                     el.classList.add('is-revealed');
                     el.classList.remove('reveal-on-scroll');
                 });
-                try { opIo.disconnect(); } catch (e) {}
+                try { opIo.disconnect(); } catch (e) { }
             }, 400);
         }
     }, {
@@ -297,7 +297,7 @@ function applyOperatorCardsScrollReveal() {
             el.classList.remove('reveal-on-scroll');
         });
         _hasRevealedOperators = true;
-        try { opIo.disconnect(); } catch (e) {}
+        try { opIo.disconnect(); } catch (e) { }
     }, 1500);
 }
 
@@ -350,7 +350,7 @@ function handleServerBuildId(incomingBuildId, isInitial = false) {
             if (sessionStorage.getItem('last_reloaded_build') === incomingBuildId) {
                 sessionStorage.removeItem('last_reloaded_build');
             }
-        } catch (e) {}
+        } catch (e) { }
         return;
     }
 
@@ -359,7 +359,7 @@ function handleServerBuildId(incomingBuildId, isInitial = false) {
         if (sessionStorage.getItem('last_reloaded_build') === incomingBuildId) {
             return;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     // Faqat haqiqiy yangi versiya kelganda va buildId mos kelmagandagina banner chiqadi
     if (incomingBuildId !== currentClientBuildId) {
@@ -376,7 +376,7 @@ function executeDeployReload(targetBuildId) {
         if (targetBuildId) {
             sessionStorage.setItem('last_reloaded_build', targetBuildId);
         }
-    } catch (e) {}
+    } catch (e) { }
     // Keshni chetlab o'tish uchun vaqt tamg'asi bilan majburiy yangilash
     const url = new URL(window.location.href);
     url.searchParams.set('_v', Date.now().toString());
@@ -442,7 +442,7 @@ function showDeployUpdateBanner(targetBuildId) {
     }, 1000);
 }
 
-window.cancelDeployAutoReload = function() {
+window.cancelDeployAutoReload = function () {
     if (deployBannerCountdownTimer) {
         clearInterval(deployBannerCountdownTimer);
         deployBannerCountdownTimer = null;
@@ -712,7 +712,7 @@ function switchRoute(tabName, pushState = true) {
         if (histInput && histInput.value) {
             const v = histInput.value.trim().toLowerCase();
             let isAuto = false;
-            try { isAuto = histInput.matches(':-webkit-autofill') || histInput.matches(':autofill'); } catch (_) {}
+            try { isAuto = histInput.matches(':-webkit-autofill') || histInput.matches(':autofill'); } catch (_) { }
             if (v === 'superuser' || isAuto) {
                 histInput.value = '';
                 historySearchQuery = '';
@@ -854,8 +854,8 @@ function playPageFlipSound() {
         }
         const snd = pageFlipFallbackAudio.cloneNode();
         snd.volume = 0.35;
-        snd.play().catch(() => {});
-    } catch (err) {}
+        snd.play().catch(() => { });
+    } catch (err) { }
 }
 
 function initTabs() {
@@ -949,7 +949,7 @@ function initCharts() {
                     boxPadding: 4,
                     usePointStyle: true,
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             return ` ${context.dataset.label}: ${context.parsed.y} ta`;
                         }
                     }
@@ -988,7 +988,7 @@ function initCharts() {
                 borderColor: 'rgba(255, 255, 255, 0.12)',
                 borderRadius: 8,
                 style: { color: '#ffffff', fontSize: '12px' },
-                formatter: function() {
+                formatter: function () {
                     const yVal = (Number.isFinite(this.y) && this.y >= 0) ? this.y : 0;
                     const pct = (Number.isFinite(this.percentage) && this.percentage >= 0) ? this.percentage.toFixed(1) : '0.0';
                     return `<b>${this.point.name}</b>: <b>${yVal} ta</b> (${pct}%)`;
@@ -1018,12 +1018,12 @@ function initCharts() {
                     },
                     point: {
                         events: {
-                            mouseOver: function() {
+                            mouseOver: function () {
                                 if (typeof setDistributionFocusHighlight === 'function') {
                                     setDistributionFocusHighlight(this.index, true);
                                 }
                             },
-                            mouseOut: function() {
+                            mouseOut: function () {
                                 if (typeof setDistributionFocusHighlight === 'function') {
                                     setDistributionFocusHighlight(this.index, false);
                                 }
@@ -1033,7 +1033,7 @@ function initCharts() {
                     dataLabels: {
                         enabled: true,
                         distance: 12,
-                        formatter: function() {
+                        formatter: function () {
                             const pct = (Number.isFinite(this.percentage) && this.percentage >= 0) ? this.percentage.toFixed(1) : '0.0';
                             return `<b style="color: #f8fafc; font-size: 11px;">${this.point.name}</b>: <span style="color: #38bdf8; font-weight: 600;">${pct}%</span>`;
                         },
@@ -1273,7 +1273,7 @@ function setChartMode(mode) {
     pieChartMode = mode === '2d' ? '2d' : '3d';
     try {
         localStorage.setItem('pie_chart_mode', pieChartMode);
-    } catch (e) {}
+    } catch (e) { }
 
     const el3D = document.getElementById('callDistributionChartContainer');
     const el2DBox = document.getElementById('callDistribution2DContainer');
@@ -1350,7 +1350,7 @@ function setDistributionType(type) {
     currentDistributionType = (type === 'calls') ? 'calls' : 'clients';
     try {
         localStorage.setItem('distribution_type', currentDistributionType);
-    } catch (e) {}
+    } catch (e) { }
 
     const btnClients = document.getElementById('btnDistTypeClients');
     const btnCalls = document.getElementById('btnDistTypeCalls');
@@ -1685,7 +1685,7 @@ function updateDistributionChartDisplay() {
         // 3. Ulanilmadi (qayta bog'lanishda ulanilmagan mijozlar)
         // 4. Chiquvchi (faqat chiquvchi orqali gaplashilgan mijozlar)
         // 5. Gaplashildi (qayta bog'lanib hal etilgan mijozlar)
-        
+
         let safeCbPending = cbPending;
         let safeCbUnreachable = cbUnreachable;
         let safeOutbound = outboundClients;
@@ -1781,7 +1781,7 @@ function initWebSocket() {
             } else if (typeof sendPresenceHeartbeat === 'function') {
                 sendPresenceHeartbeat(true);
             }
-        } catch (e) {}
+        } catch (e) { }
     };
 
     ws.onmessage = (event) => {
@@ -1864,7 +1864,7 @@ function sendPresenceHeartbeat(isDirectlyActive) {
             username: authU.username || '',
             role: authU.role || ''
         }));
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function getActiveTabName() {
@@ -1947,7 +1947,7 @@ async function fetchOnlineUsersList() {
                 }
             }
         }
-    } catch (_) {}
+    } catch (_) { }
 }
 window.fetchOnlineUsersList = fetchOnlineUsersList;
 
@@ -2171,7 +2171,7 @@ function initMultiplayerCursors() {
                 tab: getActiveTabName(),
                 pcName: getMyPcName()
             }));
-        } catch (err) {}
+        } catch (err) { }
     }, { passive: true });
 
     // Sichqoncha darchadan chiqqanda kursor holatini bildirish
@@ -2179,7 +2179,7 @@ function initMultiplayerCursors() {
         if (ws && ws.readyState === 1) {
             try {
                 ws.send(JSON.stringify({ type: 'cursor_leave' }));
-            } catch (err) {}
+            } catch (err) { }
         }
     });
 
@@ -2610,11 +2610,11 @@ function getAdminCallbackRelativeTime(dateStr) {
         const hour = parseInt(parts[3], 10);
         const min = parseInt(parts[4], 10);
         const sec = parts[5] ? parseInt(parts[5], 10) : 0;
-        
+
         // Target date in Tashkent timezone (UTC+5)
         const targetUtc = Date.UTC(year, month, day, hour - 5, min, sec);
         const diffSec = Math.floor((Date.now() - targetUtc) / 1000);
-        
+
         if (isNaN(diffSec) || diffSec < 0) return '';
         if (diffSec < 60) return typeof t === 'function' ? t('time_just_now', 'hozirgina') : 'hozirgina';
         const diffMin = Math.floor(diffSec / 60);
@@ -2883,7 +2883,7 @@ async function deleteCallback(id, event) {
 
     const confirmed = await showCustomConfirm({
         title: t('callback_delete_modal_title', "Mijozni o'chirish"),
-        message: targetPhone 
+        message: targetPhone
             ? `${targetPhone} raqamli mijozni ro'yxatdan o'chirishga ishonchingiz komilmi?`
             : t('callback_delete_confirm', "Ushbu mijozni ro'yxatdan o'chirishni tasdiqlaysizmi?"),
         okText: t('btn_delete_confirm_ok', "Ha, o'chirish"),
@@ -3103,7 +3103,7 @@ async function fetchCallbacksInitial() {
         if (json.success && Array.isArray(json.data)) {
             renderCallbacks(json.data);
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 fetchCallbacksInitial();
 
@@ -3253,7 +3253,7 @@ window.openClientDirectoryModal = openClientDirectoryModal;
 
 function updateStatsUI(stats) {
     if (!stats) return;
-    
+
     const totalCalls = stats.totalCalls !== undefined ? stats.totalCalls : ((stats.inboundCalls || 0) + (stats.outboundCalls || 0));
     const inboundCalls = stats.inboundCalls !== undefined ? stats.inboundCalls : totalCalls;
     const outboundCalls = stats.outboundCalls !== undefined ? stats.outboundCalls : 0;
@@ -3261,7 +3261,7 @@ function updateStatsUI(stats) {
     const abandonedCalls = stats.abandonedCalls !== undefined ? stats.abandonedCalls : 0;
     const deniedCalls = stats.deniedCalls !== undefined ? stats.deniedCalls : 0;
     const missedCalls = stats.missedCalls !== undefined ? stats.missedCalls : 0;
-    
+
     const answerRate = totalCalls > 0 ? Math.round((answeredCalls / totalCalls) * 100) : 0;
     const abandonedRate = inboundCalls > 0 ? Math.round((abandonedCalls / inboundCalls) * 100) : 0;
     const outboundRate = totalCalls > 0 ? Math.round((outboundCalls / totalCalls) * 100) : (stats.outboundRate !== undefined ? stats.outboundRate : 0);
@@ -3291,7 +3291,7 @@ function updateStatsUI(stats) {
     if (elDenied) elDenied.innerText = deniedCalls;
     if (elDenyRate) elDenyRate.innerText = `${denyRate}%`;
     if (elMissed) elMissed.innerText = missedCalls;
-    
+
     const queueWaiting = stats.queueWaitingTotal || 0;
     const kpiQueue = document.getElementById('kpiQueueWaiting');
     if (kpiQueue) kpiQueue.innerText = queueWaiting;
@@ -3340,11 +3340,11 @@ function updateStatsUI(stats) {
     }
 
     // Navbatdan chiqqanlarni kutilmoqda va gaplashildiga ajratish
-    const abandonedPending = stats.abandonedPendingCalls !== undefined 
-        ? stats.abandonedPendingCalls 
+    const abandonedPending = stats.abandonedPendingCalls !== undefined
+        ? stats.abandonedPendingCalls
         : (abandonedCalls > 0 ? Math.round(abandonedCalls * 0.38) : 0);
-    const abandonedResolved = stats.abandonedResolvedCalls !== undefined 
-        ? stats.abandonedResolvedCalls 
+    const abandonedResolved = stats.abandonedResolvedCalls !== undefined
+        ? stats.abandonedResolvedCalls
         : (abandonedCalls - abandonedPending);
 
     // Stats va taqsimot ma'lumotlarini saqlash va yangilash
@@ -3468,7 +3468,7 @@ function initWaveSurfer() {
         heroBtn.addEventListener('click', () => {
             const aud = getNativeAudio();
             if (aud.paused) {
-                aud.play().catch(() => {});
+                aud.play().catch(() => { });
             } else {
                 aud.pause();
             }
@@ -3481,7 +3481,7 @@ function initWaveSurfer() {
         btnRestart.addEventListener('click', () => {
             const aud = getNativeAudio();
             aud.currentTime = 0;
-            aud.play().catch(() => {});
+            aud.play().catch(() => { });
         });
     }
 
@@ -3572,36 +3572,36 @@ function initWaveSurfer() {
         });
     });
 
-function downloadCurrentPlayerAudio() {
-    const file = activeAudioFilePath;
-    if (!file) return;
-    const a = document.createElement('a');
-    a.href = `/api/recordings/stream?file=${encodeURIComponent(file)}&download=1`;
-    
-    let rawName = '';
-    if (file) {
-        rawName = file.split('/').pop().split('\\').pop();
+    function downloadCurrentPlayerAudio() {
+        const file = activeAudioFilePath;
+        if (!file) return;
+        const a = document.createElement('a');
+        a.href = `/api/recordings/stream?file=${encodeURIComponent(file)}&download=1`;
+
+        let rawName = '';
+        if (file) {
+            rawName = file.split('/').pop().split('\\').pop();
+        }
+        if (!rawName || !rawName.includes('.')) {
+            const cleanTitle = (activeAudioFileName || '')
+                .replace(/<[^>]*>/g, '')
+                .replace(/[^\w\s\(\)\-\.]/gi, '_')
+                .replace(/\s+/g, ' ')
+                .trim();
+            rawName = cleanTitle || 'recording.wav';
+        }
+        if (!rawName.endsWith('.wav') && !rawName.endsWith('.mp3') && !rawName.endsWith('.ogg')) {
+            rawName += '.wav';
+        }
+
+        a.download = rawName;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            if (a.parentNode) document.body.removeChild(a);
+        }, 150);
     }
-    if (!rawName || !rawName.includes('.')) {
-        const cleanTitle = (activeAudioFileName || '')
-            .replace(/<[^>]*>/g, '')
-            .replace(/[^\w\s\(\)\-\.]/gi, '_')
-            .replace(/\s+/g, ' ')
-            .trim();
-        rawName = cleanTitle || 'recording.wav';
-    }
-    if (!rawName.endsWith('.wav') && !rawName.endsWith('.mp3') && !rawName.endsWith('.ogg')) {
-        rawName += '.wav';
-    }
-    
-    a.download = rawName;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-        if (a.parentNode) document.body.removeChild(a);
-    }, 150);
-}
-window.downloadCurrentPlayerAudio = downloadCurrentPlayerAudio;
+    window.downloadCurrentPlayerAudio = downloadCurrentPlayerAudio;
 
     // Download Button in player
     const btnDownloadCurrent = document.getElementById('btnDownloadCurrentAudio');
@@ -3722,7 +3722,7 @@ function initAudioKeyboardShortcuts() {
             if (!e.altKey && !e.metaKey && !e.ctrlKey) {
                 e.preventDefault();
                 if (aud.paused) {
-                    aud.play().catch(() => {});
+                    aud.play().catch(() => { });
                 } else {
                     aud.pause();
                 }
@@ -3995,7 +3995,7 @@ function updateBreadcrumbs(subPath) {
     const parts = subPath ? subPath.split('/').filter(Boolean) : [];
 
     let html = `<span class="breadcrumb-item ${parts.length === 0 ? 'active' : ''}" onclick="loadExplorerPath('', true)">${isax('folder')} monitor</span>`;
-    
+
     let accumulated = '';
     parts.forEach((p, idx) => {
         accumulated = accumulated ? `${accumulated}/${p}` : p;
@@ -4150,8 +4150,8 @@ function filterExplorerItems(query) {
             const filteredFolders = explorerDirectoriesData.filter(d => {
                 const meta = getExplorerFolderMeta(d.name, currentPath);
                 return d.name.toLowerCase().includes(q) ||
-                       meta.displayName.toLowerCase().includes(q) ||
-                       meta.subtitle.toLowerCase().includes(q);
+                    meta.displayName.toLowerCase().includes(q) ||
+                    meta.subtitle.toLowerCase().includes(q);
             });
             renderExplorerFolders(filteredFolders, currentPath);
         }
@@ -4253,8 +4253,8 @@ function renderInteractiveWaveform(audio, fileName, sizeBytes) {
     const cssProp = (prop, fallback) => {
         const playerCard = document.getElementById('modernMusicPlayer');
         return (playerCard ? getComputedStyle(playerCard).getPropertyValue(prop).trim() : '') ||
-               getComputedStyle(document.documentElement).getPropertyValue(prop).trim() ||
-               fallback;
+            getComputedStyle(document.documentElement).getPropertyValue(prop).trim() ||
+            fallback;
     };
 
     let hover = null;
@@ -4346,7 +4346,7 @@ function renderInteractiveWaveform(audio, fileName, sizeBytes) {
 
     canvas.onpointerdown = (e) => {
         drag = true;
-        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
         seekToX(relX(e));
     };
 
@@ -4388,7 +4388,7 @@ function renderInteractiveWaveform(audio, fileName, sizeBytes) {
             drawWave();
         } else if (e.key === ' ') {
             e.preventDefault();
-            if (audio.paused) audio.play().catch(() => {});
+            if (audio.paused) audio.play().catch(() => { });
             else audio.pause();
         }
     };
@@ -4469,7 +4469,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
 
     try {
         audio.pause();
-    } catch (e) {}
+    } catch (e) { }
     audio.currentTime = 0;
     audio.src = streamUrl;
 
@@ -4525,7 +4525,7 @@ function playAudioFile(fileName, filePath, sizeBytes = 0, switchTab = false) {
     audio.onended = () => {
         if (isAudioLooped) {
             audio.currentTime = 0;
-            audio.play().catch(() => {});
+            audio.play().catch(() => { });
         } else {
             updatePlayerPlayState(false);
             if (subtitle) subtitle.innerText = t('aud_playback_ended', 'Ijro yakunlandi');
@@ -4636,7 +4636,7 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
 
     try {
         audio.pause();
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Eskisi ko'rinib qolmasligi uchun DARHOL loading rejimiga o'tkazamiz
     if (playerCard) {
@@ -4702,7 +4702,7 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
                 matchedRecording = fastRes.recording;
                 matchedDuration = fastRes.duration || duration;
             }
-        } catch (fastErr) {}
+        } catch (fastErr) { }
 
         // 2-bosqich: Agar tezkor indeksda bo'lmasa, CDR bazasidan qidirish
         if (!matchedRecording) {
@@ -4902,8 +4902,8 @@ function renderActiveConversations(conversations) {
 
         // Operator nomidan takroriy (111) yoki (ext) ni tozalash: "Nozima (111)" -> "Nozima"
         let cleanOp = (c.operator || 'Operator').replace(/\s*\(\d+\)\s*$/, '').trim();
-        const opText = isQueue 
-            ? t('live_badge_queue', 'Navbatda kutmoqda') 
+        const opText = isQueue
+            ? t('live_badge_queue', 'Navbatda kutmoqda')
             : (c.operatorExten ? `${cleanOp} · ${c.operatorExten}` : cleanOp);
 
         // Davomiylik (Start Time) hisoblash:
@@ -4944,26 +4944,26 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge pill p-w" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
+            <span class="cc-op-sim-badge" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3.5px; font-size: 11px; font-weight: 500; padding: 1.5px 6px; border-radius: 6px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2; flex-shrink: 0;">
                 <svg class="isax isax-simcard" style="width: 10px; height: 10px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
 
-        // Subtext: e.g. "Gulchehra · 106 · Kiruvchi" (Variant A)
-        const subtext = `${opText} · ${tagText}`;
+        // Subtext: Faqat "Operator · ichki raqam" ("Kiruvchi" olib tashlandi, chapdagi belgi aytib turibdi)
+        const subtext = opText;
 
         const iconType = isTalking ? 'talking' : (isOutbound ? 'outbound' : 'ringing');
         const iconSymbol = isOutbound ? 'isax-call' : 'isax-call-incoming';
         const iconHtml = `
             <div class="cc-call-icon ${iconType}" title="${tagText}">
-                <svg class="isax ${iconSymbol}" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
+                <svg class="isax ${iconSymbol}" style="width: 18px; height: 18px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
             </div>
         `;
 
         const durationHtml = `
-            <span class="cc-live-duration-wrap pill mono" style="font-size: 11.5px; font-weight: 600; padding: 3px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.28); display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
-                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+            <span class="cc-live-duration-wrap" title="Suhbat davomiyligi">
+                <svg class="isax isax-timer" style="width: 12px; height: 12px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                 <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
             </span>
         `;
@@ -4982,9 +4982,9 @@ function renderActiveConversations(conversations) {
                 const svgUse = iconEl.querySelector('use');
                 if (svgUse) svgUse.setAttribute('href', `/icons/iconsax/iconsax-sprite.svg#${iconSymbol}`);
             }
-            const phoneEl = existingCard.querySelector('.cc-phone-row');
-            if (phoneEl) {
-                phoneEl.innerHTML = `<span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>${opBadgeHtml}`;
+            const phoneRowEl = existingCard.querySelector('.cc-phone-row');
+            if (phoneRowEl) {
+                phoneRowEl.innerHTML = `<span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>${opBadgeHtml}`;
             }
             const subEl = existingCard.querySelector('.sub');
             if (subEl) {
@@ -5007,19 +5007,21 @@ function renderActiveConversations(conversations) {
             cardEl.innerHTML = `
                 ${iconHtml}
                 <div class="cc-call-info">
-                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 6px;">
+                    <div class="cc-phone-row">
                         <span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>
                         ${opBadgeHtml}
                     </div>
-                    <div class="sub">${subtext}</div>
+                    <div class="cc-sub-row">
+                        <span class="sub">${subtext}</span>
+                        ${durationHtml}
+                    </div>
                 </div>
-                ${durationHtml}
                 <div class="cc-call-actions">
                     <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}" aria-label="O'tkazish">
-                        <svg class="isax isax-arrow-swap-horizontal" style="width: 14px; height: 14px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                        <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                     </button>
                     <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}" aria-label="Tugatish">
-                        <svg class="isax isax-call-remove" style="width: 14px; height: 14px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
+                        <svg class="isax isax-call-remove" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
                     </button>
                 </div>
             `;
@@ -5051,7 +5053,7 @@ function renderQueues(queues) {
     currentQueues = queues || [];
     const listEl = document.getElementById('queueItemsList');
     const countBadge = document.getElementById('queueCountBadge');
-    
+
     let totalWaiters = 0;
     let allWaiters = [];
 
@@ -5248,7 +5250,7 @@ try {
     if (savedGroup && ['main', 'secondary', 'all'].includes(savedGroup)) {
         currentOperatorGroup = savedGroup;
     }
-} catch (e) {}
+} catch (e) { }
 
 function switchOperatorGroup(group) {
     if (!['main', 'secondary', 'all'].includes(group)) return;
@@ -5257,7 +5259,7 @@ function switchOperatorGroup(group) {
     currentOperatorGroup = group;
     try {
         localStorage.setItem('callcenter_op_group', group);
-    } catch (e) {}
+    } catch (e) { }
 
     document.querySelectorAll('.op-group-btn').forEach(btn => {
         if (btn.getAttribute('data-group') === group) {
@@ -5449,14 +5451,14 @@ function updateAllTalkingTimers() {
         const since = parseInt(el.getAttribute('data-talking-since'), 10);
         if (!since || isNaN(since)) return;
         const diffSec = Math.max(0, Math.floor((now - since) / 1000));
-        
+
         const m = Math.floor(diffSec / 60);
         const s = diffSec % 60;
         const h = Math.floor(m / 60);
-        const display = h > 0 
+        const display = h > 0
             ? `${h}:${String(m % 60).padStart(2, '0')}:${String(s).padStart(2, '0')}`
             : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        
+
         const digitsEl = el.querySelector('.timer-digits');
         if (digitsEl) {
             digitsEl.textContent = display;
@@ -5683,7 +5685,7 @@ function getBronzeWreathBadgeHtml() {
     return getSilverWreathBadgeHtml();
 }
 
-window.toggleOperatorPause = async function(operatorId, shouldPause, event) {
+window.toggleOperatorPause = async function (operatorId, shouldPause, event) {
     if (event) {
         event.stopPropagation();
         event.preventDefault();
@@ -5703,8 +5705,8 @@ window.toggleOperatorPause = async function(operatorId, shouldPause, event) {
         });
         const res = await resp.json();
         if (res.success) {
-            const toastMsg = shouldPause 
-                ? `${opName} (${cleanId}) tanaffusga (pauzaga) qo'yildi` 
+            const toastMsg = shouldPause
+                ? `${opName} (${cleanId}) tanaffusga (pauzaga) qo'yildi`
                 : `${opName} (${cleanId}) pauzadan chiqarildi va ishga qaytdi`;
             if (typeof showBlacklistToast === 'function') {
                 showBlacklistToast(toastMsg, shouldPause ? 'info' : 'success');
@@ -5938,8 +5940,8 @@ function renderOperators(operators) {
     if (elAgent) elAgent.innerText = `${countAgentOnline} ta`;
 
     if (!currentOperators || currentOperators.length === 0) {
-        const groupLabel = currentOperatorGroup === 'secondary' 
-            ? "Zangiota 42 (200+)" 
+        const groupLabel = currentOperatorGroup === 'secondary'
+            ? "Zangiota 42 (200+)"
             : (currentOperatorGroup === 'main' ? "Asosiy" : "operatorlar");
         grid.innerHTML = `
             <div style="color: var(--text-muted); font-size: 13px; padding: 24px; text-align: center; grid-column: 1 / -1;">
@@ -6104,8 +6106,8 @@ function renderOperators(operators) {
 
         const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
         const isMaxmudbek = (String(op.id) === '114' || cleanName.toLowerCase().includes('maxmudbek'));
-        const avatarClickAttr = isMaxmudbek 
-            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"` 
+        const avatarClickAttr = isMaxmudbek
+            ? `onclick="if(window.handleMaxmudbekClick){handleMaxmudbekClick(event);}" title="Maxmudbek • Qora ro'yxat (Blacklist) boshqaruvi"`
             : '';
 
         // Jonli suhbat bloki (Call strip)
@@ -6129,7 +6131,7 @@ function renderOperators(operators) {
             const initM = Math.floor(initialDiffSec / 60);
             const initS = initialDiffSec % 60;
             const initH = Math.floor(initM / 60);
-            const initialDisplay = initH > 0 
+            const initialDisplay = initH > 0
                 ? `${initH}:${String(initM % 60).padStart(2, '0')}:${String(initS).padStart(2, '0')}`
                 : `${String(initM).padStart(2, '0')}:${String(initS).padStart(2, '0')}`;
 
@@ -6273,8 +6275,8 @@ function renderOperators(operators) {
             offlineContentHtml = `
                 <div class="op-offs" id="opOfflineGrid">
                     ${offlineOperators.map(o => {
-                        const cName = getCleanOperatorName(o.realName || o.name, o.id);
-                        return `
+                const cName = getCleanOperatorName(o.realName || o.name, o.id);
+                return `
                             <div class="row" data-op-id="${o.id}" data-flip-id="op-${o.id}" onclick="openOperatorDetail('${o.id}')" title="${cName} tafsilotlarini ko'rish uchun bosing">
                                 <div class="av">${o.id}</div>
                                 <div class="who">
@@ -6284,7 +6286,7 @@ function renderOperators(operators) {
                                 <span class="tag ${o.agentConnected ? 'on' : ''}">Agent: ${o.agentConnected ? 'faol' : "o'chiq"}</span>
                             </div>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
         } else {
@@ -6456,7 +6458,7 @@ window.setHistoryScope = setHistoryScope;
 
 function setHistorySource(source) {
     historyDataSource = (source === 'server') ? 'server' : 'agent';
-    
+
     const btnAgent = document.getElementById('btnHistorySourceAgent');
     const btnServer = document.getElementById('btnHistorySourceServer');
     const badge = document.getElementById('historySourceBadge');
@@ -6518,7 +6520,7 @@ function initHistoryPagination() {
             if (input && input.value) {
                 const val = input.value.trim().toLowerCase();
                 let isAuto = false;
-                try { isAuto = input.matches(':-webkit-autofill') || input.matches(':autofill'); } catch (_) {}
+                try { isAuto = input.matches(':-webkit-autofill') || input.matches(':autofill'); } catch (_) { }
                 if (val === 'superuser' || isAuto) {
                     input.value = '';
                     historySearchQuery = '';
@@ -6753,9 +6755,9 @@ function applyHistoryFilters() {
         if (dirVal !== 'all') {
             const isXfer = item.direction === 'transfer' || (item.hangupParty && item.hangupParty.toLowerCase().includes('transfer'));
             const isOut = (item.direction === 'outbound' ||
-                          item.category_3cx === 'Dialled' ||
-                          item.status === 'OUTBOUND' ||
-                          item.status === 'DIALLED') && !isXfer;
+                item.category_3cx === 'Dialled' ||
+                item.status === 'OUTBOUND' ||
+                item.status === 'DIALLED') && !isXfer;
             if (dirVal === 'transfer' && !isXfer) return false;
             if (dirVal === 'inbound' && (isOut || isXfer)) return false;
             if (dirVal === 'outbound' && (!isOut || isXfer)) return false;
@@ -6865,7 +6867,7 @@ async function loadClientContacts() {
         const json = await res.json();
         const list = Array.isArray(json) ? json : (json.data || []);
         setClientContactsList(list);
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function handleWsClientContactUpdate(data) {
@@ -7292,7 +7294,7 @@ async function handleAdminClientSubmit(e) {
             if (origPhone && origPhone !== phone) {
                 try {
                     await fetch(`/api/contacts/${encodeURIComponent(origPhone)}`, { method: 'DELETE' });
-                } catch (_) {}
+                } catch (_) { }
             }
 
             closeAdminClientModal();
@@ -7547,7 +7549,7 @@ function renderAgentHistoryTable(data) {
         const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
         const isChecked = selectedHistoryKeys.has(uniqueRowKey);
         if (isChecked) rowClass += ' row-selected';
-        
+
         let statusBadge = '';
         if (isOut) {
             if (durSec > 0) {
@@ -7565,8 +7567,8 @@ function renderAgentHistoryTable(data) {
             statusBadge = `<span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 4px;"><span class="dot" style="--c: var(--wait, #f2b035); margin: 0;"></span> ${item.status_name || item.status}</span>`;
         }
 
-        const dirBadge = isOut 
-            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+        const dirBadge = isOut
+            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
             : `<span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`;
 
         let timeHtml = '';
@@ -7593,7 +7595,7 @@ function renderAgentHistoryTable(data) {
         const isThisPaused = pausedCallKey === callKey;
         const isThisSearching = activeSearchingCallerId === (item.caller_id || '');
 
-        const playBtnText = isThisSearching 
+        const playBtnText = isThisSearching
             ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
             : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
@@ -7652,8 +7654,8 @@ function renderAgentHistoryTable(data) {
             hangupPartyDisplay = `<span style="color: var(--mute, #8d9bb0);">${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
         }
 
-        const hostDisplay = item.hostname 
-            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>` 
+        const hostDisplay = item.hostname
+            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>`
             : `<span style="color: var(--mute, #8d9bb0);">Desktop</span>`;
 
         return `
@@ -7727,8 +7729,8 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
 
     const dirBadge = isXfer
         ? `<span class="badge badge-cyan" style="display: inline-flex; align-items: center; gap: 4px;">${isax('refresh', '', 'width: 12px; height: 12px;')} ${t('dir_transfer', 'transfer')}</span>`
-        : (isOut 
-            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>` 
+        : (isOut
+            ? `<span class="badge badge-purple" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
             : `<span class="badge badge-info" style="display: inline-flex; align-items: center; gap: 4px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
     let timeHtml = '';
@@ -7763,7 +7765,7 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
     const isThisPaused = pausedCallKey === callKey;
     const isThisSearching = activeSearchingCallerId === (item.callerId || '');
 
-    const playBtnText = isThisSearching 
+    const playBtnText = isThisSearching
         ? `${isax('timer')} ` + t('dyn_searching', 'Qidirilmoqda...')
         : (isThisPlaying ? `${isax('pause', '', 'width: 12px; height: 12px;')} ` + t('dyn_pause', "To'xtatish") : (isThisPaused ? `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_resume', 'Davom ettirish') : `${isax('play', '', 'width: 12px; height: 12px;')} ` + t('dyn_listen', 'Tinglash')));
 
@@ -7822,8 +7824,8 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
     const dirIcon = isOut ? '↗' : (isXfer ? '⇄' : '↙');
     const dirClass = isOut ? 'out' : (isXfer ? 'xfer' : 'in');
 
-    const hostDisplay = item.hostname 
-        ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>` 
+    const hostDisplay = item.hostname
+        ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>`
         : `<span style="color: var(--mute, #8d9bb0);">—</span>`;
 
     return `
@@ -8115,7 +8117,7 @@ async function downloadSelectedHistoryAudio() {
                             knownRecordingsCache.set(callKey, resolvedFile);
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (!resolvedFile) {
@@ -8250,7 +8252,7 @@ async function openCallTranscription(recFile, callerId, duration, time, btn) {
                     audioEl.load();
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     try {
@@ -8260,7 +8262,7 @@ async function openCallTranscription(recFile, callerId, duration, time, btn) {
         if (learnedEl && statsData.success) {
             learnedEl.textContent = statsData.learnedWordsCount ?? statsData.totalWords ?? '0';
         }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
         const res = await fetch('/api/recordings/transcribe', {
@@ -8462,7 +8464,7 @@ async function reprocessSttWithAi() {
                     const el = document.getElementById('sttLearnedWordsCount');
                     if (el) el.textContent = count;
                 }
-            } catch (e) {}
+            } catch (e) { }
             alert('AI muvaffaqiyatli o‘qitildi va matn yangilandi!');
         } else {
             alert(data.error || 'Qayta ishlash xatosi');
@@ -8619,8 +8621,8 @@ async function renderBatchSttModalUI() {
                 const dur = Math.round(Number(item.duration) || 0);
                 const callerKey = item.callerId && dur ? `${item.callerId}_${dur}` : '';
                 const cleanCaller = item.callerId ? String(item.callerId).replace(/[^0-9]/g, '') : '';
-                if (checkData.map[item.rowKey] || 
-                    (item.recording && checkData.map[item.recording]) || 
+                if (checkData.map[item.rowKey] ||
+                    (item.recording && checkData.map[item.recording]) ||
                     (recBase && checkData.map[recBase]) ||
                     (callerKey && checkData.map[callerKey]) ||
                     (cleanCaller && dur && checkData.map[`${cleanCaller}_${dur}`]) ||
@@ -8630,7 +8632,7 @@ async function renderBatchSttModalUI() {
                 }
             });
         }
-    } catch (e) {}
+    } catch (e) { }
 
     const total = batchSttItems.length;
     const cached = batchSttItems.filter(i => i.isCached).length;
@@ -9291,7 +9293,7 @@ async function cancelAudioZipJob(skipPrompt = false) {
 
     try {
         await fetch(`/api/recordings/zip-jobs/${activeZipJobId}/cancel`, { method: 'POST' });
-    } catch (e) {}
+    } catch (e) { }
 
     if (zipJobPollInterval) {
         clearInterval(zipJobPollInterval);
@@ -9352,8 +9354,8 @@ function updateRecentOperatorsDataList() {
         currentOperators.forEach(op => {
             const opId = String(op.id || '').trim();
             if (!opId) return;
-            const clean = typeof getCleanOperatorName === 'function' 
-                ? getCleanOperatorName(op.realName || op.name, opId) 
+            const clean = typeof getCleanOperatorName === 'function'
+                ? getCleanOperatorName(op.realName || op.name, opId)
                 : (op.realName || op.name || `Operator ${opId}`);
             opMap.set(opId, `${clean} (${opId})`);
         });
@@ -9363,8 +9365,8 @@ function updateRecentOperatorsDataList() {
     if (Array.isArray(dashboardRecentCallsList)) {
         dashboardRecentCallsList.forEach(c => {
             if (c.operator) {
-                const formatted = typeof formatOperatorDisplayName === 'function' 
-                    ? formatOperatorDisplayName(c.operator) 
+                const formatted = typeof formatOperatorDisplayName === 'function'
+                    ? formatOperatorDisplayName(c.operator)
                     : String(c.operator);
                 const m = formatted.match(/\((\d+)\)/);
                 const opId = m ? m[1] : String(c.operator).trim();
@@ -9476,11 +9478,11 @@ function applyDashboardRecentFilters(resetPage = false) {
             const opFormatted = String(typeof formatOperatorDisplayName === 'function' ? formatOperatorDisplayName(item.operator) : '').toLowerCase();
             const callerRaw = String(item.callerId || '').toLowerCase();
 
-            const match = opRaw.includes(opVal) || 
-                          opFormatted.includes(opVal) || 
-                          callerRaw.includes(opVal) ||
-                          opVal.includes(opRaw) || 
-                          (opFormatted && opVal.includes(opFormatted));
+            const match = opRaw.includes(opVal) ||
+                opFormatted.includes(opVal) ||
+                callerRaw.includes(opVal) ||
+                opVal.includes(opRaw) ||
+                (opFormatted && opVal.includes(opFormatted));
             if (!match) {
                 return false;
             }
@@ -9655,8 +9657,8 @@ function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered
 
             // Caller Phone
             const callerKey = `rec_${item.recording || ''}_${item.callerId || ''}_${item.time || index}`;
-            const callerHtml = typeof renderExpandableCallerHtml === 'function' 
-                ? renderExpandableCallerHtml(item.callerId, callerKey) 
+            const callerHtml = typeof renderExpandableCallerHtml === 'function'
+                ? renderExpandableCallerHtml(item.callerId, callerKey)
                 : (item.callerId || '');
 
             // Operator
@@ -9673,7 +9675,7 @@ function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered
             const waitSecVal = item.waitSec || 0;
             const waitCellHtml = isOut
                 ? `<td class="mut">—</td>`
-                : (waitSecVal > 30 
+                : (waitSecVal > 30
                     ? `<td class="slow">${formatSeconds(waitSecVal)}</td>`
                     : `<td>${formatSeconds(waitSecVal)}</td>`);
 
@@ -9706,12 +9708,12 @@ function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered
             const isThisPaused = typeof pausedCallKey !== 'undefined' && pausedCallKey === callKey;
             const isThisSearching = typeof activeSearchingCallerId !== 'undefined' && activeSearchingCallerId === item.callerId;
 
-            const playBtnText = isThisSearching 
+            const playBtnText = isThisSearching
                 ? `${isax('timer', '', 'width: 12px; height: 12px;')} Qidirilmoqda...`
-                : (isThisPlaying 
-                    ? `${isax('pause', '', 'width: 12px; height: 12px;')} To‘xtatish` 
-                    : (isThisPaused 
-                        ? `${isax('play', '', 'width: 12px; height: 12px;')} Davom` 
+                : (isThisPlaying
+                    ? `${isax('pause', '', 'width: 12px; height: 12px;')} To‘xtatish`
+                    : (isThisPaused
+                        ? `${isax('play', '', 'width: 12px; height: 12px;')} Davom`
                         : `${isax('play', '', 'width: 12px; height: 12px;')} Tinglash`));
 
             const audioActionHtml = hasAudio
@@ -9788,7 +9790,7 @@ async function playDashboardRecording(recFile, callerId, duration, btn) {
         currentlyPlayingBtn = btn;
         audio.play().then(() => {
             updatePlayerPlayState(true);
-        }).catch(() => {});
+        }).catch(() => { });
         refreshAllActiveTables();
         return;
     }
@@ -9798,13 +9800,13 @@ async function playDashboardRecording(recFile, callerId, duration, btn) {
     try {
         audio.pause();
         audio.currentTime = 0;
-    } catch (e) {}
+    } catch (e) { }
 
     // Avvalgi qidiruvni bekor qilish (Abort)
     if (activeRecordingSearchController) {
         try {
             activeRecordingSearchController.abort();
-        } catch (e) {}
+        } catch (e) { }
         activeRecordingSearchController = null;
     }
     activeSearchingCallerId = null;
@@ -9839,7 +9841,7 @@ async function playDashboardRecording(recFile, callerId, duration, btn) {
                 matchedRecording = fastRes.recording;
                 matchedDuration = fastRes.duration || duration;
             }
-        } catch (fastErr) {}
+        } catch (fastErr) { }
 
         // 2-bosqich: Agar tezkor indeksdan topilmasa, CDR bazasidan qidirish
         if (!matchedRecording) {
@@ -10181,69 +10183,69 @@ function renderDetailTableBody() {
             </thead>
             <tbody>
                 ${calls.map((c, index) => {
-                    const rowNum = index + 1;
-                    const isAns = c.status === 'ANSWERED';
-                    const isOut = c.direction === 'outbound';
-                    const isXfer = c.direction === 'transfer' || 
-                        (c.hangupParty && String(c.hangupParty).toLowerCase().includes('transfer')) || 
-                        (c.operator && (c.operator.includes('➔') || c.operator.includes('->') || c.operator.includes('→')));
+        const rowNum = index + 1;
+        const isAns = c.status === 'ANSWERED';
+        const isOut = c.direction === 'outbound';
+        const isXfer = c.direction === 'transfer' ||
+            (c.hangupParty && String(c.hangupParty).toLowerCase().includes('transfer')) ||
+            (c.operator && (c.operator.includes('➔') || c.operator.includes('->') || c.operator.includes('→')));
 
-                    let durText = '';
-                    if (detailState.type === 'abandoned') {
-                        durText = `<span style="font-weight: 700; color: #fbbf24; font-family: monospace; font-size: 13px;">${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
-                    } else if (isXfer) {
-                        durText = `<span style="font-weight: 700; color: #c084fc;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`;
-                    } else if (isOut) {
-                        durText = isAns
-                            ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
-                            : `<span style="font-weight: 500; color: #f87171;">${t('wait_prefix', 'Chaqiruv:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
-                    } else {
-                        durText = isAns
-                            ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
-                            : `<span style="font-weight: 500; color: #fbbf24;">${t('wait_prefix', 'Kutgan:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
-                    }
+        let durText = '';
+        if (detailState.type === 'abandoned') {
+            durText = `<span style="font-weight: 700; color: #fbbf24; font-family: monospace; font-size: 13px;">${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+        } else if (isXfer) {
+            durText = `<span style="font-weight: 700; color: #c084fc;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`;
+        } else if (isOut) {
+            durText = isAns
+                ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
+                : `<span style="font-weight: 500; color: #f87171;">${t('wait_prefix', 'Chaqiruv:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+        } else {
+            durText = isAns
+                ? `<span style="font-weight: 700; color: #34d399;">${t('talk_prefix', 'Suhbat:')} ${formatSeconds(c.duration)}</span>`
+                : `<span style="font-weight: 500; color: #fbbf24;">${t('wait_prefix', 'Kutgan:')} ${formatSeconds(c.waitSec || c.duration || 0)}</span>`;
+        }
 
-                    let statusBadge = '';
-                    if (isXfer) {
-                        statusBadge = `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 10px; height: 10px; color: #c084fc;')} ${t('status_transferred', 'Transfer qilingan')}</span>`;
-                    } else if (isOut) {
-                        if (isAns) {
-                            statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('kpi_answered_calls', 'Muvaffaqiyatli')}</span>`;
-                        } else if (c.status === 'BUSY') {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
-                        } else {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('call-slash', '', 'width: 11px; height: 11px;')} ${t('status_no_answer', 'Javobsiz')}</span>`;
-                        }
-                    } else {
-                        if (isAns) {
-                            statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>`;
-                        } else if (c.status === 'BUSY') {
-                            statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
-                        } else {
-                            statusBadge = `<span class="badge badge-warning" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
-                        }
-                    }
+        let statusBadge = '';
+        if (isXfer) {
+            statusBadge = `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 10px; height: 10px; color: #c084fc;')} ${t('status_transferred', 'Transfer qilingan')}</span>`;
+        } else if (isOut) {
+            if (isAns) {
+                statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('kpi_answered_calls', 'Muvaffaqiyatli')}</span>`;
+            } else if (c.status === 'BUSY') {
+                statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-danger" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #fca5a5; display: inline-flex; align-items: center; gap: 4px;">${isax('call-slash', '', 'width: 11px; height: 11px;')} ${t('status_no_answer', 'Javobsiz')}</span>`;
+            }
+        } else {
+            if (isAns) {
+                statusBadge = `<span class="badge badge-success" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('tick-circle')} ${t('status_answered', 'Javob berilgan')}</span>`;
+            } else if (c.status === 'BUSY') {
+                statusBadge = `<span class="badge badge-danger" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('close-circle')} ${t('status_busy', 'Band')}</span>`;
+            } else {
+                statusBadge = `<span class="badge badge-warning" style="font-size: 10px; display: inline-flex; align-items: center; gap: 4px;">${isax('timer')} ${t('status_abandoned', 'Navbatdan chiqdi')}</span>`;
+            }
+        }
 
-                    const directionBadge = isXfer
-                        ? `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 11px; height: 11px; color: #c084fc;')} ${t('dir_transfer', 'Transfer')}</span>`
-                        : (isOut
-                            ? `<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
-                            : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
+        const directionBadge = isXfer
+            ? `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #e9d5ff; border: 1px solid rgba(168, 85, 247, 0.5); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px;">${isax('arrow-swap-horizontal', '', 'width: 11px; height: 11px; color: #c084fc;')} ${t('dir_transfer', 'Transfer')}</span>`
+            : (isOut
+                ? `<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px;"><i class="badge-dir-icon outbound"></i> ${t('dir_outbound', 'chiquvchi')}</span>`
+                : `<span class="badge badge-info" style="font-size: 10px;"><i class="badge-dir-icon inbound"></i> ${t('dir_inbound', 'kiruvchi')}</span>`);
 
-                    let rowStyle = '';
-                    if (isXfer) {
-                        rowStyle = 'background: rgba(168, 85, 247, 0.14); border-left: 4px solid #c084fc; box-shadow: inset 0 0 16px rgba(168, 85, 247, 0.08);';
-                    } else if (isOut) {
-                        rowStyle = 'background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8;';
-                    } else if (!isAns) {
-                        rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
-                    }
+        let rowStyle = '';
+        if (isXfer) {
+            rowStyle = 'background: rgba(168, 85, 247, 0.14); border-left: 4px solid #c084fc; box-shadow: inset 0 0 16px rgba(168, 85, 247, 0.08);';
+        } else if (isOut) {
+            rowStyle = 'background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8;';
+        } else if (!isAns) {
+            rowStyle = 'background: rgba(245, 158, 11, 0.10); border-left: 3px solid #f59e0b;';
+        }
 
-                    let hangupDisplay = formatHangupParty(c.hangupParty, isXfer);
-                    const callerKey = `opmodal_${c.recording || ''}_${c.callerId || ''}_${c.time || index}`;
-                    const isExpCaller = isCallerExpanded(callerKey);
+        let hangupDisplay = formatHangupParty(c.hangupParty, isXfer);
+        const callerKey = `opmodal_${c.recording || ''}_${c.callerId || ''}_${c.time || index}`;
+        const isExpCaller = isCallerExpanded(callerKey);
 
-                    return `
+        return `
                         <tr style="${rowStyle}">
                             <td style="color: var(--text-dim); font-size: 12px; font-weight: 600; text-align: center; width: 45px;">${rowNum}</td>
                             <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">${new Date(c.time).toLocaleTimeString('uz-UZ', { hour12: false, timeZone: 'Asia/Tashkent' })}</td>
@@ -10256,12 +10258,12 @@ function renderDetailTableBody() {
                             <td style="white-space: nowrap;">${directionBadge}</td>
                             <td style="white-space: nowrap;">
                                 ${(c.operator || '').includes('IVR') || (c.operator || '').includes('Avtojavob') || (c.operator || '').includes('Navbatga kirmasdan')
-                                    ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">${(c.operator || '').includes('Navbatga kirmasdan') ? isax('logout', '', 'width: 12px; height: 12px;') : isax('cpu', '', 'width: 12px; height: 12px;')} ${c.operator}</span>`
-                                    : (isXfer
-                                        ? `<span style="font-weight: 700; color: #e9d5ff; display: inline-flex; align-items: center; gap: 6px; background: rgba(168, 85, 247, 0.16); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(168, 85, 247, 0.35);">${isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px; color: #c084fc;')} ${c.operator}</span>`
-                                        : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
-                                    )
-                                }
+                ? `<span style="color: #94a3b8; font-style: italic; display: inline-flex; align-items: center; gap: 4px;">${(c.operator || '').includes('Navbatga kirmasdan') ? isax('logout', '', 'width: 12px; height: 12px;') : isax('cpu', '', 'width: 12px; height: 12px;')} ${c.operator}</span>`
+                : (isXfer
+                    ? `<span style="font-weight: 700; color: #e9d5ff; display: inline-flex; align-items: center; gap: 6px; background: rgba(168, 85, 247, 0.16); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(168, 85, 247, 0.35);">${isax('arrow-swap-horizontal', '', 'width: 12px; height: 12px; color: #c084fc;')} ${c.operator}</span>`
+                    : `<span style="font-weight: 600; color: var(--text-main);">${c.operator}</span>`
+                )
+            }
                             </td>
                             <td style="white-space: nowrap;">${durText}</td>
                             <td style="white-space: nowrap;">${statusBadge}</td>
@@ -10275,7 +10277,7 @@ function renderDetailTableBody() {
                             </td>
                         </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
     `;
@@ -10600,7 +10602,7 @@ async function loadAgentLogs(page = 1) {
             const rowNum = (json.page - 1) * 50 + index + 1;
             const opName = opNames[String(r.operator_id)] || `Operator ${r.operator_id}`;
             const opDisplay = `${opName} (${r.operator_id})`;
-            
+
             let typeBadge = '';
             const evtType = (r.event_type || '').toUpperCase();
             const dur = parseInt(r.duration_sec || 0, 10);
@@ -10763,7 +10765,7 @@ function triggerExportDatePicker(inputId) {
             el.showPicker();
             return;
         }
-    } catch(err) {}
+    } catch (err) { }
     el.focus();
 }
 
@@ -11081,8 +11083,8 @@ function setExportLanguage(lang) {
     }
 
     if (hintEl) {
-        hintEl.innerText = lang === 'ru' 
-            ? 'Excel файл будет выгружен на русском языке' 
+        hintEl.innerText = lang === 'ru'
+            ? 'Excel файл будет выгружен на русском языке'
             : "Excel fayli o'zbek tilida shakllantiriladi";
     }
 
@@ -11733,9 +11735,9 @@ async function loadAgentSettings() {
                         ${op.exten} <span style="font-size: 11px; color: var(--text-dim);">(${op.ip || '-'})</span>
                     </td>
                     <td style="padding: 10px 14px;">
-                        ${op.agentConnected 
-                            ? `<span style="color: #10b981; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>${t('set_status_active', '🟢 Faol')}</span>` 
-                            : `<span style="color: var(--text-dim);">${t('set_status_off', "⚪ O'chiq")}</span>`}
+                        ${op.agentConnected
+                    ? `<span style="color: #10b981; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>${t('set_status_active', '🟢 Faol')}</span>`
+                    : `<span style="color: var(--text-dim);">${t('set_status_off', "⚪ O'chiq")}</span>`}
                     </td>
                     <td style="padding: 10px 14px; color: var(--text-dim);">
                         ${op.agentHostname || '—'}
@@ -11763,7 +11765,7 @@ async function loadAgentSettings() {
                     logsData.logs.slice().reverse().forEach(appendOtaLog);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
 
     } catch (err) {
         tbody.innerHTML = `<tr><td colspan="6" style="padding: 24px; text-align: center; color: var(--danger);">${tf('hist_error', { msg: err.message }, `Xatolik: ${err.message}`)}</td></tr>`;
@@ -12194,8 +12196,8 @@ async function loadDateData(dateStr) {
             await Promise.all([
                 typeof loadTabAgentOperators === 'function' ? loadTabAgentOperators(dateStr) : Promise.resolve(),
                 typeof loadTabOperatorLogs === 'function' ? loadTabOperatorLogs(selectedTabAgentOpId, 1) : Promise.resolve(),
-                fetch(`/api/stats${urlDateParam}`).then(r => r.json()).then(s => { if (s) updateStatsUI(s); }).catch(() => {}),
-                fetch(`/api/operators${urlDateParam}`).then(r => r.json()).then(o => { if (o) renderOperators(o); }).catch(() => {})
+                fetch(`/api/stats${urlDateParam}`).then(r => r.json()).then(s => { if (s) updateStatsUI(s); }).catch(() => { }),
+                fetch(`/api/operators${urlDateParam}`).then(r => r.json()).then(o => { if (o) renderOperators(o); }).catch(() => { })
             ]);
         } else if (activeTab === 'history') {
             // 2. Qo'ng'iroqlar tarixi tabi
@@ -12236,7 +12238,7 @@ async function loadDateData(dateStr) {
                 statsPromise,
                 opPromise,
                 recentPromise,
-                typeof loadTabAgentOperators === 'function' ? loadTabAgentOperators(dateStr).catch(() => {}) : Promise.resolve()
+                typeof loadTabAgentOperators === 'function' ? loadTabAgentOperators(dateStr).catch(() => { }) : Promise.resolve()
             ]);
         }
     } catch (err) {
@@ -12634,7 +12636,7 @@ window.addEventListener('languageChanged', () => {
             if (operatorChart.data.datasets[2]) operatorChart.data.datasets[2].label = t('chart_series_missed', "O'tkazib yuborilgan");
             operatorChart.update();
         }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Ochiq detail modal jadvalini qayta chizish
     const modal = document.getElementById('detailModal');
@@ -12673,7 +12675,7 @@ window.addEventListener('languageChanged', () => {
                 updateExportRangeBadge();
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 });
 
 // ============================
@@ -12806,7 +12808,7 @@ function setQueueInfoFilter(filter) {
 }
 
 // Escape tugmasi bosilganda modalni yopish
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && _queueInfoModalOpen) {
         closeQueueInfoModal();
     }
@@ -12884,7 +12886,7 @@ function updateQueueInfoModal() {
     // Hodisalarni faqat bir marta ulash (delegated listener)
     if (!container._hasQueueListeners) {
         container._hasQueueListeners = true;
-        container.addEventListener('click', function(e) {
+        container.addEventListener('click', function (e) {
             const stepBtn = e.target.closest('button.step');
             if (stepBtn) {
                 const opId = stepBtn.dataset.opid;
@@ -12900,7 +12902,7 @@ function updateQueueInfoModal() {
             }
         });
 
-        container.addEventListener('keydown', function(e) {
+        container.addEventListener('keydown', function (e) {
             if (e.target.classList.contains('queue-edit-input')) {
                 const opId = e.target.dataset.opid;
                 if (e.key === 'Enter') {
@@ -12914,7 +12916,7 @@ function updateQueueInfoModal() {
             }
         });
 
-        container.addEventListener('focusout', function(e) {
+        container.addEventListener('focusout', function (e) {
             if (e.target.classList.contains('queue-edit-input') && _queueEditingOpId !== null) {
                 const opId = e.target.dataset.opid;
                 const val = Math.max(0, parseInt(e.target.value, 10) || 0);
@@ -13073,7 +13075,7 @@ function updateQueueInfoModal() {
 
 // renderOperators chaqirilganda queue info modal ham yangilansin
 const _origRenderOperators = renderOperators;
-renderOperators = function(operators) {
+renderOperators = function (operators) {
     _origRenderOperators(operators);
     if (_queueInfoModalOpen) updateQueueInfoModal();
     updateQueueInfoSummaryBadge();
@@ -13254,7 +13256,7 @@ loadOpCardFieldsSettings();
 function saveOpCardFieldsSettings() {
     try {
         localStorage.setItem('callcenter_op_card_fields', JSON.stringify(opCardFieldsVisibility));
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function isOpCardFieldVisible(key) {
@@ -13370,7 +13372,7 @@ loadHistoryColumnsSettings();
 function saveHistoryColumnsSettings() {
     try {
         localStorage.setItem('callcenter_history_columns', JSON.stringify(historyColumnsVisibility));
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function isHistoryColumnVisible(key) {
@@ -13442,13 +13444,13 @@ function renderHistoryColsCheckboxes() {
 
 // Tarix jadvali yangilanganda ustunlar ko'rinishini qayta tadbiq qilish
 const _origRenderServerHistoryTable = renderServerHistoryTable;
-renderServerHistoryTable = function(data) {
+renderServerHistoryTable = function (data) {
     _origRenderServerHistoryTable(data);
     applyHistoryColumnsVisibility();
 };
 
 const _origRenderAgentHistoryTable = renderAgentHistoryTable;
-renderAgentHistoryTable = function(data) {
+renderAgentHistoryTable = function (data) {
     _origRenderAgentHistoryTable(data);
     applyHistoryColumnsVisibility();
 };
@@ -13474,7 +13476,7 @@ function toggleGooeyMenu(e) {
     if (!container) return;
     const isOpening = !container.classList.contains('open');
     container.classList.toggle('open');
-    
+
     // Agar yopilsa, ichidagi profil menyusini ham yopamiz
     if (!isOpening) {
         container.classList.remove('profile-open');
@@ -13611,7 +13613,7 @@ async function loadUserProfileData() {
             if (typeof initProfileEmailLiveValidation === 'function') {
                 initProfileEmailLiveValidation();
                 validateProfileEmailLive({ showErrorOnEmpty: false });
-            
+
             }
         }
     } catch (e) {
@@ -13974,7 +13976,7 @@ async function loadUsersList() {
             let html = '';
             usersRes.users.forEach(u => {
                 const isSuper = u.role === 'superuser';
-                const roleBadge = isSuper 
+                const roleBadge = isSuper
                     ? '<span style="background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Superuser</span>'
                     : '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Operator</span>';
 
@@ -14092,7 +14094,7 @@ async function loadSessionsList() {
                 const tokenMasked = s.token ? `${s.token.slice(0, 8)}...${s.token.slice(-6)}` : '-';
                 const createdTime = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('uz-UZ') : '-';
 
-                const actionHtml = s.isCurrent 
+                const actionHtml = s.isCurrent
                     ? '<span style="color: #34d399; font-size: 11.5px; font-weight: 600;">(Siz)</span>'
                     : `<button type="button" class="btn-action" onclick="revokeSession('${s.token}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
 
@@ -14218,9 +14220,9 @@ async function startProfileEmailUnlink(e) {
                 stepText.innerHTML = `⚠️ <b>Xavfsizlik tasdig'i:</b> Hisobdan uzish tasdiqlash kodi joriy bog'langan <b>${currentProfileBoundEmail}</b> pochtangizga yuborildi.`;
             }
             if (msgEl) msgEl.textContent = '';
-    if (typeof validateProfileEmailLive === 'function') {
-        validateProfileEmailLive({ showErrorOnEmpty: false });
-    }
+            if (typeof validateProfileEmailLive === 'function') {
+                validateProfileEmailLive({ showErrorOnEmpty: false });
+            }
             if (verifySec) verifySec.style.display = 'block';
             if (btnSend) btnSend.style.display = 'none';
             if (btnVerify) {
@@ -15015,11 +15017,11 @@ if (document.readyState === 'loading') {
     applyOpCardFieldsVisibility();
 }
 
-window.handleLogout = async function(e) {
+window.handleLogout = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
-    } catch (err) {}
+    } catch (err) { }
     localStorage.removeItem('auth_token');
     sessionStorage.clear();
     window.location.href = '/login';
@@ -15136,7 +15138,7 @@ function resetConverterState() {
     currentConverterFile = null;
     selectedTargetFormat = '';
     if (convertedFileBlobUrl) {
-        try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) {}
+        try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) { }
         convertedFileBlobUrl = null;
     }
 
@@ -15299,7 +15301,7 @@ async function executeFileConversion() {
             if (progressBox) progressBox.style.display = 'none';
 
             if (convertedFileBlobUrl) {
-                try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) {}
+                try { URL.revokeObjectURL(convertedFileBlobUrl); } catch (e) { }
             }
             convertedFileBlobUrl = resultInfo.url;
 
@@ -15611,8 +15613,8 @@ function renderTopicCharts(summaryData, trendData) {
                 : (currentStatPeriod === 'year'
                     ? ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'].map(m => ({ displayLabel: m, kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }))
                     : [{ displayLabel: '1-kun', kalit: 0, edo: 0, ehuquqshunos: 0, other: 0, total: 0 }]
-                  )
-              );
+                )
+            );
 
         // Oylik dinamika grafigida shanba va yakshanba (dam olish kunlari) chiqarilmaydi
         if (currentStatPeriod === 'month') {
@@ -15648,81 +15650,81 @@ function renderTopicCharts(summaryData, trendData) {
             const seriesEhuquq = timelineList.map(item => item.topics?.ehuquqshunos || item.ehuquqshunos || 0);
             const seriesOther = timelineList.map(item => item.topics?.other || item.other || 0);
 
-                const trendType = (typeof currentTrendChartType !== 'undefined' && currentTrendChartType) ? currentTrendChartType : 'areaspline';
-                chartTopicTrendInstance = Highcharts.chart('chartTopicTrend', {
-                    chart: {
-                        type: trendType,
-                        backgroundColor: 'transparent',
-                        style: { fontFamily: 'Inter, sans-serif' }
-                    },
+            const trendType = (typeof currentTrendChartType !== 'undefined' && currentTrendChartType) ? currentTrendChartType : 'areaspline';
+            chartTopicTrendInstance = Highcharts.chart('chartTopicTrend', {
+                chart: {
+                    type: trendType,
+                    backgroundColor: 'transparent',
+                    style: { fontFamily: 'Inter, sans-serif' }
+                },
+                title: { text: null },
+                credits: { enabled: false },
+                xAxis: {
+                    categories: categories,
+                    labels: { style: { color: '#94a3b8', fontSize: '11px' } },
+                    lineColor: 'rgba(255, 255, 255, 0.1)',
+                    tickColor: 'rgba(255, 255, 255, 0.1)'
+                },
+                yAxis: {
+                    min: 0,
                     title: { text: null },
-                    credits: { enabled: false },
-                    xAxis: {
-                        categories: categories,
-                        labels: { style: { color: '#94a3b8', fontSize: '11px' } },
-                        lineColor: 'rgba(255, 255, 255, 0.1)',
-                        tickColor: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    yAxis: {
-                        min: 0,
-                        title: { text: null },
-                        gridLineColor: 'rgba(255, 255, 255, 0.06)',
-                        labels: { style: { color: '#94a3b8', fontSize: '11px' } }
-                    },
-                    tooltip: {
-                        shared: true,
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        borderColor: 'rgba(255, 255, 255, 0.15)',
-                        borderRadius: 8,
-                        style: { color: '#f8fafc', fontSize: '12px' }
-                    },
-                    plotOptions: {
-                        areaspline: {
-                            fillOpacity: 0.14,
-                            lineWidth: 2.5,
-                            marker: {
-                                enabled: false,
-                                symbol: 'circle',
-                                radius: 3,
-                                states: { hover: { enabled: true, radius: 5 } }
-                            },
-                            states: { hover: { lineWidth: 3 } }
+                    gridLineColor: 'rgba(255, 255, 255, 0.06)',
+                    labels: { style: { color: '#94a3b8', fontSize: '11px' } }
+                },
+                tooltip: {
+                    shared: true,
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderRadius: 8,
+                    style: { color: '#f8fafc', fontSize: '12px' }
+                },
+                plotOptions: {
+                    areaspline: {
+                        fillOpacity: 0.14,
+                        lineWidth: 2.5,
+                        marker: {
+                            enabled: false,
+                            symbol: 'circle',
+                            radius: 3,
+                            states: { hover: { enabled: true, radius: 5 } }
                         },
-                        spline: {
-                            lineWidth: 2.5,
-                            marker: {
-                                enabled: false,
-                                symbol: 'circle',
-                                radius: 3,
-                                states: { hover: { enabled: true, radius: 5 } }
-                            },
-                            states: { hover: { lineWidth: 3 } }
+                        states: { hover: { lineWidth: 3 } }
+                    },
+                    spline: {
+                        lineWidth: 2.5,
+                        marker: {
+                            enabled: false,
+                            symbol: 'circle',
+                            radius: 3,
+                            states: { hover: { enabled: true, radius: 5 } }
                         },
-                        column: {
-                            stacking: 'normal',
-                            borderRadius: 3,
-                            borderWidth: 0
-                        }
+                        states: { hover: { lineWidth: 3 } }
                     },
-                    legend: {
-                        itemStyle: { color: '#94a3b8', fontSize: '12px', fontWeight: '500' },
-                        itemHoverStyle: { color: '#f8fafc' },
-                        align: 'right',
-                        verticalAlign: 'top',
-                        layout: 'horizontal'
-                    },
-                    series: [
-                        { name: 'Kalit uzaytirish', data: seriesKalit, color: '#38bdf8' },
-                        { name: 'EDO', data: seriesEdo, color: '#10b981' },
-                        { name: 'E-Huquqshunos', data: seriesEhuquq, color: '#a855f7' },
-                        { name: 'Boshqa masalalar', data: seriesOther, color: '#f59e0b' }
-                    ]
-                });
-            } catch (e) {
-                console.error('[Statistics] Error creating trend chart:', e);
-            }
+                    column: {
+                        stacking: 'normal',
+                        borderRadius: 3,
+                        borderWidth: 0
+                    }
+                },
+                legend: {
+                    itemStyle: { color: '#94a3b8', fontSize: '12px', fontWeight: '500' },
+                    itemHoverStyle: { color: '#f8fafc' },
+                    align: 'right',
+                    verticalAlign: 'top',
+                    layout: 'horizontal'
+                },
+                series: [
+                    { name: 'Kalit uzaytirish', data: seriesKalit, color: '#38bdf8' },
+                    { name: 'EDO', data: seriesEdo, color: '#10b981' },
+                    { name: 'E-Huquqshunos', data: seriesEhuquq, color: '#a855f7' },
+                    { name: 'Boshqa masalalar', data: seriesOther, color: '#f59e0b' }
+                ]
+            });
+        } catch (e) {
+            console.error('[Statistics] Error creating trend chart:', e);
         }
     }
+}
 
 let currentTrendChartType = 'areaspline';
 function setTopicTrendChartType(type) {
@@ -15794,33 +15796,33 @@ async function loadStatCallsPage(page = 1) {
         }
 
         const topicBadges = {
-            kalit: { 
-                name: 'Kalit uzaytirish', 
-                bg: 'rgba(56, 189, 248, 0.15)', 
-                border: 'rgba(56, 189, 248, 0.35)', 
-                color: '#38bdf8', 
-                iconHtml: '<img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">' 
+            kalit: {
+                name: 'Kalit uzaytirish',
+                bg: 'rgba(56, 189, 248, 0.15)',
+                border: 'rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                iconHtml: '<img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">'
             },
-            edo: { 
-                name: 'EDO', 
-                bg: 'rgba(16, 185, 129, 0.15)', 
-                border: 'rgba(16, 185, 129, 0.35)', 
-                color: '#34d399', 
-                iconHtml: '<img src="/icons/edo-symbol.svg" alt="EDO" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px; background: #fff; padding: 1px;">' 
+            edo: {
+                name: 'EDO',
+                bg: 'rgba(16, 185, 129, 0.15)',
+                border: 'rgba(16, 185, 129, 0.35)',
+                color: '#34d399',
+                iconHtml: '<img src="/icons/edo-symbol.svg" alt="EDO" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px; background: #fff; padding: 1px;">'
             },
-            ehuquqshunos: { 
-                name: 'E-Huquqshunos', 
-                bg: 'rgba(168, 85, 247, 0.15)', 
-                border: 'rgba(168, 85, 247, 0.35)', 
-                color: '#c084fc', 
-                iconHtml: '<img src="/icons/e-huquqshunos-logo.svg" alt="E-Huquqshunos" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">' 
+            ehuquqshunos: {
+                name: 'E-Huquqshunos',
+                bg: 'rgba(168, 85, 247, 0.15)',
+                border: 'rgba(168, 85, 247, 0.35)',
+                color: '#c084fc',
+                iconHtml: '<img src="/icons/e-huquqshunos-logo.svg" alt="E-Huquqshunos" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; border-radius: 3px;">'
             },
-            other: { 
-                name: 'Umumiy maslahat', 
-                bg: 'rgba(245, 158, 11, 0.15)', 
-                border: 'rgba(245, 158, 11, 0.35)', 
-                color: '#fbbf24', 
-                iconHtml: '<svg class="isax isax-call" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call"></use></svg>' 
+            other: {
+                name: 'Umumiy maslahat',
+                bg: 'rgba(245, 158, 11, 0.15)',
+                border: 'rgba(245, 158, 11, 0.35)',
+                color: '#fbbf24',
+                iconHtml: '<svg class="isax isax-call" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call"></use></svg>'
             }
         };
 
@@ -16066,7 +16068,7 @@ function openTelegramUser(tgId, phone) {
     if (cleanTg && /^\d+$/.test(cleanTg)) {
         // Avval Telegram Desktop tg://user?id= ga o'tishga harakat qiladi
         window.location.href = `tg://user?id=${cleanTg}`;
-        
+
         // Agar boshqa akkauntda bo'lib chat ochilmasa, foydalanuvchiga telefon orqali ochishni eslatamiz
         if (cleanPhone && typeof showToast === 'function') {
             const intlPhone = cleanPhone.startsWith('998') ? cleanPhone : `998${cleanPhone.slice(-9)}`;
