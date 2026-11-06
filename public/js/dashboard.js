@@ -11060,10 +11060,62 @@ function filterTabAgentLogsByOperator(opId) {
     loadTabOperatorLogs(selectedTabAgentOpId, 1);
 }
 
+let tabOperatorSortMode = localStorage.getItem('tabOperatorSortMode') || 'id'; // 'id', 'asc' (A-Z), 'desc' (Z-A)
+
+function updateOperatorSortButtonUi() {
+    const btn = document.getElementById('btnOperatorSortAz');
+    const txt = document.getElementById('btnOperatorSortAzText');
+    const icon = document.getElementById('btnOperatorSortAzIcon');
+    if (!btn || !txt) return;
+
+    if (tabOperatorSortMode === 'asc') {
+        txt.textContent = 'A-Z';
+        btn.title = "Alifbo bo'yicha: A dan Z gacha (Z-A ga o'tish uchun bosing)";
+        btn.style.background = 'rgba(56, 189, 248, 0.2)';
+        btn.style.borderColor = 'rgba(56, 189, 248, 0.55)';
+        btn.style.color = '#38bdf8';
+        if (icon) icon.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-arrow-down');
+    } else if (tabOperatorSortMode === 'desc') {
+        txt.textContent = 'Z-A';
+        btn.title = "Alifbo bo'yicha teskari: Z dan A gacha (Standart tartibga o'tish uchun bosing)";
+        btn.style.background = 'rgba(168, 85, 247, 0.2)';
+        btn.style.borderColor = 'rgba(168, 85, 247, 0.55)';
+        btn.style.color = '#c084fc';
+        if (icon) icon.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-arrow-up');
+    } else {
+        txt.textContent = 'A-Z';
+        btn.title = "Alifbo bo'yicha saralash (A-Z saralash uchun bosing)";
+        btn.style.background = 'rgba(255, 255, 255, 0.05)';
+        btn.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        btn.style.color = '#cbd5e1';
+        if (icon) icon.setAttribute('href', '/icons/iconsax/iconsax-sprite.svg#isax-arrow-down');
+    }
+}
+window.updateOperatorSortButtonUi = updateOperatorSortButtonUi;
+
+function toggleTabOperatorSort() {
+    if (tabOperatorSortMode === 'id') {
+        tabOperatorSortMode = 'asc';
+    } else if (tabOperatorSortMode === 'asc') {
+        tabOperatorSortMode = 'desc';
+    } else {
+        tabOperatorSortMode = 'id';
+    }
+    localStorage.setItem('tabOperatorSortMode', tabOperatorSortMode);
+    updateOperatorSortButtonUi();
+    if (typeof tabAgentOperatorsData !== 'undefined' && tabAgentOperatorsData) {
+        lastTabOpsFingerprint = ''; // Force rerender
+        renderTabAgentOperators(tabAgentOperatorsData);
+    }
+}
+window.toggleTabOperatorSort = toggleTabOperatorSort;
+
 let lastTabOpsFingerprint = '';
 function renderTabAgentOperators(operators) {
     const grid = document.getElementById('tabOperatorsGrid');
     if (!grid) return;
+
+    updateOperatorSortButtonUi();
 
     if (!operators || operators.length === 0) {
         grid.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; padding: 16px;">${t('tab_ops_no_data', "Hozircha 3CX Desktop Agent ma'lumotlari mavjud emas.")}</div>`;
@@ -11071,7 +11123,7 @@ function renderTabAgentOperators(operators) {
         return;
     }
 
-    const currentFingerprint = JSON.stringify(operators) + '_' + selectedTabAgentOpId;
+    const currentFingerprint = JSON.stringify(operators) + '_' + selectedTabAgentOpId + '_' + tabOperatorSortMode;
     if (currentFingerprint === lastTabOpsFingerprint && grid.children.length > 0) {
         return; // Ma'lumotlar o'zgarmagan bo'lsa DOM qayta chizilmaydi, kartochkalar mutlaqo statik turadi
     }
@@ -11113,13 +11165,27 @@ function renderTabAgentOperators(operators) {
         });
     }
 
-    // Stabil tartib: faqat raqam (id) bo'yicha, kartochkalar sakrab joyini o'zgartirmaydi
-    const sortedOps = (operators || [])
-        .slice().sort((a, b) => {
+    // Tartiblash: Alifbo bo'yicha (A-Z yoki Z-A) yoki standart ID bo'yicha
+    let sortedOps = (operators || []).slice();
+    if (tabOperatorSortMode === 'asc') {
+        sortedOps.sort((a, b) => {
+            const nameA = getCleanOperatorName(a.realName || a.name, a.id).toLowerCase();
+            const nameB = getCleanOperatorName(b.realName || b.name, b.id).toLowerCase();
+            return nameA.localeCompare(nameB, 'uz');
+        });
+    } else if (tabOperatorSortMode === 'desc') {
+        sortedOps.sort((a, b) => {
+            const nameA = getCleanOperatorName(a.realName || a.name, a.id).toLowerCase();
+            const nameB = getCleanOperatorName(b.realName || b.name, b.id).toLowerCase();
+            return nameB.localeCompare(nameA, 'uz');
+        });
+    } else {
+        sortedOps.sort((a, b) => {
             const idA = parseInt(a.id, 10) || 0;
             const idB = parseInt(b.id, 10) || 0;
             return idA - idB;
         });
+    }
 
     grid.innerHTML = sortedOps.map(op => {
         if (op.agentConnected) countAgentOnline++;

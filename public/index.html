@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793883519883">
+    <meta name="build-id" content="1793942014027">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793883519883">
+    <link rel="stylesheet" href="/css/style.css?v=1793942014027">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -1097,6 +1097,10 @@
                         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                             <button type="button" class="btn-action op-card-settings-btn" id="btnOpCardSettingsTab" onclick="openOpCardFieldsModal()" title="Kartochka qatorlarini sozlash (ko'rsatish/yashirish)" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 15px; font-size: 12px; font-weight: 500; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; border-radius: 8px; cursor: pointer;">
                                 <svg class="isax isax-sm" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-setting-4"></use></svg> <span>Qatorlar</span>
+                            </button>
+                            <button type="button" class="btn-action" id="btnOperatorSortAz" onclick="toggleTabOperatorSort()" title="Alifbo bo'yicha saralash (A-Z)" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                                <svg class="isax isax-sm" style="width: 14px; height: 14px;"><use id="btnOperatorSortAzIcon" href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-down"></use></svg>
+                                <span id="btnOperatorSortAzText">A-Z</span>
                             </button>
                             <button class="btn-action" id="btnCdrSync" onclick="triggerCdrSync()" title="Asterisk PBX CDR dagi barcha qo'ng'iroqlarni server bazasiga tiklash va yangilash" style="display: inline-flex; align-items: center; gap: 6px; padding: 7px 15px; font-size: 12px; font-weight: 500; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.45); color: #c7d2fe; border-radius: 8px;">
                                 <svg class="isax isax-sm" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg> <span data-i18n="op_card_refresh">Serverdan tiklash</span>
@@ -4068,8 +4072,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793883519883" defer></script>
+    <script src="/js/dashboard.js?v=1793942014027" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793883519883" defer></script>
+    <script src="/js/visualInspector.js?v=1793942014027" defer></script>
 </body>
 </html>
