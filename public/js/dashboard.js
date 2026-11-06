@@ -4944,8 +4944,8 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge pill p-w" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
-                <svg class="isax isax-simcard" style="width: 11px; height: 11px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
+            <span class="cc-op-sim-badge pill p-w" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
+                <svg class="isax isax-simcard" style="width: 10px; height: 10px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
@@ -4957,13 +4957,13 @@ function renderActiveConversations(conversations) {
         const iconSymbol = isOutbound ? 'isax-call' : 'isax-call-incoming';
         const iconHtml = `
             <div class="cc-call-icon ${iconType}" title="${tagText}">
-                <svg class="isax ${iconSymbol}" style="width: 20px; height: 20px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
+                <svg class="isax ${iconSymbol}" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
             </div>
         `;
 
         const durationHtml = `
-            <span class="cc-live-duration-wrap pill mono" style="font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.28); display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;">
-                <svg class="isax isax-timer" style="width: 13px; height: 13px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+            <span class="cc-live-duration-wrap pill mono" style="font-size: 11.5px; font-weight: 600; padding: 3px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.28); display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                 <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
             </span>
         `;
@@ -5007,7 +5007,7 @@ function renderActiveConversations(conversations) {
             cardEl.innerHTML = `
                 ${iconHtml}
                 <div class="cc-call-info">
-                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 6px;">
                         <span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>
                         ${opBadgeHtml}
                     </div>
@@ -5016,10 +5016,10 @@ function renderActiveConversations(conversations) {
                 ${durationHtml}
                 <div class="cc-call-actions">
                     <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}" aria-label="O'tkazish">
-                        <svg class="isax isax-arrow-swap-horizontal" style="width: 17px; height: 17px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                        <svg class="isax isax-arrow-swap-horizontal" style="width: 14px; height: 14px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                     </button>
                     <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}" aria-label="Tugatish">
-                        <svg class="isax isax-call-remove" style="width: 17px; height: 17px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
+                        <svg class="isax isax-call-remove" style="width: 14px; height: 14px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
                     </button>
                 </div>
             `;

@@ -7350,13 +7350,13 @@ body.sidebar-collapsed .page-elevator-btn {
 
 
 /* ==========================================================================
-   Faol Suhbatlar (Variant A: Toza Qator Redizayni)
+   Faol Suhbatlar (Variant A: Toza Qator Redizayni — Ixcham & Sig'adigan)
    ========================================================================== */
 .cc-panel#activeConversationsPanel {
     background: rgba(15, 23, 42, 0.65);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 14px;
-    padding: 16px;
+    padding: 12px 14px;
     backdrop-filter: blur(12px);
 }
 
@@ -7364,12 +7364,12 @@ body.sidebar-collapsed .page-elevator-btn {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
 }
 
 .cc-panel#activeConversationsPanel .cc-panel-title {
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     color: #f8fafc;
     display: flex;
@@ -7382,10 +7382,10 @@ body.sidebar-collapsed .page-elevator-btn {
     background: rgba(34, 197, 94, 0.16);
     color: #22c55e;
     border: 1px solid rgba(34, 197, 94, 0.3);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     border-radius: 9999px;
-    padding: 2px 10px;
+    padding: 1px 8px;
     line-height: 1.2;
 }
 
@@ -7393,12 +7393,12 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-call {
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
-    padding: 12px 14px !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
     background: rgba(15, 23, 42, 0.55) !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    margin-bottom: 8px !important;
+    border-radius: 10px !important;
+    margin-bottom: 6px !important;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -7420,20 +7420,20 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 @keyframes ccSwipeOut {
-    0% { transform: translateX(0); opacity: 1; max-height: 70px; }
-    50% { transform: translateX(100%); opacity: 0; max-height: 70px; }
+    0% { transform: translateX(0); opacity: 1; max-height: 60px; }
+    50% { transform: translateX(100%); opacity: 0; max-height: 60px; }
     100% { transform: translateX(100%); opacity: 0; max-height: 0; padding: 0; margin: 0; }
 }
 
 .cc-call-icon {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 19px;
+    font-size: 15px;
     flex-shrink: 0;
 }
 
@@ -7471,18 +7471,18 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-call-info .cc-phone {
     font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
     font-weight: 600 !important;
-    font-size: 16px !important;
+    font-size: 13.5px !important;
     color: #ffffff !important;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.2px;
-    line-height: 1.25;
+    letter-spacing: 0.1px;
+    line-height: 1.2;
 }
 
 .cc-call-info .sub {
     font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
     color: #94a3b8 !important;
-    font-size: 13px !important;
-    margin-top: 3px;
+    font-size: 11.5px !important;
+    margin-top: 2px;
     font-weight: 400;
     white-space: nowrap;
     overflow: hidden;
@@ -7492,20 +7492,23 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-live-duration-wrap {
     font-family: "SF Mono", Menlo, Consolas, monospace !important;
     font-variant-numeric: tabular-nums;
+    font-size: 11.5px !important;
+    padding: 3px 7px !important;
+    border-radius: 6px !important;
 }
 
 .cc-call-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
-    margin-left: 4px;
+    margin-left: 2px;
 }
 
 .cc-ic-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.05);
     color: #cbd5e1;
@@ -7514,7 +7517,7 @@ body.sidebar-collapsed .page-elevator-btn {
     align-items: center;
     justify-content: center;
     padding: 0;
-    font-size: 15px;
+    font-size: 13px;
     transition: all 0.15s ease;
 }
 
