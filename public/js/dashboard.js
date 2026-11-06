@@ -15472,9 +15472,10 @@ function renderTopicCharts(summaryData, trendData) {
             const seriesEhuquq = timelineList.map(item => item.topics?.ehuquqshunos || item.ehuquqshunos || 0);
             const seriesOther = timelineList.map(item => item.topics?.other || item.other || 0);
 
+                const trendType = (typeof currentTrendChartType !== 'undefined' && currentTrendChartType) ? currentTrendChartType : 'areaspline';
                 chartTopicTrendInstance = Highcharts.chart('chartTopicTrend', {
                     chart: {
-                        type: 'column',
+                        type: trendType,
                         backgroundColor: 'transparent',
                         style: { fontFamily: 'Inter, sans-serif' }
                     },
@@ -15500,6 +15501,27 @@ function renderTopicCharts(summaryData, trendData) {
                         style: { color: '#f8fafc', fontSize: '12px' }
                     },
                     plotOptions: {
+                        areaspline: {
+                            fillOpacity: 0.14,
+                            lineWidth: 2.5,
+                            marker: {
+                                enabled: false,
+                                symbol: 'circle',
+                                radius: 3,
+                                states: { hover: { enabled: true, radius: 5 } }
+                            },
+                            states: { hover: { lineWidth: 3 } }
+                        },
+                        spline: {
+                            lineWidth: 2.5,
+                            marker: {
+                                enabled: false,
+                                symbol: 'circle',
+                                radius: 3,
+                                states: { hover: { enabled: true, radius: 5 } }
+                            },
+                            states: { hover: { lineWidth: 3 } }
+                        },
                         column: {
                             stacking: 'normal',
                             borderRadius: 3,
@@ -15525,6 +15547,32 @@ function renderTopicCharts(summaryData, trendData) {
             }
         }
     }
+
+let currentTrendChartType = 'areaspline';
+function setTopicTrendChartType(type) {
+    currentTrendChartType = type;
+    const btnLine = document.getElementById('btnTrendLine');
+    const btnCol = document.getElementById('btnTrendColumn');
+    if (btnLine && btnCol) {
+        if (type === 'areaspline' || type === 'spline' || type === 'line') {
+            btnLine.style.background = '#3b82f6';
+            btnLine.style.color = '#ffffff';
+            btnCol.style.background = 'transparent';
+            btnCol.style.color = '#94a3b8';
+        } else {
+            btnCol.style.background = '#3b82f6';
+            btnCol.style.color = '#ffffff';
+            btnLine.style.background = 'transparent';
+            btnLine.style.color = '#94a3b8';
+        }
+    }
+    if (chartTopicTrendInstance) {
+        chartTopicTrendInstance.update({
+            chart: { type: type }
+        });
+    }
+}
+window.setTopicTrendChartType = setTopicTrendChartType;
 
 async function loadStatCallsPage(page = 1) {
     currentStatCallsPage = page;
