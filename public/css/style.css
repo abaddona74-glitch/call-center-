@@ -220,6 +220,18 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.15s ease;
+}
+
+.brand-section:hover {
+    opacity: 0.9;
+}
+
+.brand-section:active {
+    transform: scale(0.98);
 }
 
 .logo-badge {

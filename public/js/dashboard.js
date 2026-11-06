@@ -747,6 +747,23 @@ function switchRoute(tabName, pushState = true) {
     }
 }
 
+/**
+ * Asosiy bosh sahifaga (/) qaytish
+ */
+function navigateToHome(e) {
+    if (e) {
+        if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+    }
+    const currentTab = document.documentElement.getAttribute('data-tab') || 'dashboard';
+    if (currentTab === 'dashboard' && window.location.pathname === '/') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        switchRoute('dashboard', true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
 /* ==========================================================================
    Sound FX: Realistic Book Page Flip / Paper Flutter ("Shiq" ovozi)
    ========================================================================== */

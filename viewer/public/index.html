@@ -41,6 +41,16 @@
             display: flex;
             align-items: center;
             gap: 14px;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.15s ease;
+        }
+        .brand-block:hover {
+            opacity: 0.9;
+        }
+        .brand-block:active {
+            transform: scale(0.98);
         }
         .brand-block img {
             width: 38px;
@@ -609,10 +619,10 @@
 <body>
     <!-- Top Header -->
     <header class="viewer-header">
-        <div class="brand-block">
+        <a href="/" class="brand-block" data-i18n-title="nav_home_title" title="Bosh sahifaga qaytish">
             <img src="/images/title-icon.png?v=6.0" alt="Logo">
             <h1 data-i18n="app_title">Call Center</h1>
-        </div>
+        </a>
         <div style="display: flex; align-items: center; gap: 12px;">
             <!-- Mijozlar bazasi (Telefon kitobi) tugmasi -->
             <button type="button" class="header-contact-book-btn" onclick="openClientDirectoryModal()" data-i18n-title="header_client_directory" title="Mijozlar bazasi">
@@ -2303,6 +2313,6 @@
     <!-- Viewer Pure Operator Logic -->
     <script src="/js/viewer.js?v=4.5" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793949377488" defer></script>
+    <script src="/js/visualInspector.js?v=1793950062544" defer></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793947918015">
+    <meta name="build-id" content="1793950062544">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793947918015">
+    <link rel="stylesheet" href="/css/style.css?v=1793950062544">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -195,18 +195,18 @@
             <div id="multiplayerCursorsOverlay"></div>
             <!-- Top Navbar -->
             <header class="top-navbar">
-                <div class="brand-section">
+                <a href="/" class="brand-section" onclick="navigateToHome(event)" data-i18n-title="nav_home_title" title="Bosh sahifaga qaytish" style="text-decoration: none; color: inherit; cursor: pointer; display: flex; align-items: center; gap: 12px;">
                     <div class="logo-badge" style="background: transparent; padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: none; box-shadow: none;">
                         <img src="/images/title-icon.png?v=6.0" alt="Call Center Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 10px; display: block; border: none; box-shadow: none;">
                     </div>
                     <div class="brand-info" style="display: flex; align-items: center; gap: 14px;">
                         <h1 style="margin: 0; white-space: nowrap;">Call Center</h1>
-                        <button id="btnServerStatus" onclick="openServerStatusModal()" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: none;">
+                        <button id="btnServerStatus" onclick="event.stopPropagation(); event.preventDefault(); openServerStatusModal();" data-i18n-title="server_status_title" title="Server Resurslari (CPU, RAM, Disk, PM2)" style="display: none;">
                             <svg class="isax isax-flash" style="width: 14px; height: 14px; color: #34d399;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-flash"></use></svg>
                             <span data-i18n="server_status">Server Holati</span>
                         </button>
                     </div>
-                </div>
+                </a>
 
                 <div style="display: flex; align-items: center; gap: 14px;">
                     <!-- Navigation Tabs -->
@@ -4080,8 +4080,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793948500000" defer></script>
+    <script src="/js/dashboard.js?v=1793950062544" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793947918015" defer></script>
+    <script src="/js/visualInspector.js?v=1793950062544" defer></script>
 </body>
 </html>
