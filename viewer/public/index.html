@@ -925,102 +925,31 @@
                     </div>
                 </div>
 
-                <!-- Viloyat mas'ullari Card -->
+                <!-- Mas'ullar va E-XAT Card (Birlashtirilgan) -->
                 <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #10b981 100%);">
+                        <svg class="isax isax-user" style="width: 24px; height: 24px; color: #ffffff;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
                     </div>
                     <div class="tool-card-content">
                         <div class="tool-card-top">
-                            <h4 class="tool-card-title" data-i18n="tool_regions_title">Viloyat mas'ullari</h4>
+                            <h4 class="tool-card-title">Mas'ullar va E-XAT</h4>
                             <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
                         </div>
-                        <p class="tool-card-desc" data-i18n="tool_regions_desc">Viloyatlar bo'yicha mas'ul rahbarlar, ofis va telefon raqamlari jadvali.</p>
-                        <div class="tool-card-footer">
-                            <a href="/tools/managers.html?tab=regions" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
-                                <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </a>
-                            <button onclick="openToolInModal('/tools/managers.html?tab=regions', 'tool_regions_title', 'iframe')" class="tool-action-btn secondary">
-                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
+                        <p class="tool-card-desc">Toshkent shahri, Vazirliklar, Viloyatlar va E-XAT (Unicon.uz) bo'yicha mas'ul xodimlar, ofis va telefon raqamlari ma'lumotnomasi.</p>
+                        
+                        <div class="tool-subtabs-pills" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;">
+                            <button type="button" onclick="openToolInModal('/tools/managers.html?tab=tashkent', 'Toshkent shahar mas\'ullari', 'iframe')" class="subtab-pill" style="font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: rgba(2, 132, 199, 0.15); border: 1px solid rgba(2, 132, 199, 0.35); color: #38bdf8; cursor: pointer;">Toshkent shahar</button>
+                            <button type="button" onclick="openToolInModal('/tools/managers.html?tab=ministry', 'Vazirlik mas\'ullari', 'iframe')" class="subtab-pill" style="font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.35); color: #a78bfa; cursor: pointer;">Vazirliklar</button>
+                            <button type="button" onclick="openToolInModal('/tools/managers.html?tab=regions', 'Viloyat mas\'ullari', 'iframe')" class="subtab-pill" style="font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399; cursor: pointer;">Viloyatlar</button>
+                            <button type="button" onclick="openToolInModal('/tools/managers.html?tab=exat', 'E-XAT Tizimi (Unicon.uz)', 'iframe')" class="subtab-pill" style="font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.22); border: 1px solid rgba(16, 185, 129, 0.45); color: #6ee7b7; cursor: pointer;">E-XAT (Unicon.uz)</button>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Toshkent shahar mas'ullari Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 21h18"></path>
-                            <path d="M5 21V7l8-4v18"></path>
-                            <path d="M19 21V11l-6-3"></path>
-                            <line x1="9" y1="9" x2="9" y2="9.01"></line>
-                            <line x1="9" y1="12" x2="9" y2="12.01"></line>
-                            <line x1="9" y1="15" x2="9" y2="15.01"></line>
-                            <line x1="9" y1="18" x2="9" y2="18.01"></line>
-                        </svg>
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title" data-i18n="tool_tashkent_title">Toshkent shahar mas'ullari</h4>
-                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
-                        </div>
-                        <p class="tool-card-desc" data-i18n="tool_tashkent_desc">Toshkent shahridagi tumanlarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.</p>
                         <div class="tool-card-footer">
-                            <a href="/tools/managers.html?tab=tashkent" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                            <a href="/tools/managers.html" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
                                 <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
+                                <svg class="isax isax-export" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-export"></use></svg>
                             </a>
-                            <button onclick="openToolInModal('/tools/managers.html?tab=tashkent', 'tool_tashkent_title', 'iframe')" class="tool-action-btn secondary">
-                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vazirlik mas'ullari Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 21h18"></path>
-                            <path d="M4 18h16"></path>
-                            <path d="M6 18v-7"></path>
-                            <path d="M10 18v-7"></path>
-                            <path d="M14 18v-7"></path>
-                            <path d="M18 18v-7"></path>
-                            <path d="M12 2L2 7h20L12 2z"></path>
-                        </svg>
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title" data-i18n="tool_ministry_title">Vazirlik mas'ullari</h4>
-                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
-                        </div>
-                        <p class="tool-card-desc" data-i18n="tool_ministry_desc">Vazirliklarga biriktirilgan mas'ul xodimlar ro'yxati va telefon raqamlari.</p>
-                        <div class="tool-card-footer">
-                            <a href="/tools/managers.html?tab=ministry" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
-                                <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </a>
-                            <button onclick="openToolInModal('/tools/managers.html?tab=ministry', 'tool_ministry_title', 'iframe')" class="tool-action-btn secondary">
+                            <button onclick="openToolInModal('/tools/managers.html', 'Mas\'ullar va E-XAT', 'iframe')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
                         </div>
@@ -1060,35 +989,6 @@
                     </div>
                 </div>
 
-                <!-- E-XAT Tizimi (Unicon.uz) Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 20.5H7C4 20.5 2 19 2 15.5V8.5C2 5 4 3.5 7 3.5H17C20 3.5 22 5 22 8.5V15.5C22 19 20 20.5 17 20.5Z"></path>
-                            <path d="M17 9L13.87 11.5C12.84 12.32 11.15 12.32 10.12 11.5L7 9"></path>
-                        </svg>
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title" data-i18n="tool_exat_title">E-XAT Tizimi (Unicon.uz)</h4>
-                            <span class="tool-status-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">Unicon.uz</span>
-                        </div>
-                        <p class="tool-card-desc" data-i18n="tool_exat_desc">E-XAT tizimi texnik qo'llab-quvvatlash xizmati Unicon-Softdan Unicon.uz ga o'tdi. Murojaat uchun: +998 71 208-05-14, +998 71 208-02-34.</p>
-                        <div class="tool-card-footer">
-                            <a href="/tools/managers.html?tab=exat" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
-                                <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </a>
-                            <button onclick="openToolInModal('/tools/managers.html?tab=exat', 'E-XAT Tizimi (Unicon.uz)', 'iframe')" class="tool-action-btn secondary">
-                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Universal Fayl Konvertor Card -->
                 <div class="tool-card">
@@ -2402,6 +2302,6 @@
     <!-- Viewer Pure Operator Logic -->
     <script src="/js/viewer.js?v=4.4" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793943744277" defer></script>
+    <script src="/js/visualInspector.js?v=1793947155853" defer></script>
 </body>
 </html>
