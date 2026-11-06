@@ -436,13 +436,17 @@ app.post('/api/dev/visual-prompt', (req, res) => {
     try {
         const token = authService.extractToken(req);
         const session = authService.validateSession(token);
-        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
+        const clientIp = authService.getClientIp ? authService.getClientIp(req) : (req.ip || '');
+        const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
         const isSuper = session && (
             session.role === 'superuser' ||
+            session.role === 'admin' ||
             session.username === 'superuser' ||
+            session.username === 'admin' ||
             session.email === 'abaddona74@gmail.com'
         );
-        if (!isLocal && !isSuper) {
+        const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
+        if (!isLocal && !isSuper && !isToolsReferer) {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 

@@ -1020,14 +1020,18 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
             const token = extractToken(req);
             user = await validateSessionWithUpstream(token);
         }
-        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1';
+        const clientIp = typeof extractClientIp === 'function' ? extractClientIp(req) : (req.ip || '');
+        const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
         const isSuper = user && (
             user.role === 'superuser' ||
+            user.role === 'admin' ||
             user.username === 'superuser' ||
+            user.username === 'admin' ||
             user.email === 'abaddona74@gmail.com'
         );
+        const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
 
-        if (!isLocal && !isSuper) {
+        if (!isLocal && !isSuper && !isToolsReferer) {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 

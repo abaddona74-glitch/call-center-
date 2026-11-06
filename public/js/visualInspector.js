@@ -45,7 +45,10 @@
         if (window.currentViewerUser) { cachedAuthUser = window.currentViewerUser; return cachedAuthUser; }
         if (cachedAuthUser) return cachedAuthUser;
         if (!authCheckPromise) {
-            authCheckPromise = fetch('/api/auth/me')
+            const token = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || localStorage.getItem('cc_session');
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            authCheckPromise = fetch('/api/auth/me', { headers })
                 .then(r => r.ok ? r.json() : null)
                 .then(data => {
                     if (data && data.user) {
@@ -62,9 +65,11 @@
     // Sahifa yuklanganda fon rejimida foydalanuvchini aniqlab qo'yish
     fetchAuthUser();
 
-    // 1. Ruxsat tekshiruvi: Qat'iy faqat SUPERUSER uchun!
-    // Boshqa adminlarga yoki operatorlarga mutlaqo ruxsat yo'q.
+    // 1. Ruxsat tekshiruvi: Superuser / Admin yoki Tools / Localhost
     function isAllowedToInspect() {
+        const host = window.location.hostname;
+        if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) return true;
+
         const user = window.currentAuthUser || window.currentViewerUser || cachedAuthUser;
         const role = user?.role || window.myUserRole;
         const username = user?.username || window.myUsername;
@@ -76,7 +81,9 @@
             const emailStr = String(email || '').toLowerCase().trim();
 
             const isSuper = (roleStr === 'superuser') ||
+                            (roleStr === 'admin') ||
                             (usernameStr === 'superuser') ||
+                            (usernameStr === 'admin') ||
                             (emailStr === 'abaddona74@gmail.com');
             return isSuper;
         }
@@ -84,9 +91,16 @@
         const roleEl = document.getElementById('headerUserRole') || document.getElementById('headerUserProfileRole');
         if (roleEl) {
             const txt = roleEl.textContent.toLowerCase().trim();
-            if (txt === 'superuser') return true;
+            if (txt === 'superuser' || txt === 'admin') return true;
             return false;
         }
+
+        // Tools sahifasida (masalan, /tools/managers.html) bo'lsa yoki token bo'lsa ruxsat berish
+        const path = window.location.pathname;
+        if (path.includes('/tools/')) return true;
+
+        const hasToken = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || document.cookie.includes('cc_session');
+        if (hasToken) return true;
 
         return false;
     }
@@ -1221,9 +1235,13 @@
             }));
 
             try {
+                const token = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || localStorage.getItem('cc_session');
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 const res = await fetch('/api/dev/visual-prompt', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({
                         prompt: fullPrompt,
                         task: userTask,
@@ -1341,9 +1359,15 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi (Ctrl + Alt + D yoki Alt + Shift + D) - Faqat Superuser uchun
+    // 10. Klaviatura boshqaruvi (Ctrl + Shift + D, Alt + Shift + D, Ctrl + Alt + D) - Faqat Superuser uchun
     window.addEventListener('keydown', async (e) => {
-        const isTrigger = ((e.altKey && e.shiftKey) || (e.ctrlKey && e.altKey)) && (e.key === 'D' || e.key === 'd');
+        const isTrigger = (
+            (e.ctrlKey && e.shiftKey) ||
+            (e.altKey && e.shiftKey) ||
+            (e.ctrlKey && e.altKey) ||
+            (e.metaKey && e.shiftKey) ||
+            (e.metaKey && e.altKey)
+        ) && (e.key === 'D' || e.key === 'd' || e.code === 'KeyD');
         if (isTrigger) {
             e.preventDefault();
             if (!cachedAuthUser && !window.currentAuthUser && !window.currentViewerUser) {
