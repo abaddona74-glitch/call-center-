@@ -7471,17 +7471,17 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-call-info .cc-phone-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
 }
 
 .cc-call-info .cc-phone {
     font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
     font-weight: 600 !important;
-    font-size: 15px !important;
+    font-size: 13.5px !important;
     color: #ffffff !important;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.1px;
+    letter-spacing: 0.15px;
     line-height: 1.25;
     white-space: nowrap;
     overflow: hidden;

@@ -4984,7 +4984,8 @@ function renderActiveConversations(conversations) {
             }
             const phoneRowEl = existingCard.querySelector('.cc-phone-row');
             if (phoneRowEl) {
-                phoneRowEl.innerHTML = `<span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>${opBadgeHtml}`;
+                const callerFormatted = formatCallerNumberOrOperator(c.callerId);
+                phoneRowEl.innerHTML = `<span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span>${opBadgeHtml}`;
             }
             const subEl = existingCard.querySelector('.sub');
             if (subEl) {
@@ -5004,11 +5005,12 @@ function renderActiveConversations(conversations) {
                 if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
                 copyCallbackPhone(c.callerId, cardEl, e);
             };
+            const callerFormatted = formatCallerNumberOrOperator(c.callerId);
             cardEl.innerHTML = `
                 ${iconHtml}
                 <div class="cc-call-info">
                     <div class="cc-phone-row">
-                        <span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>
+                        <span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span>
                         ${opBadgeHtml}
                     </div>
                     <div class="cc-sub-row">
