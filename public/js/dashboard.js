@@ -16112,3 +16112,222 @@ function testOpenAdminClientTelegram(mode = 'smart') {
     openTelegramUser(tgId, phone);
 }
 window.testOpenAdminClientTelegram = testOpenAdminClientTelegram;
+
+/* ==========================================================================
+   CLOUDFLARE-STYLE ANTI-DDOS & TRAFFIC SECURITY ANALYTICS ENGINE
+   ========================================================================== */
+let secChartInstance = null;
+let secRefreshInterval = null;
+
+function openSecurityDashboardModal() {
+    const modal = document.getElementById('securityDashboardModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    fetchSecurityStats();
+
+    if (secRefreshInterval) clearInterval(secRefreshInterval);
+    secRefreshInterval = setInterval(() => {
+        if (modal.style.display === 'flex') {
+            fetchSecurityStats(true);
+        } else {
+            clearInterval(secRefreshInterval);
+            secRefreshInterval = null;
+        }
+    }, 2500);
+}
+window.openSecurityDashboardModal = openSecurityDashboardModal;
+
+function closeSecurityDashboardModal() {
+    if (secRefreshInterval) {
+        clearInterval(secRefreshInterval);
+        secRefreshInterval = null;
+    }
+    const modal = document.getElementById('securityDashboardModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeSecurityDashboardModal = closeSecurityDashboardModal;
+
+async function fetchSecurityStats(isBg = false) {
+    try {
+        const res = await fetch('/api/security/stats');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json || !json.stats) return;
+
+        const s = json.stats;
+        const totalEl = document.getElementById('secTotalReq');
+        const passedEl = document.getElementById('secPassedReq');
+        const blockedEl = document.getElementById('secBlockedReq');
+        const jailedEl = document.getElementById('secJailedCount');
+        const activeWsEl = document.getElementById('secActiveWs');
+
+        if (totalEl) totalEl.textContent = (s.totalRequests || 0).toLocaleString();
+        if (passedEl) passedEl.textContent = (s.passedRequests || 0).toLocaleString();
+        if (blockedEl) blockedEl.textContent = (s.blockedRequests || 0).toLocaleString();
+        if (jailedEl) jailedEl.textContent = s.jailedIpsCount || 0;
+        
+        let wsCount = 0;
+        if (s.activeWsPerIp) {
+            wsCount = Object.values(s.activeWsPerIp).reduce((a, b) => a + b, 0);
+        }
+        if (activeWsEl) activeWsEl.textContent = wsCount;
+
+        // Render / Update Chart.js
+        renderSecurityChart(s.history || []);
+
+        // Render Events table
+        renderSecurityEvents(s.recentEvents || [], s.jailedIps || []);
+    } catch (err) {
+        console.warn('Error fetching security stats:', err);
+    }
+}
+window.fetchSecurityStats = fetchSecurityStats;
+
+function renderSecurityChart(history) {
+    const canvas = document.getElementById('securityTrafficChart');
+    if (!canvas || !window.Chart) return;
+
+    const labels = history.map(h => h.time);
+    const passedData = history.map(h => h.passed);
+    const blockedData = history.map(h => h.blocked);
+
+    if (secChartInstance) {
+        secChartInstance.data.labels = labels;
+        secChartInstance.data.datasets[0].data = passedData;
+        secChartInstance.data.datasets[1].data = blockedData;
+        secChartInstance.update('none');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    secChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: "O'tgan so'rovlar (200 OK)",
+                    data: passedData,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: "Bloklangan / DDoS (429)",
+                    data: blockedData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 10,
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1'
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#64748b', font: { size: 10 } }
+                }
+            }
+        }
+    });
+}
+
+function renderSecurityEvents(events, jailedIps) {
+    const tbody = document.getElementById('secEventsTableBody');
+    if (!tbody) return;
+
+    if (!events.length && !jailedIps.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">Hozircha xavfli bloklashlar qayd etilmadi (Tizim toza)</td></tr>';
+        return;
+    }
+
+    const jailedSet = new Map();
+    jailedIps.forEach(j => jailedSet.set(j.ip, j));
+
+    let html = '';
+    events.slice(0, 15).forEach(ev => {
+        const isJailed = jailedSet.has(ev.ip);
+        const statusBadge = ev.status === 'JAILED' || isJailed
+            ? '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700;">🚨 JAILED</span>'
+            : ev.status === 'BLOCKED'
+            ? '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 600;">BLOCKED 429</span>'
+            : '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-radius: 6px; padding: 2px 7px; font-size: 11px;">' + ev.status + '</span>';
+
+        const unjailBtn = isJailed
+            ? '<button type="button" onclick="unjailSecurityIp(\'' + ev.ip + '\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Qamoqdan olish</button>'
+            : '<span style="color: #64748b; font-size: 11px;">-</span>';
+
+        html += `
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                <td style="padding: 8px 10px; font-family: monospace; color: #94a3b8;">${ev.time}</td>
+                <td style="padding: 8px 10px; font-family: monospace; font-weight: 600; color: #f8fafc;">${ev.ip}</td>
+                <td style="padding: 8px 10px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ev.path}</td>
+                <td style="padding: 8px 10px;">${statusBadge}</td>
+                <td style="padding: 8px 10px; color: #94a3b8; font-size: 11.5px;">${ev.details || '-'}</td>
+                <td style="padding: 8px 10px; text-align: right;">${unjailBtn}</td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+async function unjailSecurityIp(ip) {
+    if (!ip) return;
+    try {
+        const res = await fetch('/api/security/unjail', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip })
+        });
+        fetchSecurityStats();
+    } catch (e) {
+        console.error('Unjail error:', e);
+    }
+}
+window.unjailSecurityIp = unjailSecurityIp;
+
+async function simulateTestFlood() {
+    try {
+        const res = await fetch('/api/security/simulate-flood', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ count: 60, ip: '185.220.101.' + Math.floor(Math.random() * 200 + 1) })
+        });
+        fetchSecurityStats();
+    } catch (e) {
+        console.error('Simulate flood error:', e);
+    }
+}
+window.simulateTestFlood = simulateTestFlood;

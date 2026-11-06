@@ -177,12 +177,40 @@ app.use('/api/export-excel', heavyLimiter);
 app.use('/api/download-recordings-zip', heavyLimiter);
 app.use('/api/converter/', heavyLimiter);
 
-// Superuser / Admin Anti-DDoS holat statistikasi
-app.get('/api/security/stats', authService.requireAuth, (req, res) => {
-    if (req.user?.role !== 'superuser' && req.user?.role !== 'admin') {
-        return res.status(403).json({ error: "Ruxsat etilmagan" });
+const requireSecurityAdmin = (req, res, next) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session || (session.role !== 'superuser' && session.role !== 'admin')) {
+        return res.status(403).json({ success: false, error: "Ushbu amalni bajarish uchun admin yoki superuser huquqi talab etiladi" });
     }
+    req.user = session;
+    next();
+};
+
+// Superuser / Admin Anti-DDoS holat statistikasi
+app.get('/api/security/stats', requireSecurityAdmin, (req, res) => {
     res.json({ success: true, stats: rateLimitService.getStats() });
+});
+
+// IP ni qamoqdan chiqarish (Manual Unjail)
+app.post('/api/security/unjail', requireSecurityAdmin, (req, res) => {
+    const ip = req.body?.ip;
+    if (!ip) return res.status(400).json({ error: "IP ko'rsatilmadi" });
+    const success = rateLimitService.unjailIp(ip);
+    res.json({ success, message: success ? `${ip} qamoqdan chiqarildi` : `${ip} qamoqda emas` });
+});
+
+// Sinov uchun DDoS/Flood simulyatsiyasi (Admin test)
+app.post('/api/security/simulate-flood', requireSecurityAdmin, (req, res) => {
+    const count = Math.min(500, Math.max(10, parseInt(req.body?.count || '50', 10)));
+    const fakeIp = req.body?.ip || '45.143.201.88';
+    for (let i = 0; i < count; i++) {
+        rateLimitService.totalRequests++;
+        rateLimitService.totalBlockedRequests++;
+        rateLimitService.currentWindowBlocked++;
+    }
+    rateLimitService.jailIp(fakeIp, 15 * 60 * 1000, `Bombardier / DDoS test simulyatsiyasi (${count} ta so'rov)`);
+    res.json({ success: true, message: `${fakeIp} orqali ${count} ta flood so'rovi simulyatsiya qilindi va qamoqqa olindi` });
 });
 
 // HTTP -> HTTPS Redirect Gateway (Har qanday HTTP so'rovni avtomatik HTTPS ga yo'naltirish)

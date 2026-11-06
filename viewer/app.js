@@ -146,6 +146,28 @@ const viewerApiLimiter = rateLimitService.createLimiter({
 });
 app.use('/api/', viewerApiLimiter);
 
+// Viewer Security Stats & Unjail
+app.get('/api/security/stats', async (req, res) => {
+    const token = extractToken(req);
+    const user = await validateSessionWithUpstream(token);
+    if (!user || (user.role !== 'superuser' && user.role !== 'admin')) {
+        return res.status(403).json({ error: "Ruxsat etilmagan" });
+    }
+    res.json({ success: true, stats: rateLimitService.getStats() });
+});
+
+app.post('/api/security/unjail', async (req, res) => {
+    const token = extractToken(req);
+    const user = await validateSessionWithUpstream(token);
+    if (!user || (user.role !== 'superuser' && user.role !== 'admin')) {
+        return res.status(403).json({ error: "Ruxsat etilmagan" });
+    }
+    const ip = req.body?.ip;
+    if (!ip) return res.status(400).json({ error: "IP ko'rsatilmadi" });
+    const success = rateLimitService.unjailIp(ip);
+    res.json({ success, message: success ? `${ip} qamoqdan chiqarildi` : `${ip} qamoqda emas` });
+});
+
 // HTTP -> HTTPS Redirect Gateway
 app.use((req, res, next) => {
     const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';

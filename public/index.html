@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1793964165501">
+    <meta name="build-id" content="1793965249196">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -22,7 +22,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1793964165501">
+    <link rel="stylesheet" href="/css/style.css?v=1793965249196">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -266,6 +266,10 @@
                             <svg class="isax isax-chart" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-chart"></use></svg>
                             <span data-i18n="tab_statistics">Statistika</span>
                         </a>
+                        <button type="button" class="tab-btn" id="btnOpenSecurityDashboard" onclick="openSecurityDashboardModal()" style="display: inline-flex; align-items: center; gap: 6px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); cursor: pointer;" title="Anti-DDoS va Xavfsizlik Qalqoni (Jonli Grafik)">
+                            <svg class="isax isax-shield-security" style="width: 16px; height: 16px; color: #38bdf8; display: inline-block; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-shield-security"></use></svg>
+                            <span>Anti-DDoS Qalqoni</span>
+                        </button>
                     </nav>
 
                     <!-- SVG Filter for Gooey Drop Effect (feGaussianBlur + feColorMatrix for liquid drop physics) -->
@@ -3175,6 +3179,125 @@
     }
     </style>
 
+    
+    <!-- =========================================================================
+         CLOUDFLARE-STYLE ANTI-DDOS & SECURITY ANALYTICS MODAL
+         ========================================================================= -->
+    <div id="securityDashboardModal" class="modal-backdrop" onclick="if(event.target === this) closeSecurityDashboardModal()" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.94); z-index: 99999; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(12px);">
+        <section style="width: 100%; max-width: 1050px; max-height: 90vh; background: linear-gradient(180deg, #0f172a 0%, #090d16 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(56,189,248,0.12); display: flex; flex-direction: column; overflow: hidden; color: #f8fafc;">
+            
+            <!-- Modal Header -->
+            <header style="padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; gap: 14px; background: rgba(15, 23, 42, 0.6);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);">
+                        <svg class="isax isax-shield-security" style="width: 22px; height: 22px; color: #ffffff;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-shield-security"></use></svg>
+                    </div>
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #ffffff; letter-spacing: -0.3px;">Anti-DDoS & Traffic Security Analytics</h2>
+                            <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                                Cloudflare-Style Guard Faol
+                            </span>
+                        </div>
+                        <p style="margin: 3px 0 0; font-size: 12px; color: #94a3b8;">Real-vaqt tarmoq trafigi, o'tgan so'rovlar va bloklangan DDoS / Flood oqimi</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" onclick="simulateTestFlood()" class="srv-btn" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;" title="50 ta test flood so'rovi yuborib ko'rish">
+                        <span>⚡ Test Flood (Simulyatsiya)</span>
+                    </button>
+                    <button type="button" onclick="fetchSecurityStats()" class="srv-btn" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #f8fafc; padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer;" title="Yangilash">
+                        <svg class="isax isax-refresh" style="width: 14px; height: 14px; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
+                        <span>Yangilash</span>
+                    </button>
+                    <button type="button" onclick="closeSecurityDashboardModal()" class="srv-btn" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #f8fafc; padding: 7px 10px; border-radius: 8px; cursor: pointer;" title="Yopish">
+                        <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; display: block;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Modal Body (Scrollable) -->
+            <div style="padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- 5 KPIs -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                    <div style="background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 14px 16px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.5px; margin-bottom: 6px;">JAMI SO'ROVLAR</div>
+                        <div id="secTotalReq" style="font-size: 24px; font-weight: 700; color: #ffffff; font-variant-numeric: tabular-nums;">0</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 14px; padding: 14px 16px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #34d399; letter-spacing: 0.5px; margin-bottom: 6px;">O'TGAN (200 OK)</div>
+                        <div id="secPassedReq" style="font-size: 24px; font-weight: 700; color: #10b981; font-variant-numeric: tabular-nums;">0</div>
+                    </div>
+                    <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 14px; padding: 14px 16px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #f87171; letter-spacing: 0.5px; margin-bottom: 6px;">BLOKLANGAN (429 / FLOOD)</div>
+                        <div id="secBlockedReq" style="font-size: 24px; font-weight: 700; color: #ef4444; font-variant-numeric: tabular-nums;">0</div>
+                    </div>
+                    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 14px; padding: 14px 16px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #fbbf24; letter-spacing: 0.5px; margin-bottom: 6px;">QAMOQDAGI IP-LAR (JAIL)</div>
+                        <div id="secJailedCount" style="font-size: 24px; font-weight: 700; color: #f59e0b; font-variant-numeric: tabular-nums;">0</div>
+                    </div>
+                    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 14px; padding: 14px 16px;">
+                        <div style="font-size: 11px; font-weight: 600; color: #38bdf8; letter-spacing: 0.5px; margin-bottom: 6px;">FAOL WEBSOCKETLAR</div>
+                        <div id="secActiveWs" style="font-size: 24px; font-weight: 700; color: #38bdf8; font-variant-numeric: tabular-nums;">0</div>
+                    </div>
+                </div>
+
+                <!-- Live Chart Section -->
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 18px 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <svg class="isax isax-chart" style="width: 18px; height: 18px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-chart"></use></svg>
+                            <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #f8fafc;">Jonli Trafik Oqimi (Passed vs Blocked)</h3>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 16px; font-size: 12px;">
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: #10b981;">
+                                <span style="width: 10px; height: 10px; border-radius: 2px; background: #10b981;"></span> O'tgan so'rovlar
+                            </span>
+                            <span style="display: inline-flex; align-items: center; gap: 6px; color: #ef4444;">
+                                <span style="width: 10px; height: 10px; border-radius: 2px; background: #ef4444;"></span> Bloklangan (DDoS / Flood)
+                            </span>
+                        </div>
+                    </div>
+                    <div style="position: relative; height: 220px; width: 100%;">
+                        <canvas id="securityTrafficChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Threat Log & Jailed IPs Table -->
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 18px 20px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #f8fafc;">So'nggi Xavfsizlik Voqealari & Qamoqdagi IP-lar</h3>
+                        <span style="font-size: 11px; color: #64748b;">Har 2.5 soniyada yangilanadi</span>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px; text-align: left;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.08); color: #94a3b8; font-size: 11px; text-transform: uppercase;">
+                                    <th style="padding: 8px 10px;">Vaqt</th>
+                                    <th style="padding: 8px 10px;">IP Manzil</th>
+                                    <th style="padding: 8px 10px;">Marshrut</th>
+                                    <th style="padding: 8px 10px;">Holat</th>
+                                    <th style="padding: 8px 10px;">Tafsilot</th>
+                                    <th style="padding: 8px 10px; text-align: right;">Amal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="secEventsTableBody">
+                                <tr>
+                                    <td colspan="6" style="padding: 20px; text-align: center; color: #64748b;">Hozircha xavfli bloklashlar qayd etilmadi (Tizim toza)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </div>
+
     <div id="serverStatusModal" class="modal-backdrop" onclick="if(event.target === this) closeServerStatusModal()" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.93); z-index: 99999; align-items: center; justify-content: center; padding: 20px;">
         <section class="srv-redesign-modal" aria-label="Server holati">
             <header class="mh">
@@ -4080,8 +4203,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1793964165501" defer></script>
+    <script src="/js/dashboard.js?v=1793965249196" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793964165501" defer></script>
+    <script src="/js/visualInspector.js?v=1793965249196" defer></script>
 </body>
 </html>

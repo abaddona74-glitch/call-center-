@@ -1,21 +1,46 @@
 /**
- * Rate Limiting & Anti-DDoS / Flood Protection Service
- * Himoya xususiyatlari:
+ * Rate Limiting & Anti-DDoS / Flood Protection Service (V2.0 Pro)
+ * Cloudflare-Style Security Engine:
  * 1. Ichki ofis tarmoqlarini (192.168.*, 10.*, 127.0.0.1) avtomatik aniqlash va oq ro'yxatga olish (operatorlar bloklanmaydi)
  * 2. Tashqi IP-lar uchun API so'rovlarini cheklash (Sliding Window Rate Limiter)
- * 3. Kuchli hujum qilgan IP-larni avtomatik vaqtincha JALB QILISH (Jail / Auto-Ban)
+ * 3. Kuchli hujum qilgan IP-larni avtomatik vaqtincha QAMOQQA OLISH (Auto-Jail / Auto-Ban)
  * 4. WebSocket ulanishlar soni cheklovi (Connection Exhaustion hujumlariga qarshi)
  * 5. Katta hajmli yuklamalar (Excel, ZIP, Auth) uchun maxsus cheklovlar
+ * 6. Cloudflare-style Live Analytics: Real-time Time-series Graph & Live Threat Event Log
  */
 
 class RateLimitService {
     constructor() {
         this.ipBuckets = new Map(); // ip:prefix -> { count, resetAt, violations }
-        this.jailedIps = new Map(); // ip -> unjailAt (ms)
+        this.jailedIps = new Map(); // ip -> { unjailAt, reason, jailTime }
         this.activeWsConnections = new Map(); // ip -> count
+
+        // Umumiy hisoblagichlar
+        this.totalRequests = 0;
+        this.totalPassedRequests = 0;
         this.totalBlockedRequests = 0;
 
-        // Har 60 soniyada eskirgan ma'lumotlarni tozalash (Xotira to'lib ketmasligi uchun)
+        // Cloudflare-Style vaqtli oqim tarixi (Har 5 soniyada 1 ta nuqta, jami 30 ta nuqta = 2.5 daqiqa jonli grafik)
+        this.history = [];
+        this.currentWindowPassed = 0;
+        this.currentWindowBlocked = 0;
+
+        // Boshlang'ich bo'sh 20 ta nuqtani to'ldiramiz (grafik darhol chiroyli chiqishi uchun)
+        const now = Date.now();
+        for (let i = 20; i >= 1; i--) {
+            const t = new Date(now - i * 5000);
+            const timeStr = t.toTimeString().split(' ')[0];
+            this.history.push({ time: timeStr, passed: 0, blocked: 0, jailed: 0 });
+        }
+
+        // Jonli xavflar va bloklash voqealari ro'yxati (Oxirgi 30 ta)
+        this.recentEvents = [];
+
+        // Har 5 soniyada grafik nuqtasini surish (Ticker)
+        const tickerTimer = setInterval(() => this.tickHistory(), 5000);
+        if (tickerTimer.unref) tickerTimer.unref();
+
+        // Har 60 soniyada eskirgan xotira ma'lumotlarini tozalash
         const cleanupTimer = setInterval(() => this.cleanup(), 60000);
         if (cleanupTimer.unref) cleanupTimer.unref();
     }
@@ -45,7 +70,7 @@ class RateLimitService {
     }
 
     /**
-     * IP ichki/lokal tarmoqqa tegishli ekanligini tekshirish
+     * IP ichki/lokal ofis tarmog'iga tegishli ekanligini tekshirish
      */
     isTrustedInternalIp(ip) {
         if (!ip) return true;
@@ -71,11 +96,12 @@ class RateLimitService {
      * IP hozir qamoqda (vaqtincha bloklangan) ekanligini tekshirish
      */
     isJailed(ip) {
-        const unjailAt = this.jailedIps.get(ip);
-        if (!unjailAt) return false;
+        const item = this.jailedIps.get(ip);
+        if (!item) return false;
 
-        if (Date.now() > unjailAt) {
+        if (Date.now() > item.unjailAt) {
             this.jailedIps.delete(ip);
+            this.addEvent(ip, 'ALL', 'UNJAILED', '15 daqiqalik jazo muddati tugadi');
             return false;
         }
         return true;
@@ -84,11 +110,67 @@ class RateLimitService {
     /**
      * Qamoqqa tashlash (Auto-Ban)
      */
-    jailIp(ip, durationMs = 15 * 60 * 1000, reason = 'Excessive flooding') {
+    jailIp(ip, durationMs = 15 * 60 * 1000, reason = 'Limitdan oshirib yuborilgan soxta flood') {
         if (this.isTrustedInternalIp(ip)) return; // Ichki ofis IP lar hech qachon bloklanmaydi
         const unjailAt = Date.now() + durationMs;
-        this.jailedIps.set(ip, unjailAt);
+        this.jailedIps.set(ip, { unjailAt, reason, jailTime: Date.now() });
+        this.addEvent(ip, 'ALL', 'JAILED', `${Math.round(durationMs / 60000)} daqiqa bloklandi (${reason})`);
         console.warn(`🚨 [SECURITY / ANTI-DDOS] IP vaqtincha bloklandi: ${ip} (${Math.round(durationMs / 60000)} daqiqa). Sabab: ${reason}`);
+    }
+
+    /**
+     * IP ni qamoqdan chiqarish (Manual Unjail)
+     */
+    unjailIp(ip) {
+        if (this.jailedIps.has(ip)) {
+            this.jailedIps.delete(ip);
+            this.addEvent(ip, 'ALL', 'UNJAILED', 'Administrator tomonidan qamoqdan chiqarildi');
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Voqealar ro'yxatiga qo'shish
+     */
+    addEvent(ip, path, status, details) {
+        const timeStr = new Date().toTimeString().split(' ')[0];
+        this.recentEvents.unshift({
+            id: 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            time: timeStr,
+            timestamp: Date.now(),
+            ip,
+            path: path || '/',
+            status, // 'PASSED' | 'BLOCKED' | 'JAILED' | 'UNJAILED'
+            details
+        });
+
+        // Faqat oxirgi 40 ta voqeani saqlaymiz
+        if (this.recentEvents.length > 40) {
+            this.recentEvents.pop();
+        }
+    }
+
+    /**
+     * Har 5 soniyada grafik nuqtasini saqlash
+     */
+    tickHistory() {
+        const timeStr = new Date().toTimeString().split(' ')[0];
+        this.history.push({
+            time: timeStr,
+            passed: this.currentWindowPassed,
+            blocked: this.currentWindowBlocked,
+            jailed: this.jailedIps.size
+        });
+
+        // 30 ta nuqtadan oshsa eskilarini o'chirish
+        if (this.history.length > 30) {
+            this.history.shift();
+        }
+
+        // Yangi oraliq hisoblagichlarini nollash
+        this.currentWindowPassed = 0;
+        this.currentWindowBlocked = 0;
     }
 
     /**
@@ -96,22 +178,27 @@ class RateLimitService {
      */
     createLimiter(options = {}) {
         const {
-            windowMs = 60 * 1000, // 1 daqiqa
-            max = 120,             // Maksimal so'rovlar soni (tashqi IP lar uchun)
-            internalMax = 1200,    // Ichki ofis IP lari uchun erkin limit
+            windowMs = 60 * 1000,
+            max = 120,
+            internalMax = 1200,
             message = "Juda ko'p so'rov yuborildi. Iltimos, bir oz kuting.",
             keyPrefix = 'api',
-            autoJailMultiplier = 3 // Limiti 3 baravar oshirib yuborsa avtomatik bloklash
+            autoJailMultiplier = 3
         } = options;
 
         return (req, res, next) => {
+            this.totalRequests++;
             const ip = this.getClientIp(req);
+            const reqPath = req.originalUrl || req.url || '';
 
             // 1. Agar IP qamoqda bo'lsa darhol 429 berish
             if (this.isJailed(ip)) {
                 this.totalBlockedRequests++;
-                const unjailAt = this.jailedIps.get(ip);
-                const retryAfter = Math.max(1, Math.ceil((unjailAt - Date.now()) / 1000));
+                this.currentWindowBlocked++;
+                const item = this.jailedIps.get(ip);
+                const retryAfter = item ? Math.max(1, Math.ceil((item.unjailAt - Date.now()) / 1000)) : 60;
+
+                this.addEvent(ip, reqPath, 'BLOCKED', `Qamoqdagi IP so'rovi to'xtatildi (${retryAfter}s qoldi)`);
 
                 res.setHeader('Retry-After', retryAfter);
                 res.setHeader('X-Security-Jail', 'active');
@@ -147,22 +234,28 @@ class RateLimitService {
             // Agar limitdan oshsa
             if (bucket.count > effectiveMax) {
                 this.totalBlockedRequests++;
+                this.currentWindowBlocked++;
                 bucket.violations++;
+
+                const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+                this.addEvent(ip, reqPath, 'BLOCKED', `Limit oshdi: ${bucket.count}/${effectiveMax} so'rov [${keyPrefix}]`);
 
                 // Agar normadan haddan tashqari oshirib yuborsa (hujum belgisi)
                 if (!isInternal && bucket.count >= (effectiveMax * autoJailMultiplier)) {
-                    this.jailIp(ip, 15 * 60 * 1000, `Limit oshirib yuborildi: ${bucket.count}/${effectiveMax} [${keyPrefix}]`);
+                    this.jailIp(ip, 15 * 60 * 1000, `Haddan ortiq flood: ${bucket.count}/${effectiveMax} [${keyPrefix}]`);
                 }
 
-                const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
                 res.setHeader('Retry-After', retryAfter);
-
                 return res.status(429).json({
                     success: false,
                     error: message,
                     retryAfterSeconds: retryAfter
                 });
             }
+
+            // Muvaffaqiyatli o'tgan so'rov
+            this.totalPassedRequests++;
+            this.currentWindowPassed++;
 
             next();
         };
@@ -182,6 +275,9 @@ class RateLimitService {
         const MAX_CONCURRENT_WS = 15; // Bitta tashqi IP dan maksimum 15 ta faol WS
 
         if (currentActive >= MAX_CONCURRENT_WS) {
+            this.totalBlockedRequests++;
+            this.currentWindowBlocked++;
+            this.addEvent(ip, '/ws', 'BLOCKED', `Ko'p parallel WebSocket: ${currentActive}/${MAX_CONCURRENT_WS}`);
             console.warn(`⚠️ [ANTI-DDOS] WebSocket ulanish limiti oshdi: IP ${ip} (${currentActive}/${MAX_CONCURRENT_WS})`);
             return false;
         }
@@ -212,9 +308,10 @@ class RateLimitService {
         const now = Date.now();
 
         // Jailed IP larni tozalash
-        for (const [ip, unjailAt] of this.jailedIps.entries()) {
-            if (now > unjailAt) {
+        for (const [ip, item] of this.jailedIps.entries()) {
+            if (now > item.unjailAt) {
                 this.jailedIps.delete(ip);
+                this.addEvent(ip, 'ALL', 'UNJAILED', 'Jazo muddati tugadi');
             }
         }
 
@@ -227,24 +324,30 @@ class RateLimitService {
     }
 
     /**
-     * Xavfsizlik statistikasi
+     * Xavfsizlik statistikasi (Cloudflare-style Live Analytics)
      */
     getStats() {
         const jailedList = [];
         const now = Date.now();
-        for (const [ip, unjailAt] of this.jailedIps.entries()) {
+        for (const [ip, item] of this.jailedIps.entries()) {
             jailedList.push({
                 ip,
-                remainingSeconds: Math.max(0, Math.ceil((unjailAt - now) / 1000))
+                reason: item.reason,
+                jailedAt: item.jailTime,
+                remainingSeconds: Math.max(0, Math.ceil((item.unjailAt - now) / 1000))
             });
         }
 
         return {
-            totalBlockedRequests: this.totalBlockedRequests,
-            activeTrackedIps: this.ipBuckets.size,
+            totalRequests: this.totalRequests,
+            passedRequests: this.totalPassedRequests,
+            blockedRequests: this.totalBlockedRequests,
             jailedIpsCount: this.jailedIps.size,
             jailedIps: jailedList,
-            activeWsPerIp: Object.fromEntries(this.activeWsConnections)
+            activeTrackedIps: this.ipBuckets.size,
+            activeWsPerIp: Object.fromEntries(this.activeWsConnections),
+            history: this.history,
+            recentEvents: this.recentEvents
         };
     }
 }
