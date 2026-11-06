@@ -1951,6 +1951,27 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// Vositalar kartalarini (tool-card) bosganda avtomatik "Shu yerda ochish" vazifasini bajarish
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('.tool-card');
+    if (!card) return;
+    // Agar to'g'ridan-to'g'ri havola, tugma yoki subtab-pill bosilgan bo'lsa, xalaqit bermaymiz
+    if (e.target.closest('a, button, input, .subtab-pill')) return;
+
+    // 1. "Shu yerda ochish" tugmasini topib bosish
+    const modalBtn = card.querySelector('button[onclick*="openToolInModal"], button[onclick*="openConverterModal"], .tool-action-btn.secondary');
+    if (modalBtn) {
+        modalBtn.click();
+        return;
+    }
+
+    // 2. Aks holda asosiy (primary) tugma yoki havolani bosish
+    const primaryBtn = card.querySelector('.tool-action-btn.primary, a');
+    if (primaryBtn) {
+        primaryBtn.click();
+    }
+});
+
 /* ==========================================================================
    Header Live Clock
    ========================================================================== */
