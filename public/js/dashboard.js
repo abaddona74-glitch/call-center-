@@ -4737,6 +4737,65 @@ async function openInExplorerStudio(recFile, callerId, duration, btn) {
 window.openInExplorerStudio = openInExplorerStudio;
 
 
+function getUzbekistanOperator(phone) {
+    if (!phone) return null;
+    const clean = String(phone).replace(/\D/g, '');
+    let code = '';
+    if (clean.startsWith('998') && clean.length >= 5) {
+        code = clean.slice(3, 5);
+    } else if (clean.length === 9) {
+        code = clean.slice(0, 2);
+    } else if (clean.length > 9) {
+        const last9 = clean.slice(-9);
+        code = last9.slice(0, 2);
+    } else if (clean.length === 7) {
+        return { name: 'Uztelecom', brand: 'uztelecom', color: '#0284c7', bg: 'rgba(2, 132, 199, 0.15)', border: 'rgba(2, 132, 199, 0.35)' };
+    } else {
+        return null;
+    }
+
+    // Beeline: 90, 91
+    if (code === '90' || code === '91') {
+        return { name: 'Beeline', brand: 'beeline', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.35)' };
+    }
+    // Ucell: 93, 94, 50, 55
+    if (code === '93' || code === '94' || code === '50' || code === '55') {
+        return { name: 'Ucell', brand: 'ucell', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.35)' };
+    }
+    // Uzmobile (Uztelecom): 95, 99, 77, 71, 78
+    if (code === '95' || code === '99' || code === '77' || code === '71' || code === '78') {
+        return { name: 'Uztelecom', brand: 'uztelecom', color: '#0284c7', bg: 'rgba(2, 132, 199, 0.15)', border: 'rgba(2, 132, 199, 0.35)' };
+    }
+    // Mobiuz: 97, 88
+    if (code === '97' || code === '88') {
+        return { name: 'Mobiuz', brand: 'mobiuz', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.35)' };
+    }
+    // Humans: 33
+    if (code === '33') {
+        return { name: 'Humans', brand: 'humans', color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.35)' };
+    }
+    // Perfectum Mobile: 98, 80
+    if (code === '98' || code === '80') {
+        return { name: 'Perfectum', brand: 'perfectum', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.15)', border: 'rgba(236, 72, 153, 0.35)' };
+    }
+    // OQ: 20
+    if (code === '20') {
+        return { name: 'OQ', brand: 'oq', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.15)', border: 'rgba(6, 182, 212, 0.35)' };
+    }
+
+    return null;
+}
+window.getUzbekistanOperator = getUzbekistanOperator;
+
+function formatLiveCallDuration(startMs) {
+    if (!startMs) return '00:00';
+    const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+    const mm = String(Math.floor(diffSec / 60)).padStart(2, '0');
+    const ss = String(diffSec % 60).padStart(2, '0');
+    const hh = Math.floor(diffSec / 3600);
+    return hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 function getConversationKey(c) {
     return c.channel || (c.callerId + '_' + (c.operatorExten || c.operator || ''));
 }
@@ -4830,6 +4889,57 @@ function renderActiveConversations(conversations) {
             ? t('live_badge_queue', 'Navbatda kutmoqda') 
             : (c.operatorExten ? `${cleanOp} · ${c.operatorExten}` : cleanOp);
 
+        // Davomiylik (Start Time) hisoblash:
+        let startMs = 0;
+        if (c.startTime) {
+            const parsed = new Date(c.startTime).getTime();
+            if (!isNaN(parsed) && parsed > 0) {
+                startMs = parsed;
+            }
+        }
+        if (!startMs && c.duration) {
+            const parts = String(c.duration).split(':').map(Number);
+            if (parts.length === 3) {
+                const sec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+                startMs = Date.now() - sec * 1000;
+            } else if (parts.length === 2) {
+                const sec = parts[0] * 60 + parts[1];
+                startMs = Date.now() - sec * 1000;
+            }
+        }
+        if (!startMs) {
+            startMs = Date.now();
+        }
+
+        // Agar mavjud kartada data-start bo'lsa va farq 6 soniyadan kam bo'lsa, eskisini saqlash (sekundomer sakramaydi)
+        if (existingCard) {
+            const oldTimer = existingCard.querySelector('.cc-live-duration');
+            if (oldTimer) {
+                const oldStart = parseInt(oldTimer.getAttribute('data-start'), 10);
+                if (oldStart && Math.abs(oldStart - startMs) < 6000) {
+                    startMs = oldStart;
+                }
+            }
+        }
+
+        const initialDurationText = formatLiveCallDuration(startMs);
+
+        // Operatordan SIM karta va brend ma'lumotlarini aniqlash
+        const opInfo = getUzbekistanOperator(c.callerId);
+        const opBadgeHtml = opInfo ? `
+            <span class="cc-op-sim-badge" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
+                <svg class="isax isax-simcard" style="width: 11px; height: 11px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
+                <span>${opInfo.name}</span>
+            </span>
+        ` : '';
+
+        const durationHtml = `
+            <span class="cc-live-duration-wrap" style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
+            </span>
+        `;
+
         if (existingCard) {
             existingCard.className = `cc-call ${isTalking ? 'talking' : 'ringing'}`;
             existingCard.setAttribute('title', `Raqamni nusxalash: ${c.callerId || ''}`);
@@ -4842,9 +4952,13 @@ function renderActiveConversations(conversations) {
                 tagEl.className = `cc-tag ${tagClass}`;
                 tagEl.textContent = tagText;
             }
-            const opEl = existingCard.querySelector('.cc-sub');
-            if (opEl) {
-                opEl.textContent = opText;
+            const phoneEl = existingCard.querySelector('.cc-phone-row');
+            if (phoneEl) {
+                phoneEl.innerHTML = `<span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>${opBadgeHtml}`;
+            }
+            const subRowEl = existingCard.querySelector('.cc-sub-row');
+            if (subRowEl) {
+                subRowEl.innerHTML = `<span class="cc-sub">${opText}</span>${durationHtml}`;
             }
         } else {
             const cardEl = document.createElement('div');
@@ -4856,9 +4970,15 @@ function renderActiveConversations(conversations) {
                 copyCallbackPhone(c.callerId, cardEl, e);
             };
             cardEl.innerHTML = `
-                <div class="cc-call-info">
-                    <div class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</div>
-                    <div class="cc-sub">${opText}</div>
+                <div class="cc-call-info" style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>
+                        ${opBadgeHtml}
+                    </div>
+                    <div class="cc-sub-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="cc-sub">${opText}</span>
+                        ${durationHtml}
+                    </div>
                 </div>
                 <span class="cc-tag ${tagClass}">${tagText}</span>
                 <div class="cc-call-actions">
@@ -4869,6 +4989,25 @@ function renderActiveConversations(conversations) {
             container.appendChild(cardEl);
         }
     });
+}
+
+// Har soniyada faol suhbatlar davomiyligini (duration) jonli sekundomerda yangilab borish
+if (!window.activeConversationsTicker) {
+    window.activeConversationsTicker = setInterval(() => {
+        const timerEls = document.querySelectorAll('.cc-live-duration[data-start]');
+        if (!timerEls || timerEls.length === 0) return;
+        const now = Date.now();
+        timerEls.forEach(el => {
+            const start = parseInt(el.getAttribute('data-start'), 10);
+            if (start && start > 0) {
+                const diffSec = Math.max(0, Math.floor((now - start) / 1000));
+                const mm = String(Math.floor(diffSec / 60)).padStart(2, '0');
+                const ss = String(diffSec % 60).padStart(2, '0');
+                const hh = Math.floor(diffSec / 3600);
+                el.textContent = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
+            }
+        });
+    }, 1000);
 }
 
 function renderQueues(queues) {
