@@ -1,0 +1,11 @@
+<svg width="85" height="84" viewBox="0 0 85 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M47.5171 81.8694L2.35938 38.3477L12.0993 43.2172H42.2044V64.2172L47.5171 81.8694Z" fill="url(#paint0_linear_edo_symbol)"/>
+<path d="M0 31.0435V0H41.6159C63.1617 0 74.2197 14 78.8046 22.2174C84.5781 32.5652 84.8488 47.4783 82.9366 53.8696C77.2911 72.7391 64.0472 84 53.717 84C46.3383 84 42.1078 76.087 42.2062 72.1304V64.2174C58.7345 64.2174 62.6698 50.2174 62.5714 43.2174V41.3913C62.5714 30.1304 51.3558 22.2174 43.9771 22.2174H21.5458V43.2174H11.8059C5.43073 43.2174 0 37.7391 0 31.0435Z" fill="#373EFF"/>
+<defs>
+<linearGradient id="paint0_linear_edo_symbol" x1="39.998" y1="45.5" x2="26.498" y2="61.5" gradientUnits="userSpaceOnUse">
+<stop stop-color="#33FEEB"/>
+<stop offset="0.800347" stop-color="#01CCB9"/>
+<stop offset="1" stop-color="#15E0CD"/>
+</linearGradient>
+</defs>
+</svg>
