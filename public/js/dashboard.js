@@ -4985,11 +4985,11 @@ function renderActiveConversations(conversations) {
             const phoneRowEl = existingCard.querySelector('.cc-phone-row');
             if (phoneRowEl) {
                 const callerFormatted = formatCallerNumberOrOperator(c.callerId);
-                phoneRowEl.innerHTML = `<span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span>${opBadgeHtml}`;
+                phoneRowEl.innerHTML = `<span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span><span class="sub cc-agent-sub" title="${safeEscapeAttr(subtext)}">${subtext}</span>`;
             }
-            const subEl = existingCard.querySelector('.sub');
-            if (subEl) {
-                subEl.textContent = subtext;
+            const subRowEl = existingCard.querySelector('.cc-sub-row');
+            if (subRowEl) {
+                subRowEl.innerHTML = `${opBadgeHtml}${durationHtml}`;
             }
             const timerEl = existingCard.querySelector('.cc-live-duration');
             if (timerEl) {
@@ -5011,10 +5011,10 @@ function renderActiveConversations(conversations) {
                 <div class="cc-call-info">
                     <div class="cc-phone-row">
                         <span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span>
-                        ${opBadgeHtml}
+                        <span class="sub cc-agent-sub" title="${safeEscapeAttr(subtext)}">${subtext}</span>
                     </div>
                     <div class="cc-sub-row">
-                        <span class="sub">${subtext}</span>
+                        ${opBadgeHtml}
                         ${durationHtml}
                     </div>
                 </div>

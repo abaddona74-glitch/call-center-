@@ -7466,12 +7466,13 @@ body.sidebar-collapsed .page-elevator-btn {
     flex-direction: column;
     min-width: 0;
     flex: 1;
+    justify-content: center;
 }
 
 .cc-call-info .cc-phone-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
 }
 
@@ -7487,14 +7488,34 @@ body.sidebar-collapsed .page-elevator-btn {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    flex-shrink: 0;
+    max-width: 140px;
+}
+
+.cc-call-info .cc-agent-sub {
+    font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
+    color: #94a3b8 !important;
+    font-size: 11.5px !important;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    margin-left: auto;
+    text-align: right;
 }
 
 .cc-call-info .cc-sub-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 4px;
     min-width: 0;
+}
+
+.cc-op-sim-badge {
+    min-width: 62px;
+    justify-content: center;
 }
 
 .cc-call-info .sub {
@@ -7510,7 +7531,6 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 .cc-live-duration-wrap {
-    margin-left: auto;
     display: inline-flex;
     align-items: center;
     gap: 4px;
