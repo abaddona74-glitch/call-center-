@@ -1955,8 +1955,9 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('click', (e) => {
     const card = e.target.closest('.tool-card');
     if (!card) return;
-    // Agar to'g'ridan-to'g'ri havola, tugma yoki subtab-pill bosilgan bo'lsa, xalaqit bermaymiz
-    if (e.target.closest('a, button, input, .subtab-pill')) return;
+    if (isDraggingToolCard || recentlyDroppedTool) return;
+    // Agar to'g'ridan-to'g'ri havola, tugma, input, subtab-pill yoki drag handle/quick move bosilgan bo'lsa, xalaqit bermaymiz
+    if (e.target.closest('a, button, input, .subtab-pill, .tool-drag-handle, .tool-quick-move-btn')) return;
 
     // 1. "Shu yerda ochish" tugmasini topib bosish
     const modalBtn = card.querySelector('button[onclick*="openToolInModal"], button[onclick*="openConverterModal"], .tool-action-btn.secondary');
@@ -1971,6 +1972,223 @@ document.addEventListener('click', (e) => {
         primaryBtn.click();
     }
 });
+
+
+/* ==========================================================================
+   Tools Drag & Drop Engine (Asosiy va Kerakli vositalar)
+   ========================================================================== */
+const TOOLS_LAYOUT_STORAGE_KEY = 'callcenter_viewer_tools_layout_v1';
+let isDraggingToolCard = false;
+let recentlyDroppedTool = false;
+
+function initToolsDragAndDrop() {
+    const primaryGrid = document.getElementById('primaryToolsGrid');
+    const secondaryGrid = document.getElementById('secondaryToolsGrid');
+    if (!primaryGrid || !secondaryGrid) return;
+
+    // 1. Saqlangan tartibni (localStorage) tiklash
+    loadSavedToolsLayout();
+
+    // 2. Drag & Drop hodisalarini kartalarga ulash
+    setupToolCardsDragEvents();
+
+    // 3. Drop zonalar (primaryGrid va secondaryGrid) hodisalari
+    [primaryGrid, secondaryGrid].forEach(zone => {
+        setupToolsDropZone(zone);
+    });
+
+    // 4. Bo'sh holatlar va hisoblagichlarni yangilash
+    updateToolsZoneCountersAndEmptyStates();
+}
+
+function loadSavedToolsLayout() {
+    try {
+        const raw = localStorage.getItem(TOOLS_LAYOUT_STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (!saved || typeof saved !== 'object') return;
+
+        const primaryGrid = document.getElementById('primaryToolsGrid');
+        const secondaryGrid = document.getElementById('secondaryToolsGrid');
+        if (!primaryGrid || !secondaryGrid) return;
+
+        const allCards = new Map();
+        document.querySelectorAll('.tool-card[data-tool-id]').forEach(card => {
+            allCards.set(card.getAttribute('data-tool-id'), card);
+        });
+
+        // Joylashtirish: primary
+        if (Array.isArray(saved.primary)) {
+            saved.primary.forEach(id => {
+                const card = allCards.get(id);
+                if (card) {
+                    primaryGrid.appendChild(card);
+                    allCards.delete(id);
+                }
+            });
+        }
+
+        // Joylashtirish: secondary
+        if (Array.isArray(saved.secondary)) {
+            saved.secondary.forEach(id => {
+                const card = allCards.get(id);
+                if (card) {
+                    secondaryGrid.appendChild(card);
+                    allCards.delete(id);
+                }
+            });
+        }
+    } catch (err) {
+        console.warn('Tools layout restore error:', err);
+    }
+}
+
+function saveToolsLayout() {
+    try {
+        const primaryGrid = document.getElementById('primaryToolsGrid');
+        const secondaryGrid = document.getElementById('secondaryToolsGrid');
+        if (!primaryGrid || !secondaryGrid) return;
+
+        const primaryIds = Array.from(primaryGrid.querySelectorAll('.tool-card[data-tool-id]'))
+            .map(c => c.getAttribute('data-tool-id'));
+        const secondaryIds = Array.from(secondaryGrid.querySelectorAll('.tool-card[data-tool-id]'))
+            .map(c => c.getAttribute('data-tool-id'));
+
+        localStorage.setItem(TOOLS_LAYOUT_STORAGE_KEY, JSON.stringify({
+            primary: primaryIds,
+            secondary: secondaryIds
+        }));
+    } catch (err) {
+        console.warn('Tools layout save error:', err);
+    }
+}
+
+function updateToolsZoneCountersAndEmptyStates() {
+    const primaryGrid = document.getElementById('primaryToolsGrid');
+    const secondaryGrid = document.getElementById('secondaryToolsGrid');
+    if (!primaryGrid || !secondaryGrid) return;
+
+    const pCount = primaryGrid.querySelectorAll('.tool-card').length;
+    const sCount = secondaryGrid.querySelectorAll('.tool-card').length;
+
+    const pBadge = document.getElementById('primaryToolsCount');
+    const sBadge = document.getElementById('secondaryToolsCount');
+    if (pBadge) pBadge.textContent = pCount;
+    if (sBadge) sBadge.textContent = sCount;
+
+    if (pCount === 0) primaryGrid.classList.add('is-empty');
+    else primaryGrid.classList.remove('is-empty');
+
+    if (sCount === 0) secondaryGrid.classList.add('is-empty');
+    else secondaryGrid.classList.remove('is-empty');
+
+    // Quick move tugmalarining title va holatini moslash
+    primaryGrid.querySelectorAll('.tool-quick-move-btn').forEach(btn => {
+        btn.setAttribute('title', "Kerakli vositalarga o'tkazish");
+    });
+    secondaryGrid.querySelectorAll('.tool-quick-move-btn').forEach(btn => {
+        btn.setAttribute('title', "Asosiy vositalarga o'tkazish");
+    });
+}
+
+function setupToolCardsDragEvents() {
+    const cards = document.querySelectorAll('.tool-card[data-tool-id]');
+    cards.forEach(card => {
+        card.setAttribute('draggable', 'true');
+
+        card.addEventListener('dragstart', (e) => {
+            isDraggingToolCard = true;
+            card.classList.add('is-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', card.getAttribute('data-tool-id') || '');
+        });
+
+        card.addEventListener('dragend', () => {
+            isDraggingToolCard = false;
+            card.classList.remove('is-dragging');
+            document.querySelectorAll('.tools-grid.dropzone').forEach(z => z.classList.remove('drag-over-zone'));
+            saveToolsLayout();
+            updateToolsZoneCountersAndEmptyStates();
+            recentlyDroppedTool = true;
+            setTimeout(() => { recentlyDroppedTool = false; }, 250);
+        });
+    });
+}
+
+function setupToolsDropZone(zone) {
+    zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        zone.classList.add('drag-over-zone');
+
+        const draggingCard = document.querySelector('.tool-card.is-dragging');
+        if (!draggingCard) return;
+
+        const afterElement = getToolsDragAfterElement(zone, e.clientX, e.clientY);
+        if (afterElement == null) {
+            zone.appendChild(draggingCard);
+        } else {
+            zone.insertBefore(draggingCard, afterElement);
+        }
+    });
+
+    zone.addEventListener('dragleave', (e) => {
+        if (!zone.contains(e.relatedTarget)) {
+            zone.classList.remove('drag-over-zone');
+        }
+    });
+
+    zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over-zone');
+        saveToolsLayout();
+        updateToolsZoneCountersAndEmptyStates();
+        recentlyDroppedTool = true;
+        setTimeout(() => { recentlyDroppedTool = false; }, 250);
+    });
+}
+
+function getToolsDragAfterElement(container, x, y) {
+    const draggableElements = [...container.querySelectorAll('.tool-card:not(.is-dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offsetX = x - (box.left + box.width / 2);
+        const offsetY = y - (box.top + box.height / 2);
+        const distance = Math.hypot(offsetX, offsetY);
+
+        const isBefore = (y < box.bottom && x < box.right);
+
+        if (isBefore && distance < closest.offset) {
+            return { offset: distance, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.POSITIVE_INFINITY }).element;
+}
+
+// Bir bosish bilan boshqa bo'limga o'tkazish
+window.toggleToolZone = function(toolId) {
+    if (!toolId) return;
+    const card = document.querySelector(`.tool-card[data-tool-id="${toolId}"]`);
+    if (!card) return;
+
+    const primaryGrid = document.getElementById('primaryToolsGrid');
+    const secondaryGrid = document.getElementById('secondaryToolsGrid');
+    if (!primaryGrid || !secondaryGrid) return;
+
+    const isCurrentlyPrimary = primaryGrid.contains(card);
+    const targetGrid = isCurrentlyPrimary ? secondaryGrid : primaryGrid;
+
+    targetGrid.appendChild(card);
+    card.classList.add('card-just-moved');
+    setTimeout(() => {
+        card.classList.remove('card-just-moved');
+    }, 650);
+
+    saveToolsLayout();
+    updateToolsZoneCountersAndEmptyStates();
+};
 
 /* ==========================================================================
    Header Live Clock
@@ -5033,6 +5251,7 @@ function initViewer() {
     initDeployWatcher();
     initConverterDropzone();
     initUzcryptoBadge();
+    initToolsDragAndDrop();
 
     // Avtomatik zaxira so'rovi (har 6 soniyada)
     refreshInterval = setInterval(() => {

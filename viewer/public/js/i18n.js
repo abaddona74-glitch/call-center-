@@ -228,6 +228,10 @@ const I18N_TRANSLATIONS = {
         tool_open_here: "🖥️ Shu yerda ochish",
         tool_open_new_window: "Yangi oynada ochish ↗",
         tool_zoom_in: "🔍 Kattalashtirish",
+        tools_primary_title: "Asosiy vositalar",
+        tools_primary_badge: "Tezkor va kundalik",
+        tools_secondary_title: "Kerakli vositalar",
+        tools_secondary_badge: "Qo'shimcha va arxiv",
         tool_zoom_out: "🔍 Kichiklashtirish"
     },
     ru: {
@@ -450,6 +454,10 @@ const I18N_TRANSLATIONS = {
         tool_open_here: "🖥️ Открыть здесь",
         tool_open_new_window: "Открыть в новом окне ↗",
         tool_zoom_in: "🔍 Увеличить",
+        tools_primary_title: "Основные инструменты",
+        tools_primary_badge: "Быстрые и ежедневные",
+        tools_secondary_title: "Необходимые инструменты",
+        tools_secondary_badge: "Дополнительные сервисы",
         tool_zoom_out: "🔍 Уменьшить"
     }
 };

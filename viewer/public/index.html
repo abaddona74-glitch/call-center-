@@ -461,6 +461,114 @@
         }
 
         /* ==========================================================================
+           Tools Drag & Drop Enhancements (Asosiy va Kerakli Vositalar)
+           ========================================================================== */
+        .tools-zone-panel {
+            transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+        }
+        .tools-zone-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #64748b;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 4px 10px;
+        }
+        .tools-grid.dropzone {
+            min-height: 110px;
+            border-radius: 14px;
+            transition: background 0.2s ease, outline-color 0.2s ease;
+            position: relative;
+        }
+        .tools-grid.dropzone.drag-over-zone {
+            background: rgba(56, 189, 248, 0.05);
+            outline: 2px dashed rgba(56, 189, 248, 0.6);
+            outline-offset: 4px;
+            border-radius: 14px;
+        }
+        .tool-card {
+            cursor: grab;
+            user-select: none;
+        }
+        .tool-card:active {
+            cursor: grabbing;
+        }
+        .tool-card.is-dragging {
+            opacity: 0.35 !important;
+            transform: scale(0.97) !important;
+            border-style: dashed !important;
+            border-color: #38bdf8 !important;
+            box-shadow: 0 10px 30px rgba(56, 189, 248, 0.25) !important;
+        }
+        .tool-card.card-just-moved {
+            animation: toolCardHighlight 0.6s ease;
+        }
+        @keyframes toolCardHighlight {
+            0% { transform: scale(0.96); box-shadow: 0 0 25px rgba(56, 189, 248, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 35px rgba(56, 189, 248, 0.9); }
+            100% { transform: scale(1); }
+        }
+        .tool-drag-handle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #64748b;
+            padding: 4px;
+            border-radius: 6px;
+            opacity: 0.45;
+            transition: opacity 0.15s, color 0.15s, background 0.15s;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        .tool-card:hover .tool-drag-handle {
+            opacity: 1;
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .tool-quick-move-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        .tool-quick-move-btn:hover {
+            background: rgba(56, 189, 248, 0.18);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #38bdf8;
+            transform: scale(1.08);
+        }
+        .tools-empty-dropzone {
+            grid-column: 1 / -1;
+            padding: 36px 20px;
+            text-align: center;
+            border: 2px dashed rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            color: #64748b;
+            font-size: 13px;
+            display: none;
+            background: rgba(15, 23, 42, 0.3);
+        }
+        .tools-grid.is-empty .tools-empty-dropzone {
+            display: block;
+        }
+
+        /* ==========================================================================
            Viewer Access History Modal & Buttons (Superuser Only)
            ========================================================================== */
         .viewer-history-btn {
@@ -874,21 +982,34 @@
             </div>
         </div>
 
-<!-- TOOLS PANEL -->
-        <div class="tools-panel">
+<!-- =========================================================================
+     ASOSIY VOSITALAR (PRIMARY TOOLS) PANEL
+     ========================================================================= -->
+        <div class="tools-panel tools-zone-panel" id="primaryToolsPanel" data-zone="primary" style="margin-bottom: 24px;">
             <div class="tools-heading">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #38bdf8;">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                    </svg>
-                    <span data-i18n="tools_title">Tools</span>
-                    <span class="tools-badge" data-i18n="tools_badge">Qo'shimcha vositalar</span>
+                    <svg class="isax isax-star" style="width: 20px; height: 20px; color: #f59e0b; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-star"></use></svg>
+                    <span data-i18n="tools_primary_title">Asosiy vositalar</span>
+                    <span class="tools-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35);" data-i18n="tools_primary_badge">Tezkor / Tanlangan</span>
+                </div>
+                <div class="tools-zone-hint">
+                    <svg class="isax isax-element-equal" style="width: 14px; height: 14px; color: #94a3b8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    <span>Kartalarni sudrab joylashtiring (Drag & Drop)</span>
                 </div>
             </div>
 
-            <div class="tools-grid">
+            <div class="tools-grid dropzone" id="primaryToolsGrid" data-zone="primary">
+                <div class="tools-empty-dropzone">
+                    <svg class="isax isax-box-add" style="width: 28px; height: 28px; color: #64748b; margin-bottom: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-box-add"></use></svg>
+                    <div>Asosiy vositalar ro'yxati bo'sh</div>
+                    <div style="font-size: 11px; color: #475569; margin-top: 4px;">Quyidagi kerakli vositalardan bu yerga sudrab olib o'ting</div>
+                </div>
+
                 <!-- AnyDesk Tozalash Card -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="anydesk">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);">
                         <svg class="isax isax-trash" style="width: 24px; height: 24px; color: #fff;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-trash"></use></svg>
                     </div>
@@ -903,41 +1024,18 @@
                                 <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
                                 <span>Skriptni yuklab olish</span>
                             </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Telegram Form Dashboard Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0088cc 0%, #00a8ff 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z"/>
-                        </svg>
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title">Telegram Form Dashboard</h4>
-                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
-                        </div>
-                        <p class="tool-card-desc" data-i18n="tool_tg_desc">Maʼlumot shakli va Telegram arizalarini to'ldirish hamda monitoring qilish paneli.</p>
-                        <div class="tool-card-footer">
-                            <a href="https://telegram-form-dashboard.vercel.app" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
-                                <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </a>
-                            <button onclick="openToolInModal('https://telegram-form-dashboard.vercel.app', 'Telegram Form Dashboard')" class="tool-action-btn secondary">
-                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('anydesk');" title="Kerakli vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Mas'ullar va E-XAT Card (Birlashtirilgan) -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="managers">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #10b981 100%);">
                         <svg class="isax isax-user" style="width: 24px; height: 24px; color: #ffffff;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
                     </div>
@@ -963,12 +1061,116 @@
                             <button onclick="openToolInModal('/tools/managers.html', 'Mas\'ullar va E-XAT', 'iframe')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('managers');" title="Kerakli vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Universal Fayl Konvertor Card -->
+                <div class="tool-card" draggable="true" data-tool-id="converter">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 2v6h-6"></path>
+                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                            <path d="M3 22v-6h6"></path>
+                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Universal Fayl Konvertor</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc">Hujjat va rasmlarni tezkor konvertatsiya qilish (PDF, DOCX, DOC, TXT, JPG, PNG, WEBP). Zero-storage xavfsiz tizim.</p>
+                        <div class="tool-card-footer">
+                            <button type="button" onclick="openConverterModal()" class="tool-action-btn primary" style="cursor: pointer;">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </button>
+                            <button type="button" onclick="openConverterModal()" class="tool-action-btn secondary" style="cursor: pointer;">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('converter');" title="Kerakli vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =========================================================================
+             KERAKLI VOSITALAR (SECONDARY TOOLS) PANEL
+             ========================================================================= -->
+        <div class="tools-panel tools-zone-panel" id="secondaryToolsPanel" data-zone="secondary">
+            <div class="tools-heading">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <svg class="isax isax-category" style="width: 20px; height: 20px; color: #38bdf8; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-category"></use></svg>
+                    <span data-i18n="tools_secondary_title">Kerakli vositalar</span>
+                    <span class="tools-badge" data-i18n="tools_secondary_badge">Qo'shimcha vositalar</span>
+                </div>
+                <div class="tools-zone-hint">
+                    <svg class="isax isax-element-equal" style="width: 14px; height: 14px; color: #94a3b8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    <span>Kartalarni sudrab joylashtiring (Drag & Drop)</span>
+                </div>
+            </div>
+
+            <div class="tools-grid dropzone" id="secondaryToolsGrid" data-zone="secondary">
+                <div class="tools-empty-dropzone">
+                    <svg class="isax isax-box-add" style="width: 28px; height: 28px; color: #64748b; margin-bottom: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-box-add"></use></svg>
+                    <div>Kerakli vositalar ro'yxati bo'sh</div>
+                    <div style="font-size: 11px; color: #475569; margin-top: 4px;">Asosiy vositalardan bu yerga sudrab olib o'ting</div>
+                </div>
+
+                <!-- Telegram Form Dashboard Card -->
+                <div class="tool-card" draggable="true" data-tool-id="telegram">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0088cc 0%, #00a8ff 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z"/>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Telegram Form Dashboard</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc" data-i18n="tool_tg_desc">Maʼlumot shakli va Telegram arizalarini to'ldirish hamda monitoring qilish paneli.</p>
+                        <div class="tool-card-footer">
+                            <a href="https://telegram-form-dashboard.vercel.app" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                    <polyline points="15 3 21 3 21 9"></polyline>
+                                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                                </svg>
+                            </a>
+                            <button onclick="openToolInModal('https://telegram-form-dashboard.vercel.app', 'Telegram Form Dashboard')" class="tool-action-btn secondary">
+                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('telegram');" title="Asosiy vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Ijro ERI Xat Generatori Card -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="ijro_letter">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -996,45 +1198,18 @@
                             <button onclick="openToolInModal('https://xat-tayyorlash.vercel.app', 'Ijro ERI Xat Generatori')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
-                        </div>
-                    </div>
-                </div>
-
-
-                <!-- Universal Fayl Konvertor Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 2v6h-6"></path>
-                            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                            <path d="M3 22v-6h6"></path>
-                            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                        </svg>
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title">Universal Fayl Konvertor</h4>
-                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
-                        </div>
-                        <p class="tool-card-desc">Hujjat va rasmlarni tezkor konvertatsiya qilish (PDF, DOCX, DOC, TXT, JPG, PNG, WEBP). Zero-storage xavfsiz tizim.</p>
-                        <div class="tool-card-footer">
-                            <button type="button" onclick="openConverterModal()" class="tool-action-btn primary" style="cursor: pointer;">
-                                <span data-i18n="tool_open">Ochish</span>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                                    <polyline points="15 3 21 3 21 9"></polyline>
-                                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                                </svg>
-                            </button>
-                            <button type="button" onclick="openConverterModal()" class="tool-action-btn secondary" style="cursor: pointer;">
-                                <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('ijro_letter');" title="Asosiy vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- Yangi O'zbek Alifbosi (2026) Card -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="uzb2026">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #6366f1 100%);">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
@@ -1066,6 +1241,9 @@
                             </a>
                             <button onclick="openToolInModal('/tools/uzb2026.html', 'tool_uzb2026_title', 'iframe')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
+                            </button>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('uzb2026');" title="Asosiy vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -2304,15 +2482,15 @@
     <!-- Iconsax Linear Icons Engine -->
     <script src="/js/iconsax.js?v=1.1"></script>
     <!-- Multi-Language i18n Engine -->
-    <script src="/js/i18n.js?v=1.3"></script>
+    <script src="/js/i18n.js?v=1793960356935"></script>
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Tickets Module -->
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=4.5" defer></script>
+    <script src="/js/viewer.js?v=1793960356935" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793951606465" defer></script>
+    <script src="/js/visualInspector.js?v=1793960459449" defer></script>
 </body>
 </html>
