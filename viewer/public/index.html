@@ -902,30 +902,6 @@
             </div>
 
             <div class="tools-grid">
-                <!-- Uzcrypto Dasturi (Avtomatik Latest Versiya) Card -->
-                <div class="tool-card">
-                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #1e3a8a 100%);">
-                        <img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 26px; height: 26px; object-fit: contain; border-radius: 6px;">
-                    </div>
-                    <div class="tool-card-content">
-                        <div class="tool-card-top">
-                            <h4 class="tool-card-title">Uzcrypto Dasturi</h4>
-                            <span class="tool-status-pill" id="uzcryptoVersionBadge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">Latest 2.2.4.24</span>
-                        </div>
-                        <p class="tool-card-desc">EDO.IJRO.UZ tizimi uchun ERI (E-imzo) kalitlari bilan ishlash dasturi. Yangi versiya chiqqanda avtomatik yangilanadi.</p>
-                        <div class="tool-card-footer">
-                            <a href="/api/tools/uzcrypto/download" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary" title="Eng so'nggi rasmiy Windows versiyasini yuklab olish">
-                                <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
-                                <span>Yuklab olish (.zip)</span>
-                            </a>
-                            <a href="https://edo.ijro.uz/welcome" target="_blank" rel="noopener noreferrer" class="tool-action-btn secondary" title="EDO rasmiy yuklash sahifasi">
-                                <svg class="isax isax-global" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
-                                <span>EDO Welcome</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- EDO Kabineti Card -->
                 <div class="tool-card">
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%);">
@@ -1129,6 +1105,36 @@
                     <svg class="isax isax-box-add" style="width: 28px; height: 28px; color: #64748b; margin-bottom: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-box-add"></use></svg>
                     <div>Kerakli vositalar ro'yxati bo'sh</div>
                     <div style="font-size: 11px; color: #475569; margin-top: 4px;">Asosiy vositalardan bu yerga sudrab olib o'ting</div>
+                </div>
+
+                <!-- Uzcrypto Dasturi (Avtomatik Latest Versiya) Card -->
+                <div class="tool-card" draggable="true" data-tool-id="uzcrypto">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #1e3a8a 100%);">
+                        <img src="/icons/uzcrypto.png" alt="UzCrypto" style="width: 26px; height: 26px; object-fit: contain; border-radius: 6px;">
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Uzcrypto Dasturi</h4>
+                            <span class="tool-status-pill" id="uzcryptoVersionBadge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">Latest 2.2.4.24</span>
+                        </div>
+                        <p class="tool-card-desc">EDO.IJRO.UZ tizimi uchun ERI (E-imzo) kalitlari bilan ishlash dasturi. Yangi versiya chiqqanda avtomatik yangilanadi.</p>
+                        <div class="tool-card-footer">
+                            <a href="/api/tools/uzcrypto/download" target="_blank" rel="noopener noreferrer" class="tool-action-btn primary" title="Eng so'nggi rasmiy Windows versiyasini yuklab olish">
+                                <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                                <span>Yuklab olish (.zip)</span>
+                            </a>
+                            <a href="https://edo.ijro.uz/welcome" target="_blank" rel="noopener noreferrer" class="tool-action-btn secondary" title="EDO rasmiy yuklash sahifasi">
+                                <svg class="isax isax-global" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
+                                <span>EDO Welcome</span>
+                            </a>
+                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('uzcrypto');" title="Asosiy vositalarga o'tkazish">
+                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Telegram Form Dashboard Card -->
@@ -2482,15 +2488,15 @@
     <!-- Iconsax Linear Icons Engine -->
     <script src="/js/iconsax.js?v=1.1"></script>
     <!-- Multi-Language i18n Engine -->
-    <script src="/js/i18n.js?v=1793960356935"></script>
+    <script src="/js/i18n.js?v=1793960977060"></script>
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Tickets Module -->
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1793960356935" defer></script>
+    <script src="/js/viewer.js?v=1793960977060" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1793960459449" defer></script>
+    <script src="/js/visualInspector.js?v=1793961050816" defer></script>
 </body>
 </html>

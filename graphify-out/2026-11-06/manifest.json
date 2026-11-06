@@ -72,9 +72,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "public/js/dashboard.js": {
-    "mtime": 1793951917.541689,
-    "seen": 1793952036.1112385,
-    "ast_hash": "7e0c142275042b0e3cd7ee0dff8edfdb",
+    "mtime": 1793955167.305961,
+    "seen": 1793960446.0646117,
+    "ast_hash": "b1a8b66fd0dda8b1917cbf8468086fc9",
     "semantic_hash": ""
   },
   "public/js/i18n.js": {
@@ -90,9 +90,9 @@
     "semantic_hash": "3b6ab3182ae813ec9e789074bbc3ee05"
   },
   "public/version.json": {
-    "mtime": 1793951606.467143,
-    "seen": 1793952036.1112385,
-    "ast_hash": "b8a8384ab1063c212344bc5e4c2a52a5",
+    "mtime": 1793955223.5990806,
+    "seen": 1793960446.0646117,
+    "ast_hash": "7810f1d19a8ba580ef618e4c2e44706b",
     "semantic_hash": ""
   },
   "scripts/batch_scan.py": {
@@ -372,9 +372,9 @@
     "semantic_hash": "a11d458ec1801c45e1229e524d2507d7"
   },
   "viewer/public/js/i18n.js": {
-    "mtime": 1793864730.3250668,
-    "seen": 1793865198.9098644,
-    "ast_hash": "06f10a876e5724d4508a38c44fb04b90",
+    "mtime": 1793960314.309584,
+    "seen": 1793960446.0646117,
+    "ast_hash": "020439d7b09f4744e743272b87b48e18",
     "semantic_hash": ""
   },
   "viewer/public/js/iconsax.js": {
@@ -390,9 +390,9 @@
     "semantic_hash": ""
   },
   "viewer/public/js/viewer.js": {
-    "mtime": 1793947868.6311026,
-    "seen": 1793952036.1117368,
-    "ast_hash": "26b896c441fbf58b3ee48b56d8a4fc4e",
+    "mtime": 1793960314.3350322,
+    "seen": 1793960446.0646117,
+    "ast_hash": "14cf6050a98555fce4bd08ad7178c600",
     "semantic_hash": ""
   },
   "viewer/public/vendor/mammoth.browser.min.js": {
@@ -402,9 +402,9 @@
     "semantic_hash": "7d411ae8854d59799cf28806306fbf70"
   },
   "viewer/public/version.json": {
-    "mtime": 1793951606.4801185,
-    "seen": 1793952036.1117368,
-    "ast_hash": "908556803d0480196b60b5fae627ff16",
+    "mtime": 1793960356.9451754,
+    "seen": 1793960446.0646117,
+    "ast_hash": "0b3a0ab5d2000fb8367e0a509f1c2d19",
     "semantic_hash": ""
   },
   "viewer/scripts/deploy.js": {
@@ -480,9 +480,9 @@
     "semantic_hash": "f674757fc1728ea7a1559b5a739b07fa"
   },
   "public/index.html": {
-    "mtime": 1793951606.4761264,
-    "seen": 1793952036.1117368,
-    "ast_hash": "ba4c5e46b164ff175517825bd7c8a143",
+    "mtime": 1793955223.609067,
+    "seen": 1793960446.0651104,
+    "ast_hash": "27b65657989eb0681a81b7b60b9c85ca",
     "semantic_hash": ""
   },
   "viewer/public/tickets.html": {
@@ -900,9 +900,9 @@
     "semantic_hash": ""
   },
   "viewer/public/index.html": {
-    "mtime": 1793951606.478622,
-    "seen": 1793952036.1117368,
-    "ast_hash": "a82332ac29bd69d4d5718a6e76a42633",
+    "mtime": 1793960356.9576502,
+    "seen": 1793960446.0651104,
+    "ast_hash": "6ac6e651e213a2b3ca29f7034dd424dc",
     "semantic_hash": ""
   },
   "viewer/public/tools/managers.html": {

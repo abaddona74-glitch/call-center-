@@ -1,7 +1,7 @@
 # Graph Report - call center  (2026-11-06)
 
 ## Corpus Check
-- 90 files · ~630,700 words
+- 90 files · ~630,772 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 26 file(s) not represented in the graph (top: .bat 6, .ttf 6, (none) 4)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e8483bcd`
+- Built from commit: `d2c90ae6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

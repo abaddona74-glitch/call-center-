@@ -2038,6 +2038,15 @@ function loadSavedToolsLayout() {
                 }
             });
         }
+
+        // Boshqa kartalar (masalan, yangi ko'chirilgan uzcrypto) qaysi zonada bo'lsa o'sha yerda qolishi yoki secondary ga tushishi
+        if (allCards.has('uzcrypto')) {
+            const card = allCards.get('uzcrypto');
+            if (card) {
+                secondaryGrid.appendChild(card);
+                allCards.delete('uzcrypto');
+            }
+        }
     } catch (err) {
         console.warn('Tools layout restore error:', err);
     }
