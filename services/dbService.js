@@ -185,22 +185,22 @@ class DbService {
 
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN outbound_attempts INTEGER DEFAULT 0;`);
-        } catch (e) {}
+        } catch (e) { }
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_time TEXT;`);
-        } catch (e) {}
+        } catch (e) { }
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_operator TEXT;`);
-        } catch (e) {}
+        } catch (e) { }
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN last_outbound_cause TEXT;`);
-        } catch (e) {}
+        } catch (e) { }
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN resolution_type TEXT;`);
-        } catch (e) {}
+        } catch (e) { }
         try {
             this.db.exec(`ALTER TABLE pending_callbacks ADD COLUMN today_attempts INTEGER DEFAULT 1;`);
-        } catch (e) {}
+        } catch (e) { }
 
         try {
             // Noto'g'ri 'NULL' yoki 'null' satrlarini tozalash
@@ -211,7 +211,7 @@ class DbService {
                    OR last_outbound_operator = 'null' 
                    OR last_outbound_operator = '\\N';
             `);
-        } catch (e) {}
+        } catch (e) { }
 
         try {
             // Noto'g'ri tushib qolgan ichki/trunk raqamlarni tozalash (2020159 va h.k.)
@@ -222,7 +222,7 @@ class DbService {
                    OR LENGTH(phone) < 7 
                    OR LENGTH(phone) > 12;
             `);
-        } catch (e) {}
+        } catch (e) { }
 
         console.log('✅ SQLite ma\'lumotlar bazasi tayyor: data/callcenter.db');
     }
@@ -435,7 +435,7 @@ class DbService {
                         map[opId] = r.count || 0;
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
 
             return map;
         } catch (err) {
@@ -901,7 +901,7 @@ class DbService {
             this.db.exec('COMMIT');
             return count;
         } catch (err) {
-            try { this.db.exec('ROLLBACK'); } catch (e) {}
+            try { this.db.exec('ROLLBACK'); } catch (e) { }
             console.error('❌ recordAgentCallLogsBatch xatolik:', err.message);
             return 0;
         }
@@ -916,7 +916,7 @@ class DbService {
             const todayStr = targetDate || new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             const startDay = `${todayStr} 00:00:00`;
             const endDay = `${todayStr} 23:59:59`;
-            
+
             // Faqat 3CX Desktop Agent maxsus jurnali (0 soniyaliklar javob berilgan deb hisoblanmaydi)
             // Ichki (operatordan-operatorga) qo'ng'iroqlar chiqarib tashlanadi: caller_id 2-4 xonali
             // bo'lsa, bu tashqi telefon raqami emas, balki boshqa operatorning ichki extensioni
@@ -1415,7 +1415,7 @@ class DbService {
                         WHERE (phone = ? OR phone = ? OR phone = ? OR phone LIKE ?)
                           AND status = 'resolved'
                     `).run(cleanOpName, cleanOpName, resType, phone9, phone12, String(phone), `%${cleanPhone}%`);
-                } catch (subErr) {}
+                } catch (subErr) { }
             }
 
             return res.changes > 0;

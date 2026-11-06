@@ -1341,9 +1341,10 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi (Alt + Shift + D) - Faqat Superuser uchun
+    // 10. Klaviatura boshqaruvi (Ctrl + Alt + D yoki Alt + Shift + D) - Faqat Superuser uchun
     window.addEventListener('keydown', async (e) => {
-        if (e.altKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        const isTrigger = ((e.altKey && e.shiftKey) || (e.ctrlKey && e.altKey)) && (e.key === 'D' || e.key === 'd');
+        if (isTrigger) {
             e.preventDefault();
             if (!cachedAuthUser && !window.currentAuthUser && !window.currentViewerUser) {
                 await fetchAuthUser();
