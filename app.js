@@ -27,6 +27,7 @@ const proxmoxService = require('./services/proxmoxService');
 const zipJobService = require('./services/zipJobService');
 const converterService = require('./services/converterService');
 const uzcryptoService = require('./services/uzcryptoService');
+const rateLimitService = require('./services/rateLimitService');
 
 // Initialize Auth Service & Ensure Superuser (@Abaddon2004)
 authService.init();
@@ -48,6 +49,13 @@ let isMultiplexed = false;
 const wss = new WebSocket.Server({ noServer: true });
 
 const handleUpgrade = (request, socket, head) => {
+    // 0. Anti-DDoS WebSocket Connection Flood Guard
+    if (!rateLimitService.canAcceptWebSocket(request)) {
+        socket.write('HTTP/1.1 429 Too Many Requests\r\nRetry-After: 60\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+
     // 1. Agar lokal ichki xizmat (call-center-viewer 3005-portdan 127.0.0.1 orqali) ulanayotgan bo'lsa -> ruxsat berish
     const remoteIp = socket.remoteAddress;
     const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !request.headers['x-forwarded-for'];
@@ -136,6 +144,46 @@ app.use('/api/converter/convert', express.urlencoded({ extended: true, limit: '5
 // Qolgan barcha standart so'rovlar uchun xavfsiz 2mb limit (DoS xurujlariga qarshi)
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// =========================================================================
+// ANTI-DDOS & RATE LIMITING MIDDLEWARES
+// =========================================================================
+const globalApiLimiter = rateLimitService.createLimiter({
+    windowMs: 60 * 1000,
+    max: 180, // Tashqi IP lar uchun 1 daqiqada 180 ta so'rov (~3 req/sec)
+    internalMax: 3000, // Ichki ofis (192.168.*) IP lari uchun erkin
+    keyPrefix: 'global_api',
+    message: "So'rovlar soni me'yordan oshdi. Iltimos, 1 daqiqa kuting."
+});
+app.use('/api/', globalApiLimiter);
+
+const authLimiter = rateLimitService.createLimiter({
+    windowMs: 60 * 1000,
+    max: 15, // Tashqi IP lar uchun 1 daqiqada 15 ta login urinishi (Brute-force himoyasi)
+    internalMax: 60,
+    keyPrefix: 'auth_login',
+    message: "Kirish urinishlari ko'payib ketdi. Xavfsizlik yuzasidan 1 daqiqa kuting."
+});
+app.use('/api/auth/login', authLimiter);
+
+const heavyLimiter = rateLimitService.createLimiter({
+    windowMs: 60 * 1000,
+    max: 12, // Og'ir eksport/yuklash operatsiyalari
+    internalMax: 120,
+    keyPrefix: 'heavy_jobs',
+    message: "Fayl eksport yoki yuklab olish limiti oshdi. Biroz kuting."
+});
+app.use('/api/export-excel', heavyLimiter);
+app.use('/api/download-recordings-zip', heavyLimiter);
+app.use('/api/converter/', heavyLimiter);
+
+// Superuser / Admin Anti-DDoS holat statistikasi
+app.get('/api/security/stats', authService.requireAuth, (req, res) => {
+    if (req.user?.role !== 'superuser' && req.user?.role !== 'admin') {
+        return res.status(403).json({ error: "Ruxsat etilmagan" });
+    }
+    res.json({ success: true, stats: rateLimitService.getStats() });
+});
 
 // HTTP -> HTTPS Redirect Gateway (Har qanday HTTP so'rovni avtomatik HTTPS ga yo'naltirish)
 app.use((req, res, next) => {
@@ -1037,6 +1085,7 @@ function getOnlineUsersSummary(uniqueDevicesMap) {
 
 // WebSocket yangi mijoz ulanganda
 wss.on('connection', async (ws, req) => {
+    rateLimitService.trackWsConnection(req);
     console.log('🔗 Yangi Web dashboard mijozi ulandi');
 
     // Har bir ulanishga (hatto bitta akkaunt bo'lsa ham) unikal Client ID va rang beramiz
@@ -1245,6 +1294,7 @@ wss.on('connection', async (ws, req) => {
     });
 
     ws.on('close', () => {
+        rateLimitService.releaseWsConnection(req);
         // Mijoz sahifani yopganda uning kursorini o'chirish
         const leaveData = JSON.stringify({
             type: 'remote_cursor_remove',

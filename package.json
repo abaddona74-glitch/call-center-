@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon --config nodemon.json app.js",
-    "test": "node -c app.js config.js swaggerSpec.js scripts/deploy.js services/sftpService.js services/zipJobService.js services/authService.js services/emailService.js services/converterService.js services/topicAnalyticsService.js services/uzcryptoService.js",
+    "test": "node -c app.js config.js swaggerSpec.js scripts/deploy.js services/sftpService.js services/zipJobService.js services/authService.js services/emailService.js services/converterService.js services/topicAnalyticsService.js services/uzcryptoService.js services/rateLimitService.js",
     "test:e2e": "playwright test",
     "build": "node -c app.js config.js public/js/dashboard.js",
     "predeploy": "npm test && npm run build",

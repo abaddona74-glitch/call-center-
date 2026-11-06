@@ -15,6 +15,7 @@ const fs = require('fs');
 const cors = require('cors');
 const ticketService = require('./services/ticketService');
 const uzcryptoService = require('./services/uzcryptoService');
+const rateLimitService = require('./services/rateLimitService');
 
 const PORT = parseInt(process.env.PORT || '3005', 10);
 // Upstream host (3535) - agar alohida berilmagan bo'lsa 127.0.0.1
@@ -135,6 +136,16 @@ app.use('/api/tickets', express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
+// Anti-DDoS Rate Limiter for Viewer API
+const viewerApiLimiter = rateLimitService.createLimiter({
+    windowMs: 60 * 1000,
+    max: 180, // Tashqi IP lar uchun 1 daqiqada 180 ta so'rov
+    internalMax: 3000, // Ichki ofis (192.168.*) IP lari uchun erkin
+    keyPrefix: 'viewer_api',
+    message: "So'rovlar soni me'yordan oshdi. Iltimos, 1 daqiqa kuting."
+});
+app.use('/api/', viewerApiLimiter);
+
 // HTTP -> HTTPS Redirect Gateway
 app.use((req, res, next) => {
     const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
@@ -254,6 +265,13 @@ app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
 const wss = new WebSocket.Server({ noServer: true, maxPayload: 15 * 1024 * 1024 });
 
 const handleUpgrade = async (request, socket, head) => {
+    // 0. Anti-DDoS WebSocket Connection Flood Guard
+    if (!rateLimitService.canAcceptWebSocket(request)) {
+        socket.write('HTTP/1.1 429 Too Many Requests\r\nRetry-After: 60\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+    }
+
     const token = extractToken(request);
     const user = await validateSessionWithUpstream(token);
 
@@ -721,6 +739,7 @@ function handleHelpCancel(callerWs, data) {
 
 // 1. WebSocket Proxy to 3535 + Active Viewers Management
 wss.on('connection', (clientWs, req) => {
+    rateLimitService.trackWsConnection(req);
     let upstreamWs = null;
     const clientIp = extractClientIp(req);
     const wsUser = clientWs.user || {};
@@ -883,6 +902,7 @@ wss.on('connection', (clientWs, req) => {
         });
 
         clientWs.on('close', () => {
+            rateLimitService.releaseWsConnection(req);
             connectedViewers.delete(clientWs);
             if (clientWs._historyId) {
                 const hItem = viewerHistory.find(h => h.id === clientWs._historyId);
