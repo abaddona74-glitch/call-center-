@@ -901,7 +901,7 @@ function initCharts() {
             labels: ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'],
             datasets: [
                 {
-                    label: t('chart_series_inbound', 'Jami Kiruvchi (Inbound)'),
+                    label: t('chart_series_inbound', 'Jami Kiruvchi'),
                     data: new Array(14).fill(0),
                     borderColor: '#6366f1',
                     backgroundColor: 'rgba(99, 102, 241, 0.15)',
@@ -915,7 +915,7 @@ function initCharts() {
                     pointHitRadius: 30
                 },
                 {
-                    label: t('chart_series_answered', 'Javob berilgan (Answered)'),
+                    label: t('chart_series_answered', 'Javob berilgan'),
                     data: new Array(14).fill(0),
                     borderColor: '#10b981',
                     backgroundColor: 'rgba(16, 185, 129, 0.15)',
@@ -4944,15 +4944,26 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
+            <span class="cc-op-sim-badge pill p-w" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2;">
                 <svg class="isax isax-simcard" style="width: 11px; height: 11px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
 
+        // Subtext: e.g. "Gulchehra · 106 · Kiruvchi" (Variant A)
+        const subtext = `${opText} · ${tagText}`;
+
+        const iconType = isTalking ? 'talking' : (isOutbound ? 'outbound' : 'ringing');
+        const iconSymbol = isOutbound ? 'isax-call' : 'isax-call-incoming';
+        const iconHtml = `
+            <div class="cc-call-icon ${iconType}" title="${tagText}">
+                <svg class="isax ${iconSymbol}" style="width: 20px; height: 20px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
+            </div>
+        `;
+
         const durationHtml = `
-            <span class="cc-live-duration-wrap" style="display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
-                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+            <span class="cc-live-duration-wrap pill mono" style="font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.28); display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;">
+                <svg class="isax isax-timer" style="width: 13px; height: 13px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                 <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
             </span>
         `;
@@ -4964,18 +4975,25 @@ function renderActiveConversations(conversations) {
                 if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
                 copyCallbackPhone(c.callerId, existingCard, e);
             };
-            const tagEl = existingCard.querySelector('.cc-tag');
-            if (tagEl) {
-                tagEl.className = `cc-tag ${tagClass}`;
-                tagEl.textContent = tagText;
+            const iconEl = existingCard.querySelector('.cc-call-icon');
+            if (iconEl) {
+                iconEl.className = `cc-call-icon ${iconType}`;
+                iconEl.setAttribute('title', tagText);
+                const svgUse = iconEl.querySelector('use');
+                if (svgUse) svgUse.setAttribute('href', `/icons/iconsax/iconsax-sprite.svg#${iconSymbol}`);
             }
             const phoneEl = existingCard.querySelector('.cc-phone-row');
             if (phoneEl) {
                 phoneEl.innerHTML = `<span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>${opBadgeHtml}`;
             }
-            const subRowEl = existingCard.querySelector('.cc-sub-row');
-            if (subRowEl) {
-                subRowEl.innerHTML = `<span class="cc-sub">${opText}</span>${durationHtml}`;
+            const subEl = existingCard.querySelector('.sub');
+            if (subEl) {
+                subEl.textContent = subtext;
+            }
+            const timerEl = existingCard.querySelector('.cc-live-duration');
+            if (timerEl) {
+                timerEl.setAttribute('data-start', startMs);
+                timerEl.textContent = formatLiveCallDuration(startMs);
             }
         } else {
             const cardEl = document.createElement('div');
@@ -4987,20 +5005,22 @@ function renderActiveConversations(conversations) {
                 copyCallbackPhone(c.callerId, cardEl, e);
             };
             cardEl.innerHTML = `
-                <div class="cc-call-info" style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
-                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${iconHtml}
+                <div class="cc-call-info">
+                    <div class="cc-phone-row" style="display: flex; align-items: center; gap: 8px;">
                         <span class="cc-phone">${formatCallerNumberOrOperator(c.callerId)}</span>
                         ${opBadgeHtml}
                     </div>
-                    <div class="cc-sub-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span class="cc-sub">${opText}</span>
-                        ${durationHtml}
-                    </div>
+                    <div class="sub">${subtext}</div>
                 </div>
-                <span class="cc-tag ${tagClass}">${tagText}</span>
+                ${durationHtml}
                 <div class="cc-call-actions">
-                    <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}">⇄</button>
-                    <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}">✕</button>
+                    <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}" aria-label="O'tkazish">
+                        <svg class="isax isax-arrow-swap-horizontal" style="width: 17px; height: 17px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                    </button>
+                    <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}" aria-label="Tugatish">
+                        <svg class="isax isax-call-remove" style="width: 17px; height: 17px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
+                    </button>
                 </div>
             `;
             container.appendChild(cardEl);
@@ -12604,13 +12624,13 @@ window.addEventListener('languageChanged', () => {
     // 1. Grafiklarni (Chart.js) yangi tilga moslash
     try {
         if (typeof callVolumeChart !== 'undefined' && callVolumeChart && callVolumeChart.data && callVolumeChart.data.datasets) {
-            if (callVolumeChart.data.datasets[0]) callVolumeChart.data.datasets[0].label = t('chart_series_inbound', 'Jami Kiruvchi (Inbound)');
-            if (callVolumeChart.data.datasets[1]) callVolumeChart.data.datasets[1].label = t('chart_series_answered', 'Javob berilgan (Answered)');
+            if (callVolumeChart.data.datasets[0]) callVolumeChart.data.datasets[0].label = t('chart_series_inbound', 'Jami Kiruvchi');
+            if (callVolumeChart.data.datasets[1]) callVolumeChart.data.datasets[1].label = t('chart_series_answered', 'Javob berilgan');
             callVolumeChart.update();
         }
         if (typeof operatorChart !== 'undefined' && operatorChart && operatorChart.data && operatorChart.data.datasets) {
-            if (operatorChart.data.datasets[0]) operatorChart.data.datasets[0].label = t('chart_series_accepted', 'Qabul qilingan (Answered)');
-            if (operatorChart.data.datasets[1]) operatorChart.data.datasets[1].label = t('chart_series_outbound', 'Chiquvchi (Outbound)');
+            if (operatorChart.data.datasets[0]) operatorChart.data.datasets[0].label = t('chart_series_accepted', 'Qabul qilingan');
+            if (operatorChart.data.datasets[1]) operatorChart.data.datasets[1].label = t('chart_series_outbound', 'Chiquvchi');
             if (operatorChart.data.datasets[2]) operatorChart.data.datasets[2].label = t('chart_series_missed', "O'tkazib yuborilgan");
             operatorChart.update();
         }
