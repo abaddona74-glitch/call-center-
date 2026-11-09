@@ -46,7 +46,6 @@ class RedisService {
 
     async set(key, value, ttlSeconds = 60) {
         const valStr = typeof value === 'string' ? value : JSON.stringify(value);
-        this.memoryStore.set(key, valStr);
         if (this.isConnected && this.client) {
             try {
                 if (ttlSeconds > 0) {
@@ -54,10 +53,22 @@ class RedisService {
                 } else {
                     await this.client.set(key, valStr);
                 }
+                return; // Redis ga muvaffaqiyatli saqlandi, Node RAM Map da saqlash shart emas
             } catch (e) {
-                // Ignore redis error, use memory store
+                // Redis xatosi bo'lsa fallback xotiraga o'tadi
             }
         }
+
+        // Fallback: Faqat Redis ishlamayotgan bo'lsa memoryStore ga yoziladi
+        // Xotira to'lib ketmasligi uchun max 300 ta element bilan cheklangan
+        if (this.memoryStore.size >= 300) {
+            const oldestKey = this.memoryStore.keys().next().value;
+            this.memoryStore.delete(oldestKey);
+        }
+        this.memoryStore.set(key, {
+            val: valStr,
+            exp: ttlSeconds > 0 ? Date.now() + (ttlSeconds * 1000) : 0
+        });
     }
 
     async get(key) {
@@ -67,15 +78,30 @@ class RedisService {
                 if (data) {
                     try { return JSON.parse(data); } catch (e) { return data; }
                 }
+                return null;
             } catch (e) {
                 // fallback to memoryStore
             }
         }
-        const mem = this.memoryStore.get(key);
-        if (mem) {
-            try { return JSON.parse(mem); } catch (e) { return mem; }
+        const item = this.memoryStore.get(key);
+        if (item) {
+            if (item.exp && item.exp > 0 && item.exp < Date.now()) {
+                this.memoryStore.delete(key);
+                return null;
+            }
+            const raw = (typeof item === 'object' && item.val !== undefined) ? item.val : item;
+            try { return JSON.parse(raw); } catch (e) { return raw; }
         }
         return null;
+    }
+
+    async del(key) {
+        this.memoryStore.delete(key);
+        if (this.isConnected && this.client) {
+            try {
+                await this.client.del(key);
+            } catch (e) {}
+        }
     }
 }
 

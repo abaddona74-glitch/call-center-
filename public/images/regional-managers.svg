@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 860" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .header-bg { fill: #1e293b; }
+      .row-even { fill: #1e293b; fill-opacity: 0.45; }
+      .row-odd { fill: #0f172a; fill-opacity: 0.85; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+      .th { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 13px; font-weight: 700; fill: #94a3b8; }
+      .td-reg { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+      .td-lead { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 13px; font-weight: 600; fill: #38bdf8; }
+      .td-phone { font-family: "Courier New", Courier, monospace, sans-serif; font-size: 13px; font-weight: 700; fill: #34d399; }
+      .td-office { font-family: "Courier New", Courier, monospace, sans-serif; font-size: 12.5px; font-weight: 700; fill: #fbbf24; }
+      .td-head { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 13px; font-weight: 700; fill: #fcd34d; }
+      .grid-line { stroke: #334155; stroke-width: 1; }
+      .group-line { stroke: #10b981; stroke-width: 2; }
+      .border { stroke: #10b981; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="860" rx="16" class="bg"/>
+  <rect x="2" y="2" width="996" height="856" rx="14" class="border"/>
+
+  <!-- Title Banner -->
+  <rect x="20" y="20" width="960" height="55" rx="10" fill="#1e293b"/>
+  <text x="500" y="54" class="title">Viloyatlar bo'yicha mas'ul rahbarlar va aloqa raqamlari</text>
+
+  <!-- Table Header -->
+  <rect x="20" y="85" width="960" height="40" rx="6" class="header-bg"/>
+  <text x="35" y="110" class="th">№</text>
+  <text x="70" y="110" class="th">Viloyati</text>
+  <text x="240" y="110" class="th">Rahbar</text>
+  <text x="460" y="110" class="th">tel</text>
+  <text x="630" y="110" class="th">ofis</text>
+  <text x="820" y="110" class="th">Mas'ul rahbar</text>
+  <line x1="20" y1="125" x2="980" y2="125" class="grid-line"/>
+
+  <!-- GROUP 1: Axmedov Nabixo'ja -->
+  <!-- 1 -->
+  <rect x="20" y="125" width="960" height="48" class="row-even"/>
+  <text x="35" y="154" class="td-reg">1.</text>
+  <text x="70" y="154" class="td-reg">Toshkent viloyati</text>
+  <text x="240" y="154" class="td-lead">Ibragimov Avaz</text>
+  <text x="460" y="154" class="td-phone">+998 99 850-06-92</text>
+  <text x="630" y="146" class="td-office">998 95 507 46 46</text>
+  <text x="630" y="164" class="td-office">998 95 509 46 46</text>
+  <line x1="20" y1="173" x2="800" y2="173" class="grid-line"/>
+
+  <!-- 2 -->
+  <rect x="20" y="173" width="960" height="48" class="row-odd"/>
+  <text x="35" y="202" class="td-reg">2.</text>
+  <text x="70" y="202" class="td-reg">Namangan viloyati</text>
+  <text x="240" y="202" class="td-lead">Abdug'affarov Doniyor</text>
+  <text x="460" y="202" class="td-phone">+998 99 396-02-96</text>
+  <text x="630" y="194" class="td-office">998 95 340-46-46</text>
+  <text x="630" y="212" class="td-office">998 95 508 46 46</text>
+  <line x1="20" y1="221" x2="800" y2="221" class="grid-line"/>
+
+  <!-- 3 -->
+  <rect x="20" y="221" width="960" height="48" class="row-even"/>
+  <text x="35" y="250" class="td-reg">3.</text>
+  <text x="70" y="250" class="td-reg">Farg'ona viloyati</text>
+  <text x="240" y="250" class="td-lead">Jo'rayev Nuriddin</text>
+  <text x="460" y="250" class="td-phone">+998 97-337-70-10</text>
+  <text x="630" y="242" class="td-office">998 95 341-46-46</text>
+  <text x="630" y="260" class="td-office">998 95 510 46 46</text>
+  <line x1="20" y1="269" x2="800" y2="269" class="grid-line"/>
+
+  <!-- 4 -->
+  <rect x="20" y="269" width="960" height="52" class="row-odd"/>
+  <text x="35" y="300" class="td-reg">4.</text>
+  <text x="70" y="300" class="td-reg">Andijon viloyati</text>
+  <text x="240" y="293" class="td-lead">Muhamatibrohimov Islombek</text>
+  <text x="240" y="311" class="td-lead">Rahimjanovich</text>
+  <text x="460" y="300" class="td-phone">+998 94 617-02-04</text>
+  <text x="630" y="292" class="td-office">998 95 513-46-46</text>
+  <text x="630" y="310" class="td-office">998 95 680 46 46</text>
+
+  <!-- Head 1 -->
+  <text x="820" y="215" class="td-head">Axmedov</text>
+  <text x="820" y="235" class="td-head">Nabixo'ja</text>
+  <text x="820" y="255" class="td-phone">(97 706-17-17)</text>
+  <line x1="20" y1="321" x2="980" y2="321" class="group-line"/>
+
+  <!-- GROUP 2: Muzaffarov Hasan -->
+  <!-- 5 -->
+  <rect x="20" y="321" width="960" height="54" class="row-even"/>
+  <text x="35" y="352" class="td-reg">1.</text>
+  <text x="70" y="352" class="td-reg">Sirdaryo viloyati</text>
+  <text x="240" y="344" class="td-lead">Rahmatullayev Temurbek</text>
+  <text x="240" y="362" class="td-lead">Ibrohim o'g'li</text>
+  <text x="460" y="352" class="td-phone">+998 99 923-41-79</text>
+  <text x="630" y="338" class="td-office">998 95 342-46-46</text>
+  <text x="630" y="354" class="td-office">998 95 505-46-46</text>
+  <text x="630" y="370" class="td-office">998 67 236-46-46</text>
+  <line x1="20" y1="375" x2="800" y2="375" class="grid-line"/>
+
+  <!-- 6 -->
+  <rect x="20" y="375" width="960" height="48" class="row-odd"/>
+  <text x="35" y="404" class="td-reg">2.</text>
+  <text x="70" y="404" class="td-reg">Samarqand viloyati</text>
+  <text x="240" y="404" class="td-lead">Keldiyorov Akmal Toirovich</text>
+  <text x="460" y="404" class="td-phone">+998 95 032-46-46</text>
+  <text x="630" y="396" class="td-office">998 95-512-46-46</text>
+  <text x="630" y="414" class="td-office">998 95 412-46-46</text>
+  <line x1="20" y1="423" x2="800" y2="423" class="grid-line"/>
+
+  <!-- 7 -->
+  <rect x="20" y="423" width="960" height="48" class="row-even"/>
+  <text x="35" y="452" class="td-reg">3.</text>
+  <text x="70" y="452" class="td-reg">Buxoro viloyati</text>
+  <text x="240" y="452" class="td-lead">Qudratov Alisher Shuhratovich</text>
+  <text x="460" y="444" class="td-phone">+998 90 635-44-33</text>
+  <text x="460" y="462" class="td-phone">+998 99 700-01-85</text>
+  <text x="630" y="444" class="td-office">998 95 511-46-46</text>
+  <text x="630" y="462" class="td-office">998 95 681-46-46</text>
+  <line x1="20" y1="471" x2="800" y2="471" class="grid-line"/>
+
+  <!-- 8 -->
+  <rect x="20" y="471" width="960" height="48" class="row-odd"/>
+  <text x="35" y="500" class="td-reg">4.</text>
+  <text x="70" y="500" class="td-reg">Qashqadaryo viloyati</text>
+  <text x="240" y="500" class="td-lead">Do'sqobilov Akrom Botir o'g'li</text>
+  <text x="460" y="500" class="td-phone">+998 91 455-07-07</text>
+  <text x="630" y="492" class="td-office">998 95 515-46-46</text>
+  <text x="630" y="510" class="td-office">998 95 502-46-46</text>
+  <line x1="20" y1="519" x2="800" y2="519" class="grid-line"/>
+
+  <!-- 9 -->
+  <rect x="20" y="519" width="960" height="48" class="row-even"/>
+  <text x="35" y="548" class="td-reg">5.</text>
+  <text x="70" y="548" class="td-reg">Jizzax viloyati</text>
+  <text x="240" y="548" class="td-lead">Bazorov Hasan Tursunbekovich</text>
+  <text x="460" y="548" class="td-phone">+998 98 561-08-28</text>
+  <text x="630" y="540" class="td-office">998 95 479-46-46</text>
+  <text x="630" y="558" class="td-office">998 95 411-46-46</text>
+
+  <!-- Head 2 -->
+  <text x="820" y="440" class="td-head">Muzaffarov</text>
+  <text x="820" y="460" class="td-head">Hasan</text>
+  <text x="820" y="480" class="td-phone">(99 846-12-07)</text>
+  <line x1="20" y1="567" x2="980" y2="567" class="group-line"/>
+
+  <!-- GROUP 3: Mahkamov Saidalo -->
+  <!-- 10 -->
+  <rect x="20" y="567" width="960" height="52" class="row-odd"/>
+  <text x="35" y="598" class="td-reg">1.</text>
+  <text x="70" y="598" class="td-reg">Navoiy viloyati</text>
+  <text x="240" y="590" class="td-lead">Mardiyev Jumaqul</text>
+  <text x="240" y="608" class="td-lead">Aliqulovich</text>
+  <text x="460" y="598" class="td-phone">+998 97 335-91-55</text>
+  <text x="630" y="590" class="td-office">998 95 514-46-46</text>
+  <text x="630" y="608" class="td-office">998 95 503-46-46</text>
+  <line x1="20" y1="619" x2="800" y2="619" class="grid-line"/>
+
+  <!-- 11 -->
+  <rect x="20" y="619" width="960" height="52" class="row-even"/>
+  <text x="35" y="650" class="td-reg">2.</text>
+  <text x="70" y="650" class="td-reg">Xorazm viloyati</text>
+  <text x="240" y="642" class="td-lead">Ataboyev A'zamjon</text>
+  <text x="240" y="660" class="td-lead">Ahmedjonovich</text>
+  <text x="460" y="650" class="td-phone">+998 97 211-44-26</text>
+  <text x="630" y="642" class="td-office">998 95 475-46-46</text>
+  <text x="630" y="660" class="td-office">998 95 501-46-46</text>
+  <line x1="20" y1="671" x2="800" y2="671" class="grid-line"/>
+
+  <!-- 12 -->
+  <rect x="20" y="671" width="960" height="52" class="row-odd"/>
+  <text x="35" y="702" class="td-reg">3.</text>
+  <text x="70" y="702" class="td-reg">Surxondaryo viloyati</text>
+  <text x="240" y="694" class="td-lead">Qudirov Shohrux</text>
+  <text x="240" y="712" class="td-lead">Shaydullayevich</text>
+  <text x="460" y="702" class="td-phone">+998 93 526 17-77</text>
+  <text x="630" y="694" class="td-office">998 95 324-46-46</text>
+  <text x="630" y="712" class="td-office">998 95 682-46-46</text>
+  <line x1="20" y1="723" x2="800" y2="723" class="grid-line"/>
+
+  <!-- 13 -->
+  <rect x="20" y="723" width="960" height="54" class="row-even"/>
+  <text x="35" y="754" class="td-reg">4.</text>
+  <text x="70" y="746" class="td-reg">Qoraqalpog'iston</text>
+  <text x="70" y="764" class="td-reg">Respublikasi</text>
+  <text x="240" y="746" class="td-lead">Ashirbekov Batirbek</text>
+  <text x="240" y="764" class="td-lead">Ubbiniyazovich</text>
+  <text x="460" y="754" class="td-phone">+998 93 365-37-76</text>
+  <text x="630" y="746" class="td-office">998 95 478-46-46</text>
+  <text x="630" y="764" class="td-office">998 95 650-46-46</text>
+
+  <!-- Head 3 -->
+  <text x="820" y="690" class="td-head">Mahkamov</text>
+  <text x="820" y="710" class="td-head">Saidalo</text>
+  <text x="820" y="730" class="td-phone">(99 408 51 11)</text>
+
+  <!-- Footer -->
+  <text x="500" y="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">UNICON SOFT Call Center tizimi ma'lumotnomasi</text>
+</svg>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 780" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .header-bg { fill: #1e293b; }
+      .row-even { fill: #1e293b; fill-opacity: 0.45; }
+      .row-odd { fill: #0f172a; fill-opacity: 0.85; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+      .th { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 14px; font-weight: 700; fill: #94a3b8; }
+      .td-name { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 14.5px; font-weight: 700; fill: #ffffff; }
+      .td-phone { font-family: "Courier New", Courier, monospace, sans-serif; font-size: 14px; font-weight: 700; fill: #38bdf8; }
+      .td-min { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif; font-size: 13.5px; font-weight: 500; fill: #cbd5e1; }
+      .grid-line { stroke: #334155; stroke-width: 1; }
+      .border { stroke: #8b5cf6; stroke-width: 2; fill: none; }
+      .bullet { fill: #a855f7; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="780" rx="16" class="bg"/>
+  <rect x="2" y="2" width="996" height="776" rx="14" class="border"/>
+
+  <!-- Title Banner -->
+  <rect x="20" y="20" width="960" height="60" rx="10" fill="#1e293b"/>
+  <text x="500" y="56" class="title">Vazirliklarga «UNICON SOFT» MCHJ mas'ul xodimlari</text>
+
+  <!-- Table Header -->
+  <rect x="20" y="95" width="960" height="42" rx="6" class="header-bg"/>
+  <text x="50" y="122" class="th">F.I.O va Telefon</text>
+  <text x="420" y="122" class="th">Biriktirilgan Vazirliklar</text>
+  <line x1="20" y1="137" x2="980" y2="137" class="grid-line"/>
+
+  <!-- 1. Abdumannonov A'zamjon -->
+  <rect x="20" y="137" width="960" height="84" class="row-even"/>
+  <text x="50" y="168" class="td-name">Abdumannonov A'zamjon</text>
+  <text x="50" y="195" class="td-phone">99 488 38 38</text>
+  <circle cx="430" cy="158" r="3.5" class="bullet"/>
+  <text x="445" y="162" class="td-min">Oliy ta'lim, fan va innovatsiyalar vazirligi</text>
+  <circle cx="430" cy="180" r="3.5" class="bullet"/>
+  <text x="445" y="184" class="td-min">Raqamli texnologiyalar vazirligi</text>
+  <circle cx="430" cy="202" r="3.5" class="bullet"/>
+  <text x="445" y="206" class="td-min">Iqtisodiyot va moliya vazirligi</text>
+  <line x1="20" y1="221" x2="980" y2="221" class="grid-line"/>
+
+  <!-- 2. Avazxonov Nosirxon -->
+  <rect x="20" y="221" width="960" height="84" class="row-odd"/>
+  <text x="50" y="252" class="td-name">Avazxonov Nosirxon</text>
+  <text x="50" y="279" class="td-phone">99 313 07 17</text>
+  <circle cx="430" cy="242" r="3.5" class="bullet"/>
+  <text x="445" y="246" class="td-min">Favqulodda vaziyatlar vazirligi</text>
+  <circle cx="430" cy="264" r="3.5" class="bullet"/>
+  <text x="445" y="268" class="td-min">Suv xo'jaligi vazirligi</text>
+  <circle cx="430" cy="286" r="3.5" class="bullet"/>
+  <text x="445" y="290" class="td-min">Tashqi ishlar vazirligi</text>
+  <line x1="20" y1="305" x2="980" y2="305" class="grid-line"/>
+
+  <!-- 3. Sobirov Shohrux -->
+  <rect x="20" y="305" width="960" height="84" class="row-even"/>
+  <text x="50" y="336" class="td-name">Sobirov Shohrux</text>
+  <text x="50" y="363" class="td-phone">93 512 90 90</text>
+  <circle cx="430" cy="326" r="3.5" class="bullet"/>
+  <text x="445" y="330" class="td-min">Tog'-kon sanoati va geologiya vazirligi</text>
+  <circle cx="430" cy="348" r="3.5" class="bullet"/>
+  <text x="445" y="352" class="td-min">Sport vazirligi</text>
+  <circle cx="430" cy="370" r="3.5" class="bullet"/>
+  <text x="445" y="374" class="td-min">Qishloq xo'jaligi vazirligi</text>
+  <line x1="20" y1="389" x2="980" y2="389" class="grid-line"/>
+
+  <!-- 4. Xudoyberdiyev Qahramon -->
+  <rect x="20" y="389" width="960" height="74" class="row-odd"/>
+  <text x="50" y="420" class="td-name">Xudoyberdiyev Qahramon</text>
+  <text x="50" y="445" class="td-phone">90 999 49 86</text>
+  <circle cx="430" cy="415" r="3.5" class="bullet"/>
+  <text x="445" y="419" class="td-min">Sog'liqni saqlash vazirligi</text>
+  <circle cx="430" cy="437" r="3.5" class="bullet"/>
+  <text x="445" y="441" class="td-min">Kambag'allikni qisqartirish va bandlik vazirligi</text>
+  <line x1="20" y1="463" x2="980" y2="463" class="grid-line"/>
+
+  <!-- 5. Rahmatullayev Javohir -->
+  <rect x="20" y="463" width="960" height="84" class="row-even"/>
+  <text x="50" y="494" class="td-name">Rahmatullayev Javohir</text>
+  <text x="50" y="521" class="td-phone">97 710 30 08</text>
+  <circle cx="430" cy="484" r="3.5" class="bullet"/>
+  <text x="445" y="488" class="td-min">Qurilish va uy-joy kommunal xo'jaligi vazirligi</text>
+  <circle cx="430" cy="506" r="3.5" class="bullet"/>
+  <text x="445" y="510" class="td-min">Energetika vazirligi</text>
+  <circle cx="430" cy="528" r="3.5" class="bullet"/>
+  <text x="445" y="532" class="td-min">Investitsiyalar, sanoat va savdo vazirligi</text>
+  <line x1="20" y1="547" x2="980" y2="547" class="grid-line"/>
+
+  <!-- 6. Murodjonov Shahzod -->
+  <rect x="20" y="547" width="960" height="84" class="row-odd"/>
+  <text x="50" y="578" class="td-name">Murodjonov Shahzod</text>
+  <text x="50" y="605" class="td-phone">90 324 45 23</text>
+  <circle cx="430" cy="568" r="3.5" class="bullet"/>
+  <text x="445" y="572" class="td-min">Transport vazirligi</text>
+  <circle cx="430" cy="590" r="3.5" class="bullet"/>
+  <text x="445" y="594" class="td-min">Maktabgacha va maktab ta'limi vazirligi</text>
+  <circle cx="430" cy="612" r="3.5" class="bullet"/>
+  <text x="445" y="616" class="td-min">Madaniyat vazirligi</text>
+  <line x1="20" y1="631" x2="980" y2="631" class="grid-line"/>
+
+  <!-- 7. Mirzakarimov Mustafo -->
+  <rect x="20" y="631" width="960" height="84" class="row-even"/>
+  <text x="50" y="662" class="td-name">Mirzakarimov Mustafo</text>
+  <text x="50" y="689" class="td-phone">99 644 44 47</text>
+  <circle cx="430" cy="652" r="3.5" class="bullet"/>
+  <text x="445" y="656" class="td-min">Ichki ishlar vazirligi</text>
+  <circle cx="430" cy="674" r="3.5" class="bullet"/>
+  <text x="445" y="678" class="td-min">Adliya vazirligi</text>
+  <circle cx="430" cy="696" r="3.5" class="bullet"/>
+  <text x="445" y="700" class="td-min">Mudofaa vazirligi</text>
+  <line x1="20" y1="715" x2="980" y2="715" class="grid-line"/>
+
+  <!-- Footer -->
+  <text x="500" y="750" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" fill="#64748b" text-anchor="middle">UNICON SOFT Call Center tizimi ma'lumotnomasi</text>
+</svg>
