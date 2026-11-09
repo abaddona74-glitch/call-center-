@@ -5714,7 +5714,7 @@ html[data-tab="operators"] #btnExportExcel {
 #editTicketModal.modal-closing,
 #tkDocViewerModal.modal-closing,
 #modalViewerProfile.modal-closing {
-    animation: modalBackdropFadeOut 180ms var(--ease-out) forwards !important;
+    animation: modalBackdropFadeOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
 }
 
 .modal-closing > .glass-panel,
@@ -5733,8 +5733,9 @@ html[data-tab="operators"] #btnExportExcel {
 #ticketBoxOverlay.modal-closing .tk-box-modal,
 #createTicketModal.modal-closing .tk-modal-container,
 #editTicketModal.modal-closing .tk-modal-container,
-#tkDocViewerModal.modal-closing .tk-doc-modal-container {
-    animation: modalPanelScaleOut 180ms var(--ease-out) forwards !important;
+#tkDocViewerModal.modal-closing .tk-doc-modal-container,
+#modalViewerProfile.modal-closing .modal-card {
+    animation: modalPanelScaleOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
 }
 
 @keyframes modalBackdropFadeIn {

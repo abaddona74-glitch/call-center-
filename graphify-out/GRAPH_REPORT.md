@@ -1,17 +1,17 @@
-# Graph Report - call center  (2026-11-06)
+# Graph Report - call center  (2026-11-09)
 
 ## Corpus Check
-- 92 files · ~635,766 words
+- 92 files · ~635,790 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 26 file(s) not represented in the graph (top: .bat 6, .ttf 6, (none) 4)
 
 ## Summary
-- 2378 nodes · 4705 edges · 127 communities (99 shown, 28 thin omitted)
+- 2378 nodes · 4707 edges · 122 communities (93 shown, 29 thin omitted)
 - Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 297 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8cde86e8`
+- Built from commit: `ab87a080`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -56,7 +56,7 @@
 - requestOperatorHelp
 - app.js
 - renderCallbacks
-- _addNamedNode
+- assertPreReplacementValidityInDocument
 - pull_from_server.js
 - initPageElevator
 - viewer/package.json
@@ -99,7 +99,7 @@
 - Ticket Workflow & Management
 - resetToolImageZoom
 - Document Processing & Viewer Engine
-- _onUpdateChild
+- get
 - ref_path
 - loadUserProfileData
 - Document Processing & Viewer Engine
@@ -122,22 +122,17 @@
 - initPageElevator
 - TopicAnalyticsService
 - convert
-- drainQueue
+- importNode
 - Y
 - loadClientsTab
 - cleanup_missed_dupes.js
 - smoothCloseModal
 - applyHistoryColumnsVisibility
 - initToolsDragAndDrop
-- _updateLiveList
 - updateTicket
-- codePoint
-- elementWithTag
 - RateLimitService
 - RateLimitService
 - ref_child_process
-- encodeChunk
-- readNumberingXml
 - getTextContent
 
 ## God Nodes (most connected - your core abstractions)
@@ -171,11 +166,11 @@
 ## Hyperedges (group relationships)
 - **Call Center Operational Ecosystem** — readme_call_center_system, public_index_dashboard_ui, desktop_agent_3cx, viewer_tickets_ui [INFERRED 0.85]
 
-## Communities (127 total, 28 thin omitted)
+## Communities (122 total, 29 thin omitted)
 
 ### Community 0 - "Document Processing & Viewer Engine"
 Cohesion: 0.01
-Nodes (34): checkIEEE754(), combineMessages(), containsMessage(), contentTypes(), convertElementToRawText(), debounce(), Document(), equalTo() (+26 more)
+Nodes (46): checkIEEE754(), cleanUpNextTick(), codePoint(), combineMessages(), containsMessage(), contentTypes(), convertElementToRawText(), debounce() (+38 more)
 
 ### Community 1 - "onAudioRangeDateChange"
 Cohesion: 0.28
@@ -206,8 +201,8 @@ Cohesion: 0.05
 Nodes (40): dependencies, acme-client, archiver, asterisk-manager, cors, dotenv, exceljs, express (+32 more)
 
 ### Community 12 - "Document Processing & Viewer Engine"
-Cohesion: 0.07
-Nodes (43): baseIteratee(), cb(), contains(), createEscaper(), createIndexFinder(), createPredicateIndexFinder(), createReduce(), createRule() (+35 more)
+Cohesion: 0.08
+Nodes (42): baseIteratee(), cb(), contains(), createEscaper(), createIndexFinder(), createPredicateIndexFinder(), createReduce(), createRule() (+34 more)
 
 ### Community 14 - "formatSeconds"
 Cohesion: 0.09
@@ -254,8 +249,8 @@ Cohesion: 0.13
 Nodes (20): checkSuperuserPrivileges(), checkVersionFromServer(), executeDeployReload(), fetchActiveViewers(), fetchViewerCallbacks(), handleHelpRequestStatus(), handleServerBuildId(), initDeployWatcher() (+12 more)
 
 ### Community 28 - "smoothCloseDashboardModal"
-Cohesion: 0.12
-Nodes (17): applyOperatorImpersonation(), closeAgentLogsModal(), closeAgentSettingsModal(), closeBatchTranscribeModal(), closeCallTranscriptionModal(), closeExportModal(), closeImpersonateModal(), closeOpCardFieldsModal() (+9 more)
+Cohesion: 0.11
+Nodes (18): applyOperatorImpersonation(), closeAgentLogsModal(), closeAgentSettingsModal(), closeBatchTranscribeModal(), closeCallTranscriptionModal(), closeExportModal(), closeImpersonateModal(), closeOpCardFieldsModal() (+10 more)
 
 ### Community 29 - "getTodayDateString"
 Cohesion: 0.10
@@ -297,9 +292,9 @@ Nodes (11): agentReleaseConfig, agentUpdateLogsHistory, app, authLimiter, global
 Cohesion: 0.06
 Nodes (41): animate2DDistributionNumbers(), applyManualTokenSwitch(), cancelSttFromToast(), clearAllCallbacks(), convertImageInBrowser(), copyBatchTranscriptions(), copyCallbackPhone(), copyTelegramId() (+33 more)
 
-### Community 40 - "_addNamedNode"
-Cohesion: 0.50
-Nodes (5): _addNamedNode(), _findNodeIndex(), _onAddAttribute(), _onRemoveAttribute(), _removeNamedNode()
+### Community 40 - "assertPreReplacementValidityInDocument"
+Cohesion: 0.14
+Nodes (24): _addNamedNode(), _appendSingleChild(), assertPreInsertionValidity1to5(), assertPreInsertionValidityInDocument(), assertPreReplacementValidityInDocument(), hasDoctypeChildThatIsNotChild(), DOMException(), find() (+16 more)
 
 ### Community 41 - "pull_from_server.js"
 Cohesion: 0.11
@@ -370,8 +365,8 @@ Cohesion: 0.39
 Nodes (6): applyTranslations(), I18N_TRANSLATIONS, initI18n(), switchLanguage(), t(), tf()
 
 ### Community 66 - "Numbering"
-Cohesion: 0.67
-Nodes (3): Numbering(), findLevel(), findLevelWithSeenNumIds()
+Cohesion: 0.29
+Nodes (7): Numbering(), findLevel(), findLevelWithSeenNumIds(), readAbstractNum(), readAbstractNums(), readNumberingXml(), readNums()
 
 ### Community 67 - "SyncService Subsystem"
 Cohesion: 0.36
@@ -433,9 +428,9 @@ Nodes (8): changeToolZoomStep(), closeToolModal(), getToolImageBaseWidth(), hand
 Cohesion: 0.50
 Nodes (5): addSerializedAttribute(), needNamespaceDefine(), nodeSerializeToString(), serializeToString(), _xmlEncoder()
 
-### Community 83 - "_onUpdateChild"
-Cohesion: 0.50
-Nodes (4): _appendSingleChild(), _insertBefore(), _onUpdateChild(), _removeChild()
+### Community 83 - "get"
+Cohesion: 0.33
+Nodes (7): deepGet(), get(), has(), isUndefined(), property(), propertyOf(), toPath()
 
 ### Community 84 - "ref_path"
 Cohesion: 0.15
@@ -450,8 +445,8 @@ Cohesion: 0.67
 Nodes (4): addOrUpdateElement(), updateContentTypes(), updateRelationships(), writeStyleMap()
 
 ### Community 87 - "deepEq"
-Cohesion: 0.07
-Nodes (28): allKeys(), baseCreate(), clone(), collectNonEnumProps(), create(), ctor(), deepEq(), deepGet() (+20 more)
+Cohesion: 0.10
+Nodes (22): allKeys(), baseCreate(), clone(), collectNonEnumProps(), create(), ctor(), deepEq(), emulatedSet() (+14 more)
 
 ### Community 88 - "visualInspector.js"
 Cohesion: 0.25
@@ -466,8 +461,8 @@ Cohesion: 0.83
 Nodes (4): createReader(), isFootnoteElement(), readFootnoteElement(), readNotesXml()
 
 ### Community 91 - "s"
-Cohesion: 0.15
-Nodes (34): A(), assertPreInsertionValidity1to5(), assertPreInsertionValidityInDocument(), assertPreReplacementValidityInDocument(), hasDoctypeChildThatIsNotChild(), c(), i(), n() (+26 more)
+Cohesion: 0.21
+Nodes (24): A(), c(), i(), n(), copy(), d(), _extends(), t() (+16 more)
 
 ### Community 92 - "Document Processing & Viewer Engine"
 Cohesion: 0.50
@@ -513,10 +508,6 @@ Nodes (7): initPageElevator(), getActiveScrollTarget(), getMetrics(), handleScro
 Cohesion: 0.25
 Nodes (8): convert(), convertDocumentToHtml(), convertToHtml(), convertToMarkdown(), DocumentConverter(), parseStyleMap(), readOptions(), readStyleMap()
 
-### Community 110 - "drainQueue"
-Cohesion: 0.50
-Nodes (4): cleanUpNextTick(), drainQueue(), runClearTimeout(), runTimeout()
-
 ### Community 111 - "Y"
 Cohesion: 0.67
 Nodes (4): G(), K(), Y(), Z()
@@ -541,38 +532,18 @@ Nodes (7): applyHistoryColumnsVisibility(), isHistoryColumnVisible(), renderHist
 Cohesion: 0.43
 Nodes (7): getToolsDragAfterElement(), initToolsDragAndDrop(), loadSavedToolsLayout(), saveToolsLayout(), setupToolCardsDragEvents(), setupToolsDropZone(), updateToolsZoneCountersAndEmptyStates()
 
-### Community 117 - "_updateLiveList"
-Cohesion: 0.40
-Nodes (5): copy(), _extends(), LiveNodeList(), __set__(), _updateLiveList()
-
 ### Community 118 - "updateTicket"
 Cohesion: 0.67
 Nodes (3): broadcastTicketEvent(), handleTicketEdit(), updateTicket()
-
-### Community 119 - "codePoint"
-Cohesion: 0.67
-Nodes (3): codePoint(), dec(), hex()
-
-### Community 120 - "elementWithTag"
-Cohesion: 0.67
-Nodes (3): elementWithTag(), freshElement(), nonFreshElement()
 
 ### Community 123 - "ref_child_process"
 Cohesion: 0.15
 Nodes (8): acme-client, CALLS_DIR, MANUAL_CALLS, TOP_AI_CALLS, CHALLENGE_DIR, PUBLIC_DIR, SSL_DIR, VIEWER_SSL_DIR
 
-### Community 124 - "encodeChunk"
-Cohesion: 0.67
-Nodes (3): encodeChunk(), fromByteArray(), tripletToBase64()
-
-### Community 125 - "readNumberingXml"
-Cohesion: 0.50
-Nodes (4): readAbstractNum(), readAbstractNums(), readNumberingXml(), readNums()
-
 ## Knowledge Gaps
 - **23 isolated node(s):** `asterisk-manager`, `cors`, `dotenv`, `exceljs`, `express` (+18 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 630 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 629 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **29 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -584,7 +555,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **What connects `asterisk-manager`, `cors`, `dotenv` to the rest of the system?**
   _23 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Document Processing & Viewer Engine` be split into smaller, more focused modules?**
-  _Cohesion score 0.010041295370571615 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.0098241783946045 - nodes in this community are weakly interconnected._
 - **Why does `DbService` connect `Call Center Database & CDR` to `services/issabelDbService.js`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **Should `Ticket Workflow & Management` be split into smaller, more focused modules?**

@@ -5149,8 +5149,9 @@ function initTransferModal() {
     const btnConfirm = document.getElementById('btnConfirmTransfer');
 
     const closeModal = () => {
-        modal.style.display = 'none';
-        activeTransferChannel = null;
+        smoothCloseDashboardModal('transferModal', () => {
+            activeTransferChannel = null;
+        });
     };
 
     btnClose.addEventListener('click', closeModal);
@@ -7256,7 +7257,7 @@ function smoothCloseDashboardModal(modalOrId, callback) {
         el.style.display = 'none';
         el.classList.remove('open', 'active');
         if (typeof callback === 'function') callback();
-    }, 180);
+    }, 200);
 }
 window.smoothCloseDashboardModal = smoothCloseDashboardModal;
 
@@ -16142,8 +16143,7 @@ function closeSecurityDashboardModal() {
         clearInterval(secRefreshInterval);
         secRefreshInterval = null;
     }
-    const modal = document.getElementById('securityDashboardModal');
-    if (modal) modal.style.display = 'none';
+    smoothCloseDashboardModal('securityDashboardModal');
 }
 window.closeSecurityDashboardModal = closeSecurityDashboardModal;
 

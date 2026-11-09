@@ -1391,7 +1391,7 @@ function smoothCloseModal(modal, cleanup) {
         modal.classList.remove('modal-closing');
         modal.style.display = 'none';
         if (typeof cleanup === 'function') cleanup();
-    }, 180);
+    }, 200);
 }
 window.smoothCloseModal = smoothCloseModal;
 

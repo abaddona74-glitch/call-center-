@@ -8752,7 +8752,8 @@ body.sidebar-collapsed .page-elevator-btn {
 #settingsModal,
 #impersonateModal,
 #modalOpCardFields,
-#modalUserProfile {
+#modalUserProfile,
+#securityDashboardModal {
     animation: mainModalBackdropFadeIn var(--duration-modal) var(--ease-out) forwards !important;
 }
 
@@ -8763,6 +8764,7 @@ body.sidebar-collapsed .page-elevator-btn {
 .settings-modal-card,
 .impersonate-modal-card,
 .srv-redesign-modal,
+.security-dashboard-dialog,
 #queueInfoModal > .modal-dialog,
 #transferModal > .modal-dialog,
 #detailModal > .glass-panel,
@@ -8779,7 +8781,8 @@ body.sidebar-collapsed .page-elevator-btn {
 #settingsModal .settings-modal-card,
 #impersonateModal .impersonate-modal-card,
 #modalOpCardFields .modal-card,
-#modalUserProfile .modal-card {
+#modalUserProfile .modal-card,
+#securityDashboardModal .security-dashboard-dialog {
     animation: mainModalPanelScaleIn var(--duration-modal) var(--ease-out) forwards !important;
     transform-origin: center center;
     will-change: transform, opacity;
@@ -8805,16 +8808,37 @@ body.sidebar-collapsed .page-elevator-btn {
 #settingsModal.modal-closing,
 #impersonateModal.modal-closing,
 #modalOpCardFields.modal-closing,
-#modalUserProfile.modal-closing {
-    animation: mainModalBackdropFadeOut 180ms var(--ease-out) forwards !important;
+#modalUserProfile.modal-closing,
+#securityDashboardModal.modal-closing {
+    animation: mainModalBackdropFadeOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
 }
 
 .modal-closing > .modal-dialog,
 .modal-closing > .glass-panel,
 .modal-closing .settings-modal-card,
 .modal-closing .impersonate-modal-card,
-.modal-closing .modal-card {
-    animation: mainModalPanelScaleOut 180ms var(--ease-out) forwards !important;
+.modal-closing .modal-card,
+.modal-closing .srv-redesign-modal,
+.modal-closing .security-dashboard-dialog,
+#queueInfoModal.modal-closing > .modal-dialog,
+#transferModal.modal-closing > .modal-dialog,
+#detailModal.modal-closing > .glass-panel,
+#callTranscribeModal.modal-closing > .modal-dialog,
+#batchTranscribeModal.modal-closing > .modal-dialog,
+#agentLogsModal.modal-closing > .modal-dialog,
+#agentSettingsModal.modal-closing > .modal-dialog,
+#exportModal.modal-closing > .modal-dialog,
+#audioRangeModal.modal-closing > .modal-dialog,
+#exportChoiceModal.modal-closing > .modal-dialog,
+#serverStatusModal.modal-closing > .modal-dialog,
+#adminClientModal.modal-closing > .modal-dialog,
+#customConfirmModal.modal-closing > .modal-dialog,
+#settingsModal.modal-closing .settings-modal-card,
+#impersonateModal.modal-closing .impersonate-modal-card,
+#modalOpCardFields.modal-closing .modal-card,
+#modalUserProfile.modal-closing .modal-card,
+#securityDashboardModal.modal-closing .security-dashboard-dialog {
+    animation: mainModalPanelScaleOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
 }
 
 @keyframes mainModalBackdropFadeIn {
@@ -8845,7 +8869,7 @@ body.sidebar-collapsed .page-elevator-btn {
     }
     to {
         opacity: 0;
-        transform: scale(0.96) translateY(8px);
+        transform: scale(0.96) translateY(10px);
     }
 }
 
