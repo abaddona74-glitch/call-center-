@@ -7,6 +7,7 @@
     "dev": "nodemon --config nodemon.json app.js",
     "test": "node -c app.js config.js swaggerSpec.js scripts/deploy.js services/sftpService.js services/zipJobService.js services/authService.js services/emailService.js services/converterService.js services/topicAnalyticsService.js services/uzcryptoService.js services/rateLimitService.js",
     "test:e2e": "playwright test",
+    "test:smoke": "node --test tests/smoke_rustwright.js",
     "build": "node -c app.js config.js public/js/dashboard.js",
     "predeploy": "npm test && npm run build",
     "deploy": "node scripts/deploy.js"
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "rustwright": "^0.3.0"
   }
 }

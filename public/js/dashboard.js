@@ -1910,6 +1910,19 @@ function promptChangePcName(e) {
 
 let currentOnlineUsersList = [];
 let isOnlineUsersPopoverOpen = false;
+let isGhostModeActive = true;
+
+function toggleGhostMode(enabled) {
+    isGhostModeActive = Boolean(enabled);
+    if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({
+            type: 'toggle_ghost_mode',
+            enabled: isGhostModeActive
+        }));
+    }
+    renderOnlineUsersPopover();
+}
+window.toggleGhostMode = toggleGhostMode;
 
 function toggleOnlineUsersPopover(e) {
     if (e) {
@@ -2035,7 +2048,7 @@ function renderOnlineUsersPopover() {
                     <div class="online-user-top">
                         <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
                             <span class="online-user-name" title="${escapeHtml(u.pcName || 'PC')}">${escapeHtml(u.pcName || 'PC')}</span>
-                            ${isMe ? '<span class="online-user-me-tag">Siz</span>' : ''}
+                            ${isMe ? '<span class="online-user-me-tag">Siz</span>' : ''} ${(u.isGhost || (isMe && isMaxmudbek && isGhostModeActive)) ? '<span class="online-user-ghost-tag" style="background: rgba(168, 85, 247, 0.25); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">👻 Ko\'rinmas</span>' : ''}
                         </div>
                         ${statusBadge}
                     </div>
@@ -2055,6 +2068,34 @@ function renderOnlineUsersPopover() {
         `;
     });
 
+    const authU = window.currentAuthUser || {};
+    const myUname = String(authU.username || '').toLowerCase();
+    const isMaxmudbek = myUname.includes('maxmudbek') || authU.email === 'abaddona74@gmail.com';
+
+    const ghostBannerHtml = isMaxmudbek ? `
+        <div class="ghost-mode-banner" style="margin: 8px 12px 6px; padding: 10px 12px; background: linear-gradient(135deg, rgba(88, 28, 135, 0.45) 0%, rgba(30, 27, 75, 0.65) 100%); border: 1px solid rgba(168, 85, 247, 0.45); border-radius: 9px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; align-items: center; gap: 9px;">
+                <span style="font-size: 22px; filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.6));">👻</span>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 12px; font-weight: 700; color: #f3e8ff;">Ghost Mode</span>
+                        <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 999px; background: ${isGhostModeActive ? '#9333ea' : '#475569'}; color: #fff; box-shadow: 0 0 8px ${isGhostModeActive ? 'rgba(168, 85, 247, 0.6)' : 'transparent'};">${isGhostModeActive ? "FAOL (KO'RINMAS)" : "O'CHIRILGAN"}</span>
+                    </div>
+                    <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 1px; line-height: 1.25;">
+                        ${isGhostModeActive 
+                            ? "Sizning onlaynligingiz boshqalarga <b style='color: #c084fc;'>ko'rinmaydi</b>, lekin siz hammani ko'rasiz." 
+                            : "Ghost Mode o'chiq (boshqalar sizni ko'radi)"}
+                    </div>
+                </div>
+            </div>
+            <label style="position: relative; display: inline-block; width: 38px; height: 20px; margin: 0; cursor: pointer; flex-shrink: 0;" title="Ghost Mode-ni yoqish / o'chirish">
+                <input type="checkbox" ${isGhostModeActive ? 'checked' : ''} onchange="toggleGhostMode(this.checked)" style="opacity: 0; width: 0; height: 0;">
+                <span style="position: absolute; cursor: pointer; inset: 0; background-color: ${isGhostModeActive ? '#9333ea' : '#475569'}; transition: .25s; border-radius: 20px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);">
+                    <span style="position: absolute; height: 14px; width: 14px; left: ${isGhostModeActive ? '21px' : '3px'}; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></span>
+                </span>
+            </label>
+        </div>` : '';
+
     pop.innerHTML = `
         <div class="online-popover-header">
             <div class="online-popover-title-wrap">
@@ -2065,6 +2106,7 @@ function renderOnlineUsersPopover() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
         </div>
+        ${ghostBannerHtml}
         <div class="online-users-list">
             ${itemsHtml}
         </div>
@@ -2343,6 +2385,9 @@ function handleWsMessage(msg) {
         if (msg.data) {
             if (typeof msg.data.onlineCount === 'number') {
                 updateOnlineCursorsCount(msg.data.onlineCount);
+            }
+            if (msg.data.isGhostModeActive !== undefined) {
+                isGhostModeActive = Boolean(msg.data.isGhostModeActive);
             }
             if (Array.isArray(msg.data.users)) {
                 currentOnlineUsersList = msg.data.users;
@@ -4786,9 +4831,9 @@ function getUzbekistanOperator(phone) {
     if (code === '93' || code === '94' || code === '50' || code === '55') {
         return { name: 'Ucell', brand: 'ucell', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)', border: 'rgba(168, 85, 247, 0.35)' };
     }
-    // Uzmobile (Uztelecom): 95, 99, 77, 71, 78
-    if (code === '95' || code === '99' || code === '77' || code === '71' || code === '78') {
-        return { name: 'Uztelecom', brand: 'uztelecom', color: '#0284c7', bg: 'rgba(2, 132, 199, 0.15)', border: 'rgba(2, 132, 199, 0.35)' };
+    // Uzmobile (Uztelecom): 95, 99, 77, 71, 78, 70
+    if (code === '95' || code === '99' || code === '77' || code === '71' || code === '78' || code === '70') {
+        return { name: 'Uzmobile', brand: 'uzmobile', color: '#0284c7', bg: 'rgba(2, 132, 199, 0.15)', border: 'rgba(2, 132, 199, 0.35)' };
     }
     // Mobiuz: 97, 88
     if (code === '97' || code === '88') {
@@ -5026,9 +5071,6 @@ function renderActiveConversations(conversations) {
                     </div>
                 </div>
                 <div class="cc-call-actions">
-                    <button class="cc-ic-btn" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${c.callerId}')" title="${t('live_switch_title', 'O‘tkazish')}" aria-label="O'tkazish">
-                        <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
-                    </button>
                     <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}" aria-label="Tugatish">
                         <svg class="isax isax-call-remove" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
                     </button>

@@ -20,7 +20,7 @@ const I18N_TRANSLATIONS = {
         header_logout_title: "Tizimdan chiqish",
 
         op_section_title: "Operatorlar",
-        op_group_main: "Asosiy (100-199)",
+        op_group_main: "Asosiy",
         op_group_main_title: "100 dan 199 gacha bo'lgan asosiy operatorlar",
         op_group_sec: "Zangiota",
         op_group_sec_title: "Zangiota operatorlari",
@@ -250,7 +250,7 @@ const I18N_TRANSLATIONS = {
         header_logout_title: "Выйти из системы",
 
         op_section_title: "Операторы",
-        op_group_main: "Основные (100-199)",
+        op_group_main: "Основные",
         op_group_main_title: "Основные операторы с 100 по 199",
         op_group_sec: "Зангиота",
         op_group_sec_title: "Операторы Зангиота",

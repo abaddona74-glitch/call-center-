@@ -1206,6 +1206,14 @@ function getUniqueDevicesMap(dashboardClients) {
     return uniqueDevicesMap;
 }
 
+// Maxmudbek uchun Ghost Mode (Ko'rinmas rejim) tekshiruvi:
+function isGhostAccount(userOrUname) {
+    if (!userOrUname) return false;
+    const uname = typeof userOrUname === 'string' ? userOrUname : (userOrUname.username || userOrUname.email || '');
+    const lower = String(uname).toLowerCase();
+    return lower.includes('maxmudbek') || lower === 'abaddona74@gmail.com';
+}
+
 // Onlayn foydalanuvchilar va qurilmalar haqida to'liq xulosani shakllantirish
 function getOnlineUsersSummary(uniqueDevicesMap) {
     const list = [];
@@ -1329,6 +1337,9 @@ wss.on('connection', async (ws, req) => {
         } catch (_) {}
     }
 
+    // Maxmudbek uchun Ghost Mode boshlang'ich holati (default: faol)
+    ws.isGhostMode = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+
     // Agar bu IP 3CX agent orqali tanilgan operator bo'lsa, uning rasmiy hostname (PC nomi) ni taklif qilamiz
     let suggestedPc = '';
     try {
@@ -1405,14 +1416,36 @@ wss.on('connection', async (ws, req) => {
 
             // 2. Qurilma / brauzer (deviceId) bo'yicha guruhlash:
             const uniqueDevicesMap = getUniqueDevicesMap(dashboardClients);
-            const users = getOnlineUsersSummary(uniqueDevicesMap);
-            const onlineCount = Math.max(1, users.length);
-            const msg = JSON.stringify({
-                type: 'presence_stats',
-                data: { onlineCount, users }
-            });
+            const allUsers = getOnlineUsersSummary(uniqueDevicesMap);
+
+            // 3. Har bir mijozga o'ziga mos presence_stats jo'natish (Ghost Mode filtering):
+            // Maxmudbek barcha foydalanuvchilarni ko'radi; boshqa mijozlarga esa Maxmudbek ko'rsatilmaydi!
             for (const client of wss.clients) {
-                if (client.readyState === 1) client.send(msg);
+                if (client.readyState !== 1) continue;
+                const clientUname = client.username || (client.user && client.user.username) || '';
+                const isGhostViewer = isGhostAccount(clientUname) || isGhostAccount(client.user);
+
+                const clientUsers = isGhostViewer
+                    ? allUsers.map(u => ({
+                        ...u,
+                        isGhost: isGhostAccount(u.username)
+                    }))
+                    : allUsers.filter(u => {
+                        if (!isGhostAccount(u.username)) return true;
+                        const foundClient = Array.from(wss.clients).find(c => c.username === u.username || (c.user && c.user.username === u.username));
+                        return foundClient && foundClient.isGhostMode === false;
+                    });
+
+                const onlineCount = Math.max(1, clientUsers.length);
+                const msg = JSON.stringify({
+                    type: 'presence_stats',
+                    data: {
+                        onlineCount,
+                        users: clientUsers,
+                        isGhostModeActive: isGhostViewer && (client.isGhostMode !== false)
+                    }
+                });
+                client.send(msg);
             }
         } catch (e) {}
     };
@@ -1423,6 +1456,12 @@ wss.on('connection', async (ws, req) => {
             const parsed = JSON.parse(message);
             if (parsed.action === 'refresh_channels') {
                 amiService.pollQueueAndChannels();
+            } else if (parsed.type === 'toggle_ghost_mode') {
+                const isGhost = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+                if (isGhost) {
+                    ws.isGhostMode = Boolean(parsed.enabled);
+                    broadcastPresenceCount();
+                }
             } else if (parsed.type === 'cursor_move') {
                 ws.appType = 'dashboard_3535';
                 ws.lastActiveAt = Date.now();
@@ -1433,6 +1472,12 @@ wss.on('connection', async (ws, req) => {
                 if (parsed.tab) ws.activeTab = parsed.tab;
                 if (parsed.username) ws.username = parsed.username;
                 if (parsed.role) ws.userRole = parsed.role;
+
+                // Ghost Mode: Maxmudbek boshqalarga ko'rinmas bo'lsa, uning sichqoncha kursorini tarqatmaymiz
+                const isGhost = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+                if (isGhost && ws.isGhostMode !== false) {
+                    return; // Maxmudbekning kursorini boshqalarga jo'natmaymiz!
+                }
 
                 // Jonli kursor koordinatalarini (kontent scroll va gorizontal nisbat bilan) tarqatish
                 const moveData = JSON.stringify({
@@ -1512,11 +1557,21 @@ app.get('/api/presence/online-users', (req, res) => {
         });
 
         const uniqueDevicesMap = getUniqueDevicesMap(dashboardClients);
-        const users = getOnlineUsersSummary(uniqueDevicesMap);
+        const allUsers = getOnlineUsersSummary(uniqueDevicesMap);
+
+        const token = authService.extractToken(req);
+        const session = authService.validateSession(token);
+        const canSeeGhosts = session && isGhostAccount(session.username);
+
+        const users = canSeeGhosts
+            ? allUsers.map(u => ({ ...u, isGhost: isGhostAccount(u.username) }))
+            : allUsers.filter(u => !isGhostAccount(u.username));
+
         res.json({
             success: true,
             count: users.length,
-            users
+            users,
+            isGhostModeActive: canSeeGhosts
         });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });

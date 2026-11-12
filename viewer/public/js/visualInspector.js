@@ -1323,8 +1323,9 @@
                     item.compStyles.color ? `- Matn rangi: ${item.compStyles.color}` : null,
                     `- Joriy sahifa: ${location.pathname} (${document.title})`,
                     ``,
-                    `🎯 VAZIFA:`,
-                    userTask ? userTask : `Ushbu elementning ko'rinishini yaxshilab ber.`
+                    userTask 
+                        ? `🎯 VAZIFA:\n${userTask}` 
+                        : `🎯 ELEMENT MA'LUMOTLARI (Faqat inspeksiya. Aniq vazifa chatda belgilanadi)`
                 ];
                 if (attachedImages.length > 0) {
                     lines.push(
@@ -1357,8 +1358,9 @@
 
             lines.push(
                 ``,
-                `🎯 VAZIFA (Barcha tanlangan komponentlarga qo'llansin):`,
-                userTask ? userTask : `Ushbu komponentlarning bir-biriga mosligini va dizaynini yaxshilab ber.`
+                userTask 
+                    ? `🎯 VAZIFA (Barcha tanlangan komponentlarga qo'llansin):\n${userTask}`
+                    : `🎯 ELEMENTLAR MA'LUMOTLARI (Faqat inspeksiya. Aniq vazifa chatda belgilanadi)`
             );
 
             if (attachedImages.length > 0) {

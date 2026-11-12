@@ -54,15 +54,11 @@ let currentOperatorGroup = 'main';
 try {
     const myOpId = localStorage.getItem('viewer_my_operator_id');
     const myNum = parseInt(myOpId, 10);
-    const savedGroup = localStorage.getItem('callcenter_viewer_op_group');
-    if (!isNaN(myNum) && myNum >= 100 && myNum < 200) {
-        // 100-199 operatorlar (Maxmudbek 114, Oybek 101 va b.) uchun birlamchi guruh DOIM 'main' (Asosiy)
-        currentOperatorGroup = (savedGroup === 'all') ? 'all' : 'main';
-    } else if (!isNaN(myNum) && myNum >= 200) {
-        // 200lik Zangiota operatorlari uchun birlamchi 'secondary'
+    // Faqat 200lik Zangiota operatorlari uchun birlamchi 'secondary', boshqalar uchun (Admin, Superuser, Asosiy) doim 'main'!
+    if (!isNaN(myNum) && myNum >= 200) {
         currentOperatorGroup = 'secondary';
-    } else if (savedGroup && ['main', 'secondary', 'all'].includes(savedGroup)) {
-        currentOperatorGroup = savedGroup;
+    } else {
+        currentOperatorGroup = 'main';
     }
 } catch (e) {}
 
@@ -1291,7 +1287,7 @@ function renderOperators(operators) {
                                 const hasName = Boolean(contact.name && contact.name.trim());
                                 const hasOrg = Boolean(contact.organization && contact.organization.trim());
                                 const titleInfo = (hasName && hasOrg) ? `${contact.name} • ${contact.organization}` : (hasOrg ? contact.organization : (hasName ? contact.name : 'Mijoz'));
-                                const canEditContact = !is200ContactRestricted();
+                                const canEditContact = !is200ContactRestricted(op.id);
                                 return `
                                 <div class="op-mockup-active-talk has-client-info" 
                                      ${canEditContact ? `onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);" title="Mijoz: ${escapeAttr(titleInfo)} (O'zgartirish uchun bosing)" style="cursor: pointer;"` : `title="Mijoz: ${escapeAttr(titleInfo)}"`}>
@@ -1308,7 +1304,7 @@ function renderOperators(operators) {
                                 </div>
                                 `;
                             } else {
-                                const canAddContact = !is200ContactRestricted();
+                                const canAddContact = !is200ContactRestricted(op.id);
                                 return `
                                 <div class="op-mockup-active-talk no-client-info" 
                                      ${canAddContact ? `onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);" title="Ushbu raqamga mijoz ismi va manzilini biriktirish" style="cursor: pointer;"` : ''}>
@@ -1332,7 +1328,7 @@ function renderOperators(operators) {
                                 const hasName = Boolean(contact.name && contact.name.trim());
                                 const hasOrg = Boolean(contact.organization && contact.organization.trim());
                                 const titleInfo = (hasName && hasOrg) ? `${contact.name} • ${contact.organization}` : (hasOrg ? contact.organization : (hasName ? contact.name : 'Mijoz'));
-                                const canEditContact = !is200ContactRestricted();
+                                const canEditContact = !is200ContactRestricted(op.id);
                                 return `
                                 <div class="op-mockup-active-talk is-ringing has-client-info"
                                      ${canEditContact ? `onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);" title="Mijoz: ${escapeAttr(titleInfo)}" style="cursor: pointer;"` : `title="Mijoz: ${escapeAttr(titleInfo)}"`}>
@@ -1348,7 +1344,7 @@ function renderOperators(operators) {
                                 </div>
                                 `;
                             } else {
-                                const canAddContact = !is200ContactRestricted();
+                                const canAddContact = !is200ContactRestricted(op.id);
                                 return `
                                 <div class="op-mockup-active-talk is-ringing no-client-info"
                                      ${canAddContact ? `onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);" title="Raqamga mijoz ma'lumotlarini kiritish" style="cursor: pointer;"` : ''}>
@@ -2247,16 +2243,31 @@ function saveToolsLayout() {
 }
 
 function updateToolsForUserRole() {
+    const rawRole = String((window.currentViewerUser && window.currentViewerUser.role) || myUserRole || '').toLowerCase();
+    const uname = String((window.currentViewerUser && window.currentViewerUser.username) || myUsername || '').toLowerCase();
+    const isSuperOrAdmin = rawRole === 'superuser' || rawRole === 'admin' || uname.includes('maxmudbek');
+
+    const toolsToHideFor200 = ['ijro_letter', 'rustdesk-setup', 'converter'];
+
+    if (isSuperOrAdmin) {
+        // Superuser va Adminlar uchun hamma vositalar doim ochiq bo'ladi
+        toolsToHideFor200.forEach(toolId => {
+            const card = document.querySelector(`.tool-card[data-tool-id="${toolId}"]`);
+            if (card) {
+                card.style.display = '';
+            }
+        });
+        updateToolsZoneCountersAndEmptyStates();
+        return;
+    }
+
     const rawId = myOperatorId || localStorage.getItem('viewer_my_operator_id') || (window.currentViewerUser && (window.currentViewerUser.operatorId || window.currentViewerUser.operator_id));
     const opNum = parseInt(rawId, 10);
-    const uname = String((window.currentViewerUser && window.currentViewerUser.username) || '').toLowerCase();
     const unameMatch = uname.match(/\d+/);
     const uNum = unameMatch ? parseInt(unameMatch[0], 10) : 0;
     const is200 = (!isNaN(opNum) && opNum >= 200) || uNum >= 200 || uname.includes('zangiota');
 
     // 200lik (Zangiota) operatorlar uchun olib tashlanadigan vositalar
-    const toolsToHideFor200 = ['ijro_letter', 'rustdesk-setup', 'converter'];
-
     toolsToHideFor200.forEach(toolId => {
         const card = document.querySelector(`.tool-card[data-tool-id="${toolId}"]`);
         if (card) {
@@ -2326,16 +2337,6 @@ function setupToolsDropZone(zone) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         zone.classList.add('drag-over-zone');
-
-        const draggingCard = document.querySelector('.tool-card.is-dragging');
-        if (!draggingCard) return;
-
-        const afterElement = getToolsDragAfterElement(zone, e.clientX, e.clientY);
-        if (afterElement == null) {
-            zone.appendChild(draggingCard);
-        } else {
-            zone.insertBefore(draggingCard, afterElement);
-        }
     });
 
     zone.addEventListener('dragleave', (e) => {
@@ -2347,6 +2348,17 @@ function setupToolsDropZone(zone) {
     zone.addEventListener('drop', (e) => {
         e.preventDefault();
         zone.classList.remove('drag-over-zone');
+        const draggingCard = document.querySelector('.tool-card.is-dragging');
+        if (draggingCard) {
+            const afterElement = getToolsDragAfterElement(zone, e.clientX, e.clientY);
+            if (!afterElement) {
+                zone.appendChild(draggingCard);
+            } else {
+                zone.insertBefore(draggingCard, afterElement);
+            }
+            draggingCard.classList.add('card-just-moved');
+            setTimeout(() => draggingCard.classList.remove('card-just-moved'), 600);
+        }
         saveToolsLayout();
         updateToolsZoneCountersAndEmptyStates();
         recentlyDroppedTool = true;
@@ -2356,21 +2368,24 @@ function setupToolsDropZone(zone) {
 
 function getToolsDragAfterElement(container, x, y) {
     const draggableElements = [...container.querySelectorAll('.tool-card:not(.is-dragging)')];
+    let closestElement = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
 
-    return draggableElements.reduce((closest, child) => {
+    for (const child of draggableElements) {
         const box = child.getBoundingClientRect();
-        const offsetX = x - (box.left + box.width / 2);
-        const offsetY = y - (box.top + box.height / 2);
-        const distance = Math.hypot(offsetX, offsetY);
+        const centerX = box.left + box.width / 2;
+        const centerY = box.top + box.height / 2;
 
-        const isBefore = (y < box.bottom && x < box.right);
-
-        if (isBefore && distance < closest.offset) {
-            return { offset: distance, element: child };
-        } else {
-            return closest;
+        const isBefore = (y < box.top) || (y <= box.bottom && x < centerX);
+        if (isBefore) {
+            const distance = Math.hypot(x - centerX, y - centerY);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestElement = child;
+            }
         }
-    }, { offset: Number.POSITIVE_INFINITY }).element;
+    }
+    return closestElement;
 }
 
 // Bir bosish bilan boshqa bo'limga o'tkazish
@@ -2381,19 +2396,26 @@ window.toggleToolZone = function(toolId) {
 
     const primaryGrid = document.getElementById('primaryToolsGrid');
     const secondaryGrid = document.getElementById('secondaryToolsGrid');
-    if (!primaryGrid || !secondaryGrid) return;
+    const adminGrid = document.getElementById('adminToolsGrid');
 
-    const isCurrentlyPrimary = primaryGrid.contains(card);
-    const targetGrid = isCurrentlyPrimary ? secondaryGrid : primaryGrid;
+    let targetGrid = null;
+    if (adminGrid && adminGrid.contains(card)) {
+        targetGrid = primaryGrid || secondaryGrid;
+    } else if (primaryGrid && primaryGrid.contains(card)) {
+        targetGrid = secondaryGrid;
+    } else if (secondaryGrid && secondaryGrid.contains(card)) {
+        targetGrid = primaryGrid;
+    }
 
-    targetGrid.appendChild(card);
-    card.classList.add('card-just-moved');
-    setTimeout(() => {
-        card.classList.remove('card-just-moved');
-    }, 650);
-
-    saveToolsLayout();
-    updateToolsZoneCountersAndEmptyStates();
+    if (targetGrid) {
+        targetGrid.appendChild(card);
+        card.classList.add('card-just-moved');
+        setTimeout(() => {
+            card.classList.remove('card-just-moved');
+        }, 650);
+        saveToolsLayout();
+        updateToolsZoneCountersAndEmptyStates();
+    }
 };
 
 /* ==========================================================================
@@ -2723,7 +2745,11 @@ function updateHeaderUserProfile(opName, opId, username, role) {
     // 4. Superuser yoki username bo'yicha fallback
     const effectiveRole = role || myUserRole;
     const effectiveUser = username || myUsername;
-    if (!displayName) {
+    const isSuperOrAdmin = String(effectiveRole).toLowerCase() === 'superuser' || String(effectiveRole).toLowerCase() === 'admin' || String(effectiveUser).toLowerCase().includes('maxmudbek');
+
+    if (isSuperOrAdmin && cleanOpId && parseInt(cleanOpId, 10) >= 200) {
+        displayName = (effectiveUser === 'superuser') ? 'Superuser' : (effectiveUser || 'Admin');
+    } else if (!displayName) {
         if (cleanOpId) {
             displayName = `Operator ${cleanOpId}`;
         } else if (effectiveRole === 'superuser' || effectiveUser === 'superuser') {
@@ -2768,7 +2794,14 @@ function updateHeaderUserProfile(opName, opId, username, role) {
     if (document.body) {
         document.body.classList.toggle('is-200-operator', Boolean(is200OperatorUser));
     }
-    if (is200OperatorUser) {
+    const isSuperOrAdminUser = normalizedRole === 'superuser' || normalizedRole === 'admin' || effectiveUser.toLowerCase().includes('maxmudbek');
+
+    if (isSuperOrAdminUser) {
+        // Admin / Superuser / Maxmudbek doim birinchi navbatda 'Asosiy' (main) guruhini ko'radi!
+        if (currentOperatorGroup === 'secondary') {
+            switchOperatorGroup('main', false);
+        }
+    } else if (is200OperatorUser) {
         const contactModal = document.getElementById('clientContactModal');
         if (contactModal) contactModal.style.display = 'none';
         const dirModal = document.getElementById('clientDirectoryModal');
@@ -2782,7 +2815,7 @@ function updateHeaderUserProfile(opName, opId, username, role) {
             }
         }
     } else if (is100OperatorUser) {
-        // 100-operatorlar (Maxmudbek 114 va boshqalar) hamda Adminlar uchun Asosiy (main: 100-199) doim by default bo'lishi shart!
+        // 100-operatorlar uchun Asosiy (main: 100-199) doim by default bo'lishi shart!
         if (!window._userExplicitlySwitchedGroup) {
             const savedGroup = localStorage.getItem('callcenter_viewer_op_group');
             if (savedGroup === 'secondary') {
@@ -2818,11 +2851,31 @@ async function initViewerProfileIdentity() {
                 window.currentViewerUser = data.user;
                 if (data.user.role) myUserRole = data.user.role;
                 if (data.user.username) myUsername = data.user.username;
+
+                const isSuperOrAdmin = data.user.role === 'superuser' || data.user.role === 'admin' || (data.user.username && data.user.username.toLowerCase().includes('maxmudbek'));
+
                 if (data.user.operatorId) {
                     myOperatorId = String(data.user.operatorId);
                     myOperatorName = String(data.user.operatorName || '');
                     localStorage.setItem('viewer_my_operator_id', myOperatorId);
                     localStorage.setItem('viewer_my_operator_name', myOperatorName);
+                } else if (isSuperOrAdmin) {
+                    // Superuser / Admin akkountlarida agar alohida operatorId bo'lmasa,
+                    // oldingi sessiyalardan qolgan 200-operator stale ma'lumotlarini tozalaymiz!
+                    const storedOp = localStorage.getItem('viewer_my_operator_id');
+                    if (storedOp && parseInt(storedOp, 10) >= 200) {
+                        localStorage.removeItem('viewer_my_operator_id');
+                        localStorage.removeItem('viewer_my_operator_name');
+                        myOperatorId = null;
+                        myOperatorName = null;
+                    }
+                }
+                if (isSuperOrAdmin) {
+                    // Admin yoki Maxmudbek kirganda Zangiotaga tushib qolmasligi uchun doim 'main' (Asosiy) bo'lishini ta'minlaymiz!
+                    localStorage.setItem('callcenter_viewer_op_group', 'main');
+                    if (currentOperatorGroup === 'secondary') {
+                        switchOperatorGroup('main', false);
+                    }
                 }
                 updateHeaderUserProfile(data.user.operatorName, data.user.operatorId, data.user.username, data.user.role);
                 const gmailDot = document.getElementById('headerUserGmailDot');
@@ -2961,7 +3014,17 @@ function openViewerProfileModal() {
         modalSwitch.style.display = (effRole === 'admin' || effRole === 'superuser') ? 'inline-flex' : 'none';
     }
     if (opNameEl) {
-        const nameText = myOperatorName || u.operatorName || (myOperatorId ? `Operator ${myOperatorId}` : '');
+        const isSuperOrAdmin = (u.role === 'superuser' || myUserRole === 'superuser' || u.role === 'admin' || myUserRole === 'admin' || (u.username && u.username.toLowerCase().includes('maxmudbek')));
+        let nameText = '';
+        if (myOperatorName) {
+            nameText = myOperatorName;
+        } else if (u.operatorName) {
+            nameText = u.operatorName;
+        } else if (myOperatorId && (!isSuperOrAdmin || parseInt(myOperatorId, 10) < 200)) {
+            nameText = `Operator ${myOperatorId}`;
+        } else if (isSuperOrAdmin) {
+            nameText = (u.username === 'superuser' || myUsername === 'superuser') ? 'Superuser' : (u.username || myUsername || 'Admin');
+        }
         opNameEl.textContent = nameText;
     }
     if (emailInput) {
@@ -4147,7 +4210,13 @@ function handleWsClientContactUpdate(data) {
 }
 
 /* Modal logic */
-function is200ContactRestricted() {
+function is200ContactRestricted(targetOpId) {
+    // 1. Agar maqsadli operator raqami 200+ bo'lsa (Zangiota) — kontakt qo'shish mutlaqo yopiq
+    if (targetOpId !== undefined && targetOpId !== null) {
+        const targetNum = parseInt(targetOpId, 10);
+        if (!isNaN(targetNum) && targetNum >= 200) return true;
+    }
+    // 2. Agar tizimga kirgan operatorning o'zi 200+ bo'lsa (va superuser bo'lmasa)
     const checkOpNum = parseInt(myOperatorId, 10);
     const isSuper = myUserRole === 'superuser' || myUserRole === 'admin';
     return !isNaN(checkOpNum) && checkOpNum >= 200 && !isSuper;
@@ -6670,6 +6739,14 @@ function updateMyAgentButton() {
     } else {
         btn.textContent = "Mening agentim (.zip)";
     }
+
+    // Barcha operatorlar arxivi tugmasi: Faqat Admin yoki Maxmudbek / Superuser uchun ko'rinadi!
+    const allBtn = document.getElementById('btnAll3cxAgents');
+    if (allBtn) {
+        const uLower = String(myUsername || '').toLowerCase();
+        const isSuperOrAdmin = (myUserRole === 'admin' || myUserRole === 'superuser' || uLower.includes('maxmudbek') || uLower === 'admin' || uLower === 'superuser');
+        allBtn.style.display = isSuperOrAdmin ? 'inline-flex' : 'none';
+    }
 }
 window.updateMyAgentButton = updateMyAgentButton;
 
@@ -6690,6 +6767,12 @@ function downloadMyAgentPackage() {
 window.downloadMyAgentPackage = downloadMyAgentPackage;
 
 function open3cxAgentsListModal() {
+    const uLower = String(myUsername || '').toLowerCase();
+    const isSuperOrAdmin = (myUserRole === 'admin' || myUserRole === 'superuser' || uLower.includes('maxmudbek') || uLower === 'admin' || uLower === 'superuser');
+    if (!isSuperOrAdmin) {
+        alert("Barcha operatorlar arxivlarini ko'rish faqat administratorlar uchun ruxsat etilgan!");
+        return;
+    }
     const modal = document.getElementById('modal3cxAgentsList');
     if (!modal) return;
     render3cxAgentsList();
