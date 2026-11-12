@@ -1198,9 +1198,14 @@
             }
         }
 
-        // Dropdown tugmalarini boshqarish (Arrow keys, Enter, Esc)
+        // Dropdown tugmalarini boshqarish (Arrow keys, Enter, Esc, Backspace)
         if (editor) {
             editor.addEventListener('keydown', (e) => {
+                // Hech qanday tashqi window/document listener Backspace yoki harflarni ushlab qolmasligi uchun
+                if (e.key !== 'Escape') {
+                    e.stopPropagation();
+                }
+
                 if (isDropdownVisible) {
                     const items = mentionDropdown.querySelectorAll('.visual-mention-item');
                     if (e.key === 'ArrowDown') {

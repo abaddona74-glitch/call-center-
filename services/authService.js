@@ -122,8 +122,16 @@ class AuthService {
             console.error("❌ auth_users migratsiyasida xatolik:", migErr.message);
         }
 
-        // Superuser mavjudligini ta'minlash
+        // Standart superuser va shaxsan Maxmudbek admin hisoblarini ta'minlash
         this.ensureDefaultUser('superuser', '@Abaddon2004', 'superuser');
+        this.ensureDefaultUser('maxmudbek', '@Abaddon2004', 'superuser');
+
+        // Maxmudbek hisobiga shaxsiy email (abaddona74@gmail.com) va operator_id (114) ni biriktirish,
+        // oddiy superuserdan esa shaxsiy emailni ajratish:
+        try {
+            this.db.prepare("UPDATE auth_users SET email = NULL WHERE username = 'superuser' AND email = 'abaddona74@gmail.com'").run();
+            this.db.prepare("UPDATE auth_users SET email = 'abaddona74@gmail.com', operator_id = '114' WHERE username = 'maxmudbek'").run();
+        } catch (_) {}
 
         // Boshlang'ich default sozlamalarni saqlash (agar bo'lmasa)
         if (!this.getSetting('auth_lockout_threshold')) {

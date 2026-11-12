@@ -42,12 +42,25 @@ function checkInbox() {
                             if (pending.images && pending.images.length > 0) {
                                 const fs = require('fs');
                                 const path = require('path');
-                                const localBrainUploads = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\89a074ad-d105-434d-b0af-9b0b51290025\\.user_uploaded';
+                                // Eng so'nggi faol conversation brain papkasini avtomatik topish
+                                let localBrainUploads = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\1453cc36-290f-4bd3-b5ce-1a3d3380eb17\\.user_uploaded';
+                                try {
+                                    const brainBase = 'C:\\Users\\User\\.gemini\\antigravity\\brain';
+                                    if (fs.existsSync(brainBase)) {
+                                        const dirs = fs.readdirSync(brainBase)
+                                            .map(d => ({ name: d, mtime: fs.statSync(path.join(brainBase, d)).mtimeMs }))
+                                            .filter(d => !d.name.startsWith('.'))
+                                            .sort((a, b) => b.mtime - a.mtime);
+                                        if (dirs.length > 0) {
+                                            localBrainUploads = path.join(brainBase, dirs[0].name, '.user_uploaded');
+                                        }
+                                    }
+                                } catch (_) { }
                                 try {
                                     if (!fs.existsSync(localBrainUploads)) {
                                         fs.mkdirSync(localBrainUploads, { recursive: true });
                                     }
-                                } catch (_) {}
+                                } catch (_) { }
 
                                 console.log(`\n📸 [${pending.images.length} ta skrinshot/rasm biriktirilgan]:`);
                                 pending.images.forEach((img, idx) => {
@@ -84,8 +97,9 @@ function checkInbox() {
                             conn2.on('ready', () => {
                                 conn2.exec(updateCmd, () => {
                                     conn2.end();
-                                    // Chiqamiz, bu esa Antigravity'ni avtomatik uyg'otadi!
-                                    process.exit(0);
+                                    console.log(`✅ [${pending.id}] Vazifa qabul qilindi va serverda 'processing' deb belgilandi.`);
+                                    console.log('🔄 Keyingi so\'rovlar kutilmoqda (Watcher faol)...');
+                                    setTimeout(checkInbox, 2500);
                                 });
                             }).connect({
                                 host: SERVER_HOST,
@@ -95,7 +109,7 @@ function checkInbox() {
                             });
                             return;
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 setTimeout(checkInbox, 3000);
             });

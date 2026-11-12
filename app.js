@@ -1207,11 +1207,19 @@ function getUniqueDevicesMap(dashboardClients) {
 }
 
 // Maxmudbek uchun Ghost Mode (Ko'rinmas rejim) tekshiruvi:
+// Faqat va faqat shaxsan Maxmudbek hisobi uchun amal qiladi, oddiy superuser yoki boshqa akkauntlarga o'tmaydi!
 function isGhostAccount(userOrUname) {
     if (!userOrUname) return false;
-    const uname = typeof userOrUname === 'string' ? userOrUname : (userOrUname.username || userOrUname.email || '');
-    const lower = String(uname).toLowerCase();
-    return lower.includes('maxmudbek') || lower === 'abaddona74@gmail.com';
+    const rawUname = typeof userOrUname === 'string' ? userOrUname : (userOrUname.username || '');
+    const rawEmail = typeof userOrUname === 'object' ? (userOrUname.email || '') : '';
+    const lowerUname = String(rawUname).toLowerCase().trim();
+    const lowerEmail = String(rawEmail).toLowerCase().trim();
+
+    // Oddiy 'superuser' hisobi hech qachon Ghost hisoblanmaydi
+    if (lowerUname === 'superuser') return false;
+
+    // Faqat Maxmudbek username yoki Maxmudbekka tegishli email
+    return lowerUname.includes('maxmudbek') || (lowerEmail === 'abaddona74@gmail.com' && lowerUname !== 'superuser');
 }
 
 // Onlayn foydalanuvchilar va qurilmalar haqida to'liq xulosani shakllantirish

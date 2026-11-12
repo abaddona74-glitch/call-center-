@@ -10,7 +10,8 @@
     "test:smoke": "node --test tests/smoke_rustwright.js",
     "build": "node -c app.js config.js public/js/dashboard.js",
     "predeploy": "npm test && npm run build",
-    "deploy": "node scripts/deploy.js"
+    "deploy": "node scripts/deploy.js",
+    "bridge": "node scripts/watch_ui_inbox.js"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^14.0.0",

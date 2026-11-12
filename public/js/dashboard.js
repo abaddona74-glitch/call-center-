@@ -2004,6 +2004,12 @@ function renderOnlineUsersPopover() {
             lastActiveAt: Date.now()
         }];
 
+    const authU = window.currentAuthUser || {};
+    const myUname = String(authU.username || '').toLowerCase().trim();
+    // Superuser oddiy tizim hisobi - unga Ghost Mode banneri chiqmaydi.
+    // Faqat shaxsan Maxmudbek hisobi uchun chiqadi!
+    const isMaxmudbek = (myUname.includes('maxmudbek') || (authU.email === 'abaddona74@gmail.com' && myUname !== 'superuser')) && myUname !== 'superuser';
+
     let itemsHtml = '';
     users.forEach(u => {
         const isMe = (u.deviceId && u.deviceId === myDevId) || (u.clientId && u.clientId === myClientId) || (u.pcName && u.pcName === myPc);
@@ -2067,10 +2073,6 @@ function renderOnlineUsersPopover() {
             </div>
         `;
     });
-
-    const authU = window.currentAuthUser || {};
-    const myUname = String(authU.username || '').toLowerCase();
-    const isMaxmudbek = myUname.includes('maxmudbek') || authU.email === 'abaddona74@gmail.com';
 
     const ghostBannerHtml = isMaxmudbek ? `
         <div class="ghost-mode-banner" style="margin: 8px 12px 6px; padding: 10px 12px; background: linear-gradient(135deg, rgba(88, 28, 135, 0.45) 0%, rgba(30, 27, 75, 0.65) 100%); border: 1px solid rgba(168, 85, 247, 0.45); border-radius: 9px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
@@ -3865,7 +3867,11 @@ function initExplorer() {
     window.addEventListener('keydown', (e) => {
         const explorerTab = document.getElementById('tab-explorer');
         if (!explorerTab || !explorerTab.classList.contains('active')) return;
-        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+        if (e.target) {
+            const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+            const isContentEditable = e.target.closest && (e.target.closest('[contenteditable]') || e.target.closest('.visual-ai-editor') || e.target.closest('#visualAiPromptInput') || e.target.closest('.visual-ai-prompt-modal'));
+            if (isInput || isContentEditable) return;
+        }
 
         if (e.altKey && e.key === 'ArrowLeft') {
             e.preventDefault();
