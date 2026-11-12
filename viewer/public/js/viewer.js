@@ -93,6 +93,7 @@ function switchOperatorGroup(group, isUserAction = true) {
 let currentOperators = [];
 let socket = null;
 let reconnectTimer = null;
+let wsReconnectDelay = 2000;
 let refreshInterval = null;
 let lastWsMessageAt = Date.now();
 let isFirstWsConnect = true;
@@ -4526,6 +4527,7 @@ function initWebSocket() {
         socket.onopen = () => {
             console.log(new Date().toISOString(), '🟢 Viewer WebSocket onopen, stopping fallback polling');
             lastWsMessageAt = Date.now();
+            wsReconnectDelay = 2000;
             stopFallbackPolling();
             isFirstWsConnect = false;
             if (myOperatorId) {
@@ -4634,7 +4636,10 @@ function initWebSocket() {
             console.warn(new Date().toISOString(), `🔴 Viewer WebSocket onclose (code=${event?.code}). Starting fallback polling...`);
             startFallbackPolling(false);
             clearTimeout(reconnectTimer);
-            reconnectTimer = setTimeout(initWebSocket, 3000);
+            const nextDelay = wsReconnectDelay;
+            wsReconnectDelay = Math.min(30000, Math.round(wsReconnectDelay * 1.5));
+            console.log(new Date().toISOString(), `🔄 WS qayta ulanish ${nextDelay}ms dan keyin...`);
+            reconnectTimer = setTimeout(initWebSocket, nextDelay);
         };
 
         socket.onerror = (err) => {
@@ -4644,7 +4649,9 @@ function initWebSocket() {
     } catch (e) {
         startFallbackPolling(false);
         clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(initWebSocket, 3000);
+        const nextDelay = wsReconnectDelay;
+        wsReconnectDelay = Math.min(30000, Math.round(wsReconnectDelay * 1.5));
+        reconnectTimer = setTimeout(initWebSocket, nextDelay);
     }
 }
 
