@@ -37,10 +37,48 @@ function checkInbox() {
                             console.log('Vazifa:', pending.task || 'Ko\'rinishini yaxshilash');
                             console.log('Full Prompt:');
                             console.log(pending.prompt);
+
+                            // Agar biriktirilgan rasm/skrinshotlar bo'lsa, ularni mahalliy brain papkasiga saqlaymiz
+                            if (pending.images && pending.images.length > 0) {
+                                const fs = require('fs');
+                                const path = require('path');
+                                const localBrainUploads = 'C:\\Users\\User\\.gemini\\antigravity\\brain\\89a074ad-d105-434d-b0af-9b0b51290025\\.user_uploaded';
+                                try {
+                                    if (!fs.existsSync(localBrainUploads)) {
+                                        fs.mkdirSync(localBrainUploads, { recursive: true });
+                                    }
+                                } catch (_) {}
+
+                                console.log(`\n📸 [${pending.images.length} ta skrinshot/rasm biriktirilgan]:`);
+                                pending.images.forEach((img, idx) => {
+                                    try {
+                                        const b64 = img.base64 || '';
+                                        if (b64) {
+                                            const matches = b64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                                            const ext = (matches && matches[1] && matches[1].includes('jpeg')) ? 'jpg' : 'png';
+                                            const buf = matches ? Buffer.from(matches[2], 'base64') : Buffer.from(b64, 'base64');
+                                            const localFileName = `visual_${pending.id}_${idx}.${ext}`;
+                                            const localPath = path.join(localBrainUploads, localFileName);
+                                            fs.writeFileSync(localPath, buf);
+                                            console.log(`🖼️ Rasm #${idx + 1}: file:///${localPath.replace(/\\/g, '/')}`);
+                                        }
+                                    } catch (e) {
+                                        console.error('Local image save error:', e.message);
+                                    }
+                                });
+                            }
+
                             console.log('=============================================\n');
 
-                            // Mark as processing on server
+                            // Mark as processing on server va base64 larni tozalab hajmini ixcham saqlash
                             pending.status = 'processing';
+                            items.forEach(item => {
+                                if (item.images && Array.isArray(item.images)) {
+                                    item.images.forEach(img => {
+                                        delete img.base64;
+                                    });
+                                }
+                            });
                             const updateCmd = `echo '${JSON.stringify(items).replace(/'/g, "'\\''")}' > /opt/call-center/scratch/ui_inbox.json`;
                             const conn2 = new Client();
                             conn2.on('ready', () => {

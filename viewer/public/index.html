@@ -13,8 +13,53 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css?v=25.3">
-    <link rel="stylesheet" href="/css/tickets.css?v=2.4">
+    <link rel="stylesheet" href="/css/tickets.css?v=2.5">
     <style>
+        /* Masofaviy Boshqaruv (RustDesk) PC tugmasi */
+        .btn-pc-remote {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .btn-pc-remote:hover {
+            background: rgba(56, 189, 248, 0.28);
+            border-color: #38bdf8;
+            color: #ffffff;
+            transform: scale(1.08);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+        .btn-pc-remote.has-rustdesk {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.45);
+            color: #34d399;
+        }
+        .btn-pc-remote.has-rustdesk:hover {
+            background: rgba(16, 185, 129, 0.3);
+            border-color: #34d399;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+        .rd-badge-online {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+        }
+
         body {
             background-color: #0b1120 !important;
             color: #f8fafc;
@@ -732,17 +777,6 @@
             <h1 data-i18n="app_title">Call Center</h1>
         </a>
         <div style="display: flex; align-items: center; gap: 12px;">
-            <!-- Mijozlar bazasi (Telefon kitobi) tugmasi -->
-            <button type="button" class="header-contact-book-btn" onclick="openClientDirectoryModal()" data-i18n-title="header_client_directory" title="Mijozlar bazasi">
-                <svg class="isax isax-clipboard-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8 12.5H16"/><path d="M8 16.5H13"/><path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z"/><path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02"/></svg>
-                <span class="btn-text" data-i18n="header_client_directory">Mijozlar bazasi</span>
-                <span id="headerContactsCount" class="header-contact-count">0</span>
-            </button>
-            <!-- Fayl konvertor asbobi (Universal Converter) -->
-            <button type="button" class="header-contact-book-btn" onclick="openConverterModal()" data-i18n-title="header_converter" title="Fayl konvertor" style="background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.35); color: #38bdf8;">
-                <svg class="isax isax-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-refresh"></use></svg>
-                <span class="btn-text" data-i18n="header_converter">Fayl konvertor</span>
-            </button>
             <!-- Language Switcher: O'zbekcha / Русский (Spring Animated Glass Pill Toggle) -->
             <div class="lang-switch-container" id="langSwitchContainer" data-active="uz" role="tablist" aria-label="Tilni tanlash / Выбрать язык" title="Tilni tanlash / Выбрать язык">
                 <span class="lang-switch-thumb" id="langSwitchThumb" aria-hidden="true"></span>
@@ -892,18 +926,32 @@
         </div>
 
                 <!-- ADMINKALAR / TIZIM KABINETLARI PANEL -->
-        <div class="tools-panel" style="margin-bottom: 24px;">
+        <div class="tools-panel tools-zone-panel" id="adminToolsPanel" data-zone="admin" style="margin-bottom: 24px;">
             <div class="tools-heading">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <svg class="isax isax-unlock" style="width: 20px; height: 20px; color: #38bdf8; flex-shrink: 0;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-unlock"></use></svg>
                     <span data-i18n="adminka_title">Adminkalar / Tizim Kabinetlari</span>
                     <span class="tools-badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);" data-i18n="adminka_badge">Boshqaruv kabinetlari</span>
+                    <span class="tools-count-badge" id="adminToolsCount">2</span>
+                </div>
+                <div class="tools-zone-hint">
+                    <svg class="isax isax-element-equal" style="width: 14px; height: 14px; color: #94a3b8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    <span>Kartalarni sudrab joylashtiring (Drag & Drop)</span>
                 </div>
             </div>
 
-            <div class="tools-grid">
+            <div class="tools-grid dropzone" id="adminToolsGrid" data-zone="admin">
+                <div class="tools-empty-dropzone">
+                    <svg class="isax isax-box-add" style="width: 28px; height: 28px; color: #64748b; margin-bottom: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-box-add"></use></svg>
+                    <div>Bu bo'limda hozircha kabinetlar yo'q</div>
+                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">Boshqa bo'limdan kartalarni shu yerga sudrab olib kelishingiz mumkin</div>
+                </div>
+
                 <!-- EDO Kabineti Card -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="edo_cabinet">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #1e40af 100%);">
                         <img src="/icons/edo-symbol.svg" alt="EDO" style="width: 26px; height: 26px; filter: brightness(0) invert(1);" onerror="this.outerHTML='<svg class=\'isax isax-document-text\' style=\'width:24px;height:24px;color:#fff;\'><use href=\'/icons/iconsax/iconsax-sprite.svg#isax-document-text\'></use></svg>'">
                     </div>
@@ -930,7 +978,10 @@
                 </div>
 
                 <!-- E-Huquqshunos Kabineti Card -->
-                <div class="tool-card">
+                <div class="tool-card" draggable="true" data-tool-id="ehuquq_cabinet">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
                     <div class="tool-card-icon" style="background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);">
                         <img src="/icons/e-huquqshunos-logo.svg" alt="E-Huquqshunos" style="width: 26px; height: 26px; filter: brightness(0) invert(1);" onerror="this.outerHTML='<svg class=\'isax isax-monitor\' style=\'width:24px;height:24px;color:#fff;\'><use href=\'/icons/iconsax/iconsax-sprite.svg#isax-monitor\'></use></svg>'">
                     </div>
@@ -1000,9 +1051,6 @@
                                 <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
                                 <span>Skriptni yuklab olish</span>
                             </a>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('anydesk');" title="Kerakli vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1036,9 +1084,6 @@
                             </a>
                             <button onclick="openToolInModal('/tools/managers.html', 'Mas\'ullar va E-XAT', 'iframe')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('managers');" title="Kerakli vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -1075,8 +1120,28 @@
                             <button type="button" onclick="openConverterModal()" class="tool-action-btn secondary" style="cursor: pointer;">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('converter');" title="Kerakli vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mijozlar bazasi (Telefon kitobi) Card -->
+                <div class="tool-card" draggable="true" data-tool-id="client_directory">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);">
+                        <svg class="isax isax-clipboard-text" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="M8 12.5H16"/><path d="M8 16.5H13"/><path d="M10 6H14C16 6 16 5 16 4C16 2 15 2 14 2H10C9 2 8 2 8 4C8 5 8 6 10 6Z"/><path d="M16 4.02C19.33 4.2 21 5.43 21 10V16C21 20 20 22 15 22H9C4 22 3 20 3 16V10C3 5.44 4.67 4.2 8 4.02"/></svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Mijozlar bazasi (Telefon kitobi)</h4>
+                            <span class="tool-status-pill" data-i18n="tool_status_active">Faol</span>
+                        </div>
+                        <p class="tool-card-desc">Barcha saqlangan mijoz raqamlari, tashkilotlari va manzillari kitobi.</p>
+                        <div class="tool-card-footer">
+                            <button type="button" onclick="openClientDirectoryModal()" class="tool-action-btn primary" style="cursor: pointer;">
+                                <span data-i18n="tool_open">Ochish</span>
+                                <svg class="isax isax-export" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-export"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -1130,9 +1195,6 @@
                                 <svg class="isax isax-global" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-global"></use></svg>
                                 <span>EDO Welcome</span>
                             </a>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('uzcrypto');" title="Asosiy vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1164,9 +1226,6 @@
                             </a>
                             <button onclick="openToolInModal('https://telegram-form-dashboard.vercel.app', 'Telegram Form Dashboard')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('telegram');" title="Asosiy vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -1203,9 +1262,6 @@
                             </a>
                             <button onclick="openToolInModal('https://xat-tayyorlash.vercel.app', 'Ijro ERI Xat Generatori')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
-                            </button>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('ijro_letter');" title="Asosiy vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
                             </button>
                         </div>
                     </div>
@@ -1248,8 +1304,64 @@
                             <button onclick="openToolInModal('/tools/uzb2026.html', 'tool_uzb2026_title', 'iframe')" class="tool-action-btn secondary">
                                 <span data-i18n="tool_open_here">🖥️ Shu yerda ochish</span>
                             </button>
-                            <button type="button" class="tool-quick-move-btn" onclick="event.stopPropagation(); toggleToolZone('uzb2026');" title="Asosiy vositalarga o'tkazish">
-                                <svg class="isax isax-arrow-swap-horizontal" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-arrow-swap-horizontal"></use></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3CX Softphone v6 (Rasmiy MSI) Card -->
+                <div class="tool-card" draggable="true" data-tool-id="3cx_phone">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">3CX Softphone (v6)</h4>
+                            <span class="tool-status-pill" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">SIP Klient (13.9 MB)</span>
+                        </div>
+                        <p class="tool-card-desc">Call Center operatorlari uchun rasmiy 3CX SIP dasturi. Qo'ng'iroqlarni qabul qilish va amalga oshirish dasturi (Windows MSI).</p>
+                        <div class="tool-card-footer">
+                            <a href="/downloads/3CXPhone6.msi" download="3CXPhone6.msi" class="tool-action-btn primary" style="background: #0284c7;" title="3CXPhone6.msi yuklab olish">
+                                <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                                <span>Yuklab olish (.msi)</span>
+                            </a>
+                            <button type="button" onclick="open3cxConfigGuideModal()" class="tool-action-btn secondary" title="3CX sozlash va hisob ma'lumotlari">
+                                <svg class="isax isax-info-circle" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-info-circle"></use></svg>
+                                <span>Sozlash yo'riqnomasi</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3CX Desktop Agent (Avto-Reject & Monitor) Card -->
+                <div class="tool-card" draggable="true" data-tool-id="3cx_agent">
+                    <div class="tool-drag-handle" title="Ushlab boshqa bo'limga sudrang (Drag & Drop)">
+                        <svg class="isax isax-element-equal" style="width: 16px; height: 16px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-element-equal"></use></svg>
+                    </div>
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                        </svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">3CX Desktop Agent</h4>
+                            <span class="tool-status-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">Avto-Reject & Monitor</span>
+                        </div>
+                        <p class="tool-card-desc">3CX qo'ng'iroqlari va rad etilganlarni (Reject) markaziy serverga real-vaqtda uzatuvchi fon agenti. Har bir operator hisobiga mos tayyorlangan.</p>
+                        <div class="tool-card-footer">
+                            <button type="button" id="btnDownloadMyAgent" onclick="downloadMyAgentPackage()" class="tool-action-btn primary" style="background: #059669;" title="Joriy operator uchun sozlangan agentni yuklab olish">
+                                <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                                <span id="btnDownloadMyAgentText">Mening agentim (.zip)</span>
+                            </button>
+                            <button type="button" onclick="open3cxAgentsListModal()" class="tool-action-btn secondary" title="Barcha operatorlar arxivlarini ko'rish">
+                                <svg class="isax isax-user" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
+                                <span>Barcha operatorlar</span>
                             </button>
                         </div>
                     </div>
@@ -2478,6 +2590,199 @@
         </div>
     </div>
 
+    <!-- REMOTE DESKTOP (RUSTDESK) MODAL -->
+    <div id="remoteDesktopModal" onclick="if(event.target === this) closeRemoteDesktopModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1070; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 480px; max-width: 95vw; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9); border-radius: 16px; overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Masofaviy Boshqaruv</h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 3px 0 0 0;">Ekran boshqaruvi va 3CX suhbat ovozi</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeRemoteDesktopModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 22px 24px;">
+                <!-- Operator Info Card -->
+                <div style="display: flex; align-items: center; gap: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px 16px; margin-bottom: 18px;">
+                    <div id="rdModalAvatar" style="width: 42px; height: 42px; border-radius: 10px; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff;">101</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div id="rdModalOpName" style="font-weight: 700; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Operator</div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">
+                            <span>Exten: <strong id="rdModalOpExten" style="color: #38bdf8;">101</strong></span>
+                            <span style="margin: 0 6px;">•</span>
+                            <span id="rdModalOpStatus" style="color: #10b981; font-weight: 600;">🟢 Tarmoqda</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IP Address Field -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">
+                        <span>Operator Kompyuterining Ichki IP Manzili (LAN):</span>
+                        <span style="color: #38bdf8; font-size: 11px; cursor: pointer; text-decoration: underline;" onclick="resetRdIpToDetected()">Qayta aniqlash</span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center; margin-bottom: 20px;">
+                        <input type="text" id="rdModalIpInput" placeholder="Masalan: 192.168.0.17" 
+                               style="width: 100%; padding: 10px 14px; padding-right: 70px; background: #0b1120; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600; font-family: monospace; outline: none;">
+                        <button type="button" onclick="copyRdIp()" title="IP dan nusxa olish" 
+                                style="position: absolute; right: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
+                            Nusxa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" onclick="closeRemoteDesktopModal()" style="padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); color: #f87171; cursor: pointer; transition: all 0.2s;">
+                        Bekor qilish
+                    </button>
+                    <button type="button" id="btnConnectRustDesk" onclick="connectRustDeskAction()" style="padding: 9px 24px; font-size: 13px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); cursor: pointer; transition: all 0.2s;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Ulanish</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3CX OPERATOR AGENTS RO'YXATI MODAL -->
+    <div id="modal3cxAgentsList" onclick="if(event.target === this) close3cxAgentsListModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1085; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 780px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.45); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9); border-radius: 18px; overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); display: flex; align-items: center; justify-content: center; color: #34d399;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span>3CX Desktop Agent — Operatorlar Paketlari</span>
+                            <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 5px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);">v1.0.1</span>
+                        </h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 3px 0 0 0;">Har bir operator hisobi uchun avtomatik sozlangan tayyor ZIP paketlar</p>
+                    </div>
+                </div>
+                <button type="button" onclick="close3cxAgentsListModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <!-- Filter tabs & Search -->
+            <div style="padding: 14px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.6); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn-group-3cx active" onclick="filter3cxAgentsList('all', this)" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: #10b981; color: #fff; border: none;">Barchasi</button>
+                    <button type="button" class="btn-group-3cx" onclick="filter3cxAgentsList('main', this)" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);">Asosiy (100+)</button>
+                    <button type="button" class="btn-group-3cx" onclick="filter3cxAgentsList('secondary', this)" style="padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; background: rgba(255,255,255,0.06); color: #94a3b8; border: 1px solid rgba(255,255,255,0.1);">Zangiota (200+)</button>
+                </div>
+                <input type="text" id="search3cxAgentInput" oninput="filter3cxAgentsByQuery(this.value)" placeholder="Qidirish (ism yoki raqam)..." style="padding: 7px 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; font-size: 12.5px; outline: none; width: 220px;">
+            </div>
+
+            <!-- Body Grid -->
+            <div id="container3cxAgentsGrid" style="flex: 1; overflow-y: auto; padding: 20px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;">
+                <!-- Dynamically populated via JS -->
+            </div>
+
+            <!-- Universal Custom card at bottom -->
+            <div style="padding: 14px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div style="font-size: 12px; color: #94a3b8;">
+                    ℹ️ Istalgan yangi kompyuter uchun: <strong style="color: #38bdf8;">custom.zip</strong> (o'zi ID kiritadi)
+                </div>
+                <a href="/downloads/3cx-agents/custom.zip" download="custom.zip" class="tool-action-btn primary" style="background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 6px 14px; font-size: 12px; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg class="isax isax-import" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                    <span>Universal Paket (.zip)</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3CX SOZLASh VA SIP HISOB YO'RIQNOMASI MODAL -->
+    <div id="modal3cxConfigGuide" onclick="if(event.target === this) close3cxConfigGuideModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1085; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 620px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9); border-radius: 18px; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">3CX Softphone v6 — Sozlash Yo'riqnomasi</h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 3px 0 0 0;">Yangi operatorlar uchun SIP hisobini ulash parametrlari</p>
+                    </div>
+                </div>
+                <button type="button" onclick="close3cxConfigGuideModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <div style="padding: 22px 24px; overflow-y: auto; font-size: 13px; line-height: 1.6; color: #cbd5e1;">
+                <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 14px 18px; margin-bottom: 18px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #38bdf8; font-weight: 700;">⚙️ 3CX Phone (v6) ga kiritiladigan parametrlar:</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 6px 0; color: #94a3b8; width: 45%;">Account Name:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #f8fafc;">Operator Raqami (masalan 114 yoki 200)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 6px 0; color: #94a3b8;">Caller ID:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #f8fafc;">Operator ID (masalan 114)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 6px 0; color: #94a3b8;">Extension:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #f8fafc;">Operator ID (masalan 114)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 6px 0; color: #94a3b8;">ID:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #f8fafc;">Operator ID (masalan 114)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                            <td style="padding: 6px 0; color: #94a3b8;">Password:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #34d399;">Asterisk SIP paroli</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 0; color: #94a3b8;">PBX / Server IP:</td>
+                            <td style="padding: 6px 0; font-weight: 700; color: #38bdf8; font-family: monospace;">192.168.0.124</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <strong style="color: #fff;">1-qadam:</strong> <a href="/downloads/3CXPhone6.msi" download style="color: #38bdf8; text-decoration: underline;">3CXPhone6.msi</a> faylini yuklab oling va kompyuterga o'rnating.
+                </div>
+                <div style="margin-bottom: 14px;">
+                    <strong style="color: #fff;">2-qadam:</strong> Dasturni ochib, yuqoridagi jadval asosida operatoringiz hisobini (Account) yarating va <b>OK</b> bosing. "On Hook" (yashil) holatiga o'tadi.
+                </div>
+                <div style="margin-bottom: 6px;">
+                    <strong style="color: #fff;">3-qadam:</strong> <strong style="color: #34d399;">3CX Desktop Agent</strong> ni o'z raqamingiz bo'yicha yuklab olib, <code>Ishga_tushirish.bat</code> ni ishga tushiring. Shunda barcha qo'ng'iroqlar va Reject (qizil tugma) holatlari tizimda avtomatik ko'rinib turadi!
+                </div>
+            </div>
+
+            <div style="padding: 14px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02); display: flex; justify-content: flex-end;">
+                <button type="button" onclick="close3cxConfigGuideModal()" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; color: #fff; padding: 8px 20px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
+                    Tushunarli
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Smart Page Elevator (Lift) Floating Navigation Button -->
     <button type="button" id="pageElevatorBtn" class="page-elevator-btn mode-down" aria-label="Sahifa bo'yicha harakatlanish" title="Eng pastga tushish">
         <svg class="isax isax-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -2495,8 +2800,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1793962406629" defer></script>
+    <script src="/js/viewer.js?v=1794461947248" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794202257206" defer></script>
+    <script src="/js/visualInspector.js?v=1794461947248" defer></script>
 </body>
 </html>

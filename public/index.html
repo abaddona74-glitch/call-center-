@@ -3,26 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1794202257206">
+    <meta name="build-id" content="1794461947248">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
     <link rel="icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="shortcut icon" type="image/png" href="/images/title-icon.png?v=6.0">
     <link rel="apple-touch-icon" href="/images/title-icon.png?v=6.0">
-    <!-- Google Fonts: Inter & Golos Text (for Cyrillic/Russian) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Onest:wght@400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <!-- Highcharts 3D for 3D Pie Chart -->
-    <script src="https://code.highcharts.com/highcharts.js" defer></script>
-    <script src="https://code.highcharts.com/highcharts-3d.js" defer></script>
+    <!-- Localized Fonts: Inter & Golos Text (Oflayn va ultra-tezkor yuklanish) -->
+    <link rel="stylesheet" href="/fonts/fonts.css?v=1.0">
+    <!-- Localized Chart.js & Highcharts (Tashqi CDN siz, lokal kesh) -->
+    <script src="/vendor/chart.min.js" defer></script>
+    <script src="/vendor/highcharts.js" defer></script>
+    <script src="/vendor/highcharts-3d.js" defer></script>
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1794202257206">
+    <link rel="stylesheet" href="/css/style.css?v=1794461947248">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -185,6 +182,30 @@
             background-color: #2563eb !important;
             color: #ffffff !important;
         }
+
+        /* Masofaviy Boshqaruv (RustDesk) PC tugmasi */
+        .btn-pc-remote {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #38bdf8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .btn-pc-remote:hover {
+            background: rgba(56, 189, 248, 0.28);
+            border-color: #38bdf8;
+            color: #ffffff;
+            transform: scale(1.08);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -266,10 +287,6 @@
                             <svg class="isax isax-chart" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-chart"></use></svg>
                             <span data-i18n="tab_statistics">Statistika</span>
                         </a>
-                        <button type="button" class="tab-btn" id="btnOpenSecurityDashboard" onclick="openSecurityDashboardModal()" style="display: inline-flex; align-items: center; gap: 6px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); background: rgba(56, 189, 248, 0.08); cursor: pointer;" title="Anti-DDoS va Xavfsizlik Qalqoni (Jonli Grafik)">
-                            <svg class="isax isax-shield-security" style="width: 16px; height: 16px; color: #38bdf8; display: inline-block; vertical-align: middle;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-shield-security"></use></svg>
-                            <span>Anti-DDoS Qalqoni</span>
-                        </button>
                     </nav>
 
                     <!-- SVG Filter for Gooey Drop Effect (feGaussianBlur + feColorMatrix for liquid drop physics) -->
@@ -353,6 +370,17 @@
                                     <button type="button" class="user-dropdown-item" id="btnSettings" onclick="openSettingsModal(event); closeGooeyMenu();">
                                         <svg class="isax isax-setting-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"/><path d="M2 12.88V11.12C2 10.08 2.85 9.22 3.9 9.22C4.71 9.22 5.45 8.7 5.76 7.95C6.07 7.2 5.89 6.35 5.31 5.78L4.36 4.83C3.62 4.09 3.62 2.91 4.36 2.17C5.1 1.43 6.28 1.43 7.02 2.17L7.97 3.12C8.54 3.7 9.39 3.88 10.14 3.57C10.89 3.26 11.41 2.52 11.41 1.71C11.41 0.67 12.26 0 13.3 0H14.7C15.74 0 16.59 0.85 16.59 1.9C16.59 2.71 17.11 3.45 17.86 3.76C18.61 4.07 19.46 3.89 20.03 3.31L20.98 2.36C21.72 1.62 22.9 1.62 23.64 2.36C24.38 3.1 24.38 4.28 23.64 5.02L22.69 5.97C22.11 6.54 21.93 7.39 22.24 8.14C22.55 8.89 23.29 9.41 24.1 9.41C25.14 9.41 26 10.26 26 11.3V12.7C26 13.74 25.15 14.59 24.1 14.59C23.29 14.59 22.55 15.11 22.24 15.86C21.93 16.61 22.11 17.46 22.69 18.03L23.64 18.98C24.38 19.72 24.38 20.9 23.64 21.64C22.9 22.38 21.72 22.38 20.98 21.64L20.03 20.69C19.46 20.11 18.61 19.93 17.86 20.24C17.11 20.55 16.59 21.29 16.59 22.1C16.59 23.14 15.74 24 14.7 24H12.94C11.9 24 11.05 23.15 11.05 22.1C11.05 21.29 10.53 20.55 9.78 20.24C9.03 19.93 8.18 20.11 7.61 20.69L6.66 21.64C5.92 22.38 4.74 22.38 4 21.64C3.26 20.9 3.26 19.72 4 18.98L4.95 18.03C5.53 17.46 5.71 16.61 5.4 15.86C5.09 15.11 4.35 14.59 3.54 14.59C2.5 14.59 1.65 13.74 1.65 12.7"/></svg>
                                         <span>Sozlamalar</span>
+                                    </button>
+                                    <button type="button" class="user-dropdown-item" id="btnSwitchToViewer" onclick="switchToViewerPanel(); closeGooeyMenu();" style="color: #34d399;">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0; color: #34d399;">
+                                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"/>
+                                            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+                                        </svg>
+                                        <span>Operatorlar Paneli (3005)</span>
+                                    </button>
+                                    <button type="button" class="user-dropdown-item" onclick="openSecurityDashboardModal(); closeGooeyMenu();" style="color: #38bdf8;">
+                                        <svg class="isax isax-shield-security" style="width: 16px; height: 16px; flex-shrink: 0; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-shield-security"></use></svg>
+                                        <span>Anti-DDoS Qalqoni</span>
                                     </button>
                                     <button type="button" class="user-dropdown-item logout" id="btnLogout" onclick="handleLogout(event)">
                                         <svg class="isax isax-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="M8.9 7.56C9.21 3.96 11.06 2.49 15.11 2.49H15.24C19.71 2.49 21.5 4.28 21.5 8.75V15.27C21.5 19.74 19.71 21.53 15.24 21.53H15.11C11.09 21.53 9.24 20.08 8.91 16.54"/><path d="M15 12H3.62"/><path d="M5.85 8.65L2.5 12L5.85 15.35"/></svg>
@@ -506,12 +534,6 @@
 
                 <!-- KPI Cards Section (Parent Block) -->
                 <div class="kpi-parent-section" id="kpiParentSection">
-                    <div class="kpi-parent-toolbar">
-                        <button type="button" class="kpi-parent-zoom-btn" id="btnZoomKpiParent" onclick="toggleKpiParentZoom(event)" title="Barcha ko'rsatkichlar blokini fokuslash / Zoom rejimi" aria-label="Fokus">
-                            <svg class="isax isax-eye"><use href="/icons/iconsax/iconsax-sprite.svg#isax-eye"></use></svg>
-                            <span class="zoom-btn-text">Fokus</span>
-                        </button>
-                    </div>
                     <div class="kpi-grid is-loading" id="kpiMainGrid">
                         <div class="kpi-card blue clickable-kpi" onclick="openCallsDetail('all', t('kpi_total_calls', 'Jami Qo\'ng\'iroqlar'))" data-i18n-title="kpi_click_detail" title="Tafsilotlarni ko'rish uchun bosing">
                             <div class="kpi-icon"><img src="/images/totalcalls.png?v=2" alt="Jami" width="54" height="54"></div>
@@ -636,12 +658,6 @@
 
                 <!-- Charts Layout -->
                 <div class="charts-parent-section" id="chartsParentSection">
-                    <div class="charts-parent-toolbar">
-                        <button type="button" class="section-focus-btn" id="btnZoomCharts" onclick="toggleSectionFocus('chartsParentSection')" title="Grafiklar blokini fokuslash / Zoom rejimi" aria-label="Fokus">
-                            <svg class="isax isax-eye"><use href="/icons/iconsax/iconsax-sprite.svg#isax-eye"></use></svg>
-                            <span class="zoom-btn-text">Fokus</span>
-                        </button>
-                    </div>
                     <div class="charts-grid">
                         <!-- Left: Dynamics Chart -->
                         <div class="glass-panel">
@@ -775,10 +791,6 @@
                             <button type="button" class="section-focus-btn op-card-settings-btn" id="btnOpCardSettingsDash" onclick="toggleOperatorsCompact(event)" title="Qatorlarni ixchamlashtirish / Batafsil ko'rish" aria-label="Qatorlar">
                                 <svg class="isax isax-setting-4"><use href="/icons/iconsax/iconsax-sprite.svg#isax-setting-4"></use></svg>
                                 <span class="zoom-btn-text" id="btnDensityText">Qatorlar</span>
-                            </button>
-                            <button type="button" class="section-focus-btn" id="btnZoomOperators" onclick="toggleOperatorsFocus(event)" title="Fokus rejimi (Oflayn operatorlarni yashirish / ko'rsatish)" aria-label="Fokus">
-                                <svg class="isax isax-eye"><use href="/icons/iconsax/iconsax-sprite.svg#isax-eye"></use></svg>
-                                <span class="zoom-btn-text" id="btnFocusText">Fokus</span>
                             </button>
                         </div>
                     </div>
@@ -2816,6 +2828,76 @@
         </div>
     </div>
 
+    <!-- REMOTE DESKTOP (RUSTDESK) MODAL -->
+    <div id="remoteDesktopModal" onclick="if(event.target === this) closeRemoteDesktopModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1070; align-items: center; justify-content: center; padding: 20px;">
+        <div class="glass-panel" style="width: 480px; max-width: 95vw; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9); border-radius: var(--radius-lg); overflow: hidden;">
+            <!-- Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                            <line x1="8" y1="21" x2="16" y2="21"></line>
+                            <line x1="12" y1="17" x2="12" y2="21"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">Masofaviy Boshqaruv</h3>
+                        <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0 0;">Ekran boshqaruvi va 3CX suhbat ovozi</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeRemoteDesktopModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-dim); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div style="padding: 22px 24px;">
+                <!-- Operator Info Card -->
+                <div style="display: flex; align-items: center; gap: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 12px 16px; margin-bottom: 18px;">
+                    <div id="rdModalAvatar" style="width: 42px; height: 42px; border-radius: 10px; background: #3b82f6; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: #fff;">101</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div id="rdModalOpName" style="font-weight: 700; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Operator</div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">
+                            <span>Exten: <strong id="rdModalOpExten" style="color: #38bdf8;">101</strong></span>
+                            <span style="margin: 0 6px;">•</span>
+                            <span id="rdModalOpStatus" style="color: #10b981; font-weight: 600;">🟢 Tarmoqda</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IP Address Field -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; font-weight: 600; margin-bottom: 6px;">
+                        <span>Operator Kompyuterining Ichki IP Manzili (LAN):</span>
+                        <span style="color: #38bdf8; font-size: 11px; cursor: pointer; text-decoration: underline;" onclick="resetRdIpToDetected()">Qayta aniqlash</span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center; margin-bottom: 20px;">
+                        <input type="text" id="rdModalIpInput" placeholder="Masalan: 192.168.0.17" 
+                               style="width: 100%; padding: 10px 14px; padding-right: 70px; background: #0b1120; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600; font-family: monospace; outline: none;">
+                        <button type="button" onclick="copyRdIp()" title="IP dan nusxa olish" 
+                                style="position: absolute; right: 8px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
+                            Nusxa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" onclick="closeRemoteDesktopModal()" class="btn-action" style="padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.45); color: #f87171; cursor: pointer; transition: all 0.2s;">
+                        Bekor qilish
+                    </button>
+                    <button type="button" id="btnConnectRustDesk" onclick="connectRustDeskAction()" style="padding: 9px 24px; font-size: 13px; font-weight: 700; border-radius: 8px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: #fff; border: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4); cursor: pointer; transition: all 0.2s;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <span>Ulanish</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- SERVER STATUS MODAL (REDESIGN) -->
     <style id="server-status-redesign-styles">
     #serverStatusModal {
@@ -3654,6 +3736,25 @@
 
             <!-- Tab 1: Xavfsizlik & Rate Limit -->
             <div class="settings-tab-pane active" id="tabPaneSecurity">
+                <!-- Anti-DDoS va Xavfsizlik Qalqoni Jonli Grafik Karti -->
+                <div class="settings-section-card" style="margin-bottom: 16px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                                <svg class="isax isax-shield-security" style="width: 22px; height: 22px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-shield-security"></use></svg>
+                            </div>
+                            <div>
+                                <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">Anti-DDoS va Xavfsizlik Qalqoni</h4>
+                                <p style="margin: 2px 0 0 0; font-size: 12px; color: #94a3b8;">Real vaqt rejimidagi tarmoq so'rovlari monitoringi, IP cheklovlari va jonli grafik</p>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-action" id="btnOpenSecurityDashboard" onclick="closeSettingsModal(); openSecurityDashboardModal();" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.12); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                            <svg class="isax isax-chart" style="width: 16px; height: 16px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-chart"></use></svg>
+                            <span>Monitoring Panelini Ochish</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="settings-section-card">
                     <div class="settings-card-header">
                         <h4>Brute-force va Lockout (Avtomatik bloklash)</h4>
@@ -3970,6 +4071,46 @@
         </div>
     </div>
 
+    <!-- ADMIN PAROLNI TIKLASH MODALI -->
+    <div id="modalAdminResetPassword" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.82); backdrop-filter: blur(10px); z-index: 99996; align-items: center; justify-content: center; padding: 20px;" onclick="if(event.target === this) closeAdminResetPasswordModal();">
+        <div class="modal-card glass-panel" style="max-width: 440px; width: 100%; border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.4); background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(20, 30, 48, 0.98)); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8); overflow: hidden; animation: modalZoomIn 0.2s ease;">
+            <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); display: flex; align-items: center; justify-content: center; color: #60a5fa;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">Parolni Tiklash / Yangilash</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 11px; color: #94a3b8;">Foydalanuvchi: <b id="adminResetTargetUsername" style="color: #38bdf8;">-</b></p>
+                    </div>
+                </div>
+                <button type="button" class="btn-modal-close" onclick="closeAdminResetPasswordModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); width: 28px; height: 28px; border-radius: 6px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <form id="adminResetPasswordForm" onsubmit="handleAdminResetPasswordSubmit(event)" style="padding: 18px 20px;">
+                <div style="margin-bottom: 14px;">
+                    <label for="adminResetNewPassword" style="display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px;">Yangi maxfiy parol:</label>
+                    <input type="password" id="adminResetNewPassword" required minlength="6" placeholder="Kamida 6 ta belgi..." style="width: 100%; box-sizing: border-box; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; color: #fff; padding: 9px 12px; font-size: 13px;">
+                </div>
+                <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 10px 12px; margin-bottom: 16px;">
+                    <label style="display: flex; align-items: flex-start; gap: 9px; cursor: pointer;">
+                        <input type="checkbox" id="adminResetRevokePasskeys" checked style="width: 16px; height: 16px; accent-color: #38bdf8; margin-top: 2px;">
+                        <span style="font-size: 12px; color: #e2e8f0; line-height: 1.4;">
+                            <b>Barcha biometrik qurilmalarni ham o'chirish</b>
+                            <span style="display: block; font-size: 11px; color: #94a3b8; margin-top: 2px;">Operator barcha telefon va noutbuklaridan chiqariladi va yangi parol bilan qayta ulaydi.</span>
+                        </span>
+                    </label>
+                </div>
+                <div id="adminResetMsg" style="font-size: 12px; margin-bottom: 12px; min-height: 16px;"></div>
+                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                    <button type="button" onclick="closeAdminResetPasswordModal()" style="background: transparent; border: 1px solid rgba(255, 255, 255, 0.12); color: #94a3b8; padding: 7px 14px; border-radius: 8px; font-size: 12px; cursor: pointer;">Bekor qilish</button>
+                    <button type="submit" id="btnAdminResetSubmit" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: 1px solid rgba(56, 189, 248, 0.5); color: #fff; padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Parolni yangilash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- PROFIL VA GMAIL BOG'LASH (SELF-SERVICE PROFILE MODAL) -->
     <div id="modalUserProfile" class="modal-backdrop" style="display: none; position: fixed; inset: 0; background: rgba(5, 10, 24, 0.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 99995; align-items: center; justify-content: center; padding: 20px;" onclick="if(event.target === this) closeProfileModal();">
         <div class="modal-card glass-panel" style="max-width: 480px; width: 100%; border-radius: 18px; border: 1px solid rgba(56, 189, 248, 0.35); background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(20, 30, 48, 0.98)); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 32px rgba(56, 189, 248, 0.2); overflow: hidden; animation: modalZoomIn 0.22s ease;">
@@ -4203,8 +4344,8 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1794202257206" defer></script>
+    <script src="/js/dashboard.js?v=1794461947248" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794202257206" defer></script>
+    <script src="/js/visualInspector.js?v=1794461947248" defer></script>
 </body>
 </html>

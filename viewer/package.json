@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "asterisk-manager": "^0.2.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",

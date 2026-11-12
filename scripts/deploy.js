@@ -74,6 +74,7 @@ const viewerIndexHtmlPath = path.join(projectRoot, 'viewer', 'public', 'index.ht
 if (fs.existsSync(viewerIndexHtmlPath)) {
     let viewerHtml = fs.readFileSync(viewerIndexHtmlPath, 'utf8');
     viewerHtml = viewerHtml.replace(/\/js\/visualInspector\.js(?:\?v=[^"]*)?/g, `/js/visualInspector.js?v=${currentBuild.buildId}`);
+    viewerHtml = viewerHtml.replace(/\/js\/viewer\.js(?:\?v=[^"]*)?/g, `/js/viewer.js?v=${currentBuild.buildId}`);
     fs.writeFileSync(viewerIndexHtmlPath, viewerHtml, 'utf8');
 }
 
@@ -113,6 +114,8 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
     `--exclude="data/temp_zips" ` +
+    `--exclude="*3CXPhone6.msi" ` +
+    `--exclude="*3cx-agents*" ` +
     `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data system_settings.json`;
 
 try {
@@ -156,6 +159,7 @@ async function deploy() {
                 `cd ${REMOTE_DIR} && (pm2 reload call-center --force || pm2 restart call-center --update-env || pm2 start app.js --name "call-center" --time)`,
                 `mkdir -p /opt/call-center-viewer`,
                 `cp -rf ${REMOTE_DIR}/viewer/* /opt/call-center-viewer/ 2>/dev/null || true`,
+                `cd /opt/call-center-viewer && npm install --omit=dev`,
                 `(pm2 reload call-center-viewer --force || pm2 restart call-center-viewer --update-env || true)`,
                 `pm2 save`
             ].join(' && ');

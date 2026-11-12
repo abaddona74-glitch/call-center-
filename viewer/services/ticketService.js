@@ -248,7 +248,7 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
     if (isNaN(creatorNum) || creatorNum < 200) {
         cleanCreatorId = '200';
     }
-    let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId} (Zangiota)`).trim();
+    let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
 
     const cleanTargetId = targetOperatorId ? String(targetOperatorId).trim() : 'all';
     const cleanTargetName = targetOperatorName ? String(targetOperatorName).trim() : (cleanTargetId === 'all' ? 'Barcha operatorlar' : `Operator ${cleanTargetId}`);
@@ -314,26 +314,52 @@ function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, 
 
 // 2. Barcha ticketlarni olish
 function getTickets(filter = 'all', operatorId = null) {
+    const cleanOp = String(operatorId || '').trim();
+    const opNum = parseInt(cleanOp, 10);
+    const is200Op = !isNaN(opNum) && opNum >= 200;
+    const is100Op = !isNaN(opNum) && opNum >= 100 && opNum < 200;
+
+    let baseTickets = tickets;
+
+    if (is200Op) {
+        // 200+ (Zangiota / Creator) operatorlar faqat o'zi yoki boshqa 200+ lar yaratgan ticketlarni ko'radi
+        baseTickets = tickets.filter(t => {
+            const cNum = parseInt(t.creatorId, 10);
+            return String(t.creatorId).trim() === cleanOp || (!isNaN(cNum) && cNum >= 200);
+        });
+    } else if (is100Op) {
+        // 100+ (Asosiy / Receiver) operatorlar esa faqat o'ziga yoki barchaga yo'naltirilgan ticketlarni ko'radi
+        baseTickets = tickets.filter(t => {
+            const targetClean = String(t.targetOperatorId || 'all').trim();
+            return targetClean === 'all' || targetClean === cleanOp;
+        });
+    }
+
     if (filter === 'mine') {
-        const cleanOp = String(operatorId || '').trim();
         if (cleanOp) {
-            return tickets.filter(t => String(t.targetOperatorId).trim() === cleanOp || String(t.creatorId).trim() === cleanOp);
+            if (is200Op) {
+                // 200-lik operator uchun "mine" - bu o'zi yaratgan ticketlar!
+                return baseTickets.filter(t => String(t.creatorId).trim() === cleanOp);
+            } else {
+                // 100-lik operator uchun "mine" - bu o'ziga biriktirilgan ticketlar!
+                return baseTickets.filter(t => String(t.targetOperatorId).trim() === cleanOp);
+            }
         }
-        return tickets;
+        return baseTickets;
     }
     if (filter === 'pending') {
-        return tickets.filter(t => t.status === 'pending');
+        return baseTickets.filter(t => t.status === 'pending');
     }
     if (filter === 'in_progress') {
-        return tickets.filter(t => t.status === 'in_progress');
+        return baseTickets.filter(t => t.status === 'in_progress');
     }
     if (filter === 'completed') {
-        return tickets.filter(t => t.status === 'completed');
+        return baseTickets.filter(t => t.status === 'completed');
     }
     if (filter === 'rejected') {
-        return tickets.filter(t => t.status === 'rejected');
+        return baseTickets.filter(t => t.status === 'rejected');
     }
-    return tickets;
+    return baseTickets;
 }
 
 // 3. ID bo'yicha bitta ticketni olish

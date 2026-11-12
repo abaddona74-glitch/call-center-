@@ -491,6 +491,10 @@ class AuthService {
         }
     }
 
+    checkPassword(username, password) {
+        return this.verifyUserPassword(username, password);
+    }
+
     validateSession(token) {
         if (!token || typeof token !== 'string') return null;
         try {
@@ -583,7 +587,7 @@ class AuthService {
     createUser(username, password, role = 'operator', operatorId = null, email = null) {
         const cleanUser = String(username || '').trim();
         const cleanPass = String(password || '').trim();
-        const cleanRole = role === 'superuser' ? 'superuser' : 'operator';
+        const cleanRole = (role === 'superuser' || role === 'admin') ? role : 'operator';
         const cleanOpId = (cleanRole === 'operator' && operatorId) ? String(operatorId).trim() : null;
         const cleanEmail = email ? String(email).trim().toLowerCase() : null;
 
@@ -654,7 +658,7 @@ class AuthService {
         }
     }
 
-    updateUserPassword(username, newPassword) {
+    updateUserPassword(username, newPassword, options = {}) {
         const cleanUser = String(username || '').trim();
         const cleanPass = String(newPassword || '').trim();
 
@@ -677,17 +681,37 @@ class AuthService {
                 WHERE username = ?
             `).run(hash, salt, cleanUser);
 
-            // Xavfsizlik: Parol o'zgarganda foydalanuvchining barcha faol sessiyalarini darhol bekor qilish (kick qilish)
+            // Sessiyalarni boshqarish:
+            // Agar joriy sessiya berilgan bo'lsa (operator o'zi almashtirganda), joriy qurilma qoladi, boshqalari tugatiladi
+            // Aks holda (admin reset yoki tiklash) barcha sessiyalar tugatiladi
             let kickedCount = 0;
             try {
-                const del = this.db.prepare('DELETE FROM auth_sessions WHERE username = ?').run(cleanUser);
-                kickedCount = del ? del.changes : 0;
+                if (options.currentToken) {
+                    const del = this.db.prepare('DELETE FROM auth_sessions WHERE username = ? AND token != ?').run(cleanUser, options.currentToken);
+                    kickedCount = del ? del.changes : 0;
+                } else {
+                    const del = this.db.prepare('DELETE FROM auth_sessions WHERE username = ?').run(cleanUser);
+                    kickedCount = del ? del.changes : 0;
+                }
                 console.log(`🔒 Parol o'zgardi: '${cleanUser}' foydalanuvchisining ${kickedCount} ta faol sessiyasi bekor qilindi`);
             } catch (delErr) {
                 console.warn('auth_sessions tozalash xatosi:', delErr.message);
             }
 
-            return { success: true, kickedCount };
+            // Biometrik Passkey kalitlarini boshqarish:
+            // Agar revokePasskeys = true bo'lsa (admin reset yoki akkaunt tiklanganda), passkey'lar ham o'chiriladi
+            let passkeysRevoked = 0;
+            if (options.revokePasskeys) {
+                try {
+                    const delP = this.db.prepare('DELETE FROM auth_passkeys WHERE user_id = ?').run(user.id);
+                    passkeysRevoked = delP ? delP.changes : 0;
+                    console.log(`🔑 '${cleanUser}' ning ${passkeysRevoked} ta biometrik passkey kaliti bekor qilindi`);
+                } catch (pErr) {
+                    console.warn('auth_passkeys tozalash xatosi:', pErr.message);
+                }
+            }
+
+            return { success: true, kickedCount, passkeysRevoked };
         } catch (e) {
             return { success: false, error: e.message };
         }
@@ -705,7 +729,7 @@ class AuthService {
 
     updateUserRole(username, newRole) {
         const cleanUser = String(username || '').trim();
-        const role = newRole === 'superuser' ? 'superuser' : 'operator';
+        const role = (newRole === 'superuser' || newRole === 'admin') ? newRole : 'operator';
 
         try {
             const user = this.db.prepare('SELECT id, role FROM auth_users WHERE username = ?').get(cleanUser);
@@ -1006,8 +1030,8 @@ class AuthService {
             return { success: false, error: "Tiklash sessiyasi muddati o'tib ketdi. Qaytadan boshlang." };
         }
 
-        // 1. Yangi parolni o'rnatish
-        const updateRes = this.updateUserPassword(cleanUser, cleanPass);
+        // 1. Yangi parolni o'rnatish (Akkaunt tiklanganda xavfsizlik uchun barcha passkey va sessiyalarni bekor qilish)
+        const updateRes = this.updateUserPassword(cleanUser, cleanPass, { revokePasskeys: true });
         if (!updateRes.success) {
             return updateRes;
         }

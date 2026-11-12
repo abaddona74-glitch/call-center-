@@ -672,7 +672,14 @@ function getTabTitle(tab) {
 
 function switchRoute(tabName, pushState = true) {
     const validTabs = ['dashboard', 'explorer', 'operators', 'history', 'clients', 'statistics', 'tools'];
-    const target = validTabs.includes(tabName) ? tabName : (ROUTE_MAP['/' + tabName] || 'dashboard');
+    let target = validTabs.includes(tabName) ? tabName : (ROUTE_MAP['/' + tabName] || 'dashboard');
+
+    // Boss (superuser) akkaunti uchun Statistika va Tools yopilgan
+    const isBoss = window.currentAuthUser && (window.currentAuthUser.username === 'superuser');
+    if (isBoss && (target === 'statistics' || target === 'tools')) {
+        target = 'dashboard';
+    }
+
     document.documentElement.setAttribute('data-tab', target);
 
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -5844,6 +5851,11 @@ function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
     }
+    if (window.isVisualInspectorActive) {
+        // Visual AI Inspector faol paytida DOM ni almashtirmaslik (foydalanuvchi tanlagan elementlar uzilib ketmasligi uchun)
+        if (typeof updateAllTalkingTimers === 'function') updateAllTalkingTimers();
+        return;
+    }
     const rawList = operators || window._rawLastOperators || [];
 
     const allFiltered = rawList
@@ -6252,25 +6264,27 @@ function renderOperators(operators) {
     // 1-BLOK: Hozir suhbatda bo'lgan operatorlar (liniyasiz, eng tepada)
     const talkingCardsHtml = talkingOperators.map(renderDashboardOperatorCard).join('');
 
-    // 1-LINIYA (Divider): Kutmoqda (Tayyor)
+    // 1-LINIYA (Divider): Kutmoqda (Tayyor) — SAO Converging Shine Sci-Fi Dizayn
     let readyDividerHtml = '';
     if (readyOperators.length > 0) {
         readyDividerHtml = `
-            <div class="op-grid-divider divider-ready" title="Qabul qilishga tayyor operatorlar">
-                <div class="op-divider-line"></div>
-                <div class="op-divider-label">
-                    <span class="op-divider-dot"></span>
-                    <span>Kutmoqda (Tayyor)</span>
-                    <span style="background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${readyOperators.length}</span>
+            <div class="op-grid-divider sao-divider divider-ready" style="--c: #22c55e;" title="Qabul qilishga tayyor operatorlar">
+                <span class="sao-line sao-line-left"><span class="track"><i class="shine"></i></span></span>
+                <div class="glow">
+                    <div class="sao-label">
+                        <i class="sao-diamond"></i>
+                        <span>Kutmoqda (Tayyor)</span>
+                        <b class="sao-count">${readyOperators.length}</b>
+                    </div>
                 </div>
-                <div class="op-divider-line"></div>
+                <span class="sao-line sao-line-right"><span class="track"><i class="shine"></i></span></span>
             </div>
         `;
     }
     // 2-BLOK: Kutmoqda (Tayyor) operatorlar
     const readyCardsHtml = readyOperators.map(renderDashboardOperatorCard).join('');
 
-    // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar
+    // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar — SAO Converging Shine Sci-Fi Dizayn
     let offlineSectionHtml = '';
     if (offlineOperators.length > 0) {
         let offlineContentHtml = '';
@@ -6297,22 +6311,23 @@ function renderOperators(operators) {
         }
 
         offlineSectionHtml = `
-            <div class="op-grid-divider" id="opOfflineSep" title="Oflayn operatorlar">
-                <div class="op-divider-line"></div>
-                <div class="op-divider-label" style="display: flex; align-items: center; gap: 8px;">
-                    <span class="op-divider-dot"></span>
-                    <span>Oflayn operatorlar</span>
-                    <span style="background: rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px;">${offlineOperators.length}</span>
-                    <button type="button" 
-                            onclick="toggleOfflineCardsView(event)" 
-                            class="op-offline-toggle-btn" 
-                            style="margin-left: 6px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); color: #cbd5e1; border-radius: 6px; padding: 2px 8px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
-                            title="Ko'rinishni o'zgartirish (To'liq kartochkalar / Ixcham qatorlar)">
-                        <svg class="isax isax-element-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 12px; height: 12px;"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
-                        <span>${_offlineIsCompact ? 'To\'liq statistika' : 'Ixcham qatorlar'}</span>
-                    </button>
+            <div class="op-grid-divider sao-divider divider-offline" id="opOfflineSep" style="--c: #ef4444;" title="Oflayn operatorlar">
+                <span class="sao-line sao-line-left"><span class="track"><i class="shine"></i></span></span>
+                <div class="glow">
+                    <div class="sao-label">
+                        <i class="sao-diamond"></i>
+                        <span>Oflayn operatorlar</span>
+                        <b class="sao-count">${offlineOperators.length}</b>
+                        <button type="button" 
+                                onclick="toggleOfflineCardsView(event)" 
+                                class="sao-toggle-btn op-offline-toggle-btn" 
+                                title="Ko'rinishni o'zgartirish (To'liq kartochkalar / Ixcham qatorlar)">
+                            <svg class="isax isax-element-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 12px; height: 12px;"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/></svg>
+                            <span>${_offlineIsCompact ? 'To\'liq statistika' : 'Ixcham qatorlar'}</span>
+                        </button>
+                    </div>
                 </div>
-                <div class="op-divider-line"></div>
+                <span class="sao-line sao-line-right"><span class="track"><i class="shine"></i></span></span>
             </div>
             ${offlineContentHtml}
         `;
@@ -6327,7 +6342,8 @@ function renderOperators(operators) {
     }
     window._lastRenderedOperatorsHtml = newHtml;
 
-    grid.innerHTML = newHtml;
+    // Dividerlar animatsiyasi (Glow shine) reset bo'lmasligi va elementlar silliq saqlanishi uchun DOM-reconciliation
+    syncDashboardGridChildren(grid, newHtml);
 
     if (_operatorsIsCompact) grid.classList.add('compact');
     if (_operatorsIsFocus) applyOperatorsFocusUI();
@@ -6347,6 +6363,64 @@ function renderOperators(operators) {
     }
     if (typeof updateRecentOperatorsDataList === 'function') {
         updateRecentOperatorsDataList();
+    }
+}
+
+function syncDashboardGridChildren(grid, newHtml) {
+    if (!grid.children.length) {
+        grid.innerHTML = newHtml;
+        return;
+    }
+
+    const temp = document.createElement('div');
+    temp.innerHTML = newHtml;
+
+    const newChildren = Array.from(temp.children);
+    const existingReadyDiv = grid.querySelector('.divider-ready');
+    const existingOfflineDiv = grid.querySelector('.divider-offline');
+
+    newChildren.forEach((newChild, index) => {
+        const isReadyDiv = newChild.classList.contains('divider-ready');
+        const isOfflineDiv = newChild.classList.contains('divider-offline');
+
+        let childToPlace = newChild;
+
+        if (isReadyDiv && existingReadyDiv) {
+            const newCount = newChild.querySelector('.sao-count')?.textContent;
+            const oldCount = existingReadyDiv.querySelector('.sao-count');
+            if (oldCount && newCount !== undefined && oldCount.textContent !== newCount) {
+                oldCount.textContent = newCount;
+            }
+            childToPlace = existingReadyDiv;
+        } else if (isOfflineDiv && existingOfflineDiv) {
+            const newCount = newChild.querySelector('.sao-count')?.textContent;
+            const oldCount = existingOfflineDiv.querySelector('.sao-count');
+            if (oldCount && newCount !== undefined && oldCount.textContent !== newCount) {
+                oldCount.textContent = newCount;
+            }
+            childToPlace = existingOfflineDiv;
+        } else {
+            const opId = newChild.getAttribute('data-op-id');
+            const currentChild = grid.children[index];
+            if (opId && currentChild && currentChild.getAttribute('data-op-id') === opId) {
+                if (currentChild.innerHTML !== newChild.innerHTML) {
+                    currentChild.innerHTML = newChild.innerHTML;
+                }
+                if (currentChild.className !== newChild.className) {
+                    currentChild.className = newChild.className;
+                }
+                childToPlace = currentChild;
+            }
+        }
+
+        const currentChildAtPos = grid.children[index];
+        if (currentChildAtPos !== childToPlace) {
+            grid.insertBefore(childToPlace, currentChildAtPos || null);
+        }
+    });
+
+    while (grid.children.length > newChildren.length) {
+        grid.removeChild(grid.lastChild);
     }
 }
 
@@ -13553,6 +13627,19 @@ function toggleUserProfile(e) {
 }
 window.toggleUserProfile = toggleUserProfile;
 
+function applyRoleBasedVisibility(u) {
+    if (!u) return;
+    const isBoss = (u.username === 'superuser');
+    if (isBoss) {
+        document.querySelectorAll('[data-tab="statistics"], [data-tab="tools"], a[href="/statistics"], a[href="/tools"], a[href="#statistics"], a[href="#tools"], .tab-btn[data-tab="statistics"], .tab-btn[data-tab="tools"]').forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+        });
+        const statSec = document.getElementById('tab-statistics') || document.querySelector('.page-content[data-tab="statistics"]');
+        if (statSec) statSec.style.setProperty('display', 'none', 'important');
+    }
+}
+window.applyRoleBasedVisibility = applyRoleBasedVisibility;
+
 async function loadUserProfileData() {
     try {
         const res = await fetch('/api/auth/me');
@@ -13561,6 +13648,7 @@ async function loadUserProfileData() {
         if (data && data.user) {
             const u = data.user;
             window.currentAuthUser = u;
+            applyRoleBasedVisibility(u);
             if (typeof sendPresenceHeartbeat === 'function') {
                 sendPresenceHeartbeat(true);
             }
@@ -13988,6 +14076,11 @@ async function loadUsersList() {
                 const emailDisplay = u.email ? `<span style="color: #38bdf8;">${u.email}</span>` : '<span style="color: #64748b;">Kiritilmagan</span>';
 
                 const isProtected = u.username === 'Abaddon2004' || u.username === 'superuser';
+                const resetPassBtn = `
+                    <button type="button" class="btn-action" onclick="openAdminResetPasswordModal('${u.username}')" style="padding: 4px 8px; font-size: 11px; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #60a5fa; border-radius: 6px; cursor: pointer; margin-right: 4px;">
+                        Parol
+                    </button>
+                `;
                 const deleteBtn = isProtected ? '' : `
                     <button type="button" class="btn-action" onclick="deleteUser('${u.username}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">
                         O'chirish
@@ -14001,7 +14094,7 @@ async function loadUsersList() {
                         <td>${opIdDisplay}</td>
                         <td>${emailDisplay}</td>
                         <td style="font-size: 12px; color: #94a3b8;">${createdDate}</td>
-                        <td style="text-align: right;">${deleteBtn}</td>
+                        <td style="text-align: right;">${resetPassBtn}${deleteBtn}</td>
                     </tr>
                 `;
             });
@@ -14014,6 +14107,86 @@ async function loadUsersList() {
     }
 }
 window.loadUsersList = loadUsersList;
+
+let currentAdminResetTarget = null;
+function openAdminResetPasswordModal(username) {
+    currentAdminResetTarget = username;
+    const modal = document.getElementById('modalAdminResetPassword');
+    const targetEl = document.getElementById('adminResetTargetUsername');
+    const input = document.getElementById('adminResetNewPassword');
+    const chk = document.getElementById('adminResetRevokePasskeys');
+    const msg = document.getElementById('adminResetMsg');
+    if (targetEl) targetEl.textContent = username;
+    if (input) input.value = '';
+    if (chk) chk.checked = true; // Standart holatda yoqilgan (xavfsiz tomonga)
+    if (msg) msg.textContent = '';
+    if (modal) modal.style.display = 'flex';
+    if (input) setTimeout(() => input.focus(), 80);
+}
+window.openAdminResetPasswordModal = openAdminResetPasswordModal;
+
+function closeAdminResetPasswordModal() {
+    const modal = document.getElementById('modalAdminResetPassword');
+    if (modal) modal.style.display = 'none';
+}
+window.closeAdminResetPasswordModal = closeAdminResetPasswordModal;
+
+async function handleAdminResetPasswordSubmit(e) {
+    if (e) e.preventDefault();
+    if (!currentAdminResetTarget) return;
+    const input = document.getElementById('adminResetNewPassword');
+    const chk = document.getElementById('adminResetRevokePasskeys');
+    const msg = document.getElementById('adminResetMsg');
+    const btn = document.getElementById('btnAdminResetSubmit');
+    const password = input ? input.value.trim() : '';
+    const revokePasskeys = chk ? chk.checked : true;
+
+    if (password.length < 6) {
+        if (msg) {
+            msg.style.color = '#f87171';
+            msg.textContent = 'Parol kamida 6 ta belgidan iborat bo\'lishi shart';
+        }
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (msg) {
+        msg.style.color = '#38bdf8';
+        msg.textContent = 'Yangilanmoqda...';
+    }
+
+    try {
+        const res = await fetch(`/api/settings/users/${encodeURIComponent(currentAdminResetTarget)}/password`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password, revokePasskeys })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+            if (msg) {
+                msg.style.color = '#34d399';
+                msg.textContent = data.message || 'Parol muvaffaqiyatli yangilandi!';
+            }
+            setTimeout(() => {
+                closeAdminResetPasswordModal();
+                loadUsersList();
+            }, 800);
+        } else {
+            if (msg) {
+                msg.style.color = '#f87171';
+                msg.textContent = data.error || 'Parolni yangilashda xatolik yuz berdi';
+            }
+        }
+    } catch (err) {
+        if (msg) {
+            msg.style.color = '#f87171';
+            msg.textContent = err.message || 'Server bilan bog\'lanishda xatolik';
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+window.handleAdminResetPasswordSubmit = handleAdminResetPasswordSubmit;
 
 function toggleOperatorSelectField() {
     const roleSelect = document.getElementById('newUserRole');
@@ -16331,3 +16504,17 @@ async function simulateTestFlood() {
     }
 }
 window.simulateTestFlood = simulateTestFlood;
+
+// Operatorlar paneliga o'tish (Port 3005)
+function switchToViewerPanel() {
+    let token = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || '';
+    if (!token) {
+        const match = document.cookie.match(/(?:^|;\s*)cc_session=([^;]+)/);
+        if (match) token = match[1];
+    }
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const targetUrl = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
+    window.location.href = targetUrl;
+}
+window.switchToViewerPanel = switchToViewerPanel;
+

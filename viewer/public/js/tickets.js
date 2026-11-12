@@ -458,11 +458,15 @@
 
     function renderTicketCards(container, list, isMini = false) {
         if (!list || list.length === 0) {
+            const isCreator = isCreatorUser();
+            const emptyHint = isCreator 
+                ? "Yangi ticket ochish uchun yuqoridagi \"Yangi Ticket Ochish\" tugmasini bosing"
+                : "Zangiota (200+) dan yangi vazifalar kelganda bu yerda ko'rinadi";
             container.innerHTML = `
                 <div style="text-align: center; color: #64748b; padding: 40px 20px; font-size: 13px;">
                     ${ICONS.clipboard}
                     <div style="margin-top: 8px; font-weight: 600;">Hozircha ticketlar yo'q</div>
-                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">Zangiota (200+) dan yangi vazifalar kelganda bu yerda ko'rinadi</div>
+                    <div style="font-size: 11.5px; color: #475569; margin-top: 4px;">${emptyHint}</div>
                 </div>
             `;
             return;
@@ -891,16 +895,42 @@
     // TICKET CREATION & PERMISSIONS (YARATUVCHI: 200+ ZANGIOTA, QABUL: 100+ ASOSIY)
     // =========================================================================
     function isCreatorUser() {
-        const rawId = state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && state.currentUser.operatorId);
+        const rawId = state.myOperatorId 
+            || localStorage.getItem('viewer_my_operator_id') 
+            || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id))
+            || (window.currentViewerUser && (window.currentViewerUser.operatorId || window.currentViewerUser.operator_id));
         const opNum = parseInt(rawId, 10);
+
+        const uname = String((state.currentUser && state.currentUser.username) || (window.currentViewerUser && window.currentViewerUser.username) || '').toLowerCase().trim();
+
+        // QAT'IY QOIDA: 100-199 (Asosiy) operatorlari (shu jumladan Maxmudbek / 114) FAQAT QABUL QILUVCHI!
+        // Ular aslo ticket yarata olmaydi va "Yangi Ticket Ochish" tugmasini ko'rmaydi.
+        if (uname === 'maxmudbek' || (!isNaN(opNum) && opNum >= 100 && opNum < 200)) {
+            return false;
+        }
+
         // Faqat Zangiota (200+) operatorlari ticket yaratuvchi bo'la oladi!
         if (!isNaN(opNum) && opNum >= 200) {
             return true;
         }
-        // Superuser / admin test va nazorat uchun yarata oladi
-        if (state.myUserRole === 'superuser' || state.myUserRole === 'admin') {
+
+        // Username tekshiruvi (operator200, 201, zangiota...)
+        const unameMatch = uname.match(/\d+/);
+        if (unameMatch) {
+            const uNum = parseInt(unameMatch[0], 10);
+            if (uNum >= 200) return true;
+            if (uNum >= 100 && uNum < 200) return false;
+        }
+        if (uname.includes('zangiota')) return true;
+
+        // Tizim superuser (root) faqat birorta 100+ operatoriga bog'lanmagan bo'lsa
+        const role = state.myUserRole 
+            || (state.currentUser && state.currentUser.role) 
+            || (window.currentViewerUser && window.currentViewerUser.role);
+        if (role === 'superuser' && uname === 'superuser') {
             return true;
         }
+
         return false;
     }
 
@@ -908,11 +938,30 @@
         const canCreate = isCreatorUser();
         const sbWrap = document.getElementById('sidebarCreateTicketWrapper');
         if (sbWrap) {
-            sbWrap.style.display = canCreate ? 'block' : 'none';
+            sbWrap.classList.toggle('hidden', !canCreate);
+            sbWrap.style.setProperty('display', canCreate ? 'block' : 'none', 'important');
+        }
+        const hdrBtn = document.getElementById('ticketHeaderCreateBtn');
+        if (hdrBtn) {
+            hdrBtn.classList.toggle('hidden', !canCreate);
+            hdrBtn.style.setProperty('display', canCreate ? 'inline-flex' : 'none', 'important');
         }
         const fullBtn = document.getElementById('fullpageCreateTicketBtn');
         if (fullBtn) {
-            fullBtn.style.display = canCreate ? 'inline-flex' : 'none';
+            fullBtn.classList.toggle('hidden', !canCreate);
+            fullBtn.style.setProperty('display', canCreate ? 'inline-flex' : 'none', 'important');
+        }
+
+        // 200+ (Creator) lar uchun "🎯 Menga" o'rniga "✍️ Men yaratgan", 100+ lar uchun "🎯 Menga"
+        const sbMineLabel = document.getElementById('sbTabMineLabel');
+        if (sbMineLabel) {
+            sbMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
+            sbMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
+        }
+        const pageMineLabel = document.getElementById('pageTabMineLabel');
+        if (pageMineLabel) {
+            pageMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
+            pageMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
         }
     }
 
@@ -922,17 +971,24 @@
             return;
         }
 
-        // Pre-fill operator if detected (Yaratuvchi 200+ Zangiota)
-        const opSelect = document.getElementById('newTicketOperator');
-        if (opSelect) {
-            const rawId = state.myOperatorId || localStorage.getItem('viewer_my_operator_id');
-            const num = parseInt(rawId, 10);
-            if (!isNaN(num) && num >= 200) {
-                opSelect.value = String(num);
-            } else if (!opSelect.value) {
-                opSelect.value = '200';
-            }
+        // Setup fixed creator info (avtomatik joriy hisob biriktiriladi - fixed, dropdown emas)
+        const rawId = String(state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id)) || '200').trim();
+        let myOpName = String(state.myOperatorName || (state.currentUser && (state.currentUser.operatorName || state.currentUser.username)) || '').trim();
+        if (!myOpName || myOpName === 'Operator') {
+            myOpName = `Operator ${rawId}`;
+        } else if (!myOpName.includes(rawId) && !isNaN(parseInt(rawId, 10))) {
+            myOpName = `${myOpName} (${rawId})`;
         }
+
+        const nameEls = document.querySelectorAll('#newTicketCreatorDisplay, .newTicketCreatorDisplay');
+        nameEls.forEach(el => {
+            el.textContent = myOpName;
+        });
+
+        const hiddenInputs = document.querySelectorAll('#newTicketOperator, .newTicketOperator');
+        hiddenInputs.forEach(el => {
+            el.value = rawId;
+        });
 
         state.attachedFiles = [];
         renderAttachedFilesPreview('newTicketPreviewStrip', state.attachedFiles);
@@ -1055,24 +1111,16 @@
                 targetOperatorName = selectedOpt ? (selectedOpt.getAttribute('data-name') || selectedOpt.text) : 'Barcha operatorlar';
             }
 
-            // Extract numeric operator ID from operatorVal or state (Zangiota 200+)
-            let creatorId = null;
-            if (operatorVal) {
-                const m = operatorVal.match(/\b(2\d{2}|1\d{2})\b/);
-                if (m) creatorId = m[1];
-            }
-            if (!creatorId) {
-                const num = parseInt(state.myOperatorId, 10);
-                if (!isNaN(num) && num >= 200) {
-                    creatorId = String(state.myOperatorId);
-                } else {
-                    creatorId = '200'; // Default Zangiota creator
-                }
+            // Yaratuvchi: Qat'iy joriy avtorizatsiyadan o'tgan akkountga bog'lanadi (fixed)
+            const creatorId = String(state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id)) || '200').trim();
+            let creatorName = String(state.myOperatorName || (state.currentUser && (state.currentUser.operatorName || state.currentUser.username)) || `Operator ${creatorId}`).trim();
+            if (!creatorName.includes(creatorId) && !isNaN(parseInt(creatorId, 10))) {
+                creatorName = `${creatorName} (${creatorId})`;
             }
 
             await createTicketApi({
                 creatorId: creatorId,
-                creatorName: operatorVal || state.myOperatorName || `Operator ${creatorId}`,
+                creatorName: creatorName,
                 customerPhone: phoneVal,
                 comment: commentVal,
                 files: state.attachedFiles,
@@ -1803,6 +1851,7 @@
 
     // Sidebar Toggle
     function toggleSidebar(forceOpen) {
+        updateCreateButtonVisibility();
         const sb = document.getElementById('ticketSidebar');
         const backdrop = document.getElementById('ticketSidebarBackdrop');
         if (!sb) return;
@@ -1839,14 +1888,14 @@
         '114': 'Maxmudbek',
         '119': 'Muattar',
         '120': 'Navruzoy',
-        // Zangiota (200+) operatorlar
-        '200': 'Operator 200 (Zangiota)',
-        '203': 'Operator 203 (Zangiota)',
-        '204': 'Operator 204 (Zangiota)',
-        '205': 'Operator 205 (Zangiota)',
-        '206': 'Operator 206 (Zangiota)',
-        '208': 'Operator 208 (Zangiota)',
-        '209': 'Operator 209 (Zangiota)'
+        // 200+ operatorlar
+        '200': 'Operator 200',
+        '203': 'Operator 203',
+        '204': 'Operator 204',
+        '205': 'Operator 205',
+        '206': 'Operator 206',
+        '208': 'Operator 208',
+        '209': 'Operator 209'
     };
 
     function updateTicketsHeaderProfile(opName, opId, username, role) {
@@ -1885,6 +1934,7 @@
         if (state.myOperatorId || state.myOperatorName) {
             updateTicketsHeaderProfile(state.myOperatorName, state.myOperatorId);
         }
+        updateCreateButtonVisibility();
         try {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
@@ -1892,11 +1942,12 @@
                 if (data && data.user) {
                     state.currentUser = data.user;
                     state.myUserRole = data.user.role || '';
-                    if (data.user.operatorId) {
-                        state.myOperatorId = String(data.user.operatorId);
+                    if (data.user.operatorId || data.user.operator_id) {
+                        state.myOperatorId = String(data.user.operatorId || data.user.operator_id);
                         state.myOperatorName = String(data.user.operatorName || '');
                     }
-                    updateTicketsHeaderProfile(data.user.operatorName, data.user.operatorId, data.user.username, data.user.role);
+                    updateTicketsHeaderProfile(data.user.operatorName, data.user.operatorId || data.user.operator_id, data.user.username, data.user.role);
+                    updateCreateButtonVisibility();
                     const gmailDot = document.getElementById('headerUserGmailDot');
                     if (gmailDot) {
                         gmailDot.style.display = data.user.email ? 'inline-block' : 'none';
@@ -1904,6 +1955,7 @@
                 }
             }
         } catch (_) {}
+        updateCreateButtonVisibility();
     }
 
     let viewerProfileTimerInterval = null;
@@ -2057,6 +2109,9 @@
         if (msgEl) msgEl.textContent = '';
 
         modal.style.display = 'flex';
+        if (window.Passkey && document.getElementById('passkey-manager')) {
+            window.Passkey.mountManager(document.getElementById('passkey-manager'));
+        }
         setTimeout(() => {
             if (emailInput) emailInput.focus();
         }, 100);
@@ -2254,6 +2309,7 @@
     // Init
     function init() {
         initTicketsProfileIdentity();
+        updateCreateButtonVisibility();
         loadTickets();
         setupGlobalClipboardPaste();
 
@@ -2438,11 +2494,14 @@ window.TicketsApp = {
     loadQuickImpersonateList,
     applyOperatorImpersonation,
     applyManualTokenSwitch,
+    isCreatorUser,
+    updateCreateButtonVisibility,
     setOperatorIdentity: (id, name, role) => {
         state.myOperatorId = id;
         state.myOperatorName = name;
         if (role) state.myUserRole = role;
         updateTicketsHeaderProfile(name, id, null, role);
+        updateCreateButtonVisibility();
         loadTickets();
     }
 };

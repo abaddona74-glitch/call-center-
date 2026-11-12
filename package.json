@@ -12,9 +12,12 @@
     "deploy": "node scripts/deploy.js"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.1.0",
     "acme-client": "^5.4.0",
     "archiver": "^5.3.2",
     "asterisk-manager": "^0.2.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",

@@ -28,6 +28,7 @@ const zipJobService = require('./services/zipJobService');
 const converterService = require('./services/converterService');
 const uzcryptoService = require('./services/uzcryptoService');
 const rateLimitService = require('./services/rateLimitService');
+const { createWebAuthnService } = require('./services/webauthnService');
 
 // Initialize Auth Service & Ensure Superuser (@Abaddon2004)
 authService.init();
@@ -37,6 +38,7 @@ const swaggerSpec = require('./swaggerSpec');
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.set('json spaces', 2);
 
 // SSL Sertifikatlari (Self-Signed yoki Custom SSL)
@@ -137,9 +139,24 @@ app.use((req, res, next) => {
 
 app.use(cors());
 
+// HTTP Gzip Compression (Ideal Level 6, min 1KB)
+const compression = require('compression');
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+    }
+}));
+
 // Katta hajmdagi fayllarni konvertatsiya qilish uchun alohida 50mb limit
 app.use('/api/converter/convert', express.json({ limit: '50mb' }));
 app.use('/api/converter/convert', express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Visual AI Prompt (skrinshotlar va rasmlar uchun) alohida 50mb limit
+app.use('/api/dev/visual-prompt', express.json({ limit: '50mb' }));
+app.use('/api/dev/visual-prompt', express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Qolgan barcha standart so'rovlar uchun xavfsiz 2mb limit (DoS xurujlariga qarshi)
 app.use(express.json({ limit: '2mb' }));
@@ -222,7 +239,7 @@ app.use((req, res, next) => {
 
     // Lokal 127.0.0.1 ichki xizmatlar (3005 viewer orqali) HTTP qolishi mumkin
     const remoteIp = req.socket?.remoteAddress;
-    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !req.headers['x-forwarded-for'];
+    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1');
     if (isLocalInternal) {
         return next();
     }
@@ -332,6 +349,109 @@ app.get('/api/auth/me', (req, res) => {
     }
     res.json({ authenticated: true, user: session });
 });
+
+// 4b. Foydalanuvchi o'z parolini almashtirishi
+app.post('/api/auth/change-password', (req, res) => {
+    try {
+        const token = authService.extractToken(req);
+        const session = authService.validateSession(token);
+        if (!session) {
+            return res.status(401).json({ success: false, error: 'Avtorizatsiyadan o\'ting' });
+        }
+
+        const { currentPassword, newPassword, revokeOtherPasskeys } = req.body || {};
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ success: false, error: 'Joriy va yangi parolni kiriting' });
+        }
+
+        // 1. Joriy parol to'g'riligini tekshirish
+        const isCurrentValid = authService.verifyUserPassword(session.username, currentPassword);
+        if (!isCurrentValid) {
+            return res.status(400).json({ success: false, error: 'Joriy parol noto\'g\'ri kiritildi' });
+        }
+
+        // 2. Parolni yangilash: joriy sessiya qoladi, boshqa qurilmalardagi sessiyalar tugatiladi
+        // Passkey'lar esa faqat foydalanuvchi xohlasa (revokeOtherPasskeys = true) o'chiriladi, aks holda qoladi
+        const result = authService.updateUserPassword(session.username, newPassword, {
+            currentToken: token,
+            revokePasskeys: !!revokeOtherPasskeys
+        });
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        res.json({
+            success: true,
+            message: 'Parol muvaffaqiyatli almashtirildi'
+        });
+    } catch (e) {
+        console.error('change-password error:', e);
+        res.status(500).json({ success: false, error: 'Server xatoligi' });
+    }
+});
+
+// WebAuthn Browser Scripts (Vendor & Client)
+app.get('/vendor/simplewebauthn-browser.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'vendor', 'simplewebauthn-browser.js'));
+});
+app.get('/passkey-client.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'js', 'passkey-client.js'));
+});
+
+// =========================================================================
+// WEBAUTHN & PASSKEYS SERVICE (Barmoq izi / Biometrik kirish tizimi)
+// =========================================================================
+const KNOWN_OPERATOR_NAMES = {
+    '101': 'Oybek',
+    '103': 'Feruza',
+    '106': 'Ubaydullayeva Gulchehra',
+    '111': 'Nozima',
+    '114': 'Maxmudbek',
+    '119': 'Muattar',
+    '120': 'Navruzoy'
+};
+
+const webauthnService = createWebAuthnService({
+    db: dbService.db,
+    cookieName: 'cc_session',
+    verifyPassword: (userRow, password) => {
+        if (typeof authService.verifyUserPassword === 'function') {
+            return authService.verifyUserPassword(userRow.username, password);
+        }
+        if (typeof authService.checkPassword === 'function') {
+            return authService.checkPassword(userRow.username, password);
+        }
+        return false;
+    },
+    getUserLabels: (user) => {
+        const opId = user.operator_id;
+        if (opId) {
+            const name = KNOWN_OPERATOR_NAMES[opId] || (opId.startsWith('2') ? 'Zangiota' : `Operator ${opId}`);
+            return {
+                userName: `${opId} · ${name}`,
+                displayName: `${name} (${opId})`
+            };
+        }
+        return {
+            userName: user.username,
+            displayName: user.username === 'superuser' ? 'Bosh Administrator (Superuser)' : user.username
+        };
+    },
+    isUserAllowed: (user) => true
+});
+
+const requireAuthForWebAuthn = (req, res, next) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (!session) {
+        return res.status(401).json({ ok: false, error: "Avtorizatsiyadan o'tilmagan" });
+    }
+    req.user = session;
+    next();
+};
+
+webauthnService.mount(app, { requireAuth: requireAuthForWebAuthn });
 
 // 4b. Joriy foydalanuvchining o'z Gmail manzilini biriktirish / yangilash (Self-service Profile)
 // Xavfsizlik: Begona shaxslar akkauntni o'g'irlay olmasligi uchun to'g'ridan-to'g'ri o'zgartirish taqiqlangan, faqat 2 bosqichli kod orqali ruxsat beriladi
@@ -443,6 +563,7 @@ app.post('/api/dev/visual-prompt', (req, res) => {
             session.role === 'admin' ||
             session.username === 'superuser' ||
             session.username === 'admin' ||
+            String(session.username || '').toLowerCase().includes('maxmudbek') ||
             session.email === 'abaddona74@gmail.com'
         );
         const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
@@ -450,14 +571,44 @@ app.post('/api/dev/visual-prompt', (req, res) => {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 
-        const { prompt, element, elements, task } = req.body || {};
-        if (!prompt) {
-            return res.status(400).json({ success: false, message: 'Prompt bo\'sh bo\'lishi mumkin emas' });
+        const { prompt, element, elements, task, images, image } = req.body || {};
+        if (!prompt && (!images || !images.length) && !image) {
+            return res.status(400).json({ success: false, message: 'Prompt yoki rasm bo\'sh bo\'lishi mumkin emas' });
         }
 
         const selectedElements = Array.isArray(elements) && elements.length > 0 
             ? elements 
             : (element ? [element] : []);
+
+        const scratchDir = path.join(__dirname, 'scratch');
+        const uploadsDir = path.join(scratchDir, 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const incomingImages = Array.isArray(images) ? images : (image ? [{ base64: image }] : []);
+        const savedImages = [];
+        incomingImages.forEach((imgObj, idx) => {
+            try {
+                const b64 = typeof imgObj === 'string' ? imgObj : (imgObj.base64 || '');
+                if (!b64) return;
+                const matches = b64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+                const ext = (matches && matches[1] && matches[1].includes('jpeg')) ? 'jpg' : 'png';
+                const dataBuffer = matches ? Buffer.from(matches[2], 'base64') : Buffer.from(b64, 'base64');
+                const imgFileName = `visual_img_${Date.now()}_${idx}.${ext}`;
+                const diskPath = path.join(uploadsDir, imgFileName);
+                fs.writeFileSync(diskPath, dataBuffer);
+                savedImages.push({
+                    name: imgObj.name || imgFileName,
+                    fileName: imgFileName,
+                    remotePath: diskPath,
+                    size: dataBuffer.length,
+                    base64: b64
+                });
+            } catch (imgErr) {
+                console.error('Error saving attached visual prompt image:', imgErr);
+            }
+        });
 
         const taskEntry = {
             id: Date.now(),
@@ -466,11 +617,12 @@ app.post('/api/dev/visual-prompt', (req, res) => {
             elements: selectedElements,
             count: selectedElements.length,
             task: task || '',
-            prompt: prompt,
+            prompt: prompt || 'Rasm/skrinshot ilova qilindi',
+            images: savedImages,
+            hasImages: savedImages.length > 0,
             status: 'pending'
         };
 
-        const scratchDir = path.join(__dirname, 'scratch');
         if (!fs.existsSync(scratchDir)) {
             fs.mkdirSync(scratchDir, { recursive: true });
         }
@@ -494,8 +646,8 @@ app.post('/api/dev/visual-prompt', (req, res) => {
 function requireSuperuser(req, res, next) {
     const token = authService.extractToken(req);
     const session = authService.validateSession(token);
-    if (!session || session.role !== 'superuser') {
-        return res.status(403).json({ success: false, error: 'Ushbu amalni bajarish uchun faqat superuser huquqi talab etiladi' });
+    if (!session || (session.role !== 'superuser' && session.role !== 'admin')) {
+        return res.status(403).json({ success: false, error: 'Ushbu amalni bajarish uchun faqat superuser yoki admin huquqi talab etiladi' });
     }
     req.user = session;
     next();
@@ -707,9 +859,11 @@ app.put('/api/settings/users/:username/operator-id', requireSuperuser, (req, res
 });
 
 app.put('/api/settings/users/:username/password', requireSuperuser, (req, res) => {
-    const { password } = req.body || {};
+    const { password, revokePasskeys } = req.body || {};
     const { username } = req.params;
-    const result = authService.updateUserPassword(username, password);
+    // Standart holatda true (xavfsiz tomonga - biometrik qurilmalar ham o'chiriladi)
+    const shouldRevoke = revokePasskeys !== false && revokePasskeys !== 'false';
+    const result = authService.updateUserPassword(username, password, { revokePasskeys: shouldRevoke });
     if (!result.success) {
         return res.status(400).json(result);
     }
@@ -852,6 +1006,7 @@ app.use((req, res, next) => {
         p === '/favicon.ico' ||
         p.startsWith('/css/') ||
         p.startsWith('/js/') ||
+        p.startsWith('/vendor/') ||
         p.startsWith('/icons/') ||
         p.startsWith('/images/') ||
         p.startsWith('/fonts/') ||
@@ -926,7 +1081,10 @@ app.use('/.well-known', express.static(path.join(__dirname, 'public', '.well-kno
 app.use(express.static(path.join(__dirname, 'public'), { 
     dotfiles: 'ignore',
     setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+        // Rasmlar, ikonlar, fontlar va statik vendor fayllar uchun 7 kunlik kesh (0 ms from disk cache)
+        if (filePath.match(/\.(woff2?|ttf|eot|png|jpg|jpeg|gif|svg|ico)$/i)) {
+            res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        } else if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
             res.setHeader('Cache-Control', 'no-cache, must-revalidate');
         }
     }
@@ -1527,6 +1685,16 @@ app.get('/api/voice-identifications', (req, res) => {
 // TOPIC ANALYTICS & STATISTICS API (Kalit uzaytirish, EDO, E-Huquqshunos)
 // =========================================================================
 const topicAnalyticsService = require('./services/topicAnalyticsService');
+
+// Boss (superuser) akkaunti uchun Statistika API larini yopish
+app.use('/api/analytics', (req, res, next) => {
+    const token = authService.extractToken(req);
+    const session = authService.validateSession(token);
+    if (session && session.username === 'superuser') {
+        return res.status(403).json({ success: false, error: "Ushbu bo'limga kirish cheklangan" });
+    }
+    next();
+});
 
 app.get('/api/analytics/topics/summary', (req, res) => {
     try {
@@ -3576,9 +3744,122 @@ app.get('/api/export/excel', async (req, res) => {
     }
 });
 
+// Remote Desktop (RustDesk) orqali operator kompyuteriga ulanish
+app.post('/api/remote-desktop/launch', (req, res) => {
+    const { ip } = req.body || {};
+    if (!ip) return res.status(400).json({ success: false, error: 'IP talab qilinadi' });
+    try {
+        const { spawn } = require('child_process');
+        const possiblePaths = [
+            'D:\\remote_desktop\\rustdesk.exe',
+            path.join(__dirname, 'public', 'downloads', 'rustdesk.exe'),
+            'C:\\Program Files\\RustDesk\\rustdesk.exe'
+        ];
+        const exePath = possiblePaths.find(p => fs.existsSync(p));
+        if (exePath) {
+            spawn(exePath, [ip], { detached: true, stdio: 'ignore' }).unref();
+            return res.json({ success: true, launched: true });
+        }
+    } catch (e) {
+        console.error('RustDesk launch error:', e.message);
+    }
+    res.json({ success: true, launched: false });
+});
+
+// ==========================================
+// ⚡ SPEEDTEST (ICHKI TARMOQ TEZLIGI) APILARI
+// ==========================================
+const SPEEDTEST_CHUNK = Buffer.alloc(65536, 0x5a);
+
+function getServerLanIp() {
+    try {
+        const os = require('os');
+        const ifaces = os.networkInterfaces();
+        for (const name of Object.keys(ifaces)) {
+            for (const net of ifaces[name]) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    if (net.address.startsWith('192.168.') || net.address.startsWith('10.')) {
+                        return net.address;
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    return '192.168.0.124';
+}
+
+app.get('/api/speedtest/ping', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+    res.json({
+        success: true,
+        timestamp: Date.now(),
+        clientIp,
+        serverLanIp: getServerLanIp()
+    });
+});
+
+app.get('/api/speedtest/download', (req, res) => {
+    const defaultBytes = 15 * 1024 * 1024;
+    const maxBytes = 60 * 1024 * 1024;
+    const requested = parseInt(req.query.bytes, 10);
+    const totalBytes = Math.min(Math.max(isNaN(requested) ? defaultBytes : requested, 65536), maxBytes);
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', totalBytes);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+
+    let bytesSent = 0;
+    function pump() {
+        while (bytesSent < totalBytes) {
+            const remain = totalBytes - bytesSent;
+            const chunk = remain >= SPEEDTEST_CHUNK.length ? SPEEDTEST_CHUNK : SPEEDTEST_CHUNK.subarray(0, remain);
+            bytesSent += chunk.length;
+            if (!res.write(chunk)) {
+                res.once('drain', pump);
+                return;
+            }
+        }
+        res.end();
+    }
+    pump();
+});
+
+app.post('/api/speedtest/upload', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const startTime = Date.now();
+    let totalBytes = 0;
+
+    req.on('data', chunk => {
+        totalBytes += chunk.length;
+    });
+
+    req.on('end', () => {
+        const durationMs = Math.max(Date.now() - startTime, 1);
+        const mbps = parseFloat(((totalBytes * 8) / (durationMs / 1000) / 1000000).toFixed(2));
+        res.json({
+            success: true,
+            bytesReceived: totalBytes,
+            durationMs,
+            mbps
+        });
+    });
+
+    req.on('error', (err) => {
+        res.status(500).json({ success: false, error: err.message });
+    });
+});
+
 // SPA Navigation Routes
 ['/', '/dashboard', '/explorer', '/audio', '/operators', '/operator', '/history', '/clients', '/customers', '/mijozlar', '/statistics', '/statistika', '/analytics', '/tools', '/converter', '/asboblar'].forEach(route => {
     app.get(route, (req, res) => {
+        const token = authService.extractToken(req);
+        const session = authService.validateSession(token);
+        if (session && session.username === 'superuser' && (route === '/statistics' || route === '/statistika' || route === '/analytics')) {
+            return res.redirect('/');
+        }
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
 });

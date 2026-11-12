@@ -1,3 +1,4 @@
+function safeEscapeAttr(str) { return (typeof escapeAttr === "function") ? escapeAttr(str) : String(str || "").replace(/'/g, "\\'"); }
 /**
  * Call Center Viewer — Operatorlar Faoliyati (Standalone Lightweight Frontend)
  * - Faqat Operatorlar paneli
@@ -51,19 +52,30 @@ loadExcludedOperatorsCache();
 // Operator guruhi holati (main: 100-199 | secondary: 200+ | all: barchasi)
 let currentOperatorGroup = 'main';
 try {
+    const myOpId = localStorage.getItem('viewer_my_operator_id');
+    const myNum = parseInt(myOpId, 10);
     const savedGroup = localStorage.getItem('callcenter_viewer_op_group');
-    if (savedGroup && ['main', 'secondary', 'all'].includes(savedGroup)) {
+    if (!isNaN(myNum) && myNum >= 100 && myNum < 200) {
+        // 100-199 operatorlar (Maxmudbek 114, Oybek 101 va b.) uchun birlamchi guruh DOIM 'main' (Asosiy)
+        currentOperatorGroup = (savedGroup === 'all') ? 'all' : 'main';
+    } else if (!isNaN(myNum) && myNum >= 200) {
+        // 200lik Zangiota operatorlari uchun birlamchi 'secondary'
+        currentOperatorGroup = 'secondary';
+    } else if (savedGroup && ['main', 'secondary', 'all'].includes(savedGroup)) {
         currentOperatorGroup = savedGroup;
     }
 } catch (e) {}
 
-function switchOperatorGroup(group) {
+function switchOperatorGroup(group, isUserAction = true) {
     if (!['main', 'secondary', 'all'].includes(group)) return;
     currentOperatorGroup = group;
     window._lastRenderedOperatorsHtml = '';
-    try {
-        localStorage.setItem('callcenter_viewer_op_group', group);
-    } catch (e) {}
+    if (isUserAction) {
+        window._userExplicitlySwitchedGroup = true;
+        try {
+            localStorage.setItem('callcenter_viewer_op_group', group);
+        } catch (e) {}
+    }
 
     document.querySelectorAll('.op-group-btn').forEach(btn => {
         if (btn.getAttribute('data-group') === group) {
@@ -73,7 +85,7 @@ function switchOperatorGroup(group) {
         }
     });
 
-    if (window._rawLastOperators) {
+    if (window._rawLastOperators && window._rawLastOperators.length) {
         renderOperators(window._rawLastOperators);
     }
 }
@@ -82,6 +94,37 @@ let currentOperators = [];
 let socket = null;
 let reconnectTimer = null;
 let refreshInterval = null;
+let lastWsMessageAt = Date.now();
+let isFirstWsConnect = true;
+
+function refreshAll() {
+    loadOperators();
+    fetchActiveViewers();
+    fetchViewerCallbacks();
+}
+
+function startFallbackPolling(immediate = false) {
+    if (refreshInterval) return;
+    console.log(new Date().toISOString(), '🔄 startFallbackPolling() yoqildi');
+    if (immediate) {
+        refreshAll();
+    }
+    refreshInterval = setInterval(() => {
+        if (document.visibilityState === 'hidden') return;
+        console.log(new Date().toISOString(), '⏱️ Fallback polling tick -> refreshAll()');
+        refreshAll();
+    }, 6000);
+    window.refreshInterval = refreshInterval;
+}
+
+function stopFallbackPolling() {
+    if (refreshInterval) {
+        console.log(new Date().toISOString(), '⏹️ stopFallbackPolling() to\'xtatildi');
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+        window.refreshInterval = null;
+    }
+}
 
 let detailState = {
     type: 'operator',
@@ -738,6 +781,11 @@ function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
     }
+    if (window.isVisualInspectorActive) {
+        // Visual AI Inspector faol paytida DOM ni almashtirmaslik (foydalanuvchi tanlagan elementlar uzilib ketmasligi uchun)
+        if (typeof updateAllTalkingTimers === 'function') updateAllTalkingTimers();
+        return;
+    }
     const rawList = operators || window._rawLastOperators || [];
 
     const allFiltered = rawList
@@ -919,6 +967,7 @@ function renderOperators(operators) {
     });
 
     function renderViewerCard(op) {
+        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
         const pres = op.presence || 'ready';
         const ringingCallerStr = op.ringingCaller ? String(op.ringingCaller).trim() : '';
         const ringingNow = (pres === 'ringing') && pres !== 'talking';
@@ -1016,6 +1065,27 @@ function renderOperators(operators) {
             cardClass += ' status-ready status-active';
         }
 
+        const isOnline = (pres !== 'offline');
+        const isRdReady = (
+            rustdeskInstalledSet.has(String(op.id)) ||
+            (op.ip && rustdeskInstalledSet.has(String(op.ip))) ||
+            Boolean(op.rustdeskInstalled)
+        );
+        // 200-guruh (Zangiota / 200+) operatorlari uchun PC ulanish va Ring huquqi cheklanadi
+        const opNum = parseInt(op.id, 10);
+        const is200Op = !isNaN(opNum) && opNum >= 200;
+        const myNum = parseInt(myOperatorId, 10);
+        const is200User = !isNaN(myNum) && myNum >= 200;
+        const canUseRemoteAndRing = !is200Op && !is200User;
+
+        // Oflayn operatorlar uchun ham PC yoqilgan bo'lsa masofaviy ulanish (RustDesk) tugmasi doim ochiq bo'ladi (200 lar mustasno)
+        const pcRemoteBtnHtml = canUseRemoteAndRing ? `
+            <button type="button" class="btn-pc-remote ${isRdReady ? 'has-rustdesk' : ''}" onclick="event.stopPropagation(); openRemoteDesktopModal('${op.id}', '${escapeAttr(cleanName)}', '${op.ip || ""}')" title="${isRdReady ? 'RustDesk o\'rnatilgan va faol (Ulanishga tayyor)' : 'RustDesk: Masofaviy boshqaruv (Kompyuter yoqilgan bo\'lsa ulanadi)'}" aria-label="RustDesk">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                ${isRdReady ? '<span class="rd-badge-online" title="RustDesk o\'rnatilgan va faol"></span>' : ''}
+            </button>
+        ` : '';
+
         const answered = op.answered || 0;
         const outbound = op.outbound || 0;
         const transferredIn = op.transferredIn || 0;
@@ -1090,12 +1160,12 @@ function renderOperators(operators) {
             </div>
         ` : '';
 
-        const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+        // cleanName is already defined at top of renderViewerCard
         const isTalking = (pres === 'talking' || activeConv);
         const isFree = (pres === 'ready');
         const isSelf = myOperatorId && (String(op.id) === String(myOperatorId));
         const safeCleanName = cleanName.replace(/'/g, "\\'");
-        const bellBtnHtml = (isFree && !isSelf) ? `
+        const bellBtnHtml = (isFree && !isSelf && canUseRemoteAndRing) ? `
             <button type="button" class="op-bell-btn" onclick="requestOperatorHelp(event, '${op.id}', '${safeCleanName}')" title="${tf('op_request_help_title', { name: cleanName }, `${cleanName} ga yordam so'rab qo'ng'iroq qilish`)}">
                 <svg class="isax isax-notification-bing" viewBox="0 0 24 24" fill="none"><path d="M12.02 2.91C8.71 2.91 6.02 5.6 6.02 8.91V11.8C6.02 12.41 5.76 13.34 5.45 13.86L4.3 15.77C3.59 16.95 4.08 18.26 5.38 18.26H18.66C19.96 18.26 20.45 16.95 19.74 15.77L18.59 13.86C18.28 13.34 18.02 12.41 18.02 11.8V8.91C18.02 5.61 15.32 2.91 12.02 2.91Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round"/><path d="M13.87 3.2C13.56 3.11 13.24 3.04 12.91 3C11.95 2.88 11.03 2.99 10.17 3.28C10.42 2.52 11.15 1.97 12.02 1.97C12.89 1.97 13.62 2.52 13.87 3.2Z" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.02 19.06C15.02 20.71 13.67 22.06 12.02 22.06C11.2 22.06 10.44 21.72 9.9 21.18C9.36 20.64 9.02 19.88 9.02 19.06" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
             </button>
@@ -1135,6 +1205,7 @@ function renderOperators(operators) {
                             <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
                                 <h4 ${nameClickAttr} style="margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${cleanName}</h4>
                                 <div style="flex-shrink: 0; display: flex; align-items: center; gap: 5px;">
+                                    ${pcRemoteBtnHtml}
                                     ${statusBadge}
                                     ${bellBtnHtml}
                                 </div>
@@ -1153,9 +1224,11 @@ function renderOperators(operators) {
                         <div class="op-mockup-meta">
                             <span class="op-mockup-ext-sub">Ext: ${op.id}</span>
                             <span class="op-mockup-sep">•</span>
-                            <span class="op-mockup-desktop" title="${op.agentHostname || (op.agentConnected ? 'Desktop Agent Faol' : 'Desktop Agent O\'chiq')}">
+                            <span class="op-mockup-desktop ${canUseRemoteAndRing ? 'clickable-desktop' : ''}" 
+                                  onclick="${canUseRemoteAndRing ? `event.stopPropagation(); openRemoteDesktopModal('${op.id}', '${safeCleanName}', '${op.ip || ""}')` : ''}"
+                                  title="${canUseRemoteAndRing ? `Kompyuter: ${op.agentHostname || 'Aniqlanmagan'} — Masofaviy ulanish (RustDesk) uchun bosing` : (op.agentHostname || (op.agentConnected ? 'Desktop Agent Faol' : 'Desktop Agent O\'chiq'))}">
                                 <span class="op-mockup-dot ${op.agentConnected ? 'online' : 'offline'}"></span>
-                                ${op.agentConnected ? (op.agentHostname || t('op_card_agent_active', 'Faol')) : t('op_card_agent_off', "O'chiq")}
+                                ${op.agentConnected ? (op.agentHostname || t('op_card_agent_active', 'Faol')) : (op.agentHostname ? `${op.agentHostname} (Oflayn)` : t('op_card_agent_off', "O'chiq"))}
                             </span>
                             ${generateStarRatingHtml(totalScore, cleanName)}
                         </div>
@@ -1217,14 +1290,14 @@ function renderOperators(operators) {
                                 const hasName = Boolean(contact.name && contact.name.trim());
                                 const hasOrg = Boolean(contact.organization && contact.organization.trim());
                                 const titleInfo = (hasName && hasOrg) ? `${contact.name} • ${contact.organization}` : (hasOrg ? contact.organization : (hasName ? contact.name : 'Mijoz'));
+                                const canEditContact = !is200ContactRestricted();
                                 return `
                                 <div class="op-mockup-active-talk has-client-info" 
-                                     onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);"
-                                     title="Mijoz: ${escapeAttr(titleInfo)} (O'zgartirish uchun bosing)">
+                                     ${canEditContact ? `onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);" title="Mijoz: ${escapeAttr(titleInfo)} (O'zgartirish uchun bosing)" style="cursor: pointer;"` : `title="Mijoz: ${escapeAttr(titleInfo)}"`}>
                                     <div class="op-mockup-active-talk-head">
                                         <span class="op-mockup-pulse-dot"></span>
                                         <span class="op-mockup-talk-num" style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${formattedPhone}</span>
-                                        <span class="op-contact-edit-icon" title="Tahrirlash" style="display: inline-flex; align-items: center;">${isax('edit', '', 'width: 12px; height: 12px;')}</span>
+                                        ${canEditContact ? `<span class="op-contact-edit-icon" title="Tahrirlash" style="display: inline-flex; align-items: center;">${isax('edit', '', 'width: 12px; height: 12px;')}</span>` : ''}
                                     </div>
                                     <div class="op-mockup-active-talk-sub">
                                         ${hasName ? `<span class="op-client-name" title="${escapeAttr(contact.name)}" style="display: inline-flex; align-items: center; gap: 4px;">${isax('user', '', 'width: 12px; height: 12px;')} ${escapeHtml(contact.name)}</span>` : ''}
@@ -1234,17 +1307,19 @@ function renderOperators(operators) {
                                 </div>
                                 `;
                             } else {
+                                const canAddContact = !is200ContactRestricted();
                                 return `
                                 <div class="op-mockup-active-talk no-client-info" 
-                                     onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);"
-                                     title="Ushbu raqamga mijoz ismi va manzilini biriktirish">
+                                     ${canAddContact ? `onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);" title="Ushbu raqamga mijoz ismi va manzilini biriktirish" style="cursor: pointer;"` : ''}>
                                     <div class="op-mockup-active-talk-head">
                                         <span class="op-mockup-pulse-dot"></span>
                                         <span class="op-mockup-talk-num" style="display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${formattedPhone}</span>
                                     </div>
+                                    ${canAddContact ? `
                                     <div class="op-mockup-active-talk-sub add-badge-sub">
                                         <span class="op-contact-add-badge">➕ Ism / Qayerdan saqlash</span>
                                     </div>
+                                    ` : ''}
                                 </div>
                                 `;
                             }
@@ -1256,14 +1331,14 @@ function renderOperators(operators) {
                                 const hasName = Boolean(contact.name && contact.name.trim());
                                 const hasOrg = Boolean(contact.organization && contact.organization.trim());
                                 const titleInfo = (hasName && hasOrg) ? `${contact.name} • ${contact.organization}` : (hasOrg ? contact.organization : (hasName ? contact.name : 'Mijoz'));
+                                const canEditContact = !is200ContactRestricted();
                                 return `
                                 <div class="op-mockup-active-talk is-ringing has-client-info"
-                                     onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);"
-                                     title="Mijoz: ${escapeAttr(titleInfo)}">
+                                     ${canEditContact ? `onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(callerRaw)}', event);" title="Mijoz: ${escapeAttr(titleInfo)}" style="cursor: pointer;"` : `title="Mijoz: ${escapeAttr(titleInfo)}"`}>
                                     <div class="op-mockup-active-talk-head">
                                         <span class="op-mockup-pulse-dot ringing"></span>
                                         <span class="op-mockup-talk-num">🔔 ${formattedPhone}</span>
-                                        <span class="op-contact-edit-icon" title="Tahrirlash" style="display: inline-flex; align-items: center;">${isax('edit', '', 'width: 12px; height: 12px;')}</span>
+                                        ${canEditContact ? `<span class="op-contact-edit-icon" title="Tahrirlash" style="display: inline-flex; align-items: center;">${isax('edit', '', 'width: 12px; height: 12px;')}</span>` : ''}
                                     </div>
                                     <div class="op-mockup-active-talk-sub">
                                         ${hasName ? `<span class="op-client-name" title="${escapeAttr(contact.name)}" style="display: inline-flex; align-items: center; gap: 4px;">${isax('user', '', 'width: 12px; height: 12px;')} ${escapeHtml(contact.name)}</span>` : ''}
@@ -1272,17 +1347,19 @@ function renderOperators(operators) {
                                 </div>
                                 `;
                             } else {
+                                const canAddContact = !is200ContactRestricted();
                                 return `
                                 <div class="op-mockup-active-talk is-ringing no-client-info"
-                                     onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);"
-                                     title="Raqamga mijoz ma'lumotlarini kiritish">
+                                     ${canAddContact ? `onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(callerRaw)}', event);" title="Raqamga mijoz ma'lumotlarini kiritish" style="cursor: pointer;"` : ''}>
                                     <div class="op-mockup-active-talk-head">
                                         <span class="op-mockup-pulse-dot ringing"></span>
                                         <span class="op-mockup-talk-num">🔔 ${formattedPhone}</span>
                                     </div>
+                                    ${canAddContact ? `
                                     <div class="op-mockup-active-talk-sub add-badge-sub">
                                         <span class="op-contact-add-badge">➕ Ism / Qayerdan saqlash</span>
                                     </div>
+                                    ` : ''}
                                 </div>
                                 `;
                             }
@@ -1300,34 +1377,38 @@ function renderOperators(operators) {
         finalHtml += talkingOps.map(renderViewerCard).join('');
     }
 
-    // 1-LINIYA (Divider): Kutmoqda (Tayyor)
+    // 1-LINIYA (Divider): Kutmoqda (Tayyor) — SAO Converging Shine Sci-Fi Dizayn
     if (readyOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider divider-ready" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
-                <div class="op-divider-line"></div>
-                <div class="op-divider-label">
-                    <span class="op-divider-dot"></span>
-                    <span>${t('op_status_ready_group', 'Kutmoqda (Tayyor)')}</span>
-                    <span style="background: rgba(34, 197, 94, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${readyOps.length}</span>
+            <div class="op-grid-divider sao-divider divider-ready" style="--c: #22c55e;" title="${t('op_status_ready_group', 'Qabul qilishga tayyor operatorlar')}">
+                <span class="sao-line sao-line-left"><span class="track"><i class="shine"></i></span></span>
+                <div class="glow">
+                    <div class="sao-label">
+                        <i class="sao-diamond"></i>
+                        <span>${t('op_status_ready_group', 'Kutmoqda (Tayyor)')}</span>
+                        <b class="sao-count">${readyOps.length}</b>
+                    </div>
                 </div>
-                <div class="op-divider-line"></div>
+                <span class="sao-line sao-line-right"><span class="track"><i class="shine"></i></span></span>
             </div>
         `;
         // 2-BLOK: Kutmoqda (Tayyor) operatorlar
         finalHtml += readyOps.map(renderViewerCard).join('');
     }
 
-    // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar
+    // 2-LINIYA (Divider) & 3-BLOK: Oflayn operatorlar — SAO Converging Shine Sci-Fi Dizayn
     if (offlineOps.length > 0) {
         finalHtml += `
-            <div class="op-grid-divider" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
-                <div class="op-divider-line"></div>
-                <div class="op-divider-label">
-                    <span class="op-divider-dot"></span>
-                    <span>${t('op_status_offline_group', 'Oflayn operatorlar')}</span>
-                    <span style="background: rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${offlineOps.length}</span>
+            <div class="op-grid-divider sao-divider divider-offline" style="--c: #ef4444;" title="${t('op_status_offline_group', 'Oflayn operatorlar')}">
+                <span class="sao-line sao-line-left"><span class="track"><i class="shine"></i></span></span>
+                <div class="glow">
+                    <div class="sao-label">
+                        <i class="sao-diamond"></i>
+                        <span>${t('op_status_offline_group', 'Oflayn operatorlar')}</span>
+                        <b class="sao-count">${offlineOps.length}</b>
+                    </div>
                 </div>
-                <div class="op-divider-line"></div>
+                <span class="sao-line sao-line-right"><span class="track"><i class="shine"></i></span></span>
             </div>
         `;
         finalHtml += offlineOps.map(renderViewerCard).join('');
@@ -1340,13 +1421,72 @@ function renderOperators(operators) {
     }
     window._lastRenderedOperatorsHtml = finalHtml;
 
-    grid.innerHTML = finalHtml;
+    // Dividerlar animatsiyasi (Glow shine) reset bo'lmasligi va elementlar silliq saqlanishi uchun DOM-reconciliation
+    syncGridChildren(grid, finalHtml);
 
     // FLIP Layout Animation: faqat o'rni o'zgargan kartalarni silliq siljitish
     playCardsFlipAnimation(grid, firstRects);
 
     // Yangi kartalardagi jonli taymerlarni darhol hisoblab ko'rsatish
     updateAllTalkingTimers();
+}
+
+function syncGridChildren(grid, newHtml) {
+    if (!grid.children.length) {
+        grid.innerHTML = newHtml;
+        return;
+    }
+
+    const temp = document.createElement('div');
+    temp.innerHTML = newHtml;
+
+    const newChildren = Array.from(temp.children);
+    const existingReadyDiv = grid.querySelector('.divider-ready');
+    const existingOfflineDiv = grid.querySelector('.divider-offline');
+
+    newChildren.forEach((newChild, index) => {
+        const isReadyDiv = newChild.classList.contains('divider-ready');
+        const isOfflineDiv = newChild.classList.contains('divider-offline');
+
+        let childToPlace = newChild;
+
+        if (isReadyDiv && existingReadyDiv) {
+            const newCount = newChild.querySelector('.sao-count')?.textContent;
+            const oldCount = existingReadyDiv.querySelector('.sao-count');
+            if (oldCount && newCount !== undefined && oldCount.textContent !== newCount) {
+                oldCount.textContent = newCount;
+            }
+            childToPlace = existingReadyDiv;
+        } else if (isOfflineDiv && existingOfflineDiv) {
+            const newCount = newChild.querySelector('.sao-count')?.textContent;
+            const oldCount = existingOfflineDiv.querySelector('.sao-count');
+            if (oldCount && newCount !== undefined && oldCount.textContent !== newCount) {
+                oldCount.textContent = newCount;
+            }
+            childToPlace = existingOfflineDiv;
+        } else {
+            const opId = newChild.getAttribute('data-op-id');
+            const currentChild = grid.children[index];
+            if (opId && currentChild && currentChild.getAttribute('data-op-id') === opId) {
+                if (currentChild.innerHTML !== newChild.innerHTML) {
+                    currentChild.innerHTML = newChild.innerHTML;
+                }
+                if (currentChild.className !== newChild.className) {
+                    currentChild.className = newChild.className;
+                }
+                childToPlace = currentChild;
+            }
+        }
+
+        const currentChildAtPos = grid.children[index];
+        if (currentChildAtPos !== childToPlace) {
+            grid.insertBefore(childToPlace, currentChildAtPos || null);
+        }
+    });
+
+    while (grid.children.length > newChildren.length) {
+        grid.removeChild(grid.lastChild);
+    }
 }
 
 /* ==========================================================================
@@ -1420,6 +1560,11 @@ function renderOperatorSummaryPills() {
     if (!summaryEl || !op) return;
 
     const cleanName = getCleanOperatorName(op.realName || op.name, op.id);
+    const opDetailNum = parseInt(op.id, 10);
+    const is200DetailOp = !isNaN(opDetailNum) && opDetailNum >= 200;
+    const myDetailNum = parseInt(myOperatorId, 10);
+    const is200DetailUser = !isNaN(myDetailNum) && myDetailNum >= 200;
+    const canUseDetailRemote = !is200DetailOp && !is200DetailUser;
 
     summaryEl.style.display = 'flex';
     summaryEl.innerHTML = `
@@ -1428,7 +1573,14 @@ function renderOperatorSummaryPills() {
                 ${op.id}
             </div>
             <div>
-                <h4 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">${cleanName}</h4>
+                <h4 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span>${cleanName}</span>
+                    ${canUseDetailRemote ? `
+                    <button type="button" class="btn-pc-remote ${rustdeskInstalledSet.has(String(op.id)) || (op.ip && rustdeskInstalledSet.has(String(op.ip))) ? 'has-rustdesk' : ''}" onclick="event.stopPropagation(); openRemoteDesktopModal('${op.id}', '${escapeAttr(cleanName)}', '${op.ip || ""}')" title="RustDesk orqali kompyuterga ulanish" style="width: 26px; height: 26px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </button>
+                    ` : ''}
+                </h4>
                 <span style="font-size: 12px; color: var(--text-dim);">${t('op_sum_internal', 'Ichki raqam:')} ${op.id} ${op.ip ? `• IP: ${op.ip}` : ''}</span>
             </div>
         </div>
@@ -1984,6 +2136,7 @@ let recentlyDroppedTool = false;
 function initToolsDragAndDrop() {
     const primaryGrid = document.getElementById('primaryToolsGrid');
     const secondaryGrid = document.getElementById('secondaryToolsGrid');
+    const adminGrid = document.getElementById('adminToolsGrid');
     if (!primaryGrid || !secondaryGrid) return;
 
     // 1. Saqlangan tartibni (localStorage) tiklash
@@ -1992,12 +2145,15 @@ function initToolsDragAndDrop() {
     // 2. Drag & Drop hodisalarini kartalarga ulash
     setupToolCardsDragEvents();
 
-    // 3. Drop zonalar (primaryGrid va secondaryGrid) hodisalari
-    [primaryGrid, secondaryGrid].forEach(zone => {
+    // 3. Drop zonalar (primaryGrid, secondaryGrid va adminGrid) hodisalari
+    [primaryGrid, secondaryGrid, adminGrid].filter(Boolean).forEach(zone => {
         setupToolsDropZone(zone);
     });
 
-    // 4. Bo'sh holatlar va hisoblagichlarni yangilash
+    // 4. 200lik operatorlar uchun vositalarni saralash (keraksizlarini yashirish)
+    updateToolsForUserRole();
+
+    // 5. Bo'sh holatlar va hisoblagichlarni yangilash
     updateToolsZoneCountersAndEmptyStates();
 }
 
@@ -2010,12 +2166,24 @@ function loadSavedToolsLayout() {
 
         const primaryGrid = document.getElementById('primaryToolsGrid');
         const secondaryGrid = document.getElementById('secondaryToolsGrid');
+        const adminGrid = document.getElementById('adminToolsGrid');
         if (!primaryGrid || !secondaryGrid) return;
 
         const allCards = new Map();
         document.querySelectorAll('.tool-card[data-tool-id]').forEach(card => {
             allCards.set(card.getAttribute('data-tool-id'), card);
         });
+
+        // Joylashtirish: admin
+        if (adminGrid && Array.isArray(saved.admin)) {
+            saved.admin.forEach(id => {
+                const card = allCards.get(id);
+                if (card) {
+                    adminGrid.appendChild(card);
+                    allCards.delete(id);
+                }
+            });
+        }
 
         // Joylashtirish: primary
         if (Array.isArray(saved.primary)) {
@@ -2056,29 +2224,57 @@ function saveToolsLayout() {
     try {
         const primaryGrid = document.getElementById('primaryToolsGrid');
         const secondaryGrid = document.getElementById('secondaryToolsGrid');
+        const adminGrid = document.getElementById('adminToolsGrid');
         if (!primaryGrid || !secondaryGrid) return;
 
         const primaryIds = Array.from(primaryGrid.querySelectorAll('.tool-card[data-tool-id]'))
             .map(c => c.getAttribute('data-tool-id'));
         const secondaryIds = Array.from(secondaryGrid.querySelectorAll('.tool-card[data-tool-id]'))
             .map(c => c.getAttribute('data-tool-id'));
+        const adminIds = adminGrid 
+            ? Array.from(adminGrid.querySelectorAll('.tool-card[data-tool-id]')).map(c => c.getAttribute('data-tool-id'))
+            : [];
 
         localStorage.setItem(TOOLS_LAYOUT_STORAGE_KEY, JSON.stringify({
             primary: primaryIds,
-            secondary: secondaryIds
+            secondary: secondaryIds,
+            admin: adminIds
         }));
     } catch (err) {
         console.warn('Tools layout save error:', err);
     }
 }
 
+function updateToolsForUserRole() {
+    const rawId = myOperatorId || localStorage.getItem('viewer_my_operator_id') || (window.currentViewerUser && (window.currentViewerUser.operatorId || window.currentViewerUser.operator_id));
+    const opNum = parseInt(rawId, 10);
+    const uname = String((window.currentViewerUser && window.currentViewerUser.username) || '').toLowerCase();
+    const unameMatch = uname.match(/\d+/);
+    const uNum = unameMatch ? parseInt(unameMatch[0], 10) : 0;
+    const is200 = (!isNaN(opNum) && opNum >= 200) || uNum >= 200 || uname.includes('zangiota');
+
+    // 200lik (Zangiota) operatorlar uchun olib tashlanadigan vositalar
+    const toolsToHideFor200 = ['ijro_letter', 'rustdesk-setup', 'converter'];
+
+    toolsToHideFor200.forEach(toolId => {
+        const card = document.querySelector(`.tool-card[data-tool-id="${toolId}"]`);
+        if (card) {
+            card.style.display = is200 ? 'none' : '';
+        }
+    });
+
+    updateToolsZoneCountersAndEmptyStates();
+}
+window.updateToolsForUserRole = updateToolsForUserRole;
+
 function updateToolsZoneCountersAndEmptyStates() {
     const primaryGrid = document.getElementById('primaryToolsGrid');
     const secondaryGrid = document.getElementById('secondaryToolsGrid');
+    const adminGrid = document.getElementById('adminToolsGrid');
     if (!primaryGrid || !secondaryGrid) return;
 
-    const pCount = primaryGrid.querySelectorAll('.tool-card').length;
-    const sCount = secondaryGrid.querySelectorAll('.tool-card').length;
+    const pCount = Array.from(primaryGrid.querySelectorAll('.tool-card')).filter(c => c.style.display !== 'none').length;
+    const sCount = Array.from(secondaryGrid.querySelectorAll('.tool-card')).filter(c => c.style.display !== 'none').length;
 
     const pBadge = document.getElementById('primaryToolsCount');
     const sBadge = document.getElementById('secondaryToolsCount');
@@ -2091,13 +2287,13 @@ function updateToolsZoneCountersAndEmptyStates() {
     if (sCount === 0) secondaryGrid.classList.add('is-empty');
     else secondaryGrid.classList.remove('is-empty');
 
-    // Quick move tugmalarining title va holatini moslash
-    primaryGrid.querySelectorAll('.tool-quick-move-btn').forEach(btn => {
-        btn.setAttribute('title', "Kerakli vositalarga o'tkazish");
-    });
-    secondaryGrid.querySelectorAll('.tool-quick-move-btn').forEach(btn => {
-        btn.setAttribute('title', "Asosiy vositalarga o'tkazish");
-    });
+    if (adminGrid) {
+        const aCount = Array.from(adminGrid.querySelectorAll('.tool-card')).filter(c => c.style.display !== 'none').length;
+        const aBadge = document.getElementById('adminToolsCount');
+        if (aBadge) aBadge.textContent = aCount;
+        if (aCount === 0) adminGrid.classList.add('is-empty');
+        else adminGrid.classList.remove('is-empty');
+    }
 }
 
 function setupToolCardsDragEvents() {
@@ -2220,6 +2416,7 @@ function initHeaderClock() {
    WebSocket Connection & Initialization
    ========================================================================== */
 async function loadOperators() {
+    if (window.isVisualInspectorActive) return;
     try {
         const res = await fetch('/api/operators');
         const json = await res.json();
@@ -2486,14 +2683,14 @@ const KNOWN_OPERATOR_NAMES = {
     '114': 'Maxmudbek',
     '119': 'Muattar',
     '120': 'Navruzoy',
-    // Zangiota (200+) operatorlar
-    '200': 'Operator 200 (Zangiota)',
-    '203': 'Operator 203 (Zangiota)',
-    '204': 'Operator 204 (Zangiota)',
-    '205': 'Operator 205 (Zangiota)',
-    '206': 'Operator 206 (Zangiota)',
-    '208': 'Operator 208 (Zangiota)',
-    '209': 'Operator 209 (Zangiota)'
+    // 200+ operatorlar
+    '200': 'Operator 200',
+    '203': 'Operator 203',
+    '204': 'Operator 204',
+    '205': 'Operator 205',
+    '206': 'Operator 206',
+    '208': 'Operator 208',
+    '209': 'Operator 209'
 };
 
 function updateHeaderUserProfile(opName, opId, username, role) {
@@ -2541,12 +2738,76 @@ function updateHeaderUserProfile(opName, opId, username, role) {
     const titleText = cleanOpId ? `Joriy profil: ${displayName} (${cleanOpId})` : `Joriy profil: ${displayName}`;
     badge.setAttribute('title', titleText);
     badge.style.display = 'inline-flex';
+    if (window.TicketsApp && typeof window.TicketsApp.updateCreateButtonVisibility === 'function') {
+        window.TicketsApp.updateCreateButtonVisibility();
+    }
+    if (typeof updateToolsForUserRole === 'function') {
+        updateToolsForUserRole();
+    }
+
+    // Admin / Superuser uchun Admin Dashboardga o'tish tugmasi
+    const normalizedRole = String(effectiveRole || (window.currentViewerUser && window.currentViewerUser.role) || '').toLowerCase();
+    const btnSwitch = document.getElementById('btnSwitchToAdminDashboard');
+    if (btnSwitch) {
+        if (normalizedRole === 'admin' || normalizedRole === 'superuser') {
+            btnSwitch.style.display = 'inline-flex';
+        } else {
+            btnSwitch.style.display = 'none';
+        }
+    }
+
+    // 200-operatorlar uchun mijozlar bazasi va mijoz qo'shish modal/tugmalarini butunlay yashirish
+    const checkOpNum = parseInt(cleanOpId || myOperatorId, 10);
+    const is200OperatorUser = (!isNaN(checkOpNum) && checkOpNum >= 200) && normalizedRole !== 'superuser' && normalizedRole !== 'admin';
+    const is100OperatorUser = (!isNaN(checkOpNum) && checkOpNum >= 100 && checkOpNum < 200) || normalizedRole === 'admin' || normalizedRole === 'superuser';
+    const contactsBtn = document.getElementById('headerContactsBtn');
+    if (contactsBtn) {
+        contactsBtn.style.display = is200OperatorUser ? 'none' : 'inline-flex';
+    }
+    if (document.body) {
+        document.body.classList.toggle('is-200-operator', Boolean(is200OperatorUser));
+    }
+    if (is200OperatorUser) {
+        const contactModal = document.getElementById('clientContactModal');
+        if (contactModal) contactModal.style.display = 'none';
+        const dirModal = document.getElementById('clientDirectoryModal');
+        if (dirModal) dirModal.style.display = 'none';
+
+        // 200lik operatorlar uchun Zangiotani (secondary) birinchi by default qilib ko'rsatish
+        if (!window._userExplicitlySwitchedGroup) {
+            const savedGroup = localStorage.getItem('callcenter_viewer_op_group');
+            if (!savedGroup || savedGroup === 'main') {
+                switchOperatorGroup('secondary', false);
+            }
+        }
+    } else if (is100OperatorUser) {
+        // 100-operatorlar (Maxmudbek 114 va boshqalar) hamda Adminlar uchun Asosiy (main: 100-199) doim by default bo'lishi shart!
+        if (!window._userExplicitlySwitchedGroup) {
+            const savedGroup = localStorage.getItem('callcenter_viewer_op_group');
+            if (savedGroup === 'secondary') {
+                switchOperatorGroup('main', false);
+            }
+        }
+    }
 }
 window.updateHeaderUserProfile = updateHeaderUserProfile;
+
+// Admin Dashboardga o'tish (Port 3535)
+function switchToAdminDashboard() {
+    let token = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || '';
+    if (!token) {
+        const match = document.cookie.match(/(?:^|;\s*)cc_viewer_session=([^;]+)/) || document.cookie.match(/(?:^|;\s*)cc_session=([^;]+)/);
+        if (match) token = match[1];
+    }
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    window.location.href = window.location.protocol + '//' + window.location.hostname + ':3535/' + tokenParam;
+}
+window.switchToAdminDashboard = switchToAdminDashboard;
 
 async function initViewerProfileIdentity() {
     if (myOperatorId || myOperatorName) {
         updateHeaderUserProfile(myOperatorName, myOperatorId, myUsername, myUserRole);
+    updateMyAgentButton();
     }
     try {
         const res = await fetch('/api/auth/me');
@@ -2568,6 +2829,10 @@ async function initViewerProfileIdentity() {
                     gmailDot.style.display = data.user.email ? 'inline-block' : 'none';
                 }
                 checkSuperuserPrivileges();
+                // Passkey smart enrollment prompt
+                if (window.Passkey && window.Passkey.offerAfterPasswordLogin) {
+                    setTimeout(() => window.Passkey.offerAfterPasswordLogin(), 1500);
+                }
             }
         }
     } catch (_) {}
@@ -2683,9 +2948,16 @@ function openViewerProfileModal() {
     if (unameEl) unameEl.textContent = u.username || myUsername || 'operator';
     if (roleBadge) {
         const isSuper = (u.role === 'superuser' || myUserRole === 'superuser');
-        roleBadge.textContent = isSuper ? 'Superuser' : 'Operator';
-        roleBadge.style.color = isSuper ? '#60a5fa' : '#34d399';
-        roleBadge.style.background = isSuper ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+        const isAdmin = (u.role === 'admin' || myUserRole === 'admin');
+        roleBadge.textContent = isSuper ? 'Superuser' : (isAdmin ? 'Admin' : 'Operator');
+        roleBadge.style.color = (isSuper || isAdmin) ? '#60a5fa' : '#34d399';
+        roleBadge.style.background = (isSuper || isAdmin) ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)';
+    }
+
+    const modalSwitch = document.getElementById('btnModalSwitchToAdmin');
+    if (modalSwitch) {
+        const effRole = (u.role || myUserRole || '').toLowerCase();
+        modalSwitch.style.display = (effRole === 'admin' || effRole === 'superuser') ? 'inline-flex' : 'none';
     }
     if (opNameEl) {
         const nameText = myOperatorName || u.operatorName || (myOperatorId ? `Operator ${myOperatorId}` : '');
@@ -2724,6 +2996,9 @@ function openViewerProfileModal() {
     if (msgEl) msgEl.textContent = '';
 
     modal.style.display = 'flex';
+    if (window.Passkey && document.getElementById('passkey-manager')) {
+        window.Passkey.mountManager(document.getElementById('passkey-manager'));
+    }
     setTimeout(() => {
         if (emailInput) emailInput.focus();
     }, 100);
@@ -2933,6 +3208,7 @@ function setMyOperator(id, name) {
         window.TicketsApp.setOperatorIdentity(myOperatorId, myOperatorName);
     }
     updateHeaderUserProfile(myOperatorName, myOperatorId, myUsername, myUserRole);
+    updateMyAgentButton();
 }
 
 function registerMyOperatorWithServer() {
@@ -3112,6 +3388,17 @@ function requestOperatorHelp(event, toId, toName) {
 
     if (String(myOperatorId) === String(toId)) {
         alert("O'zingizga yordam so'rovi yubora olmaysiz.");
+        return;
+    }
+
+    const myNum = parseInt(myOperatorId, 10);
+    const toNum = parseInt(toId, 10);
+    if ((!isNaN(myNum) && myNum >= 200) || (!isNaN(toNum) && toNum >= 200)) {
+        if (typeof showToast === 'function') {
+            showToast("200-guruh operatorlari uchun qo'ng'iroq qilish (ring) cheklangan.", "warning");
+        } else {
+            alert("200-guruh operatorlari uchun qo'ng'iroq qilish (ring) cheklangan.");
+        }
         return;
     }
 
@@ -3859,8 +4146,15 @@ function handleWsClientContactUpdate(data) {
 }
 
 /* Modal logic */
+function is200ContactRestricted() {
+    const checkOpNum = parseInt(myOperatorId, 10);
+    const isSuper = myUserRole === 'superuser' || myUserRole === 'admin';
+    return !isNaN(checkOpNum) && checkOpNum >= 200 && !isSuper;
+}
+
 function openAddContactModal(prefillPhone = '', event) {
     if (event) event.stopPropagation();
+    if (is200ContactRestricted()) return;
     const modal = document.getElementById('clientContactModal');
     const titleEl = document.getElementById('contactModalTitle');
     const origPhoneEl = document.getElementById('contactOriginalPhone');
@@ -3894,6 +4188,7 @@ function openAddContactModal(prefillPhone = '', event) {
 
 function openEditContactModal(phone, event) {
     if (event) event.stopPropagation();
+    if (is200ContactRestricted()) return;
     const contact = getClientContact(phone);
     if (!contact) {
         return openAddContactModal(phone, event);
@@ -3929,6 +4224,7 @@ function openEditContactModal(phone, event) {
 
 function openContactModal(phone, event) {
     if (event) event.stopPropagation();
+    if (is200ContactRestricted()) return;
     const contact = getClientContact(phone);
     if (contact) {
         openEditContactModal(phone, event);
@@ -3944,6 +4240,11 @@ function closeContactModal() {
 
 async function handleSaveContactSubmit(e) {
     e.preventDefault();
+    if (is200ContactRestricted()) {
+        alert("200-operatorlar uchun mijozlar bazasiga ma'lumot kiritish cheklangan");
+        closeContactModal();
+        return;
+    }
     const phoneInput = document.getElementById('contactPhoneInput');
     const nameInput = document.getElementById('contactNameInput');
     const orgInput = document.getElementById('contactOrgInput');
@@ -4073,6 +4374,11 @@ function showViewerToast(msg) {
 
 /* Client Directory Modal logic */
 function openClientDirectoryModal() {
+    const checkOpNum = parseInt(myOperatorId, 10);
+    const isSuper = myUserRole === 'superuser' || myUserRole === 'admin';
+    if (!isNaN(checkOpNum) && checkOpNum >= 200 && !isSuper) {
+        return;
+    }
     const modal = document.getElementById('clientDirectoryModal');
     if (!modal) return;
     modal.style.display = 'flex';
@@ -4208,6 +4514,9 @@ async function fetchActiveViewers() {
 
 function initWebSocket() {
     clearTimeout(reconnectTimer);
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${location.host}`;
 
@@ -4215,15 +4524,23 @@ function initWebSocket() {
         socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-            console.log('Viewer WebSocket connected to', wsUrl);
+            console.log(new Date().toISOString(), '🟢 Viewer WebSocket onopen, stopping fallback polling');
+            lastWsMessageAt = Date.now();
+            stopFallbackPolling();
+            isFirstWsConnect = false;
             if (myOperatorId) {
                 registerMyOperatorWithServer();
             }
         };
 
         socket.onmessage = (event) => {
+            lastWsMessageAt = Date.now();
             try {
                 const msg = JSON.parse(event.data);
+                // Ilova darajasidagi server pingini darhol ushlab qolish (jim qaytish)
+                if (msg.type === 'server_ping') {
+                    return;
+                }
                 if (msg.type === 'session_terminated') {
                     alert(msg.message || 'Parolingiz o\'zgartirildi yoki sessiyangiz yakunlandi. Iltimos, qayta kiring.');
                     window.location.href = '/login';
@@ -4242,6 +4559,10 @@ function initWebSocket() {
                     myUsername = msg.data.username;
                     isOperatorLocked = Boolean(msg.data.operatorLocked);
                     checkSuperuserPrivileges();
+                // Passkey smart enrollment prompt
+                if (window.Passkey && window.Passkey.offerAfterPasswordLogin) {
+                    setTimeout(() => window.Passkey.offerAfterPasswordLogin(), 1500);
+                }
                     if (msg.data.operatorId) {
                         setMyOperator(msg.data.operatorId, msg.data.operatorName);
                     } else if (myOperatorId) {
@@ -4288,6 +4609,17 @@ function initWebSocket() {
                     renderViewerCallbacks(currentViewerCallbacks);
                 } else if (msg.type === 'callbacks_update') {
                     renderViewerCallbacks(msg.data);
+                } else if (msg.type === 'remote_install_prompt') {
+                    showRustDeskInstallPrompt(msg.operatorName);
+                } else if (msg.type === 'rustdesk_device_status' && msg.device) {
+                    if (msg.device.installed) {
+                        if (msg.device.ext) rustdeskInstalledSet.add(String(msg.device.ext));
+                        if (msg.device.ip) rustdeskInstalledSet.add(String(msg.device.ip));
+                    } else {
+                        if (msg.device.ext) rustdeskInstalledSet.delete(String(msg.device.ext));
+                        if (msg.device.ip) rustdeskInstalledSet.delete(String(msg.device.ip));
+                    }
+                    if (typeof renderOperators === 'function') renderOperators();
                 }
             } catch (err) {
                 console.warn('WS parse error:', err.message);
@@ -4299,18 +4631,41 @@ function initWebSocket() {
                 window.location.href = '/login';
                 return;
             }
-            console.warn('⚠️ Viewer WebSocket disconnected. Reconnecting in 3s...');
+            console.warn(new Date().toISOString(), `🔴 Viewer WebSocket onclose (code=${event?.code}). Starting fallback polling...`);
+            startFallbackPolling(false);
+            clearTimeout(reconnectTimer);
             reconnectTimer = setTimeout(initWebSocket, 3000);
         };
 
         socket.onerror = (err) => {
-            console.warn('WS error:', err);
-            socket.close();
+            console.warn(new Date().toISOString(), '⚠️ WS error:', err);
+            try { socket.close(); } catch (e) {}
         };
     } catch (e) {
+        startFallbackPolling(false);
+        clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(initWebSocket, 3000);
     }
 }
+
+// Watchdog: 45 soniya jimlik = ulanish o'lik (server har 15 soniyada server_ping yuboradi)
+setInterval(() => {
+    if (socket && socket.readyState === WebSocket.OPEN && (Date.now() - lastWsMessageAt > 45000)) {
+        console.warn('⚠️ WebSocket watchdog: 45s jimlik, aloqa qayta tiklanmoqda...');
+        try { socket.close(); } catch (e) {}
+    }
+}, 10000);
+
+// Tab ko'rinishi o'zgarganda (Visibility change)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    // Faqat agar WebSocket ochiq bo'lmasa (uzilgan bo'lsa) yangilash va qayta ulash
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+        console.log(new Date().toISOString(), '🔄 Tab aktivlashdi, lekin WS yopiq -> refreshAll() va qayta ulanish');
+        refreshAll();
+        initWebSocket();
+    }
+});
 
 // Language change reactive listener — re-renders open detail table
 window.addEventListener('languageChanged', () => {
@@ -4799,14 +5154,14 @@ function renderViewerCallbacks(callbacks) {
                 '114': 'Maxmudbek',
                 '119': 'Muattar',
                 '120': 'Navruzoy',
-                // Zangiota (200+) operatorlar
-                '200': 'Operator 200 (Zangiota)',
-                '203': 'Operator 203 (Zangiota)',
-                '204': 'Operator 204 (Zangiota)',
-                '205': 'Operator 205 (Zangiota)',
-                '206': 'Operator 206 (Zangiota)',
-                '208': 'Operator 208 (Zangiota)',
-                '209': 'Operator 209 (Zangiota)'
+                // 200+ operatorlar
+                '200': 'Operator 200',
+                '203': 'Operator 203',
+                '204': 'Operator 204',
+                '205': 'Operator 205',
+                '206': 'Operator 206',
+                '208': 'Operator 208',
+                '209': 'Operator 209'
             };
 
             let opRaw = item.last_outbound_operator || '';
@@ -4926,62 +5281,69 @@ function renderViewerCallbacks(callbacks) {
             : '';
 
         html += `
-            <div class="${isActive ? 'callback-card-talking' : ''}" style="${cardBorder} border-radius: 8px; padding: 7px 10px; display: flex; flex-direction: column; gap: 4px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; position: relative;" onclick="copyViewerCallbackPhone('${phone}', this)" title="${titleText}">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px;">
-                    <div style="display: flex; align-items: center; gap: 5px;">
+            <div class="${isActive ? 'callback-card-talking' : ''}" style="${cardBorder} border-radius: 7px; padding: 5px 9px; display: flex; flex-direction: column; gap: 3px; transition: all 0.2s ease; cursor: pointer; position: relative;" onclick="copyViewerCallbackPhone('${phone}', this)" title="${titleText}">
+                <!-- Row 1: Tartib, Telefon, Urinishlar & Holat badge -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 4px; min-width: 0;">
                         ${orderBadge}
-                        <span style="font-size: 12.5px; font-weight: 700; color: #fff; letter-spacing: 0.2px;">${formattedPhone}</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #fff; letter-spacing: 0.2px; white-space: nowrap;">${formattedPhone}</span>
                         ${attemptBadge}
                     </div>
-                    ${isActive ? `
-                        <div class="callback-active-badge" style="padding: 2px 6px; font-size: 10px;" title="${activeCall.operator} ${activeCall.stateLabel}">
-                            <img src="/img/calling-green.png" alt="Calling" style="width: 11px; height: 11px;" />
-                            <span>${activeCall.operator}</span>
-                        </div>
-                    ` : `
-                        ${retryBadge || `<span style="font-size: 10px; opacity: 0.7; display: inline-flex;">${isax('clipboard-text', '', 'width: 11px; height: 11px;')}</span>`}
-                    `}
-                </div>
-                ${cbContact ? (() => {
-                    const hasName = Boolean(cbContact.name && cbContact.name.trim());
-                    const hasOrg = Boolean(cbContact.organization && cbContact.organization.trim());
-                    return `
-                    <div style="font-size: 10.5px; line-height: 1.2; color: #38bdf8; font-weight: 600; display: flex; align-items: center; gap: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-                         onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(phone)}', event);" title="Mijoz ma'lumotini tahrirlash">
-                        ${hasName ? `<span style="display: inline-flex; align-items: center; gap: 3px;">${isax('user', '', 'width: 10px; height: 10px;')} ${escapeHtml(cbContact.name)}</span>` : ''}
-                        ${hasName && hasOrg ? `<span style="color: #94a3b8; font-size: 9.5px; font-weight: 400;">•</span>` : ''}
-                        ${hasOrg ? `<span style="color: ${hasName ? '#94a3b8' : '#f59e0b'}; font-size: ${hasName ? '9.5px' : '10.5px'}; font-weight: ${hasName ? '400' : '700'}; display: inline-flex; align-items: center; gap: 3px;">${isax('location', '', 'width: 10px; height: 10px;')} ${escapeHtml(cbContact.organization)}</span>` : ''}
-                        <span style="font-size: 9.5px; opacity: 0.7; margin-left: 2px; display: inline-flex;">${isax('edit', '', 'width: 9px; height: 9px;')}</span>
-                        <span onclick="event.stopPropagation(); openTelegramUser('${escapeAttr(cbContact.telegram_user_id || '')}', '${escapeAttr(phone)}');" style="color: #38bdf8; margin-left: 4px; padding: 1px 4px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 2px;" title="Telegramda ochish${cbContact.telegram_user_id ? ' (' + escapeAttr(cbContact.telegram_user_id) + ')' : ''}">
-                            <svg class="isax isax-send-2" style="width: 9px; height: 9px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg> TG
-                        </span>
+                    <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                        ${isActive ? `
+                            <div class="callback-active-badge" style="padding: 1.5px 5px; font-size: 9.5px;" title="${activeCall.operator} ${activeCall.stateLabel}">
+                                <img src="/img/calling-green.png" alt="Calling" style="width: 10px; height: 10px;" />
+                                <span>${activeCall.operator}</span>
+                            </div>
+                        ` : `
+                            ${retryBadge ? retryBadge : `
+                                <span style="padding: 1px 5px; border-radius: 4px; font-weight: 600; font-size: 9px; display: inline-flex; align-items: center; gap: 3px; ${badgeStyle}">
+                                    ${badgeIcon} ${badgeLabel}
+                                </span>
+                            `}
+                        `}
                     </div>
-                    `;
-                })() : `
-                <div style="font-size: 9.5px; line-height: 1.2;" onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(phone)}', event);">
-                    <span style="color: #38bdf8; opacity: 0.8; cursor: pointer; border-bottom: 1px dashed rgba(56, 189, 248, 0.5);">+ Ism / Qayerdan saqlash</span>
                 </div>
-                `}
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-top: 1px;">
-                    <span style="padding: 1px 6px; border-radius: 4px; font-weight: 600; font-size: 9.5px; ${badgeStyle}">
-                        ${badgeIcon} ${badgeLabel}
-                    </span>
-                    <div style="display: flex; align-items: center; gap: 3px; color: #94a3b8; font-size: 10px;">
+
+                <!-- Row 2: Mijoz nomi/saqlash & Vaqt -->
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 9.5px; line-height: 1.2;">
+                    <div style="min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${cbContact ? (() => {
+                            const hasName = Boolean(cbContact.name && cbContact.name.trim());
+                            const hasOrg = Boolean(cbContact.organization && cbContact.organization.trim());
+                            const canEditContact = !is200ContactRestricted();
+                            return `
+                            <span style="color: #38bdf8; font-weight: 600; ${canEditContact ? 'cursor: pointer;' : ''} display: inline-flex; align-items: center; gap: 3px;"
+                                  ${canEditContact ? `onclick="event.stopPropagation(); openEditContactModal('${escapeAttr(phone)}', event);" title="Mijoz ma'lumotini tahrirlash"` : `title="Mijoz ma'lumoti"`}>
+                                ${hasName ? `<span style="display: inline-flex; align-items: center; gap: 2px;">${isax('user', '', 'width: 9px; height: 9px;')} ${escapeHtml(cbContact.name)}</span>` : ''}
+                                ${hasName && hasOrg ? `<span style="color: #94a3b8; font-size: 8px;">•</span>` : ''}
+                                ${hasOrg ? `<span style="color: ${hasName ? '#94a3b8' : '#f59e0b'}; font-size: 9px; display: inline-flex; align-items: center; gap: 2px;">${isax('location', '', 'width: 9px; height: 9px;')} ${escapeHtml(cbContact.organization)}</span>` : ''}
+                                <span onclick="event.stopPropagation(); openTelegramUser('${escapeAttr(cbContact.telegram_user_id || '')}', '${escapeAttr(phone)}');" style="color: #38bdf8; margin-left: 3px; padding: 0.5px 3.5px; border-radius: 3px; background: rgba(56, 189, 248, 0.15); font-size: 8.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 1px;" title="Telegramda ochish">
+                                    <svg class="isax isax-send-2" style="width: 8px; height: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-send-2"></use></svg>TG
+                                </span>
+                            </span>
+                            `;
+                        })() : (!is200ContactRestricted() ? `
+                            <span style="color: #38bdf8; opacity: 0.75; cursor: pointer; border-bottom: 1px dashed rgba(56, 189, 248, 0.4);" onclick="event.stopPropagation(); openAddContactModal('${escapeAttr(phone)}', event);">+ Ism / Qayerdan</span>
+                        ` : '')}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 3px; color: #94a3b8; font-size: 9.5px; flex-shrink: 0;">
                         <span style="display: inline-flex; align-items: center; gap: 3px;">
-                            ${isax('clock', '', 'width: 10px; height: 10px; opacity: 0.75;')}
-                            ${isResolved ? `Gaplashildi: ${resTimeDisplay}` : `Tushgan: ${timeDisplay}`}
-                            ${relTime && !isResolved ? `<strong style="color: ${isNewestItem ? '#34d399' : '#cbd5e1'}; font-weight: 600; margin-left: 2px;">(${relTime})</strong>` : ''}
+                            ${isax('clock', '', 'width: 9px; height: 9px; opacity: 0.7;')}
+                            ${isResolved ? resTimeDisplay : timeDisplay}
+                            ${relTime && !isResolved ? `<strong style="color: ${isNewestItem ? '#34d399' : '#cbd5e1'}; font-weight: 600; margin-left: 1px;">(${relTime})</strong>` : ''}
                         </span>
                     </div>
                 </div>
+
                 ${lastOutboundInfo}
                 ${isActive ? `
-                    <div class="callback-active-subrow" style="margin-top: 2px; padding: 2px 6px; font-size: 9.5px;">
-                        <div style="display: flex; align-items: center; gap: 4px;">
+                    <div class="callback-active-subrow" style="margin-top: 1px; padding: 2px 5px; font-size: 9px;">
+                        <div style="display: flex; align-items: center; gap: 3px;">
                             <span class="active-dot" style="width: 5px; height: 5px;"></span>
                             <span>${activeCall.operator}</span>
                         </div>
-                        <span style="color: #a7f3d0; font-weight: 500; font-size: 9.5px;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
+                        <span style="color: #a7f3d0; font-weight: 500;">${activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda..."}</span>
                     </div>
                 ` : ''}
             </div>
@@ -4997,8 +5359,7 @@ function renderViewerCallbacks(callbacks) {
         `;
 
         if (remainingCount > 0) {
-            const btnMoreText = tf('cb_show_more_rows', { count: nextBatchCards }, `Yana 2 qator ko'rsatish (+${nextBatchCards} ta)`);
-            const remainingText = tf('cb_remaining', { count: remainingCount }, `Qolgan: ${remainingCount} ta`);
+            const btnMoreText = tf('cb_show_more_rows', { count: nextBatchCards }, `Yana ko'rsatish (+${nextBatchCards})`);
             html += `
                 <button type="button" 
                         class="btn-cb-expand" 
@@ -5006,13 +5367,12 @@ function renderViewerCallbacks(callbacks) {
                         title="${btnMoreText}">
                     ${isax('arrow-down', '', 'width: 14px; height: 14px;')}
                     <span>${btnMoreText}</span>
-                    <span style="background: rgba(59, 130, 246, 0.25); border-radius: 6px; padding: 1px 7px; font-size: 11px; margin-left: 2px;">${remainingText}</span>
                 </button>
             `;
         }
 
         if (currentCallbackVisibleRows > 2) {
-            const collapseText = t('cb_collapse_rows', `Yig'ish (2 qator)`);
+            const collapseText = t('cb_collapse_rows', `Yig'ish`);
             html += `
                 <button type="button" 
                         class="btn-cb-collapse" 
@@ -5261,13 +5621,6 @@ function initViewer() {
     initConverterDropzone();
     initUzcryptoBadge();
     initToolsDragAndDrop();
-
-    // Avtomatik zaxira so'rovi (har 6 soniyada)
-    refreshInterval = setInterval(() => {
-        loadOperators();
-        fetchActiveViewers();
-        fetchViewerCallbacks();
-    }, 6000);
 }
 
 /* ==========================================================================
@@ -5281,10 +5634,13 @@ function initDeployWatcher() {
     // 1. Initial silent version check to store current buildId
     checkVersionFromServer(true);
 
-    // 2. Periodic polling every 20 seconds (background fallback if WS is idle or sleeping)
+    // 2. Zaxira polling har 60 soniyada (faqat WS uzilgan bo'lsa)
     setInterval(() => {
-        checkVersionFromServer(false);
-    }, 20000);
+        if (document.visibilityState === 'hidden') return;
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            checkVersionFromServer(false);
+        }
+    }, 60000);
 
     // 3. Check immediately when user switches back to this browser tab
     window.addEventListener('focus', () => {
@@ -5483,7 +5839,7 @@ function handleConverterFileSelected(file) {
     if (sizeEl) sizeEl.textContent = formatConverterFileSize(file.size);
     if (badgeEl) {
         badgeEl.textContent = ext.toUpperCase().slice(0, 4);
-        if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
+        if (['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'avif', 'tiff', 'bmp'].includes(ext)) {
             badgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
             badgeEl.style.borderColor = 'rgba(245, 158, 11, 0.35)';
             badgeEl.style.color = '#fbbf24';
@@ -5502,12 +5858,17 @@ function handleConverterFileSelected(file) {
         }
     }
 
-    // Formatlar xaritasi
+    // Formatlar xaritasi (DragShift dvigateli bilan kengaytirilgan)
     const formatMap = {
-        'pdf': ['docx', 'txt'],
+        'pdf': ['docx', 'png', 'jpg', 'txt'],
         'docx': ['pdf', 'txt'],
         'doc': ['docx', 'pdf', 'txt'],
         'txt': ['pdf', 'docx'],
+        'heic': ['jpg', 'png', 'pdf', 'webp'],
+        'heif': ['jpg', 'png', 'pdf', 'webp'],
+        'avif': ['jpg', 'png', 'pdf', 'webp'],
+        'tiff': ['jpg', 'png', 'pdf'],
+        'bmp': ['jpg', 'png', 'pdf', 'webp'],
         'jpg': ['png', 'webp', 'pdf'],
         'jpeg': ['png', 'webp', 'pdf'],
         'png': ['jpg', 'webp', 'pdf'],
@@ -5807,3 +6168,622 @@ function testOpenContactTelegram() {
     openTelegramUser(tgId, phone);
 }
 window.testOpenContactTelegram = testOpenContactTelegram;
+
+
+// =========================================================================
+// MASOFAVIY BOSHQARUV (RUSTDESK + 3CX OVOZ INTEGRATSIYASI)
+// =========================================================================
+let currentRdOperator = null;
+const rustdeskInstalledSet = new Set();
+
+const RD_KNOWN_IP_MAP = {
+    '101': '192.168.0.17',
+    '103': '192.168.0.100',
+    '106': '192.168.0.106',
+    '111': '192.168.0.19',
+    '114': '192.168.0.114',
+    '119': '192.168.0.119',
+    '120': '192.168.0.18'
+};
+
+async function loadRustdeskDevices() {
+    try {
+        const resp = await fetch('/api/remote-desktop/devices');
+        const json = await resp.json();
+        if (json.success && Array.isArray(json.devices)) {
+            rustdeskInstalledSet.clear();
+            for (const d of json.devices) {
+                if (d.installed) {
+                    if (d.ext) rustdeskInstalledSet.add(String(d.ext));
+                    if (d.ip) rustdeskInstalledSet.add(String(d.ip));
+                }
+            }
+            if (typeof renderOperators === 'function') renderOperators();
+        }
+    } catch (e) {}
+}
+loadRustdeskDevices();
+
+function getOperatorDefaultIp(opId, passedIp) {
+    if (passedIp && passedIp !== '-none-' && passedIp !== 'Aniqlanmagan' && passedIp.trim().length > 0) {
+        return passedIp.trim();
+    }
+    const saved = localStorage.getItem('rd_ip_' + opId);
+    if (saved) return saved;
+    return RD_KNOWN_IP_MAP[String(opId)] || ('192.168.0.' + opId);
+}
+
+function updateRdModalStatusBanner(opId, ip) {
+    const banner = document.getElementById('rdModalStatusBanner');
+    if (!banner) return;
+    banner.innerHTML = '';
+}
+window.updateRdModalStatusBanner = updateRdModalStatusBanner;
+
+async function toggleRustDeskDevice(ext, ip, installed) {
+    try {
+        await fetch('/api/remote-desktop/toggle-device', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ext, ip, installed })
+        });
+        if (installed) {
+            if (ext) rustdeskInstalledSet.add(String(ext));
+            if (ip) rustdeskInstalledSet.add(String(ip));
+        } else {
+            if (ext) rustdeskInstalledSet.delete(String(ext));
+            if (ip) rustdeskInstalledSet.delete(String(ip));
+        }
+        updateRdModalStatusBanner(ext, ip);
+        if (typeof renderOperators === 'function') renderOperators();
+    } catch (e) {}
+}
+window.toggleRustDeskDevice = toggleRustDeskDevice;
+
+function openRemoteDesktopModal(opId, opName, opIp) {
+    const opNum = parseInt(opId, 10);
+    const myNum = parseInt(myOperatorId, 10);
+    if ((!isNaN(opNum) && opNum >= 200) || (!isNaN(myNum) && myNum >= 200)) {
+        if (typeof showToast === 'function') {
+            showToast("200-guruh operatorlari uchun masofaviy kompyuter boshqaruvi cheklangan", "warning");
+        } else {
+            alert("200-guruh operatorlari uchun masofaviy kompyuter boshqaruvi cheklangan");
+        }
+        return;
+    }
+    currentRdOperator = { id: String(opId), name: opName || ('Operator ' + opId), ip: opIp || '' };
+    const modal = document.getElementById('remoteDesktopModal');
+    if (!modal) return;
+
+    const avatarEl = document.getElementById('rdModalAvatar');
+    const nameEl = document.getElementById('rdModalOpName');
+    const extenEl = document.getElementById('rdModalOpExten');
+    const ipInput = document.getElementById('rdModalIpInput');
+
+    if (avatarEl) avatarEl.textContent = opId;
+    if (nameEl) nameEl.textContent = opName || ('Operator ' + opId);
+    if (extenEl) extenEl.textContent = opId;
+
+    const finalIp = getOperatorDefaultIp(opId, opIp);
+    if (ipInput) ipInput.value = finalIp;
+
+    updateRdModalStatusBanner(opId, finalIp);
+
+    modal.style.display = 'flex';
+}
+window.openRemoteDesktopModal = openRemoteDesktopModal;
+
+function closeRemoteDesktopModal() {
+    const modal = document.getElementById('remoteDesktopModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeRemoteDesktopModal = closeRemoteDesktopModal;
+
+function resetRdIpToDetected() {
+    if (!currentRdOperator) return;
+    const ipInput = document.getElementById('rdModalIpInput');
+    const autoIp = RD_KNOWN_IP_MAP[currentRdOperator.id] || currentRdOperator.ip || ('192.168.0.' + currentRdOperator.id);
+    if (ipInput) ipInput.value = autoIp;
+}
+window.resetRdIpToDetected = resetRdIpToDetected;
+
+function copyRdIp() {
+    const ipInput = document.getElementById('rdModalIpInput');
+    if (!ipInput || !ipInput.value.trim()) return;
+    const val = ipInput.value.trim();
+    navigator.clipboard.writeText(val).then(() => {
+        if (typeof showToast === 'function') showToast(t('rd_ip_copied', 'IP manzil nusxalandi: ' + val), 'success');
+        else alert('IP nusxalandi: ' + val);
+    });
+}
+window.copyRdIp = copyRdIp;
+
+function copyRdPass() {
+    const passEl = document.getElementById('rdModalDefaultPass');
+    const pass = passEl ? passEl.textContent.trim() : 'CallCenter2026!';
+    navigator.clipboard.writeText(pass).then(() => {
+        if (typeof showToast === 'function') showToast(t('rd_pass_copied', 'Parol nusxalandi!'), 'success');
+        else alert('Parol nusxalandi!');
+    });
+}
+window.copyRdPass = copyRdPass;
+
+function connectRustDeskAction() {
+    const ipInput = document.getElementById('rdModalIpInput');
+    const ip = ipInput ? ipInput.value.trim() : '';
+    if (!ip) {
+        if (typeof showToast === 'function') showToast(t('rd_enter_ip', 'Iltimos, operator kompyuterining IP manzilini kiriting!'), 'error');
+        else alert('Iltimos, IP manzilini kiriting!');
+        return;
+    }
+
+    if (currentRdOperator && currentRdOperator.id) {
+        localStorage.setItem('rd_ip_' + currentRdOperator.id, ip);
+    }
+
+    // RustDesk URI protocol orqali dasturni ishga tushirish (avto-parol bilan)
+    const pass = 'CallCenter2026!';
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pass).catch(() => {});
+    }
+
+    // RustDesk dasturini faqat 1 marta ishga tushirish
+    const rustdeskUrl = 'rustdesk://' + ip;
+    const a = document.createElement('a');
+    a.href = rustdeskUrl;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
+
+    if (typeof showToast === 'function') {
+        showToast(ip + ' ga ulanish ochilmoqda. Parol: ' + pass + ' (nusxalandi)', 'info');
+    }
+    closeRemoteDesktopModal();
+}
+window.connectRustDeskAction = connectRustDeskAction;
+
+function sendRustDeskInstallPrompt() {
+    if (!currentRdOperator) return;
+    const targetId = currentRdOperator.id;
+    const targetName = currentRdOperator.name;
+
+    fetch('/api/remote-desktop/notify-operator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operatorId: targetId, operatorName: targetName })
+    }).catch(() => {});
+
+    if (typeof showToast === 'function') {
+        showToast('📩 ' + targetName + ' (' + targetId + ') ga RustDesk o\'rnatish taklifi yuborildi!', 'success');
+    }
+}
+window.sendRustDeskInstallPrompt = sendRustDeskInstallPrompt;
+
+function showRustDeskInstallPrompt(opName) {
+    const modal = document.getElementById('rustdeskInstallPromptModal');
+    if (modal) modal.style.display = 'block';
+}
+window.showRustDeskInstallPrompt = showRustDeskInstallPrompt;
+
+function closeInstallPrompt() {
+    const modal = document.getElementById('rustdeskInstallPromptModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeInstallPrompt = closeInstallPrompt;
+
+function acceptInstallPrompt() {
+    closeInstallPrompt();
+    if (typeof showToast === 'function') {
+        showToast('📥 1-bosishda o\'rnatgich yuklanmoqda... Yuklangan faylni bosing, o\'zi avtomat o\'rnatiladi!', 'success');
+    }
+}
+window.acceptInstallPrompt = acceptInstallPrompt;
+
+// Global WebSocket tinglovchisi (Taklif kelganda ekranda chiqarish)
+window.addEventListener('rustdesk_prompt', function(e) {
+    showRustDeskInstallPrompt(e.detail && e.detail.operatorName);
+});
+
+// ==========================================
+// ⚡ SPEEDTEST (ICHKI TARMOQ TEZLIGI) FUNKSIYALARI
+// ==========================================
+let isSpeedtestRunning = false;
+
+function openSpeedtestModal() {
+    const modal = document.getElementById('speedtestModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    
+    // Server va mijoz IP ma'lumotini aniqlash
+    fetch('/api/speedtest/ping?_t=' + Date.now())
+        .then(r => r.json())
+        .then(d => {
+            const infoEl = document.getElementById('stServerInfo');
+            if (infoEl && d) {
+                const lanIp = d.serverLanIp || '192.168.0.124';
+                const isLocal = window.location.hostname.startsWith('192.168.') || window.location.hostname === 'localhost';
+                const serverDisplay = isLocal ? `Ichki LAN IP (${window.location.hostname})` : `Ichki LAN IP: ${lanIp}`;
+                let lanHint = '';
+                if (!isLocal) {
+                    const lanPort = window.location.port || '3005';
+                    const lanUrl = `http://${lanIp}:${lanPort}`;
+                    lanHint = `<div style="margin-top: 5px; font-size: 11.5px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 4px 8px;">
+                        💡 <b>Maslahat:</b> Haqiqiy <b>&lt;1 ms</b> ichki LAN tezligi va 1 Gb/s sinovi uchun ichki IP orqali kiring: 
+                        <a href="${lanUrl}" style="color: #38bdf8; text-decoration: underline; font-weight: 700;" target="_blank">${lanUrl}</a>
+                    </div>`;
+                }
+                infoEl.innerHTML = `Mijoz IP: <b style="color:#fff;">${d.clientIp || '192.168.0.x'}</b> • Server: <b style="color:#38bdf8;">${serverDisplay}</b>${lanHint}`;
+            }
+        })
+        .catch(() => {});
+}
+window.openSpeedtestModal = openSpeedtestModal;
+
+async function testOperatorLanPing() {
+    const ipInput = document.getElementById('stOperatorIpInput');
+    const resEl = document.getElementById('stOperatorPingResult');
+    const btn = document.getElementById('btnTestOpPing');
+    const ip = (ipInput ? ipInput.value : '').trim();
+    if (!ip) return;
+
+    if (btn) btn.disabled = true;
+    if (resEl) {
+        resEl.style.display = 'block';
+        resEl.style.color = '#38bdf8';
+        resEl.innerHTML = `⏳ <b>${ip}</b> ga ichki tarmoq signali (LAN ICMP Ping) yuborilmoqda...`;
+    }
+
+    try {
+        const r = await fetch('/api/speedtest/operator-ping?ip=' + encodeURIComponent(ip));
+        const data = await r.json();
+        if (data.success && data.avgPing !== null) {
+            resEl.style.color = '#34d399';
+            resEl.innerHTML = `✅ <b>${ip}:</b> Kechikish: <span style="font-weight:bold; font-size:14px; color:#38bdf8;">${data.avgPing} ms</span> | Yo'qotish: <b>${data.packetLoss}</b> | <span style="color:#a7f3d0;">${data.verdict}</span>`;
+        } else {
+            resEl.style.color = '#f87171';
+            resEl.innerHTML = `❌ <b>${ip}:</b> Kompyuter ichki tarmoqda topilmadi yoki o'chiq (Paket yo'qotish: 100%)`;
+        }
+    } catch (e) {
+        if (resEl) {
+            resEl.style.color = '#f87171';
+            resEl.textContent = 'Xatolik: Server bilan aloqa uzildi';
+        }
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+window.testOperatorLanPing = testOperatorLanPing;
+
+function closeSpeedtestModal() {
+    const modal = document.getElementById('speedtestModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeSpeedtestModal = closeSpeedtestModal;
+
+function updateStGauge(mbps, maxMbps = 1000) {
+    const arc = document.getElementById('stGaugeArc');
+    const valEl = document.getElementById('stSpeedValue');
+    if (valEl) valEl.textContent = Number(mbps).toFixed(1);
+    if (arc) {
+        const total = 251.2;
+        const ratio = Math.min(Math.max(mbps / maxMbps, 0), 1);
+        const offset = total - (total * ratio);
+        arc.style.strokeDashoffset = offset.toFixed(1);
+    }
+}
+
+async function runSpeedtest() {
+    if (isSpeedtestRunning) return;
+    isSpeedtestRunning = true;
+
+    const btn = document.getElementById('btnRunSpeedtest');
+    const btnText = document.getElementById('btnRunSpeedtestText');
+    const phaseText = document.getElementById('stPhaseText');
+    const pingEl = document.getElementById('stPingVal');
+    const jitterEl = document.getElementById('stJitterVal');
+    const dlEl = document.getElementById('stDownloadVal');
+    const ulEl = document.getElementById('stUploadVal');
+    const verdictBanner = document.getElementById('stVerdictBanner');
+    const verdictTitle = document.getElementById('stVerdictTitle');
+    const verdictDesc = document.getElementById('stVerdictDesc');
+
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.textContent = 'O\'lchanmoqda...';
+    if (verdictBanner) verdictBanner.style.display = 'none';
+    if (pingEl) pingEl.textContent = '-- ms';
+    if (jitterEl) jitterEl.textContent = 'Jitter: --';
+    if (dlEl) dlEl.textContent = '-- Mbit/s';
+    if (ulEl) ulEl.textContent = '-- Mbit/s';
+    updateStGauge(0);
+
+    try {
+        // 1. PING & JITTER TEST (Keep-Alive va Issiq Ulanish bilan)
+        if (phaseText) phaseText.innerHTML = '📶 <span style="color:#38bdf8;">1/3: Ping va Kechikish (Latency) o\'lchanmoqda...</span>';
+        
+        // Issiq boshlang'ich ulanish (TLS handshake vaqti o'lchovga xalaqit bermasligi uchun)
+        try { await fetch('/api/speedtest/ping', { cache: 'no-store' }); } catch (e) {}
+
+        const pings = [];
+        for (let i = 0; i < 6; i++) {
+            const t0 = performance.now();
+            await fetch('/api/speedtest/ping', { cache: 'no-store' });
+            const t1 = performance.now();
+            pings.push(t1 - t0);
+            await new Promise(r => setTimeout(r, 40));
+        }
+        // Eng katta shubhali sakrashni (outlier) olib tashlaymiz
+        pings.sort((a, b) => a - b);
+        const validPings = pings.slice(0, 5);
+        const avgPing = Math.round(validPings.reduce((a, b) => a + b, 0) / validPings.length);
+        const jitter = Math.round(validPings.reduce((acc, p) => acc + Math.abs(p - avgPing), 0) / validPings.length);
+        if (pingEl) pingEl.textContent = avgPing + ' ms';
+        if (jitterEl) jitterEl.textContent = 'Jitter: ±' + jitter + ' ms';
+
+        // 2. DOWNLOAD SPEED TEST (Multi-Stream Parallel O'lchov, 3 ta oqim)
+        if (phaseText) phaseText.innerHTML = '📥 <span style="color:#10b981;">2/3: Qabul qilish tezligi (Download) o\'lchanmoqda...</span>';
+        const numStreams = 3;
+        const bytesPerStream = 10 * 1024 * 1024; // 10 MB x 3 = 30 MB
+        let totalDownloaded = 0;
+        let dlStartTime = 0;
+        let lastDownloadMbps = 0;
+
+        const downloadStream = async (streamId) => {
+            const res = await fetch(`/api/speedtest/download?bytes=${bytesPerStream}&s=${streamId}&_t=${Date.now()}`);
+            const reader = res.body.getReader();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (!dlStartTime) dlStartTime = performance.now(); // Birinchi bayt kelgan paytdan vaqt o'lchanadi
+                totalDownloaded += value.length;
+                const elapsedSec = (performance.now() - dlStartTime) / 1000;
+                if (elapsedSec > 0.05) {
+                    lastDownloadMbps = (totalDownloaded * 8) / elapsedSec / 1000000;
+                    updateStGauge(lastDownloadMbps);
+                    if (dlEl) dlEl.textContent = lastDownloadMbps.toFixed(1) + ' Mbit/s';
+                }
+            }
+        };
+
+        await Promise.all(Array.from({ length: numStreams }, (_, i) => downloadStream(i)));
+        const finalDlMbps = lastDownloadMbps || 0;
+        if (dlEl) dlEl.textContent = finalDlMbps.toFixed(1) + ' Mbit/s';
+
+        await new Promise(r => setTimeout(r, 400));
+        updateStGauge(0);
+
+        // 3. UPLOAD SPEED TEST (12 MB Buffer)
+        if (phaseText) phaseText.innerHTML = '📤 <span style="color:#fbbf24;">3/3: Yuborish tezligi (Upload) o\'lchanmoqda...</span>';
+        const ulSize = 12 * 1024 * 1024;
+        const dummyBuffer = new Uint8Array(ulSize);
+        dummyBuffer.fill(0x55);
+        let ulStartTime = 0;
+
+        const uploadPromise = new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/speedtest/upload?_t=' + Date.now(), true);
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable && e.loaded > 0) {
+                    if (!ulStartTime) ulStartTime = performance.now();
+                    const elapsed = (performance.now() - ulStartTime) / 1000;
+                    if (elapsed > 0.05) {
+                        const curMbps = (e.loaded * 8) / elapsed / 1000000;
+                        updateStGauge(curMbps);
+                        if (ulEl) ulEl.textContent = curMbps.toFixed(1) + ' Mbit/s';
+                    }
+                }
+            };
+            xhr.onload = () => {
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    resolve(res.mbps || 0);
+                } catch (e) {
+                    const elapsed = (performance.now() - (ulStartTime || performance.now())) / 1000;
+                    resolve((ulSize * 8) / (elapsed || 1) / 1000000);
+                }
+            };
+            xhr.onerror = reject;
+            xhr.send(dummyBuffer);
+        });
+
+        const finalUlMbps = await uploadPromise;
+        if (ulEl) ulEl.textContent = Number(finalUlMbps).toFixed(1) + ' Mbit/s';
+        updateStGauge(finalDlMbps);
+
+        // 4. VERDICT & QUALITY RATING (Haqiqiy aloqa sifatini baholash)
+        if (phaseText) phaseText.innerHTML = '✅ <span style="color:#34d399;">O\'lchov muvaffaqiyatli yakunlandi!</span>';
+        if (verdictBanner) {
+            verdictBanner.style.display = 'block';
+            if (finalDlMbps >= 70 && avgPing <= 60) {
+                verdictBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                verdictBanner.style.background = 'rgba(16, 185, 129, 0.12)';
+                if (verdictTitle) verdictTitle.innerHTML = '🟢 A\'lo Darajadagi Aloqa (100 Mb/s - 1 Gb/s)';
+                if (verdictDesc) verdictDesc.textContent = 'Tarmoq o\'tkazuvchanligi a\'lo darajada! RustDesk HD ekranni uzatish va ko\'p kanalli audio qo\'ng\'iroqlar uchun to\'liq yetarli.';
+            } else if (finalDlMbps >= 25 && avgPing <= 120) {
+                verdictBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                verdictBanner.style.background = 'rgba(16, 185, 129, 0.12)';
+                if (verdictTitle) verdictTitle.innerHTML = '🟢 Barqaror va Tezkor Aloqa';
+                if (verdictDesc) verdictDesc.textContent = 'Aloqa tezligi va barqarorligi yaxshi. Masofaviy yordam, ekran boshqaruvi va Call Center qo\'ng\'iroqlari qotishlarsiz ishlaydi.';
+            } else if (finalDlMbps >= 10 && avgPing <= 180) {
+                verdictBanner.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+                verdictBanner.style.background = 'rgba(245, 158, 11, 0.12)';
+                if (verdictTitle) verdictTitle.innerHTML = '🟡 O\'rtacha Aloqa / Wi-Fi';
+                if (verdictDesc) verdictDesc.textContent = 'Aloqa o\'rtacha. Ovozli qo\'ng\'iroqlar uchun yetarli, ammo katta hajmdagi ekran yangilanishlarida biroz kechikish bo\'lishi mumkin.';
+            } else {
+                verdictBanner.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                verdictBanner.style.background = 'rgba(239, 68, 68, 0.12)';
+                if (verdictTitle) verdictTitle.innerHTML = '🔴 Tarmoqda Sekinlik Bor';
+                if (verdictDesc) verdictDesc.textContent = 'Tezlik past yoki kechikish yuqori. Tarmoq kabeli, switch yoki Wi-Fi router yuklamasini tekshirish tavsiya etiladi.';
+            }
+        }
+    } catch (err) {
+        console.error('Speedtest error:', err);
+        if (phaseText) phaseText.innerHTML = '⚠️ <span style="color:#f87171;">O\'lchashda xatolik yuz berdi. Server bilan aloqani tekshiring.</span>';
+    } finally {
+        isSpeedtestRunning = false;
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = '🔄 Qayta tekshirish';
+    }
+}
+window.runSpeedtest = runSpeedtest;
+
+/* ==========================================================================
+   3CX Softphone & Desktop Agent Management Engine
+   ========================================================================== */
+const OPERATOR_AGENT_MAP = {
+    '101': { name: 'Oybek', file: 'Oybek_101.zip', group: 'main' },
+    '103': { name: 'Feruza', file: 'Feruza_103.zip', group: 'main' },
+    '106': { name: 'Gulchehra', file: 'Gulchehra_106.zip', group: 'main' },
+    '111': { name: 'Nozima', file: 'Nozima_111.zip', group: 'main' },
+    '114': { name: 'Maxmudbek', file: 'Maxmudbek_114.zip', group: 'main' },
+    '116': { name: 'Ibrohim', file: 'Ibrohim_116.zip', group: 'main' },
+    '119': { name: 'Muattar', file: 'Muattar_119.zip', group: 'main' },
+    '120': { name: 'Navruzoy', file: 'Navruzoy_120.zip', group: 'main' },
+    '200': { name: 'Operator 200', file: 'Operator_200.zip', group: 'secondary' },
+    '201': { name: 'Operator 201', file: 'Operator_201.zip', group: 'secondary' },
+    '202': { name: 'Operator 202', file: 'Operator_202.zip', group: 'secondary' },
+    '203': { name: 'Operator 203', file: 'Operator_203.zip', group: 'secondary' },
+    '204': { name: 'Operator 204', file: 'Operator_204.zip', group: 'secondary' },
+    '205': { name: 'Operator 205', file: 'Operator_205.zip', group: 'secondary' },
+    '206': { name: 'Operator 206', file: 'Operator_206.zip', group: 'secondary' },
+    '207': { name: 'Operator 207', file: 'Operator_207.zip', group: 'secondary' },
+    '208': { name: 'Operator 208', file: 'Operator_208.zip', group: 'secondary' },
+    '209': { name: 'Operator 209', file: 'Operator_209.zip', group: 'secondary' }
+};
+
+let current3cxFilterGroup = 'all';
+let current3cxFilterQuery = '';
+
+function updateMyAgentButton() {
+    const btn = document.getElementById('btnDownloadMyAgentText');
+    if (!btn) return;
+    const opId = String(myOperatorId || localStorage.getItem('viewer_my_operator_id') || '').trim();
+    if (opId && OPERATOR_AGENT_MAP[opId]) {
+        btn.textContent = `${OPERATOR_AGENT_MAP[opId].name} (${opId}) ZIP`;
+    } else {
+        btn.textContent = "Mening agentim (.zip)";
+    }
+}
+window.updateMyAgentButton = updateMyAgentButton;
+
+function downloadMyAgentPackage() {
+    const opId = String(myOperatorId || localStorage.getItem('viewer_my_operator_id') || '').trim();
+    if (opId && OPERATOR_AGENT_MAP[opId]) {
+        const file = OPERATOR_AGENT_MAP[opId].file;
+        const a = document.createElement('a');
+        a.href = `/downloads/3cx-agents/${file}`;
+        a.download = file;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    } else {
+        open3cxAgentsListModal();
+    }
+}
+window.downloadMyAgentPackage = downloadMyAgentPackage;
+
+function open3cxAgentsListModal() {
+    const modal = document.getElementById('modal3cxAgentsList');
+    if (!modal) return;
+    render3cxAgentsList();
+    modal.style.display = 'flex';
+}
+window.open3cxAgentsListModal = open3cxAgentsListModal;
+
+function close3cxAgentsListModal() {
+    const modal = document.getElementById('modal3cxAgentsList');
+    if (modal) modal.style.display = 'none';
+}
+window.close3cxAgentsListModal = close3cxAgentsListModal;
+
+function open3cxConfigGuideModal() {
+    const modal = document.getElementById('modal3cxConfigGuide');
+    if (!modal) return;
+    modal.style.display = 'flex';
+}
+window.open3cxConfigGuideModal = open3cxConfigGuideModal;
+
+function close3cxConfigGuideModal() {
+    const modal = document.getElementById('modal3cxConfigGuide');
+    if (modal) modal.style.display = 'none';
+}
+window.close3cxConfigGuideModal = close3cxConfigGuideModal;
+
+function filter3cxAgentsList(group, btnEl) {
+    current3cxFilterGroup = group;
+    document.querySelectorAll('.btn-group-3cx').forEach(b => {
+        b.style.background = 'rgba(255,255,255,0.06)';
+        b.style.color = '#94a3b8';
+        b.style.border = '1px solid rgba(255,255,255,0.1)';
+    });
+    if (btnEl) {
+        btnEl.style.background = '#10b981';
+        btnEl.style.color = '#fff';
+        btnEl.style.border = 'none';
+    }
+    render3cxAgentsList();
+}
+window.filter3cxAgentsList = filter3cxAgentsList;
+
+function filter3cxAgentsByQuery(q) {
+    current3cxFilterQuery = (q || '').trim().toLowerCase();
+    render3cxAgentsList();
+}
+window.filter3cxAgentsByQuery = filter3cxAgentsByQuery;
+
+function render3cxAgentsList() {
+    const container = document.getElementById('container3cxAgentsGrid');
+    if (!container) return;
+
+    let entries = Object.entries(OPERATOR_AGENT_MAP);
+
+    if (current3cxFilterGroup !== 'all') {
+        entries = entries.filter(([id, op]) => op.group === current3cxFilterGroup);
+    }
+
+    if (current3cxFilterQuery) {
+        entries = entries.filter(([id, op]) => {
+            return id.includes(current3cxFilterQuery) || op.name.toLowerCase().includes(current3cxFilterQuery);
+        });
+    }
+
+    if (entries.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 40px 10px;">
+                Operator topilmadi
+            </div>
+        `;
+        return;
+    }
+
+    const myOpId = String(myOperatorId || localStorage.getItem('viewer_my_operator_id') || '').trim();
+
+    container.innerHTML = entries.map(([id, op]) => {
+        const isMine = myOpId === id;
+        const is200 = parseInt(id, 10) >= 200;
+        const badgeColor = is200 ? 'rgba(139, 92, 246, 0.2)' : 'rgba(56, 189, 248, 0.2)';
+        const textColor = is200 ? '#c4b5fd' : '#7dd3fc';
+        const groupLabel = is200 ? 'Zangiota (200+)' : 'Asosiy (100+)';
+
+        return `
+            <div style="background: ${isMine ? 'rgba(16, 185, 129, 0.12)' : 'rgba(255, 255, 255, 0.03)'}; border: 1px solid ${isMine ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; transition: all 0.2s;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                        <span style="font-weight: 700; font-size: 14px; color: #fff;">${op.name}</span>
+                        <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: ${badgeColor}; color: ${textColor};">${id}</span>
+                    </div>
+                    <div style="font-size: 11.5px; color: #94a3b8;">${groupLabel}</div>
+                    ${isMine ? '<div style="font-size: 11px; color: #34d399; font-weight: 600; margin-top: 4px;">⭐ Sizning hisobingiz</div>' : ''}
+                </div>
+                <a href="/downloads/3cx-agents/${op.file}" download="${op.file}" class="tool-action-btn primary" style="background: ${isMine ? '#10b981' : 'rgba(255,255,255,0.08)'}; border: 1px solid ${isMine ? '#059669' : 'rgba(255,255,255,0.15)'}; color: #fff; padding: 6px 10px; font-size: 12px; text-decoration: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg class="isax isax-import" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-import"></use></svg>
+                    <span>Yuklab olish (.zip)</span>
+                </a>
+            </div>
+        `;
+    }).join('');
+}
+
+// Sahifa yuklanganda Mening agentim tugmasini yangilash
+setTimeout(updateMyAgentButton, 300);
+

@@ -5,9 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Call Center - Tizimga Kirish</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Localized Fonts (Oflayn va ultra-tezkor yuklanish) -->
+    <link rel="stylesheet" href="/fonts/fonts.css?v=1.0">
     <style>
         :root {
             --bg-dark: #0a0e17;
@@ -36,12 +35,14 @@
                 radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%);
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
             color: var(--text-main);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             position: relative;
         }
 
@@ -259,6 +260,30 @@
             80% { transform: rotate(3deg) translateY(-1px); }
         }
 
+        .panel-choice-btn {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(30, 41, 59, 0.85);
+            color: #f8fafc;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.22s ease-in-out;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .panel-choice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            background: rgba(30, 41, 59, 0.98);
+        }
+        .panel-choice-btn:active {
+            transform: translateY(0);
+        }
+
         .login-container {
             flex: 1;
             width: 100%;
@@ -270,22 +295,85 @@
         }
 
         @media (max-width: 850px) {
+            body {
+                align-items: center;
+                justify-content: center;
+                padding: 12px 10px;
+                min-height: 100dvh;
+            }
             .login-split-card {
                 flex-direction: column;
-                max-width: 430px;
+                max-width: 410px;
+                width: 100%;
                 border-radius: 20px;
+                margin: 0 auto;
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
             }
             .characters-stage {
                 border-right: none;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-                padding: 22px 18px 12px 18px;
-                min-height: 200px;
+                padding: 10px 14px 4px 14px;
+                min-height: 0;
             }
             .characters-svg {
-                max-width: 270px;
+                width: 150px;
+                height: 76px;
+                max-width: 150px;
+                max-height: 76px;
+            }
+            .stage-caption {
+                font-size: 10px !important;
+                margin-top: 2px !important;
             }
             .login-container {
-                padding: 28px 22px;
+                padding: 14px 18px 16px 18px;
+            }
+            .login-header {
+                margin-bottom: 10px;
+            }
+            .login-logo {
+                width: 36px;
+                height: 36px;
+                margin: 0 auto 6px;
+                border-radius: 10px;
+            }
+            .login-logo svg {
+                width: 20px !important;
+                height: 20px !important;
+            }
+            .login-title {
+                font-size: 18px;
+                margin-bottom: 2px;
+            }
+            .login-subtitle {
+                font-size: 11.5px;
+            }
+            .form-group {
+                margin-bottom: 8px;
+            }
+            .input-wrapper {
+                height: 44px;
+            }
+            .form-input {
+                height: 44px;
+                font-size: 13px;
+            }
+            .forgot-link-wrapper {
+                margin-top: -2px;
+                margin-bottom: 8px;
+            }
+            .btn-submit {
+                height: 44px;
+                font-size: 13.5px;
+                margin: 4px auto 0;
+            }
+            .pk-btn {
+                padding: 10px 14px !important;
+                font-size: 13px !important;
+            }
+            .footer-note {
+                margin-top: 10px;
+                font-size: 10.5px;
             }
         }
 
@@ -1028,7 +1116,7 @@
                     <circle class="mouth-o" cx="138" cy="240" r="3.5" fill="#7c2d12" style="display: none;"/>
                 </g>
             </svg>
-            <div style="font-size: 11.5px; color: var(--text-dim); margin-top: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
+            <div class="stage-caption" style="font-size: 11.5px; color: var(--text-dim); margin-top: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px;">
                 <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399;"></span>
                 <span>Call Center AI Interactive Stage</span>
             </div>
@@ -1132,6 +1220,25 @@
                     <path d="M5 13L9 17L19 7" stroke="currentColor"/>
                 </svg>
             </button>
+
+            <!-- Passkey / Biometrik kirish ajratgich & tugmasi -->
+            <div style="display: flex; align-items: center; margin: 12px 0 10px 0; gap: 10px; cursor: pointer;" onclick="executeBiometricLogin()" title="Barmoq izi bilan kirish">
+                <div style="flex: 1; height: 1px; background: rgba(148, 163, 184, 0.25);"></div>
+                <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">yoki barmoq izi bilan</span>
+                <div style="flex: 1; height: 1px; background: rgba(148, 163, 184, 0.25);"></div>
+            </div>
+            <div id="passkey-login" style="margin-bottom: 6px;">
+                <button type="button" id="btnBiometricLogin" class="pk-btn" onclick="executeBiometricLogin()" style="display: inline-flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 11px 16px; border-radius: 12px; border: 1.5px solid rgba(56, 189, 248, 0.5); background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(59, 130, 246, 0.25)); color: #38bdf8; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 18px rgba(56, 189, 248, 0.2); transition: all 0.2s;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px; flex-shrink: 0; color: #38bdf8;">
+                        <path d="M12 12c0-3 2-5 5-5s5 2 5 5-2 5-5 5-5-2-5-5z"></path>
+                        <path d="M12 2C6.5 2 2 6.5 2 12c0 3.5 1.8 6.5 4.5 8.2"></path>
+                        <path d="M7 12c0-2.8 2.2-5 5-5"></path>
+                        <path d="M17 12a5 5 0 0 0-5-5"></path>
+                    </svg>
+                    <span id="btnBiometricLoginText">Barmoq izi bilan tezkor kirish</span>
+                </button>
+                <div id="passkey-login-msg" class="pk-msg err" style="margin-top: 6px; font-size: 12px; text-align: center; min-height: 14px;"></div>
+            </div>
         </form>
 
         <div class="footer-note">
@@ -1326,6 +1433,62 @@
                         <span id="savePassBtnText">Parolni saqlash va kirish</span>
                     </button>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Qaysi panelga kirishni tanlash modali (Admin / Superuser uchun) -->
+    <div id="panelChoiceModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-card" style="max-width: 440px; text-align: center; padding: 26px 22px;">
+            <div style="width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 16px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(59, 130, 246, 0.35)); border: 1px solid rgba(56, 189, 248, 0.4); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(56, 189, 248, 0.25);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 26px; height: 26px;">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+            </div>
+            
+            <h3 style="font-size: 20px; font-weight: 800; color: #f8fafc; margin-bottom: 6px;">Qaysi bo'limga kirasiz?</h3>
+            <p id="panelChoiceUserHint" style="font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.45;">
+                Xush kelibsiz, <b style="color: #38bdf8;" id="panelChoiceUsername">Maxmudbek</b>! Kerakli ish panelini tanlang:
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 11px;">
+                <!-- 1. Admin Dashboard Tugmasi -->
+                <button type="button" onclick="choosePanel('admin')" class="panel-choice-btn" style="border: 1.5px solid rgba(59, 130, 246, 0.4);">
+                    <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(59, 130, 246, 0.18); border: 1px solid rgba(59, 130, 246, 0.4); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #60a5fa;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;">
+                            <path d="M3 3v18h18"/>
+                            <path d="M18 17V9"/>
+                            <path d="M13 17V5"/>
+                            <path d="M8 17v-3"/>
+                        </svg>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 14.5px; color: #60a5fa; margin-bottom: 2px;">Admin Dashboard</div>
+                        <div style="font-size: 11.5px; color: #94a3b8;">Boshqaruv, tahlillar, statistika va monitoring</div>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" style="width: 18px; height: 18px; flex-shrink: 0;">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+
+                <!-- 2. Operatorlar Paneli (Viewer) Tugmasi -->
+                <button type="button" onclick="choosePanel('viewer')" class="panel-choice-btn" style="border: 1.5px solid rgba(16, 185, 129, 0.4);">
+                    <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.4); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #34d399;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px;">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 14.5px; color: #34d399; margin-bottom: 2px;">Operatorlar Paneli</div>
+                        <div style="font-size: 11.5px; color: #94a3b8;">Jonli qo'ng'iroqlar, ticketlar va mijozlar bazasi</div>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="width: 18px; height: 18px; flex-shrink: 0;">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
             </div>
         </div>
     </div>
@@ -1572,6 +1735,14 @@
                         } catch (e) {}
                     }
 
+                    if (window.location.port !== '3005' && data.user && (data.user.role === 'admin' || data.user.role === 'superuser')) {
+                        // Maxmudbek / Admin kirsa: Ikkala panelni tanlash oynasini ochamiz
+                        setTimeout(() => {
+                            showPanelChoiceModal(data.user, data.token);
+                        }, 500);
+                        return;
+                    }
+
                     // 3. PUSH SLIDE: 600ms dan so'ng butun login oynasi silliq surilib Dashboardga o'tadi
                     setTimeout(() => {
                         const splitCard = document.querySelector('.login-split-card');
@@ -1579,7 +1750,9 @@
                         loginContainer.classList.add('push-slide-out');
 
                         setTimeout(() => {
-                            if (data.user && data.user.role === 'operator') {
+                            if (window.location.port === '3005') {
+                                window.location.href = window.location.protocol + '//' + window.location.hostname + ':3005/';
+                            } else if (data.user && data.user.role === 'operator') {
                                 const tokenParam = data.token ? `?token=${encodeURIComponent(data.token)}` : '';
                                 const viewerUrl = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
                                 window.location.href = viewerUrl;
@@ -1982,6 +2155,93 @@
                 savePassBtnText.textContent = 'Parolni saqlash va kirish';
             }
         });
+    </script>
+    <!-- WebAuthn Passkeys Browser Scripts -->
+    <script src="/vendor/simplewebauthn-browser.js"></script>
+    <script src="/passkey-client.js"></script>
+    <script>
+        let currentChoiceData = null;
+
+        function showPanelChoiceModal(user, token) {
+            currentChoiceData = { user, token };
+            const modal = document.getElementById('panelChoiceModal');
+            const nameEl = document.getElementById('panelChoiceUsername');
+            if (nameEl) {
+                nameEl.textContent = (user && (user.username || user.operatorName)) || 'Admin';
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function choosePanel(target) {
+            const modal = document.getElementById('panelChoiceModal');
+            if (modal) modal.style.display = 'none';
+
+            const token = currentChoiceData && currentChoiceData.token ? currentChoiceData.token : '';
+            if (token) {
+                try {
+                    localStorage.setItem('cc_token', token);
+                    localStorage.setItem('viewer_token', token);
+                    localStorage.setItem('auth_token', token);
+                } catch (e) {}
+            }
+            const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+
+            if (target === 'viewer') {
+                window.location.href = window.location.protocol + '//' + window.location.hostname + ':3005/' + tokenParam;
+            } else {
+                window.location.href = '/' + tokenParam;
+            }
+        }
+
+        async function executeBiometricLogin() {
+            const btn = document.getElementById('btnBiometricLogin');
+            const btnText = document.getElementById('btnBiometricLoginText');
+            const msg = document.getElementById('passkey-login-msg');
+            if (msg) msg.textContent = '';
+
+            if (!window.Passkey || !window.Passkey.login) {
+                if (msg) msg.textContent = 'Biometrik tizim yuklanmoqda... 2 soniyadan keyin qayta bosing';
+                return;
+            }
+            if (!window.Passkey.isSupported()) {
+                if (!window.isSecureContext || location.protocol !== 'https:') {
+                    if (msg) msg.textContent = 'Biometrik kirish faqat xavfsiz HTTPS (https://uniconsoft.ddns.net) orqali ishlaydi!';
+                } else {
+                    if (msg) msg.textContent = 'Ushbu brauzerda biometrik tizim qo\'llab-quvvatlanmaydi';
+                }
+                return;
+            }
+
+            try {
+                if (btn) btn.disabled = true;
+                if (btnText) btnText.textContent = 'Barmoq izini skaner qiling...';
+                const data = await window.Passkey.login();
+                if (btnText) btnText.textContent = 'Kirildi!';
+
+                const port = window.location.port;
+                if (port === '3005') {
+                    // Agar bevosita 3005 dan kirilgan bo'lsa
+                    window.location.href = window.location.protocol + '//' + window.location.hostname + ':3005/';
+                } else if (data && data.user && (data.user.role === 'admin' || data.user.role === 'superuser')) {
+                    // Maxmudbek / Admin kirsa: Ikkala panelni tanlash oynasini ochamiz
+                    showPanelChoiceModal(data.user, data.token);
+                } else if (data && data.user && data.user.role === 'operator') {
+                    window.location.href = window.location.protocol + '//' + window.location.hostname + ':3005/';
+                } else {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                if (btnText) btnText.textContent = 'Barmoq izi bilan kirish';
+                if (msg) {
+                    const friendly = window.Passkey.friendlyError ? window.Passkey.friendlyError(err) : (err.message || 'Kirish bekor qilindi');
+                    msg.textContent = friendly;
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>

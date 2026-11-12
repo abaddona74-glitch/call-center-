@@ -34,6 +34,8 @@ function extractToken(req) {
     }
     const cookieHeader = req.headers?.cookie;
     if (cookieHeader) {
+        const matchViewer = cookieHeader.match(/(?:^|;\s*)cc_viewer_session=([^;]+)/);
+        if (matchViewer) return decodeURIComponent(matchViewer[1]);
         const match = cookieHeader.match(/(?:^|;\s*)cc_session=([^;]+)/);
         if (match) return decodeURIComponent(match[1]);
     }
@@ -113,7 +115,19 @@ function logoutUpstream(token) {
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', 1);
 app.set('json spaces', 2);
+
+// HTTP Gzip Compression (Ideal Level 6, min 1KB)
+const compression = require('compression');
+app.use(compression({
+    level: 6,
+    threshold: 1024,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+    }
+}));
 
 // HTTP Xavfsizlik sarlavhalari (Security Headers)
 app.use((req, res, next) => {
@@ -125,6 +139,42 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
+
+// Reverse Proxy: Telegram Form Dashboard (127.0.0.1:3006)
+const TELEGRAM_FORM_PORT = 3006;
+app.use('/telegram-form', (req, res) => {
+    const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+    const clientHost = req.headers.host || req.hostname;
+    const options = {
+        hostname: '127.0.0.1',
+        port: TELEGRAM_FORM_PORT,
+        path: req.originalUrl,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `127.0.0.1:${TELEGRAM_FORM_PORT}`,
+            'x-forwarded-host': clientHost,
+            'x-forwarded-proto': isHttps ? 'https' : 'http'
+        }
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+        const headers = { ...proxyRes.headers };
+        delete headers['x-frame-options'];
+        delete headers['content-security-policy'];
+        res.writeHead(proxyRes.statusCode, headers);
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Telegram Form Dashboard Proxy Error:', err.message);
+        if (!res.headersSent) {
+            res.status(502).send('Telegram Form Dashboard xizmati vaqtincha mavjud emas (502 Bad Gateway)');
+        }
+    });
+
+    req.pipe(proxyReq);
+});
 
 // Katta hajmdagi fayllar va ticket biriktirmalari uchun alohida 50mb limit
 app.use('/api/converter/convert', express.json({ limit: '50mb' }));
@@ -186,6 +236,7 @@ app.all(['/logout', '/api/auth/logout'], async (req, res) => {
         await logoutUpstream(token);
     }
     res.clearCookie('cc_session', { path: '/' });
+    res.clearCookie('cc_viewer_session', { path: '/' });
     const host = req.hostname || 'uniconsoft.ddns.net';
     const isPublic = host === 'uniconsoft.ddns.net';
     const loginUrl = isPublic ? 'https://uniconsoft.ddns.net/login' : `https://${host}:3535/login`;
@@ -231,12 +282,18 @@ app.use(async (req, res, next) => {
         p === '/favicon.png' ||
         p === '/api/version' ||
         p === '/version.json' ||
+        p.startsWith('/api/auth/webauthn') ||
+        p.startsWith('/vendor/') ||
+        p === '/passkey-client.js' ||
+        p.startsWith('/api/remote-desktop/') ||
+        p.startsWith('/api/speedtest') ||
         p.startsWith('/api/tools/uzcrypto') ||
         p.startsWith('/icons/') ||
         p.startsWith('/images/') ||
         p.startsWith('/img/') ||
         p.startsWith('/css/') ||
         p.startsWith('/js/') ||
+        p.startsWith('/fonts/') ||
         p.startsWith('/uploads/') ||
         p.startsWith('/downloads/') ||
         p.startsWith('/tools/')
@@ -281,7 +338,17 @@ app.use(async (req, res, next) => {
     return res.redirect(loginUrl);
 });
 
-app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
+app.use(express.static(path.join(__dirname, 'public'), { 
+    dotfiles: 'ignore',
+    setHeaders: (res, filePath) => {
+        // Rasmlar, ikonlar, fontlar va statik vendor fayllar uchun 7 kunlik kesh (0 ms from disk cache)
+        if (filePath.match(/\.(woff2?|ttf|eot|png|jpg|jpeg|gif|svg|ico)$/i)) {
+            res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        } else if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+    }
+}));
 
 // SSL sertifikatlari mavjud bo'lsa, to'g'ridan-to'g'ri 3005-portda HTTPS ishga tushadi
 const wss = new WebSocket.Server({ noServer: true, maxPayload: 15 * 1024 * 1024 });
@@ -421,14 +488,14 @@ const OPERATOR_NAMES_MAP = {
     '114': 'Maxmudbek',
     '119': 'Muattar',
     '120': 'Navruzoy',
-    // Zangiota (200+) operatorlar
-    '200': 'Operator 200 (Zangiota)',
-    '203': 'Operator 203 (Zangiota)',
-    '204': 'Operator 204 (Zangiota)',
-    '205': 'Operator 205 (Zangiota)',
-    '206': 'Operator 206 (Zangiota)',
-    '208': 'Operator 208 (Zangiota)',
-    '209': 'Operator 209 (Zangiota)'
+    // 200+ operatorlar
+    '200': 'Operator 200',
+    '203': 'Operator 203',
+    '204': 'Operator 204',
+    '205': 'Operator 205',
+    '206': 'Operator 206',
+    '208': 'Operator 208',
+    '209': 'Operator 209'
 };
 
 function resolveOperatorName(opId) {
@@ -980,6 +1047,18 @@ setInterval(() => {
     }
 }, 30000);
 
+// Har 15 soniyada ilova darajasidagi ping (Brauzer JS watchdog va aloqa barqarorligi uchun)
+setInterval(() => {
+    const pingPayload = JSON.stringify({ type: 'server_ping', time: Date.now() });
+    for (const [ws] of connectedViewers.entries()) {
+        if (ws.readyState === WebSocket.OPEN) {
+            try {
+                ws.send(pingPayload);
+            } catch (e) {}
+        }
+    }
+}, 15000);
+
 // Build / Versiya tekshiruvi (Deploy va avtomatik yangilanish uchun)
 app.get('/api/version', (req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -1027,6 +1106,7 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
             user.role === 'admin' ||
             user.username === 'superuser' ||
             user.username === 'admin' ||
+            String(user.username || '').toLowerCase().includes('maxmudbek') ||
             user.email === 'abaddona74@gmail.com'
         );
         const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
@@ -1102,6 +1182,54 @@ app.get('/api/tools/uzcrypto/download', async (req, res) => {
         return res.redirect(302, targetUrl);
     } catch (e) {
         return res.redirect(302, 'https://edo.ijro.uz/welcome');
+    }
+});
+
+// WebAuthn Browser Scripts (Vendor & Client)
+app.get('/vendor/simplewebauthn-browser.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'vendor', 'simplewebauthn-browser.js'));
+});
+app.get('/passkey-client.js', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'js', 'passkey-client.js'));
+});
+
+// WebAuthn / Passkeys API Proxy (Upstream 3535 markaziy xizmatiga yo'naltirish)
+app.use('/api/auth/webauthn', async (req, res) => {
+    try {
+        const token = extractToken(req);
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-forwarded-for': req.ip || req.socket.remoteAddress
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            headers['cookie'] = `cc_session=${token}`;
+        } else if (req.headers.cookie) {
+            let upstreamCookie = req.headers.cookie.replace(/cc_viewer_session=/g, 'cc_session=');
+            headers['cookie'] = upstreamCookie;
+        }
+
+        const url = `${UPSTREAM_HTTP}/api/auth/webauthn${req.url}`;
+        const fetchOpts = {
+            method: req.method,
+            headers
+        };
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            fetchOpts.body = JSON.stringify(req.body || {});
+        }
+        const resp = await fetch(url, fetchOpts);
+        const setCookie = resp.headers.get('set-cookie');
+        if (setCookie) {
+            const transformedCookie = setCookie.replace(/cc_session=/g, 'cc_viewer_session=');
+            res.setHeader('Set-Cookie', [setCookie, transformedCookie]);
+        }
+        const data = await resp.text();
+        res.status(resp.status);
+        res.setHeader('Content-Type', resp.headers.get('content-type') || 'application/json');
+        res.send(data);
+    } catch (e) {
+        console.error('WebAuthn proxy xatolik:', e);
+        res.status(500).json({ ok: false, error: 'WebAuthn proksi xatosi yuz berdi' });
     }
 });
 
@@ -1215,6 +1343,14 @@ app.get('/api/operators', async (req, res) => {
         const url = queryStr ? `${UPSTREAM_HTTP}/api/operators?${queryStr}` : `${UPSTREAM_HTTP}/api/operators`;
         const resp = await fetch(url);
         const json = await resp.json();
+        if (Array.isArray(json)) {
+            json.forEach(op => {
+                if (op) {
+                    const dev = rustdeskDevices.get(String(op.id)) || (op.ip && rustdeskDevices.get(String(op.ip)));
+                    op.rustdeskInstalled = Boolean(dev && dev.installed);
+                }
+            });
+        }
         res.json(json);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -1288,8 +1424,24 @@ app.delete('/api/callbacks', async (req, res) => {
 });
 
 // Mijozlar bazasi / Telefon kitobi (Client Contacts) API Proxies
+async function checkIs200Operator(req) {
+    try {
+        const token = extractToken(req);
+        const user = await validateSessionWithUpstream(token);
+        if (!user) return false;
+        if (user.role === 'superuser' || user.role === 'admin') return false;
+        const opId = parseInt(user.operatorId, 10);
+        return !isNaN(opId) && opId >= 200;
+    } catch (_) {
+        return false;
+    }
+}
+
 app.get('/api/contacts', async (req, res) => {
     try {
+        if (await checkIs200Operator(req)) {
+            return res.json({ success: true, contacts: [], count: 0, data: [] });
+        }
         const queryStr = new URLSearchParams(req.query).toString();
         const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts`;
         const resp = await fetch(url);
@@ -1302,6 +1454,9 @@ app.get('/api/contacts', async (req, res) => {
 
 app.get('/api/contacts/top-active', async (req, res) => {
     try {
+        if (await checkIs200Operator(req)) {
+            return res.json({ success: true, contacts: [], count: 0, data: [] });
+        }
         const queryStr = new URLSearchParams(req.query).toString();
         const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts/top-active?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts/top-active`;
         const resp = await fetch(url);
@@ -1314,6 +1469,9 @@ app.get('/api/contacts/top-active', async (req, res) => {
 
 app.get('/api/contacts/:phone', async (req, res) => {
     try {
+        if (await checkIs200Operator(req)) {
+            return res.status(403).json({ success: false, error: "200-operatorlar uchun mijozlar bazasi cheklangan" });
+        }
         const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`);
         const json = await resp.json();
         res.json(json);
@@ -1324,6 +1482,9 @@ app.get('/api/contacts/:phone', async (req, res) => {
 
 app.post('/api/contacts', async (req, res) => {
     try {
+        if (await checkIs200Operator(req)) {
+            return res.status(403).json({ success: false, error: "200-operatorlar mijoz qo'shishi taqiqlangan" });
+        }
         const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1489,10 +1650,15 @@ app.get('/api/tickets', (req, res) => {
         const filter = req.query.filter || 'all';
         const operatorId = req.query.operatorId || (req.user && req.user.operatorId) || null;
         const list = ticketService.getTickets(filter, operatorId);
-        const allList = ticketService.getTickets('all');
+        const allList = ticketService.getTickets('all', operatorId);
         const cleanOp = String(operatorId || '').trim();
+        const opNum = parseInt(cleanOp, 10);
+        const is200Op = !isNaN(opNum) && opNum >= 200;
+
         const mineCount = cleanOp 
-            ? allList.filter(t => String(t.targetOperatorId).trim() === cleanOp || String(t.creatorId).trim() === cleanOp).length 
+            ? (is200Op 
+                ? allList.filter(t => String(t.creatorId).trim() === cleanOp).length 
+                : allList.filter(t => String(t.targetOperatorId).trim() === cleanOp).length)
             : 0;
 
         const stats = {
@@ -1526,11 +1692,19 @@ app.post('/api/tickets', (req, res) => {
         const clientIp = extractClientIp(req);
         const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
         
-        // Ruxsat tekshiruvi: 100+ operatorlari ticket yarata olmaydi
-        const effectiveCreatorId = creatorId || (req.user && req.user.operatorId);
+        // Ruxsat tekshiruvi: 100+ operatorlari (shu jumladan Maxmudbek / 114) ticket yarata olmaydi
+        // Yaratuvchi shaxsi: sessiyadagi req.user ma'lumotlariga qat'iy bog'lanadi (fixed)
+        const effectiveCreatorId = String((req.user && (req.user.operatorId || req.user.operator_id)) || creatorId || '200').trim();
+        let effectiveCreatorName = String((req.user && (req.user.operatorName || req.user.username)) || creatorName || `Operator ${effectiveCreatorId}`).trim();
+        if (!effectiveCreatorName.includes(effectiveCreatorId) && !isNaN(parseInt(effectiveCreatorId, 10))) {
+            effectiveCreatorName = `${effectiveCreatorName} (${effectiveCreatorId})`;
+        }
+
         const opNum = parseInt(effectiveCreatorId, 10);
-        const isSuperuser = req.user && (req.user.role === 'superuser' || req.user.role === 'admin');
-        if (!isNaN(opNum) && opNum >= 100 && opNum < 200 && !isSuperuser) {
+        const creatorUname = String((req.user && req.user.username) || effectiveCreatorName || '').toLowerCase().trim();
+        const is100Op = (!isNaN(opNum) && opNum >= 100 && opNum < 200) || creatorUname === 'maxmudbek';
+
+        if (is100Op) {
             return res.status(403).json({
                 success: false,
                 error: "Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari faqat qabul qiluvchi!"
@@ -1538,8 +1712,8 @@ app.post('/api/tickets', (req, res) => {
         }
 
         const newTicket = ticketService.createTicket({
-            creatorId,
-            creatorName,
+            creatorId: effectiveCreatorId,
+            creatorName: effectiveCreatorName,
             creatorIp: clientIp,
             customerPhone,
             title,
@@ -1721,6 +1895,252 @@ app.get('/api/viewer/sessions', async (req, res) => {
 // Maxsus Ticketlar sahifasi yo'naltmasi
 app.get(['/tickets', '/tickets.html'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'tickets.html'));
+});
+
+// Masofaviy Yordam (RustDesk) orqali taklif yuborish
+app.post('/api/remote-desktop/notify-operator', express.json(), (req, res) => {
+    const { operatorId, operatorName } = req.body || {};
+    try {
+        if (typeof wss !== 'undefined' && wss.clients) {
+            const payload = JSON.stringify({ type: 'remote_install_prompt', operatorId, operatorName });
+            wss.clients.forEach(c => {
+                if (c.readyState === 1) c.send(payload);
+            });
+        }
+    } catch (e) {}
+    res.json({ success: true });
+});
+
+// RustDesk qurilmalari ro'yxati va holati (Yashil indikator uchun)
+const RUSTDESK_DEVICES_FILE = path.join(__dirname, 'data', 'rustdesk_devices.json');
+let rustdeskDevices = new Map();
+
+function loadRustdeskDevices() {
+    try {
+        if (fs.existsSync(RUSTDESK_DEVICES_FILE)) {
+            const raw = fs.readFileSync(RUSTDESK_DEVICES_FILE, 'utf8');
+            const arr = JSON.parse(raw);
+            if (Array.isArray(arr)) {
+                for (const item of arr) {
+                    if (item && (item.ext || item.ip)) {
+                        if (item.ext) rustdeskDevices.set(String(item.ext), item);
+                        if (item.ip) rustdeskDevices.set(String(item.ip), item);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('⚠️ rustdesk_devices.json o\'qishda xatolik:', e.message);
+    }
+}
+
+function saveRustdeskDevices() {
+    try {
+        const unique = [];
+        const seen = new Set();
+        for (const item of rustdeskDevices.values()) {
+            const key = item.ext ? `ext_${item.ext}` : `ip_${item.ip}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                unique.push(item);
+            }
+        }
+        const dataDir = path.join(__dirname, 'data');
+        if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+        fs.writeFileSync(RUSTDESK_DEVICES_FILE, JSON.stringify(unique, null, 2), 'utf8');
+    } catch (e) {
+        console.warn('⚠️ rustdesk_devices.json yozishda xatolik:', e.message);
+    }
+}
+loadRustdeskDevices();
+
+// GET: Barcha o'rnatilgan RustDesk qurilmalari
+app.get('/api/remote-desktop/devices', (req, res) => {
+    const list = Array.from(new Set(rustdeskDevices.values()));
+    res.json({ success: true, devices: list });
+});
+
+// POST: O'rnatilganlik haqida hisobot (bat skripti yoki manual qo'shish)
+app.post('/api/remote-desktop/report-installed', express.json(), (req, res) => {
+    const { ip, ext, hostname, installed = true } = req.body || {};
+    const cleanIp = ip ? String(ip).trim() : null;
+    let cleanExt = ext ? String(ext).trim() : null;
+
+    if (!cleanExt && cleanIp && operatorIpMap.has(cleanIp)) {
+        cleanExt = String(operatorIpMap.get(cleanIp).id);
+    }
+
+    const device = {
+        ext: cleanExt,
+        ip: cleanIp,
+        hostname: hostname || '',
+        installed: Boolean(installed),
+        updatedAt: new Date().toISOString()
+    };
+
+    if (cleanExt) rustdeskDevices.set(cleanExt, device);
+    if (cleanIp) rustdeskDevices.set(cleanIp, device);
+    saveRustdeskDevices();
+
+    // WebSocket orqali real-time barcha viewer larga tarqatish
+    try {
+        if (typeof wss !== 'undefined' && wss.clients) {
+            const payload = JSON.stringify({ type: 'rustdesk_device_status', device });
+            wss.clients.forEach(c => {
+                if (c.readyState === 1) c.send(payload);
+            });
+        }
+    } catch (e) {}
+
+    res.json({ success: true, device });
+});
+
+// POST: Holatni o'zgartirish (Admin manual o'chirishi yoki yoqishi uchun)
+app.post('/api/remote-desktop/toggle-device', express.json(), (req, res) => {
+    const { ext, ip, installed } = req.body || {};
+    const cleanExt = ext ? String(ext).trim() : null;
+    const cleanIp = ip ? String(ip).trim() : null;
+
+    if (installed === false) {
+        if (cleanExt) rustdeskDevices.delete(cleanExt);
+        if (cleanIp) rustdeskDevices.delete(cleanIp);
+    } else {
+        const dev = { ext: cleanExt, ip: cleanIp, installed: true, updatedAt: new Date().toISOString() };
+        if (cleanExt) rustdeskDevices.set(cleanExt, dev);
+        if (cleanIp) rustdeskDevices.set(cleanIp, dev);
+    }
+    saveRustdeskDevices();
+
+    try {
+        if (typeof wss !== 'undefined' && wss.clients) {
+            const payload = JSON.stringify({
+                type: 'rustdesk_device_status',
+                device: { ext: cleanExt, ip: cleanIp, installed: Boolean(installed) }
+            });
+            wss.clients.forEach(c => {
+                if (c.readyState === 1) c.send(payload);
+            });
+        }
+    } catch (e) {}
+
+    res.json({ success: true });
+});
+
+// ==========================================
+// ⚡ SPEEDTEST (ICHKI TARMOQ TEZLIGI) APILARI
+// ==========================================
+function getServerLanIp() {
+    try {
+        const os = require('os');
+        const ifaces = os.networkInterfaces();
+        for (const name of Object.keys(ifaces)) {
+            for (const net of ifaces[name]) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    if (net.address.startsWith('192.168.') || net.address.startsWith('10.')) {
+                        return net.address;
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+    return '192.168.0.124';
+}
+
+const SPEEDTEST_CHUNK = Buffer.alloc(262144, 0x5a); // 256 KB yuqori tezlikdagi bufer
+
+// Ping & RTT Latency
+app.get('/api/speedtest/ping', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    const clientIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+    res.json({
+        success: true,
+        timestamp: Date.now(),
+        clientIp,
+        serverLanIp: getServerLanIp()
+    });
+});
+
+// Operator ichki IP sini to'g'ridan-to'g'ri LAN orqali tekshirish (192.168.0.x)
+app.get('/api/speedtest/operator-ping', (req, res) => {
+    const targetIp = (req.query.ip || '').trim();
+    if (!targetIp || !/^(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+)$/.test(targetIp)) {
+        return res.status(400).json({ success: false, error: "Faqat ichki ofis IP manzillari (192.168.* yoki 10.*) tekshiriladi" });
+    }
+    const { exec } = require('child_process');
+    const isWin = process.platform === 'win32';
+    const cmd = isWin ? `ping -n 2 -w 800 ${targetIp}` : `ping -c 2 -W 1 ${targetIp}`;
+    exec(cmd, (err, stdout) => {
+        let avgPing = null;
+        let packetLoss = '0%';
+        const m = stdout.match(/(?:avg|Average)\s*=\s*(\d+)ms/i) || stdout.match(/min\/avg\/max[^\n]*=\s*[\d.]+\/([\d.]+)/i);
+        if (m) avgPing = parseFloat(m[1]);
+        const lossMatch = stdout.match(/(\d+)%\s*(?:packet\s*)?loss/i);
+        if (lossMatch) packetLoss = lossMatch[1] + '%';
+
+        res.json({
+            success: avgPing !== null,
+            targetIp,
+            avgPing: avgPing !== null ? Math.round(avgPing) : null,
+            packetLoss,
+            isOnline: avgPing !== null,
+            verdict: avgPing !== null ? (avgPing <= 5 ? "🟢 A'lo (Lokal Switch kabel orqali 1-5 ms)" : "🟡 Yaxshi (" + Math.round(avgPing) + " ms Wi-Fi)") : "🔴 Oflayn (Kompyuter o'chiq yoki tarmoqda yo'q)"
+        });
+    });
+});
+
+// Download Speed Stream (15 MB standart, LAN da tezkor o'lchash)
+app.get('/api/speedtest/download', (req, res) => {
+    const defaultBytes = 15 * 1024 * 1024; // 15 MB
+    const maxBytes = 60 * 1024 * 1024;     // 60 MB max
+    const requested = parseInt(req.query.bytes, 10);
+    const totalBytes = Math.min(Math.max(isNaN(requested) ? defaultBytes : requested, 65536), maxBytes);
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', totalBytes);
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+
+    let bytesSent = 0;
+    function pump() {
+        while (bytesSent < totalBytes) {
+            const remain = totalBytes - bytesSent;
+            const chunk = remain >= SPEEDTEST_CHUNK.length ? SPEEDTEST_CHUNK : SPEEDTEST_CHUNK.subarray(0, remain);
+            bytesSent += chunk.length;
+            if (!res.write(chunk)) {
+                res.once('drain', pump);
+                return;
+            }
+        }
+        res.end();
+    }
+    pump();
+});
+
+// Upload Speed Sink (Xotirani to'ldirmasdan qabul qilib tezlikni o'lchash)
+app.post('/api/speedtest/upload', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const startTime = Date.now();
+    let totalBytes = 0;
+
+    req.on('data', chunk => {
+        totalBytes += chunk.length;
+    });
+
+    req.on('end', () => {
+        const durationMs = Math.max(Date.now() - startTime, 1);
+        const mbps = parseFloat(((totalBytes * 8) / (durationMs / 1000) / 1000000).toFixed(2));
+        res.json({
+            success: true,
+            bytesReceived: totalBytes,
+            durationMs,
+            mbps
+        });
+    });
+
+    req.on('error', (err) => {
+        res.status(500).json({ success: false, error: err.message });
+    });
 });
 
 // SPA fallback: hamma URL bitta index.html ga boradi

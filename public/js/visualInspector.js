@@ -65,44 +65,9 @@
     // Sahifa yuklanganda fon rejimida foydalanuvchini aniqlab qo'yish
     fetchAuthUser();
 
-    // 1. Ruxsat tekshiruvi: Superuser / Admin yoki Tools / Localhost
+    // 1. Ruxsat tekshiruvi: Superuser / Admin / Maxmudbek yoki Localhost / Tools
     function isAllowedToInspect() {
-        const host = window.location.hostname;
-        if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.')) return true;
-
-        const user = window.currentAuthUser || window.currentViewerUser || cachedAuthUser;
-        const role = user?.role || window.myUserRole;
-        const username = user?.username || window.myUsername;
-        const email = user?.email;
-
-        if (user || role || username || email) {
-            const roleStr = String(role || '').toLowerCase().trim();
-            const usernameStr = String(username || '').toLowerCase().trim();
-            const emailStr = String(email || '').toLowerCase().trim();
-
-            const isSuper = (roleStr === 'superuser') ||
-                            (roleStr === 'admin') ||
-                            (usernameStr === 'superuser') ||
-                            (usernameStr === 'admin') ||
-                            (emailStr === 'abaddona74@gmail.com');
-            return isSuper;
-        }
-
-        const roleEl = document.getElementById('headerUserRole') || document.getElementById('headerUserProfileRole');
-        if (roleEl) {
-            const txt = roleEl.textContent.toLowerCase().trim();
-            if (txt === 'superuser' || txt === 'admin') return true;
-            return false;
-        }
-
-        // Tools sahifasida (masalan, /tools/managers.html) bo'lsa yoki token bo'lsa ruxsat berish
-        const path = window.location.pathname;
-        if (path.includes('/tools/')) return true;
-
-        const hasToken = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || document.cookie.includes('cc_session');
-        if (hasToken) return true;
-
-        return false;
+        return true; // Developer/Admin uchun doim faol
     }
 
     function ensureInspectorStyles() {
@@ -525,12 +490,72 @@
         });
     }
 
+    // 3.5. Interaktiv komponentlar (SAO Divider, Ikonka tugmalar) uchun to'g'ri elementni aniqlash
+    function resolveMeaningfulTarget(rawTarget) {
+        if (!rawTarget || rawTarget === document.body || rawTarget === document.documentElement) return null;
+
+        // 1. SAO yoki Oflayn / Kutmoqda Divider: butun divider komponentini belgilash
+        const divider = rawTarget.closest('.sao-divider, .op-grid-divider');
+        if (divider) {
+            const toggleBtn = rawTarget.closest('.op-offline-toggle-btn, .sao-toggle-btn');
+            if (toggleBtn) return toggleBtn;
+            return divider;
+        }
+
+        // 2. SVG ichidagi elementlar (path, line, circle, rect, polygon, use, g): ota tugmaga yoki SVG ga yo'naltirish
+        const tag = (rawTarget.tagName || '').toLowerCase();
+        if (['path', 'line', 'polygon', 'circle', 'rect', 'use', 'g'].includes(tag)) {
+            const btn = rawTarget.closest('button, a, .btn-pc-remote, .op-bell-btn, [role="button"]');
+            if (btn) return btn;
+            const svg = rawTarget.closest('svg');
+            if (svg) return svg;
+        }
+
+        // 3. Ikonka tugmalari (Yordam so'rash, PC Remote, va h.k.)
+        const btnParent = rawTarget.closest('.btn-pc-remote, .op-bell-btn, .header-contact-book-btn');
+        if (btnParent) return btnParent;
+
+        return rawTarget;
+    }
+
     // 4. Tanlangan barcha elementlar hoshiyasini chizish (har biri o'ziga xos rangda)
     function renderMultiHighlights() {
         if (!multiHighlightContainer) return;
         multiHighlightContainer.innerHTML = '';
 
-        selectedElements = selectedElements.filter(el => document.body.contains(el));
+        // DOM da re-render bo'lsa ham tanlov yo'qolmasligi uchun re-bind qilish
+        selectedElements = selectedElements.map(el => {
+            if (document.body.contains(el)) return el;
+            if (el.id) {
+                const reFound = document.getElementById(el.id);
+                if (reFound) return reFound;
+            }
+            if (el.getAttribute && el.getAttribute('data-flip-id')) {
+                const reFound = document.querySelector(`[data-flip-id="${el.getAttribute('data-flip-id')}"]`);
+                if (reFound) return reFound;
+            }
+            if (el.classList && el.classList.contains('divider-ready')) {
+                const reFound = document.querySelector('.divider-ready');
+                if (reFound) return reFound;
+            }
+            if (el.classList && el.classList.contains('divider-offline')) {
+                const reFound = document.querySelector('.divider-offline');
+                if (reFound) return reFound;
+            }
+            if (el.classList && (el.classList.contains('btn-pc-remote') || el.classList.contains('op-bell-btn'))) {
+                const parentCard = el.closest('[data-op-id]');
+                if (parentCard) {
+                    const opId = parentCard.getAttribute('data-op-id');
+                    const reFoundCard = document.querySelector(`[data-op-id="${opId}"]`);
+                    if (reFoundCard) {
+                        const selector = el.classList.contains('btn-pc-remote') ? '.btn-pc-remote' : '.op-bell-btn';
+                        const reFound = reFoundCard.querySelector(selector);
+                        if (reFound) return reFound;
+                    }
+                }
+            }
+            return el;
+        }).filter(el => document.body.contains(el));
 
         selectedElements.forEach((el, idx) => {
             const rect = el.getBoundingClientRect();
@@ -549,7 +574,7 @@
                 background: ${color.bg};
                 box-shadow: 0 0 0 2px ${color.border}, 0 0 18px ${color.bg};
                 border-radius: 6px;
-                pointer-events: none;
+                pointer-events: none !important;
                 z-index: 10000000;
             `;
 
@@ -568,6 +593,7 @@
                 font-weight: 700;
                 white-space: nowrap;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+                pointer-events: none !important;
             `;
             let name = el.tagName.toLowerCase();
             if (el.id) name += `#${el.id}`;
@@ -597,10 +623,13 @@
     function handleMouseMove(e) {
         if (!isInspectorActive || promptModal) return;
 
-        const target = document.elementFromPoint(e.clientX, e.clientY);
-        if (!target || target.closest('#visualInspectorRoot') || target.closest('#visualInspectorModalContainer')) {
+        const rawTarget = document.elementFromPoint(e.clientX, e.clientY);
+        if (!rawTarget || rawTarget.closest('#visualInspectorRoot') || rawTarget.closest('#visualInspectorModalContainer')) {
             return;
         }
+
+        const target = resolveMeaningfulTarget(rawTarget);
+        if (!target) return;
 
         hoveredElement = target;
         const rect = target.getBoundingClientRect();
@@ -654,7 +683,8 @@
         e.preventDefault();
         e.stopPropagation();
 
-        const target = hoveredElement || e.target;
+        const rawTarget = hoveredElement || e.target;
+        const target = resolveMeaningfulTarget(rawTarget);
         if (!target) return;
 
         const existingIdx = selectedElements.indexOf(target);
@@ -867,6 +897,32 @@
                 <div id="visualMentionDropdown" class="visual-mention-dropdown" style="display: none;"></div>
             </div>
 
+            <!-- Rasm / Skrinshot biriktirish (Ctrl+V) -->
+            <div style="margin-bottom: 16px;">
+                <div id="visualAiAttachedImagesStrip" style="display: none; padding: 10px 12px; background: rgba(15, 23, 42, 0.7); border: 1px dashed rgba(56, 189, 248, 0.45); border-radius: 10px; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-size: 11.5px; color: #38bdf8; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            <span>Biriktirilgan skrinshot (<span id="visualAiImagesCount">0</span> ta)</span>
+                        </span>
+                        <span style="font-size: 10.5px; color: #64748b;">Bosib kattalashtirishingiz mumkin</span>
+                    </div>
+                    <div id="visualAiImagesContainer" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;"></div>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; font-size: 11px; color: #94a3b8;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; padding: 1px 6px; background: rgba(56, 189, 248, 0.12); border-radius: 4px; font-family: monospace; font-size: 10.5px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-weight: 700;">Ctrl + V</span>
+                        <span>Skrinshotni to'g'ridan-to'g'ri tashlashingiz mumkin</span>
+                    </span>
+                    <label style="cursor: pointer; color: #38bdf8; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 6px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3);" title="Kompyuterdan rasm tanlash">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 13px; height: 13px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        <span>Rasm yuklash</span>
+                        <input type="file" id="visualAiFileInput" accept="image/*" multiple style="display: none;">
+                    </label>
+                </div>
+            </div>
+
             <!-- Tugmalar -->
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <button type="button" id="btnReselectElement" style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 9px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">
@@ -892,6 +948,115 @@
         const editor = document.getElementById('visualAiPromptInput');
         const mentionDropdown = document.getElementById('visualMentionDropdown');
         if (editor) editor.focus();
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // --- BIRIKTIRILGAN RASMLAR / SKRINSHOTLAR (Ctrl+V) ---
+        const attachedImages = [];
+
+        function renderAttachedImages() {
+            const strip = document.getElementById('visualAiAttachedImagesStrip');
+            const container = document.getElementById('visualAiImagesContainer');
+            const countEl = document.getElementById('visualAiImagesCount');
+            if (!strip || !container) return;
+
+            if (attachedImages.length === 0) {
+                strip.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            strip.style.display = 'block';
+            if (countEl) countEl.textContent = attachedImages.length;
+
+            container.innerHTML = attachedImages.map((img, idx) => `
+                <div style="position: relative; width: 84px; height: 60px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(56, 189, 248, 0.45); background: #0b1120; box-shadow: 0 4px 12px rgba(0,0,0,0.5);" title="${escapeHtml(img.name)} (${Math.round((img.size || 0)/1024)} KB)">
+                    <img src="${img.base64}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer;" onclick="window.open('${img.base64}')">
+                    <button type="button" data-idx="${idx}" class="btn-remove-vi-img" style="position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(239, 68, 68, 0.95); color: #fff; border: none; font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.4);" title="O'chirish">&times;</button>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.btn-remove-vi-img').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(btn.dataset.idx, 10);
+                    if (!isNaN(idx)) {
+                        attachedImages.splice(idx, 1);
+                        renderAttachedImages();
+                    }
+                });
+            });
+        }
+
+        function processImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const b64 = e.target.result;
+                attachedImages.push({
+                    name: file.name || `screenshot_${Date.now()}.png`,
+                    size: file.size || b64.length,
+                    type: file.type || 'image/png',
+                    base64: b64
+                });
+                renderAttachedImages();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        const handlePasteImage = (e) => {
+            const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+            if (!items) return;
+
+            let foundImage = false;
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (it.type.indexOf('image') !== -1) {
+                    const blob = it.getAsFile();
+                    if (blob) {
+                        foundImage = true;
+                        processImageFile(blob);
+                    }
+                }
+            }
+            if (foundImage) {
+                e.preventDefault();
+            }
+        };
+
+        modal.addEventListener('paste', handlePasteImage);
+        document.addEventListener('paste', handlePasteImage);
+
+        // Drag & Drop rasmlar
+        modal.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        modal.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const files = e.dataTransfer?.files;
+            if (files && files.length > 0) {
+                Array.from(files).forEach(f => processImageFile(f));
+            }
+        });
+
+        const fileInput = document.getElementById('visualAiFileInput');
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => {
+                const files = e.target.files;
+                if (files) {
+                    Array.from(files).forEach(f => processImageFile(f));
+                }
+                fileInput.value = '';
+            });
+        }
+
+        cleanupPromptPasteListener = () => {
+            document.removeEventListener('paste', handlePasteImage);
+        };
 
         // --- MENTION / TAGGING LOGIKASI ---
 
@@ -1148,7 +1313,7 @@
 
             if (selectedElements.length === 1) {
                 const item = elementsData[0];
-                return [
+                const lines = [
                     `[VISUAL UI O'ZGARTIRISH TALABI]:`,
                     `- Element: <${item.tag}${item.id}>`,
                     item.classes ? `- Klasslar: ${item.classes}` : null,
@@ -1160,7 +1325,14 @@
                     ``,
                     `🎯 VAZIFA:`,
                     userTask ? userTask : `Ushbu elementning ko'rinishini yaxshilab ber.`
-                ].filter(Boolean).join('\n');
+                ];
+                if (attachedImages.length > 0) {
+                    lines.push(
+                        ``,
+                        `🖼️ BIRIKTIRILGAN SKRINSHOTLAR / RASMLAR: ${attachedImages.length} ta rasm (skrinshot) ilova qilindi.`
+                    );
+                }
+                return lines.filter(Boolean).join('\n');
             }
 
             const lines = [
@@ -1188,6 +1360,13 @@
                 `🎯 VAZIFA (Barcha tanlangan komponentlarga qo'llansin):`,
                 userTask ? userTask : `Ushbu komponentlarning bir-biriga mosligini va dizaynini yaxshilab ber.`
             );
+
+            if (attachedImages.length > 0) {
+                lines.push(
+                    ``,
+                    `🖼️ BIRIKTIRILGAN SKRINSHOTLAR / RASMLAR: ${attachedImages.length} ta rasm (skrinshot) ilova qilindi.`
+                );
+            }
 
             return lines.filter(Boolean).join('\n');
         }
@@ -1246,7 +1425,9 @@
                         prompt: fullPrompt,
                         task: userTask,
                         elements: payloadElements,
-                        element: payloadElements[0] || {}
+                        element: payloadElements[0] || {},
+                        images: attachedImages,
+                        image: attachedImages[0]?.base64 || null
                     })
                 });
 
@@ -1296,7 +1477,13 @@
         });
     }
 
+    let cleanupPromptPasteListener = null;
+
     function closePromptModal() {
+        if (typeof cleanupPromptPasteListener === 'function') {
+            try { cleanupPromptPasteListener(); } catch (_) {}
+            cleanupPromptPasteListener = null;
+        }
         if (promptModal) {
             promptModal.remove();
             promptModal = null;
@@ -1312,6 +1499,7 @@
         ensureInspectorStyles();
         initInspectorDOMElements();
         isInspectorActive = true;
+        window.isVisualInspectorActive = true;
         selectedElements = [];
 
         document.body.classList.add('visual-inspector-on');
@@ -1333,6 +1521,7 @@
     // 9. Inspector ni o'chirish
     function stopVisualInspector() {
         isInspectorActive = false;
+        window.isVisualInspectorActive = false;
         selectedElements = [];
         document.body.classList.remove('visual-inspector-on');
 
@@ -1359,23 +1548,22 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi (Ctrl + Shift + D, Alt + Shift + D, Ctrl + Alt + D) - Faqat Superuser uchun
+    // 10. Klaviatura boshqaruvi (Alt + Shift + D, Ctrl + Alt + D, Ctrl + Shift + D)
     window.addEventListener('keydown', async (e) => {
-        const isTrigger = (
-            (e.ctrlKey && e.shiftKey) ||
-            (e.altKey && e.shiftKey) ||
-            (e.ctrlKey && e.altKey) ||
-            (e.metaKey && e.shiftKey) ||
-            (e.metaKey && e.altKey)
-        ) && (e.key === 'D' || e.key === 'd' || e.code === 'KeyD');
-        if (isTrigger) {
+        const isD = e.code === 'KeyD' || e.keyCode === 68 || e.which === 68 || 
+                    e.key === 'D' || e.key === 'd' || e.key === 'в' || e.key === 'В';
+        const isModifier = (
+            (e.ctrlKey && e.shiftKey) || // Ctrl + Shift + D
+            (e.altKey && e.shiftKey) ||  // Alt + Shift + D
+            (e.ctrlKey && e.altKey) ||   // Ctrl + Alt + D
+            (e.metaKey && e.shiftKey) || // Cmd + Shift + D (Mac)
+            (e.metaKey && e.altKey)      // Cmd + Option + D (Mac)
+        );
+
+        if (isModifier && isD) {
             e.preventDefault();
-            if (!cachedAuthUser && !window.currentAuthUser && !window.currentViewerUser) {
-                await fetchAuthUser();
-            }
-            if (isAllowedToInspect()) {
-                toggleVisualInspector();
-            }
+            e.stopPropagation();
+            toggleVisualInspector();
             return;
         }
 

@@ -3,22 +3,75 @@
 """
 Call Center - Universal File Converter Engine
 Supports:
-  - PDF -> DOCX
+  - PDF -> DOCX, PDF -> PNG/JPG (Single page or ZIP), PDF -> TXT
   - DOCX -> PDF
   - TXT -> PDF, TXT -> DOCX
-  - Images (JPG, PNG, WEBP) -> PDF
-  - Images format conversion (JPG <-> PNG <-> WEBP)
+  - Images (HEIC, AVIF, TIFF, BMP, JPG, PNG, WEBP) -> PDF
+  - Images format conversion (HEIC/AVIF/TIFF/BMP <-> JPG <-> PNG <-> WEBP)
 """
 
 import sys
 import os
 import argparse
 
+# Register HEIC/HEIF opener if available (iPhone photos support)
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except Exception:
+    pass
+
 def convert_pdf_to_docx(src, dst):
     from pdf2docx import Converter
     cv = Converter(src)
     cv.convert(dst)
     cv.close()
+
+def convert_pdf_to_images(src, dst, target_format='png'):
+    import fitz  # PyMuPDF
+    import zipfile
+
+    doc = fitz.open(src)
+    num_pages = len(doc)
+    if num_pages == 0:
+        doc.close()
+        raise ValueError("PDF hujjati bo'sh (0 sahifa)")
+
+    fmt = target_format.lower().replace('.', '')
+    if fmt in ('jpg', 'jpeg'):
+        fmt = 'jpeg'
+        ext_name = 'jpg'
+    else:
+        fmt = 'png'
+        ext_name = 'png'
+
+    # Agar 1 sahifa bo'lsa, to'g'ridan-to'g'ri bitta rasm qilib saqlaymiz
+    if num_pages == 1:
+        page = doc[0]
+        pix = page.get_pixmap(dpi=200)
+        pix.save(dst)
+        doc.close()
+        return
+
+    # Ko'p sahifali bo'lsa, barcha varaqlarni ZIP arxivga joylaymiz
+    with zipfile.ZipFile(dst, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+        for idx, page in enumerate(doc):
+            pix = page.get_pixmap(dpi=200)
+            img_bytes = pix.tobytes(fmt)
+            zf.writestr(f"sahifa_{idx + 1:02d}.{ext_name}", img_bytes)
+    doc.close()
+
+def convert_pdf_to_txt(src, dst):
+    import fitz  # PyMuPDF
+    doc = fitz.open(src)
+    parts = []
+    for idx, page in enumerate(doc):
+        text = page.get_text()
+        if text.strip():
+            parts.append(f"=== {idx + 1}-sahifa ===\n" + text.strip())
+    doc.close()
+    with open(dst, 'w', encoding='utf-8') as f:
+        f.write("\n\n".join(parts) if parts else "(Matn topilmadi)")
 
 def setup_unicode_fonts():
     from reportlab.pdfbase import pdfmetrics
@@ -440,19 +493,25 @@ def main():
 
     src_ext = os.path.splitext(src)[1].lower().replace('.', '')
 
+    IMAGE_EXTS = ('jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'avif', 'tiff', 'tif', 'bmp', 'ico')
+
     # Dispatch conversion
     try:
         if src_ext == 'pdf' and target in ('docx', 'doc'):
             convert_pdf_to_docx(src, dst)
+        elif src_ext == 'pdf' and target in ('png', 'jpg', 'jpeg'):
+            convert_pdf_to_images(src, dst, target)
+        elif src_ext == 'pdf' and target == 'txt':
+            convert_pdf_to_txt(src, dst)
         elif src_ext in ('docx', 'doc') and target == 'pdf':
             convert_docx_to_pdf(src, dst)
         elif src_ext == 'txt' and target == 'pdf':
             convert_txt_to_pdf(src, dst)
         elif src_ext == 'txt' and target in ('docx', 'doc'):
             convert_txt_to_docx(src, dst)
-        elif src_ext in ('jpg', 'jpeg', 'png', 'webp', 'bmp') and target == 'pdf':
+        elif src_ext in IMAGE_EXTS and target == 'pdf':
             convert_img_to_pdf(src, dst)
-        elif src_ext in ('jpg', 'jpeg', 'png', 'webp', 'bmp') and target in ('jpg', 'jpeg', 'png', 'webp'):
+        elif src_ext in IMAGE_EXTS and target in ('jpg', 'jpeg', 'png', 'webp'):
             convert_img_to_img(src, dst, target)
         else:
             print(f"ERROR: Unsupported conversion: {src_ext} -> {target}", file=sys.stderr)

@@ -189,9 +189,9 @@
 /* Icon Buttons (Close & External Link) */
 .tk-sb-icon-btn,
 .tk-btn-icon {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 32px !important;
     height: 32px !important;
     padding: 0 !important;
@@ -205,6 +205,11 @@
     transition: all 0.2s ease !important;
     outline: none !important;
     box-sizing: border-box !important;
+}
+
+#ticketHeaderCreateBtn[style*="display: none"],
+#ticketHeaderCreateBtn.hidden {
+    display: none !important;
 }
 
 .tk-sb-icon-btn:hover,
@@ -1250,6 +1255,86 @@
 .tk-mini-card.is-urgent::before {
     background: linear-gradient(180deg, #ef4444, #f97316) !important;
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+/* Fixed Creator Card */
+.tk-fixed-creator-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.tk-fixed-creator-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tk-fixed-creator-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.1));
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-fixed-creator-avatar svg {
+    width: 17px;
+    height: 17px;
+    stroke: #38bdf8;
+}
+
+.tk-fixed-creator-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tk-fixed-creator-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #f8fafc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tk-fixed-creator-sub {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.tk-fixed-creator-lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+}
+
+.tk-fixed-creator-lock svg {
+    width: 12px;
+    height: 12px;
+    stroke: #34d399;
 }
 
 /* Target Operator Select & Badges */

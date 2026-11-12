@@ -48,7 +48,13 @@ function getMimeType(ext) {
         'png': 'image/png',
         'jpg': 'image/jpeg',
         'jpeg': 'image/jpeg',
-        'webp': 'image/webp'
+        'webp': 'image/webp',
+        'heic': 'image/heic',
+        'heif': 'image/heif',
+        'avif': 'image/avif',
+        'tiff': 'image/tiff',
+        'bmp': 'image/bmp',
+        'zip': 'application/zip'
     };
     return map[ext.toLowerCase()] || 'application/octet-stream';
 }
@@ -125,8 +131,15 @@ async function convertFile(inputBuffer, originalName, targetFormat) {
 
         // Natijaviy faylni xotiraga o'qish
         const outputBuffer = fs.readFileSync(outputPath);
-        const resultFilename = `${safeNameWithoutExt}.${cleanTarget}`;
-        const mimeType = getMimeType(cleanTarget);
+        const isZip = outputBuffer.length >= 4 && outputBuffer[0] === 0x50 && outputBuffer[1] === 0x4B;
+
+        let resultFilename = `${safeNameWithoutExt}.${cleanTarget}`;
+        let mimeType = getMimeType(cleanTarget);
+
+        if (isZip && cleanTarget !== 'zip') {
+            resultFilename = `${safeNameWithoutExt}_sahifalar.zip`;
+            mimeType = 'application/zip';
+        }
 
         return {
             filename: resultFilename,
