@@ -2006,9 +2006,9 @@ function renderOnlineUsersPopover() {
 
     const authU = window.currentAuthUser || {};
     const myUname = String(authU.username || '').toLowerCase().trim();
-    // Superuser oddiy tizim hisobi - unga Ghost Mode banneri chiqmaydi.
-    // Faqat shaxsan Maxmudbek hisobi uchun chiqadi!
-    const isMaxmudbek = (myUname.includes('maxmudbek') || (authU.email === 'abaddona74@gmail.com' && myUname !== 'superuser')) && myUname !== 'superuser';
+    const myPcLower = String(myPc || '').toLowerCase().trim();
+    // Shaxsan Maxmudbek yoki uning Admin kompyuteri (Admin PC):
+    const isMaxmudbek = myUname.includes('maxmudbek') || authU.email === 'abaddona74@gmail.com' || myPcLower.includes('admin');
 
     let itemsHtml = '';
     users.forEach(u => {

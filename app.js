@@ -1207,19 +1207,25 @@ function getUniqueDevicesMap(dashboardClients) {
 }
 
 // Maxmudbek uchun Ghost Mode (Ko'rinmas rejim) tekshiruvi:
-// Faqat va faqat shaxsan Maxmudbek hisobi uchun amal qiladi, oddiy superuser yoki boshqa akkauntlarga o'tmaydi!
-function isGhostAccount(userOrUname) {
-    if (!userOrUname) return false;
-    const rawUname = typeof userOrUname === 'string' ? userOrUname : (userOrUname.username || '');
-    const rawEmail = typeof userOrUname === 'object' ? (userOrUname.email || '') : '';
-    const lowerUname = String(rawUname).toLowerCase().trim();
-    const lowerEmail = String(rawEmail).toLowerCase().trim();
+// Maxmudbek shaxsan kirganda (maxmudbek login, abaddona74@gmail.com, Admin PC yoki 192.168.0.107 IP orqali)
+// Tizim uni mutlaqo boshqalarga ko'rsatmasligi kerak!
+function isGhostAccount(target) {
+    if (!target) return false;
+    if (typeof target === 'string') {
+        const s = target.toLowerCase().trim();
+        return s.includes('maxmudbek') || s === 'abaddona74@gmail.com' || s.includes('admin') || s === '192.168.0.107';
+    }
+    const uname = String(target.username || (target.user && target.user.username) || '').toLowerCase().trim();
+    const email = String(target.email || (target.user && target.user.email) || '').toLowerCase().trim();
+    const pc = String(target.pcName || target.suggestedPcName || '').toLowerCase().trim();
+    const ip = String(target.clientIp || target.ip || '').trim();
 
-    // Oddiy 'superuser' hisobi hech qachon Ghost hisoblanmaydi
-    if (lowerUname === 'superuser') return false;
+    // Maxmudbek identifikatorlari:
+    if (uname.includes('maxmudbek') || email === 'abaddona74@gmail.com') return true;
+    if (pc.includes('admin') || ip === '192.168.0.107') return true;
+    if (target.isGhost || target.isGhostMode) return true;
 
-    // Faqat Maxmudbek username yoki Maxmudbekka tegishli email
-    return lowerUname.includes('maxmudbek') || (lowerEmail === 'abaddona74@gmail.com' && lowerUname !== 'superuser');
+    return false;
 }
 
 // Onlayn foydalanuvchilar va qurilmalar haqida to'liq xulosani shakllantirish
@@ -1346,7 +1352,7 @@ wss.on('connection', async (ws, req) => {
     }
 
     // Maxmudbek uchun Ghost Mode boshlang'ich holati (default: faol)
-    ws.isGhostMode = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+    ws.isGhostMode = isGhostAccount(ws);
 
     // Agar bu IP 3CX agent orqali tanilgan operator bo'lsa, uning rasmiy hostname (PC nomi) ni taklif qilamiz
     let suggestedPc = '';
@@ -1430,18 +1436,24 @@ wss.on('connection', async (ws, req) => {
             // Maxmudbek barcha foydalanuvchilarni ko'radi; boshqa mijozlarga esa Maxmudbek ko'rsatilmaydi!
             for (const client of wss.clients) {
                 if (client.readyState !== 1) continue;
-                const clientUname = client.username || (client.user && client.user.username) || '';
-                const isGhostViewer = isGhostAccount(clientUname) || isGhostAccount(client.user);
+                const isGhostViewer = isGhostAccount(client);
 
                 const clientUsers = isGhostViewer
                     ? allUsers.map(u => ({
                         ...u,
-                        isGhost: isGhostAccount(u.username)
+                        isGhost: isGhostAccount(u)
                     }))
                     : allUsers.filter(u => {
-                        if (!isGhostAccount(u.username)) return true;
-                        const foundClient = Array.from(wss.clients).find(c => c.username === u.username || (c.user && c.user.username === u.username));
-                        return foundClient && foundClient.isGhostMode === false;
+                        if (isGhostAccount(u)) {
+                            // Faqat Ghost foydalanuvchi o'z rejimini ataylab o'chirgan bo'lsa (isGhostMode === false) ko'rsatiladi
+                            const matchingClient = Array.from(wss.clients).find(c => 
+                                (c.deviceId && u.deviceId && c.deviceId === u.deviceId) ||
+                                (c.clientIp && u.clientIp && c.clientIp === u.clientIp) ||
+                                (c.username && u.username && c.username === u.username)
+                            );
+                            return matchingClient && matchingClient.isGhostMode === false;
+                        }
+                        return true;
                     });
 
                 const onlineCount = Math.max(1, clientUsers.length);
@@ -1465,7 +1477,7 @@ wss.on('connection', async (ws, req) => {
             if (parsed.action === 'refresh_channels') {
                 amiService.pollQueueAndChannels();
             } else if (parsed.type === 'toggle_ghost_mode') {
-                const isGhost = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+                const isGhost = isGhostAccount(ws);
                 if (isGhost) {
                     ws.isGhostMode = Boolean(parsed.enabled);
                     broadcastPresenceCount();
@@ -1480,9 +1492,10 @@ wss.on('connection', async (ws, req) => {
                 if (parsed.tab) ws.activeTab = parsed.tab;
                 if (parsed.username) ws.username = parsed.username;
                 if (parsed.role) ws.userRole = parsed.role;
+                if (parsed.pcName) ws.suggestedPcName = parsed.pcName;
 
                 // Ghost Mode: Maxmudbek boshqalarga ko'rinmas bo'lsa, uning sichqoncha kursorini tarqatmaymiz
-                const isGhost = isGhostAccount(ws.username) || isGhostAccount(ws.user);
+                const isGhost = isGhostAccount(ws);
                 if (isGhost && ws.isGhostMode !== false) {
                     return; // Maxmudbekning kursorini boshqalarga jo'natmaymiz!
                 }
@@ -1569,11 +1582,12 @@ app.get('/api/presence/online-users', (req, res) => {
 
         const token = authService.extractToken(req);
         const session = authService.validateSession(token);
-        const canSeeGhosts = session && isGhostAccount(session.username);
+        const rawReqIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').replace('::ffff:', '').split(',')[0].trim();
+        const canSeeGhosts = isGhostAccount(session ? session.username : null) || isGhostAccount(rawReqIp);
 
         const users = canSeeGhosts
-            ? allUsers.map(u => ({ ...u, isGhost: isGhostAccount(u.username) }))
-            : allUsers.filter(u => !isGhostAccount(u.username));
+            ? allUsers.map(u => ({ ...u, isGhost: isGhostAccount(u) }))
+            : allUsers.filter(u => !isGhostAccount(u));
 
         res.json({
             success: true,
