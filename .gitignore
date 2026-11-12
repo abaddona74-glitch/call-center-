@@ -1,42 +1,48 @@
-# Dependencies
+# --- Maxfiy kalitlar (faqat kalit; .crt tegilmaydi) ---
+certs/*.key
+ssl/*.key
+viewer/ssl/*.key
+.env
+.env.*
+!.env.example
+
+# --- Zaxira va vaqtinchalik ---
+*.bak
+*.tmp
+scratch/
+test-results/
+__pycache__/
+*.pyc
+*.log
+logs/
+
+# --- Dependency ---
 node_modules/
 
-# Environment (maxfiy parollar - public repoga tashlanmaydi)
-.env
-
-# Ma'lumotlar bazasi
+# --- Ma'lumotlar bazasi va yuklamalar ---
 data/
-
-# Qurilgan / yuklab olingan fayllar
+callcenter.db
 public/downloads/
 !public/downloads/*.bat
 viewer/public/downloads/
 !viewer/public/downloads/*.bat
 3cx-desktop-agent/dist/
 
-# Ish muhiti (workspace) tooling
-.agents/
-skills-lock.json
-
-# Loglar
-*.log
-logs/
-
-# Arxiv va vaqtinchalik testlar
+# --- Arxivlar va sertifikatlar ---
 *.zip
 *.tar
 *.tar.gz
-scratch/
-
-# Maxfiy SSL sertifikatlari
-ssl/
 *.pfx
 
-# Katta Excel va eksport fayllari
-*.xlsx
-*.docx
-callcenter.db
-.env*
-!.env.example
-test-results/
-__pycache__/
+# --- graphify: GRAPH_REPORT.md, graph.json, graph.html qoladi ---
+graphify-out/cache/
+graphify-out/20*/
+graphify-out/transcripts/
+graphify-out/needs_update
+graphify-out/last_query_stamp
+
+# --- Ildizdagi og'ir audio (faqat ildiz, public/ ga tegmaydi) ---
+# Voice Matcher python skriptlari (batch_scan, build_zuhra_ensemble) uchun saqlab qolingan:
+# /operator.wav
+# /zuhra*.wav
+# /zuhrapa.ogg
