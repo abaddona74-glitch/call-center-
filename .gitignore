@@ -21,6 +21,11 @@ node_modules/
 
 # --- Ma'lumotlar bazasi va yuklamalar ---
 data/
+!data/tree.json
+!viewer/public/data/
+!viewer/public/data/**
+!public/data/
+!public/data/**
 callcenter.db
 public/downloads/
 !public/downloads/*.bat

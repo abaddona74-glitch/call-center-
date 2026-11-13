@@ -6840,7 +6840,7 @@ let focusTreeOpenState = {}; // { [parentId]: openNodeId }
 async function initFocusTree() {
     if (!focusTreeData) {
         try {
-            const res = await fetch('/data/tree.json');
+            const res = await fetch('/data/tree.json?v=' + Date.now());
             if (res.ok) {
                 focusTreeData = await res.json();
             }
@@ -6857,10 +6857,40 @@ async function initFocusTree() {
                 "id": "edo-rollar",
                 "title": "Rollar",
                 "children": [
-                  { "id": "edo-xdfu", "title": "XDFU" },
-                  { "id": "edo-rol-1", "title": "Rol 1" },
-                  { "id": "edo-rol-2", "title": "Rol 2" }
+                  {
+                    "id": "edo-tizim-rollari",
+                    "title": "Tizim rollari",
+                    "children": [
+                      { "id": "tr-nazoratchi-asosiy", "title": "Nazoratchi asosiy" },
+                      { "id": "tr-nazoratchi-murojaatlar", "title": "Nazoratchi murojaatlar" },
+                      { "id": "tr-nazoratchi-ichki-hujjatlar", "title": "Nazoratchi ichki hujjatlar" },
+                      { "id": "tr-devonxona-asosiy", "title": "Devonxona asosiy" },
+                      { "id": "tr-devonxona-murojaatlar", "title": "Devonxona murojaatlar" },
+                      { "id": "tr-devonxona-ichki-hujjatlar", "title": "Devonxona ichki hujjatlar" },
+                      { "id": "tr-sektor-fishka", "title": "Sektor fishka" }
+                    ]
+                  },
+                  {
+                    "id": "edo-mf-ijro-rollari",
+                    "title": "MF.IJRO.UZ rollari",
+                    "children": [
+                      { "id": "mf-xdfu-print", "title": "XDFU-PRINT" },
+                      { "id": "mf-admin-organizatsii", "title": "Admin organizatsii" },
+                      { "id": "mf-devonxona", "title": "Devonxona" },
+                      { "id": "mf-nazoratchi", "title": "Nazoratchi" },
+                      { "id": "mf-murojaat-nazoratchisi", "title": "Murojaat nazoratchisi" },
+                      { "id": "mf-kadrlar-bolimi", "title": "Kadrlar bo'limi" },
+                      { "id": "mf-oddiy-foydalanuvchi", "title": "Oddiy foydalanuvchi" },
+                      { "id": "mf-rahbar", "title": "Rahbar" },
+                      { "id": "mf-ustxat", "title": "Ustxat" },
+                      { "id": "mf-super-nazoratchi", "title": "Super nazoratchi" }
+                    ]
+                  }
                 ]
+              },
+              {
+                "id": "edo-xdfu",
+                "title": "XDFU"
               }
             ]
           },
