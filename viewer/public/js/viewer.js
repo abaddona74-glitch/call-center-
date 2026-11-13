@@ -6949,13 +6949,23 @@ function renderFocusTreeBranch(nodes, parentId, depth) {
             </div>
         ` : '';
 
+        const hintHtml = (node.hint || node.message) ? `
+            <div class="ft-hint-card" id="ft-hint-${node.id}">
+                <div class="ft-hint-badge">💡 Hint / Izoh</div>
+                <div class="ft-hint-text">${node.hint || node.message}</div>
+            </div>
+        ` : '';
+
         return `
             <div class="ft-col" id="ft-col-${node.id}" data-node-id="${node.id}" data-parent-id="${parentId}">
                 ${depth > 0 ? `<div class="${connClass}"></div>` : ''}
-                <${cardTag} class="ft-card ${depthClass} ${leafClass}" id="ft-card-${node.id}" ${cardAttr}>
-                    <span class="ft-title">${node.title}</span>
-                    ${badgeHtml}
-                </${cardTag}>
+                <div class="ft-node-anchor">
+                    <${cardTag} class="ft-card ${depthClass} ${leafClass}" id="ft-card-${node.id}" ${cardAttr}>
+                        <span class="ft-title">${node.title}</span>
+                        ${badgeHtml}
+                    </${cardTag}>
+                    ${hintHtml}
+                </div>
                 ${subTreeHtml}
             </div>
         `;

@@ -2,64 +2,72 @@
   {
     "id": "edo",
     "title": "EDO",
+    "hint": "Yagona elektron hujjat aylanishi tizimi (edo.ijro.uz)",
     "children": [
       {
         "id": "edo-rollar",
         "title": "Rollar",
+        "hint": "EDO tizimidagi asosiy foydalanuvchi huquq va vazifalari",
         "children": [
           {
             "id": "edo-tizim-rollari",
             "title": "Tizim rollari",
+            "hint": "Tizimning ichki ish faoliyatini boshqarish va nazorat rollari",
             "children": [
-              { "id": "tr-nazoratchi-asosiy", "title": "Nazoratchi asosiy" },
-              { "id": "tr-nazoratchi-murojaatlar", "title": "Nazoratchi murojaatlar" },
-              { "id": "tr-nazoratchi-ichki-hujjatlar", "title": "Nazoratchi ichki hujjatlar" },
-              { "id": "tr-devonxona-asosiy", "title": "Devonxona asosiy" },
-              { "id": "tr-devonxona-murojaatlar", "title": "Devonxona murojaatlar" },
-              { "id": "tr-devonxona-ichki-hujjatlar", "title": "Devonxona ichki hujjatlar" },
-              { "id": "tr-sektor-fishka", "title": "Sektor fishka" }
+              { "id": "tr-nazoratchi-asosiy", "title": "Nazoratchi asosiy", "hint": "Tashkilotdagi barcha ijro intizomi va hujjatlar monitoringi bo'yicha bosh mas'ul" },
+              { "id": "tr-nazoratchi-murojaatlar", "title": "Nazoratchi murojaatlar", "hint": "Jismoniy va yuridik shaxslar murojaatlari ijrosini nazorat qiluvchi rol" },
+              { "id": "tr-nazoratchi-ichki-hujjatlar", "title": "Nazoratchi ichki hujjatlar", "hint": "Tashkilot ichki buyruqlari, bayonnomalari va topshiriqlari nazoratchisi" },
+              { "id": "tr-devonxona-asosiy", "title": "Devonxona asosiy", "hint": "Barcha kiruvchi va chiquvchi rasmiy xatlarni ro'yxatga olish markazi" },
+              { "id": "tr-devonxona-murojaatlar", "title": "Devonxona murojaatlar", "hint": "Fuqarolar murojaatlarini qabul qilish va raqam berish" },
+              { "id": "tr-devonxona-ichki-hujjatlar", "title": "Devonxona ichki hujjatlar", "hint": "Ichki xat-hujjatlar va memorandumlarni ro'yxatdan o'tkazish" },
+              { "id": "tr-sektor-fishka", "title": "Sektor fishka", "hint": "Sektorlar bo'yicha hujjatlarni taqsimlash va yo'naltirish fishkasi" }
             ]
           },
           {
             "id": "edo-mf-ijro-rollari",
             "title": "MF.IJRO.UZ rollari",
+            "hint": "Moliya vazirligi va davlat organlari bilan bog'liq maxsus rollar",
             "children": [
-              { "id": "mf-xdfu-print", "title": "XDFU-PRINT" },
-              { "id": "mf-admin-organizatsii", "title": "Admin organizatsii" },
-              { "id": "mf-devonxona", "title": "Devonxona" },
-              { "id": "mf-nazoratchi", "title": "Nazoratchi" },
-              { "id": "mf-murojaat-nazoratchisi", "title": "Murojaat nazoratchisi" },
-              { "id": "mf-kadrlar-bolimi", "title": "Kadrlar bo'limi" },
-              { "id": "mf-oddiy-foydalanuvchi", "title": "Oddiy foydalanuvchi" },
-              { "id": "mf-rahbar", "title": "Rahbar" },
-              { "id": "mf-ustxat", "title": "Ustxat" },
-              { "id": "mf-super-nazoratchi", "title": "Super nazoratchi" }
+              { "id": "mf-xdfu-print", "title": "XDFU-PRINT", "hint": "XDFU toifasidagi cheklangan hujjatlarni maxsus shtamp bilan chop etish huquqi" },
+              { "id": "mf-admin-organizatsii", "title": "Admin organizatsii", "hint": "Tashkilot administratori — xodimlarni qo'shish va rollarni sozlash" },
+              { "id": "mf-devonxona", "title": "Devonxona", "hint": "MF.IJRO integratsiyasidagi devonxona xodimi" },
+              { "id": "mf-nazoratchi", "title": "Nazoratchi", "hint": "MF.IJRO bo'yicha ijro monitoringi" },
+              { "id": "mf-murojaat-nazoratchisi", "title": "Murojaat nazoratchisi", "hint": "Murojaatlar ijro muddatlarini tekshiruvchi mutaxassis" },
+              { "id": "mf-kadrlar-bolimi", "title": "Kadrlar bo'limi", "hint": "Xodimlar tarkibi, buyruqlari va shtatlar jadvali bilan ishlash" },
+              { "id": "mf-oddiy-foydalanuvchi", "title": "Oddiy foydalanuvchi", "hint": "Hujjatlarni ko'rish va o'ziga biriktirilgan vazifalarni bajarish" },
+              { "id": "mf-rahbar", "title": "Rahbar", "hint": "Hujjatlarga imzo qo'yish (ERI) va rezolyutsiya chiqarish vakolati" },
+              { "id": "mf-ustxat", "title": "Ustxat", "hint": "Rahbar ustxatlarini (rezolyutsiyalarini) shakllantirish va yo'naltirish" },
+              { "id": "mf-super-nazoratchi", "title": "Super nazoratchi", "hint": "Butun tizim va hududlar kesimida kengaytirilgan nazorat huquqi" }
             ]
           }
         ]
       },
       {
         "id": "edo-xdfu",
-        "title": "XDFU"
+        "title": "XDFU",
+        "hint": "Xizmat Doirasida Foydalanish Uchun (maxfiy bo'lmagan, lekin tarqatilishi cheklangan hujjatlar)"
       }
     ]
   },
   {
     "id": "e-huquqshunos",
     "title": "E-huquqshunos",
+    "hint": "Davlat organlari va tashkilotlariga yuridik xizmat ko'rsatish elektron tizimi",
     "children": [
       {
         "id": "eh-rollar",
         "title": "Rollar",
+        "hint": "E-huquqshunos tizimi foydalanuvchi rollari",
         "children": [
-          { "id": "eh-rol-1", "title": "Rol 1" },
-          { "id": "eh-rol-2", "title": "Rol 2" }
+          { "id": "eh-rol-1", "title": "Yuriskonsult", "hint": "Hujjatlarni huquqiy ekspertizadan o'tkazuvchi mutaxassis" },
+          { "id": "eh-rol-2", "title": "Kengash kotibi", "hint": "Yuridik xulosa va qarorlarni tasdiqlash uchun yuboruvchi" }
         ]
       }
     ]
   },
   {
     "id": "mahalla",
-    "title": "Mahalla"
+    "title": "Mahalla",
+    "hint": "Mahalla yettiligi va fuqarolar yig'inlari axborot tizimi"
   }
 ]
