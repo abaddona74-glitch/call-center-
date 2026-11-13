@@ -16,11 +16,12 @@ const EXCLUDED_OPERATORS = new Set();
 class SyncService {
     constructor() {
         this.lastDailySyncDate = null;
+        this.lastPeriodicSyncMinute = -1;
         this.lastSyncTime = null;
         this.isSyncRunning = false;
         this.onSyncComplete = null;
 
-        // Har 30 soniyada soat 21:00 bo'lganini tekshirib borish
+        // Har 30 soniyada soat 21:00 bo'lganini va kun davomida har 15 daqiqalik sinxronni tekshirish
         this.startDailyScheduler();
     }
 
@@ -39,7 +40,9 @@ class SyncService {
                 if (!curTime) return;
 
                 const [hr, mn] = curTime.split(':');
-                // Har kuni kechqurun 21:00 da Toshkent vaqti bilan avtomatik sinxronizatsiya
+                const minuteNum = parseInt(mn, 10);
+
+                // 1. Har kuni kechqurun 21:00 da Toshkent vaqti bilan to'liq avtomatik sinxronizatsiya
                 if (hr === '21' && mn === '00' && this.lastDailySyncDate !== curDate) {
                     this.lastDailySyncDate = curDate;
                     console.log(`⏰ [21:00 Toshkent vaqti] Avtomatik kunlik CDR -> 3CX sinxronizatsiyasi boshlandi (${curDate})...`);
@@ -48,6 +51,21 @@ class SyncService {
                     if (typeof this.onSyncComplete === 'function') {
                         this.onSyncComplete(res);
                     }
+                }
+                // 2. Kun davomida har 15 daqiqada yangi tushgan CDR qo'ng'iroqlarni avtomatik sinxronlash
+                else if (minuteNum % 15 === 0 && this.lastPeriodicSyncMinute !== minuteNum) {
+                    this.lastPeriodicSyncMinute = minuteNum;
+                    console.log(`🔄 [Periodik Sinxron] Har 15 daqiqalik CDR -> 3CX sinxronlash (${curDate} ${curTime})...`);
+                    this.syncDailyCdrToAgentLogs(curDate).then(res => {
+                        if (res && res.addedCount > 0) {
+                            console.log(`✅ [Periodik Sinxron] ${res.addedCount} ta yangi qo'ng'iroq 3CX jurnaliga qo'shildi!`);
+                            if (typeof this.onSyncComplete === 'function') {
+                                this.onSyncComplete(res);
+                            }
+                        }
+                    }).catch(err => {
+                        console.warn('⚠️ [Periodik Sinxron] Ogohlantirish:', err.message);
+                    });
                 }
             } catch (err) {
                 console.error('❌ SyncService scheduler xatolik:', err.message);

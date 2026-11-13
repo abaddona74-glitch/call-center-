@@ -92,15 +92,27 @@ function checkInbox() {
                                     });
                                 }
                             });
-                            const updateCmd = `echo '${JSON.stringify(items).replace(/'/g, "'\\''")}' > /opt/call-center/scratch/ui_inbox.json`;
+                            const updateCmd = `cat << 'EOF' > /opt/call-center/scratch/ui_inbox.json\n${JSON.stringify(items.slice(0, 50), null, 2)}\nEOF`;
                             const conn2 = new Client();
                             conn2.on('ready', () => {
-                                conn2.exec(updateCmd, () => {
+                                conn2.exec(updateCmd, (err) => {
                                     conn2.end();
-                                    console.log(`✅ [${pending.id}] Vazifa qabul qilindi va serverda 'processing' deb belgilandi.`);
-                                    console.log('🔄 Keyingi so\'rovlar kutilmoqda (Watcher faol)...');
-                                    setTimeout(checkInbox, 2500);
+                                    if (err) {
+                                        console.error('Update error:', err.message);
+                                    } else {
+                                        console.log(`✅ [${pending.id}] Vazifa qabul qilindi va serverda 'processing' deb belgilandi.`);
+                                    }
+                                    console.log('🚀 Antigravity AI avtomatik ravishda uyg\'onmoqda va vazifani bajarishga kirishmoqda...');
+                                    console.log('=============================================\n');
+                                    // Jarayonni muvaffaqiyatli tugatamiz — bu Antigravity tizimiga darhol uyg'onish signali beradi!
+                                    setTimeout(() => {
+                                        process.exit(0);
+                                    }, 500);
                                 });
+                            }).on('error', (err) => {
+                                console.error('SSH conn2 error:', err.message);
+                                // Agar SSH xato bersa ham agent uyg'onishi kerak
+                                process.exit(0);
                             }).connect({
                                 host: SERVER_HOST,
                                 port: SERVER_PORT,
