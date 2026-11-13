@@ -150,6 +150,42 @@ app.use(compression({
     }
 }));
 
+// Reverse Proxy: Telegram Form Dashboard (127.0.0.1:3006)
+const TELEGRAM_FORM_PORT = 3006;
+app.use('/telegram-form', (req, res) => {
+    const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+    const clientHost = req.headers.host || req.hostname;
+    const options = {
+        hostname: '127.0.0.1',
+        port: TELEGRAM_FORM_PORT,
+        path: req.originalUrl,
+        method: req.method,
+        headers: {
+            ...req.headers,
+            host: `127.0.0.1:${TELEGRAM_FORM_PORT}`,
+            'x-forwarded-host': clientHost,
+            'x-forwarded-proto': isHttps ? 'https' : 'http'
+        }
+    };
+
+    const proxyReq = http.request(options, (proxyRes) => {
+        const headers = { ...proxyRes.headers };
+        delete headers['x-frame-options'];
+        delete headers['content-security-policy'];
+        res.writeHead(proxyRes.statusCode, headers);
+        proxyRes.pipe(res);
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Telegram Form Dashboard Proxy Error (Port 3535):', err.message);
+        if (!res.headersSent) {
+            res.status(502).send('Telegram Form Dashboard xizmati vaqtincha mavjud emas (502 Bad Gateway)');
+        }
+    });
+
+    req.pipe(proxyReq);
+});
+
 // Katta hajmdagi fayllarni konvertatsiya qilish uchun alohida 50mb limit
 app.use('/api/converter/convert', express.json({ limit: '50mb' }));
 app.use('/api/converter/convert', express.urlencoded({ extended: true, limit: '50mb' }));
