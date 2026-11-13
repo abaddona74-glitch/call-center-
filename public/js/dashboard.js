@@ -13481,8 +13481,12 @@ let historyColumnsVisibility = {};
 function loadHistoryColumnsSettings() {
     try {
         const saved = localStorage.getItem('callcenter_history_columns');
+        let parsed = null;
         if (saved) {
-            historyColumnsVisibility = JSON.parse(saved);
+            try { parsed = JSON.parse(saved); } catch (_) { parsed = null; }
+        }
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            historyColumnsVisibility = parsed;
         } else {
             historyColumnsVisibility = {};
             HISTORY_COLUMNS_CONFIG.forEach(c => { historyColumnsVisibility[c.key] = true; });
@@ -13496,11 +13500,12 @@ loadHistoryColumnsSettings();
 
 function saveHistoryColumnsSettings() {
     try {
-        localStorage.setItem('callcenter_history_columns', JSON.stringify(historyColumnsVisibility));
+        localStorage.setItem('callcenter_history_columns', JSON.stringify(historyColumnsVisibility || {}));
     } catch (e) { }
 }
 
 function isHistoryColumnVisible(key) {
+    if (!historyColumnsVisibility || typeof historyColumnsVisibility !== 'object') return true;
     if (historyColumnsVisibility[key] === undefined) return true;
     return Boolean(historyColumnsVisibility[key]);
 }
@@ -13524,15 +13529,20 @@ function applyHistoryColumnsVisibility() {
 window.applyHistoryColumnsVisibility = applyHistoryColumnsVisibility;
 
 function toggleHistoryColumnsDropdown(e) {
-    if (e) e.stopPropagation();
+    if (e) {
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+    }
     const menu = document.getElementById('historyColsDropdownMenu');
     if (!menu) return;
-    const isShowing = menu.style.display !== 'none';
+    const isShowing = menu.classList.contains('open') || menu.style.display === 'block';
     if (isShowing) {
         menu.style.display = 'none';
+        menu.classList.remove('open');
     } else {
         renderHistoryColsCheckboxes();
         menu.style.display = 'block';
+        menu.classList.add('open');
     }
 }
 window.toggleHistoryColumnsDropdown = toggleHistoryColumnsDropdown;
@@ -15125,8 +15135,9 @@ document.addEventListener('click', (e) => {
     }
     const colsDropdown = document.getElementById('historyColsDropdownMenu');
     const colsWrap = document.getElementById('historyColsDropdownWrap');
-    if (colsDropdown && colsDropdown.style.display !== 'none' && colsWrap && !colsWrap.contains(e.target)) {
+    if (colsDropdown && (colsDropdown.style.display !== 'none' || colsDropdown.classList.contains('open')) && colsWrap && !colsWrap.contains(e.target)) {
         colsDropdown.style.display = 'none';
+        colsDropdown.classList.remove('open');
     }
 });
 

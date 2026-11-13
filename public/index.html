@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1794549679656">
+    <meta name="build-id" content="1794563850000">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -20,7 +20,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1794549679656">
+    <link rel="stylesheet" href="/css/style.css?v=1794563850000">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -1777,7 +1777,7 @@
             <!-- TAB 4: QO'NG'IROQLAR TARIXI (CDR) -->
             <!-- TAB 4: QO'NG'IROQLAR TARIXI (3CX DESKTOP AGENT & CDR) -->
             <section class="page-content" id="tab-history">
-                <div class="glass-panel" style="margin-bottom: 20px;">
+                <div class="glass-panel" style="margin-bottom: 20px; position: relative; z-index: 50;">
                     <div class="panel-header" style="flex-wrap: wrap; gap: 14px; margin-bottom: 0;">
                         <div>
                             <h3 class="panel-title" id="historyPanelTitle"
@@ -1905,20 +1905,20 @@
 
                                 <!-- Ustunlarni sozlash (Columns Visibility Dropdown) -->
                                 <div class="history-cols-dropdown-wrap" id="historyColsDropdownWrap"
-                                    style="position: relative; display: inline-block;">
+                                    style="position: relative; display: inline-block; z-index: 60;">
                                     <button type="button" id="btnToggleHistoryCols"
                                         onclick="toggleHistoryColumnsDropdown(event)"
                                         title="Jadval ustunlarini sozlash (ko'rsatish / yashirish)"
                                         aria-label="Ustunlar sozlamasi"
                                         style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                                         <svg class="isax isax-slider-vertical"
-                                            style="width: 14px; height: 14px; color: #38bdf8;">
+                                            style="width: 14px; height: 14px; color: #38bdf8; pointer-events: none;">
                                             <use href="/icons/iconsax/iconsax-sprite.svg#isax-slider-vertical"></use>
                                         </svg>
-                                        <span>Ustunlar</span>
+                                        <span style="pointer-events: none;">Ustunlar</span>
                                     </button>
                                     <div id="historyColsDropdownMenu" class="history-cols-dropdown-menu"
-                                        style="display: none; position: absolute; right: 0; top: calc(100% + 6px); width: 235px; background: #0b1329; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; box-shadow: 0 16px 36px rgba(0,0,0,0.75), 0 0 20px rgba(56, 189, 248, 0.15); z-index: 1000; padding: 10px 12px;">
+                                        style="display: none; position: absolute; right: 0; top: calc(100% + 6px); width: 235px; background: #0b1329; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; box-shadow: 0 16px 36px rgba(0,0,0,0.75), 0 0 20px rgba(56, 189, 248, 0.15); z-index: 9999; padding: 10px 12px;">
                                         <div
                                             style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.08);">
                                             <span
@@ -6358,9 +6358,9 @@
     <!-- Blacklist (Qora ro'yxat) moduli -->
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1794549679656" defer></script>
+    <script src="/js/dashboard.js?v=1794563850000" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794549679656" defer></script>
+    <script src="/js/visualInspector.js?v=1794563850000" defer></script>
 </body>
 
 </html>
