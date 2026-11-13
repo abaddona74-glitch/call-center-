@@ -282,6 +282,12 @@ app.use(async (req, res, next) => {
         p === '/favicon.png' ||
         p === '/api/version' ||
         p === '/version.json' ||
+        p === '/guide' ||
+        p === '/guide.html' ||
+        p === '/manual' ||
+        p === '/manual.html' ||
+        p === '/yoriqnoma' ||
+        p.startsWith('/data/') ||
         p.startsWith('/api/auth/webauthn') ||
         p.startsWith('/vendor/') ||
         p === '/passkey-client.js' ||
