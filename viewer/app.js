@@ -1897,6 +1897,11 @@ app.get(['/tickets', '/tickets.html'], (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'tickets.html'));
 });
 
+// Operator Yo'riqnomasi (Manual & Focus Tree) to'liq alohida sahifa
+app.get(['/guide', '/guide.html', '/manual', '/manual.html', '/yoriqnoma'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'guide.html'));
+});
+
 // Masofaviy Yordam (RustDesk) orqali taklif yuborish
 app.post('/api/remote-desktop/notify-operator', express.json(), (req, res) => {
     const { operatorId, operatorName } = req.body || {};
