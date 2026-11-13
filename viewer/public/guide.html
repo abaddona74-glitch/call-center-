@@ -2,8 +2,8 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Operator Yo'riqnomasi va Ish Reglamenti | Call Center AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Tizimlar va Rollar Daraxti | Call Center AI</title>
     <link rel="icon" type="image/png" href="/images/title-icon.png">
     
     <!-- Localized Fonts -->
@@ -12,14 +12,11 @@
     
     <style>
         :root {
-            --bg-dark: #0b1120;
-            --panel-bg: rgba(15, 23, 42, 0.75);
-            --panel-border: rgba(59, 130, 246, 0.25);
+            --bg-dark: #080d1a;
+            --grid-color: rgba(56, 189, 248, 0.07);
             --accent-cyan: #38bdf8;
             --accent-green: #34d399;
             --accent-purple: #c084fc;
-            --accent-amber: #fbbf24;
-            --accent-red: #f87171;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -28,16 +25,16 @@
             box-sizing: border-box;
         }
 
-        body {
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
             background-color: var(--bg-dark) !important;
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow-x: hidden;
+            user-select: none;
         }
 
         /* Top Sticky Header */
@@ -45,29 +42,30 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px 32px;
-            background: rgba(15, 23, 42, 0.92);
+            height: 64px;
+            padding: 0 24px;
+            background: rgba(15, 23, 42, 0.94);
             border-bottom: 1px solid rgba(59, 130, 246, 0.25);
             backdrop-filter: blur(16px);
-            position: sticky;
-            top: 0;
+            position: relative;
             z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
 
         .guide-header-left {
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 16px;
         }
 
         .guide-back-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
+            gap: 7px;
+            padding: 7px 14px;
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 10px;
+            border-radius: 9px;
             color: #cbd5e1;
             font-size: 13px;
             font-weight: 600;
@@ -84,12 +82,12 @@
         .guide-title-box {
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 12px;
         }
         .guide-icon-badge {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
             background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.25));
             border: 1px solid rgba(56, 189, 248, 0.4);
             display: flex;
@@ -99,25 +97,20 @@
         }
 
         .guide-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             color: #fff;
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 10px;
-        }
-        .guide-subtitle {
-            font-size: 12.5px;
-            color: var(--text-muted);
-            margin: 2px 0 0 0;
+            gap: 8px;
         }
 
         .guide-pill {
-            font-size: 11px;
+            font-size: 10.5px;
             font-weight: 700;
-            padding: 2px 9px;
-            border-radius: 6px;
+            padding: 2px 8px;
+            border-radius: 5px;
             background: rgba(16, 185, 129, 0.2);
             color: #34d399;
             border: 1px solid rgba(16, 185, 129, 0.4);
@@ -130,11 +123,12 @@
             align-items: center;
             gap: 10px;
         }
+
         .btn-action-guide {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            padding: 8px 14px;
+            padding: 7px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 9px;
@@ -149,87 +143,40 @@
             color: #fff;
         }
 
-        /* Container & Tabs */
-        .guide-container {
-            max-width: 1600px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 24px 32px 48px;
-            flex: 1;
+        /* Infinite Canvas Viewport */
+        .ft-viewport {
+            width: 100vw;
+            height: calc(100vh - 64px);
+            position: relative;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(var(--grid-color) 1.2px, transparent 1.2px),
+                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 32px 32px, 128px 128px, 128px 128px;
+            background-position: 0 0, 0 0, 0 0;
+            cursor: grab;
+        }
+        .ft-viewport.is-dragging {
+            cursor: grabbing !important;
         }
 
-        .guide-nav-bar {
-            display: flex;
-            gap: 10px;
-            padding: 10px 14px;
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 16px;
-            backdrop-filter: blur(12px);
-            margin-bottom: 24px;
-            overflow-x: auto;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-        }
-
-        .guide-tab-btn {
+        /* Transform Layer */
+        .ft-transform-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            will-change: transform;
+            padding: 60px 100px 300px;
             display: inline-flex;
+            flex-direction: column;
             align-items: center;
-            gap: 9px;
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            border-radius: 10px;
-            color: #94a3b8;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-        .guide-tab-btn:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.18);
-        }
-        .guide-tab-btn.active {
-            color: #fff;
-            background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(16, 185, 129, 0.2));
-            border-color: rgba(56, 189, 248, 0.6);
-            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
-        }
-
-        /* Content Sections */
-        .guide-content-section {
-            background: var(--panel-bg);
-            border: 1px solid var(--panel-border);
-            border-radius: 18px;
-            padding: 28px;
-            backdrop-filter: blur(14px);
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-        .guide-content-section.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
+            min-width: 100%;
         }
 
         /* Focus Tree Org-Chart Styles */
-        .ft-container {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            padding: 30px 10px;
-            overflow-x: auto;
-            min-height: 380px;
-            user-select: none;
-        }
         .ft-branch {
             display: flex;
             flex-direction: column;
@@ -247,10 +194,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            max-width: 500px;
+            max-width: 600px;
             opacity: 1;
             transform: scale(1);
-            margin: 0 16px;
+            margin: 0 20px;
             padding: 0;
             transition: max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
                         opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
@@ -267,31 +214,35 @@
             pointer-events: none !important;
             overflow: hidden !important;
         }
+
+        /* Cards */
         .ft-card {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 10px 24px;
-            font-size: 14.5px;
+            gap: 12px;
+            padding: 12px 28px;
+            font-size: 15px;
             font-weight: 600;
-            border-radius: 12px;
+            border-radius: 14px;
             cursor: pointer;
             outline: none;
             position: relative;
             z-index: 10;
             white-space: nowrap;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
             transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
                         box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
                         background 0.3s ease,
                         border-color 0.3s ease;
         }
         .ft-card:focus-visible {
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.5);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6);
         }
         .ft-card.is-open {
             transform: scale(1.1) !important;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7) !important;
             z-index: 25 !important;
         }
         .ft-card.ft-leaf {
@@ -300,12 +251,12 @@
         
         /* Depth Tints */
         .ft-depth-0 {
-            background: rgba(56, 189, 248, 0.12);
-            border: 1px solid rgba(56, 189, 248, 0.45);
+            background: rgba(56, 189, 248, 0.14);
+            border: 1px solid rgba(56, 189, 248, 0.5);
             color: #38bdf8;
         }
         .ft-depth-0:hover:not(.ft-leaf), .ft-depth-0.is-open {
-            background: rgba(56, 189, 248, 0.25);
+            background: rgba(56, 189, 248, 0.28);
             border-color: #38bdf8;
             color: #ffffff;
         }
@@ -315,12 +266,12 @@
         }
 
         .ft-depth-1 {
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.45);
+            background: rgba(16, 185, 129, 0.14);
+            border: 1px solid rgba(16, 185, 129, 0.5);
             color: #34d399;
         }
         .ft-depth-1:hover:not(.ft-leaf), .ft-depth-1.is-open {
-            background: rgba(16, 185, 129, 0.25);
+            background: rgba(16, 185, 129, 0.28);
             border-color: #34d399;
             color: #ffffff;
         }
@@ -330,12 +281,12 @@
         }
 
         .ft-depth-2 {
-            background: rgba(168, 85, 247, 0.12);
-            border: 1px solid rgba(168, 85, 247, 0.45);
+            background: rgba(168, 85, 247, 0.14);
+            border: 1px solid rgba(168, 85, 247, 0.5);
             color: #c084fc;
         }
         .ft-depth-2:hover:not(.ft-leaf), .ft-depth-2.is-open {
-            background: rgba(168, 85, 247, 0.25);
+            background: rgba(168, 85, 247, 0.28);
             border-color: #c084fc;
             color: #ffffff;
         }
@@ -348,8 +299,8 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
             font-size: 13px;
             font-weight: 700;
@@ -382,21 +333,21 @@
         /* 1px Connector Lines */
         .ft-stem {
             width: 1px;
-            height: 22px;
-            background: rgba(148, 163, 184, 0.4);
+            height: 24px;
+            background: rgba(148, 163, 184, 0.45);
             margin: 0 auto;
             flex-shrink: 0;
         }
         .ft-connector {
             width: 100%;
-            height: 22px;
+            height: 24px;
             position: relative;
             flex-shrink: 0;
         }
         .ft-connector.ft-single {
             width: 1px;
-            height: 22px;
-            background: rgba(148, 163, 184, 0.4);
+            height: 24px;
+            background: rgba(148, 163, 184, 0.45);
             margin: 0 auto;
         }
         .ft-connector.ft-first {
@@ -409,8 +360,8 @@
             right: 0;
             top: 0;
             bottom: 0;
-            border-top: 1px solid rgba(148, 163, 184, 0.4);
-            border-left: 1px solid rgba(148, 163, 184, 0.4);
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
+            border-left: 1px solid rgba(148, 163, 184, 0.45);
             border-top-left-radius: 8px;
         }
         .ft-connector.ft-last {
@@ -423,8 +374,8 @@
             right: 50%;
             top: 0;
             bottom: 0;
-            border-top: 1px solid rgba(148, 163, 184, 0.4);
-            border-right: 1px solid rgba(148, 163, 184, 0.4);
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
+            border-right: 1px solid rgba(148, 163, 184, 0.45);
             border-top-right-radius: 8px;
         }
         .ft-connector.ft-mid {
@@ -436,7 +387,7 @@
             left: 0;
             right: 0;
             top: 0;
-            border-top: 1px solid rgba(148, 163, 184, 0.4);
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
         }
         .ft-connector.ft-mid::after {
             content: '';
@@ -445,45 +396,81 @@
             top: 0;
             bottom: 0;
             width: 1px;
-            background: rgba(148, 163, 184, 0.4);
+            background: rgba(148, 163, 184, 0.45);
         }
 
-        /* Text Guide Cards */
-        .manual-card {
-            background: rgba(15, 23, 42, 0.65);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-            padding: 20px 22px;
-            margin-bottom: 18px;
-        }
-        .manual-card-accent {
-            border-left: 4px solid var(--accent-cyan);
-        }
-        .manual-card-success {
-            border-left: 4px solid var(--accent-green);
-        }
-        .manual-card-warning {
-            border-left: 4px solid var(--accent-amber);
-        }
-        .manual-card-danger {
-            border-left: 4px solid var(--accent-red);
+        /* Floating Canvas Controls Overlay */
+        .ft-controls-panel {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 50;
         }
 
-        /* Responsive */
-        @media (max-width: 900px) {
-            .guide-header {
-                padding: 12px 18px;
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
-            .guide-container {
-                padding: 16px;
-            }
-            .ft-row {
-                flex-wrap: wrap;
-                gap: 12px;
-            }
+        .ft-ctrl-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .ft-ctrl-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #fff;
+        }
+
+        .ft-zoom-badge {
+            font-size: 12px;
+            font-weight: 700;
+            color: #38bdf8;
+            padding: 0 10px;
+            min-width: 54px;
+            text-align: center;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .ft-zoom-badge:hover {
+            text-decoration: underline;
+        }
+
+        /* Floating Helper Hint */
+        .ft-helper-pill {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 12px;
+            color: #94a3b8;
+            backdrop-filter: blur(12px);
+            z-index: 50;
+            pointer-events: none;
+        }
+        .ft-helper-pill b {
+            color: #e2e8f0;
         }
     </style>
 </head>
@@ -498,293 +485,216 @@
             </a>
             <div class="guide-title-box">
                 <div class="guide-icon-badge">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="M22 18.5V6C22 4.62 20.88 3.5 19.5 3.5H16C14.34 3.5 13 4.84 13 6.5V20.5C13 21.05 13.45 21.5 14 21.5H19.5C20.88 21.5 22 20.38 22 19V18.5Z"/><path d="M2 18.5V6C2 4.62 3.12 3.5 4.5 3.5H8C9.66 3.5 11 4.84 11 6.5V20.5C11 21.05 10.55 21.5 10 21.5H4.5C3.12 21.5 2 20.38 2 19V18.5Z"/><path d="M11 6.5C11 4.84 12.34 3.5 14 3.5"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M12 6V2M12 22v-4M2 12h4M18 12h4"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
                 </div>
                 <div>
                     <h1 class="guide-title">
-                        <span>Operator Yo'riqnomasi va Ish Reglamenti</span>
-                        <span class="guide-pill">Rasmiy</span>
+                        <span>Tizimlar va Rollar Daraxti</span>
+                        <span class="guide-pill">Interaktiv</span>
                     </h1>
-                    <p class="guide-subtitle">Call Center operatorlari uchun salomlashish standarti, transfer, arizalar va tizimlar rollar daraxti</p>
                 </div>
             </div>
         </div>
 
         <div class="guide-header-actions">
+            <button type="button" class="btn-action-guide" onclick="resetFocusTree()" title="Barcha ochilgan rollarni yopish">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Barchasini yopish</span>
+            </button>
             <button type="button" class="btn-action-guide" onclick="window.toggleVisualInspector && window.toggleVisualInspector()" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(56, 189, 248, 0.2)); border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff;" title="Visual AI Inspector (Ctrl + Shift + D)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
                 <span>AI Inspector <kbd style="font-size: 10px; background: rgba(0,0,0,0.35); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); font-family: monospace;">Ctrl+Shift+D</kbd></span>
             </button>
-            <button type="button" class="btn-action-guide" onclick="window.print()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                <span>Chop etish / PDF</span>
-            </button>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="guide-container">
-        <!-- Navigation Tabs -->
-        <nav class="guide-nav-bar">
-            <button type="button" class="guide-tab-btn active" data-tab="tab-focus-tree" onclick="switchGuideTab('tab-focus-tree')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6V2M12 22v-4M2 12h4M18 12h4"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
-                <span>🌲 Tizimlar va Rollar Daraxti</span>
+    <!-- Infinite Viewport -->
+    <div class="ft-viewport" id="treeViewport">
+        <!-- Transformable Layer -->
+        <div class="ft-transform-layer" id="transformLayer">
+            <div class="ft-branch" id="focusTreeCanvas">
+                <div style="text-align: center; color: #94a3b8; padding: 40px; font-size: 15px;">Daraxt yuklanmoqda...</div>
+            </div>
+        </div>
+
+        <!-- Floating Controls Panel -->
+        <div class="ft-controls-panel">
+            <button type="button" class="ft-ctrl-btn" onclick="zoomIn()" title="Kattalashtirish (Zoom In)">+</button>
+            <button type="button" class="ft-ctrl-btn" onclick="zoomOut()" title="Kichraytirish (Zoom Out)">−</button>
+            <span class="ft-zoom-badge" id="zoomBadge" onclick="resetZoom()" title="100% ga qaytarish">100%</span>
+            <button type="button" class="ft-ctrl-btn" onclick="centerTree()" title="Markazga keltirish (Fit to View)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             </button>
-            <button type="button" class="guide-tab-btn" data-tab="tab-rules" onclick="switchGuideTab('tab-rules')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                <span>🗣️ Salomlashish standarti</span>
-            </button>
-            <button type="button" class="guide-tab-btn" data-tab="tab-transfer" onclick="switchGuideTab('tab-transfer')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                <span>🔄 Transfer & Ichki raqamlar</span>
-            </button>
-            <button type="button" class="guide-tab-btn" data-tab="tab-telegram" onclick="switchGuideTab('tab-telegram')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                <span>📝 Telegram Form & Arizalar</span>
-            </button>
-            <button type="button" class="guide-tab-btn" data-tab="tab-schedule" onclick="switchGuideTab('tab-schedule')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>⏸️ Tanaffus & Intizom</span>
-            </button>
-            <button type="button" class="guide-tab-btn" data-tab="tab-troubleshoot" onclick="switchGuideTab('tab-troubleshoot')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                <span>🛠️ Texnik yordam</span>
-            </button>
-        </nav>
+        </div>
 
-        <!-- TAB 0: FOCUS TREE -->
-        <section class="guide-content-section active" id="sec-tab-focus-tree">
-            <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 14px; padding: 18px 24px;">
-                <div>
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
-                        <span>🌲 Tizimlar, Xizmatlar va Rollar Interaktiv Daraxti</span>
-                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(56, 189, 248, 0.2); color: #7dd3fc;">Interaktiv Org-Chart</span>
-                    </h3>
-                    <p style="margin: 5px 0 0 0; font-size: 13.5px; color: #cbd5e1;">
-                        Tizim (masalan <b>EDO</b> yoki <b>E-huquqshunos</b>) ustiga bosing — u kattalashib markazga suriladi, qolganlari esa silliq qisqaradi.
-                    </p>
-                </div>
-                <button type="button" onclick="resetFocusTree()" class="btn-action-guide" style="background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #fff;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    <span>Barchasini yopish (Reset)</span>
-                </button>
-            </div>
+        <!-- Helper Hint -->
+        <div class="ft-helper-pill">
+            <span>🖱️ <b>Sichqoncha g'ildiragi:</b> Zoom</span>
+            <span>🖐️ <b>Drag (tortish):</b> Siljitish</span>
+            <span>👆 <b>Tugmalar:</b> Rollarni ochish</span>
+        </div>
+    </div>
 
-            <!-- Focus Tree Canvas -->
-            <div class="ft-container" id="focusTreeCanvas">
-                <div style="text-align: center; color: #94a3b8; padding: 40px;">Daraxt yuklanmoqda...</div>
-            </div>
-        </section>
-
-        <!-- TAB 1: SALOMLASHISH STANDARTI -->
-        <section class="guide-content-section" id="sec-tab-rules">
-            <div class="manual-card manual-card-accent">
-                <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 16px; font-weight: 700;">
-                    1. Qo'ng'iroqni qabul qilish (Birinchi 3 soniya)
-                </h4>
-                <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 14px 18px; margin-bottom: 12px;">
-                    <strong style="color: #fff; font-size: 14px;">🗣️ Rasmiy salomlashish shabloni:</strong><br>
-                    <span style="color: #67e8f9; font-style: italic; font-size: 15px; display: inline-block; margin-top: 6px;">"Assalomu alaykum! Call Center xizmati, operator [Ismingiz] sizni eshitmoqda. Qanday yordam bera olaman?"</span>
-                </div>
-                <p style="margin: 0; color: #94a3b8; font-size: 13px;">
-                    📌 <b>Asosiy qoida:</b> Qo'ng'iroq 3-chaqiruvdan (gudok) oshmasdan qabul qilinishi lozim. Operator ovozi aniq, do'stona va ishonchli yangrashi kerak.
-                </p>
-            </div>
-
-            <div class="manual-card manual-card-success">
-                <h4 style="margin: 0 0 12px 0; color: #34d399; font-size: 16px; font-weight: 700;">2. Suhbat jarayoni va diqqat bilan tinglash</h4>
-                <ul style="margin: 0; padding-left: 22px; line-height: 1.8; font-size: 14px;">
-                    <li><b>Mijoz so'zini bo'lmang:</b> U muammosini to'liq ifoda etishiga imkon bering.</li>
-                    <li><b>Muammoni aniqlashtiring:</b> <i>"Tushunarli, demak sizda EDO tizimiga kirish bo'yicha qiyinchilik tug'ildi, to'g'rimi?"</i></li>
-                    <li><b>Xushmuomalalik so'zlari:</b> <i>"Iltimos", "Rahmat", "Marhamat", "Hozir tekshirib beraman"</i> iboralaridan muntazam foydalaning.</li>
-                    <li><b>Kutish rejimiga qo'yish:</b> Agar ma'lumot izlayotgan bo'lsangiz, mijozni sukutda qoldirmang: <i>"Iltimos, 1 daqiqa liniyada kuting, ma'lumotingizni tekshirib beraman."</i></li>
-                </ul>
-            </div>
-
-            <div class="manual-card manual-card-danger">
-                <h4 style="margin: 0 0 12px 0; color: #f87171; font-size: 16px; font-weight: 700;">3. ⚠️ Qat'iyan man etiladigan holatlar</h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(239, 68, 68, 0.08);">
-                            <th style="padding: 10px 14px; color: #fca5a5; width: 45%; text-align: left;">❌ Noto'g'ri (Man etiladi)</th>
-                            <th style="padding: 10px 14px; color: #86efac; text-align: left;">✅ To'g'ri (Tavsiya etiladi)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; color: #f87171;">"Bu bizning ishimiz emas"</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">"Ushbu masalaga tegishli bo'limimiz mutaxassisi aniqlik kiritadi, hozir sizni bog'lab beraman."</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; color: #f87171;">"Bilmayman"</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">"Hozir bu bo'yicha ma'lumotni aniqlashtirib, sizga aniq yo'nalish beraman."</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 14px; color: #f87171;">Mijoz gapirayotganda go'shakni qo'yib qo'yish</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Suhbatni to'liq yakunlab, rozilik olgandan so'ng xayrlashish.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="manual-card manual-card-accent">
-                <h4 style="margin: 0 0 8px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">4. Suhbatni yakunlash</h4>
-                <div style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 12px 16px;">
-                    <span style="color: #67e8f9; font-style: italic; font-size: 14px;">"Yana biror savolingiz yoki yordamim kerak bo'lgan masala bormi? ... Murojaatingiz uchun tashakkur, kuningiz xayrli o'tsin!"</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 2: TRANSFER VA ICHKI RAQAMLAR -->
-        <section class="guide-content-section" id="sec-tab-transfer">
-            <div class="manual-card manual-card-accent">
-                <h4 style="margin: 0 0 12px 0; color: #38bdf8; font-size: 16px; font-weight: 700;">🔄 Qo'ng'iroqni boshqa mutaxassisga yo'naltirish (Transfer)</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 14px;">
-                    <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; padding: 16px 18px;">
-                        <strong style="color: #34d399; font-size: 14px;">1. Attended Transfer (Asosiy / Tavsiya):</strong>
-                        <ol style="margin: 10px 0 0 0; padding-left: 20px; font-size: 13.5px; color: #cbd5e1; line-height: 1.7;">
-                            <li>3CX dasturida <b>Transfer</b> tugmasini bosing.</li>
-                            <li>Ichki raqamni tering (masalan 114) va kutib turing.</li>
-                            <li>Hamkasbingiz go'shakni ko'targach, mijoz muammosini qisqa ayting.</li>
-                            <li><b>Transfer</b> tugmasini yana bir marta bosib, qo'ng'iroqni topshiring.</li>
-                        </ol>
-                    </div>
-                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 16px 18px;">
-                        <strong style="color: #38bdf8; font-size: 14px;">2. Blind Transfer (Tezkor o'tkazish):</strong>
-                        <p style="margin: 10px 0 0 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.7;">
-                            Agar qo'ng'iroqni to'g'ridan-to'g'ri navbatga yoki mas'ulga suhbatsiz o'tkazish zarur bo'lsa, <b>Blind Transfer</b> tugmasini bosib, ichki raqamni terishingiz kifoya.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="manual-card manual-card-success">
-                <h4 style="margin: 0 0 14px 0; color: #34d399; font-size: 16px; font-weight: 700;">📋 Asosiy ichki raqamlar ma'lumotnomasi:</h4>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
-                            <th style="padding: 10px 14px; text-align: left; color: #94a3b8;">Ichki raqam</th>
-                            <th style="padding: 10px 14px; text-align: left; color: #94a3b8;">Bo'lim / Yo'nalish</th>
-                            <th style="padding: 10px 14px; text-align: left; color: #94a3b8;">Vazifasi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; font-weight: 700; color: #38bdf8; font-family: monospace; font-size: 15px;">114</td>
-                            <td style="padding: 10px 14px; font-weight: 600; color: #fff;">EDO Tizimi</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Hujjat aylanishi, ijro.uz masalalari</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; font-weight: 700; color: #38bdf8; font-family: monospace; font-size: 15px;">116</td>
-                            <td style="padding: 10px 14px; font-weight: 600; color: #fff;">Ijro Intizomi</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Hisobotlar, ijro muddati va nazorat</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; font-weight: 700; color: #38bdf8; font-family: monospace; font-size: 15px;">119</td>
-                            <td style="padding: 10px 14px; font-weight: 600; color: #fff;">E-Huquqshunos</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Yuridik xizmatlar, arizalar va shartnomalar</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
-                            <td style="padding: 10px 14px; font-weight: 700; color: #38bdf8; font-family: monospace; font-size: 15px;">200</td>
-                            <td style="padding: 10px 14px; font-weight: 600; color: #fff;">Maxsus Guruh</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Aloqa guruhi va chuqur o'rganiladigan masalalar</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 14px; font-weight: 700; color: #38bdf8; font-family: monospace; font-size: 15px;">207</td>
-                            <td style="padding: 10px 14px; font-weight: 600; color: #fff;">Texnik Xizmat</td>
-                            <td style="padding: 10px 14px; color: #cbd5e1;">Uzcrypto, E-imzo kalitlari va tizim sozlamalari</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- TAB 3: TELEGRAM FORM VA ARIZALAR -->
-        <section class="guide-content-section" id="sec-tab-telegram">
-            <div class="manual-card manual-card-accent">
-                <h4 style="margin: 0 0 12px 0; color: #38bdf8; font-size: 16px; font-weight: 700;">📝 Telegram Form Dashboard'dan foydalanish</h4>
-                <p style="margin: 0 0 16px 0; font-size: 14px; color: #cbd5e1;">
-                    Agar mijozning muammosi telefon suhbatida darhol hal bo'lmasa, uni <b>Telegram Form Dashboard</b> orqali rasmiylashtirish shart.
-                </p>
-                <div style="background: rgba(0, 136, 204, 0.1); border: 1px solid rgba(0, 136, 204, 0.3); border-radius: 12px; padding: 18px 22px; margin-bottom: 16px;">
-                    <strong style="color: #38bdf8; font-size: 14.5px;">Bosqichma-bosqich tartib:</strong>
-                    <ol style="margin: 10px 0 0 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                        <li>Asosiy sahifadagi <b>Telegram Form Dashboard</b> kartasidagi «Ochish» yoki «🖥️ Shu yerda ochish» tugmasini bosing.</li>
-                        <li>Mijozning <b>Telefon raqami</b>, <b>Tashkilot nomi</b> va <b>F.I.Sh</b>ni to'liq kiriting.</li>
-                        <li>Muammoni qisqa, ammo tushunarli bayon eting (masalan: <i>"EDO tizimida 403 xatosi bermoqda, ERI kaliti tanilmayapti"</i>).</li>
-                        <li>Agar mijoz Telegram orqali skrinshot yuborgan bo'lsa, faylni biriktiring.</li>
-                        <li><b>Yuborish</b> tugmasini bosing. Xabar avtomatik ravishda mas'ul muhandislar guruhiga tushadi.</li>
-                    </ol>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 4: TANAFFUS VA ISH REJIMI -->
-        <section class="guide-content-section" id="sec-tab-schedule">
-            <div class="manual-card manual-card-warning">
-                <h4 style="margin: 0 0 12px 0; color: #fbbf24; font-size: 16px; font-weight: 700;">⏸️ Ish tartibi va Tanaffus (Pause) qoidalari</h4>
-                <ul style="margin: 0; padding-left: 22px; line-height: 1.8; font-size: 14px;">
-                    <li><b>Ishga kirishish:</b> Har bir operator smenaga kelgach birinchi navbatda kompyuterda <b>3CX Phone</b> va <b>3CX Desktop Agent</b> dasturini ishga tushirishi shart. Status "On Hook" (yashil) bo'lishi kerak.</li>
-                    <li><b>Tanaffus (Obed):</b> Tushlik yoki qisqa tanaffusga chiqishdan oldin 3CX dasturida o'z statusingizni <b>Away</b> yoki <b>Break</b> ga o'tkazing.</li>
-                    <li><b>Ishga qaytish:</b> Tanaffusdan qaytgach statusni yana <b>Available (On Hook)</b> ga qaytarishni unutmang.</li>
-                </ul>
-            </div>
-
-            <div class="manual-card manual-card-danger">
-                <h4 style="margin: 0 0 10px 0; color: #f87171; font-size: 15px; font-weight: 700;">🚫 Qat'iyan man etiladi:</h4>
-                <p style="margin: 0; font-size: 13.5px; line-height: 1.7;">
-                    • Qo'ng'iroq kelganda uni qizil tugma (<b>Reject / Deny</b>) orqali rad etib o'chirib qo'yish.<br>
-                    • Telefonni beparvo qoldirib ketish yoki sababsiz "DND" (Do Not Disturb) rejimiga qo'yish.<br>
-                    <span style="color: #fca5a5; font-weight: 600;">ℹ️ Barcha rad etishlar va tanaffus vaqtlari markaziy tizimda soniyasigacha avtomatik qayd etiladi.</span>
-                </p>
-            </div>
-        </section>
-
-        <!-- TAB 5: TEXNIK YORDAM -->
-        <section class="guide-content-section" id="sec-tab-troubleshoot">
-            <div class="manual-card manual-card-accent">
-                <h4 style="margin: 0 0 12px 0; color: #38bdf8; font-size: 16px; font-weight: 700;">🛠️ Texnik nosozliklarda nima qilish kerak?</h4>
-                <div style="margin-bottom: 16px;">
-                    <strong style="color: #fff; font-size: 14px;">1. Ovoz eshitilmasa yoki mikrofon ishlamasa:</strong>
-                    <p style="margin: 6px 0 0 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
-                        3CX Softphone dasturida <b>Settings (⚙️)</b> ➔ <b>Audio Options</b> bo'limiga kiring. Microphone va Speaker bandlarida kompyuteringizga ulangan asosiy garnitura (Headset) tanlanganini tekshiring.
-                    </p>
-                </div>
-                <div style="margin-bottom: 16px;">
-                    <strong style="color: #fff; font-size: 14px;">2. 3CX "Not Connected" yoki uzilib qolsa:</strong>
-                    <p style="margin: 6px 0 0 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
-                        Tarmoq kabeli ulanganini tekshiring. PBX server IP: <code style="color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px;">192.168.0.124</code>, Port: <code style="color: #38bdf8; background: rgba(56, 189, 248, 0.1); padding: 2px 6px; border-radius: 4px;">5060</code>.
-                    </p>
-                </div>
-                <div>
-                    <strong style="color: #fff; font-size: 14px;">3. Masofaviy yordam (AnyDesk):</strong>
-                    <p style="margin: 6px 0 0 0; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
-                        Agar AnyDesk qotib qolsa, panelimizdagi <b>AnyDesk Tozalash</b> vositasini yuklab olib ishga tushiring.
-                    </p>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Script logic for Tabs & Focus Tree -->
+    <!-- Script logic for Focus Tree + Mouse Wheel Zoom & Pan Engine -->
     <script>
-        // Tab switching
-        function switchGuideTab(tabId) {
-            document.querySelectorAll('.guide-tab-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
-            });
-            document.querySelectorAll('.guide-content-section').forEach(sec => {
-                sec.classList.toggle('active', sec.id === ('sec-' + tabId));
-            });
-            if (tabId === 'tab-focus-tree') {
-                initFocusTree();
-            }
-        }
-
-        // Focus Tree State & Engine
+        // State
         let focusTreeData = null;
         const focusTreeState = {};
 
+        // Canvas Zoom & Pan State
+        let scale = 1.0;
+        let panX = 0;
+        let panY = 40;
+        let isDragging = false;
+        let startDragX = 0;
+        let startDragY = 0;
+        let hasMoved = false;
+
+        const viewport = document.getElementById('treeViewport');
+        const transformLayer = document.getElementById('transformLayer');
+        const zoomBadge = document.getElementById('zoomBadge');
+
+        function updateTransform(animated = false) {
+            if (animated) {
+                transformLayer.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+                setTimeout(() => { transformLayer.style.transition = 'none'; }, 260);
+            } else {
+                transformLayer.style.transition = 'none';
+            }
+            transformLayer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            if (zoomBadge) {
+                zoomBadge.textContent = Math.round(scale * 100) + '%';
+            }
+        }
+
+        function zoomIn() {
+            setZoomAtCenter(scale * 1.2);
+        }
+
+        function zoomOut() {
+            setZoomAtCenter(scale / 1.2);
+        }
+
+        function resetZoom() {
+            scale = 1.0;
+            centerTree();
+        }
+
+        function setZoomAtCenter(newScale) {
+            newScale = Math.min(Math.max(newScale, 0.25), 3.0);
+            const rect = viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            panX = centerX - (centerX - panX) * (newScale / scale);
+            panY = centerY - (centerY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform(true);
+        }
+
+        function centerTree() {
+            const rect = viewport.getBoundingClientRect();
+            const treeW = transformLayer.offsetWidth || 1000;
+            scale = 1.0;
+            panX = (rect.width - treeW) / 2;
+            panY = 60;
+            updateTransform(true);
+        }
+
+        // Mouse Wheel Zoom
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = viewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const zoomDelta = e.deltaY < 0 ? 1.12 : 0.89;
+            const newScale = Math.min(Math.max(scale * zoomDelta, 0.25), 3.0);
+
+            // Zoom right at cursor position
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+
+            updateTransform(false);
+        }, { passive: false });
+
+        // Pan Drag Handlers
+        viewport.addEventListener('mousedown', (e) => {
+            // Agar karta yoki tugmaga bosilgan bo'lsa sudrashni boshlamaymiz
+            if (e.target.closest('button') || e.target.closest('.ft-card') || e.target.closest('.ft-controls-panel')) {
+                return;
+            }
+            isDragging = true;
+            hasMoved = false;
+            startDragX = e.clientX - panX;
+            startDragY = e.clientY - panY;
+            viewport.classList.add('is-dragging');
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const newPanX = e.clientX - startDragX;
+            const newPanY = e.clientY - startDragY;
+            if (Math.abs(newPanX - panX) > 2 || Math.abs(newPanY - panY) > 2) {
+                hasMoved = true;
+            }
+            panX = newPanX;
+            panY = newPanY;
+            updateTransform(false);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                viewport.classList.remove('is-dragging');
+            }
+        });
+
+        // Touch Pinch & Pan Support
+        let initialDistance = 0;
+        let initialScale = 1.0;
+
+        viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                initialScale = scale;
+            } else if (e.touches.length === 1) {
+                if (e.target.closest('button') || e.target.closest('.ft-card') || e.target.closest('.ft-controls-panel')) {
+                    return;
+                }
+                isDragging = true;
+                startDragX = e.touches[0].clientX - panX;
+                startDragY = e.touches[0].clientY - panY;
+            }
+        });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance > 0) {
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const newScale = Math.min(Math.max(initialScale * (dist / initialDistance), 0.25), 3.0);
+                scale = newScale;
+                updateTransform(false);
+            } else if (e.touches.length === 1 && isDragging) {
+                panX = e.touches[0].clientX - startDragX;
+                panY = e.touches[0].clientY - startDragY;
+                updateTransform(false);
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchend', () => {
+            isDragging = false;
+            initialDistance = 0;
+        });
+
+        // Focus Tree Engine
         async function initFocusTree() {
             const container = document.getElementById('focusTreeCanvas');
             if (!container) return;
@@ -833,6 +743,7 @@
                 }
             }
             renderFocusTreeDom();
+            centerTree();
         }
 
         function renderFocusTreeBranch(nodes, parentId, depth) {
@@ -851,7 +762,7 @@
                 const connectorHtml = depth > 0 ? `<div class="${connClass}"></div>` : '';
                 const btnTag = hasChildren ? 'button' : 'div';
                 const btnAttrs = hasChildren 
-                    ? `type="button" onclick="handleFocusTreeClick('${parentId}', '${node.id}')" aria-expanded="false"` 
+                    ? `type="button" onclick="handleFocusTreeClick('${parentId}', '${node.id}', event)" aria-expanded="false"` 
                     : '';
                 const badgeHtml = hasChildren ? `<span class="ft-badge" id="badge-${node.id}">+</span>` : '';
 
@@ -884,7 +795,10 @@
             applyFocusTreeState();
         }
 
-        function handleFocusTreeClick(parentId, nodeId) {
+        function handleFocusTreeClick(parentId, nodeId, evt) {
+            if (evt) {
+                evt.stopPropagation();
+            }
             const currentOpen = focusTreeState[parentId] || null;
             if (currentOpen === nodeId) {
                 focusTreeState[parentId] = null;
@@ -950,13 +864,16 @@
             });
         }
 
-        // Initialize when page loads
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             initFocusTree();
         });
+        window.addEventListener('resize', () => {
+            // resize handler
+        });
     </script>
+
     <!-- Visual AI Inspector (Lovable / v0 Click-to-Prompt) -->
     <script src="/js/visualInspector.js?v=1794562500000" defer></script>
 </body>
 </html>
-
