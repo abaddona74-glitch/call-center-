@@ -511,6 +511,10 @@
         </div>
 
         <div class="guide-header-actions">
+            <button type="button" class="btn-action-guide" onclick="window.toggleVisualInspector && window.toggleVisualInspector()" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(56, 189, 248, 0.2)); border-color: rgba(168, 85, 247, 0.45); color: #e9d5ff;" title="Visual AI Inspector (Ctrl + Shift + D)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                <span>AI Inspector <kbd style="font-size: 10px; background: rgba(0,0,0,0.35); padding: 1px 5px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2); font-family: monospace;">Ctrl+Shift+D</kbd></span>
+            </button>
             <button type="button" class="btn-action-guide" onclick="window.print()">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                 <span>Chop etish / PDF</span>
@@ -951,5 +955,8 @@
             initFocusTree();
         });
     </script>
+    <!-- Visual AI Inspector (Lovable / v0 Click-to-Prompt) -->
+    <script src="/js/visualInspector.js?v=1794562500000" defer></script>
 </body>
 </html>
+

@@ -282,6 +282,7 @@ app.use(async (req, res, next) => {
         p === '/favicon.png' ||
         p === '/api/version' ||
         p === '/version.json' ||
+        p === '/api/dev/visual-prompt' ||
         p === '/guide' ||
         p === '/guide.html' ||
         p === '/manual' ||
@@ -1115,7 +1116,7 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
             String(user.username || '').toLowerCase().includes('maxmudbek') ||
             user.email === 'abaddona74@gmail.com'
         );
-        const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
+        const isToolsReferer = (req.headers.referer && (req.headers.referer.includes('/tools/') || req.headers.referer.includes('/guide')));
 
         if (!isLocal && !isSuper && !isToolsReferer) {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
