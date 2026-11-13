@@ -106,6 +106,8 @@ if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
 const tarCmd = `tar -czf "${archivePath}" ` +
     `-C "${projectRoot}" ` +
     `--exclude="node_modules" ` +
+    `--exclude="*node_modules*" ` +
+    `--exclude="viewer/node_modules" ` +
     `--exclude="3cx-desktop-agent" ` +
     `--exclude=".git" ` +
     `--exclude=".agents" ` +

@@ -748,6 +748,81 @@
             color: #94a3b8;
             border: 1px solid rgba(148, 163, 184, 0.25);
         }
+
+        /* Operator Yo'riqnomasi (Manual) Header Button */
+        .header-guide-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 14px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(56, 189, 248, 0.18));
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            border-radius: 9px;
+            color: #38bdf8;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            user-select: none;
+        }
+        .header-guide-btn:hover {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(56, 189, 248, 0.38));
+            border-color: #38bdf8;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.35);
+        }
+        .header-guide-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Operator Manual Modal Tab Buttons & Content */
+        .manual-tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            color: #94a3b8;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .manual-tab-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+        .manual-tab-btn.active {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(16, 185, 129, 0.2));
+            border-color: rgba(56, 189, 248, 0.6);
+            box-shadow: 0 2px 12px rgba(56, 189, 248, 0.25);
+        }
+        .manual-card {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 14px;
+        }
+        .manual-card-accent {
+            border-left: 3px solid #38bdf8;
+        }
+        .manual-card-success {
+            border-left: 3px solid #34d399;
+        }
+        .manual-card-warning {
+            border-left: 3px solid #fbbf24;
+        }
+        .manual-card-danger {
+            border-left: 3px solid #f87171;
+        }
     </style>
 </head>
 <body>
@@ -758,6 +833,11 @@
             <h1 data-i18n="app_title">Call Center</h1>
         </a>
         <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Operator Yo'riqnomasi (Qo'llanma) Header Button -->
+            <button type="button" class="header-guide-btn" onclick="openOperatorManualModal()" title="Operatorlar uchun rasmiy yo'riqnoma va qo'llanma">
+                <svg class="isax isax-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><path d="M22 18.5V6C22 4.62 20.88 3.5 19.5 3.5H16C14.34 3.5 13 4.84 13 6.5V20.5C13 21.05 13.45 21.5 14 21.5H19.5C20.88 21.5 22 20.38 22 19V18.5Z"/><path d="M2 18.5V6C2 4.62 3.12 3.5 4.5 3.5H8C9.66 3.5 11 4.84 11 6.5V20.5C11 21.05 10.55 21.5 10 21.5H4.5C3.12 21.5 2 20.38 2 19V18.5Z"/><path d="M11 6.5C11 4.84 12.34 3.5 14 3.5"/></svg>
+                <span data-i18n="header_guide">📖 Yo'riqnoma</span>
+            </button>
             <!-- Language Switcher: O'zbekcha / Русский (Spring Animated Glass Pill Toggle) -->
             <div class="lang-switch-container" id="langSwitchContainer" data-active="uz" role="tablist" aria-label="Tilni tanlash / Выбрать язык" title="Tilni tanlash / Выбрать язык">
                 <span class="lang-switch-thumb" id="langSwitchThumb" aria-hidden="true"></span>
@@ -1000,6 +1080,26 @@
                     <svg class="isax isax-box-add" style="width: 28px; height: 28px; color: #64748b; margin-bottom: 8px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-box-add"></use></svg>
                     <div>Asosiy vositalar ro'yxati bo'sh</div>
                     <div style="font-size: 11px; color: #475569; margin-top: 4px;">Quyidagi kerakli vositalardan bu yerga sudrab olib o'ting</div>
+                </div>
+
+                <!-- Operator Yo'riqnomasi (Qo'llanma) Card -->
+                <div class="tool-card" draggable="true" data-tool-id="operator_manual">
+                    <div class="tool-card-icon" style="background: linear-gradient(135deg, #10b981 0%, #0284c7 100%);">
+                        <svg class="isax isax-book" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="M22 18.5V6C22 4.62 20.88 3.5 19.5 3.5H16C14.34 3.5 13 4.84 13 6.5V20.5C13 21.05 13.45 21.5 14 21.5H19.5C20.88 21.5 22 20.38 22 19V18.5Z"/><path d="M2 18.5V6C2 4.62 3.12 3.5 4.5 3.5H8C9.66 3.5 11 4.84 11 6.5V20.5C11 21.05 10.55 21.5 10 21.5H4.5C3.12 21.5 2 20.38 2 19V18.5Z"/><path d="M11 6.5C11 4.84 12.34 3.5 14 3.5"/></svg>
+                    </div>
+                    <div class="tool-card-content">
+                        <div class="tool-card-top">
+                            <h4 class="tool-card-title">Operator Yo'riqnomasi</h4>
+                            <span class="tool-status-pill" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35);">Qo'llanma</span>
+                        </div>
+                        <p class="tool-card-desc">Call Center operatorlari uchun odob-axloq, salomlashish standarti, qo'ng'iroqlarni qabul qilish va transfer qilish tartibi.</p>
+                        <div class="tool-card-footer">
+                            <button type="button" onclick="openOperatorManualModal()" class="tool-action-btn primary" style="background: linear-gradient(135deg, #0284c7, #10b981);" title="Yo'riqnomani ochish">
+                                <svg class="isax isax-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M22 18.5V6C22 4.62 20.88 3.5 19.5 3.5H16C14.34 3.5 13 4.84 13 6.5V20.5C13 21.05 13.45 21.5 14 21.5H19.5C20.88 21.5 22 20.38 22 19V18.5Z"/><path d="M2 18.5V6C2 4.62 3.12 3.5 4.5 3.5H8C9.66 3.5 11 4.84 11 6.5V20.5C11 21.05 10.55 21.5 10 21.5H4.5C3.12 21.5 2 20.38 2 19V18.5Z"/></svg>
+                                <span>Yo'riqnomani ochish</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- AnyDesk Tozalash Card -->
@@ -2703,6 +2803,252 @@
         </div>
     </div>
 
+    <!-- OPERATORLAR UCHUN RASMIY YO'RIQNOMA VA QO'LLANMA MODAL -->
+    <div id="modalOperatorManual" onclick="if(event.target === this) closeOperatorManualModal()" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 1090; align-items: center; justify-content: center; padding: 16px; backdrop-filter: blur(8px);">
+        <div class="glass-panel" style="width: 860px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; background: #0b1329; border: 1px solid rgba(56, 189, 248, 0.45); box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95); border-radius: 18px; overflow: hidden;">
+            <!-- Modal Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(15, 23, 42, 0.95);">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.2)); border: 1px solid rgba(56, 189, 248, 0.4); display: flex; align-items: center; justify-content: center; color: #38bdf8;">
+                        <svg class="isax isax-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 24px; height: 24px;"><path d="M22 18.5V6C22 4.62 20.88 3.5 19.5 3.5H16C14.34 3.5 13 4.84 13 6.5V20.5C13 21.05 13.45 21.5 14 21.5H19.5C20.88 21.5 22 20.38 22 19V18.5Z"/><path d="M2 18.5V6C2 4.62 3.12 3.5 4.5 3.5H8C9.66 3.5 11 4.84 11 6.5V20.5C11 21.05 10.55 21.5 10 21.5H4.5C3.12 21.5 2 20.38 2 19V18.5Z"/><path d="M11 6.5C11 4.84 12.34 3.5 14 3.5"/></svg>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <span>Operator Yo'riqnomasi va Ish Reglamenti</span>
+                            <span style="font-size: 11px; padding: 2px 8px; border-radius: 6px; background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);">Rasmiy</span>
+                        </h3>
+                        <p style="font-size: 12px; color: #94a3b8; margin: 3px 0 0 0;">Call Center operatorlari uchun salomlashish standarti, transfer, arizalar va texnik ko'rsatmalar</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeOperatorManualModal()" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); color: #cbd5e1; width: 34px; height: 34px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                    <svg class="isax isax-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>
+                </button>
+            </div>
+
+            <!-- Modal Nav Tabs -->
+            <div style="display: flex; gap: 8px; padding: 12px 24px; background: rgba(15, 23, 42, 0.7); border-bottom: 1px solid rgba(255, 255, 255, 0.08); overflow-x: auto;">
+                <button type="button" class="manual-tab-btn active" data-tab="tab-rules" onclick="switchManualTab('tab-rules')">
+                    <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.8"/></svg>
+                    <span>Salomlashish standarti</span>
+                </button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-transfer" onclick="switchManualTab('tab-transfer')">
+                    <svg class="isax isax-repeat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M3.5 12C3.5 7.31 7.31 3.5 12 3.5C16.69 3.5 20.5 7.31 20.5 12C20.5 16.69 16.69 20.5 12 20.5"/><path d="M17 12L20.5 15.5L24 12"/></svg>
+                    <span>Transfer & Ichki raqamlar</span>
+                </button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-telegram" onclick="switchManualTab('tab-telegram')">
+                    <svg class="isax isax-document-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/><path d="M7 13H13"/><path d="M7 17H11"/></svg>
+                    <span>Telegram Form & Arizalar</span>
+                </button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-schedule" onclick="switchManualTab('tab-schedule')">
+                    <svg class="isax isax-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"/><path d="M12 6V12L16 14"/></svg>
+                    <span>Tanaffus & Intizom</span>
+                </button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-troubleshoot" onclick="switchManualTab('tab-troubleshoot')">
+                    <svg class="isax isax-setting-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z"/><path d="M2 12.88V11.12C2 10.08 2.85 9.22 3.9 9.22C4.71 9.22 5.38 8.65 5.58 7.87C5.78 7.09 5.48 6.22 4.9 5.64C4.16 4.9 4.16 3.69 4.9 2.95L6.15 1.7C6.89 0.96 8.1 0.96 8.84 1.7C9.42 2.28 10.29 2.58 11.07 2.38C11.85 2.18 12.42 1.51 12.42 0.7C12.42 -0.35 13.28 -1.2 14.32 -1.2H16.08"/></svg>
+                    <span>Texnik yordam</span>
+                </button>
+            </div>
+
+            <!-- Modal Body (Tab Contents) -->
+            <div style="padding: 22px 26px; overflow-y: auto; font-size: 13.5px; line-height: 1.6; color: #cbd5e1; flex: 1;">
+                <!-- TAB 1: SALOMLASHISH STANDARTI -->
+                <div class="manual-tab-content" id="manual-tab-rules" data-tab="tab-rules" style="display: block;">
+                    <div class="manual-card manual-card-accent">
+                        <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">
+                            1. Qo'ng'iroqni qabul qilish (Birinchi 3 soniya)
+                        </h4>
+                        <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px;">
+                            <strong style="color: #fff;">🗣️ Rasmiy salomlashish shabloni:</strong><br>
+                            <span style="color: #67e8f9; font-style: italic;">"Assalomu alaykum! Call Center xizmati, operator [Ismingiz] sizni eshitmoqda. Qanday yordam bera olaman?"</span>
+                        </div>
+                        <p style="margin: 0; color: #94a3b8; font-size: 12.5px;">
+                            📌 <b>Asosiy qoida:</b> Qo'ng'iroq 3-chaqiruvdan (gudok) oshmasdan qabul qilinishi lozim. Operator ovozi aniq, do'stona va ishonchli yangrashi kerak.
+                        </p>
+                    </div>
+
+                    <div class="manual-card manual-card-success">
+                        <h4 style="margin: 0 0 10px 0; color: #34d399; font-size: 15px; font-weight: 700;">2. Suhbat jarayoni va diqqat bilan tinglash</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 6px;"><b>Mijoz so'zini bo'lmang:</b> U muammosini to'liq ifoda etishiga imkon bering.</li>
+                            <li style="margin-bottom: 6px;"><b>Muammoni aniqlashtiring:</b> <i>"Tushunarli, demak sizda EDO tizimiga kirish bo'yicha qiyinchilik tug'ildi, to'g'rimi?"</i></li>
+                            <li style="margin-bottom: 6px;"><b>Xushmuomalalik so'zlari:</b> <i>"Iltimos", "Rahmat", "Marhamat", "Hozir tekshirib beraman"</i> iboralaridan muntazam foydalaning.</li>
+                            <li><b>Kutish rejimiga qo'yish:</b> Agar ma'lumot izlayotgan bo'lsangiz, mijozni sukutda qoldirmang: <i>"Iltimos, 1 daqiqa liniyada kuting, ma'lumotingizni tekshirib beraman."</i></li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-card manual-card-danger">
+                        <h4 style="margin: 0 0 10px 0; color: #f87171; font-size: 15px; font-weight: 700;">3. ⚠️ Qat'iyan man etiladigan holatlar</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(239, 68, 68, 0.08);">
+                                <th style="padding: 8px 12px; color: #fca5a5; width: 45%; text-align: left;">❌ Noto'g'ri (Man etiladi)</th>
+                                <th style="padding: 8px 12px; color: #86efac; text-align: left;">✅ To'g'ri (Tavsiya etiladi)</th>
+                            </tr>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                <td style="padding: 8px 12px; color: #f87171;">"Bu bizning ishimiz emas"</td>
+                                <td style="padding: 8px 12px; color: #cbd5e1;">"Ushbu masalaga tegishli bo'limimiz mutaxassisi aniqlik kiritadi, hozir sizni bog'lab beraman."</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                <td style="padding: 8px 12px; color: #f87171;">"Bilmayman"</td>
+                                <td style="padding: 8px 12px; color: #cbd5e1;">"Hozir bu bo'yicha ma'lumotni aniqlashtirib, sizga aniq yo'nalish beraman."</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 12px; color: #f87171;">Mijoz gapirayotganda go'shakni qo'yib qo'yish</td>
+                                <td style="padding: 8px 12px; color: #cbd5e1;">Suhbatni to'liq yakunlab, rozilik olgandan so'ng xayrlashish.</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="manual-card manual-card-accent">
+                        <h4 style="margin: 0 0 8px 0; color: #38bdf8; font-size: 14px; font-weight: 700;">4. Suhbatni yakunlash</h4>
+                        <div style="background: rgba(255, 255, 255, 0.03); border-radius: 8px; padding: 10px 14px;">
+                            <span style="color: #67e8f9; font-style: italic;">"Yana biror savolingiz yoki yordamim kerak bo'lgan masala bormi? ... Murojaatingiz uchun tashakkur, kuningiz xayrli o'tsin!"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: TRANSFER VA ICHKI RAQAMLAR -->
+                <div class="manual-tab-content" id="manual-tab-transfer" data-tab="tab-transfer" style="display: none;">
+                    <div class="manual-card manual-card-accent">
+                        <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">🔄 Qo'ng'iroqni boshqa mutaxassisga yo'naltirish (Transfer)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 12px 14px;">
+                                <strong style="color: #34d399; font-size: 13.5px;">1. Attended Transfer (Asosiy / Tavsiya):</strong>
+                                <ol style="margin: 8px 0 0 0; padding-left: 18px; font-size: 12.5px; color: #cbd5e1;">
+                                    <li>3CX dasturida <b>Transfer</b> tugmasini bosing.</li>
+                                    <li>Ichki raqamni tering (masalan 114) va kutib turing.</li>
+                                    <li>Hamkasbingiz go'shakni ko'targach, mijoz muammosini qisqa ayting.</li>
+                                    <li><b>Transfer</b> tugmasini yana bir marta bosib, qo'ng'iroqni topshiring.</li>
+                                </ol>
+                            </div>
+                            <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 12px 14px;">
+                                <strong style="color: #38bdf8; font-size: 13.5px;">2. Blind Transfer (Tezkor o'tkazish):</strong>
+                                <p style="margin: 8px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                                    Agar qo'ng'iroqni to'g'ridan-to'g'ri navbatga yoki mas'ulga suhbatsiz o'tkazish zarur bo'lsa, <b>Blind Transfer</b> tugmasini bosib, ichki raqamni terishingiz kifoya.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="manual-card manual-card-success">
+                        <h4 style="margin: 0 0 12px 0; color: #34d399; font-size: 15px; font-weight: 700;">📋 Asosiy ichki raqamlar ma'lumotnomasi:</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);">
+                                    <th style="padding: 8px 12px; text-align: left; color: #94a3b8;">Ichki raqam</th>
+                                    <th style="padding: 8px 12px; text-align: left; color: #94a3b8;">Bo'lim / Yo'nalish</th>
+                                    <th style="padding: 8px 12px; text-align: left; color: #94a3b8;">Vazifasi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <td style="padding: 8px 12px; font-weight: 700; color: #38bdf8; font-family: monospace;">114</td>
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #fff;">EDO Tizimi</td>
+                                    <td style="padding: 8px 12px; color: #cbd5e1;">Hujjat aylanishi, ijro.uz masalalari</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <td style="padding: 8px 12px; font-weight: 700; color: #38bdf8; font-family: monospace;">116</td>
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #fff;">Ijro Intizomi</td>
+                                    <td style="padding: 8px 12px; color: #cbd5e1;">Hisobotlar, ijro muddati va nazorat</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <td style="padding: 8px 12px; font-weight: 700; color: #38bdf8; font-family: monospace;">119</td>
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #fff;">E-Huquqshunos</td>
+                                    <td style="padding: 8px 12px; color: #cbd5e1;">Yuridik xizmatlar, arizalar va shartnomalar</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                                    <td style="padding: 8px 12px; font-weight: 700; color: #38bdf8; font-family: monospace;">200</td>
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #fff;">Maxsus Guruh</td>
+                                    <td style="padding: 8px 12px; color: #cbd5e1;">Aloqa guruhi va chuqur o'rganiladigan masalalar</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px 12px; font-weight: 700; color: #38bdf8; font-family: monospace;">207</td>
+                                    <td style="padding: 8px 12px; font-weight: 600; color: #fff;">Texnik Xizmat</td>
+                                    <td style="padding: 8px 12px; color: #cbd5e1;">Uzcrypto, E-imzo kalitlari va tizim sozlamalari</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 3: TELEGRAM FORM VA ARIZALAR -->
+                <div class="manual-tab-content" id="manual-tab-telegram" data-tab="tab-telegram" style="display: none;">
+                    <div class="manual-card manual-card-accent">
+                        <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">📝 Telegram Form Dashboard'dan foydalanish</h4>
+                        <p style="margin: 0 0 12px 0;">
+                            Agar mijozning muammosi telefon suhbatida darhol hal bo'lmasa, uni <b>Telegram Form Dashboard</b> orqali rasmiylashtirish shart.
+                        </p>
+                        <div style="background: rgba(0, 136, 204, 0.1); border: 1px solid rgba(0, 136, 204, 0.3); border-radius: 10px; padding: 14px 18px; margin-bottom: 14px;">
+                            <strong style="color: #38bdf8; font-size: 13.5px;">Bosqichma-bosqich tartib:</strong>
+                            <ol style="margin: 8px 0 0 0; padding-left: 18px; font-size: 13px;">
+                                <li style="margin-bottom: 6px;">Asosiy sahifadagi <b>Telegram Form Dashboard</b> kartasidagi «🖥️ Shu yerda ochish» tugmasini bosing.</li>
+                                <li style="margin-bottom: 6px;">Mijozning <b>Telefon raqami</b>, <b>Tashkilot nomi</b> va <b>F.I.Sh</b>ni to'liq kiriting.</li>
+                                <li style="margin-bottom: 6px;">Muammoni qisqa, ammo tushunarli bayon eting (masalan: <i>"EDO tizimida 403 xatosi bermoqda, ERI kaliti tanilmayapti"</i>).</li>
+                                <li style="margin-bottom: 6px;">Agar mijoz Telegram orqali skrinshot yuborgan bo'lsa, faylni yuklang.</li>
+                                <li><b>Yuborish</b> tugmasini bosing. Xabar avtomatik ravishda mas'ul muhandislar guruhiga tushadi.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: TANAFFUS VA ISH REJIMI -->
+                <div class="manual-tab-content" id="manual-tab-schedule" data-tab="tab-schedule" style="display: none;">
+                    <div class="manual-card manual-card-warning">
+                        <h4 style="margin: 0 0 10px 0; color: #fbbf24; font-size: 15px; font-weight: 700;">⏸️ Ish tartibi va Tanaffus (Pause) qoidalari</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 8px;"><b>Ishga kirishish:</b> Har bir operator smenaga kelgach birinchi navbatda kompyuterda <b>3CX Phone</b> va <b>3CX Desktop Agent</b> dasturini ishga tushirishi shart. Status "On Hook" (yashil) bo'lishi kerak.</li>
+                            <li style="margin-bottom: 8px;"><b>Tanaffus (Obed):</b> Tushlik yoki qisqa tanaffusga chiqishdan oldin 3CX dasturida o'z statusingizni <b>Away</b> yoki <b>Break</b> ga o'tkazing.</li>
+                            <li style="margin-bottom: 8px;"><b>Ishga qaytish:</b> Tanaffusdan qaytgach statusni yana <b>Available (On Hook)</b> ga qaytarishni unutmang.</li>
+                        </ul>
+                    </div>
+
+                    <div class="manual-card manual-card-danger">
+                        <h4 style="margin: 0 0 8px 0; color: #f87171; font-size: 14px; font-weight: 700;">🚫 Qat'iyan man etiladi:</h4>
+                        <p style="margin: 0; font-size: 12.5px; line-height: 1.6;">
+                            • Qo'ng'iroq kelganda uni qizil tugma (<b>Reject / Deny</b>) orqali rad etib o'chirib qo'yish.<br>
+                            • Telefonni beparvo qoldirib ketish yoki sababsiz "DND" (Do Not Disturb) rejimiga qo'yish.<br>
+                            <span style="color: #fca5a5; font-weight: 600;">ℹ️ Barcha rad etishlar va tanaffus vaqtlari markaziy tizimda soniyasigacha avtomatik qayd etiladi.</span>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- TAB 5: TEXNIK YORDAM -->
+                <div class="manual-tab-content" id="manual-tab-troubleshoot" data-tab="tab-troubleshoot" style="display: none;">
+                    <div class="manual-card manual-card-accent">
+                        <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">🛠️ Texnik nosozliklarda nima qilish kerak?</h4>
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: #fff;">1. Ovoz eshitilmasa yoki mikrofon ishlamasa:</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                                3CX Softphone dasturida <b>Settings (⚙️)</b> ➔ <b>Audio Options</b> bo'limiga kiring. Microphone va Speaker bandlarida kompyuteringizga ulangan asosiy garnitura (Headset) tanlanganini tekshiring.
+                            </p>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                            <strong style="color: #fff;">2. 3CX "Not Connected" yoki uzilib qolsa:</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                                Tarmoq kabeli ulanganini tekshiring. PBX server IP: <code style="color: #38bdf8;">192.168.0.124</code>, Port: <code style="color: #38bdf8;">5060</code>.
+                            </p>
+                        </div>
+                        <div>
+                            <strong style="color: #fff;">3. Masofaviy yordam (AnyDesk):</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                                Agar AnyDesk qotib qolsa, panelimizdagi <b>AnyDesk Tozalash</b> vositasini yuklab olib ishga tushiring.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 14px 24px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.95); display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 12px; color: #64748b;">
+                    Call Center AI • Operator Yo'riqnomasi v1.0
+                </div>
+                <button type="button" onclick="closeOperatorManualModal()" style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; color: #fff; padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    Tushunarli, yopish
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Smart Page Elevator (Lift) Floating Navigation Button -->
     <button type="button" id="pageElevatorBtn" class="page-elevator-btn mode-down" aria-label="Sahifa bo'yicha harakatlanish" title="Eng pastga tushish">
         <svg class="isax isax-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -2720,8 +3066,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1794549679656" defer></script>
+    <script src="/js/viewer.js?v=1794555598143" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794549679656" defer></script>
+    <script src="/js/visualInspector.js?v=1794555598143" defer></script>
 </body>
 </html>

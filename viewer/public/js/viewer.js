@@ -6799,6 +6799,34 @@ function close3cxConfigGuideModal() {
 }
 window.close3cxConfigGuideModal = close3cxConfigGuideModal;
 
+/* ==========================================================================
+   Operator Yo'riqnomasi va Qo'llanma Modali
+   ========================================================================== */
+function openOperatorManualModal() {
+    const modal = document.getElementById('modalOperatorManual');
+    if (!modal) return;
+    modal.style.display = 'flex';
+}
+window.openOperatorManualModal = openOperatorManualModal;
+
+function closeOperatorManualModal() {
+    const modal = document.getElementById('modalOperatorManual');
+    if (modal) modal.style.display = 'none';
+}
+window.closeOperatorManualModal = closeOperatorManualModal;
+
+function switchManualTab(tabKey) {
+    document.querySelectorAll('.manual-tab-btn').forEach(btn => {
+        const isTarget = btn.getAttribute('data-tab') === tabKey;
+        btn.classList.toggle('active', isTarget);
+    });
+    document.querySelectorAll('.manual-tab-content').forEach(content => {
+        const isTarget = content.getAttribute('data-tab') === tabKey;
+        content.style.display = isTarget ? 'block' : 'none';
+    });
+}
+window.switchManualTab = switchManualTab;
+
 function filter3cxAgentsList(group, btnEl) {
     current3cxFilterGroup = group;
     document.querySelectorAll('.btn-group-3cx').forEach(b => {
