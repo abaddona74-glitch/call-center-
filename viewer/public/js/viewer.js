@@ -6806,6 +6806,7 @@ function openOperatorManualModal() {
     const modal = document.getElementById('modalOperatorManual');
     if (!modal) return;
     modal.style.display = 'flex';
+    initFocusTree();
 }
 window.openOperatorManualModal = openOperatorManualModal;
 
@@ -6824,8 +6825,193 @@ function switchManualTab(tabKey) {
         const isTarget = content.getAttribute('data-tab') === tabKey;
         content.style.display = isTarget ? 'block' : 'none';
     });
+    if (tabKey === 'tab-focus-tree') {
+        initFocusTree();
+    }
 }
 window.switchManualTab = switchManualTab;
+
+/* ==========================================================================
+   Focus Tree Engine (Org Chart with Zoom-in and Sibling Collapse)
+   ========================================================================== */
+let focusTreeData = null;
+let focusTreeOpenState = {}; // { [parentId]: openNodeId }
+
+async function initFocusTree() {
+    if (!focusTreeData) {
+        try {
+            const res = await fetch('/data/tree.json');
+            if (res.ok) {
+                focusTreeData = await res.json();
+            }
+        } catch (_) {}
+    }
+    if (!focusTreeData || !Array.isArray(focusTreeData)) {
+        // Fallback embedded initial data
+        focusTreeData = [
+          {
+            "id": "edo",
+            "title": "EDO",
+            "children": [
+              {
+                "id": "edo-rollar",
+                "title": "Rollar",
+                "children": [
+                  { "id": "edo-xdfu", "title": "XDFU" },
+                  { "id": "edo-rol-1", "title": "Rol 1" },
+                  { "id": "edo-rol-2", "title": "Rol 2" }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "e-huquqshunos",
+            "title": "E-huquqshunos",
+            "children": [
+              {
+                "id": "eh-rollar",
+                "title": "Rollar",
+                "children": [
+                  { "id": "eh-rol-1", "title": "Rol 1" },
+                  { "id": "eh-rol-2", "title": "Rol 2" }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "mahalla",
+            "title": "Mahalla"
+          }
+        ];
+    }
+    renderFocusTreeDom();
+}
+window.initFocusTree = initFocusTree;
+
+function renderFocusTreeBranch(nodes, parentId, depth) {
+    if (!nodes || nodes.length === 0) return '';
+    const isSingle = nodes.length === 1;
+
+    let colsHtml = nodes.map((node, idx) => {
+        const hasChildren = node.children && Array.isArray(node.children) && node.children.length > 0;
+        const isFirst = idx === 0;
+        const isLast = idx === nodes.length - 1;
+        
+        let connClass = 'ft-connector';
+        if (isSingle) connClass += ' ft-single';
+        else if (isFirst) connClass += ' ft-first';
+        else if (isLast) connClass += ' ft-last';
+        else connClass += ' ft-mid';
+
+        const depthClass = depth === 0 ? 'ft-depth-0' : (depth === 1 ? 'ft-depth-1' : 'ft-depth-2');
+        const leafClass = hasChildren ? '' : 'ft-leaf';
+
+        const cardTag = hasChildren ? 'button' : 'div';
+        const cardAttr = hasChildren 
+            ? `type="button" onclick="handleFocusTreeClick('${parentId}', '${node.id}')" aria-expanded="false"`
+            : '';
+        const badgeHtml = hasChildren ? `<span class="ft-badge" id="ft-badge-${node.id}">+</span>` : '';
+
+        const subTreeHtml = hasChildren ? `
+            <div class="ft-subtree" id="ft-sub-${node.id}">
+                <div class="ft-stem"></div>
+                ${renderFocusTreeBranch(node.children, node.id, depth + 1)}
+            </div>
+        ` : '';
+
+        return `
+            <div class="ft-col" id="ft-col-${node.id}" data-node-id="${node.id}" data-parent-id="${parentId}">
+                ${depth > 0 ? `<div class="${connClass}"></div>` : ''}
+                <${cardTag} class="ft-card ${depthClass} ${leafClass}" id="ft-card-${node.id}" ${cardAttr}>
+                    <span class="ft-title">${node.title}</span>
+                    ${badgeHtml}
+                </${cardTag}>
+                ${subTreeHtml}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="ft-branch" data-branch-parent="${parentId}">
+            <div class="ft-row">
+                ${colsHtml}
+            </div>
+        </div>
+    `;
+}
+
+function renderFocusTreeDom() {
+    const container = document.getElementById('focusTreeCanvas');
+    if (!container || !focusTreeData) return;
+    container.innerHTML = renderFocusTreeBranch(focusTreeData, 'root', 0);
+    applyFocusTreeState();
+}
+window.renderFocusTreeDom = renderFocusTreeDom;
+
+function handleFocusTreeClick(parentId, nodeId) {
+    if (focusTreeOpenState[parentId] === nodeId) {
+        // Close it and all descendants
+        function closeBranch(pId) {
+            const childId = focusTreeOpenState[pId];
+            delete focusTreeOpenState[pId];
+            if (childId) closeBranch(childId);
+        }
+        closeBranch(parentId);
+    } else {
+        // Open it (only 1 open child per parent)
+        focusTreeOpenState[parentId] = nodeId;
+    }
+    applyFocusTreeState();
+}
+window.handleFocusTreeClick = handleFocusTreeClick;
+
+function resetFocusTree() {
+    focusTreeOpenState = {};
+    applyFocusTreeState();
+}
+window.resetFocusTree = resetFocusTree;
+
+function applyFocusTreeState() {
+    document.querySelectorAll('.ft-branch').forEach(branch => {
+        const parentId = branch.getAttribute('data-branch-parent');
+        const activeNodeId = focusTreeOpenState[parentId] || null;
+
+        const cols = branch.querySelectorAll(`:scope > .ft-row > .ft-col[data-parent-id="${parentId}"]`);
+        cols.forEach(col => {
+            const nodeId = col.getAttribute('data-node-id');
+            const card = document.getElementById(`ft-card-${nodeId}`);
+            const badge = document.getElementById(`ft-badge-${nodeId}`);
+            const subtree = document.getElementById(`ft-sub-${nodeId}`);
+
+            if (!activeNodeId) {
+                col.classList.remove('is-collapsed');
+                if (card) {
+                    card.classList.remove('is-open');
+                    card.setAttribute('aria-expanded', 'false');
+                }
+                if (badge) badge.textContent = '+';
+                if (subtree) subtree.classList.remove('is-open');
+            } else if (nodeId === activeNodeId) {
+                col.classList.remove('is-collapsed');
+                if (card) {
+                    card.classList.add('is-open');
+                    card.setAttribute('aria-expanded', 'true');
+                }
+                if (badge) badge.textContent = '−';
+                if (subtree) subtree.classList.add('is-open');
+            } else {
+                col.classList.add('is-collapsed');
+                if (card) {
+                    card.classList.remove('is-open');
+                    card.setAttribute('aria-expanded', 'false');
+                }
+                if (badge) badge.textContent = '+';
+                if (subtree) subtree.classList.remove('is-open');
+            }
+        });
+    });
+}
+window.applyFocusTreeState = applyFocusTreeState;
 
 function filter3cxAgentsList(group, btnEl) {
     current3cxFilterGroup = group;

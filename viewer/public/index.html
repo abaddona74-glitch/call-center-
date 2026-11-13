@@ -823,6 +823,246 @@
         .manual-card-danger {
             border-left: 3px solid #f87171;
         }
+
+        /* ==========================================================================
+           Focus Tree (Org Chart with Zoom-in and Sibling Collapse)
+           ========================================================================== */
+        .ft-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 10px;
+            overflow-x: auto;
+            min-height: 280px;
+            user-select: none;
+        }
+        .ft-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .ft-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0;
+            position: relative;
+        }
+        .ft-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 450px;
+            opacity: 1;
+            transform: scale(1);
+            margin: 0 14px;
+            padding: 0;
+            transition: max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        margin 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        padding 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .ft-col.is-collapsed {
+            max-width: 0 !important;
+            opacity: 0 !important;
+            transform: scale(0.68) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+        }
+        .ft-card {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 9px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            outline: none;
+            position: relative;
+            z-index: 10;
+            white-space: nowrap;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.3s ease,
+                        border-color 0.3s ease;
+        }
+        .ft-card:focus-visible {
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.5);
+        }
+        .ft-card.is-open {
+            transform: scale(1.1) !important;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+            z-index: 25 !important;
+        }
+        .ft-card.ft-leaf {
+            cursor: default;
+        }
+        
+        /* Depth Tints */
+        .ft-depth-0 {
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            color: #38bdf8;
+        }
+        .ft-depth-0:hover:not(.ft-leaf), .ft-depth-0.is-open {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+        .ft-depth-0 .ft-badge {
+            background: rgba(56, 189, 248, 0.25);
+            color: #bae6fd;
+        }
+
+        .ft-depth-1 {
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            color: #34d399;
+        }
+        .ft-depth-1:hover:not(.ft-leaf), .ft-depth-1.is-open {
+            background: rgba(16, 185, 129, 0.25);
+            border-color: #34d399;
+            color: #ffffff;
+        }
+        .ft-depth-1 .ft-badge {
+            background: rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+
+        .ft-depth-2 {
+            background: rgba(168, 85, 247, 0.12);
+            border: 1px solid rgba(168, 85, 247, 0.45);
+            color: #c084fc;
+        }
+        .ft-depth-2:hover:not(.ft-leaf), .ft-depth-2.is-open {
+            background: rgba(168, 85, 247, 0.25);
+            border-color: #c084fc;
+            color: #ffffff;
+        }
+        .ft-depth-2 .ft-badge {
+            background: rgba(168, 85, 247, 0.25);
+            color: #f3e8ff;
+        }
+
+        .ft-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .ft-subtree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-height: 0;
+            opacity: 0;
+            transform: scale(0.85);
+            transform-origin: top center;
+            pointer-events: none;
+            overflow: hidden;
+            transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ft-subtree.is-open {
+            max-height: 1400px !important;
+            opacity: 1 !important;
+            transform: scale(1) !important;
+            pointer-events: auto !important;
+            overflow: visible !important;
+        }
+
+        /* 1px Connector Lines */
+        .ft-stem {
+            width: 1px;
+            height: 20px;
+            background: rgba(148, 163, 184, 0.4);
+            margin: 0 auto;
+            flex-shrink: 0;
+        }
+        .ft-connector {
+            width: 100%;
+            height: 20px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .ft-connector.ft-single {
+            width: 1px;
+            height: 20px;
+            background: rgba(148, 163, 184, 0.4);
+            margin: 0 auto;
+        }
+        .ft-connector.ft-first {
+            position: relative;
+        }
+        .ft-connector.ft-first::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.4);
+            border-left: 1px solid rgba(148, 163, 184, 0.4);
+            border-top-left-radius: 8px;
+        }
+        .ft-connector.ft-last {
+            position: relative;
+        }
+        .ft-connector.ft-last::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 50%;
+            top: 0;
+            bottom: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.4);
+            border-right: 1px solid rgba(148, 163, 184, 0.4);
+            border-top-right-radius: 8px;
+        }
+        .ft-connector.ft-mid {
+            position: relative;
+        }
+        .ft-connector.ft-mid::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.4);
+        }
+        .ft-connector.ft-mid::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(148, 163, 184, 0.4);
+            transform: translateX(-50%);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ft-col, .ft-card, .ft-subtree, .ft-badge {
+                transition: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2827,7 +3067,11 @@
 
             <!-- Modal Nav Tabs -->
             <div style="display: flex; gap: 8px; padding: 12px 24px; background: rgba(15, 23, 42, 0.7); border-bottom: 1px solid rgba(255, 255, 255, 0.08); overflow-x: auto;">
-                <button type="button" class="manual-tab-btn active" data-tab="tab-rules" onclick="switchManualTab('tab-rules')">
+                <button type="button" class="manual-tab-btn active" data-tab="tab-focus-tree" onclick="switchManualTab('tab-focus-tree')">
+                    <svg class="isax isax-hierarchy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M12 6V2M12 22v-4M2 12h4M18 12h4"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
+                    <span>🌲 Tizimlar va Rollar Daraxti</span>
+                </button>
+                <button type="button" class="manual-tab-btn" data-tab="tab-rules" onclick="switchManualTab('tab-rules')">
                     <svg class="isax isax-call" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width: 15px; height: 15px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.8"/></svg>
                     <span>Salomlashish standarti</span>
                 </button>
@@ -2851,8 +3095,32 @@
 
             <!-- Modal Body (Tab Contents) -->
             <div style="padding: 22px 26px; overflow-y: auto; font-size: 13.5px; line-height: 1.6; color: #cbd5e1; flex: 1;">
+                <!-- TAB 0: FOCUS TREE (ASOSIY STRUKTURA VA ROLLAR) -->
+                <div class="manual-tab-content" id="manual-tab-focus-tree" data-tab="tab-focus-tree" style="display: block;">
+                    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 14px 18px;">
+                        <div>
+                            <h4 style="margin: 0; font-size: 15px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                                <span>🌲 Tizimlar, Xizmatlar va Rollar Strukturasi</span>
+                                <span style="font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(56, 189, 248, 0.2); color: #7dd3fc;">Interaktiv</span>
+                            </h4>
+                            <p style="margin: 4px 0 0 0; font-size: 12.5px; color: #cbd5e1;">
+                                Kerakli tizim ustiga bosing — u markazga keladi va unga tegishli rollar hamda bo'limlar ochiladi.
+                            </p>
+                        </div>
+                        <button type="button" onclick="resetFocusTree()" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); color: #fff; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            <span>Barchasini yopish</span>
+                        </button>
+                    </div>
+
+                    <!-- Focus Tree Interactive Canvas -->
+                    <div class="ft-container" id="focusTreeCanvas">
+                        <div style="text-align: center; color: #94a3b8; padding: 20px;">Daraxt yuklanmoqda...</div>
+                    </div>
+                </div>
+
                 <!-- TAB 1: SALOMLASHISH STANDARTI -->
-                <div class="manual-tab-content" id="manual-tab-rules" data-tab="tab-rules" style="display: block;">
+                <div class="manual-tab-content" id="manual-tab-rules" data-tab="tab-rules" style="display: none;">
                     <div class="manual-card manual-card-accent">
                         <h4 style="margin: 0 0 10px 0; color: #38bdf8; font-size: 15px; font-weight: 700;">
                             1. Qo'ng'iroqni qabul qilish (Birinchi 3 soniya)
@@ -3066,8 +3334,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1794555598143" defer></script>
+    <script src="/js/viewer.js?v=1794557476473" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794555598143" defer></script>
+    <script src="/js/visualInspector.js?v=1794557476473" defer></script>
 </body>
 </html>
