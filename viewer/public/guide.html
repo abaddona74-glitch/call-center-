@@ -249,41 +249,52 @@
             cursor: default;
         }
 
-        /* Node Anchor & Unlinked Floating Hint/Message Rectangle */
+        /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
         .ft-node-anchor {
             position: relative;
-            display: inline-flex;
+            display: flex;
+            flex-direction: column; /* Default: vertical orientation (under node) */
             align-items: center;
             justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
         }
+        body.orient-horizontal .ft-node-anchor {
+            flex-direction: row; /* Horizontal orientation */
+            align-items: center;
+            gap: 14px;
+        }
+
         .ft-hint-card {
-            position: absolute;
-            left: calc(100% + 14px);
-            top: 50%;
-            transform: translateY(-50%);
-            width: max-content;
-            max-width: 250px;
-            background: rgba(15, 23, 42, 0.94);
+            position: relative; /* IN-FLOW: NEVER COLLIDES WITH SIBLINGS */
+            width: auto;
+            max-width: 260px;
+            min-width: 150px;
+            background: rgba(15, 23, 42, 0.95);
             border: 1px dashed rgba(56, 189, 248, 0.55);
             border-radius: 10px;
-            padding: 8px 12px;
-            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.65), 0 0 16px rgba(56, 189, 248, 0.16);
+            padding: 8px 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
             backdrop-filter: blur(12px);
-            z-index: 35;
-            text-align: left;
+            z-index: 20;
+            text-align: center;
             pointer-events: auto;
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             white-space: normal;
         }
+        body.orient-horizontal .ft-hint-card {
+            text-align: left;
+        }
         .ft-hint-card:hover {
             border-style: solid;
             border-color: #38bdf8;
-            transform: translateY(-50%) scale(1.04);
-            box-shadow: 0 14px 32px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.3);
+            transform: scale(1.04);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.3);
         }
         .ft-hint-badge {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 5px;
             font-size: 10px;
             font-weight: 700;
@@ -550,6 +561,9 @@
         </div>
 
         <div class="guide-header-actions">
+            <button type="button" class="btn-action-guide" id="btnToggleOrientation" onclick="toggleHintOrientation()" title="Hint to'rtburchaklarining yo'nalishini o'zgartirish (Pastda / Yonida)">
+                <span id="txtOrientation">🔄 Joylashuv: Pastda</span>
+            </button>
             <button type="button" class="btn-action-guide" id="btnToggleHints" onclick="toggleTreeHints()" title="Hint va izoh to'rtburchaklarini ko'rsatish yoki yashirish">
                 <span>💡 Hintlar: ON</span>
             </button>
@@ -849,8 +863,8 @@
                 const badgeHtml = hasChildren ? `<span class="ft-badge" id="badge-${node.id}">+</span>` : '';
 
                 const subTreeHtml = hasChildren ? `
-                    <div class="ft-stem"></div>
                     <div class="ft-subtree" id="subtree-${node.id}">
+                        <div class="ft-stem"></div>
                         ${renderFocusTreeBranch(node.children, node.id, depth + 1)}
                     </div>
                 ` : '';
@@ -956,6 +970,25 @@
             });
         }
 
+        let hintOrientation = localStorage.getItem('ft_hint_orientation') || 'vertical'; // 'vertical' or 'horizontal'
+        function applyHintOrientation() {
+            if (hintOrientation === 'horizontal') {
+                document.body.classList.add('orient-horizontal');
+            } else {
+                document.body.classList.remove('orient-horizontal');
+            }
+            const txt = document.getElementById('txtOrientation');
+            if (txt) {
+                txt.textContent = hintOrientation === 'horizontal' ? '🔄 Joylashuv: Yonida' : '🔄 Joylashuv: Pastda';
+            }
+        }
+        function toggleHintOrientation() {
+            hintOrientation = hintOrientation === 'vertical' ? 'horizontal' : 'vertical';
+            localStorage.setItem('ft_hint_orientation', hintOrientation);
+            applyHintOrientation();
+        }
+        window.toggleHintOrientation = toggleHintOrientation;
+
         let hintsVisible = true;
         function toggleTreeHints() {
             hintsVisible = !hintsVisible;
@@ -969,6 +1002,7 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            applyHintOrientation();
             initFocusTree();
         });
         window.addEventListener('resize', () => {

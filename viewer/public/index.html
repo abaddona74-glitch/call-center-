@@ -906,6 +906,47 @@
         .ft-card.ft-leaf {
             cursor: default;
         }
+
+        /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
+        .ft-node-anchor {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .ft-hint-card {
+            position: relative;
+            width: auto;
+            max-width: 250px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px dashed rgba(56, 189, 248, 0.55);
+            border-radius: 10px;
+            padding: 8px 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
+            backdrop-filter: blur(12px);
+            z-index: 20;
+            text-align: center;
+            white-space: normal;
+        }
+        .ft-hint-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #38bdf8;
+            margin-bottom: 4px;
+        }
+        .ft-hint-text {
+            font-size: 11px;
+            line-height: 1.4;
+            color: #e2e8f0;
+        }
         
         /* Depth Tints */
         .ft-depth-0 {
@@ -3337,8 +3378,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1794565450000" defer></script>
+    <script src="/js/viewer.js?v=1794566550000" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794565450000" defer></script>
+    <script src="/js/visualInspector.js?v=1794566550000" defer></script>
 </body>
 </html>
