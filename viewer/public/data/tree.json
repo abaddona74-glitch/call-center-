@@ -5,6 +5,25 @@
     "hint": "Yagona elektron hujjat aylanishi tizimi (edo.ijro.uz)",
     "children": [
       {
+        "id": "edo-kirish",
+        "title": "Kirish",
+        "hint": "EDO tizimiga kirish va autentifikatsiya usullari",
+        "children": [
+          {
+            "id": "kirish-oneid",
+            "title": "OneID",
+            "hint": "OneID yagona identifikatsiya tizimi orqali kirish (id.egov.uz)",
+            "url": "https://id.egov.uz/"
+          },
+          {
+            "id": "kirish-uzcrypto",
+            "title": "UzCrypto",
+            "hint": "ERI (Elektron raqamli imzo) kaliti orqali UzCrypto moduli yordamida kirish",
+            "url": "https://edo.ijro.uz/"
+          }
+        ]
+      },
+      {
         "id": "edo-rollar",
         "title": "Rollar",
         "hint": "EDO tizimidagi asosiy foydalanuvchi huquq va vazifalari",
