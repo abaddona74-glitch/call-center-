@@ -4935,6 +4935,11 @@ function renderActiveConversations(conversations) {
     const placeholder = container.querySelector('.empty-channels-placeholder');
     if (placeholder) placeholder.remove();
 
+    // Accordion holatini saqlash (qayta yangilanishda yopilib ketmasligi uchun)
+    if (typeof window.activeConversationsOpenKey === 'undefined') {
+        window.activeConversationsOpenKey = null;
+    }
+
     // 2. Yangi suhbatlarni qo'shish yoki mavjudlarini yangilash
     currentConversations.forEach(c => {
         const key = getConversationKey(c);
@@ -5002,37 +5007,20 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge" title="${opInfo.name} operatori" style="display: inline-flex; align-items: center; gap: 3.5px; font-size: 11px; font-weight: 500; padding: 1.5px 6px; border-radius: 6px; background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; line-height: 1.2; flex-shrink: 0;">
+            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori" style="background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border};">
                 <svg class="isax isax-simcard" style="width: 10px; height: 10px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
 
-        // Subtext: Faqat "Operator · ichki raqam" ("Kiruvchi" olib tashlandi, chapdagi belgi aytib turibdi)
         const subtext = opText;
-
         const iconType = isTalking ? 'talking' : (isOutbound ? 'outbound' : 'ringing');
         const iconSymbol = isOutbound ? 'isax-call' : 'isax-call-incoming';
-        const iconHtml = `
-            <div class="cc-call-icon ${iconType}" title="${tagText}">
-                <svg class="isax ${iconSymbol}" style="width: 18px; height: 18px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
-            </div>
-        `;
-
-        const durationHtml = `
-            <span class="cc-live-duration-wrap" title="Suhbat davomiyligi">
-                <svg class="isax isax-timer" style="width: 12px; height: 12px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
-                <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
-            </span>
-        `;
+        const callerFormatted = formatCallerNumberOrOperator(c.callerId);
+        const isOpen = (window.activeConversationsOpenKey === key);
 
         if (existingCard) {
-            existingCard.className = `cc-call ${isTalking ? 'talking' : 'ringing'}`;
-            existingCard.setAttribute('title', `Raqamni nusxalash: ${c.callerId || ''}`);
-            existingCard.onclick = (e) => {
-                if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
-                copyCallbackPhone(c.callerId, existingCard, e);
-            };
+            existingCard.className = `cc-call ${isTalking ? 'talking' : (isOutbound ? 'outbound' : 'ringing')}${isOpen ? ' open' : ''}`;
             const iconEl = existingCard.querySelector('.cc-call-icon');
             if (iconEl) {
                 iconEl.className = `cc-call-icon ${iconType}`;
@@ -5040,52 +5028,89 @@ function renderActiveConversations(conversations) {
                 const svgUse = iconEl.querySelector('use');
                 if (svgUse) svgUse.setAttribute('href', `/icons/iconsax/iconsax-sprite.svg#${iconSymbol}`);
             }
-            const phoneRowEl = existingCard.querySelector('.cc-phone-row');
-            if (phoneRowEl) {
-                const callerFormatted = formatCallerNumberOrOperator(c.callerId);
-                phoneRowEl.innerHTML = `<span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span><span class="sub cc-agent-sub" title="${safeEscapeAttr(subtext)}">${subtext}</span>`;
+            const numEl = existingCard.querySelector('.cc-num');
+            if (numEl) {
+                numEl.textContent = callerFormatted;
+                numEl.title = callerFormatted;
             }
-            const subRowEl = existingCard.querySelector('.cc-sub-row');
-            if (subRowEl) {
-                subRowEl.innerHTML = `${opBadgeHtml}${durationHtml}`;
+            const opEl = existingCard.querySelector('.cc-op');
+            if (opEl) {
+                opEl.textContent = subtext;
+                opEl.title = subtext;
             }
-            const timerEl = existingCard.querySelector('.cc-live-duration');
-            if (timerEl) {
-                timerEl.setAttribute('data-start', startMs);
-                timerEl.textContent = formatLiveCallDuration(startMs);
+            const tagsEl = existingCard.querySelector('.cc-tags');
+            if (tagsEl) {
+                tagsEl.innerHTML = `
+                    ${opBadgeHtml}
+                    <span class="cc-tag time" data-timer="${key}">
+                        <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                        <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
+                    </span>
+                `;
             }
         } else {
             const cardEl = document.createElement('div');
-            cardEl.className = `cc-call ${isTalking ? 'talking' : 'ringing'}`;
+            cardEl.className = `cc-call ${isTalking ? 'talking' : (isOutbound ? 'outbound' : 'ringing')}${isOpen ? ' open' : ''}`;
             cardEl.setAttribute('data-channel-key', key);
-            cardEl.setAttribute('title', `Raqamni nusxalash: ${c.callerId || ''}`);
-            cardEl.onclick = (e) => {
-                if (e.target && e.target.closest && e.target.closest('.cc-ic-btn')) return;
-                copyCallbackPhone(c.callerId, cardEl, e);
-            };
-            const callerFormatted = formatCallerNumberOrOperator(c.callerId);
             cardEl.innerHTML = `
-                ${iconHtml}
-                <div class="cc-call-info">
-                    <div class="cc-phone-row">
-                        <span class="cc-phone" title="${safeEscapeAttr(callerFormatted)}">${callerFormatted}</span>
-                        <span class="sub cc-agent-sub" title="${safeEscapeAttr(subtext)}">${subtext}</span>
+                <div class="cc-call-main" onclick="toggleActiveCallAccordion('${key}', event)">
+                    <div class="cc-call-icon ${iconType}" title="${tagText}">
+                        <svg class="isax ${iconSymbol}" style="width: 18px; height: 18px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#${iconSymbol}"></use></svg>
                     </div>
-                    <div class="cc-sub-row">
-                        ${opBadgeHtml}
-                        ${durationHtml}
+                    <div class="cc-info">
+                        <div class="cc-top">
+                            <span class="cc-num" title="${safeEscapeAttr(callerFormatted)}" onclick="event.stopPropagation(); copyCallbackPhone('${safeEscapeAttr(c.callerId)}', this, event);">${callerFormatted}</span>
+                            <span class="cc-op" title="${safeEscapeAttr(subtext)}">${subtext}</span>
+                        </div>
+                        <div class="cc-tags">
+                            ${opBadgeHtml}
+                            <span class="cc-tag time" data-timer="${key}">
+                                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                                <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
+                            </span>
+                        </div>
                     </div>
+                    <svg class="cc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
                 </div>
-                <div class="cc-call-actions">
-                    <button class="cc-ic-btn cc-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}')" title="${t('live_endcall_title', 'Tugatish')}" aria-label="Tugatish">
-                        <svg class="isax isax-call-remove" style="width: 15px; height: 15px; color: currentColor;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-remove"></use></svg>
-                    </button>
+                <div class="cc-actions">
+                    <div class="cc-actions-inner">
+                        <button type="button" class="cc-btn cc-btn-switch" onclick="event.stopPropagation(); openTransferModal('${c.channel}', '${safeEscapeAttr(c.callerId)}');" title="Boshqa operatorga o'tkazish">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h13l-4-4M17 14H4l4 4"/></svg>
+                            <span>${t('live_btn_transfer', "O'tkazish")}</span>
+                        </button>
+                        <button type="button" class="cc-btn cc-btn-end" onclick="event.stopPropagation(); hangupChannel('${c.channel}');" title="Qo'ng'iroqni tugatish">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.5 6.2A16 16 0 0 1 21 5v4l-3 1.5M5 4h4l2 5-2.5 1.5a11 11 0 0 0 3 3.5"/></svg>
+                            <span>${t('live_btn_end', "Tugatish")}</span>
+                        </button>
+                    </div>
                 </div>
             `;
             container.appendChild(cardEl);
         }
     });
 }
+
+window.toggleActiveCallAccordion = function(key, event) {
+    if (event) event.stopPropagation();
+    if (window.activeConversationsOpenKey === key) {
+        window.activeConversationsOpenKey = null;
+    } else {
+        window.activeConversationsOpenKey = key;
+    }
+    const container = document.getElementById('activeChannelsContainer');
+    if (container) {
+        container.querySelectorAll('.cc-call').forEach(card => {
+            const cardKey = card.getAttribute('data-channel-key');
+            if (cardKey === window.activeConversationsOpenKey) {
+                card.classList.add('open');
+            } else {
+                card.classList.remove('open');
+            }
+        });
+    }
+};
 
 // Har soniyada faol suhbatlar davomiyligini (duration) jonli sekundomerda yangilab borish
 if (!window.activeConversationsTicker) {

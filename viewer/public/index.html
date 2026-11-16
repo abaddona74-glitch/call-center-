@@ -907,45 +907,63 @@
             cursor: default;
         }
 
-        /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
+        /* Node Anchor & Non-Colliding Floating Tooltip + Subtitle */
         .ft-node-anchor {
             position: relative;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
         }
-        .ft-hint-card {
-            position: relative;
-            width: auto;
+        .ft-hint-popover {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            width: max-content;
             max-width: 250px;
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px dashed rgba(56, 189, 248, 0.55);
-            border-radius: 10px;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 9px;
             padding: 8px 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
-            backdrop-filter: blur(12px);
-            z-index: 20;
-            text-align: center;
-            white-space: normal;
-        }
-        .ft-hint-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #38bdf8;
-            margin-bottom: 4px;
-        }
-        .ft-hint-text {
             font-size: 11px;
             line-height: 1.4;
-            color: #e2e8f0;
+            text-align: center;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+            z-index: 1000;
+            white-space: normal;
+        }
+        .ft-hint-popover::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #0f172a;
+        }
+        .ft-node-anchor:hover .ft-hint-popover {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        .ft-hint-sub {
+            font-size: 11px;
+            color: #94a3b8;
+            max-width: 190px;
+            margin-top: 5px;
+            text-align: center;
+            line-height: 1.35;
+            word-break: break-word;
+            white-space: normal;
+        }
+        body.hide-hints .ft-hint-sub {
+            display: none !important;
         }
         
         /* Depth Tints */
@@ -3371,8 +3389,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1794815180000" defer></script>
+    <script src="/js/viewer.js?v=1794815230073" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794815180000" defer></script>
+    <script src="/js/visualInspector.js?v=1794815230073" defer></script>
 </body>
 </html>

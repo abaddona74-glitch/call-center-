@@ -12,13 +12,70 @@
     
     <style>
         :root {
-            --bg-dark: #080d1a;
-            --grid-color: rgba(56, 189, 248, 0.07);
-            --accent-cyan: #38bdf8;
-            --accent-green: #34d399;
-            --accent-purple: #c084fc;
+            --bg-color: #ffffff;
+            --grid-color: rgba(148, 163, 184, 0.35);
+            --header-bg: #ffffff;
+            --header-border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --btn-bg: #f1f5f9;
+            --btn-border: #cbd5e1;
+            --btn-color: #334155;
+            --btn-hover: #e2e8f0;
+            --conn-line: #94a3b8;
+            
+            /* Depth 0 (Root pills, e.g. EDO, E-huquqshunos, Mahalla) - Image 1 Exact Style */
+            --card-d0-bg: #f0f7ff;
+            --card-d0-border: #93c5fd;
+            --card-d0-color: #0369a1;
+            --card-d0-badge-bg: #dbeafe;
+            --card-d0-badge-color: #0284c7;
+
+            /* Depth 1 (Green tone) */
+            --card-d1-bg: #f0fdf4;
+            --card-d1-border: #86efac;
+            --card-d1-color: #047857;
+            --card-d1-badge-bg: #dcfce7;
+            --card-d1-badge-color: #059669;
+
+            /* Depth 2 (Purple tone) */
+            --card-d2-bg: #faf5ff;
+            --card-d2-border: #d8b4fe;
+            --card-d2-color: #6d28d9;
+            --card-d2-badge-bg: #f3e8ff;
+            --card-d2-badge-color: #7c3aed;
+        }
+
+        body.dark-theme {
+            --bg-color: #080d1a;
+            --grid-color: rgba(56, 189, 248, 0.08);
+            --header-bg: rgba(15, 23, 42, 0.94);
+            --header-border: rgba(59, 130, 246, 0.25);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
+            --btn-bg: rgba(255, 255, 255, 0.06);
+            --btn-border: rgba(255, 255, 255, 0.15);
+            --btn-color: #cbd5e1;
+            --btn-hover: rgba(56, 189, 248, 0.15);
+            --conn-line: rgba(148, 163, 184, 0.45);
+
+            --card-d0-bg: #0c1c38;
+            --card-d0-border: rgba(56, 189, 248, 0.55);
+            --card-d0-color: #38bdf8;
+            --card-d0-badge-bg: rgba(56, 189, 248, 0.25);
+            --card-d0-badge-color: #bae6fd;
+
+            --card-d1-bg: #062820;
+            --card-d1-border: rgba(16, 185, 129, 0.55);
+            --card-d1-color: #34d399;
+            --card-d1-badge-bg: rgba(16, 185, 129, 0.25);
+            --card-d1-badge-color: #a7f3d0;
+
+            --card-d2-bg: #201338;
+            --card-d2-border: rgba(168, 85, 247, 0.55);
+            --card-d2-color: #c084fc;
+            --card-d2-badge-bg: rgba(168, 85, 247, 0.25);
+            --card-d2-badge-color: #f3e8ff;
         }
 
         * {
@@ -31,10 +88,11 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: var(--bg-dark) !important;
+            background-color: var(--bg-color) !important;
             color: var(--text-main);
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             user-select: none;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
         /* Top Sticky Header */
@@ -44,12 +102,13 @@
             align-items: center;
             height: 64px;
             padding: 0 24px;
-            background: rgba(15, 23, 42, 0.94);
-            border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--header-border);
             backdrop-filter: blur(16px);
             position: relative;
             z-index: 100;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.06);
+            transition: background 0.25s ease, border-color 0.25s ease;
         }
 
         .guide-header-left {
@@ -63,19 +122,18 @@
             align-items: center;
             gap: 7px;
             padding: 7px 14px;
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
             border-radius: 9px;
-            color: #cbd5e1;
+            color: var(--btn-color);
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
             transition: all 0.2s ease;
         }
         .guide-back-btn:hover {
-            background: rgba(56, 189, 248, 0.15);
-            border-color: rgba(56, 189, 248, 0.4);
-            color: #fff;
+            background: var(--btn-hover);
+            color: var(--text-main);
             transform: translateX(-2px);
         }
 
@@ -88,18 +146,21 @@
             width: 38px;
             height: 38px;
             border-radius: 10px;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.25));
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(56, 189, 248, 0.2));
             border: 1px solid rgba(56, 189, 248, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
+            color: #0284c7;
+        }
+        body.dark-theme .guide-icon-badge {
             color: #38bdf8;
         }
 
         .guide-title {
             font-size: 16px;
             font-weight: 700;
-            color: #fff;
+            color: var(--text-main);
             margin: 0;
             display: flex;
             align-items: center;
@@ -111,11 +172,16 @@
             font-weight: 700;
             padding: 2px 8px;
             border-radius: 5px;
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.4);
+            background: rgba(16, 185, 129, 0.15);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.35);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        body.dark-theme .guide-pill {
+            color: #34d399;
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.4);
         }
 
         .guide-header-actions {
@@ -129,18 +195,18 @@
             align-items: center;
             gap: 7px;
             padding: 7px 14px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
             border-radius: 9px;
-            color: #cbd5e1;
+            color: var(--btn-color);
             font-size: 12.5px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
         }
         .btn-action-guide:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+            background: var(--btn-hover);
+            color: var(--text-main);
         }
 
         /* Infinite Canvas Viewport */
@@ -149,14 +215,15 @@
             height: calc(100vh - 64px);
             position: relative;
             overflow: hidden;
-            background-color: var(--bg-dark);
+            background-color: var(--bg-color);
             background-image: 
                 radial-gradient(var(--grid-color) 1.2px, transparent 1.2px),
-                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+                linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
             background-size: 32px 32px, 128px 128px, 128px 128px;
             background-position: 0 0, 0 0, 0 0;
             cursor: grab;
+            transition: background-color 0.25s ease;
         }
         .ft-viewport.is-dragging {
             cursor: grabbing !important;
@@ -198,10 +265,9 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            max-width: 600px;
             opacity: 1;
             transform: scale(1);
-            margin: 0 20px;
+            margin: 0 32px; /* NON-COLLIDING: Spacious margin between tree columns */
             padding: 0;
             transition: max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
                         opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
@@ -219,37 +285,38 @@
             overflow: hidden !important;
         }
 
-        /* Cards */
+        /* Cards - Pill Design matching Image 1 */
         .ft-card {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            padding: 12px 28px;
-            font-size: 15px;
+            gap: 10px;
+            padding: 10px 22px;
+            font-size: 14.5px;
             font-weight: 600;
-            border-radius: 14px;
+            border-radius: 12px;
             cursor: pointer;
             outline: none;
             position: relative;
             z-index: 10;
             white-space: nowrap;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.06);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: geometricPrecision;
             transform-style: flat;
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                        box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                        background 0.3s ease,
-                        border-color 0.3s ease;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.2s ease,
+                        border-color 0.2s ease,
+                        color 0.2s ease;
         }
         .ft-card:focus-visible {
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.5);
         }
         .ft-card.is-open {
-            transform: scale(1.1) !important;
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7) !important;
+            transform: scale(1.08) !important;
+            box-shadow: 0 8px 24px rgba(2, 132, 199, 0.22) !important;
             z-index: 25 !important;
         }
         .ft-card.ft-leaf {
@@ -260,123 +327,133 @@
             text-decoration: none;
         }
         .ft-card.ft-link:hover {
-            transform: scale(1.06);
-            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
         }
 
-        /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
+        /* Node Anchor */
         .ft-node-anchor {
             position: relative;
             display: flex;
-            flex-direction: column; /* Default: vertical orientation (under node) */
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-        }
-        body.orient-horizontal .ft-node-anchor {
-            flex-direction: row; /* Horizontal orientation */
-            align-items: center;
-            gap: 14px;
         }
 
-        .ft-hint-card {
-            position: relative; /* IN-FLOW: NEVER COLLIDES WITH SIBLINGS */
-            width: auto;
+        /* Floating Tooltip Popover on Hover (ZERO layout impact, ZERO collision) */
+        .ft-hint-popover {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            width: max-content;
             max-width: 260px;
-            min-width: 150px;
-            background: #0b1329;
-            border: 1px dashed rgba(56, 189, 248, 0.55);
-            border-radius: 10px;
-            padding: 8px 14px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
-            z-index: 20;
-            text-align: center;
-            pointer-events: auto;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: geometricPrecision;
-            transform-style: flat;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            white-space: normal;
-        }
-        body.orient-horizontal .ft-hint-card {
-            text-align: left;
-        }
-        .ft-hint-card:hover {
-            border-style: solid;
-            border-color: #38bdf8;
-            transform: scale(1.04);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.3);
-        }
-        .ft-hint-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #38bdf8;
-            margin-bottom: 4px;
-            -webkit-font-smoothing: antialiased;
-        }
-        .ft-hint-text {
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 9px;
+            padding: 8px 12px;
             font-size: 11.5px;
             line-height: 1.45;
-            color: #e2e8f0;
-            font-weight: 400;
-            -webkit-font-smoothing: antialiased;
+            text-align: center;
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+            z-index: 1000;
+            white-space: normal;
         }
-        body.hide-hints .ft-hint-card {
+        .ft-hint-popover::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #0f172a;
+        }
+        .ft-node-anchor:hover .ft-hint-popover {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Subtle in-column hint subtitle (centered, zero overflow) */
+        .ft-hint-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            max-width: 200px;
+            margin-top: 6px;
+            text-align: center;
+            line-height: 1.35;
+            word-break: break-word;
+            white-space: normal;
+            transition: opacity 0.2s ease;
+        }
+        body.hide-hints .ft-hint-sub {
             display: none !important;
         }
-        
-        /* Depth Tints */
+
+        /* Depth Tints matching Image 1 */
         .ft-depth-0 {
-            background: #0c1c38;
-            border: 1.5px solid rgba(56, 189, 248, 0.55);
-            color: #38bdf8;
+            background: var(--card-d0-bg);
+            border: 1.5px solid var(--card-d0-border);
+            color: var(--card-d0-color);
         }
         .ft-depth-0:hover:not(.ft-leaf), .ft-depth-0.is-open {
+            border-color: #0284c7;
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        body.dark-theme .ft-depth-0:hover:not(.ft-leaf), body.dark-theme .ft-depth-0.is-open {
             background: #0e2a54;
             border-color: #38bdf8;
             color: #ffffff;
         }
         .ft-depth-0 .ft-badge {
-            background: rgba(56, 189, 248, 0.25);
-            color: #bae6fd;
+            background: var(--card-d0-badge-bg);
+            color: var(--card-d0-badge-color);
         }
 
         .ft-depth-1 {
-            background: #062820;
-            border: 1.5px solid rgba(16, 185, 129, 0.55);
-            color: #34d399;
+            background: var(--card-d1-bg);
+            border: 1.5px solid var(--card-d1-border);
+            color: var(--card-d1-color);
         }
         .ft-depth-1:hover:not(.ft-leaf), .ft-depth-1.is-open {
+            border-color: #059669;
+            background: #dcfce7;
+            color: #047857;
+        }
+        body.dark-theme .ft-depth-1:hover:not(.ft-leaf), body.dark-theme .ft-depth-1.is-open {
             background: #093c30;
             border-color: #34d399;
             color: #ffffff;
         }
         .ft-depth-1 .ft-badge {
-            background: rgba(16, 185, 129, 0.25);
-            color: #a7f3d0;
+            background: var(--card-d1-badge-bg);
+            color: var(--card-d1-badge-color);
         }
 
         .ft-depth-2 {
-            background: #201338;
-            border: 1.5px solid rgba(168, 85, 247, 0.55);
-            color: #c084fc;
+            background: var(--card-d2-bg);
+            border: 1.5px solid var(--card-d2-border);
+            color: var(--card-d2-color);
         }
         .ft-depth-2:hover:not(.ft-leaf), .ft-depth-2.is-open {
+            border-color: #7c3aed;
+            background: #f3e8ff;
+            color: #6d28d9;
+        }
+        body.dark-theme .ft-depth-2:hover:not(.ft-leaf), body.dark-theme .ft-depth-2.is-open {
             background: #311d54;
             border-color: #c084fc;
             color: #ffffff;
         }
         .ft-depth-2 .ft-badge {
-            background: rgba(168, 85, 247, 0.25);
-            color: #f3e8ff;
+            background: var(--card-d2-badge-bg);
+            color: var(--card-d2-badge-color);
         }
 
         .ft-badge {
@@ -581,11 +658,14 @@
         </div>
 
         <div class="guide-header-actions">
-            <button type="button" class="btn-action-guide" id="btnToggleOrientation" onclick="toggleHintOrientation()" title="Hint to'rtburchaklarining yo'nalishini o'zgartirish (Pastda / Yonida)">
-                <span id="txtOrientation">🔄 Joylashuv: Pastda</span>
+            <button type="button" class="btn-action-guide" id="btnThemeToggle" onclick="toggleGuideTheme()" title="Yorug' va Qorong'u rejimni almashtirish">
+                <span id="themeToggleText">🌙 Qorong'u rejim</span>
             </button>
-            <button type="button" class="btn-action-guide" id="btnToggleHints" onclick="toggleTreeHints()" title="Hint va izoh to'rtburchaklarini ko'rsatish yoki yashirish">
-                <span>💡 Hintlar: ON</span>
+            <button type="button" class="btn-action-guide" id="btnToggleHints" onclick="toggleTreeHints()" title="Izoh va hintlarni ko'rsatish yoki yashirish">
+                <span id="hintToggleText">💡 Hintlar: ON</span>
+            </button>
+            <button type="button" class="btn-action-guide" onclick="centerTree()" title="Daraxtni ekranning markaziga qaytarish">
+                <span>🎯 Markazga olish</span>
             </button>
             <button type="button" class="btn-action-guide" onclick="resetFocusTree()" title="Barcha ochilgan rollarni yopish">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
@@ -603,6 +683,15 @@
             </div>
         </div>
 
+        <!-- Sleek Info Bar at bottom-left (ZERO collision with tree) -->
+        <div class="ft-info-bar" id="ftInfoBar">
+            <div class="ft-info-icon">💡</div>
+            <div class="ft-info-body">
+                <div class="ft-info-title" id="ftInfoTitle">Tanlangan tizim</div>
+                <div class="ft-info-desc" id="ftInfoDesc">Tizim bo'limi yoki rol haqida ma'lumot olish uchun kursor bilan ustiga keling yoki bosing.</div>
+            </div>
+        </div>
+
         <!-- Floating Controls Panel -->
         <div class="ft-controls-panel">
             <button type="button" class="ft-ctrl-btn" onclick="zoomIn()" title="Kattalashtirish (Zoom In)">+</button>
@@ -615,8 +704,7 @@
 
         <!-- Helper Hint -->
         <div class="ft-helper-pill">
-            <span>🖱️ <b>Sichqoncha g'ildiragi:</b> Zoom</span>
-            <span>🖐️ <b>Drag (tortish):</b> Siljitish</span>
+            <span>🖱️ <b>Sichqoncha:</b> Zoom & Siljitish</span>
             <span>👆 <b>Tugmalar:</b> Rollarni ochish</span>
         </div>
     </div>
@@ -894,23 +982,33 @@
                     </div>
                 ` : '';
 
-                const hintHtml = (node.hint || node.message) ? `
-                    <div class="ft-hint-card" id="hint-${node.id}">
-                        <div class="ft-hint-badge">💡 Hint / Izoh</div>
-                        <div class="ft-hint-text">${node.hint || node.message}</div>
+                const hasHint = Boolean(node.hint || node.message);
+                const hintText = node.hint || node.message || '';
+                const safeTitle = (node.title || '').replace(/'/g, "\\'");
+                const safeHint = hintText.replace(/'/g, "\\'");
+
+                const popoverHtml = hasHint ? `
+                    <div class="ft-hint-popover">
+                        <div style="font-weight:700; color:#38bdf8; margin-bottom:3px; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">💡 Hint / Izoh</div>
+                        <div>${hintText}</div>
                     </div>
+                ` : '';
+
+                const subHintHtml = hasHint ? `
+                    <div class="ft-hint-sub">${hintText}</div>
                 ` : '';
 
                 return `
                     <div class="ft-col" id="col-${node.id}" data-parent-id="${parentId}" data-node-id="${node.id}">
                         ${connectorHtml}
-                        <div class="ft-node-anchor">
+                        <div class="ft-node-anchor" onmouseenter="setInfoBar('${safeTitle}', '${safeHint}')">
                             <${btnTag} class="ft-card ${depthClass} ${hasChildren ? '' : (isLink ? 'ft-link' : 'ft-leaf')}" id="card-${node.id}" ${btnAttrs}>
                                 <span>${node.title}</span>
                                 ${iconExternal}
                                 ${badgeHtml}
                             </${btnTag}>
-                            ${hintHtml}
+                            ${popoverHtml}
+                            ${subHintHtml}
                         </div>
                         ${subTreeHtml}
                     </div>
@@ -927,6 +1025,26 @@
             applyFocusTreeState();
         }
 
+        function findNodeById(list, id) {
+            if (!list || !list.length) return null;
+            for (const item of list) {
+                if (item.id === id) return item;
+                if (item.children) {
+                    const found = findNodeById(item.children, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function setInfoBar(title, desc) {
+            const titleEl = document.getElementById('ftInfoTitle');
+            const descEl = document.getElementById('ftInfoDesc');
+            if (titleEl) titleEl.textContent = title || 'Tanlangan tizim';
+            if (descEl) descEl.textContent = desc || "Qo'shimcha izoh yoki yo'riqnoma mavjud emas.";
+        }
+        window.setInfoBar = setInfoBar;
+
         function handleFocusTreeClick(parentId, nodeId, evt) {
             if (evt) {
                 evt.stopPropagation();
@@ -940,11 +1058,17 @@
                 focusTreeState[parentId] = nodeId;
             }
             applyFocusTreeState();
+
+            const node = findNodeById(focusTreeData, nodeId);
+            if (node) {
+                setInfoBar(node.title, node.hint || node.message || '');
+            }
         }
 
         function resetFocusTree() {
             Object.keys(focusTreeState).forEach(k => delete focusTreeState[k]);
             applyFocusTreeState();
+            setInfoBar('Barcha rollar yopildi', 'Daraxt dastlabki holatga qaytarildi.');
         }
 
         function resetDescendants(rootId) {
@@ -996,39 +1120,39 @@
             });
         }
 
-        let hintOrientation = localStorage.getItem('ft_hint_orientation') || 'vertical'; // 'vertical' or 'horizontal'
-        function applyHintOrientation() {
-            if (hintOrientation === 'horizontal') {
-                document.body.classList.add('orient-horizontal');
+        let currentTheme = localStorage.getItem('ft_guide_theme') || 'light';
+        function applyGuideTheme() {
+            if (currentTheme === 'dark') {
+                document.body.classList.add('dark-theme');
             } else {
-                document.body.classList.remove('orient-horizontal');
+                document.body.classList.remove('dark-theme');
             }
-            const txt = document.getElementById('txtOrientation');
+            const txt = document.getElementById('themeToggleText');
             if (txt) {
-                txt.textContent = hintOrientation === 'horizontal' ? '🔄 Joylashuv: Yonida' : '🔄 Joylashuv: Pastda';
+                txt.textContent = currentTheme === 'dark' ? '🌙 Qorong\'u rejim' : '☀️ Yorug\' rejim';
             }
         }
-        function toggleHintOrientation() {
-            hintOrientation = hintOrientation === 'vertical' ? 'horizontal' : 'vertical';
-            localStorage.setItem('ft_hint_orientation', hintOrientation);
-            applyHintOrientation();
+        function toggleGuideTheme() {
+            currentTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+            localStorage.setItem('ft_guide_theme', currentTheme);
+            applyGuideTheme();
         }
-        window.toggleHintOrientation = toggleHintOrientation;
+        window.toggleGuideTheme = toggleGuideTheme;
 
         let hintsVisible = true;
         function toggleTreeHints() {
             hintsVisible = !hintsVisible;
             document.body.classList.toggle('hide-hints', !hintsVisible);
-            const btn = document.getElementById('btnToggleHints');
-            if (btn) {
-                btn.innerHTML = `<span>💡 Hintlar: ${hintsVisible ? 'ON' : 'OFF'}</span>`;
+            const txt = document.getElementById('hintToggleText');
+            if (txt) {
+                txt.textContent = `💡 Hintlar: ${hintsVisible ? 'ON' : 'OFF'}`;
             }
         }
         window.toggleTreeHints = toggleTreeHints;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            applyHintOrientation();
+            applyGuideTheme();
             initFocusTree();
         });
         window.addEventListener('resize', () => {

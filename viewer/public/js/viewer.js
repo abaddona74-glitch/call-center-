@@ -6952,22 +6952,33 @@ function renderFocusTreeBranch(nodes, parentId, depth) {
             </div>
         ` : '';
 
-        const hintHtml = (node.hint || node.message) ? `
-            <div class="ft-hint-card" id="ft-hint-${node.id}">
-                <div class="ft-hint-badge">💡 Hint / Izoh</div>
-                <div class="ft-hint-text">${node.hint || node.message}</div>
+        const hasHint = Boolean(node.hint || node.message);
+        const hintText = node.hint || node.message || '';
+        const isLink = !hasChildren && Boolean(node.url);
+        const iconExternal = isLink ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-left:6px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>` : '';
+
+        const popoverHtml = hasHint ? `
+            <div class="ft-hint-popover">
+                <div style="font-weight:700; color:#38bdf8; margin-bottom:2px; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">💡 Hint / Izoh</div>
+                <div>${hintText}</div>
             </div>
+        ` : '';
+
+        const subHintHtml = hasHint ? `
+            <div class="ft-hint-sub">${hintText}</div>
         ` : '';
 
         return `
             <div class="ft-col" id="ft-col-${node.id}" data-node-id="${node.id}" data-parent-id="${parentId}">
                 ${depth > 0 ? `<div class="${connClass}"></div>` : ''}
                 <div class="ft-node-anchor">
-                    <${cardTag} class="ft-card ${depthClass} ${leafClass}" id="ft-card-${node.id}" ${cardAttr}>
+                    <${cardTag} class="ft-card ${depthClass} ${leafClass} ${isLink ? 'ft-link' : ''}" id="ft-card-${node.id}" ${cardAttr}>
                         <span class="ft-title">${node.title}</span>
+                        ${iconExternal}
                         ${badgeHtml}
                     </${cardTag}>
-                    ${hintHtml}
+                    ${popoverHtml}
+                    ${subHintHtml}
                 </div>
                 ${subTreeHtml}
             </div>
