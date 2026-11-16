@@ -69,6 +69,101 @@ class AmiService {
 
         // Har 10 soniyada soat 00:00 (yangi kun) bo'lganini tekshirib, navbat hisoblagichlarini nollash
         setInterval(() => this.checkMidnightRollover(), 10000);
+
+        // Server deploy yoki qayta yuklanganda (PM2 reload) faol suhbatlar va kanallarni keshdan tiklash
+        this.loadActiveChannelsState();
+
+        const saveStateBeforeExit = () => {
+            try {
+                this.saveActiveChannelsStateSync();
+            } catch (e) {}
+        };
+        process.once('SIGINT', saveStateBeforeExit);
+        process.once('SIGTERM', saveStateBeforeExit);
+    }
+
+    loadActiveChannelsState() {
+        try {
+            const stateFile = path.join(__dirname, '..', 'data', 'active_channels_state.json');
+            if (!fs.existsSync(stateFile)) return;
+            const stat = fs.statSync(stateFile);
+            // Agar fayl 5 daqiqadan eski bo'lsa (server uzoq vaqt o'chiq turgan), inobatga olmaymiz
+            if (Date.now() - stat.mtimeMs > 300000) return;
+            const raw = fs.readFileSync(stateFile, 'utf8');
+            const data = JSON.parse(raw);
+            if (Array.isArray(data.channels)) {
+                for (const ch of data.channels) {
+                    if (ch && ch.channel) {
+                        this.activeChannels.set(ch.channel, {
+                            ...ch,
+                            startTime: ch.startTime ? new Date(ch.startTime) : null,
+                            answeredTime: ch.answeredTime ? new Date(ch.answeredTime) : null
+                        });
+                        if (ch.operator) {
+                            this.channelToOperator.set(ch.channel, ch.operator);
+                        }
+                    }
+                }
+            }
+            if (Array.isArray(data.outboundCalls)) {
+                for (const ob of data.outboundCalls) {
+                    if (ob && ob.opId) {
+                        this.operatorOutboundCalls.set(ob.opId, {
+                            ...ob,
+                            startTime: ob.startTime ? new Date(ob.startTime) : null,
+                            answeredTime: ob.answeredTime ? new Date(ob.answeredTime) : null
+                        });
+                    }
+                }
+            }
+            if (this.activeChannels.size > 0) {
+                console.log(`💾 Faol kanallar holati keshdan muvaffaqiyatli tiklandi (${this.activeChannels.size} ta kanal)`);
+            }
+        } catch (e) {
+            console.warn('loadActiveChannelsState xatolik:', e.message);
+        }
+    }
+
+    saveActiveChannelsStateSync() {
+        try {
+            const dataDir = path.join(__dirname, '..', 'data');
+            if (!fs.existsSync(dataDir)) {
+                fs.mkdirSync(dataDir, { recursive: true });
+            }
+            const stateFile = path.join(dataDir, 'active_channels_state.json');
+            const channelsArr = Array.from(this.activeChannels.values()).map(c => ({
+                channel: c.channel,
+                callerId: c.callerId,
+                callerName: c.callerName,
+                extension: c.extension,
+                context: c.context,
+                application: c.application,
+                state: c.state,
+                direction: c.direction,
+                duration: c.duration,
+                startTime: c.startTime,
+                answeredTime: c.answeredTime,
+                dialedPhone: c.dialedPhone,
+                operator: c.operator,
+                pairedChannel: c.pairedChannel
+            }));
+            const outboundArr = Array.from(this.operatorOutboundCalls.entries()).map(([opId, ob]) => ({
+                opId,
+                ...ob
+            }));
+            fs.writeFileSync(stateFile, JSON.stringify({
+                timestamp: Date.now(),
+                channels: channelsArr,
+                outboundCalls: outboundArr
+            }), 'utf8');
+        } catch (e) {}
+    }
+
+    saveActiveChannelsState() {
+        if (this._saveStateTimer) clearTimeout(this._saveStateTimer);
+        this._saveStateTimer = setTimeout(() => {
+            this.saveActiveChannelsStateSync();
+        }, 1000);
     }
 
     recordAgentCallEvent(operatorId, eventType, callerId) {
@@ -1477,10 +1572,43 @@ class AmiService {
             }
 
             const isStateUp = state.toLowerCase().includes('up') || state.toLowerCase().includes('talk') || state === '6';
-            const finalStartTime = (existing && existing.startTime) || now;
+            
+            // Asterisk CoreShowChannel dan kelgan haqiqiy davomiylik (duration) va uniqueid
+            const rawDur = evt.duration || (existing && existing.duration) || null;
+            const durSec = parseDurationSec(rawDur);
+            let calculatedStartTime = durSec > 0 ? new Date(now.getTime() - durSec * 1000) : null;
+            if (!calculatedStartTime && evt.uniqueid) {
+                const epochSec = parseFloat(evt.uniqueid);
+                if (epochSec > 1000000000 && epochSec < 2500000000) {
+                    calculatedStartTime = new Date(Math.floor(epochSec * 1000));
+                }
+            }
+
+            // Agar mavjud xotiradagi yoki keshdagi vaqt bo'lsa va u Asterisk davomiyligi bilan mos kelsa eskisini saqlaymiz.
+            // Lekin agar mavjud vaqt hozirgina (restart paytida) nollangan bo'lsa (durSec dan 10s dan ko'p yangi bo'lsa),
+            // Asteriskning haqiqiy davomiyligiga ustunlik beramiz!
+            let finalStartTime = calculatedStartTime || now;
+            if (existing && existing.startTime) {
+                const existingMs = new Date(existing.startTime).getTime();
+                if (durSec > 10 && existingMs > (now.getTime() - (durSec - 15) * 1000)) {
+                    finalStartTime = calculatedStartTime || existing.startTime;
+                } else {
+                    finalStartTime = existing.startTime;
+                }
+            }
+
             let finalAnsweredTime = (existing && existing.answeredTime) || null;
-            if (!finalAnsweredTime && isStateUp) {
-                finalAnsweredTime = now;
+            if (isStateUp) {
+                if (existing && existing.answeredTime) {
+                    const existingAnsMs = new Date(existing.answeredTime).getTime();
+                    if (durSec > 10 && existingAnsMs > (now.getTime() - (durSec - 15) * 1000)) {
+                        finalAnsweredTime = calculatedStartTime || existing.answeredTime;
+                    } else {
+                        finalAnsweredTime = existing.answeredTime;
+                    }
+                } else {
+                    finalAnsweredTime = calculatedStartTime || now;
+                }
             }
 
             this.activeChannels.set(channelId, {
@@ -1931,15 +2059,14 @@ class AmiService {
                     const operatorObj = this.operators.get(op);
                     if (operatorObj) {
                         operatorObj.presence = 'talking';
-                        if (!operatorObj.talkingSince) {
-                            if (chan.answeredTime) {
-                                operatorObj.talkingSince = new Date(chan.answeredTime).getTime();
-                            } else if (chan.duration) {
-                                const durSec = parseDurationSec(chan.duration);
-                                operatorObj.talkingSince = durSec > 0 ? (Date.now() - durSec * 1000) : Date.now();
-                            } else {
-                                operatorObj.talkingSince = Date.now();
-                            }
+                        const chanAnsweredMs = chan.answeredTime ? new Date(chan.answeredTime).getTime() : 0;
+                        const chanDurSec = parseDurationSec(chan.duration);
+                        const calculatedTalkSince = chanAnsweredMs > 0 
+                            ? chanAnsweredMs 
+                            : (chanDurSec > 0 ? (Date.now() - chanDurSec * 1000) : Date.now());
+
+                        if (!operatorObj.talkingSince || (chanAnsweredMs > 0 && Math.abs(operatorObj.talkingSince - chanAnsweredMs) > 10000)) {
+                            operatorObj.talkingSince = calculatedTalkSince;
                         }
                         this.operators.set(op, operatorObj);
                     }
@@ -1985,7 +2112,11 @@ class AmiService {
                     callerNum = num;
                 }
                 channelToUse = pairedChan.chanId;
-                duration = pairedChan.chan.duration || duration;
+                // Operator kanali suhbatning haqiqiy gaplashish davomiyligini ifodalaydi.
+                // Agar operator kanali duration ga ega bo'lmasa, mijoz kanali duration i olinadi.
+                if (!duration || duration === '00:00:00') {
+                    duration = pairedChan.chan.duration || '00:00:00';
+                }
             }
 
             // Yo'nalishni aniqlash (faqat haqiqiy operator tashqariga chiqqan bo'lsa outbound)
@@ -2095,15 +2226,28 @@ class AmiService {
             }
 
             const durSec = parseDurationSec(duration);
-            let convStartTime = (pairedChan && (pairedChan.chan.answeredTime || pairedChan.chan.startTime)) || opData.chan.answeredTime || opData.chan.startTime;
-            if (!convStartTime) {
-                if (durSec > 0) {
-                    convStartTime = new Date(Date.now() - durSec * 1000);
-                } else if (opObj && opObj.talkingSince) {
-                    convStartTime = new Date(opObj.talkingSince);
-                } else {
-                    convStartTime = new Date();
-                }
+            let convStartTime = null;
+
+            if (opData.chan && opData.chan.answeredTime) {
+                convStartTime = new Date(opData.chan.answeredTime);
+            } else if (pairedChan && pairedChan.chan.answeredTime) {
+                convStartTime = new Date(pairedChan.chan.answeredTime);
+            } else if (opObj && opObj.talkingSince) {
+                convStartTime = new Date(opObj.talkingSince);
+            } else if (durSec > 0) {
+                convStartTime = new Date(Date.now() - durSec * 1000);
+            } else if (opData.chan && opData.chan.startTime) {
+                convStartTime = new Date(opData.chan.startTime);
+            } else if (pairedChan && pairedChan.chan.startTime) {
+                convStartTime = new Date(pairedChan.chan.startTime);
+            } else {
+                convStartTime = new Date();
+            }
+
+            // Agar convStartTime va Asterisk durSec o'rtasida 15 soniyadan ortiq nomuvofiqlik bo'lsa
+            // (masalan, reload tufayli convStartTime yaqinda belgilangan bo'lsa), Asterisk durSec orqali to'g'irlaymiz!
+            if (durSec > 10 && convStartTime.getTime() > (Date.now() - (durSec - 15) * 1000)) {
+                convStartTime = new Date(Date.now() - durSec * 1000);
             }
 
             talkingConversations.push({
@@ -2187,6 +2331,7 @@ class AmiService {
         this.broadcast('stats_update', this.getSummaryStats());
         this.broadcast('operators_update', this.getOperatorList());
         this.broadcast('callbacks_update', this.getCallbacksWithActiveCalls());
+        this.saveActiveChannelsState();
     }
 
     ensureOperatorExists(operatorId) {

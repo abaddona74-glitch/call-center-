@@ -4861,7 +4861,7 @@ window.getUzbekistanOperator = getUzbekistanOperator;
 function formatLiveCallDuration(startMs) {
     if (!startMs) return '00:00';
     const diffSec = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
-    const mm = String(Math.floor(diffSec / 60)).padStart(2, '0');
+    const mm = String(Math.floor((diffSec % 3600) / 60)).padStart(2, '0');
     const ss = String(diffSec % 60).padStart(2, '0');
     const hh = Math.floor(diffSec / 3600);
     return hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
@@ -5117,11 +5117,10 @@ if (!window.activeConversationsTicker) {
         timerEls.forEach(el => {
             const start = parseInt(el.getAttribute('data-start'), 10);
             if (start && start > 0) {
-                const diffSec = Math.max(0, Math.floor((now - start) / 1000));
-                const mm = String(Math.floor(diffSec / 60)).padStart(2, '0');
-                const ss = String(diffSec % 60).padStart(2, '0');
-                const hh = Math.floor(diffSec / 3600);
-                el.textContent = hh > 0 ? `${String(hh).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
+                const text = formatLiveCallDuration(start);
+                if (el.textContent !== text) {
+                    el.textContent = text;
+                }
             }
         });
     }, 1000);
