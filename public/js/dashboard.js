@@ -7290,7 +7290,7 @@ function renderAdminClientsTable() {
     if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 40px;">
+                <td colspan="7" style="text-align: center; color: var(--text-dim); padding: 40px;">
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
                         <svg class="isax isax-search-normal" style="width: 28px; height: 28px; opacity: 0.4;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-search-normal"></use></svg>
                         <span>${query || langFilter ? t('clients_empty_search', "Qidiruv bo'yicha mijoz topilmadi") : t('clients_empty', 'Hozircha saqlangan mijozlar mavjud emas')}</span>
@@ -7307,7 +7307,6 @@ function renderAdminClientsTable() {
         const org = safeEscapeAttr(c.organization || '');
         const notes = safeEscapeAttr(c.notes || '');
         const langBadge = getClientLangBadgeHtml(c.language || '');
-        const callCount = c.calls_count || 0;
         const lastCall = c.last_call_at ? String(c.last_call_at).slice(0, 16) : (c.updated_at ? String(c.updated_at).slice(0, 16) : '-');
 
         return `
@@ -7329,9 +7328,6 @@ function renderAdminClientsTable() {
                 </td>
                 <td style="text-align: center;">
                     ${langBadge}
-                </td>
-                <td style="text-align: center; font-weight: 600; color: #60a5fa; font-size: 13px;">
-                    ${callCount > 0 ? `${callCount}` : '—'}
                 </td>
                 <td style="text-align: center; font-size: 12px; color: var(--text-muted);">
                     ${lastCall}
