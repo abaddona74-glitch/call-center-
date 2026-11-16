@@ -1144,110 +1144,33 @@ class DbService {
                   AND LENGTH(phone) >= 7
                   AND source != 'ivr_non_working'
             `;
-            let rawRows = [];
             if (includeResolved) {
-                // Pending va Resolved alohida limit bilan olinadi, toki eski pendinglar yangi resolved (gaplashildi) yozuvlarini siqib chiqarmasin!
-                let sqlPending = `
-                    SELECT 
-                        id, caller_id, phone, call_time, status, source,
-                        COALESCE(dismissed_at, '') AS dismissed_at,
-                        COALESCE(dismissed_by, '') AS dismissed_by,
-                        COALESCE(dismissed_reason, '') AS dismissed_reason,
-                        COALESCE(outbound_attempts, 0) AS outbound_attempts,
-                        COALESCE(last_attempt_time, '') AS last_attempt_time,
-                        COALESCE(last_attempt_status, '') AS last_attempt_status,
-                        created_at,
-                        updated_at
-                    FROM pending_callbacks
-                    WHERE phone NOT LIKE '%2020159%'
-                      AND phone != '712020159'
-                      AND LENGTH(phone) >= 7
-                      AND source != 'ivr_non_working'
-                      AND status = 'pending'
-                `;
-                let sqlResolved = `
-                    SELECT 
-                        id, caller_id, phone, call_time, status, source,
-                        COALESCE(dismissed_at, '') AS dismissed_at,
-                        COALESCE(dismissed_by, '') AS dismissed_by,
-                        COALESCE(dismissed_reason, '') AS dismissed_reason,
-                        COALESCE(outbound_attempts, 0) AS outbound_attempts,
-                        COALESCE(last_attempt_time, '') AS last_attempt_time,
-                        COALESCE(last_attempt_status, '') AS last_attempt_status,
-                        created_at,
-                        updated_at
-                    FROM pending_callbacks
-                    WHERE phone NOT LIKE '%2020159%'
-                      AND phone != '712020159'
-                      AND LENGTH(phone) >= 7
-                      AND source != 'ivr_non_working'
-                      AND status = 'resolved'
-                `;
-                const paramsPending = [];
-                const paramsResolved = [];
-                if (filter === 'today') {
-                    const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-                    sqlPending += ` AND call_time LIKE ?`;
-                    paramsPending.push(`${todayStr}%`);
-                    sqlResolved += ` AND (call_time LIKE ? OR dismissed_at LIKE ?)`;
-                    paramsResolved.push(`${todayStr}%`, `${todayStr}%`);
-                } else if (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter)) {
-                    sqlPending += ` AND call_time LIKE ?`;
-                    paramsPending.push(`${filter}%`);
-                    sqlResolved += ` AND (call_time LIKE ? OR dismissed_at LIKE ?)`;
-                    paramsResolved.push(`${filter}%`, `${filter}%`);
-                }
-
-                sqlPending += `
-                    ORDER BY 
-                      CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
-                      call_time DESC
-                    LIMIT 300
-                `;
-                sqlResolved += `
-                    ORDER BY COALESCE(dismissed_at, updated_at, call_time) DESC
-                    LIMIT 300
-                `;
-
-                const rowsPending = this.db.prepare(sqlPending).all(...paramsPending);
-                const rowsResolved = this.db.prepare(sqlResolved).all(...paramsResolved);
-                rawRows = rowsPending.concat(rowsResolved);
+                sql += ` AND status IN ('pending', 'resolved')`;
             } else {
-                let sql = `
-                    SELECT 
-                        id, caller_id, phone, call_time, status, source,
-                        COALESCE(dismissed_at, '') AS dismissed_at,
-                        COALESCE(dismissed_by, '') AS dismissed_by,
-                        COALESCE(dismissed_reason, '') AS dismissed_reason,
-                        COALESCE(outbound_attempts, 0) AS outbound_attempts,
-                        COALESCE(last_attempt_time, '') AS last_attempt_time,
-                        COALESCE(last_attempt_status, '') AS last_attempt_status,
-                        created_at,
-                        updated_at
-                    FROM pending_callbacks
-                    WHERE phone NOT LIKE '%2020159%'
-                      AND phone != '712020159'
-                      AND LENGTH(phone) >= 7
-                      AND source != 'ivr_non_working'
-                      AND status = 'pending'
-                `;
-                const params = [];
-                if (filter === 'today') {
-                    const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-                    sql += ` AND call_time LIKE ?`;
-                    params.push(`${todayStr}%`);
-                } else if (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter)) {
-                    sql += ` AND call_time LIKE ?`;
-                    params.push(`${filter}%`);
-                }
-                sql += `
-                    ORDER BY 
-                      CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
-                      call_time DESC
-                    LIMIT 500
-                `;
-                rawRows = this.db.prepare(sql).all(...params);
+                sql += ` AND status = 'pending'`;
             }
+
+            const params = [];
+            if (filter === 'today') {
+                const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+                sql += ` AND call_time LIKE ?`;
+                params.push(`${todayStr}%`);
+            } else if (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter)) {
+                sql += ` AND call_time LIKE ?`;
+                params.push(`${filter}%`);
+            }
+
+            sql += `
+                ORDER BY 
+                  CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC,
+                  CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
+                  call_time DESC,
+                  COALESCE(updated_at, created_at) DESC
+                LIMIT 500
+            `;
+
+            const stmt = this.db.prepare(sql);
+            const rawRows = stmt.all(...params);
 
             // Unikal mijozlar bo'yicha guruhlash:
             // - Agar 'pending' bo'lsa: bir xil raqam bo'yicha bitta qilib jamlaymiz (operator bitta qo'ng'iroq qilishi uchun)
