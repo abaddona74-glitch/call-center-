@@ -30,9 +30,14 @@ function checkInbox() {
                             console.log('\n=============================================');
                             console.log('🎯 YANGI VISUAL AI VAZIFA KELDI!');
                             console.log('ID:', pending.id);
+                            const formatEl = (e) => {
+                                if (!e) return 'element';
+                                if (e.isArea) return `📐 Hudud (${e.width}×${e.height}px)`;
+                                return `<${e.tag || 'el'}${e.id ? '#' + e.id : ''}>`;
+                            };
                             const elDesc = (pending.elements && pending.elements.length > 1)
-                                ? `${pending.elements.length} ta element (${pending.elements.map(e => `<${e.tag || 'el'}${e.id ? '#' + e.id : ''}>`).join(', ')})`
-                                : `${pending.element?.tag || 'element'}${pending.element?.id ? '#' + pending.element.id : ''}`;
+                                ? `${pending.elements.length} ta element (${pending.elements.map(formatEl).join(', ')})`
+                                : formatEl(pending.element || pending.elements?.[0]);
                             console.log('Element(lar):', elDesc);
                             console.log('Vazifa:', pending.task || 'Ko\'rinishini yaxshilash');
                             console.log('Full Prompt:');

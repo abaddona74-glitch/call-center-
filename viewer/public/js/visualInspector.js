@@ -1,27 +1,42 @@
 /**
  * Visual AI Inspector (Lovable / v0 Style Visual Prompt Mode)
  * Faqat Superuser / Admin yoki Localhost uchun xavfsiz faollashadi.
- * Klaviatura kombinatsiyasi: Alt + Shift + D yoki Profil menyusi orqali.
+ * Klaviatura kombinatsiyasi: Alt + Shift + D yoki Ctrl + Shift + D.
  * 
  * Asosiy imkoniyatlar:
+ *  - 2 xil rejim:
+ *      1. 🎯 Element rejimi (Target Mode): Mavjud DOM elementlarini bosib tanlash.
+ *      2. 📐 Hudud chizish rejimi (Area / Select Mode): Sichqoncha bilan ekranning istalgan
+ *         joyiga to'rtburchak (rectangle) chizib, yangi blok yoki komponent joylashtirish.
+ *  - Avto-drag imkoniyati: Oddiy rejimda ham bo'sh joydan ushlab tortganda (drag) avtomatik
+ *    to'rtburchak chizish (rubber-band selection) rejimiga o'tadi.
  *  - Ko'p elementlarni uzluksiz tanlash (har bir element alohida rang va #1, #2... deb belgilanadi)
  *  - Matnda # yoki @ bosilganda komponentlar avtomatik ro'yxati (Autocomplete podskazka)
  *  - Otmetka qilingan elementlarni maxsus rangli va yaltiragan chip (Pill) ko'rinishida ko'rsatish
  *  - Tezkor otmetka tugmalari (bitta bosishda matnga #1, #2 kiritish)
- *  - Antigravity Inbox'ga to'g'ridan-to'g'ri uzatish
+ *  - Skrinshot biriktirish (Ctrl+V) va Antigravity Inbox'ga to'g'ridan-to'g'ri uzatish
  */
 
 (function () {
     'use strict';
 
     let isInspectorActive = false;
+    let inspectorMode = 'element'; // 'element' | 'area'
     let hoveredElement = null;
-    let selectedElements = [];
+    let selectedElements = []; // DOM elementlari yoki { isArea: true, rect: {...} } obyektlari
     let highlightBox = null;
     let multiHighlightContainer = null;
     let tagBadge = null;
     let topBar = null;
     let promptModal = null;
+
+    // Hudud chizish (Area / Rectangle Drag) holati
+    let isAreaDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let justFinishedAreaDrag = false;
+    let areaSelectionBox = null;
+    let areaBadge = null;
 
     // Har bir element uchun maxsus ranglar palitrasi
     const COLOR_PALETTE = [
@@ -94,6 +109,72 @@
                 background: rgba(168, 85, 247, 0.15) !important;
                 border-color: rgba(168, 85, 247, 0.4) !important;
                 color: #e9d5ff !important;
+            }
+            .visual-ai-mode-toggle {
+                display: flex;
+                align-items: center;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 20px;
+                padding: 2px;
+                gap: 2px;
+            }
+            .visual-ai-mode-btn {
+                background: transparent;
+                color: #94a3b8;
+                border: none;
+                padding: 4px 10px;
+                border-radius: 16px;
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                transition: all 0.15s ease;
+                outline: none;
+                font-family: inherit;
+            }
+            .visual-ai-mode-btn:hover {
+                color: #f1f5f9;
+            }
+            .visual-ai-mode-btn.active-element {
+                background: linear-gradient(135deg, #7c3aed, #4f46e5);
+                color: #ffffff;
+                box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+            }
+            .visual-ai-mode-btn.active-area {
+                background: linear-gradient(135deg, #0284c7, #0369a1);
+                color: #ffffff;
+                box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+            }
+            .visual-area-rubberband {
+                position: fixed;
+                display: none;
+                pointer-events: none;
+                border: 2px dashed #38bdf8;
+                background: rgba(56, 189, 248, 0.14);
+                box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25), 0 0 24px rgba(56, 189, 248, 0.35);
+                border-radius: 8px;
+                z-index: 10000002;
+            }
+            .visual-area-rubberband-badge {
+                position: absolute;
+                top: -26px;
+                left: 0;
+                background: #082f49;
+                color: #38bdf8;
+                border: 1px solid #0284c7;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-family: 'JetBrains Mono', Consolas, monospace;
+                font-size: 11px;
+                font-weight: 700;
+                white-space: nowrap;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                gap: 5px;
             }
             .visual-ai-elements-list {
                 display: flex;
@@ -217,16 +298,6 @@
             .ai-mention-pill:hover {
                 background: rgba(56, 189, 248, 0.28);
                 border-color: #38bdf8;
-            }
-            .ai-mention-pill.pill-emerald {
-                background: rgba(16, 185, 129, 0.18);
-                color: #34d399;
-                border-color: rgba(16, 185, 129, 0.45);
-            }
-            .ai-mention-pill.pill-purple {
-                background: rgba(168, 85, 247, 0.18);
-                color: #c084fc;
-                border-color: rgba(168, 85, 247, 0.45);
             }
             .visual-mention-dropdown {
                 position: absolute;
@@ -366,6 +437,19 @@
         highlightBox.appendChild(tagBadge);
         root.appendChild(highlightBox);
 
+        // Area Selection (Rubber-band Drag & Draw) Box
+        areaSelectionBox = document.createElement('div');
+        areaSelectionBox.id = 'visualInspectorAreaSelection';
+        areaSelectionBox.className = 'visual-area-rubberband';
+
+        areaBadge = document.createElement('div');
+        areaBadge.id = 'visualInspectorAreaBadge';
+        areaBadge.className = 'visual-area-rubberband-badge';
+        areaBadge.innerHTML = '📐 <span>0 × 0 px</span>';
+
+        areaSelectionBox.appendChild(areaBadge);
+        root.appendChild(areaSelectionBox);
+
         // Top Control Floating Bar
         topBar = document.createElement('div');
         topBar.id = 'visualInspectorTopBar';
@@ -380,20 +464,20 @@
             -webkit-backdrop-filter: blur(14px);
             border: 1px solid rgba(139, 92, 246, 0.5);
             box-shadow: 0 10px 36px rgba(0, 0, 0, 0.65), 0 0 24px rgba(139, 92, 246, 0.3);
-            padding: 8px 18px;
+            padding: 7px 16px;
             border-radius: 50px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             color: #f8fafc;
             font-family: 'Inter', sans-serif;
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 600;
             pointer-events: auto;
             transition: transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
             z-index: 10000001;
             user-select: none;
-            max-width: 94vw;
+            max-width: 96vw;
             flex-wrap: nowrap;
         `;
         root.appendChild(topBar);
@@ -409,34 +493,46 @@
         const count = selectedElements.length;
 
         topBar.innerHTML = `
-            <div style="display: inline-flex; align-items: center; gap: 7px; color: #c084fc;">
-                <svg class="isax isax-magic-star" style="width: 16px; height: 16px; color: #c084fc;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
+            <div style="display: inline-flex; align-items: center; gap: 6px; color: #c084fc;">
+                <svg class="isax isax-magic-star" style="width: 15px; height: 15px; color: #c084fc;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
                 <span style="font-weight: 700; letter-spacing: -0.2px;">Visual AI</span>
+            </div>
+
+            <!-- Rejim o'tkazgich (Element vs Hudud chizish) -->
+            <div class="visual-ai-mode-toggle">
+                <button type="button" id="btnModeElement" class="visual-ai-mode-btn ${inspectorMode === 'element' ? 'active-element' : ''}" title="Mavjud elementlarni bosib tanlash (Target rejimi)">
+                    <span>🎯 Element</span>
+                </button>
+                <button type="button" id="btnModeArea" class="visual-ai-mode-btn ${inspectorMode === 'area' ? 'active-area' : ''}" title="Ekranda to'rtburchak chizib hudud tanlash (Area rejimi)">
+                    <span>📐 Hudud chizish</span>
+                </button>
             </div>
 
             <span style="color: #475569;">|</span>
 
             ${count === 0 ? `
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="color: #cbd5e1; font-size: 12px; font-weight: 500;">
-                        Elementlarni ketma-ket bosing
+                    <span style="color: #cbd5e1; font-size: 11.5px; font-weight: 500;">
+                        ${inspectorMode === 'element' 
+                            ? 'Elementni bosing yoki bo\'sh joydan sudrab to\'rtburchak chizing' 
+                            : 'Kerakli sohani sichqoncha bilan to\'rtburchak qilib chizing'}
                     </span>
-                    <span style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); padding: 2px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 600;">
-                        Multi-select faol
+                    <span style="background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 600;">
+                        ${inspectorMode === 'element' ? 'Multi-select' : 'Drag & Draw'}
                     </span>
                 </div>
             ` : `
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); padding: 3px 9px; border-radius: 12px; font-size: 11.5px; font-weight: 700; font-family: monospace;">
+                    <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; font-family: monospace;">
                         ${count} ta tanlandi
                     </span>
                     <button type="button" id="btnOpenMultiPrompt" style="
                         background: linear-gradient(135deg, #7c3aed, #4f46e5);
                         border: none;
                         color: #ffffff;
-                        padding: 6px 14px;
+                        padding: 5px 13px;
                         border-radius: 20px;
-                        font-size: 12px;
+                        font-size: 11.5px;
                         font-weight: 700;
                         cursor: pointer;
                         display: flex;
@@ -446,16 +542,16 @@
                         animation: pulseGlow 2s infinite;
                         transition: all 0.15s ease;
                     ">
-                        <svg class="isax isax-magic-star" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
+                        <svg class="isax isax-magic-star" style="width: 13px; height: 13px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-magic-star"></use></svg>
                         <span>Prompt berish (Enter)</span>
                     </button>
                     <button type="button" id="btnClearSelection" style="
                         background: rgba(255, 255, 255, 0.08);
                         border: 1px solid rgba(255, 255, 255, 0.14);
                         color: #cbd5e1;
-                        padding: 5px 9px;
+                        padding: 4px 8px;
                         border-radius: 14px;
-                        font-size: 11px;
+                        font-size: 10.5px;
                         font-weight: 600;
                         cursor: pointer;
                         display: flex;
@@ -469,11 +565,22 @@
             `}
 
             <span style="color: #475569;">|</span>
-            <span style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 2px 7px; border-radius: 6px; font-size: 10.5px; color: #94a3b8; font-family: monospace;">ESC</span>
+            <span style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); padding: 2px 6px; border-radius: 6px; font-size: 10px; color: #94a3b8; font-family: monospace;">ESC</span>
             <button type="button" id="btnExitVisualInspector" style="background: none; border: none; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 3px; border-radius: 4px; transition: color 0.15s ease;" title="Yopish">
                 <svg class="isax isax-close" style="width: 14px; height: 14px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close"></use></svg>
             </button>
         `;
+
+        document.getElementById('btnModeElement')?.addEventListener('click', () => {
+            inspectorMode = 'element';
+            updateTopBarUI();
+        });
+
+        document.getElementById('btnModeArea')?.addEventListener('click', () => {
+            inspectorMode = 'area';
+            if (highlightBox) highlightBox.style.display = 'none';
+            updateTopBarUI();
+        });
 
         document.getElementById('btnExitVisualInspector')?.addEventListener('click', stopVisualInspector);
 
@@ -518,6 +625,35 @@
         return rawTarget;
     }
 
+    // Hudud (Area / Rectangle) tanlovini qo'shish
+    function addSelectedArea(areaRect) {
+        const areaItem = {
+            isArea: true,
+            id: 'area_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+            rect: {
+                left: areaRect.left,
+                top: areaRect.top,
+                width: areaRect.width,
+                height: areaRect.height,
+                pageX: areaRect.pageX,
+                pageY: areaRect.pageY,
+                screenWidth: areaRect.screenWidth || window.innerWidth,
+                screenHeight: areaRect.screenHeight || window.innerHeight
+            }
+        };
+
+        selectedElements.push(areaItem);
+        renderMultiHighlights();
+        updateTopBarUI();
+
+        // Hudud chizilgach, tezkor prompt modalini ochamiz
+        setTimeout(() => {
+            if (isInspectorActive && !promptModal) {
+                openPromptModal();
+            }
+        }, 180);
+    }
+
     // 4. Tanlangan barcha elementlar hoshiyasini chizish (har biri o'ziga xos rangda)
     function renderMultiHighlights() {
         if (!multiHighlightContainer) return;
@@ -525,6 +661,7 @@
 
         // DOM da re-render bo'lsa ham tanlov yo'qolmasligi uchun re-bind qilish
         selectedElements = selectedElements.map(el => {
+            if (el && el.isArea) return el; // Hudud obyektlari saqlanadi
             if (document.body.contains(el)) return el;
             if (el.id) {
                 const reFound = document.getElementById(el.id);
@@ -555,13 +692,62 @@
                 }
             }
             return el;
-        }).filter(el => document.body.contains(el));
+        }).filter(el => el && (el.isArea || document.body.contains(el)));
 
         selectedElements.forEach((el, idx) => {
+            const color = getElementColor(idx);
+
+            if (el.isArea) {
+                // Sahifa scroll bo'lsa joriy koordinatani yangilash
+                const currentLeft = (el.rect.pageX != null) ? (el.rect.pageX - window.scrollX) : el.rect.left;
+                const currentTop = (el.rect.pageY != null) ? (el.rect.pageY - window.scrollY) : el.rect.top;
+                el.rect.left = currentLeft;
+                el.rect.top = currentTop;
+
+                const box = document.createElement('div');
+                box.style.cssText = `
+                    position: fixed;
+                    top: ${currentTop}px;
+                    left: ${currentLeft}px;
+                    width: ${el.rect.width}px;
+                    height: ${el.rect.height}px;
+                    border: 2px dashed ${color.solid};
+                    background: ${color.bg};
+                    box-shadow: 0 0 0 2px ${color.border}, 0 0 20px ${color.bg};
+                    border-radius: 8px;
+                    pointer-events: none !important;
+                    z-index: 10000000;
+                `;
+
+                const badge = document.createElement('div');
+                badge.style.cssText = `
+                    position: absolute;
+                    top: ${currentTop < 28 ? '3px' : '-24px'};
+                    left: 0;
+                    background: ${color.badgeBg};
+                    color: ${color.text};
+                    border: 1px solid ${color.solid};
+                    padding: 1px 7px;
+                    border-radius: 4px;
+                    font-family: 'JetBrains Mono', Consolas, monospace;
+                    font-size: 11px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+                    pointer-events: none !important;
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                `;
+                badge.innerHTML = `#${idx + 1} 📐 Hudud (${Math.round(el.rect.width)}×${Math.round(el.rect.height)}px)`;
+
+                box.appendChild(badge);
+                multiHighlightContainer.appendChild(box);
+                return;
+            }
+
             const rect = el.getBoundingClientRect();
             if (rect.width === 0 && rect.height === 0) return;
-
-            const color = getElementColor(idx);
 
             const box = document.createElement('div');
             box.style.cssText = `
@@ -610,7 +796,7 @@
         if (!isInspectorActive) return;
         renderMultiHighlights();
 
-        if (hoveredElement && highlightBox && highlightBox.style.display !== 'none') {
+        if (hoveredElement && highlightBox && highlightBox.style.display !== 'none' && inspectorMode !== 'area') {
             const rect = hoveredElement.getBoundingClientRect();
             highlightBox.style.top = `${rect.top}px`;
             highlightBox.style.left = `${rect.left}px`;
@@ -619,10 +805,69 @@
         }
     }
 
-    // 5. Hover qilingan elementni hoshiyalash
+    // 5. Sichqoncha bosilganda (MouseDown) - drag boshlash
+    function handleMouseDown(e) {
+        if (!isInspectorActive || promptModal) return;
+
+        if (e.target.closest('#visualInspectorRoot') || e.target.closest('#visualInspectorModalContainer')) {
+            return;
+        }
+
+        if (e.button !== 0) return; // Faqat asosiy chap tugma
+
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        isAreaDragging = false;
+    }
+
+    // 6. Sichqoncha harakati (MouseMove) - Hover yoki Rubber-band Drag
     function handleMouseMove(e) {
         if (!isInspectorActive || promptModal) return;
 
+        // Agar sichqoncha chap tugmasi bosilgan holda sudralsa (Drag)
+        if (e.buttons === 1 && (dragStartX !== 0 || dragStartY !== 0)) {
+            const dx = Math.abs(e.clientX - dragStartX);
+            const dy = Math.abs(e.clientY - dragStartY);
+
+            // 7px dan ko'p siljisa yoki maxsus Hudud rejimida bo'lsa darhol chizish
+            if (dx > 7 || dy > 7 || inspectorMode === 'area') {
+                isAreaDragging = true;
+                if (highlightBox) highlightBox.style.display = 'none';
+
+                const left = Math.min(dragStartX, e.clientX);
+                const top = Math.min(dragStartY, e.clientY);
+                const width = Math.max(1, Math.abs(e.clientX - dragStartX));
+                const height = Math.max(1, Math.abs(e.clientY - dragStartY));
+
+                if (areaSelectionBox) {
+                    areaSelectionBox.style.display = 'block';
+                    areaSelectionBox.style.left = `${left}px`;
+                    areaSelectionBox.style.top = `${top}px`;
+                    areaSelectionBox.style.width = `${width}px`;
+                    areaSelectionBox.style.height = `${height}px`;
+
+                    if (areaBadge) {
+                        areaBadge.innerHTML = `📐 <span>${Math.round(width)} × ${Math.round(height)} px</span>`;
+                        if (top < 30) {
+                            areaBadge.style.top = '4px';
+                            areaBadge.style.left = '4px';
+                        } else {
+                            areaBadge.style.top = '-26px';
+                            areaBadge.style.left = '0';
+                        }
+                    }
+                }
+                return;
+            }
+        }
+
+        // Agar Hudud chizish rejimi faol bo'lsa, element hoverini ko'rsatmaymiz
+        if (inspectorMode === 'area') {
+            if (highlightBox) highlightBox.style.display = 'none';
+            return;
+        }
+
+        // Standart Target / Element Hover Rejimi
         const rawTarget = document.elementFromPoint(e.clientX, e.clientY);
         if (!rawTarget || rawTarget.closest('#visualInspectorRoot') || rawTarget.closest('#visualInspectorModalContainer')) {
             return;
@@ -672,11 +917,62 @@
         }
     }
 
-    // 6. Element bosilganda tanlash
+    // 7. Sichqoncha qo'yib yuborilganda (MouseUp) - Chizilgan hududni saqlash
+    function handleMouseUp(e) {
+        if (!isInspectorActive || promptModal) return;
+
+        if (isAreaDragging) {
+            isAreaDragging = false;
+            justFinishedAreaDrag = true;
+            setTimeout(() => { justFinishedAreaDrag = false; }, 220);
+
+            if (areaSelectionBox) areaSelectionBox.style.display = 'none';
+
+            const width = Math.abs(e.clientX - dragStartX);
+            const height = Math.abs(e.clientY - dragStartY);
+            const left = Math.min(dragStartX, e.clientX);
+            const top = Math.min(dragStartY, e.clientY);
+
+            dragStartX = 0;
+            dragStartY = 0;
+
+            // Agar to'rtburchak yetarlicha sezilarli bo'lsa (kamida 15x15 px)
+            if (width >= 15 && height >= 15) {
+                addSelectedArea({
+                    left,
+                    top,
+                    width,
+                    height,
+                    pageX: left + window.scrollX,
+                    pageY: top + window.scrollY,
+                    screenWidth: window.innerWidth,
+                    screenHeight: window.innerHeight
+                });
+            }
+            return;
+        }
+
+        dragStartX = 0;
+        dragStartY = 0;
+    }
+
+    // 8. Element bosilganda tanlash (Click)
     function handleClick(e) {
         if (!isInspectorActive) return;
 
+        // Agar hozirgina drag tugagan bo'lsa, click hodisasini to'xtatamiz
+        if (justFinishedAreaDrag) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
         if (e.target.closest('#visualInspectorRoot') || e.target.closest('#visualInspectorModalContainer')) {
+            return;
+        }
+
+        // Agar foydalanuvchi qat'iy Hudud rejimida bo'lsa, elementlarni bosib tanlamaydi
+        if (inspectorMode === 'area') {
             return;
         }
 
@@ -710,7 +1006,7 @@
         e.stopPropagation();
 
         const target = hoveredElement || e.target;
-        if (target && !selectedElements.includes(target)) {
+        if (target && !selectedElements.includes(target) && inspectorMode !== 'area') {
             selectedElements.push(target);
             renderMultiHighlights();
             updateTopBarUI();
@@ -721,7 +1017,7 @@
         }
     }
 
-    // 7. Prompt oynasini ochish (Mention / Podskazka bilan)
+    // 9. Prompt oynasini ochish (Mention / Podskazka bilan)
     function openPromptModal() {
         closePromptModal();
         if (selectedElements.length === 0) return;
@@ -760,17 +1056,33 @@
             animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         `;
 
-        // Har bir element metadatalari
+        // Har bir element yoki hudud metadatalari
         const elementsData = selectedElements.map((el, idx) => {
+            const color = getElementColor(idx);
+
+            if (el && el.isArea) {
+                return {
+                    el,
+                    isArea: true,
+                    rect: el.rect,
+                    tag: 'HUDUD',
+                    id: '',
+                    classes: `X: ${Math.round(el.rect.pageX || el.rect.left)}px, Y: ${Math.round(el.rect.pageY || el.rect.top)}px`,
+                    textContent: `Belgilangan soha / bo'sh joy`,
+                    compStyles: { backgroundColor: 'transparent', color: '#38bdf8' },
+                    color
+                };
+            }
+
             const rect = el.getBoundingClientRect();
             const tag = el.tagName.toLowerCase();
             const id = el.id ? `#${el.id}` : '';
             const classes = Array.from(el.classList || []).join(' ');
             const textContent = (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 60);
             const compStyles = window.getComputedStyle(el);
-            const color = getElementColor(idx);
             return {
                 el,
+                isArea: false,
                 rect,
                 tag,
                 id,
@@ -781,20 +1093,41 @@
             };
         });
 
+        const hasAnyArea = elementsData.some(it => it.isArea);
+
         // Elementlar ro'yxati HTML
         let elementsHtml = '';
         if (isSingle) {
             const item = elementsData[0];
-            elementsHtml = `
-                <div style="background: #1e293b; border: 1px solid ${item.color.border}; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
-                        <span style="color: ${item.color.text}; font-family: monospace; font-weight: 700;">#1 &lt;${item.tag}${item.id}&gt;</span>
-                        <span style="color: #64748b; font-size: 11px;">${Math.round(item.rect.width)} × ${Math.round(item.rect.height)} px</span>
+            if (item.isArea) {
+                elementsHtml = `
+                    <div style="background: #1e293b; border: 1px solid ${item.color.border}; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: ${item.color.text}; font-family: monospace; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                                <span>#1</span> <span>📐 Belgilangan Hudud (Area)</span>
+                            </span>
+                            <span style="color: #38bdf8; font-size: 11px; font-weight: 700;">${Math.round(item.rect.width)} × ${Math.round(item.rect.height)} px</span>
+                        </div>
+                        <div style="color: #94a3b8; font-family: monospace; font-size: 11px; margin-bottom: 4px;">
+                            Joylashuv: X: ${Math.round(item.rect.pageX || item.rect.left)}px, Y: ${Math.round(item.rect.pageY || item.rect.top)}px
+                        </div>
+                        <div style="color: #34d399; font-size: 11.5px; font-weight: 500;">
+                            ✨ Ushbu bo'sh sohaga yangi element yoki blok qo'shish so'rovi
+                        </div>
                     </div>
-                    ${item.classes ? `<div style="color: #94a3b8; font-family: monospace; font-size: 11px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">class: ${item.classes}</div>` : ''}
-                    ${item.textContent ? `<div style="color: #cbd5e1; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${item.textContent}"</div>` : ''}
-                </div>
-            `;
+                `;
+            } else {
+                elementsHtml = `
+                    <div style="background: #1e293b; border: 1px solid ${item.color.border}; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;">
+                            <span style="color: ${item.color.text}; font-family: monospace; font-weight: 700;">#1 &lt;${item.tag}${item.id}&gt;</span>
+                            <span style="color: #64748b; font-size: 11px;">${Math.round(item.rect.width)} × ${Math.round(item.rect.height)} px</span>
+                        </div>
+                        ${item.classes ? `<div style="color: #94a3b8; font-family: monospace; font-size: 11px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">class: ${item.classes}</div>` : ''}
+                        ${item.textContent ? `<div style="color: #cbd5e1; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">"${item.textContent}"</div>` : ''}
+                    </div>
+                `;
+            }
         } else {
             elementsHtml = `
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
@@ -807,8 +1140,10 @@
                     ${elementsData.map((item, idx) => `
                         <div class="visual-ai-element-item" data-index="${idx}" style="border-left: 3px solid ${item.color.solid};">
                             <span class="el-num" style="background: ${item.color.bg}; color: ${item.color.text}; border-color: ${item.color.border};">#${idx + 1}</span>
-                            <span class="el-tag" style="color: ${item.color.text};">&lt;${item.tag}${item.id}&gt;</span>
-                            ${item.textContent ? `<span class="el-text">"${item.textContent}"</span>` : ''}
+                            <span class="el-tag" style="color: ${item.color.text};">${item.isArea ? '📐 Hudud' : `&lt;${item.tag}${item.id}&gt;`}</span>
+                            ${item.isArea 
+                                ? `<span class="el-text" style="color: #38bdf8;">X:${Math.round(item.rect.pageX || item.rect.left)} Y:${Math.round(item.rect.pageY || item.rect.top)}</span>`
+                                : (item.textContent ? `<span class="el-text">"${item.textContent}"</span>` : '')}
                             <span class="el-size">${Math.round(item.rect.width)}×${Math.round(item.rect.height)}</span>
                             <button type="button" class="el-remove-btn" data-remove-idx="${idx}" title="O'chirish">
                                 <svg class="isax isax-close" style="width: 12px; height: 12px;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-close"></use></svg>
@@ -819,23 +1154,38 @@
             `;
         }
 
-        // Tezkor chip takliflari
-        const chipsHtml = isSingle ? `
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
-                <button type="button" class="ai-chip-btn" data-chip="Rangini va fonini o'zgartir: ">Rangini o'zgartirish</button>
-                <button type="button" class="ai-chip-btn" data-chip="O'lchami va bo'shliqlarini kattalashtir: ">Kattalashtirish</button>
-                <button type="button" class="ai-chip-btn" data-chip="Hover animatsiyasi va soya qo'sh: ">Animatsiya</button>
-                <button type="button" class="ai-chip-btn" data-chip="Bu elementni yashir yoki o'chir: ">Yashirish</button>
-            </div>
-        ` : `
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
-                <button type="button" class="ai-chip-btn" data-chip="Ushbu elementlarning barchasini bir xil o'lcham va oraliqda qil: ">Bir xil o'lcham va oraliq</button>
-                <button type="button" class="ai-chip-btn" data-chip="Barchasining rang va shriftlarini mosla: ">Rang va shriftlar</button>
-                <button type="button" class="ai-chip-btn" data-chip="Ushbu elementlarni bir qatorga tekisla: ">Bir qatorga tekislash</button>
-                <button type="button" class="ai-chip-btn" data-chip="Barchasiga bir xil hover effekti ber: ">Bir xil hover</button>
-                <button type="button" class="ai-chip-btn" data-chip="Barchasini yashir yoki o'chir: ">Yashirish</button>
-            </div>
-        `;
+        // Tezkor chip takliflari (Hudud tanlanganda moslashtirilgan)
+        let chipsHtml = '';
+        if (hasAnyArea) {
+            chipsHtml = `
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+                    <button type="button" class="ai-chip-btn" data-chip="Shu yerga yangi tugma qo'shilsin: ">Yangi tugma</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Shu sohaga yangi kartochka (card) yaratilsin: ">Yangi karta</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Ushbu hududga yangi child node (daraxt elementi) qo'sh: ">Yangi child node</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Shu joyga statistika bloki joylashtir: ">Statistika bloki</button>
+                </div>
+            `;
+        } else if (isSingle) {
+            chipsHtml = `
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+                    <button type="button" class="ai-chip-btn" data-chip="Rangini va fonini o'zgartir: ">Rang / Fon</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Kattaroq va qalinroq qil, shriftini o'zgartir: ">Shrift / Kattalik</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Joylashuvini va chekkalarini tekisla (padding/margin): ">Padding / Joylashuv</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Hover effekti va animatsiya qo'sh: ">Hover / Animatsiya</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Bu elementni umuman yashir yoki o'chir: ">Yashirish / O'chirish</button>
+                </div>
+            `;
+        } else {
+            chipsHtml = `
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;">
+                    <button type="button" class="ai-chip-btn" data-chip="Barcha elementlar rangini bir xillashtir: ">Ranglarni birlashtirish</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Oraliq masofalarni (gap) bir xil qil: ">Bir xil oraliq</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Ushbu elementlarni bir qatorga tekisla: ">Bir qatorga tekislash</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Barchasiga bir xil hover effekti ber: ">Bir xil hover</button>
+                    <button type="button" class="ai-chip-btn" data-chip="Barchasini yashir yoki o'chir: ">Yashirish</button>
+                </div>
+            `;
+        }
 
         // Tezkor Otmetka Tugmalari (Tugmani bitta bosib matnga #1, #2 pill qo'shish)
         const quickMentionsHtml = `
@@ -846,11 +1196,17 @@
                 ${elementsData.map((item, idx) => `
                     <button type="button" class="mention-insert-btn" data-insert-idx="${idx}" style="color: ${item.color.text}; background: ${item.color.bg}; border-color: ${item.color.border};" title="Matnga #${idx + 1} ni kiritish">
                         <span style="font-weight: 700;">#${idx + 1}</span>
-                        <span>&lt;${item.tag}${item.id}&gt;</span>
+                        <span>${item.isArea ? '📐 Hudud' : `&lt;${item.tag}${item.id}&gt;`}</span>
                     </button>
                 `).join('')}
             </div>
         `;
+
+        const placeholderText = hasAnyArea
+            ? "Masalan: 'Ushbu bo'sh joyga yangi tugma qo'shib ber...' yoki '#1 ga yangi statistika kartasi qo'y'"
+            : (isSingle 
+                ? "Masalan: 'Tugma rangi ko'k bo'lsin, burchaklari yumaloqlansin...'" 
+                : "Masalan: '#1 dagi soatni #2 ning ichiga joylashtirib ber... (yoki # yozing)'");
 
         modal.innerHTML = `
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
@@ -861,8 +1217,8 @@
                     <div>
                         <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">
                             Visual AI Prompt
-                            <span style="font-size: 10.5px; padding: 2px 7px; background: ${isSingle ? 'rgba(139, 92, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)'}; color: ${isSingle ? '#c084fc' : '#34d399'}; border-radius: 6px; font-weight: 600;">
-                                ${isSingle ? '1 ta element' : `Multi (${count} ta)`}
+                            <span style="font-size: 10.5px; padding: 2px 7px; background: ${hasAnyArea ? 'rgba(56, 189, 248, 0.2)' : (isSingle ? 'rgba(139, 92, 246, 0.2)' : 'rgba(16, 185, 129, 0.2)')}; color: ${hasAnyArea ? '#38bdf8' : (isSingle ? '#c084fc' : '#34d399')}; border-radius: 6px; font-weight: 600;">
+                                ${hasAnyArea ? '📐 Hudud / Area' : (isSingle ? '1 ta element' : `Multi (${count} ta)`)}
                             </span>
                         </h3>
                     </div>
@@ -872,7 +1228,7 @@
                 </button>
             </div>
 
-            <!-- Tanlangan element(lar) ro'yxati -->
+            <!-- Tanlangan element(lar) yoki hudud ro'yxati -->
             ${elementsHtml}
 
             <!-- Tezkor chip takliflari -->
@@ -885,13 +1241,13 @@
             <div style="margin-bottom: 16px; position: relative;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                     <label style="display: block; font-size: 12px; font-weight: 600; color: #94a3b8;">
-                        ${isSingle ? "Ushbu elementga qanday o'zgartirish kiritilsin?" : "Tanlangan barcha elementlarga qanday o'zgartirish kiritilsin?"}
+                        ${hasAnyArea ? "Ushbu hududga qanday yangi element yoki blok joylashtirilsin?" : (isSingle ? "Ushbu elementga qanday o'zgartirish kiritilsin?" : "Tanlangan barcha elementlarga qanday o'zgartirish kiritilsin?")}
                     </label>
                     <span style="font-size: 10.5px; color: #64748b; font-family: monospace;"># yoki @: podskazka</span>
                 </div>
 
                 <!-- Rich Input Box -->
-                <div id="visualAiPromptInput" class="visual-ai-editor" contenteditable="true" data-placeholder="${isSingle ? "Masalan: 'Tugma rangi ko'k bo'lsin, burchaklari yumaloqlansin...'" : "Masalan: '#1 dagi soatni #2 ning ichiga joylashtirib ber... (yoki # yozing)'"}"></div>
+                <div id="visualAiPromptInput" class="visual-ai-editor" contenteditable="true" data-placeholder="${placeholderText}"></div>
 
                 <!-- Autocomplete Dropdown (Yashirin boshlanadi) -->
                 <div id="visualMentionDropdown" class="visual-mention-dropdown" style="display: none;"></div>
@@ -947,7 +1303,6 @@
 
         const editor = document.getElementById('visualAiPromptInput');
         const mentionDropdown = document.getElementById('visualMentionDropdown');
-        if (editor) editor.focus();
 
         function escapeHtml(str) {
             return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1086,7 +1441,7 @@
                 margin: 0 2px;
                 box-shadow: 0 0 10px ${color.bg};
             `;
-            pill.innerHTML = `<span>#${itemIndex + 1}</span><span style="font-weight: 500; font-size: 10px; opacity: 0.85;">&lt;${item.tag}${item.id}&gt;</span>`;
+            pill.innerHTML = `<span>#${itemIndex + 1}</span><span style="font-weight: 500; font-size: 10px; opacity: 0.85;">${item.isArea ? '📐 Hudud' : `&lt;${item.tag}${item.id}&gt;`}</span>`;
 
             editor.focus();
             const sel = window.getSelection();
@@ -1170,8 +1525,10 @@
                 ${filtered.map(({ item, idx }, i) => `
                     <div class="visual-mention-item ${i === 0 ? 'active' : ''}" data-idx="${idx}">
                         <span class="vmi-num" style="background: ${item.color.bg}; color: ${item.color.text}; border-color: ${item.color.border};">#${idx + 1}</span>
-                        <span class="vmi-tag" style="color: ${item.color.text};">&lt;${item.tag}${item.id}&gt;</span>
-                        ${item.textContent ? `<span class="vmi-text">"${item.textContent}"</span>` : ''}
+                        <span class="vmi-tag" style="color: ${item.color.text};">${item.isArea ? '📐 Hudud' : `&lt;${item.tag}${item.id}&gt;`}</span>
+                        ${item.isArea 
+                            ? `<span class="vmi-text">${Math.round(item.rect.width)}×${Math.round(item.rect.height)} px</span>` 
+                            : (item.textContent ? `<span class="vmi-text">"${item.textContent}"</span>` : '')}
                     </div>
                 `).join('')}
             `;
@@ -1201,7 +1558,6 @@
         // Dropdown tugmalarini boshqarish (Arrow keys, Enter, Esc, Backspace)
         if (editor) {
             editor.addEventListener('keydown', (e) => {
-                // Hech qanday tashqi window/document listener Backspace yoki harflarni ushlab qolmasligi uchun
                 if (e.key !== 'Escape') {
                     e.stopPropagation();
                 }
@@ -1240,20 +1596,18 @@
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
                     document.getElementById('btnSendToAntigravity')?.click();
+                    return;
                 }
             });
 
-            // Input voqeasida # yoki @ tekshiruvi
             editor.addEventListener('input', () => {
                 const sel = window.getSelection();
-                if (!sel || sel.rangeCount === 0) {
-                    hideMentionDropdown();
-                    return;
-                }
-                const range = sel.getRangeAt(0);
-                if (range.startContainer.nodeType === Node.TEXT_NODE) {
-                    const txt = range.startContainer.textContent.slice(0, range.startOffset);
-                    const match = txt.match(/(?:^|\s|[^\w])([#@])(\w*)$/);
+                if (sel && sel.rangeCount > 0) {
+                    const range = sel.getRangeAt(0);
+                    const txt = range.startContainer.textContent || '';
+                    const pos = range.startOffset;
+
+                    const match = txt.slice(0, pos).match(/([#@])([a-zA-Z0-9_-]*)$/);
                     if (match) {
                         showMentionDropdown(match[2]);
                         return;
@@ -1297,7 +1651,7 @@
         const handleReselect = () => {
             closePromptModal();
             updateTopBarUI();
-            if (highlightBox) highlightBox.style.display = 'block';
+            if (highlightBox && inspectorMode !== 'area') highlightBox.style.display = 'block';
         };
         document.getElementById('btnReselectElement')?.addEventListener('click', handleReselect);
         document.getElementById('btnAddMoreElements')?.addEventListener('click', handleReselect);
@@ -1318,6 +1672,28 @@
 
             if (selectedElements.length === 1) {
                 const item = elementsData[0];
+                if (item.isArea) {
+                    const lines = [
+                        `[VISUAL UI HUDUD (AREA) TANLOVI - YANGI ELEMENT YARATISH TALABI]:`,
+                        `- Rejim: 📐 Hudud chizish (Area / Select Mode)`,
+                        `- Tanlangan soha o'lchami: ${Math.round(item.rect.width)}px × ${Math.round(item.rect.height)}px`,
+                        `- Sahifadagi koordinatalar: X=${Math.round(item.rect.pageX || item.rect.left)}px, Y=${Math.round(item.rect.pageY || item.rect.top)}px`,
+                        `- Ekran o'lchami: ${item.rect.screenWidth || window.innerWidth}px × ${item.rect.screenHeight || window.innerHeight}px`,
+                        `- Joriy sahifa: ${location.pathname} (${document.title})`,
+                        ``,
+                        userTask 
+                            ? `🎯 VAZIFA (Foydalanuvchi ko'rsatilgan sohaga yangi element/blok joylashtirmoqchi):\n${userTask}`
+                            : `🎯 VAZIFA: Ko'rsatilgan bo'sh sohaga yangi komponent qo'shish (Aniq vazifa chatda belgilanadi)`
+                    ];
+                    if (attachedImages.length > 0) {
+                        lines.push(
+                            ``,
+                            `🖼️ BIRIKTIRILGAN SKRINSHOTLAR / RASMLAR: ${attachedImages.length} ta rasm (skrinshot) ilova qilindi.`
+                        );
+                    }
+                    return lines.filter(Boolean).join('\n');
+                }
+
                 const lines = [
                     `[VISUAL UI O'ZGARTIRISH TALABI]:`,
                     `- Element: <${item.tag}${item.id}>`,
@@ -1343,22 +1719,31 @@
 
             const lines = [
                 `[VISUAL UI MULTI-ELEMENT O'ZGARTIRISH TALABI]:`,
-                `Jami tanlangan komponentlar soni: ${elementsData.length} ta`,
+                `Jami tanlangan komponentlar / hududlar soni: ${elementsData.length} ta`,
                 `- Joriy sahifa: ${location.pathname} (${document.title})`,
                 ``,
-                `📋 TANLANGAN ELEMENTLAR RO'YXATI:`
+                `📋 TANLANGAN ELEMENTLAR VA HUDUDLAR RO'YXATI:`
             ];
 
             elementsData.forEach((item, idx) => {
-                lines.push(
-                    `--- ${idx + 1}-element (#${idx + 1}) ---`,
-                    `- Teg: <${item.tag}${item.id}>`,
-                    item.classes ? `- Klasslar: ${item.classes}` : null,
-                    item.textContent ? `- Matn: "${item.textContent}"` : null,
-                    `- O'lcham: ${Math.round(item.rect.width)}px × ${Math.round(item.rect.height)}px`,
-                    item.compStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' ? `- Fon rangi: ${item.compStyles.backgroundColor}` : null,
-                    item.compStyles.color ? `- Matn rangi: ${item.compStyles.color}` : null
-                );
+                if (item.isArea) {
+                    lines.push(
+                        `--- ${idx + 1}-element (#${idx + 1}) [📐 BELGILANGAN HUDUD / AREA] ---`,
+                        `- Turi: Bo'sh soha / Hudud (Yangi element joylashtirish uchun)`,
+                        `- O'lchami: ${Math.round(item.rect.width)}px × ${Math.round(item.rect.height)}px`,
+                        `- Koordinatalari: X=${Math.round(item.rect.pageX || item.rect.left)}px, Y=${Math.round(item.rect.pageY || item.rect.top)}px`
+                    );
+                } else {
+                    lines.push(
+                        `--- ${idx + 1}-element (#${idx + 1}) ---`,
+                        `- Teg: <${item.tag}${item.id}>`,
+                        item.classes ? `- Klasslar: ${item.classes}` : null,
+                        item.textContent ? `- Matn: "${item.textContent}"` : null,
+                        `- O'lcham: ${Math.round(item.rect.width)}px × ${Math.round(item.rect.height)}px`,
+                        item.compStyles.backgroundColor !== 'rgba(0, 0, 0, 0)' ? `- Fon rangi: ${item.compStyles.backgroundColor}` : null,
+                        item.compStyles.color ? `- Matn rangi: ${item.compStyles.color}` : null
+                    );
+                }
             });
 
             lines.push(
@@ -1410,15 +1795,44 @@
                 sendBtn.innerHTML = `<span>Yuborilmoqda...</span>`;
             }
 
-            const payloadElements = elementsData.map((item, idx) => ({
-                num: idx + 1,
-                tag: item.tag,
-                id: item.el.id || '',
-                classes: item.classes,
-                text: item.textContent,
-                width: Math.round(item.rect.width),
-                height: Math.round(item.rect.height)
-            }));
+            const payloadElements = elementsData.map((item, idx) => {
+                if (item.isArea) {
+                    return {
+                        num: idx + 1,
+                        isArea: true,
+                        tag: 'AREA',
+                        id: item.el.id || '',
+                        classes: '',
+                        text: `Hudud (${Math.round(item.rect.width)}x${Math.round(item.rect.height)})`,
+                        width: Math.round(item.rect.width),
+                        height: Math.round(item.rect.height),
+                        rect: {
+                            left: Math.round(item.rect.left),
+                            top: Math.round(item.rect.top),
+                            pageX: Math.round(item.rect.pageX || item.rect.left),
+                            pageY: Math.round(item.rect.pageY || item.rect.top),
+                            width: Math.round(item.rect.width),
+                            height: Math.round(item.rect.height)
+                        }
+                    };
+                }
+                return {
+                    num: idx + 1,
+                    isArea: false,
+                    tag: item.tag,
+                    id: item.el.id || '',
+                    classes: item.classes,
+                    text: item.textContent,
+                    width: Math.round(item.rect.width),
+                    height: Math.round(item.rect.height),
+                    rect: {
+                        left: Math.round(item.rect.left),
+                        top: Math.round(item.rect.top),
+                        width: Math.round(item.rect.width),
+                        height: Math.round(item.rect.height)
+                    }
+                };
+            });
 
             try {
                 const token = localStorage.getItem('cc_token') || localStorage.getItem('auth_token') || localStorage.getItem('cc_session');
@@ -1497,7 +1911,7 @@
         }
     }
 
-    // 8. Inspector ni yoqish
+    // 10. Inspector ni yoqish
     function startVisualInspector() {
         if (!isAllowedToInspect()) {
             return;
@@ -1518,14 +1932,16 @@
         updateTopBarUI();
         renderMultiHighlights();
 
+        window.addEventListener('mousedown', handleMouseDown, true);
         window.addEventListener('mousemove', handleMouseMove, true);
+        window.addEventListener('mouseup', handleMouseUp, true);
         window.addEventListener('click', handleClick, true);
         window.addEventListener('dblclick', handleDblClick, true);
         window.addEventListener('scroll', updateHighlightsPositions, true);
         window.addEventListener('resize', updateHighlightsPositions, true);
     }
 
-    // 9. Inspector ni o'chirish
+    // 11. Inspector ni o'chirish
     function stopVisualInspector() {
         isInspectorActive = false;
         window.isVisualInspectorActive = false;
@@ -1533,6 +1949,7 @@
         document.body.classList.remove('visual-inspector-on');
 
         if (highlightBox) highlightBox.style.display = 'none';
+        if (areaSelectionBox) areaSelectionBox.style.display = 'none';
         if (multiHighlightContainer) multiHighlightContainer.innerHTML = '';
         if (topBar) {
             topBar.style.transform = 'translateX(-50%) translateY(-70px)';
@@ -1540,7 +1957,9 @@
         }
         closePromptModal();
 
+        window.removeEventListener('mousedown', handleMouseDown, true);
         window.removeEventListener('mousemove', handleMouseMove, true);
+        window.removeEventListener('mouseup', handleMouseUp, true);
         window.removeEventListener('click', handleClick, true);
         window.removeEventListener('dblclick', handleDblClick, true);
         window.removeEventListener('scroll', updateHighlightsPositions, true);
@@ -1555,7 +1974,7 @@
         }
     }
 
-    // 10. Klaviatura boshqaruvi (Alt + Shift + D, Ctrl + Alt + D, Ctrl + Shift + D)
+    // 12. Klaviatura boshqaruvi (Alt + Shift + D, Ctrl + Alt + D, Ctrl + Shift + D)
     window.addEventListener('keydown', async (e) => {
         const isD = e.code === 'KeyD' || e.keyCode === 68 || e.which === 68 || 
                     e.key === 'D' || e.key === 'd' || e.key === 'в' || e.key === 'В';
