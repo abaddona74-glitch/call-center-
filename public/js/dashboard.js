@@ -5175,12 +5175,79 @@ function renderQueues(queues) {
         return;
     }
 
-    listEl.innerHTML = allWaiters.map(w => `
-        <div class="queue-caller-pill">
-            <span style="font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 4px;">${isax('call')} ${w.callerId}</span>
-            <span style="color: #818cf8; font-size: 10px; font-weight: 600;">${tf('live_position', { n: w.position || 1 }, `Navbatda #${w.position || 1}`)}</span>
-        </div>
-    `).join('');
+    listEl.innerHTML = allWaiters.map(w => {
+        const callerPhone = String(w.callerId || '').trim();
+        const cInfo = (callerPhone && typeof getClientContact === 'function') ? getClientContact(callerPhone) : null;
+        const cName = (cInfo && cInfo.name) ? cInfo.name.trim() : (w.clientName || '').trim();
+        const cOrg = (cInfo && cInfo.organization) ? cInfo.organization.trim() : (w.clientOrg || '').trim();
+
+        let clientLabel = '';
+        if (cName && cOrg) clientLabel = `${cName} • ${cOrg}`;
+        else if (cName) clientLabel = cName;
+        else if (cOrg) clientLabel = cOrg;
+
+        const opInfo = (typeof getUzbekistanOperator === 'function') ? getUzbekistanOperator(callerPhone) : null;
+        const opBadgeHtml = opInfo ? `
+            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori" style="background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border}; padding: 1px 5px; font-size: 9.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; font-weight: 600;">
+                <svg class="isax isax-simcard" style="width: 9px; height: 9px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
+                <span>${opInfo.name}</span>
+            </span>
+        ` : '';
+
+        const waitSec = parseInt(w.waitSec || 0, 10);
+        const waitHtml = waitSec > 0 ? `
+            <span style="font-size: 10px; color: #94a3b8; display: inline-flex; align-items: center; gap: 3px;" title="Kutish vaqti">
+                <svg class="isax isax-timer" style="width: 10px; height: 10px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                <span>${Math.floor(waitSec / 60)}:${String(waitSec % 60).padStart(2, '0')}</span>
+            </span>
+        ` : '';
+
+        let clientNameHtml = '';
+        if (clientLabel) {
+            clientNameHtml = `
+                <div style="color: #38bdf8; font-size: 11.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" 
+                     onclick="event.stopPropagation(); (typeof openAdminEditClientModal === 'function' ? openAdminEditClientModal('${safeEscapeAttr(callerPhone)}') : null)"
+                     title="${safeEscapeAttr(clientLabel)} (${t('clients_btn_edit', 'Tahrirlash')})">
+                    <svg class="isax isax-user" style="width: 11px; height: 11px; flex-shrink: 0; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user"></use></svg>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(clientLabel)}</span>
+                </div>
+            `;
+        } else {
+            clientNameHtml = `
+                <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--cc-mute, #94a3b8);">
+                    <svg class="isax isax-user-add" style="width: 10px; height: 10px; flex-shrink: 0; opacity: 0.7;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-user-add"></use></svg>
+                    <span style="cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px;" 
+                          onclick="event.stopPropagation(); (typeof openAdminAddClientModal === 'function' ? openAdminAddClientModal('${safeEscapeAttr(callerPhone)}') : null)" 
+                          title="${t('clients_modal_add_title', 'Mijoz sifatida saqlash')}">
+                        ${t('queue_unknown_client_add', '+ Ism kiritish')}
+                    </span>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="queue-caller-pill" style="display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; gap: 8px;">
+                <div style="display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px;">
+                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                        <span style="font-weight: 700; color: #fff; font-size: 12.5px; letter-spacing: 0.3px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;" 
+                              onclick="event.stopPropagation(); copyCallbackPhone('${safeEscapeAttr(callerPhone)}', this, event)" 
+                              title="Raqamni nusxalash">
+                            <svg class="isax isax-call-incoming" style="width: 13px; height: 13px; color: #818cf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-call-incoming"></use></svg>
+                            ${callerPhone}
+                        </span>
+                        ${opBadgeHtml}
+                    </div>
+                    ${clientNameHtml}
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0;">
+                    <span style="background: rgba(99, 102, 241, 0.22); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.45); border-radius: 5px; padding: 2px 6px; font-size: 10px; font-weight: 700; letter-spacing: 0.2px;">
+                        ${tf('live_position', { n: w.position || 1 }, `Navbatda #${w.position || 1}`)}
+                    </span>
+                    ${waitHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 async function hangupChannel(channel) {

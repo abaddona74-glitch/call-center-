@@ -925,8 +925,11 @@ class AmiService {
                 const q = this.queues.get(qName);
                 const exists = q.callersWaiting.some(c => c.callerId === callerId);
                 if (!exists) {
+                    const cContact = (typeof dbService.getContact === 'function') ? dbService.getContact(callerId) : null;
                     q.callersWaiting.push({
                         callerId,
+                        clientName: cContact ? cContact.name : null,
+                        clientOrg: cContact ? cContact.organization : null,
                         position: evt.position || '1',
                         waitSec: parseInt(evt.wait || '0', 10),
                         channel: evt.channel
@@ -951,8 +954,11 @@ class AmiService {
                 });
             }
             const q = this.queues.get(qName);
+            const cContact = (typeof dbService.getContact === 'function') ? dbService.getContact(callerId) : null;
             q.callersWaiting.push({
                 callerId,
+                clientName: cContact ? cContact.name : null,
+                clientOrg: cContact ? cContact.organization : null,
                 position: evt.position || (q.callersWaiting.length + 1),
                 waitSec: 0,
                 channel: evt.channel,
@@ -2276,8 +2282,11 @@ class AmiService {
                     if (!seenWaitingCallers.has(key)) {
                         seenWaitingCallers.add(key);
                         if (waiter.channel) usedExtChannels.add(waiter.channel);
+                        const cContact = (typeof dbService.getContact === 'function') ? dbService.getContact(cNum) : null;
                         queueCallers.push({
                             callerId: cNum,
+                            clientName: waiter.clientName || (cContact ? cContact.name : null),
+                            clientOrg: waiter.clientOrg || (cContact ? cContact.organization : null),
                             position: waiter.position || (queueCallers.length + 1),
                             channel: waiter.channel || '',
                             waitSec: waiter.waitSec || 0,
@@ -2311,8 +2320,12 @@ class AmiService {
             const key = ec.chanId || caller;
             if (!seenWaitingCallers.has(key)) {
                 seenWaitingCallers.add(key);
+                const cNum = caller !== 'Yashirin raqam (Hidden)' ? caller : (ec.chan.callerId || 'Navbatdagi mijoz');
+                const cContact = (typeof dbService.getContact === 'function') ? dbService.getContact(cNum) : null;
                 queueCallers.push({
-                    callerId: caller !== 'Yashirin raqam (Hidden)' ? caller : (ec.chan.callerId || 'Navbatdagi mijoz'),
+                    callerId: cNum,
+                    clientName: cContact ? cContact.name : null,
+                    clientOrg: cContact ? cContact.organization : null,
                     position: queueCallers.length + 1,
                     channel: ec.chanId,
                     waitSec: 0,
