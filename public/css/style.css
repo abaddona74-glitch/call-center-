@@ -7871,12 +7871,13 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 .cc-panel {
-    background: #17212f !important;
-    border: 1px solid #26344a !important;
+    background: rgba(15, 23, 42, 0.65) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 12px !important;
-    padding: 16px 18px !important;
+    padding: 10px 10px !important;
     position: relative;
     box-shadow: none !important;
+    backdrop-filter: blur(12px);
     font-family: "Schibsted Grotesk", system-ui, sans-serif !important;
 }
 
@@ -7961,9 +7962,10 @@ body.sidebar-collapsed .page-elevator-btn {
 
 
 /* ==========================================================================
-   Faol Suhbatlar (Variant A: 2-Qatorli Toza Qator)
+   Faol Suhbatlar & Qayta Bog'lanish Panellari (Variant A: Toza Qator)
    ========================================================================== */
-.cc-panel#activeConversationsPanel {
+.cc-panel#activeConversationsPanel,
+.cc-panel#callbacksPanel {
     background: rgba(15, 23, 42, 0.65) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     border-radius: 12px !important;
@@ -7972,7 +7974,8 @@ body.sidebar-collapsed .page-elevator-btn {
     backdrop-filter: blur(12px);
 }
 
-.cc-panel#activeConversationsPanel .cc-panel-head {
+.cc-panel#activeConversationsPanel .cc-panel-head,
+.cc-panel#callbacksPanel .cc-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -7980,7 +7983,8 @@ body.sidebar-collapsed .page-elevator-btn {
     padding: 0 2px !important;
 }
 
-.cc-panel#activeConversationsPanel .cc-panel-title {
+.cc-panel#activeConversationsPanel .cc-panel-title,
+.cc-panel#callbacksPanel .cc-panel-title {
     margin: 0;
     font-size: 14.5px;
     font-weight: 600;
@@ -8356,10 +8360,10 @@ body.sidebar-collapsed .page-elevator-btn {
 /* Header Segment Switch (Bugun | Hammasi) */
 .cc-seg {
     display: inline-flex;
-    border: 1px solid #26344a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.25);
 }
 
 .cc-seg button {
@@ -8389,8 +8393,9 @@ body.sidebar-collapsed .page-elevator-btn {
     display: flex;
     gap: 10px;
     align-items: center;
-    padding: 9px 0;
-    border-top: 1px solid #26344a;
+    padding: 8px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
     cursor: pointer;
     transition: background 0.15s ease, transform 0.15s ease;
     position: relative;
@@ -8400,11 +8405,11 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-cb:first-child,
 .cc-cb:first-of-type {
     border-top: 0;
-    padding-top: 2px;
+    padding-top: 4px;
 }
 
 .cc-cb:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .cc-cb-left {
