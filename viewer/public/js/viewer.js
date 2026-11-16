@@ -6890,7 +6890,10 @@ async function initFocusTree() {
               },
               {
                 "id": "edo-xdfu",
-                "title": "XDFU"
+                "title": "XDFU",
+                "children": [
+                  { "id": "xdfu-ochish", "title": "Ochish", "url": "https://cabinet.ijro.uz/" }
+                ]
               }
             ]
           },

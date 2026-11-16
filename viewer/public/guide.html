@@ -255,6 +255,14 @@
         .ft-card.ft-leaf {
             cursor: default;
         }
+        .ft-card.ft-link {
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .ft-card.ft-link:hover {
+            transform: scale(1.06);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.4);
+        }
 
         /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
         .ft-node-anchor {
@@ -871,11 +879,13 @@
                 else connClass += ' ft-mid';
 
                 const connectorHtml = depth > 0 ? `<div class="${connClass}"></div>` : '';
-                const btnTag = hasChildren ? 'button' : 'div';
+                const isLink = !hasChildren && Boolean(node.url);
+                const btnTag = hasChildren ? 'button' : (isLink ? 'a' : 'div');
                 const btnAttrs = hasChildren 
                     ? `type="button" onclick="handleFocusTreeClick('${parentId}', '${node.id}', event)" aria-expanded="false"` 
-                    : '';
+                    : (isLink ? `href="${node.url}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;" title="Tizimni yangi oynada ochish"` : '');
                 const badgeHtml = hasChildren ? `<span class="ft-badge" id="badge-${node.id}">+</span>` : '';
+                const iconExternal = isLink ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-left:6px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>` : '';
 
                 const subTreeHtml = hasChildren ? `
                     <div class="ft-subtree" id="subtree-${node.id}">
@@ -895,8 +905,9 @@
                     <div class="ft-col" id="col-${node.id}" data-parent-id="${parentId}" data-node-id="${node.id}">
                         ${connectorHtml}
                         <div class="ft-node-anchor">
-                            <${btnTag} class="ft-card ${depthClass} ${hasChildren ? '' : 'ft-leaf'}" id="card-${node.id}" ${btnAttrs}>
+                            <${btnTag} class="ft-card ${depthClass} ${hasChildren ? '' : (isLink ? 'ft-link' : 'ft-leaf')}" id="card-${node.id}" ${btnAttrs}>
                                 <span>${node.title}</span>
+                                ${iconExternal}
                                 ${badgeHtml}
                             </${btnTag}>
                             ${hintHtml}

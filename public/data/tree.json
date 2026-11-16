@@ -45,7 +45,15 @@
       {
         "id": "edo-xdfu",
         "title": "XDFU",
-        "hint": "Xizmat Doirasida Foydalanish Uchun (maxfiy bo'lmagan, lekin tarqatilishi cheklangan hujjatlar)"
+        "hint": "Xizmat Doirasida Foydalanish Uchun (maxfiy bo'lmagan, lekin tarqatilishi cheklangan hujjatlar)",
+        "children": [
+          {
+            "id": "xdfu-ochish",
+            "title": "Ochish",
+            "hint": "XDFU kabinetini yangi oynada ochish",
+            "url": "https://cabinet.ijro.uz/"
+          }
+        ]
       }
     ]
   },
