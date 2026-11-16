@@ -151,6 +151,11 @@ class AmiService {
                 opId,
                 ...ob
             }));
+
+            // Dastlabki sinxronlash tugamasdan turib mavjud keshni bo'sh massiv bilan tozalab tashlamaslik
+            if (!this.isInitialSyncDone && channelsArr.length === 0 && fs.existsSync(stateFile)) {
+                return;
+            }
             fs.writeFileSync(stateFile, JSON.stringify({
                 timestamp: Date.now(),
                 channels: channelsArr,
