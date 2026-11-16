@@ -4994,7 +4994,7 @@ function renderViewerCallbacks(callbacks) {
         if (!c) return false;
         if (c.status === 'resolved') {
             if (viewerCbResolvedTodayOnly) {
-                return Boolean(c.call_time && c.call_time.startsWith(todayStr));
+                return Boolean((c.call_time && c.call_time.startsWith(todayStr)) || (c.dismissed_at && c.dismissed_at.startsWith(todayStr)));
             }
             const isResolvedToday = (c.updated_at && c.updated_at.startsWith(todayStr)) || 
                                     (c.dismissed_at && c.dismissed_at.startsWith(todayStr)) ||

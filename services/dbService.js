@@ -1118,65 +1118,104 @@ class DbService {
      */
     getCallbacks(filter = 'all', includeResolved = true) {
         try {
-            let sql = `
-                SELECT 
-                    id,
-                    phone,
-                    caller_name,
-                    source,
-                    call_time,
-                    attempts_count,
-                    COALESCE(today_attempts, 1) as today_attempts,
-                    COALESCE(outbound_attempts, 0) as outbound_attempts,
-                    last_outbound_time,
-                    last_outbound_operator,
-                    last_outbound_cause,
-                    status,
-                    dismissed_at,
-                    dismissed_by,
-                    COALESCE(resolution_type, '') as resolution_type,
-                    notes,
-                    created_at,
-                    updated_at
-                FROM pending_callbacks
-                WHERE phone NOT LIKE '%2020159%'
-                  AND phone != '712020159'
-                  AND LENGTH(phone) >= 7
-                  AND source != 'ivr_non_working'
+            const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
+            const targetDate = (filter === 'today') ? todayStr : (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter) ? filter : null);
+
+            const baseWhere = `
+                phone NOT LIKE '%2020159%'
+                AND phone != '712020159'
+                AND LENGTH(phone) >= 7
+                AND source != 'ivr_non_working'
             `;
-            if (includeResolved) {
-                sql += ` AND status IN ('pending', 'resolved')`;
+
+            let rawRows = [];
+
+            if (!includeResolved) {
+                let sql = `
+                    SELECT 
+                        id, phone, caller_name, source, call_time, attempts_count,
+                        COALESCE(today_attempts, 1) as today_attempts,
+                        COALESCE(outbound_attempts, 0) as outbound_attempts,
+                        last_outbound_time, last_outbound_operator, last_outbound_cause,
+                        status, dismissed_at, dismissed_by,
+                        COALESCE(resolution_type, '') as resolution_type,
+                        notes, created_at, updated_at
+                    FROM pending_callbacks
+                    WHERE ${baseWhere} AND status = 'pending'
+                `;
+                const params = [];
+                if (targetDate) {
+                    sql += ` AND (call_time LIKE ? OR created_at LIKE ?)`;
+                    params.push(`${targetDate}%`, `${targetDate}%`);
+                }
+                sql += `
+                    ORDER BY 
+                      CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
+                      call_time DESC,
+                      COALESCE(updated_at, created_at) DESC
+                    LIMIT 500
+                `;
+                rawRows = this.db.prepare(sql).all(...params);
             } else {
-                sql += ` AND status = 'pending'`;
+                let pendingSql = `
+                    SELECT 
+                        id, phone, caller_name, source, call_time, attempts_count,
+                        COALESCE(today_attempts, 1) as today_attempts,
+                        COALESCE(outbound_attempts, 0) as outbound_attempts,
+                        last_outbound_time, last_outbound_operator, last_outbound_cause,
+                        status, dismissed_at, dismissed_by,
+                        COALESCE(resolution_type, '') as resolution_type,
+                        notes, created_at, updated_at
+                    FROM pending_callbacks
+                    WHERE ${baseWhere} AND status = 'pending'
+                `;
+                let resolvedSql = `
+                    SELECT 
+                        id, phone, caller_name, source, call_time, attempts_count,
+                        COALESCE(today_attempts, 1) as today_attempts,
+                        COALESCE(outbound_attempts, 0) as outbound_attempts,
+                        last_outbound_time, last_outbound_operator, last_outbound_cause,
+                        status, dismissed_at, dismissed_by,
+                        COALESCE(resolution_type, '') as resolution_type,
+                        notes, created_at, updated_at
+                    FROM pending_callbacks
+                    WHERE ${baseWhere} AND status = 'resolved'
+                `;
+
+                const params = [];
+                if (targetDate) {
+                    pendingSql += ` AND (call_time LIKE ? OR created_at LIKE ?)`;
+                    resolvedSql += ` AND (call_time LIKE ? OR dismissed_at LIKE ?)`;
+                    params.push(`${targetDate}%`, `${targetDate}%`, `${targetDate}%`, `${targetDate}%`);
+                }
+
+                pendingSql += `
+                    ORDER BY 
+                      CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
+                      call_time DESC,
+                      COALESCE(updated_at, created_at) DESC
+                    LIMIT 500
+                `;
+
+                resolvedSql += `
+                    ORDER BY 
+                      COALESCE(dismissed_at, updated_at, call_time) DESC
+                    LIMIT 300
+                `;
+
+                const unionSql = `
+                    SELECT * FROM (${pendingSql})
+                    UNION ALL
+                    SELECT * FROM (${resolvedSql})
+                `;
+
+                rawRows = this.db.prepare(unionSql).all(...params);
             }
-
-            const params = [];
-            if (filter === 'today') {
-                const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
-                sql += ` AND call_time LIKE ?`;
-                params.push(`${todayStr}%`);
-            } else if (filter && /^\d{4}-\d{2}-\d{2}$/.test(filter)) {
-                sql += ` AND call_time LIKE ?`;
-                params.push(`${filter}%`);
-            }
-
-            sql += `
-                ORDER BY 
-                  CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC,
-                  CASE WHEN COALESCE(outbound_attempts, 0) = 0 THEN 0 ELSE 1 END ASC,
-                  call_time DESC,
-                  COALESCE(updated_at, created_at) DESC
-                LIMIT 500
-            `;
-
-            const stmt = this.db.prepare(sql);
-            const rawRows = stmt.all(...params);
 
             // Unikal mijozlar bo'yicha guruhlash:
             // - Agar 'pending' bo'lsa: bir xil raqam bo'yicha bitta qilib jamlaymiz (operator bitta qo'ng'iroq qilishi uchun)
             // - Agar 'resolved' bo'lsa: sana bo'yicha ajratamiz (chunki o'tgan haftadagi hal qilingan qo'ng'iroq bugungisiga qo'shilib ketmasligi kerak)
             // - today_attempts esa FAQAT bugungi (Toshkent vaqti) urinishlarni hisoblaydi!
-            const todayStr = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Tashkent' }).slice(0, 10);
             const map = new Map();
             for (const r of rawRows) {
                 const isPending = (r.status === 'pending' || !r.status);

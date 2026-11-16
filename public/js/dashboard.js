@@ -2696,8 +2696,8 @@ function renderCallbacks(callbacks) {
     const isTodayCallback = (c) => {
         if (!c) return false;
         if (c.call_time && c.call_time.startsWith(todayStr)) return true;
-        // Agar "Faqat bugungi mijozlar" switch yoqilgan bo'lsa, faqat dastlabki qo'ng'iroq vaqti bugun bo'lganlar olinadi
-        if (!adminCbResolvedTodayOnly && c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(todayStr)) return true;
+        if (c.created_at && c.created_at.startsWith(todayStr)) return true;
+        if (c.status === 'resolved' && c.dismissed_at && c.dismissed_at.startsWith(todayStr)) return true;
         return false;
     };
 
@@ -2708,16 +2708,12 @@ function renderCallbacks(callbacks) {
     // 2. Kategoriya bo'yicha ajratish: Kutilmoqda vs Bog'lanib bo'lmadi vs Gaplashildi
     const pendingList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && (!c.outbound_attempts || c.outbound_attempts === 0));
     const unreachableList = dateFiltered.filter(c => (c.status === 'pending' || !c.status) && c.outbound_attempts && c.outbound_attempts > 0);
-    // Gaplashildi (Resolved):
-    // Agar "Faqat bugungi mijozlar" switch ON bo'lsa -> faqat va faqat dastlabki qo'ng'irog'i BUGUN bo'lgan mijozlar (10 kun yoki 1 kun oldingilar chiqmaydi)
+    // Gaplashildi (Resolved): bugun hal qilingan yoki qo'ng'irog'i bugun bo'lgan barcha mijozlar
     const resolvedList = currentCallbacksList.filter(c => {
         if (c.status !== 'resolved') return false;
         const timeStr = c.call_time || c.created_at || '';
-        if (adminCbResolvedTodayOnly) {
-            return timeStr.startsWith(todayStr);
-        }
-        if (adminCbDateFilter === 'today') {
-            const dismStr = c.dismissed_at || '';
+        const dismStr = c.dismissed_at || '';
+        if (adminCbResolvedTodayOnly || adminCbDateFilter === 'today') {
             return timeStr.startsWith(todayStr) || dismStr.startsWith(todayStr);
         }
         return true;
