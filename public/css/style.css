@@ -8098,7 +8098,8 @@ body.sidebar-collapsed .page-elevator-btn {
     }
 }
 
-.cc-call-info {
+.cc-call-info,
+.cc-info {
     display: flex !important;
     flex-direction: column !important;
     min-width: 0 !important;
@@ -8199,6 +8200,7 @@ body.sidebar-collapsed .page-elevator-btn {
     color: #94a3b8 !important;
     transition: transform 0.25s ease !important;
     flex: none !important;
+    margin-left: auto !important;
 }
 
 .cc-call.open .cc-chev {
