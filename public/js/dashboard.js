@@ -2774,9 +2774,28 @@ function renderCallbacks(callbacks) {
         return;
     }
 
-    let html = '';
+    // Agar oldin bo'sh placeholder bo'lsa, uni tozalash
+    const emptyPlaceholder = container.querySelector('.empty-callbacks-placeholder');
+    if (emptyPlaceholder) emptyPlaceholder.remove();
+
+    // Mavjud kartalarni ID bo'yicha xaritalash (DOM Reconciliation — Hover holati buzilmasligi uchun)
+    const existingCardsMap = new Map();
+    container.querySelectorAll('.cc-cb.callback-card').forEach(el => {
+        if (el.id) existingCardsMap.set(el.id, el);
+    });
+
+    const activeIds = new Set(displayList.map(item => `cb-card-${item.id}`));
+
+    // Eskirgan, ro'yxatdan chiqqan kartalarni o'chirish
+    existingCardsMap.forEach((el, id) => {
+        if (!activeIds.has(id)) {
+            el.remove();
+        }
+    });
+
     for (let index = 0; index < displayList.length; index++) {
         const item = displayList[index];
+        const cardId = `cb-card-${item.id}`;
         const phone = item.phone || '';
         let cleanPhone = String(phone).replace(/[^\d]/g, '');
         if (cleanPhone.length === 12 && cleanPhone.startsWith('998')) {
@@ -2837,7 +2856,6 @@ function renderCallbacks(callbacks) {
 
         const relTime = getAdminCallbackRelativeTime(item.call_time);
 
-        const isToday = Boolean(item.call_time && item.call_time.startsWith(todayStr));
         const attemptsCount = (typeof adminCbDateFilter !== 'undefined' && adminCbDateFilter === 'all')
             ? (Number(item.attempts_count || item.today_attempts) || 1)
             : (Number(item.today_attempts) || 1);
@@ -2845,15 +2863,43 @@ function renderCallbacks(callbacks) {
             ? `<span class="cc-tag cc-tag-miss">${attemptsCount} marta</span>`
             : '';
 
-        html += `
-            <div class="cc-cb callback-card ${isActive ? 'callback-card-talking' : ''}" id="cb-card-${item.id}" onclick="copyCallbackPhone('${phone}', this, event)" title="Raqamni nusxalash: ${formattedPhone}">
+        const targetClass = `cc-cb callback-card ${isActive ? 'callback-card-talking' : ''}`;
+        const targetSubText = isActive ? (activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda...") : statusText;
+
+        const cardEl = existingCardsMap.get(cardId);
+        if (cardEl) {
+            // Mavjud kartani DOM dan o'chirmasdan in-place yangilash (Hover holati buzilmaydi!)
+            if (cardEl.className !== targetClass) cardEl.className = targetClass;
+            const subEl = cardEl.querySelector('.cc-cb-sub');
+            if (subEl && subEl.textContent !== targetSubText) subEl.textContent = targetSubText;
+
+            const timeContainer = cardEl.querySelector('.cc-cb-time');
+            if (timeContainer) {
+                const targetTimeHtml = `<div>${timeDisplay}</div>${relTime ? `<div class="cc-cb-rel">${relTime}</div>` : ''}`;
+                if (timeContainer.innerHTML !== targetTimeHtml) {
+                    timeContainer.innerHTML = targetTimeHtml;
+                }
+            }
+
+            const currentChildren = Array.from(container.children);
+            if (currentChildren[index] !== cardEl) {
+                container.insertBefore(cardEl, currentChildren[index] || null);
+            }
+        } else {
+            // Yangi karta
+            const newCard = document.createElement('div');
+            newCard.className = targetClass;
+            newCard.id = cardId;
+            newCard.setAttribute('onclick', `copyCallbackPhone('${phone}', this, event)`);
+            newCard.setAttribute('title', `Raqamni nusxalash: ${formattedPhone}`);
+            newCard.innerHTML = `
                 <div class="cc-cb-left">
                     <div class="cc-cb-num">
                         ${formattedPhone}
                         ${attemptBadge}
                         ${isActive ? `<span class="cc-tag cc-tag-ok" style="font-size: 11px; padding: 1px 7px;">${activeCall.operator}</span>` : ''}
                     </div>
-                    <div class="cc-cb-sub">${isActive ? (activeCall.state === 'ringing' ? "Qo'ng'iroq qilinmoqda..." : "Suhbatlashmoqda...") : statusText}</div>
+                    <div class="cc-cb-sub">${targetSubText}</div>
                 </div>
                 <div class="cc-cb-time">
                     <div>${timeDisplay}</div>
@@ -2862,11 +2908,11 @@ function renderCallbacks(callbacks) {
                 <button type="button" class="cc-cb-del" onclick="event.stopPropagation(); deleteCallback(${item.id}, event)" title="${t('dyn_delete', 'O\'chirish')}">
                     ${isax('close', '', 'width: 12px; height: 12px;')}
                 </button>
-            </div>
-        `;
+            `;
+            const currentChildren = Array.from(container.children);
+            container.insertBefore(newCard, currentChildren[index] || null);
+        }
     }
-
-    container.innerHTML = html;
 }
 
 function showCustomConfirm({ title, message, okText, cancelText }) {
