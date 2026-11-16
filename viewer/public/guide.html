@@ -275,6 +275,9 @@
                         margin 0.45s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
         }
+        body.layout-horizontal .ft-col {
+            margin: 0 48px; /* Extra spacious margins in horizontal mode */
+        }
         .ft-col.is-collapsed {
             max-width: 0 !important;
             opacity: 0 !important;
@@ -331,67 +334,97 @@
             box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
         }
 
-        /* Node Anchor */
+        /* Node Anchor: In-Flow layout, completely avoiding collision */
         .ft-node-anchor {
             position: relative;
-            display: flex;
+            display: inline-flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            gap: 10px;
+            z-index: 10;
         }
 
-        /* Floating Tooltip Popover on Hover (ZERO layout impact, ZERO collision) */
-        .ft-hint-popover {
-            position: absolute;
-            bottom: calc(100% + 10px);
-            left: 50%;
-            transform: translateX(-50%) translateY(4px);
-            width: max-content;
-            max-width: 260px;
-            background: #0f172a;
-            color: #f8fafc;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            border-radius: 9px;
-            padding: 8px 12px;
+        /* Horizontal Layout Mode */
+        body.layout-horizontal .ft-node-anchor {
+            flex-direction: row !important;
+            align-items: center !important;
+            gap: 14px !important;
+        }
+
+        /* Non-colliding In-Flow Hint Card - Polished Image 2 Styling */
+        .ft-hint-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 14px;
+            border-radius: 11px;
+            background: #f8fafc;
+            border: 1.5px dashed #93c5fd;
+            color: #334155;
             font-size: 11.5px;
             line-height: 1.45;
             text-align: center;
-            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-            z-index: 1000;
-            white-space: normal;
-        }
-        .ft-hint-popover::after {
-            content: '';
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: #0f172a;
-        }
-        .ft-node-anchor:hover .ft-hint-popover {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
-        }
-
-        /* Subtle in-column hint subtitle (centered, zero overflow) */
-        .ft-hint-sub {
-            font-size: 11px;
-            color: var(--text-muted);
-            max-width: 200px;
-            margin-top: 6px;
-            text-align: center;
-            line-height: 1.35;
+            max-width: 250px;
+            min-width: 140px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             word-break: break-word;
             white-space: normal;
-            transition: opacity 0.2s ease;
         }
-        body.hide-hints .ft-hint-sub {
+        body.layout-horizontal .ft-hint-card {
+            align-items: flex-start !important;
+            text-align: left !important;
+            max-width: 260px !important;
+        }
+
+        body.dark-theme .ft-hint-card {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1.5px dashed rgba(56, 189, 248, 0.45);
+            color: #e2e8f0;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .ft-hint-card:hover {
+            border-color: #0284c7;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15);
+        }
+        body.dark-theme .ft-hint-card:hover {
+            border-color: #38bdf8;
+            box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
+        }
+
+        .ft-hint-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #0284c7;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        body.layout-horizontal .ft-hint-header {
+            justify-content: flex-start !important;
+        }
+        body.dark-theme .ft-hint-header {
+            color: #38bdf8;
+        }
+
+        .ft-hint-text {
+            font-size: 11px;
+            line-height: 1.4;
+            color: #475569;
+        }
+        body.dark-theme .ft-hint-text {
+            color: #cbd5e1;
+        }
+
+        /* Hide hints completely when toggled OFF (Image 1 Pure Minimalist Style) */
+        body.hide-hints .ft-hint-card {
             display: none !important;
         }
 
@@ -663,6 +696,9 @@
             </button>
             <button type="button" class="btn-action-guide" id="btnToggleHints" onclick="toggleTreeHints()" title="Izoh va hintlarni ko'rsatish yoki yashirish">
                 <span id="hintToggleText">💡 Hintlar: ON</span>
+            </button>
+            <button type="button" class="btn-action-guide" id="btnToggleLayout" onclick="toggleTreeLayout()" title="Izohlar joylashuvini almashtirish (Tagma-tag yoki Yonma-yon)">
+                <span id="layoutToggleText">📐 Tagma-tag</span>
             </button>
             <button type="button" class="btn-action-guide" onclick="centerTree()" title="Daraxtni ekranning markaziga qaytarish">
                 <span>🎯 Markazga olish</span>
@@ -987,15 +1023,11 @@
                 const safeTitle = (node.title || '').replace(/'/g, "\\'");
                 const safeHint = hintText.replace(/'/g, "\\'");
 
-                const popoverHtml = hasHint ? `
-                    <div class="ft-hint-popover">
-                        <div style="font-weight:700; color:#38bdf8; margin-bottom:3px; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">💡 Hint / Izoh</div>
-                        <div>${hintText}</div>
+                const hintCardHtml = hasHint ? `
+                    <div class="ft-hint-card" title="Tizim yo'riqnomasi / izohi">
+                        <div class="ft-hint-header">💡 HINT / IZOH</div>
+                        <div class="ft-hint-text">${hintText}</div>
                     </div>
-                ` : '';
-
-                const subHintHtml = hasHint ? `
-                    <div class="ft-hint-sub">${hintText}</div>
                 ` : '';
 
                 return `
@@ -1007,8 +1039,7 @@
                                 ${iconExternal}
                                 ${badgeHtml}
                             </${btnTag}>
-                            ${popoverHtml}
-                            ${subHintHtml}
+                            ${hintCardHtml}
                         </div>
                         ${subTreeHtml}
                     </div>
@@ -1149,6 +1180,17 @@
             }
         }
         window.toggleTreeHints = toggleTreeHints;
+
+        let isHorizontalLayout = false;
+        function toggleTreeLayout() {
+            isHorizontalLayout = !isHorizontalLayout;
+            document.body.classList.toggle('layout-horizontal', isHorizontalLayout);
+            const txt = document.getElementById('layoutToggleText');
+            if (txt) {
+                txt.textContent = isHorizontalLayout ? '📐 Yonma-yon' : '📐 Tagma-tag';
+            }
+        }
+        window.toggleTreeLayout = toggleTreeLayout;
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
