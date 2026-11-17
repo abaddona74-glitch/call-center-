@@ -1,0 +1,56 @@
+# Production-like stack: postgres + api + web (Caddy).
+#   docker compose -f infra/compose.yml --env-file infra/.env up -d --build
+# Secrets come from infra/.env (see infra/.env.example), never from the image.
+name: callcenter
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-callcenter}
+      POSTGRES_USER: ${POSTGRES_USER:-callcenter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env}
+    volumes:
+      - pg-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    image: ${REGISTRY:-ghcr.io/nuriddin2468}/call-center-api:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-callcenter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-callcenter}
+      DB_MIGRATE_ON_START: "true"
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+
+  web:
+    image: ${REGISTRY:-ghcr.io/nuriddin2468}/call-center-web:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy-data:/data
+
+volumes:
+  pg-data:
+  caddy-data:

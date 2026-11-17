@@ -1,0 +1,24 @@
+{
+  "name": "call-center",
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=26.13.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"apps/*/src/**/*.{ts,tsx,css,json}\" \"packages/*/src/**/*.ts\"",
+    "db:migrate": "pnpm --filter @cc/api db:migrate",
+    "dev:infra": "docker compose -f infra/compose.dev.yml up -d",
+    "dev:infra:down": "docker compose -f infra/compose.dev.yml down",
+    "format:check": "prettier --check \"apps/*/src/**/*.{ts,tsx,css,json}\" \"packages/*/src/**/*.ts\""
+  },
+  "devDependencies": {
+    "prettier": "^3.10.1",
+    "typescript": "~6.0.2"
+  }
+}
