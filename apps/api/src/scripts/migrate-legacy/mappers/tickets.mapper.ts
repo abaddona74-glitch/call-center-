@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import type { TicketStatus } from '@cc/shared';
+import { type TicketStatus, normalizeUzPhone } from '@cc/shared';
 import { type Kysely, sql } from 'kysely';
 import { z } from 'zod';
 import type { DB } from '../../../database/db.js';
@@ -10,7 +10,8 @@ import { emptyReport, errorMessage, type Mapper, type RowIssue } from '../mapper
 import { countArray } from './not-implemented.js';
 
 /**
- * Legacy `viewer/data/tickets.json` → `tickets`, `ticket_comments`, `ticket_attachments` (S5).
+ * Legacy `viewer/data/tickets.json` → `tickets`, `ticket_comments`, `ticket_attachments`, `ticket_events`
+ * in the new workflow model (docs/rewrite/TICKETS.md; owner S7, originally S5).
  *
  * Sources: `<data-dir>/tickets.json` and the attachment files copied flat into
  * `<data-dir>/ticket-uploads/` (legacy `viewer/public/uploads/tickets/*`).
@@ -18,18 +19,24 @@ import { countArray } from './not-implemented.js';
  * - Ticket numbers are kept: `TK-1042` → `tickets.id = 1042` (`OVERRIDING SYSTEM VALUE`), then the
  *   identity sequence is moved past the highest id so new tickets never reuse a legacy number.
  * - Idempotency: a ticket whose id already exists is `unchanged` (its comments/files are not touched).
- * - Status: pending → open, in_progress → accepted, completed → completed, rejected → rejected.
- * - People are legacy extensions (`creatorId`, `targetOperatorId`, `acceptedBy.id`, …): they are linked to
- *   the user with that extension when one exists; the legacy name is kept as the label either way.
- *   `'admin'` / `'superuser'` ids (and anything not numeric) count as admins.
+ * - Status: pending → new, in_progress → in_progress, completed → closed (resolution done),
+ *   rejected → closed (resolution rejected, the reason is the resolution note). Legacy tickets were already
+ *   answered by the old process, so nothing goes to the callback queue.
+ * - Region: legacy tickets have none. `LEGACY_TICKETS_DEFAULT_REGION=<region code>` puts them all into that
+ *   region; unset, they stay without a region and the superuser routes open ones from the "triage" view
+ *   (forward to a region). No category (shown as "not set"); no SLA due date (never counted as overdue).
+ * - Dropped legacy fields: urgency (kept as a "[Shoshilinch]" prefix of the description), the addressed
+ *   operator (warning), the creator group.
+ * - People are legacy extensions (`creatorId`, `acceptedBy.id`, …): they are linked to the user with that
+ *   extension when one exists; the legacy name is kept as the label either way.
  * - Attachments are re-checked by content (images, PDF, DOCX only) and copied to TICKETS_UPLOAD_DIR under
  *   random names. Legacy `.doc`, `.txt`, `.svg`, … are not migrated (warning). Files are copied before the
  *   transaction commits; if it rolls back, the API's daily orphan sweep deletes them.
- * - Legacy system comments "🚫 Ticket rad etildi. Sabab: X" become system comments with body "X"
- *   (the UI renders the sentence).
+ * - Legacy system comments "🚫 Ticket rad etildi. Sabab: X" become system comments with body "X".
+ * - The timeline gets "created", "done"/"rejected" and "closed" events with the legacy times.
  */
 
-const CREATOR_EXTENSION_FROM = Number(process.env.TICKETS_CREATOR_EXTENSION_FROM ?? 200);
+const URGENT_PREFIX = '[Shoshilinch] ';
 
 const idLike = z
   .union([z.string(), z.number()])
@@ -76,11 +83,11 @@ export const LegacyTicketSchema = z.object({
 });
 export type LegacyFile = z.infer<typeof LegacyFileSchema>;
 
-const STATUS: Record<string, TicketStatus> = {
-  pending: 'open',
-  in_progress: 'accepted',
-  completed: 'completed',
-  rejected: 'rejected',
+const STATUS: Record<string, { status: TicketStatus; resolution: 'done' | 'rejected' | null }> = {
+  pending: { status: 'new', resolution: null },
+  in_progress: { status: 'in_progress', resolution: null },
+  completed: { status: 'closed', resolution: 'done' },
+  rejected: { status: 'closed', resolution: 'rejected' },
 };
 
 export interface PersonValue {
@@ -91,20 +98,18 @@ export interface PersonValue {
 export interface TicketValues {
   id: number;
   status: TicketStatus;
-  body: string;
+  description: string;
+  /** normalizeUzPhone form, or null when the legacy number is missing/unusable. */
   customerPhone: string | null;
-  isUrgent: boolean;
   creator: PersonValue;
-  creatorParty: 'admin' | 'creator';
-  /** null = addressed to every receiver */
-  target: PersonValue | null;
   assignee: PersonValue | null;
-  acceptedAt: Date | null;
-  completedBy: PersonValue | null;
-  completedAt: Date | null;
-  rejectedBy: PersonValue | null;
-  rejectedAt: Date | null;
-  rejectReason: string | null;
+  assignedAt: Date | null;
+  startedAt: Date | null;
+  resolution: 'done' | 'rejected' | null;
+  resolutionNote: string | null;
+  resolvedBy: PersonValue | null;
+  resolvedAt: Date | null;
+  closedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   files: LegacyFile[];
@@ -145,26 +150,28 @@ export function transformLegacyTicket(raw: unknown, now = new Date()): TicketTra
   const t = parsed.data;
   const m = /^TK-(\d{1,9})$/.exec(t.id.trim());
   if (!m) return { ok: false, key, reason: `id ${JSON.stringify(t.id.slice(0, 20))} is not TK-<number>` };
-  const status = STATUS[t.status];
-  if (!status) return { ok: false, key, reason: `unknown status ${JSON.stringify(t.status.slice(0, 20))}` };
+  const mapped = STATUS[t.status];
+  if (!mapped) return { ok: false, key, reason: `unknown status ${JSON.stringify(t.status.slice(0, 20))}` };
 
   const warnings: string[] = [];
   const createdAt = toDate(t.createdAt) ?? now;
   if (!toDate(t.createdAt)) warnings.push('createdAt missing or invalid; set to now');
   const updatedAt = toDate(t.updatedAt) ?? createdAt;
 
-  const creator = person(t.creatorId, t.creatorName);
-  const creatorNum = creator.extension ? Number(creator.extension) : null;
-  const creatorParty = creatorNum !== null && creatorNum >= CREATOR_EXTENSION_FROM ? 'creator' : 'admin';
-  if (creatorNum !== null && creatorNum < CREATOR_EXTENSION_FROM) {
-    warnings.push(`creator ${creator.extension} is not in the creators group; imported as an admin-created ticket`);
-  }
-
   const targetId = t.targetOperatorId;
-  const target = !targetId || targetId === 'all' ? null : person(targetId, t.targetOperatorName);
+  if (targetId && targetId !== 'all') {
+    warnings.push(`was addressed to operator ${targetId.slice(0, 20)}; the new workflow routes by region only`);
+  }
+  const rawPhone = t.customerPhone?.trim() || null;
+  const customerPhone = normalizeUzPhone(rawPhone);
+  if (rawPhone && !customerPhone) warnings.push('customer phone is not a usable number; dropped');
 
-  const body = (t.comment ?? '').trim() || (t.title ?? '').trim();
-  const rejectReason = t.rejectedBy?.reason?.trim() || null;
+  const text = (t.comment ?? '').trim() || (t.title ?? '').trim();
+  const description = `${t.isUrgent ? URGENT_PREFIX : ''}${text}`.slice(0, 4000);
+  const assignee = t.acceptedBy ? person(t.acceptedBy.id, t.acceptedBy.name) : null;
+  const assignedAt = toDate(t.acceptedBy?.at);
+  const resolver = mapped.resolution === 'done' ? t.completedBy : mapped.resolution === 'rejected' ? t.rejectedBy : null;
+  const resolvedAt = mapped.resolution ? (toDate(resolver?.at) ?? updatedAt) : null;
 
   return {
     ok: true,
@@ -172,30 +179,28 @@ export function transformLegacyTicket(raw: unknown, now = new Date()): TicketTra
     warnings,
     values: {
       id: Number(m[1]),
-      status,
-      body: body.slice(0, 4000),
-      customerPhone: t.customerPhone?.trim().slice(0, 32) || null,
-      isUrgent: Boolean(t.isUrgent),
-      creator,
-      creatorParty,
-      target,
-      assignee: t.acceptedBy ? person(t.acceptedBy.id, t.acceptedBy.name) : null,
-      acceptedAt: toDate(t.acceptedBy?.at),
-      completedBy: t.completedBy ? person(t.completedBy.id, t.completedBy.name) : null,
-      completedAt: toDate(t.completedBy?.at),
-      rejectedBy: t.rejectedBy ? person(t.rejectedBy.id, t.rejectedBy.name) : null,
-      rejectedAt: toDate(t.rejectedBy?.at),
-      rejectReason,
+      status: mapped.status,
+      description,
+      customerPhone,
+      creator: person(t.creatorId, t.creatorName),
+      assignee,
+      assignedAt,
+      startedAt: mapped.status === 'new' ? null : assignedAt,
+      resolution: mapped.resolution,
+      resolutionNote: mapped.resolution === 'rejected' ? t.rejectedBy?.reason?.trim() || null : null,
+      resolvedBy: resolver ? person(resolver.id, resolver.name) : null,
+      resolvedAt,
+      closedAt: mapped.status === 'closed' ? resolvedAt : null,
       createdAt,
       updatedAt,
       files: t.files ?? [],
       comments: (t.comments ?? []).map((c) => {
-        const text = (c.text ?? '').trim();
-        const sys = SYSTEM_REJECT.exec(text);
+        const body = (c.text ?? '').trim();
+        const sys = SYSTEM_REJECT.exec(body);
         const isSystem = Boolean(c.isSystem) || sys !== null;
         return {
           author: person(c.operatorId, c.operatorName),
-          body: (isSystem && sys ? (sys[1] ?? '').trim() : text).slice(0, 4000),
+          body: (isSystem && sys ? (sys[1] ?? '').trim() : body).slice(0, 4000),
           isSystem,
           createdAt: toDate(c.createdAt) ?? updatedAt,
           files: c.files ?? [],
@@ -221,12 +226,17 @@ interface StoredFile {
 
 export interface TicketsMapperDeps {
   uploadDir: () => string;
+  /** Region code for imported tickets (LEGACY_TICKETS_DEFAULT_REGION); null = superuser triage. */
+  defaultRegion: () => string | null;
 }
 
 export function createTicketsMapper(
-  deps: TicketsMapperDeps = { uploadDir: () => path.resolve(process.env.TICKETS_UPLOAD_DIR ?? '.data/ticket-uploads') },
+  deps: TicketsMapperDeps = {
+    uploadDir: () => path.resolve(process.env.TICKETS_UPLOAD_DIR ?? '.data/ticket-uploads'),
+    defaultRegion: () => process.env.LEGACY_TICKETS_DEFAULT_REGION?.trim() || null,
+  },
 ): Mapper {
-  const meta = { name: 'tickets', owner: 'S5' };
+  const meta = { name: 'tickets', owner: 'S7' };
   return {
     ...meta,
     async run(ctx) {
@@ -254,6 +264,20 @@ export function createTicketsMapper(
       }
 
       const db = ctx.db as Kysely<DB>;
+      const regionCode = deps.defaultRegion();
+      let regionId: number | null = null;
+      if (regionCode) {
+        const region = await db.selectFrom('ticketRegions').select('id').where('code', '=', regionCode).executeTakeFirst();
+        if (!region) {
+          report.status = 'failed';
+          report.errors.push({ key: 'LEGACY_TICKETS_DEFAULT_REGION', reason: `no region with code "${regionCode}"` });
+          return report;
+        }
+        regionId = region.id;
+        report.notes.push(`imported tickets are put into region "${regionCode}"`);
+      } else {
+        report.notes.push('LEGACY_TICKETS_DEFAULT_REGION not set: open imported tickets wait in the superuser triage view');
+      }
       // extension → user id; active users win, then the oldest account.
       const users = await db
         .selectFrom('users')
@@ -325,7 +349,7 @@ export function createTicketsMapper(
         }
         for (const w of t.warnings) report.warnings.push({ key: t.key, reason: w });
         const issues: RowIssue[] = [];
-        for (const p of [v.creator, v.target, v.assignee].filter((x): x is PersonValue => Boolean(x?.extension))) {
+        for (const p of [v.creator, v.assignee, v.resolvedBy].filter((x): x is PersonValue => Boolean(x?.extension))) {
           if (uid(p) === null) issues.push({ key: t.key, reason: `no user with extension ${p.extension}; kept as label only` });
         }
         report.warnings.push(...issues);
@@ -339,22 +363,35 @@ export function createTicketsMapper(
         try {
           await sql`
             insert into tickets (
-              id, status, body, customer_phone, is_urgent,
-              creator_user_id, creator_label, creator_extension, creator_party,
-              target_all, target_user_id, target_label, target_extension,
-              assignee_user_id, assignee_label, assignee_extension, accepted_at,
-              completed_by_user_id, completed_by_label, completed_by_extension, completed_at,
-              rejected_by_user_id, rejected_by_label, rejected_by_extension, rejected_at, reject_reason,
-              created_at, updated_at
+              id, status, description, customer_phone, region_id, region_changed_at,
+              creator_user_id, creator_label, creator_extension,
+              assignee_user_id, assignee_label, assignee_extension, assigned_at, started_at,
+              resolution, resolution_note, resolved_by_user_id, resolved_by_label, resolved_by_extension, resolved_at,
+              closed_at, created_at, updated_at
             ) overriding system value values (
-              ${v.id}, ${v.status}, ${v.body}, ${v.customerPhone}, ${v.isUrgent},
-              ${uid(v.creator)}, ${v.creator.label}, ${v.creator.extension}, ${v.creatorParty},
-              ${v.target === null}, ${uid(v.target)}, ${v.target?.label ?? null}, ${v.target?.extension ?? null},
-              ${uid(v.assignee)}, ${v.assignee?.label ?? null}, ${v.assignee?.extension ?? null}, ${v.acceptedAt},
-              ${uid(v.completedBy)}, ${v.completedBy?.label ?? null}, ${v.completedBy?.extension ?? null}, ${v.completedAt},
-              ${uid(v.rejectedBy)}, ${v.rejectedBy?.label ?? null}, ${v.rejectedBy?.extension ?? null}, ${v.rejectedAt},
-              ${v.rejectReason}, ${v.createdAt}, ${v.updatedAt}
+              ${v.id}, ${v.status}, ${v.description}, ${v.customerPhone}, ${regionId}, ${v.createdAt},
+              ${uid(v.creator)}, ${v.creator.label}, ${v.creator.extension},
+              ${uid(v.assignee)}, ${v.assignee?.label ?? null}, ${v.assignee?.extension ?? null}, ${v.assignedAt}, ${v.startedAt},
+              ${v.resolution}, ${v.resolutionNote}, ${uid(v.resolvedBy)}, ${v.resolvedBy?.label ?? null},
+              ${v.resolvedBy?.extension ?? null}, ${v.resolvedAt},
+              ${v.closedAt}, ${v.createdAt}, ${v.updatedAt}
             )`.execute(db);
+
+          const event = (kind: 'created' | 'done' | 'rejected' | 'closed', at: Date, who: PersonValue | null, extra: object = {}) => ({
+            ticketId: v.id,
+            kind,
+            actorUserId: uid(who),
+            actorLabel: who?.label ?? null,
+            actorExtension: who?.extension ?? null,
+            createdAt: at,
+            ...extra,
+          });
+          const events = [event('created', v.createdAt, v.creator, { toStatus: 'new' as const, toRegionId: regionId })];
+          if (v.resolution && v.resolvedAt) {
+            events.push(event(v.resolution, v.resolvedAt, v.resolvedBy, { toStatus: v.resolution, note: v.resolutionNote }));
+          }
+          if (v.closedAt) events.push(event('closed', v.closedAt, null, { toStatus: 'closed' as const, note: 'legacy import' }));
+          await db.insertInto('ticketEvents').values(events).execute();
 
           const attach = async (files: LegacyFile[], commentId: number | null) => {
             for (const f of files) {
@@ -406,7 +443,7 @@ export function createTicketsMapper(
         );
       }
       report.notes.push(`${fileCount} attachment file(s) ${ctx.dryRun ? 'would be' : 'were'} copied`);
-      report.notes.push('completed tickets are migrated too; the daily purge (TICKETS_PURGE_COMPLETED_AFTER_DAYS) removes old ones');
+      report.notes.push('completed/rejected legacy tickets are imported as closed (kept for history and reports)');
       return report;
     },
   };

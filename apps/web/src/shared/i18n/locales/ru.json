@@ -1,9 +1,19 @@
 {
-  "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "explorer": "Аудио записи", "tickets": "Тикеты" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время" },
-  "nav": { "dashboard": "Главная", "operators": "Операторы", "settings": "Настройки" },
-  "nav": { "dashboard": "Главная", "history": "История звонков", "statistics": "Статистика", "settings": "Настройки" },
+  "app": {"title": "Call Center"},
+  "nav": {
+    "dashboard": "Главная",
+    "settings": "Настройки",
+    "explorer": "Аудио записи",
+    "tickets": "Тикеты",
+    "clients": "Клиенты",
+    "blacklist": "Чёрный список",
+    "callbackSettings": "Рабочее время",
+    "operators": "Операторы",
+    "history": "История звонков",
+    "statistics": "Статистика",
+    "ticketReports": "Отчёт по тикетам",
+    "ticketSettings": "Настройки тикетов"
+  },
   "auth": {
     "username": "Логин",
     "password": "Пароль",
@@ -12,7 +22,7 @@
     "invalidCredentials": "Неверный логин или пароль",
     "tooManyAttempts": "Слишком много попыток. Попробуйте позже"
   },
-  "realtime": { "open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—" },
-  "common": { "error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро" },
-  "roles": { "operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь" }
+  "realtime": {"open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—"},
+  "common": {"error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро"},
+  "roles": {"operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь"}
 }

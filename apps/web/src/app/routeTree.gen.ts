@@ -21,6 +21,8 @@ import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppSettingsBlacklistRouteImport } from './routes/_app/settings_.blacklist'
 import { Route as AppSettingsCallbacksRouteImport } from './routes/_app/settings_.callbacks'
+import { Route as AppSettingsTicketsRouteImport } from './routes/_app/settings_.tickets'
+import { Route as AppTicketsReportsRouteImport } from './routes/_app/tickets_.reports'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -81,6 +83,16 @@ const AppSettingsCallbacksRoute = AppSettingsCallbacksRouteImport.update({
   path: '/settings/callbacks',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsTicketsRoute = AppSettingsTicketsRouteImport.update({
+  id: '/settings_/tickets',
+  path: '/settings/tickets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTicketsReportsRoute = AppTicketsReportsRouteImport.update({
+  id: '/tickets_/reports',
+  path: '/tickets/reports',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -94,6 +106,8 @@ export interface FileRoutesByFullPath {
   '/tickets': typeof AppTicketsRoute
   '/settings/blacklist': typeof AppSettingsBlacklistRoute
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
+  '/settings/tickets': typeof AppSettingsTicketsRoute
+  '/tickets/reports': typeof AppTicketsReportsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -107,6 +121,8 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/settings/blacklist': typeof AppSettingsBlacklistRoute
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
+  '/settings/tickets': typeof AppSettingsTicketsRoute
+  '/tickets/reports': typeof AppTicketsReportsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -122,6 +138,8 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/settings_/blacklist': typeof AppSettingsBlacklistRoute
   '/_app/settings_/callbacks': typeof AppSettingsCallbacksRoute
+  '/_app/settings_/tickets': typeof AppSettingsTicketsRoute
+  '/_app/tickets_/reports': typeof AppTicketsReportsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -137,6 +155,8 @@ export interface FileRouteTypes {
     | '/tickets'
     | '/settings/blacklist'
     | '/settings/callbacks'
+    | '/settings/tickets'
+    | '/tickets/reports'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -150,6 +170,8 @@ export interface FileRouteTypes {
     | '/'
     | '/settings/blacklist'
     | '/settings/callbacks'
+    | '/settings/tickets'
+    | '/tickets/reports'
   id:
     | '__root__'
     | '/_app'
@@ -164,6 +186,8 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/settings_/blacklist'
     | '/_app/settings_/callbacks'
+    | '/_app/settings_/tickets'
+    | '/_app/tickets_/reports'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -257,6 +281,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsCallbacksRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings_/tickets': {
+      id: '/_app/settings_/tickets'
+      path: '/settings/tickets'
+      fullPath: '/settings/tickets'
+      preLoaderRoute: typeof AppSettingsTicketsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tickets_/reports': {
+      id: '/_app/tickets_/reports'
+      path: '/tickets/reports'
+      fullPath: '/tickets/reports'
+      preLoaderRoute: typeof AppTicketsReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -271,6 +309,8 @@ interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
   AppSettingsBlacklistRoute: typeof AppSettingsBlacklistRoute
   AppSettingsCallbacksRoute: typeof AppSettingsCallbacksRoute
+  AppSettingsTicketsRoute: typeof AppSettingsTicketsRoute
+  AppTicketsReportsRoute: typeof AppTicketsReportsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -284,6 +324,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
   AppSettingsBlacklistRoute: AppSettingsBlacklistRoute,
   AppSettingsCallbacksRoute: AppSettingsCallbacksRoute,
+  AppSettingsTicketsRoute: AppSettingsTicketsRoute,
+  AppTicketsReportsRoute: AppTicketsReportsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

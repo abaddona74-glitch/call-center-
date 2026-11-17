@@ -1,19 +1,24 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatUzPhone } from '@cc/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useContactLookup } from '@/entities/contact';
 import {
   DocViewer,
   Dropzone,
   KdsAction,
   KdsField,
   KdsInput,
+  KdsSelect,
   KdsTextarea,
   PreviewStrip,
-  UrgentToggle,
   type ViewerSource,
   acceptFiles,
   createTicket,
+  refName,
+  ticketCallPrefillQuery,
+  ticketDirectoriesQuery,
   ticketKeys,
   usePasteTarget,
 } from '@/entities/ticket';
@@ -22,51 +27,82 @@ import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, Kd
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
 /**
- * "Yangi Ticket Ochish" (production layout: no creator/target fields — the creator is the
- * session user and new tickets go to every receiver). Ctrl+V adds screenshots while open.
+ * New ticket: region + city/district + category + description + attachments. With `callId` (a call in
+ * progress, or a call picked in the history) the number comes from the call on the server; the form only
+ * shows it. Ctrl+V adds screenshots while open.
  */
 export function CreateTicketModal({
   open,
   onOpenChange,
   maxFileMb,
-  initialFiles,
+  callId = null,
+  initialFiles = [],
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   maxFileMb: number;
-  /** Screenshots pasted on the board that opened the modal. */
-  initialFiles: File[];
+  callId?: string | null;
+  initialFiles?: File[];
+  onCreated?: (id: number) => void;
 }) {
-  const { t } = useTranslation('ticket');
+  const { t, i18n } = useTranslation('ticket');
   const queryClient = useQueryClient();
-  const [body, setBody] = useState('');
+  const dirs = useQuery({ ...ticketDirectoriesQuery, enabled: open });
+  const prefill = useQuery({ ...ticketCallPrefillQuery(callId ?? ''), enabled: open && Boolean(callId) });
+  const contactOf = useContactLookup();
   const [phone, setPhone] = useState('');
-  const [urgent, setUrgent] = useState(false);
+  const [name, setName] = useState('');
+  const [regionId, setRegionId] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [description, setDescription] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [viewer, setViewer] = useState<ViewerSource | null>(null);
-  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setFiles(acceptFiles([], initialFiles, maxFileMb, t));
-    const timer = setTimeout(() => commentRef.current?.focus(), 100);
-    return () => clearTimeout(timer);
   }, [open, initialFiles, maxFileMb, t]);
+
+  const callPhone = prefill.data?.phone ?? null;
+  // Prefill the citizen's name from the client book (when this user may see it).
+  useEffect(() => {
+    const p = callId ? callPhone : phone;
+    const contact = contactOf(p);
+    if (contact?.name && !name) setName(contact.name);
+  }, [callId, callPhone, phone, contactOf, name]);
 
   usePasteTarget(open && viewer === null, (pasted) => setFiles((cur) => acceptFiles(cur, pasted, maxFileMb, t)));
 
   const reset = () => {
-    setBody('');
     setPhone('');
-    setUrgent(false);
+    setName('');
+    setRegionId('');
+    setCityId('');
+    setCategoryId('');
+    setDescription('');
     setFiles([]);
   };
 
   const create = useMutation({
-    mutationFn: () => createTicket({ body: body.trim(), customerPhone: phone.trim(), isUrgent: urgent, files }),
-    onSuccess: async () => {
+    mutationFn: () =>
+      createTicket({
+        callId: callId ?? undefined,
+        phone: callId ? undefined : phone.trim(),
+        customerName: name.trim() || undefined,
+        regionId: Number(regionId),
+        cityId: cityId ? Number(cityId) : '',
+        categoryId: Number(categoryId),
+        description: description.trim(),
+        files,
+      }),
+    onSuccess: async (detail) => {
+      toast.success(t('form.created', { code: detail.code }));
       reset();
       onOpenChange(false);
+      onCreated?.(detail.id);
       await queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
     },
     onError: (err) => toast.error(t('error', { message: err.message })),
@@ -77,13 +113,19 @@ export function CreateTicketModal({
     onOpenChange(o);
   };
 
+  const regions = (dirs.data?.regions ?? []).filter((r) => r.isActive);
+  const cities = regions.find((r) => String(r.id) === regionId)?.cities.filter((c) => c.isActive) ?? [];
+  const categories = (dirs.data?.categories ?? []).filter((c) => c.isActive);
+  const source = !callId ? t('form.sourceManual') : prefill.data?.source === 'live' ? t('form.sourceLive') : t('form.sourceHistory');
+  const openTickets = prefill.data?.openTickets ?? [];
+
   return (
-    <KdsModal open={open} onOpenChange={close} title={t('form.newTitle')} width={620} closeOnBackdrop>
+    <KdsModal open={open} onOpenChange={close} title={t('form.newTitle')} width={660} closeOnBackdrop>
       <form
         className="flex flex-1 flex-col overflow-hidden"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!body.trim() && files.length === 0) {
+          if (!regionId || !categoryId || description.trim().length < 3 || (!callId && !phone.trim())) {
             toast.warning(t('form.required'));
             return;
           }
@@ -94,35 +136,92 @@ export function CreateTicketModal({
           <div className="flex items-center gap-3">
             <KdsIdBadge>{t('form.newBadge')}</KdsIdBadge>
             <h3 className="m-0 text-base font-bold text-white">{t('form.newTitle')}</h3>
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-[#94a3b8]">{source}</span>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
         <KdsModalBody className="gap-1">
-          <KdsField label={t('form.phone')} icon={<Icon name="call" className="size-3.5" />} htmlFor="kds-new-phone">
-            <KdsInput
-              id="kds-new-phone"
-              value={phone}
-              maxLength={32}
-              inputMode="tel"
-              placeholder="+998 90 123 45 67"
-              onChange={(e) => setPhone(e.target.value)}
-            />
+          <div className="grid gap-x-3 sm:grid-cols-2">
+            <KdsField label={t('form.phone')} icon={<Icon name="call" className="size-3.5" />} htmlFor="kds-new-phone">
+              {callId ? (
+                <div
+                  id="kds-new-phone"
+                  title={t('form.phoneFromCall')}
+                  className="rounded-[10px] border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.08)] px-3.5 py-2.5 text-[13.5px] font-bold text-[#38bdf8]"
+                >
+                  {prefill.isPending ? t('form.callLoading') : callPhone ? formatUzPhone(callPhone) : prefill.isError ? prefill.error.message : '—'}
+                </div>
+              ) : (
+                <KdsInput
+                  id="kds-new-phone"
+                  value={phone}
+                  maxLength={32}
+                  inputMode="tel"
+                  required
+                  placeholder="+998 90 123 45 67"
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              )}
+            </KdsField>
+            <KdsField label={t('form.name')} icon={<Icon name="user" className="size-3.5" />} htmlFor="kds-new-name">
+              <KdsInput id="kds-new-name" value={name} maxLength={120} placeholder={t('form.namePlaceholder')} onChange={(e) => setName(e.target.value)} />
+            </KdsField>
+          </div>
+          {openTickets.length > 0 && (
+            <div className="mb-3 flex items-center gap-2 rounded-[10px] border border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.1)] px-3 py-2 text-xs font-semibold text-[#fbbf24]">
+              <LegacyIcon name="alert-circle" className="size-4" />
+              {t('form.openTickets', { codes: openTickets.map((o) => o.code).join(', ') })}
+            </div>
+          )}
+          <div className="grid gap-x-3 sm:grid-cols-2">
+            <KdsField label={t('form.region')} icon={<Icon name="location" className="size-3.5" />} htmlFor="kds-new-region">
+              <KdsSelect
+                id="kds-new-region"
+                required
+                value={regionId}
+                onChange={(e) => {
+                  setRegionId(e.target.value);
+                  setCityId('');
+                }}
+              >
+                <option value="">{t('form.regionPick')}</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {refName(r, i18n.language)}
+                  </option>
+                ))}
+              </KdsSelect>
+            </KdsField>
+            <KdsField label={t('form.city')} icon={<Icon name="global" className="size-3.5" />} htmlFor="kds-new-city">
+              <KdsSelect id="kds-new-city" value={cityId} disabled={!regionId || cities.length === 0} onChange={(e) => setCityId(e.target.value)}>
+                <option value="">{t('form.cityAny')}</option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {refName(c, i18n.language)}
+                  </option>
+                ))}
+              </KdsSelect>
+            </KdsField>
+          </div>
+          <KdsField label={t('form.category')} icon={<Icon name="folder" className="size-3.5" />} htmlFor="kds-new-category">
+            <KdsSelect id="kds-new-category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">{t('form.categoryPick')}</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {refName(c, i18n.language)}
+                </option>
+              ))}
+            </KdsSelect>
           </KdsField>
-          <UrgentToggle
-            checked={urgent}
-            onChange={setUrgent}
-            label={t('form.urgent')}
-            description={t('form.urgentDesc')}
-            switchTitle={t('form.urgentSwitch')}
-          />
-          <KdsField label={t('form.comment')} icon={<LegacyIcon name="message" className="size-3.5" />} htmlFor="kds-new-comment">
+          <KdsField label={t('form.description')} icon={<LegacyIcon name="message" className="size-3.5" />} htmlFor="kds-new-description">
             <KdsTextarea
-              id="kds-new-comment"
-              ref={commentRef}
-              value={body}
+              id="kds-new-description"
+              ref={descRef}
+              required
+              value={description}
               maxLength={4000}
-              placeholder={t('form.commentPlaceholder')}
-              onChange={(e) => setBody(e.target.value)}
+              placeholder={t('form.descriptionPlaceholder')}
+              onChange={(e) => setDescription(e.target.value)}
             />
           </KdsField>
           <KdsField label={t('form.files')} icon={<LegacyIcon name="gallery" className="size-3.5" />}>
@@ -138,7 +237,7 @@ export function CreateTicketModal({
           <KdsAction variant="delete" onClick={() => close(false)}>
             {t('form.cancel')}
           </KdsAction>
-          <KdsAction type="submit" variant="primary" disabled={create.isPending}>
+          <KdsAction type="submit" variant="primary" disabled={create.isPending || (Boolean(callId) && !callPhone)}>
             {create.isPending ? t('form.sending') : t('form.submit')}
           </KdsAction>
         </KdsModalActions>

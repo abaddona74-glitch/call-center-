@@ -1,4 +1,5 @@
 import type { CallListItem } from '@cc/shared';
+import { CreateTicketButton } from '@/features/tickets/create-ticket';
 import { columnVisibilityFeature, createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -215,6 +216,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           header: () => t('col.action'),
           cell: ({ row: { original: c } }) => (
             <div className="flex items-center justify-end gap-1.5">
+              <CreateTicketButton callId={c.id} variant="table" />
               {c.hasRecording ? (
                 <>
                   {canListen && (

@@ -8,6 +8,7 @@ import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/badge';
 import { OnlineUsers } from '@/features/presence/online-users';
+import { TicketAlerts } from '@/features/tickets/notifications';
 import { NAV_ITEMS } from '../model/nav';
 
 export function AppShell() {
@@ -39,6 +40,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-end gap-3 border-b px-6">
           <OnlineUsers />
+          <TicketAlerts meId={user.id} />
           <Badge
             variant="outline"
             className={cn(status === 'open' ? 'text-success' : 'text-warning')}

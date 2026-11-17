@@ -1,10 +1,21 @@
-import type { TicketStatus } from '../tickets.js';
+import type { CallAttemptStatus, TicketStatus } from '../tickets.js';
 
 /**
- * Ticket events. Sent only to users who may see the ticket (same rule as GET /tickets).
- * Payloads are small notices; clients refetch the ticket over REST to get their own permissions.
+ * Ticket events. Each one goes only to users who may see the ticket (same rule as GET /tickets):
+ * executives of its region, its creator, every operator while it is in the callback queue, superusers
+ * and observers. Payloads are notices; clients refetch over REST to get their own actions.
  */
-export type TicketChangeAction = 'created' | 'updated' | 'accepted' | 'rejected' | 'completed' | 'commented';
+export type TicketChangeAction =
+  | 'created'
+  | 'assigned'
+  | 'started'
+  | 'done'
+  | 'rejected'
+  | 'returned'
+  | 'forwarded'
+  | 'commented'
+  | 'callback'
+  | 'closed';
 
 export interface TicketsServerEvents {
   'tickets.changed': {
@@ -12,17 +23,14 @@ export interface TicketsServerEvents {
     code: string;
     action: TicketChangeAction;
     status: TicketStatus;
-    isUrgent: boolean;
-    /** First characters of the ticket text (for toasts). */
-    preview: string;
+    regionId: number | null;
     actor: { userId: number | null; label: string };
-    /** Receivers the ticket is addressed to: null = everyone. */
-    targetUserId: number | null;
-    targetLabel: string | null;
-    creatorUserId: number | null;
+    /** Callback attempt state when action = 'callback'. */
+    attemptStatus?: CallAttemptStatus;
     at: string;
   };
-  'tickets.deleted': { id: number; code: string };
-  /** Completed tickets were purged (manually or by schedule). */
-  'tickets.purged': { removed: number };
+  /** The ticket is no longer visible to this user (forwarded to another region, left the callback queue, deleted). */
+  'tickets.revoked': { id: number; code: string };
+  /** Executives: unread new tickets of my regions (counter + sound in the UI). */
+  'tickets.unread': { count: number };
 }

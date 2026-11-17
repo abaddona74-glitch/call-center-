@@ -7,6 +7,7 @@ export * from './presence.js';
 export * from './realtime.js';
 export * from './recordings.js';
 export * from './tickets.js';
+export * from './ticket-access.js';
 export type * from './realtime/recordings.js';
 export type * from './realtime/tickets.js';
 export * from './blacklist.js';

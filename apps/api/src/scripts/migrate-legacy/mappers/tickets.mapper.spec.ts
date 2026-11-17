@@ -28,35 +28,37 @@ function legacy(over: Record<string, unknown> = {}) {
 }
 
 describe('transformLegacyTicket', () => {
-  it('maps a pending ticket addressed to one operator', () => {
+  it('maps a pending ticket into the new model (no region, phone normalized, urgency kept as a prefix)', () => {
     const r = transformLegacyTicket(legacy(), NOW);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.values).toMatchObject({
       id: 1042,
-      status: 'open',
-      body: 'Mijoz qayta qo‘ng‘iroq so‘radi',
-      customerPhone: '+998 90 123 45 67',
-      isUrgent: true,
+      status: 'new',
+      description: '[Shoshilinch] Mijoz qayta qo‘ng‘iroq so‘radi',
+      customerPhone: '901234567',
       creator: { extension: '201', label: 'Operator 201' },
-      creatorParty: 'creator',
-      target: { extension: '101', label: 'Oybek' },
       assignee: null,
+      resolution: null,
+      closedAt: null,
     });
     expect(r.values.createdAt.toISOString()).toBe('2025-11-17T09:00:00.000Z');
+    // the addressed operator has no place in the new workflow
+    expect(r.warnings).toEqual([expect.stringContaining('addressed to operator 101')]);
   });
 
   it.each([
-    ['pending', 'open'],
-    ['in_progress', 'accepted'],
-    ['completed', 'completed'],
-    ['rejected', 'rejected'],
-  ])('maps status %s → %s', (from, to) => {
+    ['pending', 'new', null],
+    ['in_progress', 'in_progress', null],
+    ['completed', 'closed', 'done'],
+    ['rejected', 'closed', 'rejected'],
+  ])('maps status %s → %s (resolution %s)', (from, to, resolution) => {
     const r = transformLegacyTicket(legacy({ status: from }), NOW);
     expect(r.ok && r.values.status).toBe(to);
+    expect(r.ok && r.values.resolution).toBe(resolution);
   });
 
-  it('keeps who accepted/completed/rejected, with times and the reason', () => {
+  it('keeps who took and who rejected it, with times and the reason', () => {
     const r = transformLegacyTicket(
       legacy({
         status: 'rejected',
@@ -67,17 +69,19 @@ describe('transformLegacyTicket', () => {
     );
     if (!r.ok) throw new Error(r.reason);
     expect(r.values.assignee).toEqual({ extension: '101', label: 'Oybek' });
-    expect(r.values.acceptedAt?.getTime()).toBe(1763370100000);
-    expect(r.values.rejectedBy).toEqual({ extension: '101', label: 'Oybek' });
-    expect(r.values.rejectReason).toBe('Raqam noto‘g‘ri');
+    expect(r.values.assignedAt?.getTime()).toBe(1763370100000);
+    expect(r.values.resolvedBy).toEqual({ extension: '101', label: 'Oybek' });
+    expect(r.values.resolvedAt?.getTime()).toBe(1763370200000);
+    expect(r.values.closedAt?.getTime()).toBe(1763370200000);
+    expect(r.values.resolutionNote).toBe('Raqam noto‘g‘ri');
   });
 
-  it('treats "all" as everyone and admin ids as admin-created', () => {
-    const r = transformLegacyTicket(legacy({ targetOperatorId: 'all', creatorId: 'admin', creatorName: null }), NOW);
+  it('admin creators keep their label; unusable phones are dropped with a warning', () => {
+    const r = transformLegacyTicket(legacy({ targetOperatorId: 'all', creatorId: 'admin', creatorName: null, customerPhone: '12' }), NOW);
     if (!r.ok) throw new Error(r.reason);
-    expect(r.values.target).toBeNull();
-    expect(r.values.creatorParty).toBe('admin');
     expect(r.values.creator).toEqual({ extension: null, label: 'admin' });
+    expect(r.values.customerPhone).toBeNull();
+    expect(r.warnings).toEqual([expect.stringContaining('phone')]);
   });
 
   it('turns legacy system reject comments into system comments holding only the reason', () => {
@@ -103,12 +107,11 @@ describe('transformLegacyTicket', () => {
     expect(transformLegacyTicket({ foo: 1 }, NOW)).toMatchObject({ ok: false, key: '?' });
   });
 
-  it('warns about creators outside the creators group and missing times', () => {
-    const r = transformLegacyTicket(legacy({ creatorId: '105', createdAt: null }), NOW);
+  it('warns about missing times', () => {
+    const r = transformLegacyTicket(legacy({ createdAt: null, targetOperatorId: 'all' }), NOW);
     if (!r.ok) throw new Error(r.reason);
-    expect(r.values.creatorParty).toBe('admin');
     expect(r.values.createdAt).toEqual(NOW);
-    expect(r.warnings).toHaveLength(2);
+    expect(r.warnings).toEqual(['createdAt missing or invalid; set to now']);
   });
 });
 

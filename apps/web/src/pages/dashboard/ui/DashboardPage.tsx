@@ -7,6 +7,7 @@ import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
 import { MyPhone } from '@/widgets/my-phone';
 import { OperatorsBoard } from '@/widgets/operators-board';
 import { QueueWaiters } from '@/widgets/queues';
+import { TicketCallbackQueue } from '@/widgets/ticket-callback-queue';
 
 const MONITOR = ['open', 'collapsed'] as const;
 
@@ -22,6 +23,7 @@ export function DashboardPage() {
     <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
+        <TicketCallbackQueue />
         <LiveCounters />
         <OperatorsBoard />
         {/*

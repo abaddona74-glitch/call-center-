@@ -1,9 +1,19 @@
 {
-  "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "explorer": "Audio Explorer", "tickets": "Ticketlar" },
-  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "clients": "Mijozlar", "blacklist": "Qora ro'yxat", "callbackSettings": "Ish vaqti" },
-  "nav": { "dashboard": "Bosh sahifa", "operators": "Operatorlar", "settings": "Sozlamalar" },
-  "nav": { "dashboard": "Bosh sahifa", "history": "Qo'ng'iroqlar Tarixi", "statistics": "Statistika", "settings": "Sozlamalar" },
+  "app": {"title": "Call Center"},
+  "nav": {
+    "dashboard": "Bosh sahifa",
+    "settings": "Sozlamalar",
+    "explorer": "Audio Explorer",
+    "tickets": "Ticketlar",
+    "clients": "Mijozlar",
+    "blacklist": "Qora ro'yxat",
+    "callbackSettings": "Ish vaqti",
+    "operators": "Operatorlar",
+    "history": "Qo'ng'iroqlar Tarixi",
+    "statistics": "Statistika",
+    "ticketReports": "Ticket hisoboti",
+    "ticketSettings": "Ticket sozlamalari"
+  },
   "auth": {
     "username": "Login",
     "password": "Parol",
@@ -12,7 +22,7 @@
     "invalidCredentials": "Login yoki parol noto'g'ri",
     "tooManyAttempts": "Urinishlar juda ko'p. Birozdan so'ng qayta urinib ko'ring"
   },
-  "realtime": { "open": "Onlayn", "connecting": "Ulanmoqda…", "closed": "Aloqa uzildi", "idle": "—" },
-  "common": { "error": "Xatolik yuz berdi", "loading": "Yuklanmoqda…", "comingSoon": "Tez orada" },
-  "roles": { "operator": "Operator", "admin": "Administrator", "superuser": "Superuser" }
+  "realtime": {"open": "Onlayn", "connecting": "Ulanmoqda…", "closed": "Aloqa uzildi", "idle": "—"},
+  "common": {"error": "Xatolik yuz berdi", "loading": "Yuklanmoqda…", "comingSoon": "Tez orada"},
+  "roles": {"operator": "Operator", "admin": "Administrator", "superuser": "Superuser"}
 }

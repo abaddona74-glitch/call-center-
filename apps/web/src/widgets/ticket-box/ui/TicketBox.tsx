@@ -1,6 +1,7 @@
-import type { TicketAssignee, TicketDetail, TicketTransition } from '@cc/shared';
+import type { TicketCall, TicketDetail, TicketEvent } from '@cc/shared';
+import { formatUzPhone } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -9,49 +10,40 @@ import {
   DocViewer,
   KdsAction,
   KdsTextarea,
+  OverdueBadge,
   PreviewStrip,
   TicketStatusBadge,
-  UrgentBadge,
   type ViewerSource,
   acceptFiles,
   addTicketComment,
-  deleteTicket,
+  dateTime,
   personName,
+  recordingUrl,
+  refName,
+  ticketActions,
   ticketKeys,
   ticketQuery,
   timeAgo,
-  transitionTicket,
   usePasteTarget,
 } from '@/entities/ticket';
-import { EditTicketModal } from '@/features/tickets/edit-ticket';
-import { RejectTicketModal } from '@/features/tickets/reject-ticket';
+import { CallbackCallButton, CallbackOutcomeModal, ForceCloseModal } from '@/features/tickets/callback-call';
+import { ForwardTicketModal } from '@/features/tickets/forward-ticket';
+import { ResolveTicketModal } from '@/features/tickets/resolve-ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, KdsModalHeader } from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
-/** Legacy detail "box" (`#ticketBoxOverlay`). Opens for `ticketId`, closes with `onClose`. */
-export function TicketBox({
-  ticketId,
-  meId,
-  assignees,
-  maxFileMb,
-  onClose,
-}: {
-  ticketId: number | null;
-  meId: number;
-  assignees: TicketAssignee[];
-  maxFileMb: number;
-  onClose: () => void;
-}) {
+/** Ticket card ("box", legacy `#ticketBoxOverlay` look): details, timeline, calls with recordings, chat, actions. */
+export function TicketBox({ ticketId, maxFileMb, onClose }: { ticketId: number | null; maxFileMb: number; onClose: () => void }) {
   const { t } = useTranslation('ticket');
   const query = useQuery({ ...ticketQuery(ticketId ?? 0), enabled: ticketId !== null });
   const ticket = ticketId !== null ? query.data : undefined;
 
   return (
-    <KdsModal open={ticketId !== null} onOpenChange={(o) => !o && onClose()} title={ticket?.code ?? 'Ticket'} closeOnBackdrop>
+    <KdsModal open={ticketId !== null} onOpenChange={(o) => !o && onClose()} title={ticket?.code ?? 'Ticket'} width={860} closeOnBackdrop>
       {ticket ? (
-        <BoxContent key={ticket.id} ticket={ticket} meId={meId} assignees={assignees} maxFileMb={maxFileMb} onClose={onClose} />
+        <BoxContent key={ticket.id} ticket={ticket} maxFileMb={maxFileMb} onClose={onClose} />
       ) : (
         <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-sm text-[#94a3b8]">
           {query.isError ? (
@@ -70,29 +62,20 @@ export function TicketBox({
   );
 }
 
-function BoxContent({
-  ticket,
-  meId,
-  assignees,
-  maxFileMb,
-  onClose,
-}: {
-  ticket: TicketDetail;
-  meId: number;
-  assignees: TicketAssignee[];
-  maxFileMb: number;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation('ticket');
+function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxFileMb: number; onClose: () => void }) {
+  const { t, i18n } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const [reply, setReply] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [viewer, setViewer] = useState<ViewerSource | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const p = ticket.permissions;
+  const [resolveMode, setResolveMode] = useState<'done' | 'rejected' | null>(null);
+  const [forwardOpen, setForwardOpen] = useState(false);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [forceOpen, setForceOpen] = useState(false);
+  const a = ticket.actions;
+  const dialogs = resolveMode !== null || forwardOpen || outcomeOpen || forceOpen || viewer !== null;
 
-  usePasteTarget(!editOpen && !rejectOpen && viewer === null, (pasted) => setFiles((cur) => acceptFiles(cur, pasted, maxFileMb, t)));
+  usePasteTarget(!dialogs && a.comment, (pasted) => setFiles((cur) => acceptFiles(cur, pasted, maxFileMb, t)));
 
   const onDetail = async (detail: TicketDetail) => {
     queryClient.setQueryData(ticketKeys.detail(ticket.id), detail);
@@ -101,7 +84,7 @@ function BoxContent({
   const onError = (err: Error) => toast.error(t('error', { message: err.message }));
 
   const move = useMutation({
-    mutationFn: (tr: Exclude<TicketTransition, 'reject'>) => transitionTicket(ticket.id, tr),
+    mutationFn: (step: 'assign' | 'start') => (step === 'assign' ? ticketActions.assign(ticket.id) : ticketActions.start(ticket.id)),
     onSuccess: onDetail,
     onError,
   });
@@ -115,7 +98,7 @@ function BoxContent({
     onError,
   });
   const remove = useMutation({
-    mutationFn: () => deleteTicket(ticket.id),
+    mutationFn: () => ticketActions.remove(ticket.id),
     onSuccess: async () => {
       onClose();
       queryClient.removeQueries({ queryKey: ticketKeys.detail(ticket.id) });
@@ -124,79 +107,80 @@ function BoxContent({
     onError,
   });
 
-  let accepted: { text: string; color: string };
-  if (ticket.status === 'completed') {
-    accepted = { text: ticket.completedBy ? t('box.doneBy', { name: personName(ticket.completedBy) }) : t('box.done'), color: '#34d399' };
-  } else if (ticket.status === 'rejected') {
-    accepted = { text: ticket.rejectedBy ? t('box.rejectedByName', { name: personName(ticket.rejectedBy) }) : t('box.rejected'), color: '#ef4444' };
-  } else if (ticket.assignee) {
-    accepted = { text: t('box.acceptedBy', { name: personName(ticket.assignee), time: timeAgo(ticket.acceptedAt, t) }), color: '#c084fc' };
-  } else accepted = { text: t('box.notAccepted'), color: '#94a3b8' };
-
+  const lang = i18n.language;
   const busy = move.isPending || remove.isPending;
-  const canAct = p.accept || p.reject || p.complete;
-  const locked = !canAct && (ticket.status === 'open' || ticket.status === 'accepted') && ticket.target && ticket.target.userId !== meId;
+  const workingByOther = !a.start && !a.resolve && ticket.assignee && (ticket.status === 'assigned' || ticket.status === 'in_progress');
 
   return (
     <>
       <KdsModalHeader>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <KdsIdBadge>{ticket.code}</KdsIdBadge>
-          {ticket.isUrgent && <UrgentBadge label={t('box.urgent')} className="px-2 py-[3px] text-[11px]" />}
-          <TicketStatusBadge status={ticket.status} />
+          <TicketStatusBadge status={ticket.status} className="px-2.5 py-1 text-[11px]" />
+          {ticket.overdue && <OverdueBadge label={t('card.overdue')} className="px-2 py-[3px] text-[11px]" />}
         </div>
         <KdsCloseButton label={t('box.close')} />
       </KdsModalHeader>
 
       <KdsModalBody>
-        {ticket.status === 'rejected' && (
-          <div className="flex flex-col gap-1.5 rounded-[10px] border-[1.5px] border-l-4 border-[rgba(239,68,68,0.38)] border-l-[#ef4444] bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(15,23,42,0.85))] px-3.5 py-3 shadow-[0_4px_16px_rgba(239,68,68,0.14)]">
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#f87171]">
-                <Icon name="close-circle" className="size-4" />
-                {t('box.rejectedTitle')}
-              </span>
-              <span className="text-[11px] text-[#94a3b8]">{timeAgo(ticket.rejectedAt ?? ticket.updatedAt, t)}</span>
-            </div>
-            <div className="mt-[3px] flex gap-1.5 text-xs text-[#cbd5e1]">
-              <span className="text-[#94a3b8]">{t('box.rejectedBy')}</span>
-              <strong className="text-[#fca5a5]">{personName(ticket.rejectedBy) || 'Operator'}</strong>
-            </div>
-            <div className="mt-[5px] flex flex-col gap-[3px] rounded-[7px] border border-[rgba(239,68,68,0.25)] bg-black/28 px-3 py-2 text-[12.5px]">
-              <span className="text-[11px] font-bold tracking-[0.4px] text-[#fb7185] uppercase">{t('box.rejectReason')}</span>
-              <span className="leading-[1.45] font-medium break-words text-[#fee2e2]">{ticket.rejectReason || t('box.noReason')}</span>
-            </div>
-          </div>
-        )}
+        {ticket.resolution && <ResolutionBanner ticket={ticket} />}
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3 rounded-xl border border-white/7 bg-[rgba(30,41,59,0.5)] px-4 py-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 rounded-xl border border-white/7 bg-[rgba(30,41,59,0.5)] px-4 py-3">
+          <Meta label={t('box.metaPhone')} color="#38bdf8">
+            {ticket.customerPhone ? formatUzPhone(ticket.customerPhone) : t('box.noValue')}
+          </Meta>
+          <Meta label={t('box.metaName')}>{ticket.customerName || t('box.noValue')}</Meta>
+          <Meta label={t('box.metaRegion')} color={ticket.region ? '#c084fc' : '#94a3b8'}>
+            {ticket.region ? refName(ticket.region, lang) : t('card.noRegion')}
+          </Meta>
+          <Meta label={t('box.metaCity')}>{ticket.city ? refName(ticket.city, lang) : t('box.noValue')}</Meta>
+          <Meta label={t('box.metaCategory')}>{ticket.category ? refName(ticket.category, lang) : t('box.noValue')}</Meta>
           <Meta label={t('box.metaCreator')}>{personName(ticket.creator)}</Meta>
-          <Meta label={t('box.metaTime')}>{timeAgo(ticket.createdAt, t)}</Meta>
-          <Meta label={t('box.metaAccepted')} color={accepted.color}>
-            {accepted.text}
+          <Meta label={t('box.metaCreated')}>
+            <span title={dateTime(ticket.createdAt)}>{timeAgo(ticket.createdAt, t)}</span>
           </Meta>
-          <Meta label={t('box.metaPhone')}>{ticket.customerPhone || t('box.noPhone')}</Meta>
-          <Meta label={t('box.metaTarget')} color={ticket.target ? '#38bdf8' : '#94a3b8'}>
-            {ticket.target ? t('box.targetOne', { name: personName(ticket.target) }) : t('box.targetAll')}
+          <Meta label={t('box.metaAssignee')} color={ticket.assignee ? '#c084fc' : '#94a3b8'}>
+            {ticket.assignee ? personName(ticket.assignee) : t('box.noAssignee')}
           </Meta>
+          <Meta label={t('box.metaDue')} color={ticket.overdue ? '#f87171' : undefined}>
+            {ticket.dueAt ? dateTime(ticket.dueAt) : t('box.noValue')}
+          </Meta>
+          {ticket.lastContact && (
+            <Meta label={t('box.metaLastContact')} color={ticket.lastContactIsMe ? '#38bdf8' : undefined}>
+              {personName(ticket.lastContact)} · {timeAgo(ticket.lastContact.at, t)}
+            </Meta>
+          )}
         </div>
 
-        <div>
-          <div className="mb-1.5 text-xs font-bold text-[#94a3b8]">{t('box.description')}</div>
+        <Section title={t('box.description')}>
           <div className="rounded-xl border border-white/8 bg-[rgba(15,23,42,0.6)] px-[18px] py-4 text-[13.5px] leading-[1.6] break-words whitespace-pre-wrap text-[#e2e8f0]">
-            {ticket.body || t('box.noDescription')}
+            {ticket.description || t('box.noDescription')}
           </div>
-        </div>
+        </Section>
 
         {ticket.attachments.length > 0 && (
-          <div>
-            <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-bold text-[#94a3b8]">
-              <LegacyIcon name="gallery" className="size-3.5" />
-              {t('box.gallery')}
-            </div>
+          <Section title={t('box.gallery')} icon={<LegacyIcon name="gallery" className="size-3.5" />}>
             <AttachmentGallery ticketId={ticket.id} attachments={ticket.attachments} onOpen={setViewer} />
-          </div>
+          </Section>
         )}
+
+        {ticket.calls.length > 0 && (
+          <Section title={t('box.calls')} icon={<Icon name="call" className="size-3.5" />}>
+            <div className="flex flex-col gap-2">
+              {ticket.calls.map((c) => (
+                <CallRow key={c.id} ticketId={ticket.id} call={c} />
+              ))}
+            </div>
+          </Section>
+        )}
+
+        <Section title={t('box.timeline')} icon={<Icon name="clock" className="size-3.5" />}>
+          <ol className="relative ml-1.5 flex flex-col gap-2.5 border-l border-white/10 pl-4">
+            {ticket.events.map((e) => (
+              <TimelineItem key={e.id} event={e} />
+            ))}
+          </ol>
+        </Section>
 
         <div className="mt-2.5 border-t border-white/8 pt-3.5">
           <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-bold text-[#94a3b8]">
@@ -208,25 +192,14 @@ function BoxContent({
               <div className="text-xs text-[#64748b] italic">{t('box.noReplies')}</div>
             ) : (
               ticket.comments.map((c) => (
-                <div
-                  key={c.id}
-                  className={cn(
-                    'rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5',
-                    c.isSystem && 'border-l-[3px] border-l-[#ef4444] bg-[rgba(239,68,68,0.08)]',
-                  )}
-                >
+                <div key={c.id} className={cn('rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5', c.isSystem && 'border-l-[3px] border-l-[#ef4444] bg-[rgba(239,68,68,0.08)]')}>
                   <div className="mb-1 flex justify-between text-[11.5px]">
-                    <span className={cn('inline-flex items-center gap-1 font-bold', c.isSystem ? 'text-[#f87171]' : 'text-[#38bdf8]')}>
-                      {c.isSystem && <Icon name="close-circle" className="size-3.5" />}
-                      {personName(c.author)}
+                    <span className={cn('font-bold', c.isSystem ? 'text-[#f87171]' : 'text-[#38bdf8]')}>{personName(c.author)}</span>
+                    <span className="text-[#64748b]" title={dateTime(c.createdAt)}>
+                      {timeAgo(c.createdAt, t)}
                     </span>
-                    <span className="text-[#64748b]">{timeAgo(c.createdAt, t)}</span>
                   </div>
-                  {(c.body || c.isSystem) && (
-                    <div className={cn('text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap', c.isSystem ? 'font-medium text-[#fecdd3]' : 'text-[#e2e8f0]')}>
-                      {c.isSystem ? t('box.systemRejected', { reason: c.body }) : c.body}
-                    </div>
-                  )}
+                  {c.body && <div className="text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap text-[#e2e8f0]">{c.body}</div>}
                   {c.attachments.length > 0 && (
                     <div className="mt-2">
                       <AttachmentGallery ticketId={ticket.id} attachments={c.attachments} compact onOpen={setViewer} />
@@ -237,15 +210,9 @@ function BoxContent({
             )}
           </div>
 
-          {p.comment && (
+          {a.comment && (
             <div className="mt-3 flex flex-col gap-2">
-              <KdsTextarea
-                value={reply}
-                maxLength={4000}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder={t('box.replyPlaceholder')}
-                className="min-h-[70px]"
-              />
+              <KdsTextarea value={reply} maxLength={4000} onChange={(e) => setReply(e.target.value)} placeholder={t('box.replyPlaceholder')} className="min-h-[70px]" />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <AttachButton onFiles={(added) => setFiles((cur) => acceptFiles(cur, added, maxFileMb, t))} />
@@ -266,11 +233,7 @@ function BoxContent({
                   {t('box.send')}
                 </KdsAction>
               </div>
-              <PreviewStrip
-                files={files}
-                onRemove={(i) => setFiles((cur) => cur.filter((_, idx) => idx !== i))}
-                onOpen={(file) => setViewer({ kind: 'local', file })}
-              />
+              <PreviewStrip files={files} onRemove={(i) => setFiles((cur) => cur.filter((_, idx) => idx !== i))} onOpen={(file) => setViewer({ kind: 'local', file })} />
             </div>
           )}
         </div>
@@ -278,66 +241,67 @@ function BoxContent({
 
       <KdsModalActions>
         <div className="flex flex-wrap items-center gap-2">
-          {ticket.status === 'open' && (
-            <>
-              {p.accept && (
-                <KdsAction variant="accept" disabled={busy} onClick={() => move.mutate('accept')}>
-                  <Icon name="timer" className="size-4" />
-                  {t('box.accept')}
-                </KdsAction>
-              )}
-              {p.reject && <RejectButton onClick={() => setRejectOpen(true)} disabled={busy} />}
-            </>
+          {a.assign && (
+            <KdsAction variant="accept" disabled={busy} onClick={() => move.mutate('assign')}>
+              <Icon name="user" className="size-4" />
+              {t('box.assign')}
+            </KdsAction>
           )}
-          {ticket.status === 'accepted' && (
-            <>
-              {p.complete && (
-                <KdsAction variant="complete" disabled={busy} onClick={() => move.mutate('complete')}>
-                  <Icon name="tick-circle" className="size-4" />
-                  {t('box.complete')}
-                </KdsAction>
-              )}
-              {p.reject && <RejectButton onClick={() => setRejectOpen(true)} disabled={busy} />}
-            </>
+          {a.start && (
+            <KdsAction variant="primary" disabled={busy} onClick={() => move.mutate('start')}>
+              <Icon name="play" className="size-4" />
+              {t('box.start')}
+            </KdsAction>
           )}
-          {ticket.status === 'completed' && (
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#10b981]">
+          {a.resolve && (
+            <KdsAction variant="complete" disabled={busy} onClick={() => setResolveMode('done')}>
               <Icon name="tick-circle" className="size-4" />
-              {t('box.completedText')}
-            </span>
+              {t('box.resolve')}
+            </KdsAction>
           )}
-          {ticket.status === 'rejected' && (
-            <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#ef4444]">
-                <Icon name="close-circle" className="size-4" />
-                {t('box.rejectedText')}
-              </span>
-              {p.accept && (
-                <KdsAction variant="accept" className="px-3 py-1.5 text-[11.5px]" disabled={busy} onClick={() => move.mutate('accept')}>
-                  <Icon name="timer" className="size-3.5" />
-                  {t('box.reaccept')}
-                </KdsAction>
-              )}
-            </div>
+          {a.reject && (
+            <KdsAction variant="reject" disabled={busy} onClick={() => setResolveMode('rejected')}>
+              <Icon name="close-circle" className="size-4" />
+              {t('box.reject')}
+            </KdsAction>
           )}
-          {locked && ticket.target && (
+          {a.forward && (
+            <KdsAction variant="edit" disabled={busy} onClick={() => setForwardOpen(true)}>
+              <Icon name="arrow-swap-horizontal" className="size-4" />
+              {t('box.forward')}
+            </KdsAction>
+          )}
+          {a.call && <CallbackCallButton ticketId={ticket.id} onCalled={() => setOutcomeOpen(true)} />}
+          {a.recordOutcome && (
+            <KdsAction variant="primary" onClick={() => setOutcomeOpen(true)}>
+              <Icon name="tick-circle" className="size-4" />
+              {t('box.outcome')}
+            </KdsAction>
+          )}
+          {workingByOther && ticket.assignee && (
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-3 py-1.5 text-xs font-semibold text-[#f59e0b]">
               <LegacyIcon name="lock" className="size-3.5" />
-              {t('box.lock', { name: personName(ticket.target) })}
+              {t('box.lockedBy', { name: personName(ticket.assignee) })}
+            </span>
+          )}
+          {ticket.status === 'closed' && (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#94a3b8]">
+              <Icon name="tick-circle" className="size-4" />
+              {t('status.closed')}
+              {ticket.callbackOutcome && ` · ${t(`outcome.${ticket.callbackOutcome}`)}`}
+              {ticket.closedBy && ` · ${personName(ticket.closedBy)}`}
             </span>
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {p.edit && (
-            <KdsAction variant="edit" title={t('box.editTitle')} onClick={() => setEditOpen(true)}>
-              <Icon name="edit" className="size-4" />
-              {t('box.edit')}
+          {a.forceClose && (
+            <KdsAction variant="edit" onClick={() => setForceOpen(true)}>
+              {t('box.forceClose')}
             </KdsAction>
           )}
-          {p.delete && (
+          {a.delete && (
             <KdsAction
               variant="delete"
-              title={t('box.deleteTitle')}
               disabled={busy}
               onClick={() => {
                 if (window.confirm(t('box.deleteConfirm', { code: ticket.code }))) remove.mutate();
@@ -350,24 +314,108 @@ function BoxContent({
         </div>
       </KdsModalActions>
 
-      <EditTicketModal ticket={ticket} assignees={assignees} open={editOpen} onOpenChange={setEditOpen} />
-      <RejectTicketModal ticket={ticket} open={rejectOpen} onOpenChange={setRejectOpen} />
+      <ResolveTicketModal ticket={ticket} mode={resolveMode} onClose={() => setResolveMode(null)} />
+      <ForwardTicketModal ticket={ticket} open={forwardOpen} onClose={() => setForwardOpen(false)} />
+      <CallbackOutcomeModal ticketId={ticket.id} open={outcomeOpen} onClose={() => setOutcomeOpen(false)} />
+      <ForceCloseModal ticket={ticket} open={forceOpen} onClose={() => setForceOpen(false)} />
       <DocViewer source={viewer} onClose={() => setViewer(null)} />
     </>
   );
 }
 
-function RejectButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+function ResolutionBanner({ ticket }: { ticket: TicketDetail }) {
   const { t } = useTranslation('ticket');
+  const done = ticket.resolution === 'done';
   return (
-    <KdsAction variant="reject" title={t('box.rejectTitle')} disabled={disabled} onClick={onClick}>
-      <Icon name="close-circle" className="size-4" />
-      {t('box.reject')}
-    </KdsAction>
+    <div
+      className={cn(
+        'flex flex-col gap-1.5 rounded-[10px] border-[1.5px] border-l-4 px-3.5 py-3',
+        done
+          ? 'border-[rgba(16,185,129,0.38)] border-l-[#10b981] bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(15,23,42,0.85))]'
+          : 'border-[rgba(239,68,68,0.38)] border-l-[#ef4444] bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(15,23,42,0.85))]',
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className={cn('inline-flex items-center gap-1.5 text-[13px] font-bold', done ? 'text-[#34d399]' : 'text-[#f87171]')}>
+          <Icon name={done ? 'tick-circle' : 'close-circle'} className="size-4" />
+          {t('box.metaResolution')}: {t(`resolution.${ticket.resolution as 'done' | 'rejected'}`)}
+        </span>
+        <span className="text-[11px] text-[#94a3b8]">
+          {personName(ticket.resolvedBy)} · {timeAgo(ticket.resolvedAt, t)}
+        </span>
+      </div>
+      {ticket.resolutionNote && (
+        <div className="rounded-[7px] border border-white/8 bg-black/28 px-3 py-2 text-[12.5px] leading-[1.45] font-medium break-words whitespace-pre-wrap text-[#e2e8f0]">
+          {ticket.resolutionNote}
+        </div>
+      )}
+    </div>
   );
 }
 
-function Meta({ label, color, children }: { label: string; color?: string; children: React.ReactNode }) {
+function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
+  const { t } = useTranslation('ticket');
+  const tone =
+    call.attemptStatus === 'connected'
+      ? 'text-[#34d399]'
+      : call.attemptStatus === 'not_connected' || call.attemptStatus === 'failed'
+        ? 'text-[#f87171]'
+        : 'text-[#fbbf24]';
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5 text-[12.5px]">
+      <span className="inline-flex items-center gap-1.5 font-bold text-[#e2e8f0]">
+        <Icon name={call.kind === 'origin' ? 'call-incoming' : 'call'} className="size-3.5 text-[#38bdf8]" />
+        {call.kind === 'origin' ? t('box.callOrigin') : t('box.callBack')}
+      </span>
+      <span className="text-[#94a3b8]">{dateTime(call.startedAt)}</span>
+      {call.operator && <span className="text-[#cbd5e1]">{personName(call.operator)}</span>}
+      {call.talkSeconds !== null && call.talkSeconds > 0 && <span className="text-[#94a3b8]">{t('box.talk', { n: call.talkSeconds })}</span>}
+      {call.attemptStatus && <span className={cn('font-semibold', tone)}>{t(`attempt.${call.attemptStatus}`)}</span>}
+      {call.outcome && <span className="font-semibold text-[#c084fc]">{t(`outcome.${call.outcome}`)}</span>}
+      <span className="ml-auto">
+        {call.recording.status === 'found' ? (
+          // oxlint-disable-next-line jsx-a11y/media-has-caption -- phone recordings have no captions
+          <audio controls preload="none" src={recordingUrl(ticketId, call.id)} className="h-8 w-[260px] [color-scheme:dark]" />
+        ) : (
+          <span className="text-[11.5px] text-[#64748b]">{t(`box.recording.${call.recording.status}`)}</span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function TimelineItem({ event }: { event: TicketEvent }) {
+  const { t, i18n } = useTranslation('ticket');
+  const label =
+    event.kind === 'forwarded'
+      ? t('event.forwarded', { from: refName(event.fromRegion, i18n.language) || '—', to: refName(event.toRegion, i18n.language) })
+      : t(`event.${event.kind}`);
+  return (
+    <li className="relative">
+      <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-[#0f172a] bg-[#38bdf8]" />
+      <div className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">
+        <span className="font-bold text-[#e2e8f0]">{label}</span>
+        <span className="text-[#94a3b8]">{event.actor ? personName(event.actor) : t('box.system')}</span>
+        <span className="text-[11px] text-[#64748b]">{dateTime(event.createdAt)}</span>
+      </div>
+      {event.note && <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-[#cbd5e1]">{event.note}</div>}
+    </li>
+  );
+}
+
+function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-[#94a3b8]">
+        {icon}
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Meta({ label, color, children }: { label: string; color?: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-[3px]">
       <span className="text-[11px] font-semibold tracking-[0.5px] text-[#64748b] uppercase">{label}</span>
