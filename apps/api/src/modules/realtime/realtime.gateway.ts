@@ -53,7 +53,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   @SubscribeMessage('presence.ping')
-  onPing(@ConnectedSocket() socket: WebSocket, @MessageBody() _data: ClientEvents['presence.ping']): void {
-    this.realtime.touch(socket);
+  onPing(@ConnectedSocket() socket: WebSocket, @MessageBody() data: ClientEvents['presence.ping']): void {
+    this.realtime.touch(socket, data && typeof data === 'object' ? data : {});
   }
 }

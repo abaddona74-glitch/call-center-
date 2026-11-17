@@ -263,7 +263,7 @@ nano .env
 | `COOKIE_SECURE`                | `true`                                                                                   |
 | `BOOTSTRAP_SUPERUSER_PASSWORD` | только на первый запуск, потом удалить строку. Пустое значение (`KEY=`) API не принимает |
 | `PBX_DB_*`                     | `cc_readonly` (п. 11)                                                                    |
-| `AMI_*`                        | пользователь AMI (п. 11)                                                                 |
+| `AMI_*`                        | пользователь AMI `cc_monitor`; `AMI_ASTDB_*` — `cc_astdb` для чёрного списка (п. 11.2)   |
 | `SFTP_*`                       | позже (S5): `SFTP_MONITOR_PATH=/monitor` при chroot                                      |
 
 `check-env.sh` запускается и перед каждым деплоем: с ошибками деплой не начнётся. Он же предупреждает о ключах, которые
@@ -583,17 +583,23 @@ writetimeout = 5000
 displayconnects = no
 ```
 
-Фаза 2 — при переключении: `write = reporting,call,agent,system`.
+Фаза 2 — при переключении: два пользователя (подробно, с готовым конфигом — `apps/api/src/modules/ami/README.md`):
 
-| Нужно приложению                                                                                             | Класс             | Для чего                                           |
-| ------------------------------------------------------------------------------------------------------------ | ----------------- | -------------------------------------------------- |
-| события `Newchannel`, `Hangup`, `Newstate`, `DialBegin/End`, `BridgeEnter/Leave`, `ExtensionStatus`          | read `call`       | живые звонки, присутствие                          |
-| события `Agent*`, `QueueCaller*`, `QueueMemberStatus/Pause`                                                  | read `agent`      | очереди, ответ оператора                           |
-| события `PeerStatus`/`ContactStatus`                                                                         | read `system`     | регистрация телефонов                              |
-| `CoreShowChannels`, `SIPpeers` (или `PJSIPShowEndpoints` — может требовать `system`), `QueueStatus`, `DBGet` | write `reporting` | опрос состояния                                    |
-| `Hangup`, `Redirect`                                                                                         | write `call`      | завершение и перевод звонка                        |
-| `QueuePause`                                                                                                 | write `agent`     | пауза оператора                                    |
-| `DBPut`, `DBDel`                                                                                             | write `system`    | чёрный список (AstDB `blacklist_114`, `blacklist`) |
+- `cc_monitor` (переменные `AMI_USER`/`AMI_PASSWORD`): `read = call,agent`, `write = call,agent,originate,reporting` —
+  события, пауза, перевод, завершение, click-to-call. **Без `system` и `command`.**
+- `cc_astdb` (`AMI_ASTDB_USER`/`AMI_ASTDB_PASSWORD`, только если нужен чёрный список): `read =` (пусто), `write = system` —
+  только `DBPut`/`DBDel`/`DBGet`; приложение входит им с `Events: off`. Тот же `deny`/`permit`, свой пароль.
+
+| Нужно приложению                                                                                             | Класс             | Для чего                                             |
+| ------------------------------------------------------------------------------------------------------------ | ----------------- | ---------------------------------------------------- |
+| события `Newchannel`, `Hangup`, `Newstate`, `DialBegin/End`, `BridgeEnter/Leave`, `ExtensionStatus`          | read `call`       | живые звонки, присутствие                            |
+| события `Agent*`, `QueueCaller*`, `QueueMemberStatus/Pause`                                                  | read `agent`      | очереди, ответ оператора                             |
+| события `PeerStatus`/`ContactStatus` (не обязательно)                                                        | read `system`     | регистрация телефонов (есть и в `DeviceStateChange`) |
+| `CoreShowChannels`, `SIPpeers` (или `PJSIPShowEndpoints` — может требовать `system`), `QueueStatus`, `DBGet` | write `reporting` | опрос состояния                                      |
+| `Hangup`, `Redirect`                                                                                         | write `call`      | завершение и перевод звонка                          |
+| `Originate` (только `Exten`+`Context`, `Async`)                                                              | write `originate` | click-to-call (пользователь без `system`)            |
+| `QueuePause`                                                                                                 | write `agent`     | пауза оператора                                      |
+| `DBPut`, `DBDel`                                                                                             | write `system`    | чёрный список — отдельный пользователь `cc_astdb`    |
 
 Проверка на АТС: `asterisk -rx "manager show command QueuePause"` (строка Privilege), `asterisk -rx "manager show user cc_monitor"`,
 `asterisk -rx "manager reload"` после правки.
@@ -601,9 +607,10 @@ displayconnects = no
 Предупреждения:
 
 - **Никогда `originate` вместе с `system`** у одного пользователя: `Originate` с `Application=System` выполняет команды ОС на АТС.
-  Если понадобится click-to-call — отдельное решение (отдельный пользователь только с `originate`, ограниченный контекст диалплана).
-- Не выдавать `command`, `config`, `dialplan`. Legacy делал полночный сброс через `Command: queue reset stats` — в новой системе
-  только действие `QueueReset` (S3).
+  Поэтому `system` (AstDB) вынесен в отдельного пользователя `cc_astdb`; click-to-call идёт через `cc_monitor` с контекстом
+  `AMI_DIAL_CONTEXT` и номерами из `ORIGINATE_ALLOWED_PATTERNS`.
+- Не выдавать `command`, `config`, `dialplan`. Legacy делал полночный сброс через `Command: queue reset stats` — новая система
+  статистику очередей Asterisk не сбрасывает (свои счётчики дня), `QueueReset` не нужен.
 - `system` нужен лишь для `DBPut`/`DBDel`, но заодно позволяет reload модулей и чтение конфигов. Поэтому: `permit` только IP ВМ,
   длинный случайный пароль, порт 5038 закрыт для всех остальных, пароль только в `.env` на ВМ.
 

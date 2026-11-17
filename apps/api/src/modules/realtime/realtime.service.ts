@@ -7,6 +7,9 @@ interface Connection {
   sessionId: string;
   connectedAt: number;
   lastPingAt: number;
+  /** From the client's presence.ping: current page and whether the tab is in the foreground. */
+  tab: string | null;
+  visible: boolean;
 }
 
 export interface BroadcastFilter {
@@ -27,16 +30,27 @@ export class RealtimeService {
   private readonly connections = new Map<WebSocket, Connection>();
 
   register(socket: WebSocket, user: SessionUser, sessionId: string): void {
-    this.connections.set(socket, { user, sessionId, connectedAt: Date.now(), lastPingAt: Date.now() });
+    this.connections.set(socket, {
+      user,
+      sessionId,
+      connectedAt: Date.now(),
+      lastPingAt: Date.now(),
+      tab: null,
+      visible: true,
+    });
   }
 
   unregister(socket: WebSocket): void {
     this.connections.delete(socket);
   }
 
-  touch(socket: WebSocket): void {
+  touch(socket: WebSocket, info: { tab?: unknown; visible?: unknown } = {}): void {
     const c = this.connections.get(socket);
-    if (c) c.lastPingAt = Date.now();
+    if (!c) return;
+    c.lastPingAt = Date.now();
+    // Client data: keep only a short path-like string and a boolean.
+    if (typeof info.tab === 'string') c.tab = /^\/[\w\-/]{0,80}$/.test(info.tab) ? info.tab : null;
+    if (typeof info.visible === 'boolean') c.visible = info.visible;
   }
 
   send<K extends ServerEventName>(socket: WebSocket, type: K, data: ServerEvents[K]): void {
@@ -56,6 +70,31 @@ export class RealtimeService {
     return sent;
   }
 
+  /**
+   * Per-user payloads (e.g. redacted for operators). `project` runs once per connection; returning
+   * `undefined` skips that user. Results that are the same object are serialized once.
+   */
+  broadcastEach<K extends ServerEventName>(
+    type: K,
+    project: (user: SessionUser) => ServerEvents[K] | undefined,
+  ): number {
+    const frames = new Map<ServerEvents[K], string>();
+    let sent = 0;
+    for (const [socket, conn] of this.connections) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const data = project(conn.user);
+      if (data === undefined) continue;
+      let frame = frames.get(data);
+      if (!frame) {
+        frame = JSON.stringify({ type, data });
+        frames.set(data, frame);
+      }
+      socket.send(frame);
+      sent++;
+    }
+    return sent;
+  }
+
   /** Close every socket of a revoked session / of a user (password change, deactivation). */
   terminate(match: { sessionId?: string; userId?: number }, reason: string): void {
     for (const [socket, conn] of this.connections) {
@@ -68,13 +107,25 @@ export class RealtimeService {
   }
 
   /** Online users (one entry per connection). */
-  list(): Array<{ userId: number; username: string; role: Role; connectedAt: number; lastPingAt: number }> {
+  list(): Array<{
+    userId: number;
+    username: string;
+    role: Role;
+    extension: string | null;
+    connectedAt: number;
+    lastPingAt: number;
+    tab: string | null;
+    visible: boolean;
+  }> {
     return [...this.connections.values()].map((c) => ({
       userId: c.user.id,
       username: c.user.username,
       role: c.user.role,
+      extension: c.user.extension,
       connectedAt: c.connectedAt,
       lastPingAt: c.lastPingAt,
+      tab: c.tab,
+      visible: c.visible,
     }));
   }
 

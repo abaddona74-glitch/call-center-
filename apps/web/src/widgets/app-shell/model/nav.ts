@@ -1,5 +1,15 @@
 import type { Role } from '@cc/shared';
-import { AudioLines, CalendarClock, LayoutDashboard, type LucideIcon, Settings, ShieldBan, Ticket, Users } from 'lucide-react';
+import {
+  AudioLines,
+  CalendarClock,
+  Headset,
+  LayoutDashboard,
+  type LucideIcon,
+  Settings,
+  ShieldBan,
+  Ticket,
+  Users,
+} from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -19,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, minRole: 'admin' },
   { to: '/tickets', label: 'nav.tickets', icon: Ticket, minRole: 'operator' },
   { to: '/clients', label: 'nav.clients', icon: Users, minRole: 'operator' },
+  { to: '/operators', label: 'nav.operators', icon: Headset, minRole: 'operator' },
   { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
   { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, minRole: 'admin' },
   { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, minRole: 'admin' },

@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
+import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppSettingsBlacklistRouteImport } from './routes/_app/settings_.blacklist'
@@ -43,6 +44,11 @@ const AppExplorerRoute = AppExplorerRouteImport.update({
   path: '/explorer',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOperatorsRoute = AppOperatorsRouteImport.update({
+  id: '/operators',
+  path: '/operators',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
+  '/operators': typeof AppOperatorsRoute
   '/settings': typeof AppSettingsRoute
   '/tickets': typeof AppTicketsRoute
   '/settings/blacklist': typeof AppSettingsBlacklistRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
+  '/operators': typeof AppOperatorsRoute
   '/settings': typeof AppSettingsRoute
   '/tickets': typeof AppTicketsRoute
   '/': typeof AppIndexRoute
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/explorer': typeof AppExplorerRoute
+  '/_app/operators': typeof AppOperatorsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tickets': typeof AppTicketsRoute
   '/_app/': typeof AppIndexRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/clients'
     | '/explorer'
+    | '/operators'
     | '/settings'
     | '/tickets'
     | '/settings/blacklist'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/clients'
     | '/explorer'
+    | '/operators'
     | '/settings'
     | '/tickets'
     | '/'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_app/clients'
     | '/_app/explorer'
+    | '/_app/operators'
     | '/_app/settings'
     | '/_app/tickets'
     | '/_app/'
@@ -172,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExplorerRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/operators': {
+      id: '/_app/operators'
+      path: '/operators'
+      fullPath: '/operators'
+      preLoaderRoute: typeof AppOperatorsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -206,6 +225,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppClientsRoute: typeof AppClientsRoute
   AppExplorerRoute: typeof AppExplorerRoute
+  AppOperatorsRoute: typeof AppOperatorsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTicketsRoute: typeof AppTicketsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -216,6 +236,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppClientsRoute: AppClientsRoute,
   AppExplorerRoute: AppExplorerRoute,
+  AppOperatorsRoute: AppOperatorsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTicketsRoute: AppTicketsRoute,
   AppIndexRoute: AppIndexRoute,

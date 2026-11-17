@@ -14,12 +14,16 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { AppConfig } from './config/app-config.js';
 import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule, KYSELY } from './database/database.module.js';
+import { ActionsModule } from './modules/actions/actions.module.js';
+import { AmiModule } from './modules/ami/ami.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
 import { CallbacksModule } from './modules/callbacks/callbacks.module.js';
 import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { LiveModule } from './modules/live/live.module.js';
+import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { RecordingsModule } from './modules/recordings/recordings.module.js';
 import { TicketsModule } from './modules/tickets/tickets.module.js';
@@ -79,6 +83,10 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     CallbacksModule,
     ContactsModule,
     BlacklistModule,
+    AmiModule,
+    LiveModule,
+    ActionsModule,
+    PresenceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
