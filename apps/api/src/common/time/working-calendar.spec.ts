@@ -27,6 +27,20 @@ describe('WorkingCalendar', () => {
     expect(sixDays.isWorkingWall('2026-11-14 10:00:00')).toBe(true);
   });
 
+  it('treats configured holidays as non-working days (yearly MM-DD and one-off YYYY-MM-DD)', () => {
+    const withHolidays = new WorkingCalendar({
+      days: [1, 2, 3, 4, 5],
+      start: '08:00',
+      end: '21:00',
+      holidays: ['01-01', '2026-11-18'],
+    });
+    expect(withHolidays.isWorkingDay('2026-11-18')).toBe(false); // Wednesday, one-off holiday
+    expect(withHolidays.isWorkingDay('2027-11-18')).toBe(true); // one-off: other years are normal
+    expect(withHolidays.isWorkingWall('2027-01-01 10:00:00')).toBe(false); // Friday, yearly holiday
+    expect(withHolidays.isWorkingWall('2026-11-17 10:00:00')).toBe(true);
+    expect(withHolidays.info().holidays).toEqual(['01-01', '2026-11-18']);
+  });
+
   it('rejects an empty interval', () => {
     expect(() => new WorkingCalendar({ days: [1], start: '10:00', end: '09:00' })).toThrow();
   });

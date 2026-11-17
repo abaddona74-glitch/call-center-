@@ -1,3 +1,6 @@
+import { WorkingCalendar } from '../../common/time/working-calendar.js';
+import { assembleCalls } from './call-assembler.js';
+import { DEFAULT_DIALPLAN } from './dialplan.js';
 import type { CdrRow } from './cdr-row.js';
 import { calls, inbound, internal, outbound } from './testing/cdr-fixtures.js';
 
@@ -71,6 +74,22 @@ describe('assembleCalls — inbound', () => {
       inbound({ at: '2026-11-14 10:00:00', caller: '977778899', outcome: 'answered', answeredBy: '101' }),
     );
     expect(answeredSat).toMatchObject({ status: 'answered', inWorkingHours: false });
+  });
+
+  it('an unanswered call on a holiday is after-hours, an answered one stays answered', () => {
+    const calendar = new WorkingCalendar({
+      days: [1, 2, 3, 4, 5],
+      start: '08:00',
+      end: '21:00',
+      holidays: ['2026-11-17'],
+    });
+    const rows = [
+      ...inbound({ at: '2026-11-17 10:00:00', caller: '901112233', outcome: 'abandoned' }),
+      ...inbound({ at: '2026-11-17 11:00:00', caller: '901112244', outcome: 'answered', answeredBy: '101' }),
+    ];
+    const [missed, answered] = assembleCalls(rows, DEFAULT_DIALPLAN, calendar);
+    expect(missed).toMatchObject({ status: 'after_hours', inWorkingHours: false });
+    expect(answered).toMatchObject({ status: 'answered', inWorkingHours: false });
   });
 
   it('21:00:00 exactly is after hours (half-open window)', () => {

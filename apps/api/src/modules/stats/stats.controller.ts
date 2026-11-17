@@ -1,4 +1,5 @@
 import {
+  CDR_ACCESS,
   type OperatorStatsQuery,
   OperatorStatsQuerySchema,
   type OperatorStatsResponse,
@@ -22,7 +23,7 @@ import { StatsService } from './stats.service.js';
 
 /**
  * Historical statistics from the PBX CDR (definitions: docs/rewrite/METRICS.md).
- * Admin-only except the per-operator table, which legacy also served to operators (viewer → /api/operators?date).
+ * Access per capability: CDR_ACCESS in @cc/shared (legacy parity; switches to permissions in one place).
  */
 @Controller('stats')
 export class StatsController {
@@ -35,27 +36,28 @@ export class StatsController {
   }
 
   @Get('summary')
-  @Roles('admin')
+  @Roles(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: StatsSummarySchema })
   summary(@Query({ schema: StatsQuerySchema }) q: StatsQuery): Promise<StatsSummary> {
     return this.stats.summary(q);
   }
 
   @Get('series')
-  @Roles('admin')
+  @Roles(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: StatsSeriesResponseSchema })
   series(@Query({ schema: StatsQuerySchema }) q: StatsQuery): Promise<StatsSeriesResponse> {
     return this.stats.series(q);
   }
 
   @Get('operators')
+  @Roles(CDR_ACCESS['stats.operators'])
   @SerializeOptions({ schema: OperatorStatsResponseSchema })
   operators(@Query({ schema: OperatorStatsQuerySchema }) q: OperatorStatsQuery): Promise<OperatorStatsResponse> {
     return this.stats.operators(q);
   }
 
   @Get('top-clients')
-  @Roles('admin')
+  @Roles(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: TopClientsResponseSchema })
   topClients(@Query({ schema: TopClientsQuerySchema }) q: TopClientsQuery): Promise<TopClientsResponse> {
     return this.stats.topClients(q);

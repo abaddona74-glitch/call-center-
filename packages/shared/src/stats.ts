@@ -159,6 +159,8 @@ export const WorkingCalendarSchema = z.object({
   days: z.array(int),
   start: z.string(),
   end: z.string(),
+  /** "MM-DD" (every year) or "YYYY-MM-DD". */
+  holidays: z.array(z.string()),
 });
 export type WorkingCalendarInfo = z.infer<typeof WorkingCalendarSchema>;
 

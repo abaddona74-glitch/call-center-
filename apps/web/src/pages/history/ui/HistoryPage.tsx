@@ -1,4 +1,4 @@
-import { CALL_STATUSES, type CallListItem, hasRoleAtLeast } from '@cc/shared';
+import { CALL_STATUSES, type CallListItem, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -208,7 +208,7 @@ export function HistoryPage() {
           columnVisibility={columns}
           onColumnVisibilityChange={setColumns}
           onOpenDetails={setSelected}
-          canListen={hasRoleAtLeast(user.role, 'admin')}
+          canListen={canAccessCdr(user, 'calls.recordings')}
           placeholder={placeholder}
         />
         {data && data.total > 0 && (

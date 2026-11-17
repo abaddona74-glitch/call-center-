@@ -1,4 +1,4 @@
-import type { Role } from '@cc/shared';
+import { CDR_ACCESS, type Role } from '@cc/shared';
 import { ChartColumn, History, LayoutDashboard, type LucideIcon, Settings } from 'lucide-react';
 
 export interface NavItem {
@@ -16,7 +16,7 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'operator' },
-  { to: '/history', label: 'nav.history', icon: History, minRole: 'admin' },
-  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, minRole: 'admin' },
+  { to: '/history', label: 'nav.history', icon: History, minRole: CDR_ACCESS['history.page'] },
+  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, minRole: CDR_ACCESS['stats.read'] },
   { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
 ];

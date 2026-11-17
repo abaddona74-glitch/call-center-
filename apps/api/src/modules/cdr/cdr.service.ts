@@ -2,7 +2,7 @@ import {
   type CallDetailsResponse,
   type CallHistoryQuery,
   type CallHistoryResponse,
-  hasRoleAtLeast,
+  canAccessCdr,
   type SessionUser,
 } from '@cc/shared';
 import { Injectable, NotFoundException } from '@nestjs/common';
@@ -81,7 +81,7 @@ export class CdrService {
   }
 }
 
-/** Legacy never exposed recordings to operators (viewer `sanitizeCalls`); the recordings module decides later. */
+/** Legacy never exposed recordings to operators (viewer `sanitizeCalls`). */
 function canSeeRecordings(user: SessionUser): boolean {
-  return hasRoleAtLeast(user.role, 'admin');
+  return canAccessCdr(user, 'calls.recordings');
 }

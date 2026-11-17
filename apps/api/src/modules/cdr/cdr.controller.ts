@@ -1,4 +1,5 @@
 import {
+  CDR_ACCESS,
   CallDetailsResponseSchema,
   type CallDetailsResponse,
   CallHistoryQuerySchema,
@@ -9,14 +10,15 @@ import {
   type SessionUser,
 } from '@cc/shared';
 import { Controller, Get, Param, Query, SerializeOptions } from '@nestjs/common';
-import { CurrentUser } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
 import { CdrService } from './cdr.service.js';
 
 /**
- * Call history from the PBX CDR. Any signed-in role may read it (legacy let operators see call lists
- * through the viewer's /api/calls/details); recording file names are only returned to admins.
+ * Call history from the PBX CDR. Access: CDR_ACCESS['calls.read'] (legacy let operators see call lists through
+ * the viewer's /api/calls/details); recording file names need CDR_ACCESS['calls.recordings'].
  */
 @Controller('cdr')
+@Roles(CDR_ACCESS['calls.read'])
 export class CdrController {
   constructor(private readonly cdr: CdrService) {}
 

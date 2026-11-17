@@ -1,4 +1,4 @@
-import { type ExportExcelQuery, ExportExcelQuerySchema } from '@cc/shared';
+import { CDR_ACCESS, type ExportExcelQuery, ExportExcelQuerySchema } from '@cc/shared';
 import { Controller, Get, Header, Query, Res, StreamableFile } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
@@ -17,7 +17,7 @@ export class ExportController {
 
   /** Excel report like legacy GET /api/export/excel ("cal stat" template). */
   @Get('excel')
-  @Roles('admin')
+  @Roles(CDR_ACCESS['reports.export'])
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Header('Cache-Control', 'no-store')
   async excel(

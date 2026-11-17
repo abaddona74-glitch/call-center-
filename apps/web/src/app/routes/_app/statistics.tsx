@@ -1,3 +1,4 @@
+import { CDR_ACCESS } from '@cc/shared';
 import { createFileRoute } from '@tanstack/react-router';
 import {
   businessToday,
@@ -11,7 +12,7 @@ import { requireRole } from '../../lib/require-role';
 
 export const Route = createFileRoute('/_app/statistics')({
   validateSearch: statisticsSearchSchema,
-  beforeLoad: ({ context }) => requireRole(context.user, 'admin'),
+  beforeLoad: ({ context }) => requireRole(context.user, CDR_ACCESS['stats.read']),
   loaderDeps: ({ search }) => search,
   // PBX errors are shown inside the page, so failed prefetches must not block navigation.
   loader: ({ context: { queryClient }, deps }) => {

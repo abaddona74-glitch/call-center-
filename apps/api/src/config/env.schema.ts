@@ -103,6 +103,13 @@ export const EnvSchema = z.object({
     .string()
     .regex(/^([01]\d|2[0-4]):[0-5]\d$/)
     .default('21:00'),
+  /**
+   * Holidays (non-working days), comma-separated: "MM-DD" repeats every year, "YYYY-MM-DD" is one date
+   * (movable holidays). Filled by the owner; until a settings screen exists it lives in the environment.
+   */
+  WORKING_HOLIDAYS: csvOf('').pipe(
+    z.array(z.string().regex(/^(\d{4}-)?(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Use MM-DD or YYYY-MM-DD')),
+  ),
   /** Operator groups by extension range until the groups model exists, e.g. "main:100-199;secondary:200-299". */
   OPERATOR_GROUPS: z
     .string()
