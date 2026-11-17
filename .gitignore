@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env.*.local
+ssl/
+data/callcenter.db*
+data/*.json
+data/temp_zips/
+scratch/
+*.tar.gz
+*.log
+npm-debug.log*
+.DS_Store
+
+# Runtime state written by proxmoxService
+system_settings.json
+
+# Large binaries and per-operator 3CX configs (kept on the server, not in git)
+public/downloads/**/*.exe
+public/downloads/**/*.msi
+public/downloads/**/*.zip

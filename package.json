@@ -1,0 +1,53 @@
+{
+  "name": "call-center-backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon --config nodemon.json app.js",
+    "test": "node -c app.js config.js swaggerSpec.js scripts/deploy.js services/sftpService.js services/zipJobService.js services/authService.js services/emailService.js services/converterService.js services/topicAnalyticsService.js services/uzcryptoService.js services/rateLimitService.js",
+    "test:e2e": "playwright test",
+    "test:smoke": "node --test tests/smoke_rustwright.js",
+    "build": "node -c app.js config.js public/js/dashboard.js",
+    "map:dev": "next dev",
+    "map:build": "next build",
+    "map:start": "next start",
+    "predeploy": "npm test && npm run build",
+    "deploy": "node scripts/deploy.js",
+    "bridge": "node scripts/watch_ui_inbox.js"
+  },
+  "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.1.0",
+    "acme-client": "^5.4.0",
+    "archiver": "^5.3.2",
+    "asterisk-manager": "^0.2.0",
+    "compression": "^1.8.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.2.1",
+    "ioredis": "^6.0.0",
+    "next": "^16.4.6",
+    "nodemailer": "^10.2.0",
+    "pngjs": "^7.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-force-graph-3d": "^1.29.2",
+    "ssh2-sftp-client": "^12.1.1",
+    "swagger-ui-express": "^5.0.1",
+    "three": "^0.187.0",
+    "three-spritetext": "^1.10.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "nodemon": "^3.1.14",
+    "rustwright": "^0.3.0",
+    "typescript": "^7.0.2"
+  }
+}

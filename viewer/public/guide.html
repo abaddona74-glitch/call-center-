@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Tizimlar va Rollar Daraxti | Call Center AI</title>
+    <link rel="icon" type="image/png" href="/images/title-icon.png">
+    
+    <!-- Localized Fonts -->
+    <link rel="stylesheet" href="/fonts/fonts.css?v=1.0">
+    <link rel="stylesheet" href="/css/style.css?v=25.0">
+    
+    <style>
+        :root {
+            --bg-dark: #080d1a;
+            --grid-color: rgba(56, 189, 248, 0.07);
+            --accent-cyan: #38bdf8;
+            --accent-green: #34d399;
+            --accent-purple: #c084fc;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark) !important;
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+        }
+
+        /* Top Sticky Header */
+        .guide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 64px;
+            padding: 0 24px;
+            background: rgba(15, 23, 42, 0.94);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+            backdrop-filter: blur(16px);
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .guide-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .guide-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 14px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 9px;
+            color: #cbd5e1;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .guide-back-btn:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #fff;
+            transform: translateX(-2px);
+        }
+
+        .guide-title-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .guide-icon-badge {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.25));
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #38bdf8;
+        }
+
+        .guide-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .guide-pill {
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 5px;
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .guide-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action-guide {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 9px;
+            color: #cbd5e1;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-action-guide:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* Infinite Canvas Viewport */
+        .ft-viewport {
+            width: 100vw;
+            height: calc(100vh - 64px);
+            position: relative;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(var(--grid-color) 1.2px, transparent 1.2px),
+                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 32px 32px, 128px 128px, 128px 128px;
+            background-position: 0 0, 0 0, 0 0;
+            cursor: grab;
+        }
+        .ft-viewport.is-dragging {
+            cursor: grabbing !important;
+        }
+
+        /* Transform Layer */
+        .ft-transform-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            padding: 60px 100px 300px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100%;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: geometricPrecision;
+            transform-style: flat;
+            backface-visibility: visible;
+        }
+
+        /* Focus Tree Org-Chart Styles */
+        .ft-branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+        .ft-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 0;
+            position: relative;
+        }
+        .ft-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            opacity: 1;
+            transform: scale(1);
+            margin: 0 20px;
+            padding: 0;
+            transition: max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        margin 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .ft-col.is-collapsed {
+            max-width: 0 !important;
+            opacity: 0 !important;
+            transform: scale(0.68) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            pointer-events: none !important;
+            overflow: hidden !important;
+        }
+
+        /* Cards */
+        .ft-card {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 12px 28px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            outline: none;
+            position: relative;
+            z-index: 10;
+            white-space: nowrap;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: geometricPrecision;
+            transform-style: flat;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.3s ease,
+                        border-color 0.3s ease;
+        }
+        .ft-card:focus-visible {
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6);
+        }
+        .ft-card.is-open {
+            transform: scale(1.1) !important;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7) !important;
+            z-index: 25 !important;
+        }
+        .ft-card.ft-leaf {
+            cursor: default;
+        }
+        .ft-card.ft-link {
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .ft-card.ft-link:hover {
+            transform: scale(1.06);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Node Anchor & In-Flow Non-Colliding Hint/Message Rectangle */
+        .ft-node-anchor {
+            position: relative;
+            display: flex;
+            flex-direction: column; /* Centered under node, zero collision */
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .ft-hint-card {
+            position: relative; /* IN-FLOW: NEVER COLLIDES WITH SIBLINGS */
+            width: auto;
+            max-width: 260px;
+            min-width: 150px;
+            background: #0b1329;
+            border: 1px dashed rgba(56, 189, 248, 0.55);
+            border-radius: 10px;
+            padding: 8px 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
+            z-index: 20;
+            text-align: center;
+            pointer-events: auto;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: geometricPrecision;
+            transform-style: flat;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: normal;
+        }
+        .ft-hint-card:hover {
+            border-style: solid;
+            border-color: #38bdf8;
+            transform: scale(1.04);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 22px rgba(56, 189, 248, 0.3);
+        }
+        .ft-hint-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #38bdf8;
+            margin-bottom: 4px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .ft-hint-text {
+            font-size: 11.5px;
+            line-height: 1.45;
+            color: #e2e8f0;
+            font-weight: 400;
+            -webkit-font-smoothing: antialiased;
+        }
+        body.hide-hints .ft-hint-card {
+            display: none !important;
+        }
+        
+        /* Depth Tints */
+        .ft-depth-0 {
+            background: #0c1c38;
+            border: 1.5px solid rgba(56, 189, 248, 0.55);
+            color: #38bdf8;
+        }
+        .ft-depth-0:hover:not(.ft-leaf), .ft-depth-0.is-open {
+            background: #0e2a54;
+            border-color: #38bdf8;
+            color: #ffffff;
+        }
+        .ft-depth-0 .ft-badge {
+            background: rgba(56, 189, 248, 0.25);
+            color: #bae6fd;
+        }
+
+        .ft-depth-1 {
+            background: #062820;
+            border: 1.5px solid rgba(16, 185, 129, 0.55);
+            color: #34d399;
+        }
+        .ft-depth-1:hover:not(.ft-leaf), .ft-depth-1.is-open {
+            background: #093c30;
+            border-color: #34d399;
+            color: #ffffff;
+        }
+        .ft-depth-1 .ft-badge {
+            background: rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+
+        .ft-depth-2 {
+            background: #201338;
+            border: 1.5px solid rgba(168, 85, 247, 0.55);
+            color: #c084fc;
+        }
+        .ft-depth-2:hover:not(.ft-leaf), .ft-depth-2.is-open {
+            background: #311d54;
+            border-color: #c084fc;
+            color: #ffffff;
+        }
+        .ft-depth-2 .ft-badge {
+            background: rgba(168, 85, 247, 0.25);
+            color: #f3e8ff;
+        }
+
+        .ft-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .ft-subtree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-height: 0;
+            opacity: 0;
+            transform: scale(0.85);
+            transform-origin: top center;
+            pointer-events: none;
+            overflow: hidden;
+            transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                        transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .ft-subtree.is-open {
+            max-height: 1400px !important;
+            opacity: 1 !important;
+            transform: scale(1) !important;
+            pointer-events: auto !important;
+            overflow: visible !important;
+        }
+
+        /* 1px Connector Lines */
+        .ft-stem {
+            width: 1px;
+            height: 24px;
+            background: rgba(148, 163, 184, 0.45);
+            margin: 0 auto;
+            flex-shrink: 0;
+        }
+        .ft-connector {
+            width: 100%;
+            height: 24px;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .ft-connector.ft-single {
+            width: 1px;
+            height: 24px;
+            background: rgba(148, 163, 184, 0.45);
+            margin: 0 auto;
+        }
+        .ft-connector.ft-first {
+            position: relative;
+        }
+        .ft-connector.ft-first::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
+            border-left: 1px solid rgba(148, 163, 184, 0.45);
+            border-top-left-radius: 8px;
+        }
+        .ft-connector.ft-last {
+            position: relative;
+        }
+        .ft-connector.ft-last::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 50%;
+            top: 0;
+            bottom: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
+            border-right: 1px solid rgba(148, 163, 184, 0.45);
+            border-top-right-radius: 8px;
+        }
+        .ft-connector.ft-mid {
+            position: relative;
+        }
+        .ft-connector.ft-mid::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            border-top: 1px solid rgba(148, 163, 184, 0.45);
+        }
+        .ft-connector.ft-mid::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: rgba(148, 163, 184, 0.45);
+        }
+
+        /* Floating Canvas Controls Overlay */
+        .ft-controls-panel {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 50;
+        }
+
+        .ft-ctrl-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .ft-ctrl-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: rgba(56, 189, 248, 0.4);
+            color: #fff;
+        }
+
+        .ft-zoom-badge {
+            font-size: 12px;
+            font-weight: 700;
+            color: #38bdf8;
+            padding: 0 10px;
+            min-width: 54px;
+            text-align: center;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        .ft-zoom-badge:hover {
+            text-decoration: underline;
+        }
+
+        /* Floating Helper Hint */
+        .ft-helper-pill {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 12px;
+            color: #94a3b8;
+            backdrop-filter: blur(12px);
+            z-index: 50;
+            pointer-events: none;
+        }
+        .ft-helper-pill b {
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="guide-header">
+        <div class="guide-header-left">
+            <a href="/" class="guide-back-btn" title="Bosh sahifa (Viewer)ga qaytish">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                <span>Bosh sahifaga qaytish</span>
+            </a>
+            <div class="guide-title-box">
+                <div class="guide-icon-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;"><path d="M12 6V2M12 22v-4M2 12h4M18 12h4"/><circle cx="12" cy="4" r="2"/><circle cx="12" cy="20" r="2"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>
+                </div>
+                <div>
+                    <h1 class="guide-title">
+                        <span>Tizimlar va Rollar Daraxti</span>
+                        <span class="guide-pill">Interaktiv</span>
+                    </h1>
+                </div>
+            </div>
+        </div>
+
+        <div class="guide-header-actions">
+            <button type="button" class="btn-action-guide" id="btnToggleHints" onclick="toggleTreeHints()" title="Hint va izoh to'rtburchaklarini ko'rsatish yoki yashirish">
+                <span>💡 Hintlar: ON</span>
+            </button>
+            <button type="button" class="btn-action-guide" onclick="centerTree()" title="Daraxtni markazga olish">
+                <span>🎯 Markazga olish</span>
+            </button>
+            <button type="button" class="btn-action-guide" onclick="resetFocusTree()" title="Barcha ochilgan rollarni yopish">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Barchasini yopish</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Infinite Viewport -->
+    <div class="ft-viewport" id="treeViewport">
+        <!-- Transformable Layer -->
+        <div class="ft-transform-layer" id="transformLayer">
+            <div class="ft-branch" id="focusTreeCanvas">
+                <div style="text-align: center; color: #94a3b8; padding: 40px; font-size: 15px;">Daraxt yuklanmoqda...</div>
+            </div>
+        </div>
+
+        <!-- Floating Controls Panel -->
+        <div class="ft-controls-panel">
+            <button type="button" class="ft-ctrl-btn" onclick="zoomIn()" title="Kattalashtirish (Zoom In)">+</button>
+            <button type="button" class="ft-ctrl-btn" onclick="zoomOut()" title="Kichraytirish (Zoom Out)">−</button>
+            <span class="ft-zoom-badge" id="zoomBadge" onclick="resetZoom()" title="100% ga qaytarish">100%</span>
+            <button type="button" class="ft-ctrl-btn" onclick="centerTree()" title="Markazga keltirish (Fit to View)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            </button>
+        </div>
+
+        <!-- Helper Hint -->
+        <div class="ft-helper-pill">
+            <span>🖱️ <b>Sichqoncha g'ildiragi:</b> Zoom</span>
+            <span>🖐️ <b>Drag (tortish):</b> Siljitish</span>
+            <span>👆 <b>Tugmalar:</b> Rollarni ochish</span>
+        </div>
+    </div>
+
+    <!-- Script logic for Focus Tree + Mouse Wheel Zoom & Pan Engine -->
+    <script>
+        // State
+        let focusTreeData = null;
+        const focusTreeState = {};
+
+        // Canvas Zoom & Pan State
+        let scale = 1.0;
+        let panX = 0;
+        let panY = 40;
+        let isDragging = false;
+        let startDragX = 0;
+        let startDragY = 0;
+        let hasMoved = false;
+
+        const viewport = document.getElementById('treeViewport');
+        const transformLayer = document.getElementById('transformLayer');
+        const zoomBadge = document.getElementById('zoomBadge');
+
+        function updateTransform(animated = false) {
+            if (animated) {
+                transformLayer.style.transition = 'transform 0.25s cubic-bezier(0.2, 0, 0, 1)';
+                setTimeout(() => { transformLayer.style.transition = 'none'; }, 260);
+            } else {
+                transformLayer.style.transition = 'none';
+            }
+            const rx = Math.round(panX * 10) / 10;
+            const ry = Math.round(panY * 10) / 10;
+            const rs = Math.round(scale * 1000) / 1000;
+            transformLayer.style.transform = `translate3d(${rx}px, ${ry}px, 0) scale(${rs})`;
+            if (zoomBadge) {
+                zoomBadge.textContent = Math.round(scale * 100) + '%';
+            }
+        }
+
+        function zoomIn() {
+            setZoomAtCenter(scale * 1.2);
+        }
+
+        function zoomOut() {
+            setZoomAtCenter(scale / 1.2);
+        }
+
+        function resetZoom() {
+            scale = 1.0;
+            centerTree();
+        }
+
+        function setZoomAtCenter(newScale) {
+            newScale = Math.min(Math.max(newScale, 0.25), 3.0);
+            const rect = viewport.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            panX = centerX - (centerX - panX) * (newScale / scale);
+            panY = centerY - (centerY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform(true);
+        }
+
+        function centerTree() {
+            const rect = viewport.getBoundingClientRect();
+            const treeW = transformLayer.offsetWidth || 1000;
+            scale = 1.0;
+            panX = (rect.width - treeW) / 2;
+            panY = 60;
+            updateTransform(true);
+        }
+
+        // Mouse Wheel Zoom
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = viewport.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const zoomDelta = e.deltaY < 0 ? 1.12 : 0.89;
+            const newScale = Math.min(Math.max(scale * zoomDelta, 0.25), 3.0);
+
+            // Zoom right at cursor position
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+
+            updateTransform(false);
+        }, { passive: false });
+
+        // Pan Drag Handlers
+        viewport.addEventListener('mousedown', (e) => {
+            // Agar karta yoki tugmaga bosilgan bo'lsa sudrashni boshlamaymiz
+            if (e.target.closest('button') || e.target.closest('.ft-card') || e.target.closest('.ft-controls-panel')) {
+                return;
+            }
+            isDragging = true;
+            hasMoved = false;
+            startDragX = e.clientX - panX;
+            startDragY = e.clientY - panY;
+            viewport.classList.add('is-dragging');
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const newPanX = e.clientX - startDragX;
+            const newPanY = e.clientY - startDragY;
+            if (Math.abs(newPanX - panX) > 2 || Math.abs(newPanY - panY) > 2) {
+                hasMoved = true;
+            }
+            panX = newPanX;
+            panY = newPanY;
+            updateTransform(false);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                viewport.classList.remove('is-dragging');
+            }
+        });
+
+        // Touch Pinch & Pan Support
+        let initialDistance = 0;
+        let initialScale = 1.0;
+
+        viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                initialDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                initialScale = scale;
+            } else if (e.touches.length === 1) {
+                if (e.target.closest('button') || e.target.closest('.ft-card') || e.target.closest('.ft-controls-panel')) {
+                    return;
+                }
+                isDragging = true;
+                startDragX = e.touches[0].clientX - panX;
+                startDragY = e.touches[0].clientY - panY;
+            }
+        });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && initialDistance > 0) {
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const newScale = Math.min(Math.max(initialScale * (dist / initialDistance), 0.25), 3.0);
+                scale = newScale;
+                updateTransform(false);
+            } else if (e.touches.length === 1 && isDragging) {
+                panX = e.touches[0].clientX - startDragX;
+                panY = e.touches[0].clientY - startDragY;
+                updateTransform(false);
+            }
+        }, { passive: false });
+
+        viewport.addEventListener('touchend', () => {
+            isDragging = false;
+            initialDistance = 0;
+        });
+
+        // Focus Tree Engine
+        async function initFocusTree() {
+            const container = document.getElementById('focusTreeCanvas');
+            if (!container) return;
+            if (!focusTreeData) {
+                try {
+                    const res = await fetch('/data/tree.json?v=' + Date.now());
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    focusTreeData = await res.json();
+                } catch (err) {
+                    console.warn('[FocusTree] Failed to load /data/tree.json:', err);
+                    focusTreeData = [
+                        {
+                            id: 'edo',
+                            title: 'EDO',
+                            children: [
+                                {
+                                    id: 'edo-kirish',
+                                    title: 'Kirish',
+                                    children: [
+                                        { id: 'kirish-oneid', title: 'OneID', url: 'https://id.egov.uz/' },
+                                        { id: 'kirish-uzcrypto', title: 'UzCrypto', url: 'https://edo.ijro.uz/' }
+                                    ]
+                                },
+                                {
+                                    id: 'edo-rollar',
+                                    title: 'Rollar',
+                                    children: [
+                                        {
+                                            id: 'edo-tizim-rollari',
+                                            title: 'Tizim rollari',
+                                            children: [
+                                                { id: 'tr-nazoratchi-asosiy', title: 'Nazoratchi asosiy' },
+                                                { id: 'tr-nazoratchi-murojaatlar', title: 'Nazoratchi murojaatlar' },
+                                                { id: 'tr-nazoratchi-ichki-hujjatlar', title: 'Nazoratchi ichki hujjatlar' },
+                                                { id: 'tr-devonxona-asosiy', title: 'Devonxona asosiy' },
+                                                { id: 'tr-devonxona-murojaatlar', title: 'Devonxona murojaatlar' },
+                                                { id: 'tr-devonxona-ichki-hujjatlar', title: 'Devonxona ichki hujjatlar' },
+                                                { id: 'tr-sektor-fishka', title: 'Sektor fishka' }
+                                            ]
+                                        },
+                                        {
+                                            id: 'edo-mf-ijro-rollari',
+                                            title: 'MF.IJRO.UZ rollari',
+                                            children: [
+                                                { id: 'mf-xdfu-print', title: 'XDFU-PRINT' },
+                                                { id: 'mf-admin-organizatsii', title: 'Admin organizatsii' },
+                                                { id: 'mf-devonxona', title: 'Devonxona' },
+                                                { id: 'mf-nazoratchi', title: 'Nazoratchi' },
+                                                { id: 'mf-murojaat-nazoratchisi', title: 'Murojaat nazoratchisi' },
+                                                { id: 'mf-kadrlar-bolimi', title: "Kadrlar bo'limi" },
+                                                { id: 'mf-oddiy-foydalanuvchi', title: 'Oddiy foydalanuvchi' },
+                                                { id: 'mf-rahbar', title: 'Rahbar' },
+                                                { id: 'mf-ustxat', title: 'Ustxat' },
+                                                { id: 'mf-super-nazoratchi', title: 'Super nazoratchi' }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    id: 'edo-xdfu',
+                                    title: 'XDFU'
+                                }
+                            ]
+                        },
+                        {
+                            id: 'e-huquqshunos',
+                            title: 'E-huquqshunos',
+                            children: [
+                                {
+                                    id: 'eh-rollar',
+                                    title: 'Rollar',
+                                    children: [
+                                        { id: 'eh-rol-1', title: 'Rol 1' },
+                                        { id: 'eh-rol-2', title: 'Rol 2' }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: 'mahalla',
+                            title: 'Mahalla'
+                        }
+                    ];
+                }
+            }
+            renderFocusTreeDom();
+            centerTree();
+        }
+
+        function renderFocusTreeBranch(nodes, parentId, depth) {
+            if (!nodes || !nodes.length) return '';
+            const depthClass = depth === 0 ? 'ft-depth-0' : (depth === 1 ? 'ft-depth-1' : 'ft-depth-2');
+            const isSingle = nodes.length === 1;
+
+            const cols = nodes.map((node, idx) => {
+                const hasChildren = Boolean(node.children && node.children.length);
+                let connClass = 'ft-connector';
+                if (isSingle) connClass += ' ft-single';
+                else if (idx === 0) connClass += ' ft-first';
+                else if (idx === nodes.length - 1) connClass += ' ft-last';
+                else connClass += ' ft-mid';
+
+                const connectorHtml = depth > 0 ? `<div class="${connClass}"></div>` : '';
+                const isLink = !hasChildren && Boolean(node.url);
+                const btnTag = hasChildren ? 'button' : (isLink ? 'a' : 'div');
+                const btnAttrs = hasChildren 
+                    ? `type="button" onclick="handleFocusTreeClick('${parentId}', '${node.id}', event)" aria-expanded="false"` 
+                    : (isLink ? `href="${node.url}" target="_blank" rel="noopener noreferrer" style="text-decoration: none;" title="Tizimni yangi oynada ochish"` : '');
+                const badgeHtml = hasChildren ? `<span class="ft-badge" id="badge-${node.id}">+</span>` : '';
+                const iconExternal = isLink ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-left:6px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>` : '';
+
+                const subTreeHtml = hasChildren ? `
+                    <div class="ft-subtree" id="subtree-${node.id}">
+                        <div class="ft-stem"></div>
+                        ${renderFocusTreeBranch(node.children, node.id, depth + 1)}
+                    </div>
+                ` : '';
+
+                const hintHtml = (node.hint || node.message) ? `
+                    <div class="ft-hint-card" id="hint-${node.id}">
+                        <div class="ft-hint-badge">💡 Hint / Izoh</div>
+                        <div class="ft-hint-text">${node.hint || node.message}</div>
+                    </div>
+                ` : '';
+
+                return `
+                    <div class="ft-col" id="col-${node.id}" data-parent-id="${parentId}" data-node-id="${node.id}">
+                        ${connectorHtml}
+                        <div class="ft-node-anchor">
+                            <${btnTag} class="ft-card ${depthClass} ${hasChildren ? '' : (isLink ? 'ft-link' : 'ft-leaf')}" id="card-${node.id}" ${btnAttrs}>
+                                <span>${node.title}</span>
+                                ${iconExternal}
+                                ${badgeHtml}
+                            </${btnTag}>
+                            ${hintHtml}
+                        </div>
+                        ${subTreeHtml}
+                    </div>
+                `;
+            }).join('');
+
+            return `<div class="ft-branch"><div class="ft-row">${cols}</div></div>`;
+        }
+
+        function renderFocusTreeDom() {
+            const container = document.getElementById('focusTreeCanvas');
+            if (!container || !focusTreeData) return;
+            container.innerHTML = renderFocusTreeBranch(focusTreeData, 'root', 0);
+            applyFocusTreeState();
+        }
+
+        function handleFocusTreeClick(parentId, nodeId, evt) {
+            if (evt) {
+                evt.stopPropagation();
+            }
+            const currentOpen = focusTreeState[parentId] || null;
+            if (currentOpen === nodeId) {
+                focusTreeState[parentId] = null;
+                resetDescendants(nodeId);
+            } else {
+                if (currentOpen) resetDescendants(currentOpen);
+                focusTreeState[parentId] = nodeId;
+            }
+            applyFocusTreeState();
+        }
+
+        function resetFocusTree() {
+            Object.keys(focusTreeState).forEach(k => delete focusTreeState[k]);
+            applyFocusTreeState();
+        }
+
+        function resetDescendants(rootId) {
+            const sub = document.getElementById(`subtree-${rootId}`);
+            if (!sub) return;
+            const cols = sub.querySelectorAll('.ft-col');
+            cols.forEach(col => {
+                const p = col.getAttribute('data-parent-id');
+                if (p) delete focusTreeState[p];
+            });
+        }
+
+        function applyFocusTreeState() {
+            const cols = document.querySelectorAll('.ft-col');
+            cols.forEach(col => {
+                const parentId = col.getAttribute('data-parent-id');
+                const nodeId = col.getAttribute('data-node-id');
+                const openId = focusTreeState[parentId] || null;
+
+                const card = document.getElementById(`card-${nodeId}`);
+                const subtree = document.getElementById(`subtree-${nodeId}`);
+                const badge = document.getElementById(`badge-${nodeId}`);
+
+                if (openId === null) {
+                    col.classList.remove('is-collapsed');
+                    if (card) {
+                        card.classList.remove('is-open');
+                        card.setAttribute('aria-expanded', 'false');
+                    }
+                    if (subtree) subtree.classList.remove('is-open');
+                    if (badge) badge.textContent = '+';
+                } else if (openId === nodeId) {
+                    col.classList.remove('is-collapsed');
+                    if (card) {
+                        card.classList.add('is-open');
+                        card.setAttribute('aria-expanded', 'true');
+                    }
+                    if (subtree) subtree.classList.add('is-open');
+                    if (badge) badge.textContent = '−';
+                } else {
+                    col.classList.add('is-collapsed');
+                    if (card) {
+                        card.classList.remove('is-open');
+                        card.setAttribute('aria-expanded', 'false');
+                    }
+                    if (subtree) subtree.classList.remove('is-open');
+                    if (badge) badge.textContent = '+';
+                }
+            });
+        }
+
+        let hintsVisible = true;
+        function toggleTreeHints() {
+            hintsVisible = !hintsVisible;
+            document.body.classList.toggle('hide-hints', !hintsVisible);
+            const btn = document.getElementById('btnToggleHints');
+            if (btn) {
+                btn.innerHTML = `<span>💡 Hintlar: ${hintsVisible ? 'ON' : 'OFF'}</span>`;
+            }
+        }
+        window.toggleTreeHints = toggleTreeHints;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initFocusTree();
+        });
+        window.addEventListener('resize', () => {
+            // resize handler
+        });
+    </script>
+
+    <!-- Visual AI Inspector (Lovable / v0 Click-to-Prompt) -->
+    <script src="/js/visualInspector.js?v=1794562500000" defer></script>
+</body>
+</html>
