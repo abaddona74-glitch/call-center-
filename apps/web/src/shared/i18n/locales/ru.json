@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки" },
+  "nav": { "dashboard": "Главная", "settings": "Настройки", "explorer": "Аудио записи", "tickets": "Тикеты" },
   "auth": {
     "username": "Логин",
     "password": "Пароль",
