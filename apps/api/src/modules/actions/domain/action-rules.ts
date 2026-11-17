@@ -24,7 +24,8 @@ export function resolveExtension(actor: Actor, requested: string | undefined, op
     return { ok: true, value: ext };
   }
   if (!actor.extension) return deny('Your account has no extension');
-  if (requested !== undefined && requested !== actor.extension) return deny('Operators may act only on their own extension');
+  if (requested !== undefined && requested !== actor.extension)
+    return deny('Operators may act only on their own extension');
   return { ok: true, value: actor.extension };
 }
 
@@ -38,7 +39,11 @@ export function canControlCall(actor: Actor, call: { extension: string | null })
  * Click-to-call target. Internal: an operator extension. External: normalized to the national
  * 9-digit form and matched against the allow-list (no international, no premium/short numbers).
  */
-export function resolveDialTarget(raw: string, allowed: RegExp[], operatorExt: RegExp): Decision<{ dial: string; phone: string | null }> {
+export function resolveDialTarget(
+  raw: string,
+  allowed: RegExp[],
+  operatorExt: RegExp,
+): Decision<{ dial: string; phone: string | null }> {
   const digits = digitsOnly(raw);
   if (operatorExt.test(digits) && digits === raw.trim()) return { ok: true, value: { dial: digits, phone: null } };
   const trimmed = raw.trim();

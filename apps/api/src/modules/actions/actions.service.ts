@@ -6,12 +6,25 @@ import type {
   TelephonyActionResult,
   TransferCallRequest,
 } from '@cc/shared';
-import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AppConfig } from '../../config/app-config.js';
 import { AmiService } from '../ami/ami.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { LiveService } from '../live/live.service.js';
-import { type Decision, canControlCall, resolveDialTarget, resolveExtension, validateTransferTarget } from './domain/action-rules.js';
+import {
+  type Decision,
+  canControlCall,
+  resolveDialTarget,
+  resolveExtension,
+  validateTransferTarget,
+} from './domain/action-rules.js';
 
 /**
  * Telephony actions through AMI only (no SSH / CLI): pause (QueuePause), transfer (Redirect),
@@ -65,10 +78,15 @@ export class ActionsService {
     const ctl = this.controlledCall(user, req.callId);
     const channel = ctl.partyChannel ?? ctl.operatorChannel;
     if (!channel) throw new ConflictException('This call has no channel to hang up');
-    await this.audited('telephony.hangup', `call:${req.callId}`, { extension: ctl.call.extension, phone: ctl.call.phone }, async () => {
-      this.live.store.markStaffHangup(channel, Date.now());
-      await this.ami.hangup(channel);
-    });
+    await this.audited(
+      'telephony.hangup',
+      `call:${req.callId}`,
+      { extension: ctl.call.extension, phone: ctl.call.phone },
+      async () => {
+        this.live.store.markStaffHangup(channel, Date.now());
+        await this.ami.hangup(channel);
+      },
+    );
     return { ok: true };
   }
 
@@ -78,7 +96,8 @@ export class ActionsService {
     if (target.dial === from) throw new BadRequestException('Cannot call your own extension');
     const op = this.live.operator(from);
     if (op && op.presence === 'offline') throw new ConflictException(`Extension ${from} is offline`);
-    if (op && (op.presence === 'talking' || op.presence === 'ringing')) throw new ConflictException(`Extension ${from} is busy`);
+    if (op && (op.presence === 'talking' || op.presence === 'ringing'))
+      throw new ConflictException(`Extension ${from} is busy`);
     await this.audited('telephony.originate', `extension:${from}`, { to: target.dial }, async () => {
       if (target.phone) this.live.store.expectOriginate(from, target.phone, Date.now());
       await this.ami.originate({
@@ -101,7 +120,12 @@ export class ActionsService {
     return ctl;
   }
 
-  private async audited(action: string, target: string, details: Record<string, unknown>, run: () => Promise<void>): Promise<void> {
+  private async audited(
+    action: string,
+    target: string,
+    details: Record<string, unknown>,
+    run: () => Promise<void>,
+  ): Promise<void> {
     try {
       await run();
     } catch (err) {

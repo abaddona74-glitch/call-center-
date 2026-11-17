@@ -143,15 +143,24 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     this.dirty.clear();
     if (sections.has('operators')) {
       const list = projectOperators(this.store, now);
-      this.realtime.broadcastEach('telephony.operators', memo((v) => operatorsFor(v, list)));
+      this.realtime.broadcastEach(
+        'telephony.operators',
+        memo((v) => operatorsFor(v, list)),
+      );
     }
     if (sections.has('calls')) {
       const list = projectCalls(this.store, now);
-      this.realtime.broadcastEach('telephony.calls', memo((v) => callsFor(v, list)));
+      this.realtime.broadcastEach(
+        'telephony.calls',
+        memo((v) => callsFor(v, list)),
+      );
     }
     if (sections.has('queues')) {
       const list: LiveQueue[] = projectQueues(this.store);
-      this.realtime.broadcastEach('telephony.queues', memo((v) => queuesFor(v, list)));
+      this.realtime.broadcastEach(
+        'telephony.queues',
+        memo((v) => queuesFor(v, list)),
+      );
     }
     if (sections.has('counters')) {
       this.realtime.broadcast('telephony.counters', projectCounters(this.store), { minRole: 'admin' });

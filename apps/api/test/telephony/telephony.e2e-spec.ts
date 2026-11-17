@@ -180,7 +180,9 @@ describe('live snapshot', () => {
 
   it('builds the board from the AMI resync on connect', async () => {
     const res = await as('admin').get('/api/live/snapshot').expect(200);
-    const ops = Object.fromEntries(res.body.operators.map((o: { extension: string; presence: string }) => [o.extension, o.presence]));
+    const ops = Object.fromEntries(
+      res.body.operators.map((o: { extension: string; presence: string }) => [o.extension, o.presence]),
+    );
     expect(ops).toMatchObject({ '101': 'idle', '103': 'idle', '119': 'paused', '120': 'offline', '201': 'offline' });
     expect(res.body.queues.map((q: { name: string }) => q.name)).toEqual(['2020142', '2020159']);
     expect(res.body.counters).toMatchObject({ inbound: 0, answered: 0 });
@@ -232,7 +234,12 @@ describe('a live queue call', () => {
 
   it('the operator on the call transfers it with AMI Redirect of the citizen leg (audited)', async () => {
     await as('op101').post('/api/telephony/transfer', { callId, target: '106' }).expect(200, { ok: true });
-    expect(ami.lastAction('Redirect')).toMatchObject({ channel: 'SIP/712020159-00000020', exten: '106', context: 'from-internal', priority: '1' });
+    expect(ami.lastAction('Redirect')).toMatchObject({
+      channel: 'SIP/712020159-00000020',
+      exten: '106',
+      context: 'from-internal',
+      priority: '1',
+    });
     const rows = await audit('telephony.transfer');
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ actorLabel: 'op101', target: `call:${callId}` });
@@ -246,7 +253,12 @@ describe('a live queue call', () => {
 
     replay('queue-answered-client-hangup', cursor);
     await eventually(() => expect(ended.filter((e) => e.callId === callId)).toHaveLength(1));
-    expect(ended.find((e) => e.callId === callId)).toMatchObject({ answered: true, extension: '101', phone: '901234567', hangupParty: 'operator' });
+    expect(ended.find((e) => e.callId === callId)).toMatchObject({
+      answered: true,
+      extension: '101',
+      phone: '901234567',
+      hangupParty: 'operator',
+    });
     const res = await as('admin').get('/api/live/snapshot').expect(200);
     expect(res.body.calls).toEqual([]);
     expect(res.body.counters).toMatchObject({ inbound: 1, answered: 1, operatorHangups: 1 });
@@ -256,7 +268,11 @@ describe('a live queue call', () => {
 describe('pause / unpause', () => {
   it('operators pause themselves through AMI QueuePause (no SSH)', async () => {
     await as('op101').post('/api/telephony/pause', { paused: true, reason: 'Tushlik' }).expect(200);
-    expect(ami.lastAction('QueuePause')).toMatchObject({ interface: 'Local/101@from-queue/n', paused: 'true', reason: 'Tushlik' });
+    expect(ami.lastAction('QueuePause')).toMatchObject({
+      interface: 'Local/101@from-queue/n',
+      paused: 'true',
+      reason: 'Tushlik',
+    });
     expect((await audit('telephony.pause'))[0]).toMatchObject({ actorLabel: 'op101', target: 'extension:101' });
   });
 
@@ -282,7 +298,12 @@ describe('pause / unpause', () => {
 describe('click-to-call', () => {
   it('rings the operator’s own phone first (async Originate)', async () => {
     await as('op101').post('/api/telephony/originate', { to: '+998 (90) 765-43-21' }).expect(200);
-    expect(ami.lastAction('Originate')).toMatchObject({ channel: 'SIP/101', exten: '907654321', context: 'from-internal', async: 'true' });
+    expect(ami.lastAction('Originate')).toMatchObject({
+      channel: 'SIP/101',
+      exten: '907654321',
+      context: 'from-internal',
+      async: 'true',
+    });
     expect((await audit('telephony.originate'))[0]).toMatchObject({ actorLabel: 'op101', target: 'extension:101' });
   });
 
@@ -303,14 +324,18 @@ describe('websocket', () => {
 
     replay('outbound-answered', 0, (e) => e.Event === 'HangupRequest');
     const calls = await eventually(() => {
-      const last = frames.filter((f) => f.type === 'telephony.calls').at(-1)?.data as Array<{ phone: string; state: string }> | undefined;
+      const last = frames.filter((f) => f.type === 'telephony.calls').at(-1)?.data as
+        Array<{ phone: string; state: string }> | undefined;
       expect(last?.[0]?.state).toBe('talking');
       return last;
     });
     expect(calls![0].phone).toBe('991234567'); // operator 103's own outbound call: full number
     ws.close();
     expect(frames.some((f) => f.type === 'telephony.counters')).toBe(false);
-    replay('outbound-answered', fixture('outbound-answered').events.findIndex((x) => x.e.Event === 'HangupRequest'));
+    replay(
+      'outbound-answered',
+      fixture('outbound-answered').events.findIndex((x) => x.e.Event === 'HangupRequest'),
+    );
   });
 });
 

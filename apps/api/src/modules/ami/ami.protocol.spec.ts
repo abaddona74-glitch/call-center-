@@ -3,9 +3,9 @@ import { AmiHeaderInjectionError, AmiParser, parseAmiDuration, serializeAction }
 
 describe('serializeAction', () => {
   it('writes headers in order and ends with a blank line', () => {
-    expect(serializeAction('QueuePause', '7', { Interface: 'Local/101@from-queue/n', Paused: true, Queue: undefined })).toBe(
-      'Action: QueuePause\r\nActionID: 7\r\nInterface: Local/101@from-queue/n\r\nPaused: true\r\n\r\n',
-    );
+    expect(
+      serializeAction('QueuePause', '7', { Interface: 'Local/101@from-queue/n', Paused: true, Queue: undefined }),
+    ).toBe('Action: QueuePause\r\nActionID: 7\r\nInterface: Local/101@from-queue/n\r\nPaused: true\r\n\r\n');
   });
 
   it.each([
@@ -28,7 +28,9 @@ describe('AmiParser', () => {
     const p = new AmiParser();
     expect(p.push('Asterisk Call Manager/2.10.6\r\nResponse: Succ')).toEqual([]);
     expect(p.banner).toBe('Asterisk Call Manager/2.10.6');
-    const out = p.push('ess\r\nActionID: 1\r\nMessage: Authentication accepted\r\n\r\nEvent: FullyBooted\r\nStatus: Fully Booted\r\n\r\n');
+    const out = p.push(
+      'ess\r\nActionID: 1\r\nMessage: Authentication accepted\r\n\r\nEvent: FullyBooted\r\nStatus: Fully Booted\r\n\r\n',
+    );
     expect(out).toEqual([
       { response: 'Success', actionid: '1', message: 'Authentication accepted' },
       { event: 'FullyBooted', status: 'Fully Booted' },

@@ -296,7 +296,10 @@ export class AmiClient extends EventEmitter<ClientEvents> {
       ? this.o.authFailedRetryMs
       : Math.min(this.o.reconnectMaxMs, this.o.reconnectMinMs * 2 ** this.attempt++);
     const delay = Math.round(base * (0.8 + Math.random() * 0.4));
-    this.log(authFailed ? 'error' : 'warn', `AMI ${authFailed ? 'login failed' : 'disconnected'}; retry in ${delay} ms`);
+    this.log(
+      authFailed ? 'error' : 'warn',
+      `AMI ${authFailed ? 'login failed' : 'disconnected'}; retry in ${delay} ms`,
+    );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.connect();

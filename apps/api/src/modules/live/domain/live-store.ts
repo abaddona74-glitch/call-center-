@@ -314,11 +314,10 @@ export class LiveStore {
         seenWaiting.set(q.name, set);
         const ch =
           this.channels.get(e.uniqueid) ??
-          this.addChannel(
-            { ...e, linkedid: e.linkedid || e.uniqueid, channelstate: '6' },
-            now,
-            { createdAt: now - toInt(e.wait) * 1000, partial: true },
-          );
+          this.addChannel({ ...e, linkedid: e.linkedid || e.uniqueid, channelstate: '6' }, now, {
+            createdAt: now - toInt(e.wait) * 1000,
+            partial: true,
+          });
         const call = this.calls.get(ch.callId);
         if (!call) continue;
         call.queue = q.name;
@@ -452,7 +451,9 @@ export class LiveStore {
     if (dest.kind === 'external') {
       // An operator dialing out through a trunk.
       if (caller?.kind === 'operator' || call.originExt) {
-        const dialed = phoneFromDialString(e.dialstring, this.config.operatorExtension) ?? phoneOf(e.destexten, this.config.operatorExtension);
+        const dialed =
+          phoneFromDialString(e.dialstring, this.config.operatorExtension) ??
+          phoneOf(e.destexten, this.config.operatorExtension);
         if (dialed && !call.phone) call.phone = dialed;
         call.partyUniqueid ??= dest.uniqueid;
         this.markOutbound(call, now);
@@ -497,7 +498,14 @@ export class LiveStore {
     }
     call.ringing.delete(ext);
     if (dest.kind === 'operator' && call.direction === 'inbound') {
-      const reason = status === 'NOANSWER' ? 'no_answer' : status === 'BUSY' ? 'rejected' : status === 'CHANUNAVAIL' || status === 'CONGESTION' ? 'unavailable' : null;
+      const reason =
+        status === 'NOANSWER'
+          ? 'no_answer'
+          : status === 'BUSY'
+            ? 'rejected'
+            : status === 'CHANUNAVAIL' || status === 'CONGESTION'
+              ? 'unavailable'
+              : null;
       // CANCEL = the caller left or the queue stopped ringing this member (AgentRingNoAnswer covers queue timeouts).
       if (reason) this.recordMissed(call, ext, reason, now);
     }
@@ -558,10 +566,13 @@ export class LiveStore {
         if (call.handledExts.includes(ext) && ch.answeredAt !== null && call.answeredAt !== null) {
           const from = Math.max(ch.answeredAt, call.answeredAt);
           const op = this.operators.get(ext);
-          if (op && call.countedDay === this.counters.date) op.today.talkSeconds += Math.max(0, Math.round((now - from) / 1000));
+          if (op && call.countedDay === this.counters.date)
+            op.today.talkSeconds += Math.max(0, Math.round((now - from) / 1000));
         }
         if (call.talkingExt === ext && call.direction !== 'outbound') call.talkingExt = null;
-        const stillHasLeg = [...call.channels].some((u) => this.channels.get(u)?.ext === ext && this.channels.get(u)?.kind === 'operator');
+        const stillHasLeg = [...call.channels].some(
+          (u) => this.channels.get(u)?.ext === ext && this.channels.get(u)?.kind === 'operator',
+        );
         if (!stillHasLeg) call.ringing.delete(ext);
       }
       if (call.channels.size === 0) this.endCall(call, now);
@@ -630,7 +641,13 @@ export class LiveStore {
       .find((c) => c?.ext === ext && c.kind === 'operator' && c.dialStatus)?.dialStatus;
     const ringMs = toInt(e.ringtime);
     const reason =
-      status === 'BUSY' ? (ringMs < 1000 ? 'busy' : 'rejected') : status === 'CHANUNAVAIL' || status === 'CONGESTION' ? 'unavailable' : 'no_answer';
+      status === 'BUSY'
+        ? ringMs < 1000
+          ? 'busy'
+          : 'rejected'
+        : status === 'CHANUNAVAIL' || status === 'CONGESTION'
+          ? 'unavailable'
+          : 'no_answer';
     this.recordMissed(call, ext, reason, now);
     this.changed.add('calls');
     this.changed.add('operators');
@@ -741,7 +758,10 @@ export class LiveStore {
     if (!call) return;
     if (orig?.ext && !call.transferred) this.countTransferOut(orig.ext);
     call.transferred = true;
-    if (call.partyExit && (call.partyExit.uniqueid === orig?.uniqueid || call.partyExit.uniqueid === second?.uniqueid)) {
+    if (
+      call.partyExit &&
+      (call.partyExit.uniqueid === orig?.uniqueid || call.partyExit.uniqueid === second?.uniqueid)
+    ) {
       call.partyExit = null;
     }
     // The consulted operator's leg lives in the consultation call; it now talks to the citizen.
@@ -789,7 +809,8 @@ export class LiveStore {
     } else if (ch.kind === 'external' && !call.partyUniqueid && (call.originExt || !call.directionKnown)) {
       // A trunk leg joined an operator-originated call: it is an outbound call.
       call.partyUniqueid = ch.uniqueid;
-      call.phone ??= phoneOf(e.exten, this.config.operatorExtension) ?? phoneOf(e.connectedlinenum, this.config.operatorExtension);
+      call.phone ??=
+        phoneOf(e.exten, this.config.operatorExtension) ?? phoneOf(e.connectedlinenum, this.config.operatorExtension);
       this.markOutbound(call, now);
     }
     call.channels.add(ch.uniqueid);
@@ -962,7 +983,9 @@ export class LiveStore {
     }
     const answered = call.answeredAt !== null;
     const extension =
-      call.direction === 'outbound' ? call.originExt : (call.talkingExt ?? call.handledExts.at(-1) ?? (call.direction === 'internal' ? call.originExt : null));
+      call.direction === 'outbound'
+        ? call.originExt
+        : (call.talkingExt ?? call.handledExts.at(-1) ?? (call.direction === 'internal' ? call.originExt : null));
     const talkSeconds = answered ? Math.max(0, Math.round((now - (call.answeredAt ?? now)) / 1000)) : 0;
 
     let hangupParty: HangupParty = 'unknown';
@@ -970,7 +993,8 @@ export class LiveStore {
     else if (call.agentParty) hangupParty = call.agentParty;
     else if (call.partyExit) hangupParty = call.partyExit.party;
     else if (!answered && call.abandoned) hangupParty = 'client';
-    else if (!answered && call.direction === 'outbound' && call.outboundDialStatus === 'CANCEL') hangupParty = 'operator';
+    else if (!answered && call.direction === 'outbound' && call.outboundDialStatus === 'CANCEL')
+      hangupParty = 'operator';
 
     if (call.everQueued && !answered && !call.abandonEmitted) {
       const left = call.leftQueueAt ?? now;
@@ -999,7 +1023,13 @@ export class LiveStore {
     this.changed.add('calls');
     this.changed.add('queues');
     this.changed.add('operators');
-    this.emit(CallEvents.Ended, { ...this.base(call, now), extension: extension ?? null, answered, talkSeconds, hangupParty });
+    this.emit(CallEvents.Ended, {
+      ...this.base(call, now),
+      extension: extension ?? null,
+      answered,
+      talkSeconds,
+      hangupParty,
+    });
   }
 
   // =============================================================================================
@@ -1042,7 +1072,7 @@ export class LiveStore {
     if (!op) return;
     if (e.paused !== undefined) {
       const paused = e.paused === '1' || e.paused.toLowerCase() === 'true';
-      const reason = paused ? (e.pausedreason || e.reason || null) : null;
+      const reason = paused ? e.pausedreason || e.reason || null : null;
       if (op.paused !== paused || op.pauseReason !== reason) {
         op.paused = paused;
         op.pauseReason = reason;
@@ -1092,7 +1122,10 @@ export class LiveStore {
   }
 
   /** Presence precedence: talking > ringing > offline > paused > idle (one model, B54). */
-  presenceOf(op: OperatorRec, now: number): { presence: OperatorPresence; channel: ChannelRec | null; call: CallRec | null } {
+  presenceOf(
+    op: OperatorRec,
+    now: number,
+  ): { presence: OperatorPresence; channel: ChannelRec | null; call: CallRec | null } {
     let talking: { ch: ChannelRec; call: CallRec } | null = null;
     let ringing: { ch: ChannelRec | null; call: CallRec } | null = null;
     for (const ch of this.channels.values()) {
@@ -1102,7 +1135,9 @@ export class LiveStore {
       const connected =
         ch.state === 'up' &&
         call.answeredAt !== null &&
-        (call.talkingExt === op.ext || call.direction === 'internal' || (call.direction === 'outbound' && call.originExt === op.ext));
+        (call.talkingExt === op.ext ||
+          call.direction === 'internal' ||
+          (call.direction === 'outbound' && call.originExt === op.ext));
       if (connected) talking = { ch, call };
       else if (!ringing) ringing = { ch, call };
     }
@@ -1208,7 +1243,8 @@ export class LiveStore {
     if (day === this.counters.date) return;
     this.counters = this.emptyCounters(now);
     for (const op of this.operators.values()) op.today = emptyToday();
-    for (const [ext, exp] of this.expectedOriginates) if (now - exp.at > ORIGINATE_EXPECT_MS) this.expectedOriginates.delete(ext);
+    for (const [ext, exp] of this.expectedOriginates)
+      if (now - exp.at > ORIGINATE_EXPECT_MS) this.expectedOriginates.delete(ext);
     for (const [name, at] of this.staffHangups) if (now - at > ORIGINATE_EXPECT_MS) this.staffHangups.delete(name);
     this.changed.add('counters');
     this.changed.add('operators');
@@ -1228,6 +1264,8 @@ function durationMs(v: string | undefined): number {
 }
 
 function renumber(q: QueueRec): void {
-  const sorted = [...q.waiting.entries()].sort((a, b) => a[1].position - b[1].position || a[1].joinedAt - b[1].joinedAt);
+  const sorted = [...q.waiting.entries()].sort(
+    (a, b) => a[1].position - b[1].position || a[1].joinedAt - b[1].joinedAt,
+  );
   sorted.forEach(([, w], i) => (w.position = i + 1));
 }

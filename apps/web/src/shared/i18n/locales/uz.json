@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar" },
+  "nav": { "dashboard": "Bosh sahifa", "operators": "Operatorlar", "settings": "Sozlamalar" },
   "auth": {
     "username": "Login",
     "password": "Parol",

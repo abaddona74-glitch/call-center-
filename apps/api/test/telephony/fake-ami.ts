@@ -70,7 +70,11 @@ export class FakeAmi {
     if (action === 'login') {
       const ok = msg.username === this.opts.username && msg.secret === this.opts.secret;
       socket.loggedIn = ok;
-      return reply(ok ? { Response: 'Success', Message: 'Authentication accepted' } : { Response: 'Error', Message: 'Authentication failed' });
+      return reply(
+        ok
+          ? { Response: 'Success', Message: 'Authentication accepted' }
+          : { Response: 'Error', Message: 'Authentication failed' },
+      );
     }
     if (!socket.loggedIn) return reply({ Response: 'Error', Message: 'Permission denied' });
     if (action === 'ping') return reply({ Response: 'Success', Ping: 'Pong' });
@@ -86,8 +90,19 @@ export class FakeAmi {
       const items = list?.() ?? [];
       reply({ Response: 'Success', EventList: 'start', Message: 'Will follow' });
       for (const e of items) socket.write(serialize({ ...e, ActionID: id }));
-      const complete = { sippeers: 'PeerlistComplete', queuestatus: 'QueueStatusComplete', coreshowchannels: 'CoreShowChannelsComplete' }[action];
-      return socket.write(serialize({ Event: complete ?? 'Complete', ActionID: id, EventList: 'Complete', ListItems: String(items.length) }));
+      const complete = {
+        sippeers: 'PeerlistComplete',
+        queuestatus: 'QueueStatusComplete',
+        coreshowchannels: 'CoreShowChannelsComplete',
+      }[action];
+      return socket.write(
+        serialize({
+          Event: complete ?? 'Complete',
+          ActionID: id,
+          EventList: 'Complete',
+          ListItems: String(items.length),
+        }),
+      );
     }
     return reply({ Response: 'Success', Message: `${msg.action} ok` });
   }

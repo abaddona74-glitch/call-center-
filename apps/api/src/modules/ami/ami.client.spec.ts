@@ -14,7 +14,11 @@ function fakeAmi(handler: (msg: AmiMessage, reply: (lines: Record<string, string
     parser.push('banner\r\n');
     socket.write('Asterisk Call Manager/2.10.6\r\n');
     const reply = (fields: Record<string, string>) =>
-      socket.write(`${Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\n\r\n`);
+      socket.write(
+        `${Object.entries(fields)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('\r\n')}\r\n\r\n`,
+      );
     socket.on('data', (chunk: string) => {
       for (const msg of parser.push(chunk)) {
         if (msg.action === 'Login') {
@@ -110,8 +114,13 @@ describe('AmiClient', () => {
     });
     client.start();
     await waitFor(() => client.connected);
-    await expect(client.action('Hangup', { Channel: 'SIP/x' })).rejects.toMatchObject({ kind: 'rejected', message: 'No such channel' });
-    await expect(client.action('Hangup', { Channel: 'SIP/x\r\nAction: Command' })).rejects.toThrow(/forbidden character/);
+    await expect(client.action('Hangup', { Channel: 'SIP/x' })).rejects.toMatchObject({
+      kind: 'rejected',
+      message: 'No such channel',
+    });
+    await expect(client.action('Hangup', { Channel: 'SIP/x\r\nAction: Command' })).rejects.toThrow(
+      /forbidden character/,
+    );
   });
 
   it('reports auth_failed and does not spin', async () => {

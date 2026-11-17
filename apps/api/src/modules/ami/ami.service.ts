@@ -61,7 +61,8 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
       }
     });
     this.client.on('state', (state) => {
-      if (state === 'connected') this.logger.log(`AMI connected to ${config.get('AMI_HOST')}:${config.get('AMI_PORT')}`);
+      if (state === 'connected')
+        this.logger.log(`AMI connected to ${config.get('AMI_HOST')}:${config.get('AMI_PORT')}`);
       const status = this.status();
       for (const l of this.stateListeners) l(status);
     });
@@ -222,7 +223,11 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
 
   // --- internals ------------------------------------------------------------------------------
 
-  private async send(action: string, fields: Record<string, AmiFieldValue>, opts?: ActionOptions): Promise<AmiResponse> {
+  private async send(
+    action: string,
+    fields: Record<string, AmiFieldValue>,
+    opts?: ActionOptions,
+  ): Promise<AmiResponse> {
     if (!this.client) throw new ServiceUnavailableException('AMI is not configured');
     if (!this.client.connected) throw new ServiceUnavailableException('AMI is not connected');
     try {

@@ -25,7 +25,10 @@ export class ActionsController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @SerializeOptions({ schema: TelephonyActionResultSchema })
-  pause(@CurrentUser() user: SessionUser, @Body({ schema: PauseOperatorRequestSchema }) body: PauseOperatorRequest): Promise<TelephonyActionResult> {
+  pause(
+    @CurrentUser() user: SessionUser,
+    @Body({ schema: PauseOperatorRequestSchema }) body: PauseOperatorRequest,
+  ): Promise<TelephonyActionResult> {
     return this.actions.pause(user, body);
   }
 
@@ -33,7 +36,10 @@ export class ActionsController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @SerializeOptions({ schema: TelephonyActionResultSchema })
-  transfer(@CurrentUser() user: SessionUser, @Body({ schema: TransferCallRequestSchema }) body: TransferCallRequest): Promise<TelephonyActionResult> {
+  transfer(
+    @CurrentUser() user: SessionUser,
+    @Body({ schema: TransferCallRequestSchema }) body: TransferCallRequest,
+  ): Promise<TelephonyActionResult> {
     return this.actions.transfer(user, body);
   }
 
@@ -41,7 +47,10 @@ export class ActionsController {
   @HttpCode(200)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @SerializeOptions({ schema: TelephonyActionResultSchema })
-  hangup(@CurrentUser() user: SessionUser, @Body({ schema: HangupCallRequestSchema }) body: HangupCallRequest): Promise<TelephonyActionResult> {
+  hangup(
+    @CurrentUser() user: SessionUser,
+    @Body({ schema: HangupCallRequestSchema }) body: HangupCallRequest,
+  ): Promise<TelephonyActionResult> {
     return this.actions.hangup(user, body);
   }
 
@@ -49,7 +58,10 @@ export class ActionsController {
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: TelephonyActionResultSchema })
-  originate(@CurrentUser() user: SessionUser, @Body({ schema: OriginateCallRequestSchema }) body: OriginateCallRequest): Promise<TelephonyActionResult> {
+  originate(
+    @CurrentUser() user: SessionUser,
+    @Body({ schema: OriginateCallRequestSchema }) body: OriginateCallRequest,
+  ): Promise<TelephonyActionResult> {
     return this.actions.originate(user, body);
   }
 }

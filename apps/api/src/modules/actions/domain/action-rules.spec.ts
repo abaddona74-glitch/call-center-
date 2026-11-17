@@ -17,7 +17,10 @@ describe('resolveExtension', () => {
     expect(resolveExtension(operator, undefined, OP)).toEqual({ ok: true, value: '101' });
     expect(resolveExtension(operator, '101', OP)).toEqual({ ok: true, value: '101' });
     expect(resolveExtension(operator, '103', OP)).toMatchObject({ ok: false, status: 403 });
-    expect(resolveExtension({ role: 'operator', extension: null }, undefined, OP)).toMatchObject({ ok: false, status: 403 });
+    expect(resolveExtension({ role: 'operator', extension: null }, undefined, OP)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
   });
 });
 

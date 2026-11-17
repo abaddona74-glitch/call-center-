@@ -54,7 +54,9 @@ export function projectOperators(store: LiveStore, now: number): LiveOperator[] 
       paused: op.paused,
       pauseReason: op.pauseReason,
       call: current,
-      queue: op.queue ? { callsTaken: op.queue.callsTaken, lastCallAt: op.queue.lastCallAt ? iso(op.queue.lastCallAt) : null } : null,
+      queue: op.queue
+        ? { callsTaken: op.queue.callsTaken, lastCallAt: op.queue.lastCallAt ? iso(op.queue.lastCallAt) : null }
+        : null,
       today: { ...op.today },
     });
   }
@@ -129,7 +131,9 @@ export function projectCounters(store: LiveStore): LiveCounters {
 export function operatorsFor(viewer: Viewer, list: LiveOperator[]): LiveOperator[] {
   if (isPrivileged(viewer)) return list;
   return list.map((op) =>
-    op.call && op.extension !== viewer.extension ? { ...op, call: { ...op.call, phone: maskPhone(op.call.phone) } } : op,
+    op.call && op.extension !== viewer.extension
+      ? { ...op, call: { ...op.call, phone: maskPhone(op.call.phone) } }
+      : op,
   );
 }
 
