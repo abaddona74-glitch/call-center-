@@ -160,9 +160,9 @@ export function ContactDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           showCloseButton={false}
-          className="max-h-[92vh] w-[520px] max-w-[95vw] gap-0 overflow-y-auto rounded-2xl border-primary/40 bg-sidebar p-0 shadow-[0_24px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(99,102,241,0.15)] sm:max-w-[520px]"
+          className="max-h-[96vh] w-[520px] max-w-[95vw] gap-0 overflow-y-auto rounded-2xl border-primary/40 bg-sidebar p-[22px] shadow-[0_24px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(99,102,241,0.15)] sm:max-w-[520px]"
         >
-          <div className="flex items-center justify-between border-b border-white/[0.08] bg-sidebar/95 px-6 py-[18px]">
+          <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-[18px]">
             <div className="flex items-center gap-3">
               <div className="flex size-[38px] items-center justify-center rounded-[10px] border border-primary/40 bg-primary/20 text-indigo-400">
                 <Icon name="user" className="size-5" />
