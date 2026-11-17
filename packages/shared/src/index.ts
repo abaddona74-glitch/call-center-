@@ -2,3 +2,8 @@ export * from './auth.js';
 export * from './common.js';
 export * from './phone.js';
 export * from './realtime.js';
+export * from './permissions.js';
+export * from './account.js';
+export * from './passkeys.js';
+export * from './users.js';
+export * from './security.js';

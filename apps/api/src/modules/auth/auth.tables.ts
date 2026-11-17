@@ -12,6 +12,12 @@ export interface UsersTable {
   isActive: Generated<boolean>;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
+  /** operator_groups.id (users module) */
+  groupId: number | null;
+  /** WebAuthn user handle (uuid). Legacy-compatible: the handle bytes are the UTF-8 of this string. */
+  webauthnUserId: Generated<string>;
+  lastLoginAt: Date | null;
+  lastLoginIp: string | null;
 }
 
 export interface SessionsTable {
@@ -23,6 +29,8 @@ export interface SessionsTable {
   lastSeenAt: Generated<Date>;
   ip: string | null;
   userAgent: string | null;
+  /** Set when the session was opened with a passkey (deleted together with it). */
+  passkeyId: Generated<string | null>;
 }
 
 export interface AuditLogTable {
@@ -37,6 +45,46 @@ export interface AuditLogTable {
   requestId: string | null;
 }
 
+export type ThrottleKind = 'user_ip' | 'ip' | 'user';
+
+export interface AuthLoginThrottleTable {
+  id: Generated<number>;
+  kind: ThrottleKind;
+  key: string;
+  username: string | null;
+  ip: string | null;
+  failures: number;
+  lockCount: number;
+  lockedUntil: Date | null;
+  firstFailureAt: Date;
+  lastFailureAt: Date;
+}
+
+export interface AuthSettingsTable {
+  key: string;
+  value: unknown;
+  updatedAt: Generated<Date>;
+  updatedBy: number | null;
+}
+
+export type AuthCodePurpose = 'password_reset' | 'email_current' | 'email_new';
+
+export interface AuthCodesTable {
+  id: Generated<number>;
+  userId: number;
+  purpose: AuthCodePurpose;
+  email: string;
+  codeHash: string;
+  attempts: Generated<number>;
+  expiresAt: Date;
+  consumedAt: Date | null;
+  newEmail: string | null;
+  tokenHash: string | null;
+  tokenExpiresAt: Date | null;
+  ip: string | null;
+  createdAt: Generated<Date>;
+}
+
 export type User = Selectable<UsersTable>;
 export type NewUser = Insertable<UsersTable>;
 export type UserUpdate = Updateable<UsersTable>;
@@ -46,5 +94,8 @@ declare module '../../database/db.js' {
     users: UsersTable;
     sessions: SessionsTable;
     auditLog: AuditLogTable;
+    authLoginThrottle: AuthLoginThrottleTable;
+    authSettings: AuthSettingsTable;
+    authCodes: AuthCodesTable;
   }
 }

@@ -5,6 +5,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { sql } from 'kysely';
 import { AppConfig } from '../../config/app-config.js';
 import { type DbHost, InjectDb } from '../../database/db.js';
+import { buildSessionUser } from './domain/session-user.js';
 
 export function sessionIdFromToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -30,7 +31,10 @@ export class SessionsService {
     return this.config.get('SESSION_TTL_HOURS') * 3_600_000;
   }
 
-  async create(userId: number, meta: { ip?: string; userAgent?: string }): Promise<{ token: string; sessionId: string; expiresAt: Date }> {
+  async create(
+    userId: number,
+    meta: { ip?: string; userAgent?: string; passkeyId?: string },
+  ): Promise<{ token: string; sessionId: string; expiresAt: Date }> {
     const token = randomBytes(32).toString('base64url');
     const sessionId = sessionIdFromToken(token);
     const expiresAt = new Date(Date.now() + this.ttlMs);
@@ -42,6 +46,7 @@ export class SessionsService {
         expiresAt,
         ip: meta.ip ?? null,
         userAgent: meta.userAgent?.slice(0, 300) ?? null,
+        passkeyId: meta.passkeyId ?? null,
       })
       .execute();
     return { token, sessionId, expiresAt };
@@ -53,7 +58,18 @@ export class SessionsService {
     const row = await this.txHost.tx
       .selectFrom('sessions as s')
       .innerJoin('users as u', 'u.id', 's.userId')
-      .select(['s.id as sessionId', 's.lastSeenAt', 'u.id', 'u.username', 'u.role', 'u.extension', 'u.email'])
+      .leftJoin('operatorGroups as g', 'g.id', 'u.groupId')
+      .select([
+        's.id as sessionId',
+        's.lastSeenAt',
+        'u.id',
+        'u.username',
+        'u.role',
+        'u.extension',
+        'u.email',
+        'u.groupId',
+        'g.permissions as groupPermissions',
+      ])
       .where('s.id', '=', sessionId)
       .where('s.expiresAt', '>', sql<Date>`now()`)
       .where('u.isActive', '=', true)
@@ -71,7 +87,7 @@ export class SessionsService {
 
     return {
       sessionId: row.sessionId,
-      user: { id: row.id, username: row.username, role: row.role, extension: row.extension, email: row.email },
+      user: buildSessionUser(row),
     };
   }
 

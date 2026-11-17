@@ -1,16 +1,16 @@
-import { type Role, hasRoleAtLeast } from '@cc/shared';
+import { type PermissionFlag, type Role, hasPermission, hasRoleAtLeast } from '@cc/shared';
 import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { SessionsService } from '../../modules/auth/sessions.service.js';
 import type { AppClsStore } from '../cls/app-cls.js';
-import { IS_PUBLIC_KEY, ROLES_KEY } from '../decorators/auth.decorators.js';
+import { IS_PUBLIC_KEY, PERMISSION_KEY, ROLES_KEY } from '../decorators/auth.decorators.js';
 import { extractSessionToken } from '../http/cookies.js';
 
 /**
  * Global guard: every HTTP route requires a valid session unless marked @Public().
- * Then enforces @Roles(minimum) if present. Puts the user into CLS for the rest of the request.
+ * Then enforces @Roles(minimum) and @RequirePermission(flag) if present. Puts the user into CLS for the rest of the request.
  */
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
@@ -36,6 +36,10 @@ export class SessionAuthGuard implements CanActivate {
     const minimum = this.reflector.getAllAndOverride<Role | undefined>(ROLES_KEY, targets);
     if (minimum && !hasRoleAtLeast(session.user.role, minimum)) {
       throw new ForbiddenException('Insufficient permissions');
+    }
+    const permission = this.reflector.getAllAndOverride<PermissionFlag | undefined>(PERMISSION_KEY, targets);
+    if (permission && !hasPermission(session.user, permission)) {
+      throw new ForbiddenException('Your operator group does not allow this');
     }
     return true;
   }

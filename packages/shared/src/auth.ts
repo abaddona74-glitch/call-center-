@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PermissionsSchema } from './permissions.js';
 
 /** Roles in the system. Order matters: higher index = more privileges. */
 export const ROLES = ['operator', 'admin', 'superuser'] as const;
@@ -34,6 +35,10 @@ export const SessionUserSchema = z.object({
   role: RoleSchema,
   extension: z.string().nullable(),
   email: z.string().nullable(),
+  /** Operator group (null = no group). Always filled by the API; optional for older literals. */
+  groupId: z.number().int().nullable().optional(),
+  /** Effective permissions (admins: all true). Always filled by the API; use `effectivePermissions(user)` to read. */
+  permissions: PermissionsSchema.optional(),
 });
 export type SessionUser = z.infer<typeof SessionUserSchema>;
 

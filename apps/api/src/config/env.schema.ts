@@ -33,6 +33,27 @@ export const EnvSchema = z.object({
   BOOTSTRAP_SUPERUSER_USERNAME: z.string().default('superuser'),
   BOOTSTRAP_SUPERUSER_PASSWORD: z.string().min(12).optional(),
 
+  // --- Passkeys (WebAuthn). Keep the legacy RP ID or existing passkeys stop working. ---
+  /** Domain the passkeys are bound to, e.g. "uniconsoft.ddns.net". Empty = passkeys disabled. */
+  WEBAUTHN_RP_ID: z.string().trim().optional(),
+  WEBAUTHN_RP_NAME: z.string().default('Call Center'),
+  /** Allowed page origins, e.g. "https://uniconsoft.ddns.net,https://uniconsoft.ddns.net:3535". */
+  WEBAUTHN_ORIGINS: csv,
+
+  // --- Mail (password reset and email verification codes) ---
+  /** Empty = no mail is sent (in development the message is printed to the console instead). */
+  SMTP_HOST: z.string().trim().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  /** true for implicit TLS (port 465); otherwise STARTTLS is required. */
+  SMTP_SECURE: z.stringbool().default(false),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z
+    .string()
+    .trim()
+    .default('')
+    .transform((v) => v || 'Call Center <no-reply@localhost>'),
+
   // --- PBX MariaDB (read-only user, direct network access, no SSH) ---
   PBX_DB_HOST: z.string().optional(),
   PBX_DB_PORT: z.coerce.number().int().positive().default(3306),

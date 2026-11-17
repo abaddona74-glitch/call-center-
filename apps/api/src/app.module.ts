@@ -17,7 +17,10 @@ import { DatabaseModule, KYSELY } from './database/database.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { MailModule } from './modules/mail/mail.module.js';
+import { PasskeysModule } from './modules/passkeys/passkeys.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
 @Module({
@@ -69,6 +72,9 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     RealtimeModule,
     HealthModule,
     // Feature modules are registered below this line (one import per module).
+    MailModule,
+    UsersModule,
+    PasskeysModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

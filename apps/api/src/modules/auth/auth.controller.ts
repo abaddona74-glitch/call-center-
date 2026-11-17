@@ -1,13 +1,22 @@
-import { LoginRequestSchema, type LoginRequest, type MeResponse, MeResponseSchema, type SessionUser } from '@cc/shared';
+import {
+  type AuthOptions,
+  AuthOptionsSchema,
+  LoginRequestSchema,
+  type LoginRequest,
+  type MeResponse,
+  MeResponseSchema,
+  type SessionUser,
+} from '@cc/shared';
 import { Body, Controller, Get, HttpCode, Post, Req, Res, SerializeOptions } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import type { AppClsStore } from '../../common/cls/app-cls.js';
 import { CurrentUser, Public } from '../../common/decorators/auth.decorators.js';
-import { SESSION_COOKIE } from '../../common/http/cookies.js';
 import { AppConfig } from '../../config/app-config.js';
+import { MailService } from '../mail/mail.service.js';
 import { AuthService } from './auth.service.js';
+import { clearSessionCookie, setSessionCookie } from './session-cookie.js';
 
 @Controller('auth')
 export class AuthController {
@@ -15,7 +24,20 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly config: AppConfig,
     private readonly cls: ClsService<AppClsStore>,
+    private readonly mail: MailService,
   ) {}
+
+  /** What the login screen may offer (passkey button, "forgot password"). */
+  @Public()
+  @SkipThrottle()
+  @Get('options')
+  @SerializeOptions({ schema: AuthOptionsSchema })
+  options(): AuthOptions {
+    return {
+      passkeys: Boolean(this.config.get('WEBAUTHN_RP_ID')) && this.config.get('WEBAUTHN_ORIGINS').length > 0,
+      passwordReset: this.mail.enabled,
+    };
+  }
 
   @Public()
   @Post('login')
@@ -31,13 +53,7 @@ export class AuthController {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
-    res.cookie(SESSION_COOKIE, result.token, {
-      httpOnly: true,
-      secure: this.config.get('COOKIE_SECURE'),
-      sameSite: 'lax',
-      path: '/',
-      expires: result.expiresAt,
-    });
+    setSessionCookie(res, result.token, result.expiresAt, this.config.get('COOKIE_SECURE'));
     return { user: result.user };
   }
 
@@ -46,7 +62,7 @@ export class AuthController {
   async logout(@Res({ passthrough: true }) res: Response): Promise<void> {
     const sessionId = this.cls.get('sessionId');
     if (sessionId) await this.auth.logout(sessionId);
-    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    clearSessionCookie(res);
   }
 
   @Get('me')
