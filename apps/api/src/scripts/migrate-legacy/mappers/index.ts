@@ -1,5 +1,4 @@
 import type { Mapper } from '../mapper.js';
-import { agentLogsMapper } from './agent-logs.mapper.js';
 import { blacklistMapper } from './blacklist.mapper.js';
 import { callbacksMapper } from './callbacks.mapper.js';
 import { contactsMapper } from './contacts.mapper.js';
@@ -19,7 +18,6 @@ export const ALL_MAPPERS: readonly Mapper[] = [
   contactsMapper,
   callbacksMapper,
   blacklistMapper,
-  agentLogsMapper,
   transcriptsMapper,
   ticketsMapper,
   telegramSubscribersMapper,

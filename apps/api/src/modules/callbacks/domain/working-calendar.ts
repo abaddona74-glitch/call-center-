@@ -49,7 +49,7 @@ export function dayBounds(isoDate: string, timezone: string): { start: Date; end
 }
 
 /**
- * Parses a PBX/agent wall-clock time ("YYYY-MM-DD HH:mm:ss", also with "/" or "T") as business time.
+ * Parses a PBX wall-clock time ("YYYY-MM-DD HH:mm:ss", also with "/" or "T") as business time.
  * Strings with an explicit offset or "Z" keep it. Returns null when unparseable.
  */
 export function parseBusinessDateTime(raw: string, timezone: string): Date | null {

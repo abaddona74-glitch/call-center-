@@ -1,5 +1,5 @@
 /**
- * E2E harness for the callbacks / contacts / blacklist / agent modules (session S4).
+ * E2E harness for the callbacks / contacts / blacklist modules (session S4).
  * Each spec file gets its own fresh PostgreSQL database (migrated from scratch), the real AppModule,
  * an in-memory AMI (AstDB) and a scripted CDR reader instead of the PBX MariaDB.
  *
@@ -73,8 +73,6 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
     CALLBACKS_RECONCILE_INTERVAL_SEC: '0',
     CONTACTS_DENIED_EXTENSION_RANGES: '200-999',
     BLACKLIST_OPERATOR_EXTENSIONS: '114',
-    AGENT_COMPAT_MODE: 'false',
-    AGENT_COMPAT_ALLOWED_CIDRS: '10.0.0.0/8',
     ...env,
   });
 
@@ -99,9 +97,7 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
     .compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: ['error'] });
-  app.set('trust proxy', 'loopback'); // lets tests choose the client IP with X-Forwarded-For
   app.use(cookieParser());
-  app.useBodyParser('json', { limit: '2mb' });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new StandardSchemaValidationPipe());
   app.useWebSocketAdapter(new WsAdapter(app));

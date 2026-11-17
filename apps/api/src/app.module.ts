@@ -14,7 +14,6 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { AppConfig } from './config/app-config.js';
 import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule, KYSELY } from './database/database.module.js';
-import { AgentModule } from './modules/agent/agent.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
@@ -76,7 +75,6 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     CallbacksModule,
     ContactsModule,
     BlacklistModule,
-    AgentModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

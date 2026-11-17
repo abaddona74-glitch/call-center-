@@ -9,7 +9,6 @@
  * to the `extends` list of `ServerEvents` / `ClientEvents` below — one line per domain.
  */
 
-import type { AgentServerEvents } from './realtime/agent.js';
 import type { CallbacksServerEvents } from './realtime/callbacks.js';
 
 interface CoreServerEvents {
@@ -24,7 +23,7 @@ interface CoreClientEvents {
   'presence.ping': { tab?: string; visible?: boolean };
 }
 
-export interface ServerEvents extends CoreServerEvents, CallbacksServerEvents, AgentServerEvents {}
+export interface ServerEvents extends CoreServerEvents, CallbacksServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 
