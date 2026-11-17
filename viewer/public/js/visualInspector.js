@@ -82,7 +82,13 @@
 
     // 1. Ruxsat tekshiruvi: Superuser / Admin / Maxmudbek yoki Localhost / Tools
     function isAllowedToInspect() {
-        return true; // Developer/Admin uchun doim faol
+        // Faqat dasturchi o'z brauzerida qo'lda yoqqanda ishlaydi:
+        // localStorage.setItem('cc_dev_inspector', '1'). Server tomoni ham ENABLE_DEV_INBOX=true talab qiladi.
+        try {
+            return window.localStorage.getItem('cc_dev_inspector') === '1';
+        } catch (_) {
+            return false;
+        }
     }
 
     function ensureInspectorStyles() {

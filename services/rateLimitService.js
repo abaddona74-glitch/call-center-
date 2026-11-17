@@ -50,23 +50,24 @@ class RateLimitService {
      */
     getClientIp(req) {
         if (!req) return '127.0.0.1';
+        const socketIp = String(req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1').replace(/^::ffff:/, '');
 
-        // Cloudflare orqali kelsa
-        const cfIp = req.headers?.['cf-connecting-ip'];
-        if (cfIp) return cfIp.trim();
-
-        // X-Forwarded-For sarlavhasi
-        const xForwarded = req.headers?.['x-forwarded-for'];
-        if (xForwarded) {
-            const parts = xForwarded.split(',');
-            if (parts.length > 0 && parts[0].trim()) {
-                return parts[0].trim().replace(/^::ffff:/, '');
+        // XAVFSIZLIK: CF-Connecting-IP / X-Forwarded-For ga faqat ishonchli proksidan kelganda ishonamiz
+        // (TRUSTED_PROXY_IPS berilgan bo'lsa — faqat ular, aks holda loopback va ichki tarmoq, masalan Kerio).
+        // Avval internetdan kelgan har qanday mijoz `X-Forwarded-For: 192.168.0.1` yozib,
+        // "ichki ofis" limitini olardi va bloklashni chetlab o'tardi.
+        const trustedList = String(process.env.TRUSTED_PROXY_IPS || '').split(',').map(s => s.trim()).filter(Boolean);
+        const fromTrustedProxy = trustedList.length > 0 ? trustedList.includes(socketIp) : this.isTrustedInternalIp(socketIp);
+        if (fromTrustedProxy) {
+            const xForwarded = req.headers?.['x-forwarded-for'];
+            if (xForwarded) {
+                const first = String(xForwarded).split(',')[0].trim().replace(/^::ffff:/, '');
+                if (first) return first;
             }
+            const cfIp = req.headers?.['cf-connecting-ip'];
+            if (cfIp) return String(cfIp).trim();
         }
-
-        // To'g'ridan-to'g'ri soket IP
-        let ip = req.socket?.remoteAddress || req.connection?.remoteAddress || '127.0.0.1';
-        return ip.replace(/^::ffff:/, '');
+        return socketIp;
     }
 
     /**

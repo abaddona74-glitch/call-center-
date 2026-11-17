@@ -8,6 +8,9 @@ ssl/
 data/callcenter.db*
 data/*.json
 data/temp_zips/
+data/.internal_token
+*.pfx
+.env.local_bak
 scratch/
 *.tar.gz
 *.log

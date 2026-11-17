@@ -1,3 +1,8 @@
+param(
+    # Shu kompyuter uchun alohida doimiy parol (hamma kompyuterda bir xil parol ishlatmang)
+    [Parameter(Mandatory = $true)][string]$Password
+)
+
 $cfgPaths = @(
     'C:\Windows\ServiceProfiles\LocalService\AppData\Roaming\RustDesk\config\RustDesk2.toml',
     "$env:APPDATA\RustDesk\config\RustDesk2.toml"
@@ -38,7 +43,7 @@ foreach ($cfg in $cfgPaths) {
     }
 }
 
-& "C:\Program Files\RustDesk\rustdesk.exe" --password CallCenter2026!
+& "C:\Program Files\RustDesk\rustdesk.exe" --password $Password
 
 Restart-Service -Name "RustDesk" -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 2

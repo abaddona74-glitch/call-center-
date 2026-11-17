@@ -8,6 +8,7 @@
  */
 
 const crypto = require('crypto');
+const { resolveClientIp } = require('./securityUtils');
 const path = require('path');
 const dbService = require('./dbService');
 
@@ -122,17 +123,10 @@ class AuthService {
             console.error("❌ auth_users migratsiyasida xatolik:", migErr.message);
         }
 
-        // Standart superuser va Maxmudbek admin hisoblarini ta'minlash
-        const defaultAdminPass = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin123!';
-        this.ensureDefaultUser('superuser', defaultAdminPass, 'superuser');
-        this.ensureDefaultUser('maxmudbek', defaultAdminPass, 'superuser');
-
-        // Maxmudbek hisobiga shaxsiy email (abaddona74@gmail.com) va operator_id (114) ni biriktirish,
-        // oddiy superuserdan esa shaxsiy emailni ajratish:
-        try {
-            this.db.prepare("UPDATE auth_users SET email = NULL WHERE username = 'superuser' AND email = 'abaddona74@gmail.com'").run();
-            this.db.prepare("UPDATE auth_users SET email = 'abaddona74@gmail.com', operator_id = '114' WHERE username = 'maxmudbek'").run();
-        } catch (_) {}
+        // Boshlang'ich superuser: faqat tizimda birorta ham superuser bo'lmasa yaratiladi.
+        // XAVFSIZLIK: avval har ishga tushishda 'superuser' va 'maxmudbek' paroli
+        // DEFAULT_ADMIN_PASSWORD || 'Admin123!' ga qayta yozilardi. Endi mavjud hisoblarga tegilmaydi.
+        this.ensureBootstrapSuperuser();
 
         // Boshlang'ich default sozlamalarni saqlash (agar bo'lmasa)
         if (!this.getSetting('auth_lockout_threshold')) {
@@ -224,42 +218,38 @@ class AuthService {
         return crypto.scryptSync(password, salt, 64).toString('hex');
     }
 
-    ensureDefaultUser(username, password, role = 'superuser') {
+    ensureBootstrapSuperuser() {
         try {
-            const user = this.db.prepare('SELECT * FROM auth_users WHERE username = ?').get(username);
+            const superCount = this.db.prepare("SELECT COUNT(*) as count FROM auth_users WHERE role = 'superuser'").get().count;
+            if (superCount > 0) return;
+
+            const envPass = (process.env.DEFAULT_ADMIN_PASSWORD || '').trim();
+            const password = envPass.length >= 12 ? envPass : crypto.randomBytes(12).toString('base64url');
             const salt = crypto.randomBytes(16).toString('hex');
             const hash = this.hashPassword(password, salt);
-
-            if (!user) {
-                this.db.prepare(`
-                    INSERT INTO auth_users (username, password_hash, salt, role)
-                    VALUES (?, ?, ?, ?)
-                `).run(username, hash, salt, role);
-                console.log(`✅ AuthService: '${username}' (${role}) yaratildi`);
-            } else {
-                this.db.prepare(`
-                    UPDATE auth_users SET password_hash = ?, salt = ?, role = ?, updated_at = datetime('now', 'localtime')
-                    WHERE username = ?
-                `).run(hash, salt, role, username);
-                console.log(`✅ AuthService: '${username}' yangilandi`);
-            }
-
             const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.trim().toLowerCase() : null;
-            if (adminEmail) {
-                this.db.prepare("UPDATE auth_users SET email = COALESCE(email, ?) WHERE username = ?").run(adminEmail, username);
+
+            this.db.prepare(`
+                INSERT INTO auth_users (username, password_hash, salt, role, email)
+                VALUES ('superuser', ?, ?, 'superuser', ?)
+                ON CONFLICT(username) DO UPDATE SET role = 'superuser'
+            `).run(hash, salt, adminEmail);
+
+            if (envPass.length >= 12) {
+                console.log("✅ AuthService: boshlang'ich 'superuser' DEFAULT_ADMIN_PASSWORD bilan yaratildi");
+            } else {
+                // Parol faqat bir marta, superuser umuman yo'q bo'lgan holatda konsolga chiqariladi
+                console.warn(`⚠️ AuthService: boshlang'ich 'superuser' yaratildi. Vaqtinchalik parol: ${password}`);
+                console.warn("⚠️ Darhol tizimga kirib parolni almashtiring (yoki .env da kamida 12 belgili DEFAULT_ADMIN_PASSWORD bering).");
             }
         } catch (e) {
-            console.error('❌ AuthService ensureDefaultUser xatosi:', e.message);
+            console.error('❌ AuthService ensureBootstrapSuperuser xatosi:', e.message);
         }
     }
 
     getClientIp(req) {
-        if (!req) return '127.0.0.1';
-        const forwarded = req.headers['x-forwarded-for'];
-        if (forwarded) {
-            return forwarded.split(',')[0].trim();
-        }
-        return req.socket?.remoteAddress || req.ip || '127.0.0.1';
+        // X-Forwarded-For faqat ishonchli proksidan qabul qilinadi (securityUtils.resolveClientIp)
+        return resolveClientIp(req);
     }
 
     isLocked(key) {
@@ -478,7 +468,7 @@ class AuthService {
             success: true,
             token,
             username: cleanUser,
-            role: user.role || 'superuser',
+            role: user.role || 'operator',
             operatorId: user.operator_id || null,
             email: user.email || null
         };
@@ -508,18 +498,12 @@ class AuthService {
         if (!token || typeof token !== 'string') return null;
         try {
             const nowIso = new Date().toISOString();
-            const session = this.db.prepare(`
-                SELECT s.token, s.username, s.ip, COALESCE(u.role, 'superuser') as role, u.operator_id, u.email
-                FROM auth_sessions s
-                LEFT JOIN auth_users u ON s.username = u.username
-                WHERE s.expires_at > ?
-            `).get(nowIso);
-
-            // Aniq token bo'yicha filter qilish
+            // INNER JOIN: o'chirilgan foydalanuvchining sessiyasi yaroqsiz.
+            // Avval LEFT JOIN + COALESCE(role, 'superuser') bo'lib, roli topilmagan sessiya superuser bo'lib qolardi.
             const row = this.db.prepare(`
-                SELECT s.token, s.username, s.ip, COALESCE(u.role, 'superuser') as role, u.operator_id, u.email
+                SELECT s.token, s.username, s.ip, u.role as role, u.operator_id, u.email
                 FROM auth_sessions s
-                LEFT JOIN auth_users u ON s.username = u.username
+                JOIN auth_users u ON s.username = u.username
                 WHERE s.token = ? AND s.expires_at > ?
             `).get(token, nowIso);
 
@@ -527,7 +511,7 @@ class AuthService {
             return {
                 username: row.username,
                 token: row.token,
-                role: row.role || 'superuser',
+                role: row.role || 'operator',
                 operatorId: row.operator_id || null,
                 email: row.email || null
             };
@@ -553,7 +537,7 @@ class AuthService {
 
             const sessions = this.db.prepare(`
                 SELECT s.token, s.username, s.ip, s.user_agent, s.created_at, s.expires_at,
-                       COALESCE(u.role, 'superuser') as role
+                       COALESCE(u.role, 'operator') as role
                 FROM auth_sessions s
                 LEFT JOIN auth_users u ON s.username = u.username
                 WHERE s.expires_at > ?
@@ -860,23 +844,17 @@ class AuthService {
         // 4. Qaysi emailga jo'natilishini aniqlash
         let targetEmail = user.email ? user.email.trim() : null;
 
+        // XAVFSIZLIK: tizimga kirmagan odam kiritgan emailni hisobga BOG'LAMAYMIZ.
+        // Avval email biriktirilmagan har qanday hisobni (operatorlar, superuser) shu yo'l bilan
+        // o'z emailiga kod yuborib, parolini almashtirib egallab olish mumkin edi.
         if (!targetEmail) {
-            if (inputEmail && String(inputEmail).trim()) {
-                const candidate = String(inputEmail).trim().toLowerCase();
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) {
-                    return { success: false, error: "Email manzili noto'g'ri formatda" };
-                }
-                this.db.prepare("UPDATE auth_users SET email = ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(candidate, user.id);
-                targetEmail = candidate;
-            } else if (process.env.ADMIN_EMAIL && user.role === 'superuser') {
+            if (process.env.ADMIN_EMAIL && user.role === 'superuser') {
                 targetEmail = process.env.ADMIN_EMAIL.trim().toLowerCase();
                 this.db.prepare("UPDATE auth_users SET email = ?, updated_at = datetime('now', 'localtime') WHERE id = ?").run(targetEmail, user.id);
             } else {
                 return {
                     success: false,
-                    needsEmail: true,
-                    username: user.username,
-                    error: "Ushbu hisobga hali email biriktirilmagan. Iltimos, emailingizni kiriting."
+                    error: "Ushbu hisobga email biriktirilmagan. Parolni tiklash uchun administratorga murojaat qiling."
                 };
             }
         }

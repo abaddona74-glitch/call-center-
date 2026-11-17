@@ -2,6 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 const issabelDbService = require('./issabelDbService');
+const { shellQuote, safeEqual } = require('./securityUtils');
 
 const ADMIN_PASSWORD = process.env.BLACKLIST_ADMIN_PASSWORD || '';
 
@@ -33,7 +34,9 @@ class BlacklistService {
     }
 
     verifyPassword(password) {
-        return Boolean(password && String(password).trim() === ADMIN_PASSWORD);
+        // Parol o'rnatilmagan bo'lsa (BLACKLIST_ADMIN_PASSWORD bo'sh) — hech kimga ruxsat yo'q
+        if (!ADMIN_PASSWORD) return false;
+        return safeEqual(String(password || '').trim(), ADMIN_PASSWORD);
     }
 
     formatPhone(num) {
@@ -152,8 +155,10 @@ class BlacklistService {
             throw new Error('Noto\'g\'ri telefon raqami kiritildi');
         }
 
-        const cleanNote = String(note || '').trim().replace(/["'\\]/g, '');
-        const noteForAstdb = cleanNote || '1';
+        // Izoh SQLite ga to'liq saqlanadi, Asterisk AstDB ga esa faqat xavfsiz belgilar ketadi
+        const cleanNote = String(note || '').trim().slice(0, 200).replace(/["'\\]/g, '');
+        // AstDB/shell uchun faqat harf, raqam, probel va oddiy tinish belgilari qoldiriladi
+        const noteForAstdb = cleanNote.replace(/[^\p{L}\p{N} _.,:()-]/gu, '').trim() || '1';
 
         // 1. SQLite ga saqlash
         const upsertStmt = this.db.prepare(`
@@ -170,8 +175,9 @@ class BlacklistService {
         // 2. Asterisk AstDB ga yozish (Faqat 114 uchun blacklist_114 ga yoziladi, global blacklist dan esa o'chiriladi)
         try {
             // blacklist_114 ga yozish va global blacklist da bo'lsa uni o'chirish (boshqa operatorlarga tushishi uchun)
-            const cmds = norm.variants.map(v => 
-                `asterisk -rx "database put blacklist_114 ${v} \\"${noteForAstdb}\\""; asterisk -rx "database del blacklist ${v}"`
+            const safeVariants = norm.variants.filter(v => /^[0-9]{3,15}$/.test(v));
+            const cmds = safeVariants.map(v =>
+                `asterisk -rx ${shellQuote(`database put blacklist_114 ${v} "${noteForAstdb}"`)}; asterisk -rx ${shellQuote(`database del blacklist ${v}`)}`
             ).join('; ');
             await issabelDbService.execCommand(cmds);
             console.log(`🚫 [Blacklist-114] Qo'shildi: ${norm.formatted} (${norm.variants.join(', ')}) - Maxmudbek 114 uchun bloklandi. Boshqa operatorlarga tushadi.`);
@@ -214,8 +220,9 @@ class BlacklistService {
 
         // 3. Asterisk AstDB dan o'chirish (ham blacklist_114 dan, ham global blacklist dan)
         try {
-            const cmds = variants.map(v => 
-                `asterisk -rx "database del blacklist_114 ${v}"; asterisk -rx "database del blacklist ${v}"`
+            const safeVariants = variants.map(v => String(v)).filter(v => /^[0-9]{3,15}$/.test(v));
+            const cmds = safeVariants.map(v =>
+                `asterisk -rx ${shellQuote(`database del blacklist_114 ${v}`)}; asterisk -rx ${shellQuote(`database del blacklist ${v}`)}`
             ).join('; ');
             await issabelDbService.execCommand(cmds);
             console.log(`✅ [Blacklist-114] O'chirildi: ${searchNum} (variantlar: ${variants.join(', ')})`);

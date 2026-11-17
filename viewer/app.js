@@ -23,6 +23,44 @@ const UPSTREAM_HOST = process.env.UPSTREAM_HOST || '127.0.0.1';
 const UPSTREAM_HTTP = process.env.UPSTREAM_HTTP || `http://${UPSTREAM_HOST}:3535`;
 const UPSTREAM_WS = process.env.UPSTREAM_WS || `ws://${UPSTREAM_HOST}:3535`;
 
+// --- 3535 bilan ichki aloqa uchun maxfiy token ---
+// 3535 endi 127.0.0.1 dan kelgan so'rovlarni faqat `x-internal-token` to'g'ri bo'lsa avtorizatsiyasiz o'tkazadi.
+// Token .env dagi INTERNAL_API_TOKEN dan yoki 3535 yaratgan data/.internal_token faylidan o'qiladi.
+function loadInternalApiToken() {
+    const fromEnv = (process.env.INTERNAL_API_TOKEN || '').trim();
+    if (fromEnv) return fromEnv;
+    const candidates = [
+        process.env.INTERNAL_API_TOKEN_FILE,
+        path.join(__dirname, '..', 'data', '.internal_token'),                // lokal: repo/viewer -> repo/data
+        path.join(__dirname, '..', 'call-center', 'data', '.internal_token')  // server: /opt/call-center-viewer -> /opt/call-center
+    ].filter(Boolean);
+    for (const file of candidates) {
+        try {
+            const t = fs.readFileSync(file, 'utf8').trim();
+            if (t) return t;
+        } catch (_) {}
+    }
+    return '';
+}
+let internalApiToken = '';
+function getInternalApiToken() {
+    if (!internalApiToken) {
+        internalApiToken = loadInternalApiToken();
+        if (!internalApiToken) console.warn('⚠️ INTERNAL_API_TOKEN topilmadi: 3535 ga ichki so\'rovlar rad etiladi');
+    }
+    return internalApiToken;
+}
+function internalHeaders(extra = {}) {
+    const token = getInternalApiToken();
+    return token ? { ...extra, 'x-internal-token': token } : { ...extra };
+}
+// 3535 ga (ichki xizmat sifatida) so'rov yuborish. actingUser — audit uchun amalni bajargan foydalanuvchi.
+function upstreamFetch(url, options = {}, actingUser = null) {
+    const headers = internalHeaders(options.headers || {});
+    if (actingUser) headers['x-acting-user'] = String(actingUser).replace(/[^a-zA-Z0-9_.@-]/g, '').slice(0, 64);
+    return fetch(url, { ...options, headers });
+}
+
 // --- AUTHENTICATION & SECURITY GATEWAY (PORT 3005) ---
 const sessionCache = new Map(); // token -> { user, expiresAt }
 
@@ -221,6 +259,11 @@ app.post('/api/security/unjail', async (req, res) => {
 // HTTP -> HTTPS Redirect Gateway
 app.use((req, res, next) => {
     const isHttps = req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+    const remoteAddr = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    // 3535 dan keluvchi ichki so'rov (HTTP, 127.0.0.1) yo'naltirilmaydi — token tekshiruvi handler ichida
+    if (!isHttps && req.path === '/api/internal/invalidate-sessions' && (remoteAddr === '127.0.0.1' || remoteAddr === '::1')) {
+        return next();
+    }
     if (!isHttps) {
         const host = req.headers.host || req.hostname;
         return res.redirect(301, `https://${host}${req.originalUrl || req.url}`);
@@ -249,6 +292,16 @@ app.all(['/logout', '/api/auth/logout'], async (req, res) => {
 
 // Ichki so'rov: 3535 (Admin) dan kelgan foydalanuvchi sessiyasini darhol bekor qilish (kick qilish)
 app.post('/api/internal/invalidate-sessions', express.json(), (req, res) => {
+    // Faqat 3535 (shu serverdagi 127.0.0.1 + maxfiy token) chaqira oladi
+    const remote = String(req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+    const isLoopback = remote === '127.0.0.1' || remote === '::1';
+    const expected = getInternalApiToken();
+    const given = String(req.headers['x-internal-token'] || '');
+    const tokenOk = expected && given.length === expected.length &&
+        require('crypto').timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+    if (!isLoopback || req.headers['x-forwarded-for'] || !tokenOk) {
+        return res.status(403).json({ success: false, error: 'forbidden' });
+    }
     const { username } = req.body || {};
     if (username) {
         for (const [t, entry] of sessionCache.entries()) {
@@ -282,7 +335,6 @@ app.use(async (req, res, next) => {
         p === '/favicon.png' ||
         p === '/api/version' ||
         p === '/version.json' ||
-        p === '/api/dev/visual-prompt' ||
         p === '/guide' ||
         p === '/guide.html' ||
         p === '/manual' ||
@@ -292,7 +344,8 @@ app.use(async (req, res, next) => {
         p.startsWith('/api/auth/webauthn') ||
         p.startsWith('/vendor/') ||
         p === '/passkey-client.js' ||
-        p.startsWith('/api/remote-desktop/') ||
+        // Faqat o'rnatish skripti (sessiyasiz) holat yuboradi; qurilmalar ro'yxati va boshqaruv — faqat login bilan
+        p === '/api/remote-desktop/report-installed' ||
         p.startsWith('/api/speedtest') ||
         p.startsWith('/api/tools/uzcrypto') ||
         p.startsWith('/icons/') ||
@@ -313,11 +366,13 @@ app.use(async (req, res, next) => {
 
     if (user) {
         req.user = user;
-        // Agar token URL parametri orqali kelgan bo'lsa, cookie ga o'rnatish
-        if (req.query && req.query.token) {
+        // Agar aynan URL parametridagi token bilan kirilgan bo'lsa, uni cookie ga o'rnatish
+        // (boshqa cookie bilan kirgan foydalanuvchiga begona tokenni yopishtirmaslik — session fixation)
+        if (req.query && req.query.token && req.query.token === token) {
             res.cookie('cc_session', req.query.token, {
                 path: '/',
                 httpOnly: true,
+                secure: true,
                 sameSite: 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });
@@ -454,12 +509,8 @@ function sanitizeCalls(calls) {
 // Client IP extractor (IPv6 to IPv4 clean)
 function extractClientIp(req) {
     if (!req) return '127.0.0.1';
-    let ip = req.headers['x-forwarded-for'] || 
-             req.socket?.remoteAddress || 
-             req.connection?.remoteAddress || '';
-    if (typeof ip === 'string' && ip.includes(',')) {
-        ip = ip.split(',')[0].trim();
-    }
+    // X-Forwarded-For faqat ishonchli proksidan (rateLimitService qoidasi bilan bir xil) qabul qilinadi
+    let ip = rateLimitService.getClientIp(req) || '';
     ip = String(ip).replace(/^.*:/, '');
     if (ip === '1' || ip === '') ip = '127.0.0.1';
     return ip;
@@ -919,7 +970,7 @@ wss.on('connection', (clientWs, req) => {
     broadcastActiveViewers();
 
     try {
-        upstreamWs = new WebSocket(UPSTREAM_WS);
+        upstreamWs = new WebSocket(UPSTREAM_WS, { headers: internalHeaders() });
 
         upstreamWs.on('message', (data) => {
             if (clientWs.readyState === WebSocket.OPEN) {
@@ -1112,24 +1163,16 @@ app.get('/api/auth/me', (req, res) => {
 // Visual AI Inspector: Dev UI prompt qabul qilish va Antigravity inbox ga saqlash
 app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, res) => {
     try {
+        // XAVFSIZLIK: inbox AI-agentga vazifa sifatida o'qiladi. Faqat ENABLE_DEV_INBOX=true va superuser.
+        if (process.env.ENABLE_DEV_INBOX !== 'true') {
+            return res.status(404).json({ success: false, message: "Dev inbox o'chirilgan" });
+        }
         let user = req.user;
         if (!user) {
             const token = extractToken(req);
             user = await validateSessionWithUpstream(token);
         }
-        const clientIp = typeof extractClientIp === 'function' ? extractClientIp(req) : (req.ip || '');
-        const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
-        const isSuper = user && (
-            user.role === 'superuser' ||
-            user.role === 'admin' ||
-            user.username === 'superuser' ||
-            user.username === 'admin' ||
-            String(user.username || '').toLowerCase().includes('maxmudbek') ||
-            user.email === 'abaddona74@gmail.com'
-        );
-        const isToolsReferer = (req.headers.referer && (req.headers.referer.includes('/tools/') || req.headers.referer.includes('/guide')));
-
-        if (!isLocal && !isSuper && !isToolsReferer) {
+        if (!user || user.role !== 'superuser') {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 
@@ -1258,7 +1301,7 @@ app.put('/api/auth/profile/email', async (req, res) => {
     }
     const token = extractToken(req);
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/auth/profile/email`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/auth/profile/email`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1292,7 +1335,7 @@ app.post('/api/auth/profile/email/send-code', async (req, res) => {
     }
     const token = extractToken(req);
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/auth/profile/email/send-code`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/auth/profile/email/send-code`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1314,7 +1357,7 @@ app.post('/api/auth/profile/email/verify', async (req, res) => {
     }
     const token = extractToken(req);
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/auth/profile/email/verify`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/auth/profile/email/verify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1344,7 +1387,7 @@ app.post('/api/auth/profile/email/verify', async (req, res) => {
 // 2. REST API Proxies to 3535
 app.get('/api/status', async (req, res) => {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/status`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/status`);
         const json = await resp.json();
         json.sftpConnected = false;
         json.mode = 'viewer_operators_only';
@@ -1359,7 +1402,7 @@ app.get('/api/operators', async (req, res) => {
     try {
         const queryStr = new URLSearchParams(req.query).toString();
         const url = queryStr ? `${UPSTREAM_HTTP}/api/operators?${queryStr}` : `${UPSTREAM_HTTP}/api/operators`;
-        const resp = await fetch(url);
+        const resp = await upstreamFetch(url);
         const json = await resp.json();
         if (Array.isArray(json)) {
             json.forEach(op => {
@@ -1379,7 +1422,7 @@ app.get('/api/operators', async (req, res) => {
 app.get('/api/calls/recent', async (req, res) => {
     try {
         const queryStr = new URLSearchParams(req.query).toString();
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/calls/recent?${queryStr}`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/calls/recent?${queryStr}`);
         const json = await resp.json();
         res.json(Array.isArray(json) ? sanitizeCalls(json) : json);
     } catch (e) {
@@ -1391,7 +1434,7 @@ app.get('/api/calls/recent', async (req, res) => {
 app.get('/api/calls/details', async (req, res) => {
     try {
         const queryStr = new URLSearchParams(req.query).toString();
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/calls/details?${queryStr}`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/calls/details?${queryStr}`);
         const json = await resp.json();
         if (json && Array.isArray(json.data)) {
             json.data = sanitizeCalls(json.data);
@@ -1411,7 +1454,7 @@ app.get('/api/viewers/active', (req, res) => {
 app.get('/api/callbacks', async (req, res) => {
     try {
         const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks${query}`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/callbacks${query}`);
         const json = await resp.json();
         res.json(json);
     } catch (e) {
@@ -1420,9 +1463,20 @@ app.get('/api/callbacks', async (req, res) => {
 });
 
 // Mijozni o'chirish (Admin server 3535 ga uzatiladi)
+function isViewerAdmin(req) {
+    return Boolean(req.user && (req.user.role === 'superuser' || req.user.role === 'admin'));
+}
+
 app.delete('/api/callbacks/:id', async (req, res) => {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks/${req.params.id}`, { method: 'DELETE' });
+        if (!isViewerAdmin(req)) {
+            return res.status(403).json({ success: false, error: "Ushbu amal faqat admin uchun" });
+        }
+        const id = parseInt(req.params.id, 10);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ success: false, error: "Noto'g'ri ID" });
+        }
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/callbacks/${id}`, { method: 'DELETE' }, req.user.username);
         const json = await resp.json();
         res.status(resp.status).json(json);
     } catch (e) {
@@ -1433,7 +1487,10 @@ app.delete('/api/callbacks/:id', async (req, res) => {
 // Barcha mijozlarni tozalash (Admin server 3535 ga uzatiladi)
 app.delete('/api/callbacks', async (req, res) => {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/callbacks`, { method: 'DELETE' });
+        if (!isViewerAdmin(req)) {
+            return res.status(403).json({ success: false, error: "Ushbu amal faqat admin uchun" });
+        }
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/callbacks`, { method: 'DELETE' }, req.user.username);
         const json = await resp.json();
         res.status(resp.status).json(json);
     } catch (e) {
@@ -1462,7 +1519,7 @@ app.get('/api/contacts', async (req, res) => {
         }
         const queryStr = new URLSearchParams(req.query).toString();
         const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts`;
-        const resp = await fetch(url);
+        const resp = await upstreamFetch(url);
         const json = await resp.json();
         res.json(json);
     } catch (e) {
@@ -1477,7 +1534,7 @@ app.get('/api/contacts/top-active', async (req, res) => {
         }
         const queryStr = new URLSearchParams(req.query).toString();
         const url = queryStr ? `${UPSTREAM_HTTP}/api/contacts/top-active?${queryStr}` : `${UPSTREAM_HTTP}/api/contacts/top-active`;
-        const resp = await fetch(url);
+        const resp = await upstreamFetch(url);
         const json = await resp.json();
         res.json(json);
     } catch (e) {
@@ -1490,7 +1547,7 @@ app.get('/api/contacts/:phone', async (req, res) => {
         if (await checkIs200Operator(req)) {
             return res.status(403).json({ success: false, error: "200-operatorlar uchun mijozlar bazasi cheklangan" });
         }
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`);
         const json = await resp.json();
         res.json(json);
     } catch (e) {
@@ -1503,7 +1560,7 @@ app.post('/api/contacts', async (req, res) => {
         if (await checkIs200Operator(req)) {
             return res.status(403).json({ success: false, error: "200-operatorlar mijoz qo'shishi taqiqlangan" });
         }
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/contacts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -1517,7 +1574,10 @@ app.post('/api/contacts', async (req, res) => {
 
 app.delete('/api/contacts/:phone', async (req, res) => {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`, {
+        if (await checkIs200Operator(req)) {
+            return res.status(403).json({ success: false, error: "200-operatorlar mijozni o'chirishi taqiqlangan" });
+        }
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/contacts/${encodeURIComponent(req.params.phone)}`, {
             method: 'DELETE'
         });
         const json = await resp.json();
@@ -1531,7 +1591,7 @@ app.delete('/api/contacts/:phone', async (req, res) => {
 app.post('/api/converter/convert', async (req, res) => {
     try {
         const token = extractToken(req);
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/converter/convert`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/converter/convert`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1550,7 +1610,7 @@ app.post('/api/converter/convert', async (req, res) => {
 // Blacklist (Qora ro'yxat) API Proxies to 3535
 app.post('/api/blacklist/verify', async (req, res) => {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist/verify`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/blacklist/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(req.body)
@@ -1565,7 +1625,7 @@ app.post('/api/blacklist/verify', async (req, res) => {
 app.get('/api/blacklist', async (req, res) => {
     try {
         const authHeader = req.headers['x-blacklist-auth'] || '';
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/blacklist`, {
             headers: { 'x-blacklist-auth': authHeader }
         });
         const json = await resp.json();
@@ -1578,7 +1638,7 @@ app.get('/api/blacklist', async (req, res) => {
 app.post('/api/blacklist', async (req, res) => {
     try {
         const authHeader = req.headers['x-blacklist-auth'] || '';
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/blacklist`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -1596,7 +1656,7 @@ app.post('/api/blacklist', async (req, res) => {
 app.delete('/api/blacklist/:number', async (req, res) => {
     try {
         const authHeader = req.headers['x-blacklist-auth'] || '';
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/blacklist/${encodeURIComponent(req.params.number)}`, {
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/blacklist/${encodeURIComponent(req.params.number)}`, {
             method: 'DELETE',
             headers: { 'x-blacklist-auth': authHeader }
         });
@@ -1615,7 +1675,7 @@ app.post('/api/operator/pause', (req, res) => {
 // Operatorlar keshini boshlang'ich yuklash
 async function refreshOperatorsCache() {
     try {
-        const resp = await fetch(`${UPSTREAM_HTTP}/api/operators`);
+        const resp = await upstreamFetch(`${UPSTREAM_HTTP}/api/operators`);
         const json = await resp.json();
         const list = Array.isArray(json) ? json : (json.data || json.operators || []);
         if (list.length > 0) {

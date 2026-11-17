@@ -2,6 +2,7 @@ const { Client } = require('ssh2');
 require('dotenv').config();
 const redisService = require('./redisService');
 const dbService = require('./dbService');
+const { shellQuote, sqlEscape, isExtension } = require('./securityUtils');
 
 const EXCLUDED_OPERATORS = new Set();
 
@@ -917,16 +918,18 @@ class IssabelDbService {
      * ishlatiladi (faqat masofaviy `mysql` CLI jarayoni qayta ishga tushadi). Bu SSH
      * handshake narxini (odatda 200ms-2s) deyarli har bir so'rovdan olib tashlaydi.
      */
-    async execQuery(sql) {
-        let conn;
-        try {
-            conn = await this._getSshConnection();
-        } catch (err) {
-            throw err;
-        }
+    async execQuery(sql, timeoutMs = 90000) {
+        const conn = await this._getSshConnection();
 
         return new Promise((resolve, reject) => {
-            const cmd = `MYSQL_PWD='${this.dbPass}' mysql -u ${this.dbUser} -N -B -e "${sql.replace(/"/g, '\\"')}"`;
+            // XAVFSIZLIK: SQL matni hech qachon shell buyrug'i ichiga qo'yilmaydi.
+            // Avval `mysql -e "<sql>"` ishlatilgan edi — bu `$(...)` va backtick orqali
+            // PBX da root huquqi bilan ixtiyoriy buyruq bajarishga imkon berardi.
+            // Endi SQL mysql jarayonining stdin'iga yoziladi, shell uni umuman ko'rmaydi.
+            const cmd = `MYSQL_PWD=${shellQuote(this.dbPass)} mysql -u ${shellQuote(this.dbUser)} -N -B`;
+            let finished = false;
+            let timer = null;
+
             conn.exec(cmd, (err, stream) => {
                 if (err) {
                     // Ulanish "chirigan" (masalan tarmoq uzilishi) bo'lishi mumkin —
@@ -935,16 +938,28 @@ class IssabelDbService {
                     this._sshReady = null;
                     return reject(err);
                 }
+                if (timeoutMs > 0) {
+                    timer = setTimeout(() => {
+                        if (finished) return;
+                        finished = true;
+                        try { stream.close(); } catch (_) {}
+                        reject(new Error(`MySQL so'rovi ${timeoutMs} ms ichida tugamadi`));
+                    }, timeoutMs);
+                }
                 let stdout = '';
                 let stderr = '';
                 stream.on('data', d => stdout += d.toString());
                 stream.stderr.on('data', d => stderr += d.toString());
                 stream.on('close', code => {
+                    if (timer) clearTimeout(timer);
+                    if (finished) return;
+                    finished = true;
                     if (code !== 0 && stderr) {
                         return reject(new Error(stderr));
                     }
                     resolve(stdout);
                 });
+                stream.end(String(sql));
             });
         });
     }
@@ -1081,8 +1096,9 @@ class IssabelDbService {
         }
 
         let extConds = '';
-        if (matchedExts.length > 0) {
-            extConds = matchedExts.map(ext => {
+        const safeExts = matchedExts.filter(isExtension);
+        if (safeExts.length > 0) {
+            extConds = safeExts.map(ext => {
                 const dispPart = includeDisposition ? `(${p}disposition = 'ANSWERED' AND ${p}billsec > 0 AND ` : '(';
                 const endPart = includeDisposition ? `)` : '';
                 return `(${dispPart}(${p}dstchannel LIKE '%/${ext}-%' OR ${p}channel LIKE '%/${ext}-%' OR ${p}dstchannel LIKE '%Local/${ext}@%' OR ${p}channel LIKE '%Local/${ext}@%' OR ${p}dst = '${ext}')${endPart} OR ${p}src = '${ext}')`;
@@ -1112,7 +1128,7 @@ class IssabelDbService {
             variants.add(`0${main9}`);
             variants.add(`9${main9}`);
 
-            const exactList = Array.from(variants).map(v => `'${v.replace(/'/g, "\\'")}'`).join(', ');
+            const exactList = Array.from(variants).map(v => `'${sqlEscape(v)}'`).join(', ');
 
             // B-Tree indekslaridan to'liq foydalanadigan ultra-tezkor shart
             let phoneCond = `(${p}src IN (${exactList}) OR ${p}dst IN (${exactList}))`;
@@ -1129,7 +1145,7 @@ class IssabelDbService {
         }
 
         // 3. Matnli yoki umumiy qidiruv (operator nomi, disposition, va h.k.)
-        const s = raw.replace(/'/g, "\\'");
+        const s = sqlEscape(raw.slice(0, 100));
         const dispCheck = includeDisposition ? ` OR ${p}disposition LIKE '%${s}%'` : '';
         let baseCond = `(${p}src LIKE '%${s}%' OR ${p}dst LIKE '%${s}%' OR ${p}dstchannel LIKE '%${s}%' OR ${p}channel LIKE '%${s}%'${dispCheck})`;
 
@@ -1882,6 +1898,8 @@ class IssabelDbService {
      */
     async fetchCallsPaginated(page = 1, limit = 20, search = '', dateStr = '', direction = '', status = '', skipCount = false) {
         try {
+            page = Math.max(1, parseInt(page, 10) || 1);
+            limit = Math.min(Math.max(1, parseInt(limit, 10) || 20), 500);
             const isAll = dateStr === 'all' || dateStr === 'all_time';
             const isRange = Boolean(dateStr && dateStr.includes('_'));
             const targetDate = isAll ? 'all' : (isRange ? dateStr : ((dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate()));
@@ -2124,6 +2142,11 @@ class IssabelDbService {
      */
     async fetchCallsDetail({ type = 'all', operatorExt = '', page = 1, limit = 50, search = '', dateStr = '' }) {
         try {
+            // XAVFSIZLIK: operatorExt SQL ichiga to'g'ridan-to'g'ri qo'yiladi, shuning uchun faqat raqamlarga ruxsat
+            operatorExt = String(operatorExt ?? '').trim();
+            if (operatorExt && !isExtension(operatorExt)) {
+                return { total: 0, page: 1, totalPages: 1, limit: 50, data: [], error: "Noto'g'ri operator raqami" };
+            }
             limit = Math.min(Math.max(10, parseInt(limit, 10) || 50), 500);
             page = Math.max(1, parseInt(page, 10) || 1);
             const offset = (page - 1) * limit;

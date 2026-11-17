@@ -116,6 +116,7 @@ const tarCmd = `tar -czf "${archivePath}" ` +
     `--exclude="data/*.db" ` +
     `--exclude="data/*.db-*" ` +
     `--exclude="data/temp_zips" ` +
+    `--exclude="data/.internal_token" ` +
     `--exclude="*3CXPhone6.msi" ` +
     `--exclude="*3cx-agents*" ` +
     `app.js config.js swaggerSpec.js package.json package-lock.json .env services scripts public ssl viewer data system_settings.json`;

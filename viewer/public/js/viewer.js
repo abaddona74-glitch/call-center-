@@ -6375,12 +6375,10 @@ function copyRdIp() {
 window.copyRdIp = copyRdIp;
 
 function copyRdPass() {
-    const passEl = document.getElementById('rdModalDefaultPass');
-    const pass = passEl ? passEl.textContent.trim() : 'CallCenter2026!';
-    navigator.clipboard.writeText(pass).then(() => {
-        if (typeof showToast === 'function') showToast(t('rd_pass_copied', 'Parol nusxalandi!'), 'success');
-        else alert('Parol nusxalandi!');
-    });
+    // XAVFSIZLIK: RustDesk paroli endi har bir kompyuter uchun alohida va brauzer kodida saqlanmaydi
+    const msg = "Har bir kompyuterning RustDesk paroli alohida. Uni parol menejeridan oling.";
+    if (typeof showToast === 'function') showToast(msg, 'info');
+    else alert(msg);
 }
 window.copyRdPass = copyRdPass;
 
@@ -6397,11 +6395,8 @@ function connectRustDeskAction() {
         localStorage.setItem('rd_ip_' + currentRdOperator.id, ip);
     }
 
-    // RustDesk URI protocol orqali dasturni ishga tushirish (avto-parol bilan)
-    const pass = 'CallCenter2026!';
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(pass).catch(() => {});
-    }
+    // RustDesk URI protocol orqali dasturni ishga tushirish.
+    // Parol brauzerda saqlanmaydi: har bir kompyuterning paroli alohida (parol menejerida).
 
     // RustDesk dasturini faqat 1 marta ishga tushirish
     const rustdeskUrl = 'rustdesk://' + ip;
@@ -6413,7 +6408,7 @@ function connectRustDeskAction() {
     setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 500);
 
     if (typeof showToast === 'function') {
-        showToast(ip + ' ga ulanish ochilmoqda. Parol: ' + pass + ' (nusxalandi)', 'info');
+        showToast(ip + " ga ulanish ochilmoqda. Shu kompyuterning RustDesk parolini kiriting.", 'info');
     }
     closeRemoteDesktopModal();
 }

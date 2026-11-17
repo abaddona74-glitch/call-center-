@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const archiver = require('archiver');
 const issabelDbService = require('./issabelDbService');
+const { shellQuote } = require('./securityUtils');
 
 class SftpService {
     constructor() {
@@ -155,7 +156,7 @@ class SftpService {
 
         setImmediate(async () => {
             try {
-                const cmd = `du -sb "${remoteParentDir}"/* 2>/dev/null`;
+                const cmd = `du -sb ${shellQuote(remoteParentDir)}/* 2>/dev/null`;
                 const stdout = await issabelDbService.execCommand(cmd, 15000);
                 if (stdout) {
                     const lines = stdout.trim().split('\n');
@@ -187,7 +188,15 @@ class SftpService {
      * @param {string} subPath - Masalan: '' yoki '2026/09/02'
      */
     async listDirectory(subPath = '') {
-        const fullRemotePath = path.posix.join(config.SFTP.monitorPath, subPath.replace(/\\/g, '/'));
+        subPath = String(subPath || '').replace(/\\/g, '/');
+        // Kiberxavfsizlik: faqat monitor papkasi ichida yurish mumkin (../ va null-byte taqiqlangan)
+        const monitorRoot = path.posix.normalize(config.SFTP.monitorPath);
+        const fullRemotePath = path.posix.join(monitorRoot, subPath);
+        if (subPath.includes('\0') || subPath.split('/').includes('..') ||
+            (fullRemotePath !== monitorRoot && !fullRemotePath.startsWith(monitorRoot + '/'))) {
+            console.warn('⚠️ Path traversal attempt blocked in listDirectory:', subPath);
+            return { success: false, error: "Noto'g'ri papka yo'li", currentPath: '', items: [] };
+        }
         
         try {
             const connected = await this.connect();

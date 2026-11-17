@@ -77,6 +77,15 @@ if (typeof window !== 'undefined') {
     window.escapeHtml = escapeHtml;
 }
 
+// onclick="fn('...')" ichiga qo'yiladigan qiymatlar uchun: tirnoq, backslash, <, >, & va boshqa
+// xavfli belgilarni olib tashlaydi (escapeHtml JS-satr kontekstini himoya qilmaydi).
+function safeJsArg(value) {
+    return String(value ?? '').replace(/[^\p{L}\p{N} +()*#.\/_:@-]/gu, '');
+}
+if (typeof window !== 'undefined') {
+    window.safeJsArg = safeJsArg;
+}
+
 // Transfer Modal State
 let activeTransferChannel = null;
 
@@ -3211,12 +3220,13 @@ function appendOtaLog(log) {
     else if (log.step === 'INSTALLING') color = '#fbbf24';
     else if (log.step === 'DOWNLOADED') color = '#a78bfa';
 
+    // XAVFSIZLIK: barcha qiymatlar /api/agent/update-log orqali tashqaridan keladi — ekranlanadi
     row.innerHTML = `
-        <span style="color: var(--text-dim); min-width: 60px;">[${log.time}]</span>
-        <span>${log.icon || 'ℹ️'}</span>
-        <span style="font-weight: 700; color: #fff;">${log.operatorName} (${log.operatorId}):</span>
-        <span style="color: ${color}; font-weight: 500;">${log.message}</span>
-        ${log.hostname ? `<span style="color: var(--text-dim); font-size: 10px; margin-left: auto;">[${log.hostname}]</span>` : ''}
+        <span style="color: var(--text-dim); min-width: 60px;">[${escapeHtml(log.time)}]</span>
+        <span>${escapeHtml(log.icon || 'ℹ️')}</span>
+        <span style="font-weight: 700; color: #fff;">${escapeHtml(log.operatorName)} (${escapeHtml(log.operatorId)}):</span>
+        <span style="color: ${color}; font-weight: 500;">${escapeHtml(log.message)}</span>
+        ${log.hostname ? `<span style="color: var(--text-dim); font-size: 10px; margin-left: auto;">[${escapeHtml(log.hostname)}]</span>` : ''}
     `;
 
     container.appendChild(row);
@@ -7794,7 +7804,7 @@ function renderAgentHistoryTable(data) {
             rowClass += ' xfer';
         }
 
-        const uniqueRowKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || index}`;
+        const uniqueRowKey = safeJsArg(`agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || index}`);
         const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
         const isChecked = selectedHistoryKeys.has(uniqueRowKey);
         if (isChecked) rowClass += ' row-selected';
@@ -7837,8 +7847,8 @@ function renderAgentHistoryTable(data) {
         // --- Audio / Amal ustuni ---
         const isConnectedOut = isOut && durSec > 0;
         const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-        const safeRec = (item.recording || '').replace(/'/g, "\\'");
-        const safeCaller = (item.caller_id || '').replace(/'/g, "\\'");
+        const safeRec = safeJsArg(item.recording || '');
+        const safeCaller = safeJsArg(item.caller_id || '');
         const callKey = `${item.caller_id || ''}_${durSec}`;
         const isThisPlaying = currentlyPlayingCallKey === callKey;
         const isThisPaused = pausedCallKey === callKey;
@@ -7883,7 +7893,7 @@ function renderAgentHistoryTable(data) {
             `;
         }
 
-        const callerKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`;
+        const callerKey = safeJsArg(`agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`);
         const isExpCaller = isCallerExpanded(callerKey);
         const dirIcon = isOut ? '↗' : '↙';
         const dirClass = isOut ? 'out' : 'in';
@@ -7904,7 +7914,7 @@ function renderAgentHistoryTable(data) {
         }
 
         const hostDisplay = item.hostname
-            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>`
+            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${escapeHtml(item.hostname)}</span>`
             : `<span style="color: var(--mute, #8d9bb0);">Desktop</span>`;
 
         return `
@@ -7954,7 +7964,7 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
     }
     if (isLiveNew) rowClass += ' live-call-new-row';
 
-    const uniqueRowKey = item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0)));
+    const uniqueRowKey = safeJsArg(item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0))));
     const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
     const isChecked = selectedHistoryKeys.has(uniqueRowKey);
     if (isChecked) rowClass += ' row-selected';
@@ -8006,8 +8016,8 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
 
     // --- Audio / Amal ustuni ---
     const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-    const safeRec = (item.recording || '').replace(/'/g, "\\'");
-    const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+    const safeRec = safeJsArg(item.recording || '');
+    const safeCaller = safeJsArg(item.callerId || '');
     const timeVal = item.time || '';
     const callKey = `${item.callerId || ''}_${durSec}`;
     const isThisPlaying = currentlyPlayingCallKey === callKey;
@@ -9950,8 +9960,8 @@ function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered
             // Audio Actions
             const isConnectedOut = isOut && durSec > 0;
             const hasAudio = ((item.status === 'ANSWERED' || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-            const safeRec = (item.recording || '').replace(/'/g, "\\'");
-            const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
+            const safeRec = safeJsArg(item.recording || '');
+            const safeCaller = safeJsArg(item.callerId || '');
             const callKey = `${item.callerId || ''}_${durSec}`;
             const isThisPlaying = typeof currentlyPlayingCallKey !== 'undefined' && currentlyPlayingCallKey === callKey;
             const isThisPaused = typeof pausedCallKey !== 'undefined' && pausedCallKey === callKey;
@@ -10885,13 +10895,13 @@ async function loadAgentLogs(page = 1) {
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
                             <span class="phone-icon">${isax('call')}</span>
-                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
+                            <span>${r.caller_id ? escapeHtml(r.caller_id) : t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
                     <td style="white-space: nowrap; font-weight: 600;">${durFormatted}</td>
-                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${r.hostname || '-'}</td>
-                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${r.details || '-'}</td>
+                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${escapeHtml(r.hostname || '-')}</td>
+                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${escapeHtml(r.details || '-')}</td>
                 </tr>
             `;
         }).join('');
@@ -11845,13 +11855,13 @@ async function loadTabOperatorLogs(opId, page = 1) {
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
                             <span class="phone-icon">${isax('call')}</span>
-                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
+                            <span>${r.caller_id ? escapeHtml(r.caller_id) : t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
                     <td style="white-space: nowrap; font-weight: 600;">${durFormatted}</td>
-                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${r.hostname || '-'}</td>
-                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${r.details || '-'}</td>
+                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${escapeHtml(r.hostname || '-')}</td>
+                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${escapeHtml(r.details || '-')}</td>
                 </tr>
             `;
         }).join('');
@@ -14448,20 +14458,21 @@ async function loadSessionsList() {
         if (data && data.success && Array.isArray(data.sessions) && data.sessions.length > 0) {
             let html = '';
             data.sessions.forEach(s => {
-                const opName = (s.operator && s.operator.name) ? `<span style="color: #38bdf8; font-weight: 600;">${s.operator.name}</span>` : '<span style="color: #94a3b8;">Administrator</span>';
-                const tokenMasked = s.token ? `${s.token.slice(0, 8)}...${s.token.slice(-6)}` : '-';
+                const opName = (s.operator && s.operator.name) ? `<span style="color: #38bdf8; font-weight: 600;">${escapeHtml(s.operator.name)}</span>` : '<span style="color: #94a3b8;">Administrator</span>';
+                const tokenMasked = s.tokenPreview ? escapeHtml(s.tokenPreview) : '-';
+                const safeSessionId = String(s.id || '').replace(/[^a-f0-9]/g, '');
                 const createdTime = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('uz-UZ') : '-';
 
                 const actionHtml = s.isCurrent
                     ? '<span style="color: #34d399; font-size: 11.5px; font-weight: 600;">(Siz)</span>'
-                    : `<button type="button" class="btn-action" onclick="revokeSession('${s.token}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
+                    : `<button type="button" class="btn-action" onclick="revokeSession('${safeSessionId}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
 
                 html += `
                     <tr>
-                        <td style="font-weight: 600; color: #f1f5f9;">${s.username} <div style="font-size: 11px;">${opName}</div></td>
-                        <td style="font-family: monospace; color: #a5b4fc;">${s.ip || '-'}</td>
+                        <td style="font-weight: 600; color: #f1f5f9;">${escapeHtml(s.username)} <div style="font-size: 11px;">${opName}</div></td>
+                        <td style="font-family: monospace; color: #a5b4fc;">${escapeHtml(s.ip || '-')}</td>
                         <td style="font-family: monospace; font-size: 11.5px; color: #94a3b8;">${tokenMasked}</td>
-                        <td style="font-size: 11.5px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.userAgent || ''}">${s.userAgent || '-'}</td>
+                        <td style="font-size: 11.5px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(s.userAgent || '')}">${escapeHtml(s.userAgent || '-')}</td>
                         <td style="font-size: 12px; color: #94a3b8;">${createdTime}</td>
                         <td style="text-align: right;">${actionHtml}</td>
                     </tr>
@@ -14477,10 +14488,10 @@ async function loadSessionsList() {
 }
 window.loadSessionsList = loadSessionsList;
 
-async function revokeSession(token) {
+async function revokeSession(sessionId) {
     if (!confirm('Ushbu sessiyani to\'xtatishni (foydalanuvchini chiqarib yuborishni) xohlaysizmi?')) return;
     try {
-        const res = await fetch(`/api/settings/sessions/${encodeURIComponent(token)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/settings/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
         const data = await res.json();
         if (data && data.success) {
             loadSessionsList();
@@ -16649,16 +16660,16 @@ function renderSecurityEvents(events, jailedIps) {
             : '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-radius: 6px; padding: 2px 7px; font-size: 11px;">' + ev.status + '</span>';
 
         const unjailBtn = isJailed
-            ? '<button type="button" onclick="unjailSecurityIp(\'' + ev.ip + '\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Qamoqdan olish</button>'
+            ? '<button type="button" onclick="unjailSecurityIp(\'' + safeJsArg(ev.ip) + '\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Qamoqdan olish</button>'
             : '<span style="color: #64748b; font-size: 11px;">-</span>';
 
         html += `
             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                <td style="padding: 8px 10px; font-family: monospace; color: #94a3b8;">${ev.time}</td>
-                <td style="padding: 8px 10px; font-family: monospace; font-weight: 600; color: #f8fafc;">${ev.ip}</td>
-                <td style="padding: 8px 10px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ev.path}</td>
+                <td style="padding: 8px 10px; font-family: monospace; color: #94a3b8;">${escapeHtml(ev.time)}</td>
+                <td style="padding: 8px 10px; font-family: monospace; font-weight: 600; color: #f8fafc;">${escapeHtml(ev.ip)}</td>
+                <td style="padding: 8px 10px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(ev.path)}</td>
                 <td style="padding: 8px 10px;">${statusBadge}</td>
-                <td style="padding: 8px 10px; color: #94a3b8; font-size: 11.5px;">${ev.details || '-'}</td>
+                <td style="padding: 8px 10px; color: #94a3b8; font-size: 11.5px;">${escapeHtml(ev.details || '-')}</td>
                 <td style="padding: 8px 10px; text-align: right;">${unjailBtn}</td>
             </tr>
         `;

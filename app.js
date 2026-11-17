@@ -29,9 +29,53 @@ const converterService = require('./services/converterService');
 const uzcryptoService = require('./services/uzcryptoService');
 const rateLimitService = require('./services/rateLimitService');
 const { createWebAuthnService } = require('./services/webauthnService');
+const { safeEqual, isLoopbackAddress } = require('./services/securityUtils');
+const crypto = require('crypto');
 
 // Initialize Auth Service & Ensure Superuser
 authService.init();
+
+// =========================================================================
+// ICHKI XIZMATLAR (3005 Viewer -> 3535) UCHUN MAXFIY TOKEN
+// Avval 127.0.0.1 dan kelgan har qanday so'rov avtorizatsiyasiz o'tkazilardi.
+// Endi ichki so'rov `x-internal-token` sarlavhasida shu tokenni yuborishi shart.
+// Token .env dagi INTERNAL_API_TOKEN dan yoki data/.internal_token faylidan olinadi
+// (fayl bo'lmasa avtomatik yaratiladi; Viewer ham shu faylni o'qiydi).
+// =========================================================================
+const INTERNAL_API_TOKEN = (() => {
+    const fromEnv = (process.env.INTERNAL_API_TOKEN || '').trim();
+    if (fromEnv) return fromEnv;
+    const tokenFile = path.join(__dirname, 'data', '.internal_token');
+    try {
+        const existing = fs.readFileSync(tokenFile, 'utf8').trim();
+        if (existing) return existing;
+    } catch (_) {}
+    const generated = crypto.randomBytes(32).toString('hex');
+    try {
+        fs.mkdirSync(path.dirname(tokenFile), { recursive: true });
+        fs.writeFileSync(tokenFile, generated, { mode: 0o600 });
+        console.log(`🔐 Ichki xizmatlar tokeni yaratildi: ${tokenFile}`);
+    } catch (e) {
+        console.error('❌ Ichki token faylini yozib bo\'lmadi:', e.message);
+    }
+    return generated;
+})();
+
+function isTrustedInternalRequest(req) {
+    if (!req || !req.headers) return false;
+    if (!isLoopbackAddress(req.socket?.remoteAddress)) return false;
+    if (req.headers['x-forwarded-for']) return false;
+    return safeEqual(req.headers['x-internal-token'], INTERNAL_API_TOKEN);
+}
+
+// Audit uchun: amalni kim bajarganini aniqlash (Viewer orqali kelsa x-acting-user sarlavhasidan)
+function getActorName(req) {
+    if (req.user && req.user.username) return String(req.user.username);
+    if (req.isInternal && req.headers['x-acting-user']) {
+        return 'viewer:' + String(req.headers['x-acting-user']).replace(/[^a-zA-Z0-9_.@-]/g, '').slice(0, 64);
+    }
+    return 'unknown';
+}
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swaggerSpec');
@@ -58,10 +102,8 @@ const handleUpgrade = (request, socket, head) => {
         return;
     }
 
-    // 1. Agar lokal ichki xizmat (call-center-viewer 3005-portdan 127.0.0.1 orqali) ulanayotgan bo'lsa -> ruxsat berish
-    const remoteIp = socket.remoteAddress;
-    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !request.headers['x-forwarded-for'];
-    if (isLocalInternal) {
+    // 1. Ichki xizmat (call-center-viewer, 127.0.0.1 + maxfiy token) ulanayotgan bo'lsa -> ruxsat berish
+    if (isTrustedInternalRequest(request)) {
         wss.handleUpgrade(request, socket, head, (ws) => {
             ws.user = { username: 'internal-viewer', role: 'system' };
             wss.emit('connection', ws, request);
@@ -351,9 +393,11 @@ app.post('/api/auth/login', (req, res) => {
         return res.status(result.locked ? 429 : 401).json(result);
     }
 
-    // 7 kunlik xavfsiz HttpOnly cookie o'rnatish
+    // 7 kunlik xavfsiz HttpOnly cookie o'rnatish (HTTPS bo'lsa faqat shifrlangan kanal orqali yuboriladi)
+    const isHttpsLogin = Boolean(req.secure || req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https');
     res.cookie('cc_session', result.token, {
         httpOnly: true,
+        secure: isHttpsLogin,
         sameSite: 'lax',
         path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000
@@ -593,20 +637,15 @@ app.post('/api/auth/forgot-password/reset', (req, res) => {
 // Visual AI Inspector: Dev UI prompt qabul qilish va Antigravity inbox ga saqlash
 app.post('/api/dev/visual-prompt', (req, res) => {
     try {
+        // XAVFSIZLIK: bu inbox AI-agentga (prod serverga root kirish huquqi bor) vazifa sifatida o'qiladi.
+        // Avval Referer (/tools/), soxta X-Forwarded-For yoki email/username ichidagi so'z bilan
+        // ochilardi. Endi: faqat .env da ENABLE_DEV_INBOX=true bo'lsa va faqat superuser roli uchun.
+        if (process.env.ENABLE_DEV_INBOX !== 'true') {
+            return res.status(404).json({ success: false, message: "Dev inbox o'chirilgan" });
+        }
         const token = authService.extractToken(req);
         const session = authService.validateSession(token);
-        const clientIp = authService.getClientIp ? authService.getClientIp(req) : (req.ip || '');
-        const isLocal = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp.startsWith('192.168.') || clientIp.startsWith('10.');
-        const isSuper = session && (
-            session.role === 'superuser' ||
-            session.role === 'admin' ||
-            session.username === 'superuser' ||
-            session.username === 'admin' ||
-            String(session.username || '').toLowerCase().includes('maxmudbek') ||
-            session.email === 'abaddona74@gmail.com'
-        );
-        const isToolsReferer = (req.headers.referer && req.headers.referer.includes('/tools/'));
-        if (!isLocal && !isSuper && !isToolsReferer) {
+        if (!session || session.role !== 'superuser') {
             return res.status(403).json({ success: false, message: 'Faqat superuser uchun ruxsat etilgan' });
         }
 
@@ -929,7 +968,8 @@ app.put('/api/settings/users/:username/password', requireSuperuser, (req, res) =
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(postData)
+                'Content-Length': Buffer.byteLength(postData),
+                'x-internal-token': INTERNAL_API_TOKEN
             },
             timeout: 1000
         });
@@ -989,10 +1029,14 @@ app.get('/api/settings/sessions', requireSuperuser, (req, res) => {
             '192.168.0.106': { id: '106', name: 'Ubaydullayeva Gulchehra' }
         };
 
+        const currentToken = authService.extractToken(req);
         const enrichedSessions = rawSessions.map(s => {
             const matchedOp = opIpMap.get(s.ip) || fallbackIpMap[s.ip] || null;
+            // XAVFSIZLIK: haqiqiy tokenlar API orqali qaytarilmaydi (avval har qanday admin yoki XSS
+            // barcha foydalanuvchilarning tokenlarini olib, ularning nomidan kira olardi).
             return {
-                token: s.token,
+                id: sessionIdFromToken(s.token),
+                tokenPreview: `${String(s.token).slice(0, 4)}…`,
                 username: s.username,
                 role: s.role,
                 ip: s.ip,
@@ -1000,7 +1044,7 @@ app.get('/api/settings/sessions', requireSuperuser, (req, res) => {
                 createdAt: s.created_at,
                 expiresAt: s.expires_at,
                 operator: matchedOp,
-                isCurrent: s.token === authService.extractToken(req)
+                isCurrent: s.token === currentToken
             };
         });
 
@@ -1010,9 +1054,19 @@ app.get('/api/settings/sessions', requireSuperuser, (req, res) => {
     }
 });
 
-app.delete('/api/settings/sessions/:token', requireSuperuser, (req, res) => {
-    const { token } = req.params;
+// Sessiya identifikatori: tokenning SHA-256 xeshidan qisqa qism (tokenning o'zini oshkor qilmaydi)
+function sessionIdFromToken(token) {
+    return crypto.createHash('sha256').update(String(token)).digest('hex').slice(0, 32);
+}
+
+app.delete('/api/settings/sessions/:id', requireSuperuser, (req, res) => {
+    const sessionId = String(req.params.id || '');
     const currentToken = authService.extractToken(req);
+    const target = authService.listActiveSessions().find(s => sessionIdFromToken(s.token) === sessionId);
+    if (!target) {
+        return res.status(404).json({ success: false, error: 'Sessiya topilmadi' });
+    }
+    const token = target.token;
     if (token === currentToken) {
         return res.status(400).json({ success: false, error: "O'zingizning joriy sessiyangizni bu yerdan o'chira olmaysiz! (Chiqish uchun Logout tugmasini bosing)" });
     }
@@ -1023,13 +1077,73 @@ app.delete('/api/settings/sessions/:token', requireSuperuser, (req, res) => {
     res.json({ success: true, message: "Sessiya muvaffaqiyatli yakunlandi" });
 });
 
+// =========================================================================
+// 3CX DESKTOP AGENT ENDPOINTLARI HIMOYASI
+// Agentlar sessiyasiz ishlaydi, shuning uchun:
+//  1) .env da AGENT_API_KEY berilsa — `x-agent-key` sarlavhasi majburiy;
+//  2) har doim kiruvchi maydonlar tozalanadi (XSS va soxta operatorlar yaratilishiga qarshi).
+// =========================================================================
+const AGENT_API_KEY = (process.env.AGENT_API_KEY || '').trim();
+const AGENT_OPEN_PATHS = new Set(['/api/agent/heartbeat', '/api/agent/call-event', '/api/agent/sync-batch', '/api/agent/update-log', '/api/agent/reject']);
+if (!AGENT_API_KEY) {
+    console.warn('⚠️ AGENT_API_KEY o\'rnatilmagan: /api/agent/* endpointlari kalitsiz qabul qilinmoqda (faqat maydonlar tozalanadi)');
+}
+
+const cleanAgentText = (value, maxLen) => String(value ?? '').replace(/[<>"'`\\&;\u0000-\u001f]/g, '').trim().slice(0, maxLen);
+const cleanAgentPhone = (value) => String(value ?? '').replace(/[^\p{L}\p{N} +()*#.-]/gu, '').trim().slice(0, 40);
+
+app.use((req, res, next) => {
+    if (!AGENT_OPEN_PATHS.has(req.path)) return next();
+    if (AGENT_API_KEY && !safeEqual(req.headers['x-agent-key'], AGENT_API_KEY)) {
+        return res.status(401).json({ success: false, error: 'agent key required' });
+    }
+    if (req.method !== 'POST') return next();
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    if (body.operatorId !== undefined && body.operatorId !== null && body.operatorId !== '') {
+        const opId = String(body.operatorId).trim();
+        if (!/^[0-9]{2,6}$/.test(opId)) {
+            return res.status(400).json({ success: false, error: "Noto'g'ri operatorId" });
+        }
+        body.operatorId = opId;
+    }
+    if (body.hostname !== undefined) body.hostname = cleanAgentText(body.hostname, 64);
+    if (body.message !== undefined) body.message = cleanAgentText(body.message, 500);
+    if (body.step !== undefined) body.step = cleanAgentText(body.step, 32).toUpperCase();
+    if (body.eventType !== undefined) body.eventType = cleanAgentText(body.eventType, 32).toUpperCase();
+    if (body.callerId !== undefined) body.callerId = cleanAgentPhone(body.callerId);
+    for (const key of ['version', 'appVersion', 'targetVersion']) {
+        if (body[key] !== undefined) body[key] = cleanAgentText(body[key], 32);
+    }
+    if (body.details != null) {
+        body.details = cleanAgentText(typeof body.details === 'string' ? body.details : JSON.stringify(body.details), 2000);
+    }
+    for (const key of ['startTime', 'endTime']) {
+        if (body[key] != null) body[key] = cleanAgentText(body[key], 40);
+    }
+    if (Array.isArray(body.calls)) {
+        if (body.calls.length > 20000) {
+            return res.status(413).json({ success: false, error: 'Juda ko\'p yozuv' });
+        }
+        body.calls = body.calls.map(c => (c && typeof c === 'object') ? {
+            ...c,
+            callerId: cleanAgentPhone(c.callerId),
+            eventType: cleanAgentText(c.eventType, 32).toUpperCase(),
+            startTime: c.startTime == null ? c.startTime : cleanAgentText(c.startTime, 40),
+            endTime: c.endTime == null ? c.endTime : cleanAgentText(c.endTime, 40),
+            details: c.details == null ? '' : cleanAgentText(typeof c.details === 'string' ? c.details : JSON.stringify(c.details), 2000)
+        } : null).filter(Boolean);
+    }
+    req.body = body;
+    next();
+});
+
 app.use((req, res, next) => {
     const p = req.path;
 
-    // 0. Lokal ichki xizmatlar (masalan call-center-viewer 3005-portdan 127.0.0.1 orqali keluvchi so'rovlar)
-    const remoteIp = req.socket?.remoteAddress;
-    const isLocalInternal = (remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') && !req.headers['x-forwarded-for'];
-    if (isLocalInternal) {
+    // 0. Ichki xizmatlar (call-center-viewer): faqat 127.0.0.1 + to'g'ri x-internal-token bilan
+    if (isTrustedInternalRequest(req)) {
+        req.isInternal = true;
         return next();
     }
 
@@ -1056,7 +1170,6 @@ app.use((req, res, next) => {
         p === '/api/agent/sync-batch' ||
         p === '/api/agent/version' ||
         p === '/api/agent/update-log' ||
-        p === '/api/agent/release' ||
         p === '/api/agent/reject'
     ) {
         return next();
@@ -2385,7 +2498,7 @@ app.get('/api/callbacks', (req, res) => {
 app.delete('/api/callbacks/:id', (req, res) => {
     try {
         const id = parseInt(req.params.id, 10);
-        const ok = dbService.dismissCallback(id, 'admin');
+        const ok = dbService.dismissCallback(id, getActorName(req));
         if (ok) {
             const updatedList = amiService.getCallbacksWithActiveCalls();
             broadcastWs({
@@ -2404,7 +2517,9 @@ app.delete('/api/callbacks/:id', (req, res) => {
 // 2.1 Barcha bog'lanishi kerak bo'lgan mijozlarni tozalash (Clear all - faqat Admin uchun)
 app.delete('/api/callbacks', (req, res) => {
     try {
-        const count = dbService.dismissAllCallbacks('admin');
+        const actor = getActorName(req);
+        const count = dbService.dismissAllCallbacks(actor);
+        console.warn(`🧹 [AUDIT] Barcha callback'lar tozalandi: ${count} ta, bajardi: ${actor}`);
         const updatedList = amiService.getCallbacksWithActiveCalls();
         broadcastWs({
             type: 'callbacks_update',
@@ -2579,28 +2694,11 @@ app.get('/api/db/operators', async (req, res) => {
     }
 });
 
-// Asterisk MariaDB ga to'g'ridan-to'g'ri xavfsiz (faqat SELECT) SQL so'rov yuborish
-app.post('/api/db/query', async (req, res) => {
-    const { sql } = req.body || {};
-    if (!sql || typeof sql !== 'string') {
-        return res.status(400).json({ success: false, error: 'sql parametri kiritilishi shart' });
-    }
-
-    const trimmed = sql.trim();
-    if (!/^(select|show|describe|desc)\s/i.test(trimmed)) {
-        return res.status(403).json({ success: false, error: 'Xavfsizlik cheklovi: Faqat SELECT, SHOW yoki DESCRIBE so\'rovlariga ruxsat berilgan' });
-    }
-
-    if (/;\s*(drop|delete|truncate|update|insert|alter|grant|revoke|create)/i.test(trimmed)) {
-        return res.status(403).json({ success: false, error: 'Xavfli buyruqlar aniqlandi' });
-    }
-
-    try {
-        const raw = await issabelDbService.execQuery(trimmed);
-        res.json({ success: true, query: trimmed, rawOutput: raw });
-    } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
-    }
+// /api/db/query o'chirildi: ixtiyoriy SQL matni PBX dagi `mysql` mijoziga root huquqi bilan
+// yuborilardi (mysql mijozining `\!` buyrug'i orqali shell ga chiqish mumkin edi).
+// Frontendda ishlatilmaydi. Kerak bo'lsa, aniq vazifa uchun alohida parametrlangan endpoint yozing.
+app.post('/api/db/query', (req, res) => {
+    res.status(410).json({ success: false, error: "Ushbu endpoint xavfsizlik sababli o'chirilgan" });
 });
 
 // /var/spool/asterisk/monitor/ papkasidagi fayllar ro'yxati (Explorer)
