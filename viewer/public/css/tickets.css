@@ -2835,3 +2835,264 @@ label[for="newTicketTargetOperator"] {
         transition: none;
     }
 }
+
+/* ==========================================================================
+   MIJOZ MA'LUMOTLARI (Shahar / Tashkilot / FISH) va QO'NG'IROQ SATRI
+   ========================================================================== */
+.tk-customer-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 12px;
+}
+
+.tk-customer-fields .tk-form-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.tk-org-other {
+    margin-top: 6px;
+}
+
+.tk-org-other[hidden] {
+    display: none;
+}
+
+/* Avtomatik qo'ng'iroq satri: mijoz raqami + ovoz ID */
+.tk-call-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 12px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+.tk-call-strip:empty {
+    display: none;
+}
+
+.tk-call-strip[data-state="active"] {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.tk-call-strip[data-state="ended"] {
+    background: rgba(56, 189, 248, 0.07);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.tk-call-strip-icon {
+    display: inline-flex;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-call-strip[data-state="active"] .tk-call-strip-icon {
+    color: #34d399;
+}
+
+.tk-call-strip-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    min-width: 0;
+    flex: 1;
+    font-size: 12.5px;
+    color: #e2e8f0;
+}
+
+.tk-call-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.tk-call-pill.live {
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.tk-call-pill.live::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+    animation: tkCallPulse 1.6s ease-out infinite;
+}
+
+@keyframes tkCallPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+    100% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+}
+
+.tk-call-phone {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.tk-call-muted {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.tk-call-id {
+    color: #94a3b8;
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.tk-call-id code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 1px 6px;
+}
+
+.tk-call-strip-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.tk-call-strip-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.6);
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tk-call-strip-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.tk-call-strip-btn:focus-visible,
+.tk-call-strip-link:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 1px;
+}
+
+.tk-call-strip-link {
+    background: none;
+    border: 0;
+    padding: 4px 6px;
+    color: #38bdf8;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Telefon maydoni yonidagi "AVTO" belgisi */
+.tk-auto-badge {
+    display: none;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+    padding: 0 5px;
+    line-height: 15px;
+}
+
+.tk-auto-badge.show {
+    display: inline-block;
+}
+
+/* Ticket kartasidagi mijoz satri */
+.tk-mini-customer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    margin-top: 4px;
+    min-width: 0;
+}
+
+.tk-mini-customer svg {
+    flex-shrink: 0;
+    color: #38bdf8;
+}
+
+.tk-mini-customer span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ticket ichidagi ovoz ID (bosilganda nusxa olinadi) */
+.tk-call-id-val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.tk-call-id-val.copyable {
+    cursor: copy;
+    text-decoration: underline dotted rgba(148, 163, 184, 0.6);
+    text-underline-offset: 3px;
+}
+
+.tk-call-id-val.copied {
+    color: #34d399 !important;
+}
+
+/* Inline blokda ixcham ko'rinish */
+.tk-inline-panel .tk-call-strip {
+    margin-bottom: 12px;
+}
+
+.tk-inline-panel .tk-customer-fields {
+    margin-bottom: 10px;
+}
+
+.tk-inline-panel .tk-form-select {
+    padding: 8px 12px;
+    font-size: 13px;
+    height: 38px;
+}
+
+@media (max-width: 700px) {
+    .tk-customer-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-inline-panel .tk-customer-fields {
+        gap: 10px;
+    }
+}

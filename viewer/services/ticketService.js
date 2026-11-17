@@ -223,8 +223,21 @@ function checkOperatorPermission(ticket, operatorId) {
     }
 }
 
+// Matnli maydonni tozalash (bo'sh bo'lsa null, uzunligi cheklanadi)
+function cleanText(value, maxLen = 200) {
+    if (value === undefined || value === null) return null;
+    const s = String(value).replace(/\s+/g, ' ').trim();
+    return s ? s.slice(0, maxLen) : null;
+}
+
+// Asterisk qo'ng'iroq ID (CDR uniqueid / linkedid), masalan: 1731850000.12345
+function cleanCallId(value) {
+    const s = String(value || '').trim();
+    return /^[\d.]{5,32}$/.test(s) ? s : null;
+}
+
 // 1. Yangi ticket yaratish
-function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName }) {
+function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName, callId, callTime, callDirection }) {
     if (!comment && (!files || files.length === 0)) {
         throw new Error("Izoh yoki rasm kiritilishi shart");
     }
@@ -259,6 +272,14 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         creatorName: cleanCreatorName,
         creatorIp: creatorIp || '127.0.0.1',
         customerPhone: customerPhone ? String(customerPhone).trim() : null,
+        // Operator kiritadigan mijoz ma'lumotlari
+        city: cleanText(city, 80),
+        organization: cleanText(organization, 200),
+        customerName: cleanText(customerName, 120),
+        // Avtomatik: operator hisobiga bog'langan qo'ng'iroq (Asterisk ovoz ID)
+        callId: cleanCallId(callId),
+        callTime: cleanText(callTime, 40),
+        callDirection: callDirection === 'outbound' ? 'outbound' : (callId ? 'inbound' : null),
         title: title ? String(title).trim() : (comment ? comment.substring(0, 40) + '...' : 'Yangi ticket'),
         comment: String(comment || '').trim(),
         files: savedFiles,
@@ -280,7 +301,7 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
 }
 
 // 1b. Ticketni tahrirlash (Faqat yaratgan shaxs yoki mas'ul)
-function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName }) {
+function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName }) {
     const t = getTicketById(ticketId);
     if (!t) throw new Error("Ticket topilmadi");
 
@@ -299,6 +320,9 @@ function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, 
     if (customerPhone !== undefined) {
         t.customerPhone = customerPhone ? String(customerPhone).trim() : null;
     }
+    if (city !== undefined) t.city = cleanText(city, 80);
+    if (organization !== undefined) t.organization = cleanText(organization, 200);
+    if (customerName !== undefined) t.customerName = cleanText(customerName, 120);
     if (isUrgent !== undefined) {
         t.isUrgent = Boolean(isUrgent);
     }

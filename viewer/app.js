@@ -1747,6 +1747,38 @@ app.get('/api/tickets', (req, res) => {
     }
 });
 
+// 1b. Ticket ochish uchun operatorning qo'ng'iroq konteksti (mijoz raqami + ovoz ID).
+// Operator raqami sessiyadagi hisobdan (yoki IP biriktiruvidan) olinadi, brauzer yuborgan qiymatga ishonilmaydi.
+// Diqqat: '/api/tickets/:id' dan OLDIN e'lon qilinishi shart.
+app.get('/api/tickets/call-context', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, error: 'Avtorizatsiya talab qilinadi' });
+        }
+        const clientIp = extractClientIp(req);
+        const autoMappedOp = operatorIpMap.get(clientIp);
+        const operatorId = String(req.user.operatorId || (autoMappedOp && autoMappedOp.id) || '').replace(/\D/g, '');
+        if (!operatorId) {
+            return res.json({ success: true, state: 'no_operator', operatorId: null, call: null, contact: null });
+        }
+
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/calls/operator-context?operator=${encodeURIComponent(operatorId)}`);
+        const json = await resp.json();
+        if (!resp.ok || !json || json.success === false) {
+            return res.status(502).json({ success: false, error: (json && json.error) || 'Qo\'ng\'iroq ma\'lumotini olib bo\'lmadi', operatorId });
+        }
+        res.json({
+            success: true,
+            operatorId,
+            state: json.state || 'none',
+            call: json.call || null,
+            contact: json.contact || null
+        });
+    } catch (e) {
+        res.status(502).json({ success: false, error: e.message });
+    }
+});
+
 // 2. Bitta ticket ma'lumotini olish
 app.get('/api/tickets/:id', (req, res) => {
     try {
@@ -1762,7 +1794,7 @@ app.get('/api/tickets/:id', (req, res) => {
 app.post('/api/tickets', (req, res) => {
     try {
         const clientIp = extractClientIp(req);
-        const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
+        const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName, callId, callTime, callDirection } = req.body || {};
         
         // Ruxsat tekshiruvi: 100+ operatorlari (shu jumladan Maxmudbek / 114) ticket yarata olmaydi
         // Yaratuvchi shaxsi: sessiyadagi req.user ma'lumotlariga qat'iy bog'lanadi (fixed)
@@ -1793,7 +1825,13 @@ app.post('/api/tickets', (req, res) => {
             files,
             isUrgent,
             targetOperatorId,
-            targetOperatorName
+            targetOperatorName,
+            city,
+            organization,
+            customerName,
+            callId,
+            callTime,
+            callDirection
         });
 
         // Barcha ulangan operatorlarga real-time xabar
@@ -1808,7 +1846,7 @@ app.post('/api/tickets', (req, res) => {
 // 3b. Ticketni tahrirlash (Edit ticket)
 const handleTicketEdit = (req, res) => {
     try {
-        const { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
+        const { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName } = req.body || {};
         const updated = ticketService.updateTicket(req.params.id, {
             editorId,
             editorName,
@@ -1816,7 +1854,10 @@ const handleTicketEdit = (req, res) => {
             comment,
             isUrgent,
             targetOperatorId,
-            targetOperatorName
+            targetOperatorName,
+            city,
+            organization,
+            customerName
         });
         broadcastTicketEvent('ticket_updated', updated);
         res.json({ success: true, data: updated });
