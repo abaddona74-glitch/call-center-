@@ -1,0 +1,243 @@
+name: Deploy
+
+# Production deploy. Manual only. The `deploy` job uses the `production` environment, which must have
+# required reviewers (Settings -> Environments -> production): nothing reaches the server without
+# the owner's approval. Checks and image builds run on GitHub-hosted runners; the deploy job runs on
+# a self-hosted runner inside the LAN (on the app VM), so the VM needs no SSH port open to the
+# Internet. Runbook: docs/rewrite/DEPLOY.md
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit SHA, branch or tag to deploy (empty = the commit this run was started from). Must be in main.
+        required: false
+        type: string
+        default: ''
+      skip_build:
+        description: Reuse images already in GHCR for this commit (fast rollback to an earlier release; skips checks and build)
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+# One deploy at a time; a queued run waits instead of cancelling the one in progress.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/nuriddin2468
+  APP_DIR: /opt/callcenter
+
+jobs:
+  resolve:
+    name: Resolve commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Resolve the full SHA and require it to be in main
+        id: sha
+        run: |
+          sha="$(git rev-parse HEAD)"
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::cannot resolve the commit"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$sha" origin/main; then
+            echo "::error::$sha is not in main. Only commits merged into main are deployed."
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deploy request"
+            echo "- commit: \`$sha\` ($(git log -1 --format='%s' "$sha"))"
+            echo "- requested by: $GITHUB_ACTOR, skip_build: ${SKIP_BUILD}"
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SKIP_BUILD: ${{ inputs.skip_build }}
+
+  check:
+    name: Lint, typecheck, test, build
+    needs: resolve
+    if: ${{ !inputs.skip_build }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # Same checks as .github/workflows/ci.yml (keep in sync).
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: callcenter_test
+          POSTGRES_USER: callcenter
+          POSTGRES_PASSWORD: callcenter
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U callcenter"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgres://callcenter:callcenter@localhost:5432/callcenter_test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cc/shared build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  build:
+    name: Build and push ${{ matrix.app }} image
+    needs: [resolve, check]
+    if: ${{ !inputs.skip_build }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/call-center-${{ matrix.app }}:${{ needs.resolve.outputs.sha }}
+          # The source label links the package to this repository, so the deploy job's
+          # GITHUB_TOKEN (packages: read) can pull it.
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.resolve.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+  deploy:
+    name: Deploy to production
+    needs: [resolve, build]
+    if: >-
+      ${{ !cancelled() && needs.resolve.result == 'success' &&
+      (needs.build.result == 'success' || (inputs.skip_build && needs.build.result == 'skipped')) }}
+    # Default: the self-hosted runner labelled `callcenter-deploy` (user gha-runner on the app VM,
+    # no docker/sudo; it reaches deploy@127.0.0.1 over SSH with the environment's key). The repository
+    # variable DEPLOY_RUNNER overrides the label, e.g. `ubuntu-latest` when SSH is reachable another
+    # way (Tailscale/WireGuard). See DEPLOY.md, "Как CI попадает на сервер".
+    runs-on: ${{ vars.DEPLOY_RUNNER || 'callcenter-deploy' }}
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    env:
+      SHA: ${{ needs.resolve.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          persist-credentials: false
+          sparse-checkout: infra
+
+      # ONE TCP connection per run (ControlMaster): every later ssh reuses it. Fewer connections
+      # also keep Kerio's SSH flood protection quiet if the path ever crosses it.
+      - name: Configure SSH (pinned host key, key-only, single multiplexed connection)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          for v in DEPLOY_HOST DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS; do
+            if [[ -z "${!v}" ]]; then
+              echo "::error::secret $v is not set in the production environment"
+              exit 1
+            fi
+          done
+          ssh_dir="$RUNNER_TEMP/deploy-ssh"
+          rm -rf "$ssh_dir"
+          install -d -m 700 "$ssh_dir"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
+          chmod 600 "$ssh_dir/key"
+          ssh-keygen -y -f "$ssh_dir/key" > /dev/null || { echo "::error::DEPLOY_SSH_KEY is not a valid private key"; exit 1; }
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          cat > "$ssh_dir/config" <<EOF
+          Host deploy-target
+            HostName ${DEPLOY_HOST}
+            Port ${DEPLOY_PORT:-22}
+            User deploy
+            IdentityFile ${ssh_dir}/key
+            IdentitiesOnly yes
+            UserKnownHostsFile ${ssh_dir}/known_hosts
+            GlobalKnownHostsFile /dev/null
+            StrictHostKeyChecking yes
+            UpdateHostKeys no
+            BatchMode yes
+            ConnectTimeout 20
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+            ControlMaster auto
+            ControlPath ${ssh_dir}/cm
+            ControlPersist 30m
+          EOF
+          echo "SSH_CONFIG=$ssh_dir/config" >> "$GITHUB_ENV"
+
+      - name: Open the SSH connection
+        run: |
+          ssh -F "$SSH_CONFIG" -o ControlMaster=yes -fN deploy-target
+          ssh -F "$SSH_CONFIG" -O check deploy-target
+
+      - name: Upload release files
+        run: |
+          tar -C infra -cf - compose.yml .env.example server |
+            ssh -F "$SSH_CONFIG" deploy-target \
+              "set -eu; d='${APP_DIR}/releases/${SHA}'; mkdir -p \"\$d\"; tar -xf - -C \"\$d\""
+
+      - name: Run deploy script on the server
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The short-lived job token is sent on stdin and used only for this pull
+          # (throwaway DOCKER_CONFIG on the server, nothing is stored there).
+          printf '%s\n%s\n' "$GITHUB_ACTOR" "$REGISTRY_TOKEN" |
+            ssh -F "$SSH_CONFIG" deploy-target \
+              "bash '${APP_DIR}/releases/${SHA}/server/deploy.sh' --registry-auth-stdin '${SHA}'"
+          echo "Deployed \`$SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Close the SSH connection and remove SSH material
+        if: always()
+        run: |
+          if [[ -n "${SSH_CONFIG:-}" ]]; then ssh -F "$SSH_CONFIG" -O exit deploy-target 2>/dev/null || true; fi
+          rm -rf "$RUNNER_TEMP/deploy-ssh"
