@@ -90,7 +90,12 @@ export const EnvSchema = z.object({
 export type Env = z.infer<typeof EnvSchema>;
 
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = EnvSchema.safeParse(raw);
+  // `KEY=` in an env file means "not set": defaults apply and optional values stay undefined
+  // (otherwise e.g. an empty BOOTSTRAP_SUPERUSER_PASSWORD fails min(12) and the API won't start).
+  const cleaned = Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => !(typeof value === 'string' && value.trim() === '')),
+  );
+  const result = EnvSchema.safeParse(cleaned);
   if (!result.success) {
     const details = result.error.issues.map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
