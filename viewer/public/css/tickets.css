@@ -2480,3 +2480,358 @@ label[for="newTicketTargetOperator"] {
 
 
 
+
+/* ==========================================================================
+   INLINE: YANGI TICKET OCHISH BLOKI
+   "Bog'lanishi kerak bo'lgan mijozlar" paneli ostida, ochiladigan / yopiladigan
+   ========================================================================== */
+.tk-inline-panel {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tk-inline-panel.expanded {
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(56, 189, 248, 0.08);
+}
+
+.tk-inline-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 18px;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.tk-inline-head:hover {
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.tk-inline-head:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: -2px;
+    border-radius: 14px;
+}
+
+.tk-inline-head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tk-inline-head-left > svg {
+    width: 20px;
+    height: 20px;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-inline-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tk-inline-head .tk-box-id {
+    font-size: 11px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+
+.tk-inline-draft {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 6px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+
+.tk-inline-draft::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+}
+
+.tk-inline-panel.has-draft:not(.expanded) .tk-inline-draft {
+    display: inline-flex;
+}
+
+.tk-inline-head-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.tk-inline-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.tk-inline-hint .tk-kbd {
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+.tk-inline-chevron {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    transition: transform 0.28s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.tk-inline-chevron svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tk-inline-head:hover .tk-inline-chevron {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.tk-inline-panel.expanded .tk-inline-chevron {
+    transform: rotate(180deg);
+}
+
+/* Ochilish / yopilish animatsiyasi (balandlik avtomatik) */
+.tk-inline-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s ease;
+}
+
+.tk-inline-panel.expanded .tk-inline-body {
+    grid-template-rows: 1fr;
+}
+
+.tk-inline-body-inner {
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility 0s linear 0.28s;
+}
+
+.tk-inline-panel.expanded .tk-inline-body-inner {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.tk-inline-form {
+    margin: 0;
+    padding: 14px 18px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tk-inline-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 14px;
+}
+
+.tk-inline-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tk-inline-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 10px;
+    align-items: end;
+}
+
+/* Modal formadagi elementlarni ixcham ko'rinishga moslash */
+.tk-inline-panel .tk-form-group {
+    margin-bottom: 0;
+    gap: 5px;
+}
+
+.tk-inline-panel .tk-form-input {
+    padding: 8px 12px;
+    font-size: 13px;
+    height: 38px;
+}
+
+.tk-inline-panel .tk-form-textarea {
+    min-height: 74px;
+    padding: 9px 12px;
+    font-size: 13px;
+}
+
+.tk-inline-panel .tk-urgent-toggle-row {
+    margin-bottom: 0;
+    padding: 6px 12px;
+    min-height: 38px;
+    box-sizing: border-box;
+    gap: 10px;
+}
+
+.tk-inline-panel .tk-urgent-label {
+    font-size: 12.5px;
+}
+
+.tk-inline-panel .tk-urgent-desc {
+    font-size: 10.5px;
+}
+
+.tk-inline-files {
+    flex: 1;
+}
+
+.tk-inline-panel .tk-dropzone {
+    flex: 1;
+    min-height: 92px;
+    padding: 12px;
+    gap: 5px;
+    border-width: 1.5px;
+}
+
+.tk-inline-panel .tk-dropzone:hover,
+.tk-inline-panel .tk-dropzone.drag-over {
+    transform: none;
+}
+
+.tk-inline-panel .tk-dropzone:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.tk-inline-panel .tk-dropzone-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.tk-inline-panel .tk-dropzone-text {
+    font-size: 12px;
+}
+
+.tk-inline-panel .tk-dropzone-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.tk-inline-panel .tk-dropzone-hint .tk-kbd {
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+.tk-inline-panel .tk-preview-strip {
+    margin-top: 4px;
+}
+
+.tk-inline-panel .tk-preview-strip:empty {
+    display: none;
+}
+
+.tk-inline-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tk-inline-note {
+    margin-right: auto;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.tk-inline-panel .tk-action-btn {
+    padding: 7px 16px;
+    font-size: 12.5px;
+}
+
+.tk-inline-panel .tk-action-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    transform: none;
+}
+
+@media (max-width: 1100px) {
+    .tk-inline-hint {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .tk-inline-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .tk-inline-head {
+        padding: 10px 14px;
+    }
+
+    .tk-inline-head .tk-box-id {
+        display: none;
+    }
+
+    .tk-inline-form {
+        padding: 12px 14px;
+    }
+
+    .tk-inline-row {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-inline-note {
+        display: none;
+    }
+
+    .tk-inline-actions .tk-action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tk-inline-body,
+    .tk-inline-chevron {
+        transition: none;
+    }
+}

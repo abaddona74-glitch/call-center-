@@ -957,6 +957,11 @@
             fullBtn.classList.toggle('hidden', !canCreate);
             fullBtn.style.setProperty('display', canCreate ? 'inline-flex' : 'none', 'important');
         }
+        // Inline "Murojaat / Vazifa Ochish" bloki (asosiy viewer sahifasida)
+        const inlinePanel = getInlineCreatePanel();
+        if (inlinePanel) {
+            inlinePanel.style.setProperty('display', canCreate ? 'block' : 'none', 'important');
+        }
 
         // 200+ (Creator) lar uchun "🎯 Menga" o'rniga "✍️ Men yaratgan", 100+ lar uchun "🎯 Menga"
         const sbMineLabel = document.getElementById('sbTabMineLabel');
@@ -1005,6 +1010,13 @@
             }
         });
 
+        // Asosiy viewer sahifasida forma modal emas, inline blok: qoralama saqlanib qoladi, faqat ochiladi
+        if (getInlineCreatePanel()) {
+            closeSidebar();
+            setInlineCreateExpanded(true, { focus: true, scroll: true });
+            return;
+        }
+
         state.attachedFiles = [];
         renderAttachedFilesPreview('newTicketPreviewStrip', state.attachedFiles);
 
@@ -1023,23 +1035,100 @@
     }
 
     function closeCreateModal() {
+        // Inline blok yopilganda qoralama o'chirilmaydi (keyin davom ettirish mumkin)
+        if (getInlineCreatePanel()) {
+            setInlineCreateExpanded(false);
+            return;
+        }
         const modal = document.getElementById('createTicketModal');
-        const cleanup = () => {
-            state.attachedFiles = [];
-            const urgentInput = document.getElementById('newTicketUrgent');
-            if (urgentInput) urgentInput.checked = false;
-            const commentInput = document.getElementById('newTicketComment');
-            if (commentInput) commentInput.value = '';
-            const phoneInput = document.getElementById('newTicketCustomerPhone');
-            if (phoneInput) phoneInput.value = '';
-            const fileInput = document.getElementById('newTicketFileInput');
-            if (fileInput) fileInput.value = '';
-            renderAttachedFilesPreview('newTicketPreviewStrip', []);
-        };
         if (modal) {
-            smoothCloseTicketModal(modal, cleanup);
+            smoothCloseTicketModal(modal, resetCreateForm);
         } else {
-            cleanup();
+            resetCreateForm();
+        }
+    }
+
+    // Yangi ticket formasini to'liq tozalash (izoh, telefon, shoshilinch, fayllar)
+    function resetCreateForm() {
+        state.attachedFiles = [];
+        const urgentInput = document.getElementById('newTicketUrgent');
+        if (urgentInput) urgentInput.checked = false;
+        const commentInput = document.getElementById('newTicketComment');
+        if (commentInput) commentInput.value = '';
+        const phoneInput = document.getElementById('newTicketCustomerPhone');
+        if (phoneInput) phoneInput.value = '';
+        const fileInput = document.getElementById('newTicketFileInput');
+        if (fileInput) fileInput.value = '';
+        renderAttachedFilesPreview('newTicketPreviewStrip', []);
+        updateInlineDraftIndicator();
+    }
+
+    // =========================================================================
+    // INLINE "MUROJAAT / VAZIFA OCHISH" BLOKI (ochiladigan / yopiladigan)
+    // =========================================================================
+    const INLINE_CREATE_EXPANDED_KEY = 'viewer_inline_ticket_expanded';
+
+    function getInlineCreatePanel() {
+        return document.getElementById('inlineTicketCreatePanel');
+    }
+
+    function isInlineCreateExpanded() {
+        const panel = getInlineCreatePanel();
+        return !!(panel && panel.classList.contains('expanded'));
+    }
+
+    function setInlineCreateExpanded(expand, opts = {}) {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        const isOpen = !!expand;
+        panel.classList.toggle('expanded', isOpen);
+        const toggleBtn = document.getElementById('inlineTicketToggle');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        try { localStorage.setItem(INLINE_CREATE_EXPANDED_KEY, isOpen ? '1' : '0'); } catch (e) { /* ignore */ }
+        updateInlineDraftIndicator();
+
+        if (isOpen && opts.focus) {
+            setTimeout(() => {
+                if (opts.scroll) {
+                    const rect = panel.getBoundingClientRect();
+                    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                const commentInput = document.getElementById('newTicketComment');
+                if (commentInput) commentInput.focus({ preventScroll: true });
+            }, 300);
+        }
+    }
+
+    function toggleInlineCreate(force) {
+        const next = (typeof force === 'boolean') ? force : !isInlineCreateExpanded();
+        if (next) {
+            openCreateModal();
+        } else {
+            setInlineCreateExpanded(false);
+        }
+    }
+
+    // Yopiq holatda yozilgan, lekin yuborilmagan ma'lumot bo'lsa sarlavhada "Qoralama" belgisini ko'rsatish
+    function updateInlineDraftIndicator() {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        const comment = document.getElementById('newTicketComment');
+        const phone = document.getElementById('newTicketCustomerPhone');
+        const hasDraft = !!((comment && comment.value.trim()) || (phone && phone.value.trim()) || state.attachedFiles.length > 0);
+        panel.classList.toggle('has-draft', hasDraft);
+    }
+
+    function initInlineCreatePanel() {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        panel.addEventListener('input', updateInlineDraftIndicator);
+
+        let wasExpanded = false;
+        try { wasExpanded = localStorage.getItem(INLINE_CREATE_EXPANDED_KEY) === '1'; } catch (e) { /* ignore */ }
+        if (wasExpanded) {
+            setInlineCreateExpanded(true);
         }
     }
 
@@ -1085,6 +1174,8 @@
                 </div>
             `;
         }).join('');
+
+        if (containerId === 'newTicketPreviewStrip') updateInlineDraftIndicator();
     }
 
     function previewAttachedFileAtIndex(containerId, idx) {
@@ -1135,8 +1226,11 @@
             let targetOperatorName = 'Barcha operatorlar';
             if (targetSelect) {
                 targetOperatorId = targetSelect.value || 'all';
-                const selectedOpt = targetSelect.options[targetSelect.selectedIndex];
-                targetOperatorName = selectedOpt ? (selectedOpt.getAttribute('data-name') || selectedOpt.text) : 'Barcha operatorlar';
+                // Maydon <select> bo'lsa nomini variantdan olamiz; yashirin <input> da .options yo'q
+                const selectedOpt = targetSelect.options ? targetSelect.options[targetSelect.selectedIndex] : null;
+                if (selectedOpt) {
+                    targetOperatorName = selectedOpt.getAttribute('data-name') || selectedOpt.text;
+                }
             }
 
             // Yaratuvchi: Qat'iy joriy avtorizatsiyadan o'tgan akkountga bog'lanadi (fixed)
@@ -1157,12 +1251,9 @@
                 targetOperatorName: targetOperatorName
             });
 
+            resetCreateForm();
             closeCreateModal();
-            if (commentInput) commentInput.value = '';
-            if (phoneInput) phoneInput.value = '';
-            if (urgentInput) urgentInput.checked = false;
-            if (targetSelect) targetSelect.value = 'all';
-            state.attachedFiles = [];
+            if (targetSelect && targetSelect.tagName === 'SELECT') targetSelect.value = 'all';
         } catch (err) {
             alert('Xatolik: ' + err.message);
         } finally {
@@ -1535,7 +1626,10 @@
                         renderAttachedFilesPreview('replyTicketPreviewStrip', state.replyAttachedFiles);
                     } else {
                         // Aks holda Yangi Ticket ochish oynasiga
-                        if (!document.getElementById('createTicketModal')?.classList.contains('active')) {
+                        const createFormOpen = getInlineCreatePanel()
+                            ? isInlineCreateExpanded()
+                            : document.getElementById('createTicketModal')?.classList.contains('active');
+                        if (!createFormOpen) {
                             openCreateModal();
                         }
                         state.attachedFiles.push(parsed);
@@ -2343,6 +2437,7 @@
     function init() {
         initTicketsProfileIdentity();
         updateCreateButtonVisibility();
+        initInlineCreatePanel();
         loadTickets();
         setupGlobalClipboardPaste();
 
@@ -2388,7 +2483,8 @@
                 closeDocViewer();
                 closeLightbox();
                 closeTicketBox();
-                closeCreateModal();
+                // Inline blok Esc bilan yopilmaydi (masalan, fayl ko'rish oynasini yopganda forma yig'ilib ketmasin)
+                if (!getInlineCreatePanel()) closeCreateModal();
                 closeSidebar();
                 closeImpersonateModal();
             }
@@ -2501,6 +2597,8 @@ window.TicketsApp = {
     init,
     openCreateModal,
     closeCreateModal,
+    resetCreateForm,
+    toggleInlineCreate,
     openEditModal,
     closeEditModal,
     handleEditSubmit,
