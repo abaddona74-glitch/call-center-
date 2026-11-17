@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useSessionUser } from '@/entities/session';
+import { startImpersonation, useSessionUser } from '@/entities/session';
 import { RoleBadge, deleteUser, operatorGroupsQuery, userKeys, usersQuery } from '@/entities/user';
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
@@ -36,6 +36,13 @@ export function UsersSettingsPage() {
   const [resetting, setResetting] = useState<User | null>(null);
   const [removing, setRemoving] = useState<User | null>(null);
 
+  const impersonate = useMutation({
+    mutationFn: (u: User) => startImpersonation(u.id),
+    // full reload: every cache and the WebSocket switch to the other user
+    onSuccess: () => window.location.assign('/'),
+    onError: (err) => toast.error(userErrorText(err, t)),
+  });
+
   const remove = useMutation({
     mutationFn: (u: User) => deleteUser(u.id),
     onSuccess: () => {
@@ -63,6 +70,7 @@ export function UsersSettingsPage() {
                 <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>
               )}
               {!u.isActive && <Pill tone="red">{t('users.inactive')}</Pill>}
+              {u.mustChangePassword && <Pill tone="amber">{t('users.passwordPending')}</Pill>}
             </div>
           );
         },
@@ -109,32 +117,47 @@ export function UsersSettingsPage() {
         header: () => t('users.colActions'),
         cell: ({ row }) => {
           const u = row.original;
-          if (!u.canManage) return null;
+          if (!u.canManage && !u.canImpersonate) return null;
           return (
             <div className="inline-flex justify-end gap-1">
-              <SettingsButton size="sm" tone="ghost" onClick={() => setEditing(u)}>
-                {t('common.edit')}
-              </SettingsButton>
-              <button
-                type="button"
-                className="cursor-pointer rounded-md border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] px-2 py-1 text-[11px] text-[#60a5fa] hover:bg-[rgba(59,130,246,0.25)]"
-                onClick={() => setResetting(u)}
-              >
-                {t('users.passwordBtn')}
-              </button>
-              <button
-                type="button"
-                className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]"
-                onClick={() => setRemoving(u)}
-              >
-                {t('common.delete')}
-              </button>
+              {u.canImpersonate && (
+                <button
+                  type="button"
+                  title={t('users.loginAsHint')}
+                  disabled={impersonate.isPending}
+                  className="cursor-pointer rounded-md border border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.15)] px-2 py-1 text-[11px] text-[#fbbf24] hover:bg-[rgba(245,158,11,0.25)] disabled:opacity-50"
+                  onClick={() => impersonate.mutate(u)}
+                >
+                  {t('users.loginAs')}
+                </button>
+              )}
+              {u.canManage && (
+                <>
+                  <SettingsButton size="sm" tone="ghost" onClick={() => setEditing(u)}>
+                    {t('common.edit')}
+                  </SettingsButton>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-md border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] px-2 py-1 text-[11px] text-[#60a5fa] hover:bg-[rgba(59,130,246,0.25)]"
+                    onClick={() => setResetting(u)}
+                  >
+                    {t('users.passwordBtn')}
+                  </button>
+                  <button
+                    type="button"
+                    className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]"
+                    onClick={() => setRemoving(u)}
+                  >
+                    {t('common.delete')}
+                  </button>
+                </>
+              )}
             </div>
           );
         },
       }),
     ],
-    [t, tu, me.id],
+    [t, tu, me.id, impersonate],
   );
 
   return (

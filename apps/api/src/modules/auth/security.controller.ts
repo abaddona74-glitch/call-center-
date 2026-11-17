@@ -19,7 +19,7 @@ import {
   SerializeOptions,
 } from '@nestjs/common';
 import { z } from 'zod';
-import { Roles } from '../../common/decorators/auth.decorators.js';
+import { RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AuthSettingsService } from './auth-settings.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
@@ -28,7 +28,7 @@ const LockoutIdSchema = z.coerce.number().int().positive();
 
 /** Login protection settings (superuser edits, admin reads) and active lockouts (admin+). */
 @Controller('security')
-@Roles('admin')
+@RequirePermission('security.manage')
 export class SecurityController {
   constructor(
     private readonly settings: AuthSettingsService,
@@ -43,7 +43,6 @@ export class SecurityController {
   }
 
   @Put('settings')
-  @Roles('superuser')
   @SerializeOptions({ schema: LockoutSettingsSchema })
   async putSettings(@Body({ schema: LockoutSettingsSchema }) body: LockoutSettings): Promise<LockoutSettings> {
     const before = await this.settings.getLockout();

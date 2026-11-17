@@ -1,7 +1,8 @@
-import { hasRoleAtLeast } from '@cc/shared';
+import { hasPermission, hasRoleAtLeast } from '@cc/shared';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
+import { ImpersonationBanner } from '@/features/auth/impersonation';
 import { LogoutButton } from '@/features/auth/logout';
 import { useRealtimeStatus } from '@/shared/api';
 import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
@@ -13,7 +14,11 @@ export function AppShell() {
   const { t, i18n } = useTranslation();
   const user = useSessionUser();
   const status = useRealtimeStatus();
-  const items = NAV_ITEMS.filter((item) => hasRoleAtLeast(user.role, item.minRole));
+  const items = NAV_ITEMS.filter(
+    (item) =>
+      (!item.minRole || hasRoleAtLeast(user.role, item.minRole)) &&
+      (!item.permission || [item.permission].flat().some((p) => hasPermission(user, p))),
+  );
 
   return (
     <div className="flex min-h-svh">
@@ -61,6 +66,7 @@ export function AppShell() {
           </span>
           <LogoutButton />
         </header>
+        <ImpersonationBanner />
         <main className="flex-1 p-6">
           <Outlet />
         </main>

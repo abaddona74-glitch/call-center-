@@ -1,4 +1,4 @@
-import type { Role } from '@cc/shared';
+import type { Permission, RoleLevel } from '@cc/shared';
 import { LayoutDashboard, type LucideIcon, Settings, UserRound } from 'lucide-react';
 
 export interface NavItem {
@@ -6,8 +6,10 @@ export interface NavItem {
   /** i18n key */
   label: string;
   icon: LucideIcon;
-  /** Minimum role that sees the item. */
-  minRole: Role;
+  /** The item shows when the user has any of these permissions (preferred). */
+  permission?: Permission | Permission[];
+  /** @deprecated minimum role level ('admin' = executive); use `permission`. */
+  minRole?: RoleLevel;
 }
 
 /**
@@ -16,6 +18,6 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'operator' },
-  { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
+  { to: '/settings', label: 'nav.settings', icon: Settings, permission: ['users.manage', 'sessions.manage', 'security.manage', 'audit.view'] },
   { to: '/profile', label: 'nav.profile', icon: UserRound, minRole: 'operator' },
 ];

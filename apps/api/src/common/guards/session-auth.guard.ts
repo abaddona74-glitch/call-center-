@@ -1,16 +1,26 @@
-import { type PermissionFlag, type Role, hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { type GroupFlag, type Permission, type RoleLevel, hasPermission, hasRoleAtLeast } from '@cc/shared';
 import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { SessionsService } from '../../modules/auth/sessions.service.js';
 import type { AppClsStore } from '../cls/app-cls.js';
-import { IS_PUBLIC_KEY, PERMISSION_KEY, ROLES_KEY } from '../decorators/auth.decorators.js';
+import {
+  ALLOW_PASSWORD_CHANGE_PENDING_KEY,
+  DENY_IMPERSONATION_KEY,
+  IS_PUBLIC_KEY,
+  PERMISSION_KEY,
+  ROLES_KEY,
+} from '../decorators/auth.decorators.js';
 import { extractSessionToken } from '../http/cookies.js';
+
+/** Message of the 403 sent while a forced password change is pending (the web app checks it). */
+export const PASSWORD_CHANGE_REQUIRED = 'Password change required';
 
 /**
  * Global guard: every HTTP route requires a valid session unless marked @Public().
- * Then enforces @Roles(minimum) and @RequirePermission(flag) if present. Puts the user into CLS for the rest of the request.
+ * Then, in order: forced password change, impersonation restrictions, @Roles (compat), @RequirePermission.
+ * Puts the user into CLS for the rest of the request.
  */
 @Injectable()
 export class SessionAuthGuard implements CanActivate {
@@ -28,18 +38,31 @@ export class SessionAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request & { user?: unknown }>();
     const session = await this.sessions.validate(extractSessionToken(req));
     if (!session) throw new UnauthorizedException('Authentication required');
+    const { user } = session;
 
-    req.user = session.user;
-    this.cls.set('user', session.user);
+    req.user = user;
+    this.cls.set('user', user);
     this.cls.set('sessionId', session.sessionId);
 
-    const minimum = this.reflector.getAllAndOverride<Role | undefined>(ROLES_KEY, targets);
-    if (minimum && !hasRoleAtLeast(session.user.role, minimum)) {
+    // A superuser acting as the user is not the account owner and is never forced to change its password.
+    if (
+      user.mustChangePassword &&
+      !user.impersonation &&
+      !this.reflector.getAllAndOverride<boolean>(ALLOW_PASSWORD_CHANGE_PENDING_KEY, targets)
+    ) {
+      throw new ForbiddenException(PASSWORD_CHANGE_REQUIRED);
+    }
+    if (user.impersonation && this.reflector.getAllAndOverride<boolean>(DENY_IMPERSONATION_KEY, targets)) {
+      throw new ForbiddenException('Not allowed while acting as another user');
+    }
+
+    const minimum = this.reflector.getAllAndOverride<RoleLevel | undefined>(ROLES_KEY, targets);
+    if (minimum && !hasRoleAtLeast(user.role, minimum)) {
       throw new ForbiddenException('Insufficient permissions');
     }
-    const permission = this.reflector.getAllAndOverride<PermissionFlag | undefined>(PERMISSION_KEY, targets);
-    if (permission && !hasPermission(session.user, permission)) {
-      throw new ForbiddenException('Your operator group does not allow this');
+    const permission = this.reflector.getAllAndOverride<Permission | GroupFlag | undefined>(PERMISSION_KEY, targets);
+    if (permission && !hasPermission(user, permission)) {
+      throw new ForbiddenException('Insufficient permissions');
     }
     return true;
   }

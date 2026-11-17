@@ -1,16 +1,17 @@
-import type { Role } from '@cc/shared';
+import { type Permission, type Role, hasPermission } from '@cc/shared';
 
 /**
- * Who may manage whom (fixes the legacy RBAC where any admin could create superusers):
- *  - superuser manages everyone (including other superusers);
- *  - admin manages only operators and may only grant the operator role;
- *  - operators manage nobody;
+ * Who may manage whom (permission-based; the role → permission map is ROLE_PERMISSIONS in @cc/shared):
+ *  - managing accounts needs `users.manage` (today: superuser only);
+ *  - only a superuser manages superuser accounts or grants the superuser role;
  *  - nobody removes, demotes or deactivates the last active superuser;
- *  - nobody deletes/deactivates themselves or changes their own role here.
+ *  - nobody deletes/deactivates themselves or changes their own role here;
+ *  - "log in as" needs `impersonate`, never targets a superuser, never oneself, only active accounts.
  */
 export interface Actor {
   id: number;
   role: Role;
+  permissions?: readonly Permission[] | null;
 }
 
 export interface TargetUser {
@@ -26,15 +27,19 @@ const deny = (reason: string): PolicyResult => ({ ok: false, status: 403, reason
 const conflict = (reason: string): PolicyResult => ({ ok: false, status: 409, reason });
 
 export function canManage(actor: Actor, target: Pick<TargetUser, 'role'>): boolean {
-  if (actor.role === 'superuser') return true;
-  if (actor.role === 'admin') return target.role === 'operator';
-  return false;
+  if (!hasPermission(actor, 'users.manage')) return false;
+  return actor.role === 'superuser' || target.role !== 'superuser';
 }
 
 export function canGrantRole(actor: Actor, role: Role): boolean {
-  if (actor.role === 'superuser') return true;
-  if (actor.role === 'admin') return role === 'operator';
-  return false;
+  if (!hasPermission(actor, 'users.manage')) return false;
+  return actor.role === 'superuser' || role !== 'superuser';
+}
+
+export function canImpersonate(actor: Actor, target: TargetUser): boolean {
+  return (
+    hasPermission(actor, 'impersonate') && actor.id !== target.id && target.isActive && target.role !== 'superuser'
+  );
 }
 
 export function checkCreate(actor: Actor, role: Role): PolicyResult {
@@ -44,8 +49,6 @@ export function checkCreate(actor: Actor, role: Role): PolicyResult {
 export interface UserChange {
   role?: Role;
   isActive?: boolean;
-  /** Any other field (username, email, extension, group). */
-  other?: boolean;
 }
 
 /**
@@ -58,7 +61,6 @@ export function checkUpdate(
   activeSuperusers: number,
 ): PolicyResult {
   const self = actor.id === target.id;
-  // Admins editing themselves go through the profile, not the users admin.
   if (!canManage(actor, target)) return deny('You cannot manage this account');
   if (change.role !== undefined && change.role !== target.role) {
     if (self) return deny('You cannot change your own role');
@@ -86,4 +88,12 @@ export function checkDelete(actor: Actor, target: TargetUser, activeSuperusers: 
 export function checkCredentialsAdmin(actor: Actor, target: Pick<TargetUser, 'id' | 'role'>): PolicyResult {
   if (actor.id === target.id) return deny('Use your profile to change your own password');
   return canManage(actor, target) ? OK : deny('You cannot manage this account');
+}
+
+export function checkImpersonate(actor: Actor, target: TargetUser): PolicyResult {
+  if (!hasPermission(actor, 'impersonate')) return deny('Your role cannot log in as other users');
+  if (actor.id === target.id) return deny('You cannot log in as yourself');
+  if (target.role === 'superuser') return deny('Superuser accounts cannot be impersonated');
+  if (!target.isActive) return deny('The account is disabled');
+  return OK;
 }

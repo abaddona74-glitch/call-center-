@@ -45,6 +45,7 @@ export class AuthRepository {
         'u.groupId',
         'u.lastLoginIp',
         'u.webauthnUserId',
+        'u.mustChangePassword',
         'g.permissions as groupPermissions',
       ]);
   }
@@ -82,10 +83,11 @@ export class AuthRepository {
     return Boolean(row);
   }
 
+  /** The user chose this password (own change or emailed reset), so a forced change is done. */
   async setPassword(userId: number, passwordHash: string): Promise<void> {
     await this.txHost.tx
       .updateTable('users')
-      .set({ passwordHash, updatedAt: sql`now()` })
+      .set({ passwordHash, mustChangePassword: false, updatedAt: sql`now()` })
       .where('id', '=', userId)
       .execute();
   }

@@ -33,7 +33,12 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, Public, Roles } from '../../common/decorators/auth.decorators.js';
+import {
+  CurrentUser,
+  DenyWhileImpersonating,
+  Public,
+  RequirePermission,
+} from '../../common/decorators/auth.decorators.js';
 import { AppConfig } from '../../config/app-config.js';
 import { setSessionCookie } from '../auth/session-cookie.js';
 import { UsersService } from '../users/users.service.js';
@@ -54,6 +59,7 @@ export class PasskeysController {
   }
 
   @Post('registration/options')
+  @DenyWhileImpersonating()
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: WebAuthnOptionsSchema })
@@ -66,6 +72,7 @@ export class PasskeysController {
   }
 
   @Post('registration/verify')
+  @DenyWhileImpersonating()
   @HttpCode(201)
   @SerializeOptions({ schema: PasskeySchema })
   registrationVerify(
@@ -76,6 +83,7 @@ export class PasskeysController {
   }
 
   @Patch(':id')
+  @DenyWhileImpersonating()
   @SerializeOptions({ schema: PasskeySchema })
   rename(
     @CurrentUser() user: SessionUser,
@@ -86,6 +94,7 @@ export class PasskeysController {
   }
 
   @Delete(':id')
+  @DenyWhileImpersonating()
   @HttpCode(204)
   async remove(@CurrentUser() user: SessionUser, @Param('id', { schema: PasskeyIdSchema }) id: string): Promise<void> {
     await this.passkeys.remove(user.id, id, 'owner');
@@ -119,9 +128,9 @@ export class PasskeysController {
   }
 }
 
-/** Passkeys of other users (admin+, same manage rules as the users admin). */
+/** Passkeys of other users (`users.manage`, same rules as the users admin). */
 @Controller('users/:userId/passkeys')
-@Roles('admin')
+@RequirePermission('users.manage')
 export class UserPasskeysController {
   constructor(
     private readonly passkeys: PasskeysService,

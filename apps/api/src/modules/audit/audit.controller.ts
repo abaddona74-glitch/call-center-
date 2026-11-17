@@ -10,14 +10,14 @@ import { Controller, Get, Query, SerializeOptions } from '@nestjs/common';
 import { sql } from 'kysely';
 import { DateTime } from 'luxon';
 import type { z } from 'zod';
-import { Roles } from '../../common/decorators/auth.decorators.js';
+import { RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { type DbHost, InjectDb } from '../../database/db.js';
 
 const escapeLike = (v: string) => v.replace(/[\\%_]/g, (c) => `\\${c}`);
 
 /** Read-only audit log viewer (admin+). */
 @Controller('audit')
-@Roles('admin')
+@RequirePermission('audit.view')
 export class AuditController {
   constructor(@InjectDb() private readonly txHost: DbHost) {}
 

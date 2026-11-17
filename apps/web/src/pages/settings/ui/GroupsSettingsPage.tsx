@@ -1,4 +1,4 @@
-import { ALL_PERMISSIONS, type OperatorGroup, PERMISSION_FLAGS, type Permissions } from '@cc/shared';
+import { ALL_GROUP_FLAGS, GROUP_FLAGS, type GroupFlags, type OperatorGroup } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -80,7 +80,7 @@ export function GroupsSettingsPage() {
               </div>
             </div>
             <ul className="flex flex-col gap-1.5">
-              {PERMISSION_FLAGS.map((flag) => (
+              {GROUP_FLAGS.map((flag) => (
                 <li key={flag} className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-[#cbd5e1]">{tu(`permission.${flag}`)}</span>
                   {g.permissions[flag] ? (
@@ -126,7 +126,7 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
   const queryClient = useQueryClient();
   const [name, setName] = useState(group?.name ?? '');
   const [description, setDescription] = useState(group?.description ?? '');
-  const [permissions, setPermissions] = useState<Permissions>(group?.permissions ?? ALL_PERMISSIONS);
+  const [permissions, setPermissions] = useState<GroupFlags>(group?.permissions ?? ALL_GROUP_FLAGS);
   const [error, setError] = useState<string | null>(null);
 
   const save = useMutation({
@@ -176,7 +176,7 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
       <div className="flex flex-col gap-1">
         <FieldLabel>{t('groups.permissions')}</FieldLabel>
         <div className="flex flex-col gap-1 rounded-[10px] border border-white/[0.07] bg-[rgba(15,23,42,0.4)] p-1.5">
-          {PERMISSION_FLAGS.map((flag) => (
+          {GROUP_FLAGS.map((flag) => (
             <label
               key={flag}
               className="flex cursor-pointer items-center justify-between rounded-lg border border-white/5 bg-[rgba(30,41,59,0.5)] px-3 py-2 text-[13px] text-[#e2e8f0] hover:bg-[rgba(30,41,59,0.8)]"

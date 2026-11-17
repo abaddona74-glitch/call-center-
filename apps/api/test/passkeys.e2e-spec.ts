@@ -178,19 +178,22 @@ describe('deleting passkeys', () => {
     expect((await passkeyLogin(device)).res.status).toBe(401);
   });
 
-  it('admins manage operators passkeys but not other admins/superusers', async () => {
-    await createUser(root, { username: 'pk-admin', password: 'PkAdmin-Pass-1', role: 'admin' });
-    const admin = await loginAs(e2e, 'pk-admin', 'PkAdmin-Pass-1');
+  it("other users' passkeys need users.manage (superuser); executives get 403", async () => {
+    await createUser(root, { username: 'pk-exec', password: 'PkExec-Pass-12', role: 'executive' });
+    const exec = await loginAs(e2e, 'pk-exec', 'PkExec-Pass-12');
     const key = new SoftAuthenticator(RP_ID, ORIGIN);
     expect((await register(alice, key, 'Phone')).status).toBe(201);
 
-    const list = await admin.get(`/users/${aliceId}/passkeys`);
+    expect((await exec.get(`/users/${aliceId}/passkeys`)).status).toBe(403);
+    expect((await exec.delete(`/users/${aliceId}/passkeys/${key.id}`)).status).toBe(403);
+    expect((await alice.get(`/users/${aliceId}/passkeys`)).status).toBe(403);
+
+    const list = await root.get(`/users/${aliceId}/passkeys`);
     expect(list.status).toBe(200);
     expect(list.body.items.map((p: { id: string }) => p.id)).toEqual([key.id]);
-    expect((await admin.get('/users/1/passkeys')).status).toBe(403);
-    expect((await alice.get(`/users/${aliceId}/passkeys`)).status).toBe(403);
-    expect((await admin.delete(`/users/${aliceId}/passkeys/${key.id}`)).status).toBe(204);
-    expect((await admin.delete(`/users/${aliceId}/passkeys/${key.id}`)).status).toBe(404);
+    expect((await root.get('/users/1/passkeys')).status).toBe(403); // own passkeys go through the profile
+    expect((await root.delete(`/users/${aliceId}/passkeys/${key.id}`)).status).toBe(204);
+    expect((await root.delete(`/users/${aliceId}/passkeys/${key.id}`)).status).toBe(404);
     expect(await auditActions(e2e.db, `user:${aliceId}`)).toContain('passkeys.delete_by_admin');
   });
 
@@ -255,7 +258,7 @@ describe('legacy migration (users + passkeys mappers)', () => {
     const byPassword = await new Client(e2e).login('zangiota230', 'Legacy-Pa55');
     expect(byPassword.status).toBe(200);
     expect(byPassword.body.user).toMatchObject({ role: 'operator', extension: '230' });
-    expect(byPassword.body.user.permissions.canSeeContacts).toBe(false); // legacy "200 group" -> Zangiota
+    expect(byPassword.body.user.permissions).not.toContain('contacts.view'); // legacy "200 group" -> Zangiota
 
     const { c, res } = await passkeyLogin(key);
     expect(res.status).toBe(200);

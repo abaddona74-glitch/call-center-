@@ -1,9 +1,9 @@
 import { registerTranslations } from '@/shared/i18n';
 
-/** Words about users shared by every screen: roles and operator-group permission flags. */
+/** Words about users shared by every screen: roles and operator-group restriction flags. */
 registerTranslations('user', {
   uz: {
-    role: { operator: 'Operator', admin: 'Administrator', superuser: 'Superuser' },
+    role: { operator: 'Operator', observer: 'Kuzatuvchi', executive: 'Rahbar', superuser: 'Superuser' },
     permission: {
       canSeeContacts: 'Mijozlar ma’lumotini ko‘rish',
       canEditContacts: 'Mijozlarni tahrirlash',
@@ -15,7 +15,7 @@ registerTranslations('user', {
     noGroup: 'Guruhsiz',
   },
   ru: {
-    role: { operator: 'Оператор', admin: 'Администратор', superuser: 'Суперпользователь' },
+    role: { operator: 'Оператор', observer: 'Наблюдатель', executive: 'Руководитель', superuser: 'Суперпользователь' },
     permission: {
       canSeeContacts: 'Видеть данные клиентов',
       canEditContacts: 'Редактировать клиентов',

@@ -6,7 +6,7 @@ import type {
   User,
   UserListQuery,
 } from '@cc/shared';
-import { PermissionsSchema } from '@cc/shared';
+import { GroupFlagsSchema } from '@cc/shared';
 import {
   BadRequestException,
   ConflictException,
@@ -21,6 +21,7 @@ import { hashPassword } from '../auth/password-hasher.js';
 import { SessionManager } from '../auth/session-manager.service.js';
 import {
   type PolicyResult,
+  canImpersonate,
   canManage,
   checkCreate,
   checkCredentialsAdmin,
@@ -29,7 +30,7 @@ import {
 } from './domain/user-policy.js';
 import { type UserPatch, type UserRow, UsersRepository } from './users.repository.js';
 
-type Actor = Pick<SessionUser, 'id' | 'role'>;
+type Actor = Pick<SessionUser, 'id' | 'role' | 'permissions'>;
 
 function enforce(result: PolicyResult): void {
   if (result.ok) return;
@@ -67,12 +68,14 @@ export class UsersService {
       groupId: row.groupId,
       groupName: row.groupName,
       isActive: row.isActive,
+      mustChangePassword: row.mustChangePassword,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
       passkeyCount: row.passkeyCount,
       activeSessions: row.activeSessions,
       canManage: actor.id !== row.id && canManage(actor, row),
+      canImpersonate: canImpersonate(actor, row),
     };
   }
 
@@ -95,6 +98,7 @@ export class UsersService {
       extension: string | null;
       email: string | null;
       groupId: number | null;
+      mustChangePassword: boolean;
     },
   ): Promise<User> {
     enforce(checkCreate(actor, body.role));
@@ -106,6 +110,7 @@ export class UsersService {
         extension: body.extension,
         email: body.email,
         groupId: body.groupId,
+        mustChangePassword: body.mustChangePassword,
       })
       .catch(mapDbError);
     await this.audit.record('users.create', {
@@ -116,6 +121,7 @@ export class UsersService {
         extension: body.extension,
         email: body.email,
         groupId: body.groupId,
+        mustChangePassword: body.mustChangePassword,
       },
     });
     return this.toDto(await this.load(id), actor);
@@ -128,7 +134,7 @@ export class UsersService {
     const deactivating = patch.isActive === false && target.isActive;
     if (target.role === 'superuser' && (roleChange || deactivating)) await this.repo.lockSuperusers();
     const activeSuperusers = await this.repo.countActiveSuperusers();
-    enforce(checkUpdate(actor, target, { role: patch.role, isActive: patch.isActive, other: true }, activeSuperusers));
+    enforce(checkUpdate(actor, target, { role: patch.role, isActive: patch.isActive }, activeSuperusers));
 
     const finalRole = patch.role ?? target.role;
     const finalExtension = patch.extension !== undefined ? patch.extension : target.extension;
@@ -152,16 +158,21 @@ export class UsersService {
   async resetPassword(
     actor: Actor,
     id: number,
-    body: { password: string; revokePasskeys: boolean },
+    body: { password: string; revokePasskeys: boolean; mustChangePassword: boolean },
   ): Promise<ResetUserPasswordResult> {
     const target = await this.load(id);
     enforce(checkCredentialsAdmin(actor, target));
-    await this.repo.setPassword(id, await hashPassword(body.password));
+    await this.repo.setPassword(id, await hashPassword(body.password), body.mustChangePassword);
     const revokedPasskeys = body.revokePasskeys ? await this.sessions.revokeUserPasskeys(id, 'password_reset') : 0;
     const revokedSessions = await this.sessions.revokeUserSessions(id, 'password_reset');
     await this.audit.record('users.password_reset', {
       target: `user:${id}`,
-      details: { username: target.username, revokedSessions, revokedPasskeys },
+      details: {
+        username: target.username,
+        revokedSessions,
+        revokedPasskeys,
+        mustChangePassword: body.mustChangePassword,
+      },
     });
     return { revokedSessions, revokedPasskeys };
   }
@@ -194,7 +205,7 @@ export class UsersService {
 
   @Transactional()
   async createGroup(body: z.output<typeof CreateOperatorGroupSchema>): Promise<OperatorGroup> {
-    const permissions = PermissionsSchema.parse(body.permissions);
+    const permissions = GroupFlagsSchema.parse(body.permissions);
     const id = await this.repo
       .insertGroup({ name: body.name, description: body.description, permissions })
       .catch(mapDbError);

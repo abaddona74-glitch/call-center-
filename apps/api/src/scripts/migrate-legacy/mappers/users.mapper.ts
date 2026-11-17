@@ -59,6 +59,8 @@ export interface UserValues {
   webauthnUserId?: string;
   /** Operator group; operators with extension >= 200 go to the "Zangiota" group like the legacy rule. */
   groupId?: number | null;
+  /** Forced password change at first login (the shared-password accounts operator200–operator209). */
+  mustChangePassword?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -164,10 +166,13 @@ export function transformLegacyUserWith(raw: SqliteRow, opts: TransformOptions):
     warnings.push('username does not match the new username rules (3-32 chars of [a-zA-Z0-9_.-]); kept as is');
   }
 
-  const role = RoleSchema.safeParse(row.role?.trim().toLowerCase());
+  // Owner decision 2026-11-17: there is no `admin` role any more; legacy admins become superusers.
+  const legacyRole = row.role?.trim().toLowerCase();
+  const role = RoleSchema.safeParse(legacyRole === 'admin' ? 'superuser' : legacyRole);
   if (!role.success) {
     return skip(`unknown role ${JSON.stringify(row.role?.slice(0, 32) ?? null)}`);
   }
+  if (legacyRole === 'admin') warnings.push('legacy role admin becomes superuser (owner decision)');
 
   if (!HASH_RE.test(row.password_hash)) {
     return skip(`password_hash is not 128 hex chars (length ${row.password_hash.length})`);
@@ -193,11 +198,13 @@ export function transformLegacyUserWith(raw: SqliteRow, opts: TransformOptions):
   }
   if (role.data === 'operator' && !extension) warnings.push('operator has no extension');
 
-  if (SHARED_PASSWORD_USERNAME_RE.test(username)) {
-    warnings.push('created by legacy scripts/create_200.js with a shared password; force a password reset at cutover');
+  const sharedPassword = SHARED_PASSWORD_USERNAME_RE.test(username);
+  if (sharedPassword) {
+    warnings.push('created by legacy scripts/create_200.js with a shared password; must change it at first login');
   }
 
   const values: UserValues = { username, passwordHash, role: role.data, extension, email };
+  if (sharedPassword) values.mustChangePassword = true;
 
   const handle = row.webauthn_user_id?.trim().toLowerCase();
   if (handle && UUID_RE.test(handle)) values.webauthnUserId = handle;

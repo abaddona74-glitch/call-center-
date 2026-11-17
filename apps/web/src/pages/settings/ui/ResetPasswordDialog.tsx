@@ -15,10 +15,11 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
   const queryClient = useQueryClient();
   const [password, setPassword] = useState('');
   const [revokePasskeys, setRevokePasskeys] = useState(true);
+  const [mustChange, setMustChange] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () => resetUserPassword(user!.id, { password, revokePasskeys }),
+    mutationFn: () => resetUserPassword(user!.id, { password, revokePasskeys, mustChangePassword: mustChange }),
     onSuccess: (res) => {
       toast.success(t('users.resetDone', { sessions: res.revokedSessions, passkeys: res.revokedPasskeys }));
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
@@ -30,6 +31,7 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
   const close = () => {
     setPassword('');
     setRevokePasskeys(true);
+    setMustChange(true);
     setError(null);
     onClose();
   };
@@ -80,6 +82,15 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
                 <span className="block text-[12.5px] font-semibold text-[#f1f5f9]">{t('users.revokePasskeys')}</span>
                 <span className="block text-[11.5px] leading-snug text-[#94a3b8]">{t('users.revokePasskeysHint')}</span>
               </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2.5 px-1">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 accent-[#0ea5e9]"
+                checked={mustChange}
+                onChange={(e) => setMustChange(e.target.checked)}
+              />
+              <span className="text-[12.5px] text-[#e2e8f0]">{t('users.mustChange')}</span>
             </label>
             <FieldError>{error}</FieldError>
             <div className="mt-6 flex justify-end gap-2">

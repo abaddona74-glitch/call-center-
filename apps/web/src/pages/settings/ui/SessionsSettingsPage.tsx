@@ -35,6 +35,9 @@ export function SessionsSettingsPage() {
             <div className="flex items-center gap-1.5 font-semibold text-[#f1f5f9]">
               {row.original.username}
               {row.original.viaPasskey && <Pill tone="blue">{t('sessions.passkey')}</Pill>}
+              {row.original.impersonatedBy && (
+                <Pill tone="amber">{t('sessions.impersonatedBy', { name: row.original.impersonatedBy })}</Pill>
+              )}
             </div>
             <div className="text-[11px] text-[#94a3b8]">{tu(`role.${row.original.role}`)}</div>
           </div>

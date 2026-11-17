@@ -14,7 +14,13 @@ describe('login / me / logout', () => {
     const c = new Client(e2e);
     const res = await c.login(ROOT.username, ROOT.password);
     expect(res.status).toBe(200);
-    expect(res.body.user).toMatchObject({ username: 'root', role: 'superuser', permissions: { canSeeContacts: true } });
+    expect(res.body.user).toMatchObject({
+      username: 'root',
+      role: 'superuser',
+      mustChangePassword: false,
+      impersonation: null,
+    });
+    expect(res.body.user.permissions).toEqual(expect.arrayContaining(['users.manage', 'impersonate', 'contacts.view']));
     expect(JSON.stringify(res.body)).not.toContain(c.cookie!.split('=')[1]);
     const setCookie = String(res.headers['set-cookie']);
     expect(setCookie).toContain('HttpOnly');
@@ -117,24 +123,28 @@ describe('login protection', () => {
     }
   });
 
-  it('settings: admin reads, only superuser writes, operator gets 403', async () => {
-    await createUser(root, { username: 'sec-admin', password: 'Admin-Pass-123', role: 'admin' });
+  it('settings and lockouts need security.manage: superuser only', async () => {
+    await createUser(root, { username: 'sec-exec', password: 'Exec-Pass-1234', role: 'executive' });
+    await createUser(root, { username: 'sec-obs', password: 'Obs-Pass-12345', role: 'observer' });
     await createUser(root, { username: 'sec-op', password: 'Oper-Pass-1234' });
-    const admin = await loginAs(e2e, 'sec-admin', 'Admin-Pass-123');
-    const op = await loginAs(e2e, 'sec-op', 'Oper-Pass-1234');
-
-    expect((await admin.get('/security/settings')).body).toEqual({
+    for (const [name, pw] of [
+      ['sec-exec', 'Exec-Pass-1234'],
+      ['sec-obs', 'Obs-Pass-12345'],
+      ['sec-op', 'Oper-Pass-1234'],
+    ]) {
+      const c = await loginAs(e2e, name, pw);
+      expect((await c.get('/security/settings')).status, name).toBe(403);
+      expect((await c.put('/security/settings', { maxAttempts: 3, lockoutMinutes: 1, ipMaxAttempts: 10 })).status).toBe(
+        403,
+      );
+      expect((await c.get('/security/lockouts')).status, name).toBe(403);
+      expect((await c.post('/security/lockouts/clear')).status, name).toBe(403);
+    }
+    expect((await root.get('/security/settings')).body).toEqual({
       maxAttempts: 5,
       lockoutMinutes: 15,
       ipMaxAttempts: 30,
     });
-    expect(
-      (await admin.put('/security/settings', { maxAttempts: 3, lockoutMinutes: 1, ipMaxAttempts: 10 })).status,
-    ).toBe(403);
-    expect((await admin.get('/security/lockouts')).status).toBe(200);
-    expect((await op.get('/security/settings')).status).toBe(403);
-    expect((await op.get('/security/lockouts')).status).toBe(403);
-    expect((await op.post('/security/lockouts/clear')).status).toBe(403);
     expect(
       (await root.put('/security/settings', { maxAttempts: 2, lockoutMinutes: 1, ipMaxAttempts: 10 })).status,
     ).toBe(400);
@@ -188,34 +198,25 @@ describe('own sessions', () => {
 });
 
 describe('sessions admin', () => {
-  it('admins see and revoke operator sessions only; superuser sees all', async () => {
-    await createUser(root, { username: 'sa-admin', password: 'Admin-Pass-123', role: 'admin' });
+  it('needs sessions.manage (superuser); revoking closes the sockets', async () => {
+    await createUser(root, { username: 'sa-exec', password: 'Exec-Pass-1234', role: 'executive' });
     await createUser(root, { username: 'sa-op', password: 'Oper-Pass-1234' });
-    const admin = await loginAs(e2e, 'sa-admin', 'Admin-Pass-123');
+    const exec = await loginAs(e2e, 'sa-exec', 'Exec-Pass-1234');
     const op = await loginAs(e2e, 'sa-op', 'Oper-Pass-1234');
-
-    const seen = await admin.get('/sessions');
-    expect(seen.status).toBe(200);
-    const roles = new Set(
-      seen.body.items.map((s: { role: string; username: string }) => (s.username === 'sa-admin' ? 'self' : s.role)),
-    );
-    expect(roles.has('superuser')).toBe(false);
-    expect(roles.has('operator')).toBe(true);
+    expect((await exec.get('/sessions')).status).toBe(403);
 
     const all = await root.get('/sessions');
-    const rootSession = all.body.items.find(
-      (s: { username: string; isCurrent: boolean }) => s.username === 'root' && !s.isCurrent,
-    );
-    expect(rootSession).toBeTruthy();
-    expect((await admin.delete(`/sessions/${rootSession.id}`)).status).toBe(403);
+    expect(all.status).toBe(200);
+    expect(JSON.stringify(all.body)).not.toContain(op.cookie!.split('=')[1]);
+    const opSession = all.body.items.find((s: { username: string }) => s.username === 'sa-op');
+    expect(opSession).toMatchObject({ role: 'operator', canRevoke: true, impersonatedBy: null });
+    expect((await exec.delete(`/sessions/${opSession.id}`)).status).toBe(403);
 
-    const opSession = seen.body.items.find((s: { username: string }) => s.username === 'sa-op');
     const { closed } = await op.openSocket();
-    expect((await admin.delete(`/sessions/${opSession.id}`)).status).toBe(204);
+    expect((await root.delete(`/sessions/${opSession.id}`)).status).toBe(204);
     expect((await closed).code).toBe(4001);
     expect((await op.get('/auth/me')).status).toBe(401);
 
-    expect((await op.get('/sessions')).status).toBe(401);
     const op2 = await loginAs(e2e, 'sa-op', 'Oper-Pass-1234');
     expect((await op2.get('/sessions')).status).toBe(403);
     expect((await root.delete(`/sessions/${'0'.repeat(64)}`)).status).toBe(404);

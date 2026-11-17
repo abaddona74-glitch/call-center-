@@ -1,16 +1,14 @@
 import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { SessionUser } from '@cc/shared';
-import { IS_PUBLIC_KEY, PERMISSION_KEY, ROLES_KEY } from '../decorators/auth.decorators.js';
-import { SessionAuthGuard } from './session-auth.guard.js';
-
-const restricted = {
-  canSeeContacts: false,
-  canEditContacts: false,
-  canUseRemoteDesktop: false,
-  canRequestHelp: false,
-  canUseTools: false,
-};
+import { ROLE_PERMISSIONS, type SessionUser } from '@cc/shared';
+import {
+  ALLOW_PASSWORD_CHANGE_PENDING_KEY,
+  DENY_IMPERSONATION_KEY,
+  IS_PUBLIC_KEY,
+  PERMISSION_KEY,
+  ROLES_KEY,
+} from '../decorators/auth.decorators.js';
+import { PASSWORD_CHANGE_REQUIRED, SessionAuthGuard } from './session-auth.guard.js';
 
 function setup(user: SessionUser | null, meta: Record<string, unknown>) {
   const reflector = { getAllAndOverride: vi.fn((key: string) => meta[key]) } as unknown as Reflector;
@@ -27,49 +25,65 @@ function setup(user: SessionUser | null, meta: Record<string, unknown>) {
   return { guard, ctx, req, cls };
 }
 
-const operator = (permissions = restricted): SessionUser => ({
+const operator = (over: Partial<SessionUser> = {}): SessionUser => ({
   id: 5,
   username: 'op',
   role: 'operator',
   extension: '205',
   email: null,
   groupId: 2,
-  permissions,
+  permissions: ROLE_PERMISSIONS.operator.filter((p) => p !== 'contacts.view'),
+  ...over,
 });
+const run = (user: SessionUser | null, meta: Record<string, unknown>) => {
+  const { guard, ctx } = setup(user, meta);
+  return guard.canActivate(ctx);
+};
 
 describe('SessionAuthGuard', () => {
   it('lets public routes through without a session', async () => {
-    const { guard, ctx } = setup(null, { [IS_PUBLIC_KEY]: true });
-    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    await expect(run(null, { [IS_PUBLIC_KEY]: true })).resolves.toBe(true);
   });
 
   it('rejects missing sessions with 401 and puts the user in the request', async () => {
-    await expect(setup(null, {}).guard.canActivate(setup(null, {}).ctx)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(run(null, {})).rejects.toBeInstanceOf(UnauthorizedException);
     const { guard, ctx, req, cls } = setup(operator(), {});
     await expect(guard.canActivate(ctx)).resolves.toBe(true);
     expect(req.user).toMatchObject({ username: 'op' });
     expect(cls.set).toHaveBeenCalledWith('sessionId', 's1');
   });
 
-  it('enforces the minimum role', async () => {
-    const { guard, ctx } = setup(operator(), { [ROLES_KEY]: 'admin' });
-    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(ForbiddenException);
+  it('checks @RequirePermission against the effective permissions', async () => {
+    await expect(run(operator(), { [PERMISSION_KEY]: 'contacts.view' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(run(operator(), { [PERMISSION_KEY]: 'canSeeContacts' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(run(operator(), { [PERMISSION_KEY]: 'tickets.use' })).resolves.toBe(true);
+    await expect(run(operator(), { [PERMISSION_KEY]: 'users.manage' })).rejects.toBeInstanceOf(ForbiddenException);
+    const exec = operator({ role: 'executive', permissions: [...ROLE_PERMISSIONS.executive] });
+    await expect(run(exec, { [PERMISSION_KEY]: 'settings.manage' })).resolves.toBe(true);
+    await expect(run(exec, { [PERMISSION_KEY]: 'users.manage' })).rejects.toBeInstanceOf(ForbiddenException);
+    // objects without `permissions` fall back to the role's set
+    const bare: SessionUser = { id: 1, username: 'x', role: 'operator', extension: '101', email: null };
+    await expect(run(bare, { [PERMISSION_KEY]: 'contacts.view' })).resolves.toBe(true);
   });
 
-  it('enforces @RequirePermission for restricted operator groups only', async () => {
-    const denied = setup(operator(), { [PERMISSION_KEY]: 'canSeeContacts' });
-    await expect(denied.guard.canActivate(denied.ctx)).rejects.toBeInstanceOf(ForbiddenException);
+  it('keeps @Roles working as a compatibility layer (admin = executive level)', async () => {
+    await expect(run(operator(), { [ROLES_KEY]: 'admin' })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(run(operator({ role: 'executive' }), { [ROLES_KEY]: 'admin' })).resolves.toBe(true);
+    await expect(run(operator({ role: 'observer' }), { [ROLES_KEY]: 'admin' })).rejects.toBeInstanceOf(ForbiddenException);
+  });
 
-    const allowed = setup(operator({ ...restricted, canSeeContacts: true }), { [PERMISSION_KEY]: 'canSeeContacts' });
-    await expect(allowed.guard.canActivate(allowed.ctx)).resolves.toBe(true);
+  it('blocks everything but the allowed endpoints until a forced password change is done', async () => {
+    const pending = operator({ mustChangePassword: true });
+    await expect(run(pending, {})).rejects.toThrow(PASSWORD_CHANGE_REQUIRED);
+    await expect(run(pending, { [ALLOW_PASSWORD_CHANGE_PENDING_KEY]: true })).resolves.toBe(true);
+    // a superuser acting as the user is not forced to change the user's password
+    const impersonated = { ...pending, impersonation: { by: { id: 1, username: 'boss' }, expiresAt: new Date().toISOString() } };
+    await expect(run(impersonated, {})).resolves.toBe(true);
+  });
 
-    const admin = setup({ ...operator(), role: 'admin' }, { [PERMISSION_KEY]: 'canSeeContacts' });
-    await expect(admin.guard.canActivate(admin.ctx)).resolves.toBe(true);
-
-    const legacyShape = setup(
-      { id: 1, username: 'x', role: 'operator', extension: '101', email: null },
-      { [PERMISSION_KEY]: 'canUseTools' },
-    );
-    await expect(legacyShape.guard.canActivate(legacyShape.ctx)).resolves.toBe(true);
+  it('refuses account self-service while acting as another user', async () => {
+    const impersonated = operator({ impersonation: { by: { id: 1, username: 'boss' }, expiresAt: new Date().toISOString() } });
+    await expect(run(impersonated, { [DENY_IMPERSONATION_KEY]: true })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(run(operator(), { [DENY_IMPERSONATION_KEY]: true })).resolves.toBe(true);
   });
 });

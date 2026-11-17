@@ -1,8 +1,8 @@
-import type { OperatorGroup, Permissions, Role, UserListQuery } from '@cc/shared';
+import type { OperatorGroup, GroupFlags, Role, UserListQuery } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { type DbHost, InjectDb } from '../../database/db.js';
-import { parseGroupPermissions } from '../auth/domain/session-user.js';
+import { parseGroupFlags } from '../auth/domain/session-user.js';
 
 export interface UserRow {
   id: number;
@@ -13,6 +13,7 @@ export interface UserRow {
   groupId: number | null;
   groupName: string | null;
   isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -27,6 +28,7 @@ export interface UserPatch {
   email?: string | null;
   groupId?: number | null;
   isActive?: boolean;
+  mustChangePassword?: boolean;
 }
 
 @Injectable()
@@ -46,6 +48,7 @@ export class UsersRepository {
         'u.groupId',
         'g.name as groupName',
         'u.isActive',
+        'u.mustChangePassword',
         'u.createdAt',
         'u.updatedAt',
         'u.lastLoginAt',
@@ -107,6 +110,7 @@ export class UsersRepository {
     extension: string | null;
     email: string | null;
     groupId: number | null;
+    mustChangePassword: boolean;
   }): Promise<number> {
     const row = await this.txHost.tx.insertInto('users').values(values).returning('id').executeTakeFirstOrThrow();
     return row.id;
@@ -120,10 +124,10 @@ export class UsersRepository {
       .execute();
   }
 
-  async setPassword(id: number, passwordHash: string): Promise<void> {
+  async setPassword(id: number, passwordHash: string, mustChangePassword: boolean): Promise<void> {
     await this.txHost.tx
       .updateTable('users')
-      .set({ passwordHash, updatedAt: sql`now()` })
+      .set({ passwordHash, mustChangePassword, updatedAt: sql`now()` })
       .where('id', '=', id)
       .execute();
   }
@@ -146,7 +150,7 @@ export class UsersRepository {
     return row ? toGroup(row) : undefined;
   }
 
-  async insertGroup(values: { name: string; description: string | null; permissions: Permissions }): Promise<number> {
+  async insertGroup(values: { name: string; description: string | null; permissions: GroupFlags }): Promise<number> {
     const row = await this.txHost.tx
       .insertInto('operatorGroups')
       .values({ ...values, permissions: JSON.stringify(values.permissions) })
@@ -157,7 +161,7 @@ export class UsersRepository {
 
   async updateGroup(
     id: number,
-    patch: { name?: string; description?: string | null; permissions?: Permissions },
+    patch: { name?: string; description?: string | null; permissions?: GroupFlags },
   ): Promise<void> {
     const { permissions, ...rest } = patch;
     await this.txHost.tx
@@ -215,7 +219,7 @@ function toGroup(row: {
     id: row.id,
     name: row.name,
     description: row.description,
-    permissions: parseGroupPermissions(row.permissions),
+    permissions: parseGroupFlags(row.permissions),
     memberCount: Number(row.memberCount ?? 0),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

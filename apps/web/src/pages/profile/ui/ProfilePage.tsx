@@ -1,3 +1,4 @@
+import { GROUP_FLAG_PERMISSION, GROUP_FLAGS } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -27,6 +28,7 @@ registerTranslations('profile', {
     seen: 'Faol',
     end: 'Yopish',
     ended: 'Sessiya yopildi',
+    impersonatedBy: '{{name}} kirgan',
   },
   ru: {
     title: 'Профиль пользователя',
@@ -42,6 +44,7 @@ registerTranslations('profile', {
     seen: 'Активен',
     end: 'Завершить',
     ended: 'Сеанс завершён',
+    impersonatedBy: 'вошёл {{name}}',
   },
 });
 
@@ -50,9 +53,8 @@ export function ProfilePage() {
   const { t: tu } = useTranslation('user');
   const user = useSessionUser();
   const permissions = usePermissions();
-  const denied = Object.entries(permissions)
-    .filter(([, v]) => !v)
-    .map(([k]) => k);
+  // what the operator's group switches off (legacy "200 group" restrictions)
+  const denied = user.role === 'operator' ? GROUP_FLAGS.filter((f) => !permissions.has(GROUP_FLAG_PERMISSION[f])) : [];
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -134,6 +136,7 @@ function MySessionsCard() {
                 <span className="font-mono text-[11px] font-normal text-[#38bdf8]">{s.ip ?? '—'}</span>
                 {s.isCurrent && <Pill tone="green">{t('current')}</Pill>}
                 {s.viaPasskey && <Pill tone="blue">{t('passkey')}</Pill>}
+                {s.impersonatedBy && <Pill tone="amber">{t('impersonatedBy', { name: s.impersonatedBy })}</Pill>}
               </div>
               <div className="text-[11px] text-[#94a3b8]">
                 {t('since')}: {formatDateTime(s.createdAt)} · {t('seen')}: {formatDateTime(s.lastSeenAt)}

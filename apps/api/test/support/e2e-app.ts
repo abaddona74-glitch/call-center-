@@ -195,7 +195,8 @@ export async function loginAs(e2e: E2eApp, username: string, password: string): 
 export interface NewUser {
   username: string;
   password?: string;
-  role?: 'operator' | 'admin' | 'superuser';
+  role?: 'operator' | 'observer' | 'executive' | 'superuser';
+  mustChangePassword?: boolean;
   extension?: string | null;
   email?: string | null;
   groupId?: number | null;
@@ -211,6 +212,7 @@ export async function createUser(by: Client, u: NewUser): Promise<number> {
     extension: u.extension === undefined ? (role === 'operator' ? '101' : null) : u.extension,
     email: u.email ?? null,
     groupId: u.groupId ?? null,
+    mustChangePassword: u.mustChangePassword ?? false,
   });
   if (res.status !== 201) throw new Error(`create ${u.username} failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body.id as number;

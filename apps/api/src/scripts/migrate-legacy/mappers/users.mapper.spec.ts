@@ -129,7 +129,8 @@ describe('users mapper', () => {
       const admin = byName('test_admin');
       const superuser = byName('test_super');
       const operator = byName('op101');
-      expect(admin.ok && admin.values.role).toBe('admin');
+      expect(admin.ok && admin.values.role).toBe('superuser'); // owner decision: admin -> superuser
+      expect(admin.ok && admin.warnings).toContain('legacy role admin becomes superuser (owner decision)');
       expect(superuser.ok && superuser.values.role).toBe('superuser');
       expect(operator.ok && operator.values.role).toBe('operator');
       expect(byName('mgr_unknown')).toEqual({
@@ -143,7 +144,7 @@ describe('users mapper', () => {
 
     it('accepts a differently cased role', () => {
       const r = transformLegacyUser({ ...rows()[0], role: ' Admin ' });
-      expect(r.ok && r.values.role).toBe('admin');
+      expect(r.ok && r.values.role).toBe('superuser');
     });
 
     it('keeps legacy passwords verifiable by the new password hasher', async () => {
@@ -203,6 +204,9 @@ describe('users mapper', () => {
     it('flags the shared-password accounts created by scripts/create_200.js', () => {
       const r = byName('operator205');
       expect(r.ok && r.warnings.some((w) => w.includes('create_200.js'))).toBe(true);
+      expect(r.ok && r.values.mustChangePassword).toBe(true); // owner decision: forced change at first login
+      const normal = byName('op101');
+      expect(normal.ok && normal.values.mustChangePassword).toBeUndefined();
     });
 
     it('reports unreadable rows instead of throwing', () => {
@@ -237,7 +241,7 @@ describe('users mapper', () => {
           id: 7,
           username: 'Test_Admin',
           passwordHash: 'scrypt$changed',
-          role: 'admin',
+          role: 'superuser',
           extension: null,
           email: null,
           webauthnUserId: randomUUID(),

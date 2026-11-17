@@ -1,14 +1,15 @@
-import { type PermissionFlag, type Permissions, effectivePermissions } from '@cc/shared';
+import { type GroupFlag, type Permission, effectivePermissions, hasPermission } from '@cc/shared';
 import { useSessionUser } from './use-session';
 
 /**
- * Operator-group permissions of the current user (admins: everything).
- * UI convenience only — the server checks the same flags.
+ * Permissions of the current user (role set minus operator-group restrictions).
+ * UI convenience only — the server checks the same permissions.
  */
-export function usePermissions(): Permissions {
+export function usePermissions(): Set<Permission> {
   return effectivePermissions(useSessionUser());
 }
 
-export function usePermission(flag: PermissionFlag): boolean {
-  return usePermissions()[flag];
+/** `usePermission('users.manage')`; a group flag name ('canSeeContacts') works too. */
+export function usePermission(permission: Permission | GroupFlag): boolean {
+  return hasPermission(useSessionUser(), permission);
 }

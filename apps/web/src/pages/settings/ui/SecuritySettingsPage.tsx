@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { useHasRole } from '@/entities/session';
+import { usePermission } from '@/entities/session';
 import { Icon } from '@/shared/ui/icon';
 import { IconShieldTick } from '@/shared/ui/inline-icons';
 import {
@@ -79,7 +79,7 @@ function RangeField({
 export function SecuritySettingsPage() {
   const { t } = useTranslation('settings');
   const queryClient = useQueryClient();
-  const isSuperuser = useHasRole('superuser');
+  const isSuperuser = usePermission('security.manage');
   const { data: settings } = useQuery(securitySettingsQuery);
   const { data: lockouts, isLoading, refetch, isFetching } = useQuery(lockoutsQuery);
   const [draft, setDraft] = useState<LockoutSettings | null>(null);

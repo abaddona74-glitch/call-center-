@@ -7,6 +7,8 @@ import { AuthSettingsService } from './auth-settings.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthRepository } from './auth.repository.js';
 import { AuthService } from './auth.service.js';
+import { ImpersonationController } from './impersonation.controller.js';
+import { ImpersonationService } from './impersonation.service.js';
 import { LoginThrottleService } from './login-throttle.service.js';
 import { SecurityController } from './security.controller.js';
 import { SessionManager } from './session-manager.service.js';
@@ -15,7 +17,13 @@ import { SessionsService } from './sessions.service.js';
 
 @Global()
 @Module({
-  controllers: [AuthController, AccountController, SessionsAdminController, SecurityController],
+  controllers: [
+    AuthController,
+    AccountController,
+    SessionsAdminController,
+    SecurityController,
+    ImpersonationController,
+  ],
   providers: [
     AuthService,
     SessionsService,
@@ -24,6 +32,7 @@ import { SessionsService } from './sessions.service.js';
     AuthSettingsService,
     LoginThrottleService,
     AccountService,
+    ImpersonationService,
     { provide: APP_GUARD, useClass: SessionAuthGuard },
   ],
   exports: [AuthService, SessionsService, SessionManager, AuthRepository],

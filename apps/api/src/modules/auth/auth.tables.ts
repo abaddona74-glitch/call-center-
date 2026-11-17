@@ -18,6 +18,8 @@ export interface UsersTable {
   webauthnUserId: Generated<string>;
   lastLoginAt: Date | null;
   lastLoginIp: string | null;
+  /** Only /auth/me, /auth/password and logout work until the password is changed. */
+  mustChangePassword: Generated<boolean>;
 }
 
 export interface SessionsTable {
@@ -31,6 +33,10 @@ export interface SessionsTable {
   userAgent: string | null;
   /** Set when the session was opened with a passkey (deleted together with it). */
   passkeyId: Generated<string | null>;
+  /** "Log in as": the superuser acting as `userId` in this session. */
+  impersonatorUserId: Generated<number | null>;
+  /** "Log in as": the superuser's own session; this one is valid only while that one is. */
+  parentSessionId: Generated<string | null>;
 }
 
 export interface AuditLogTable {

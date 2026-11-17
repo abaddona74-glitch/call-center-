@@ -15,12 +15,12 @@ import {
 } from '@cc/shared';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, SerializeOptions } from '@nestjs/common';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { UsersService } from './users.service.js';
 
 /** User administration. Admins see everyone but manage only operators (see domain/user-policy.ts). */
 @Controller('users')
-@Roles('admin')
+@RequirePermission('users.manage')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 

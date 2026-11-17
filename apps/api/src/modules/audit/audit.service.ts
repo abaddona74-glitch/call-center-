@@ -20,11 +20,13 @@ export class AuditService {
 
   async record(action: string, opts: { target?: string; details?: unknown; actorLabel?: string } = {}): Promise<void> {
     const user = this.cls.isActive() ? this.cls.get('user') : undefined;
+    // "Log in as": the real person is the superuser; the label shows both ("boss → op101").
+    const by = user?.impersonation?.by;
     await this.txHost.tx
       .insertInto('auditLog')
       .values({
-        actorUserId: user?.id ?? null,
-        actorLabel: opts.actorLabel ?? user?.username ?? 'system',
+        actorUserId: by?.id ?? user?.id ?? null,
+        actorLabel: opts.actorLabel ?? (by ? `${by.username} → ${user!.username}` : (user?.username ?? 'system')),
         action,
         target: opts.target ?? null,
         details: opts.details === undefined ? null : JSON.stringify(opts.details),

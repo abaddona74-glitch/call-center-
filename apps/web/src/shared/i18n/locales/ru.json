@@ -11,5 +11,5 @@
   },
   "realtime": { "open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—" },
   "common": { "error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро" },
-  "roles": { "operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь" }
+  "roles": { "operator": "Оператор", "observer": "Наблюдатель", "executive": "Руководитель", "superuser": "Суперпользователь" }
 }

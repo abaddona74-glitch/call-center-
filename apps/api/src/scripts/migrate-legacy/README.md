@@ -86,7 +86,7 @@ Stubs should follow the same pattern. Their TODOs name the natural key for each 
 | -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `username`                 | `username`      | trimmed. An empty username is skipped. One that only differs by case from an older legacy row is skipped (new unique index). One outside `UsernameSchema` is kept, with a warning.                                                                              |
 | `password_hash` + `salt`   | `password_hash` | `fromLegacy(salt, hash)` produces `scrypt$16384$8$1$<salt>$<hash>`. The hash must be 128 hex chars and the salt 32 hex chars, otherwise the row is skipped. The salt is kept byte-for-byte (it is used as text).                                                |
-| `role`                     | `role`          | trimmed and lower-cased, then must be `operator`, `admin` or `superuser` (`RoleSchema`). Anything else is skipped.                                                                                                                                              |
+| `role`                     | `role`          | trimmed and lower-cased; legacy `admin` becomes `superuser` (owner decision 2026-11-17, with a warning). Then it must be `operator`, `observer`, `executive` or `superuser` (`RoleSchema`). Anything else is skipped. |
 | `operator_id`              | `extension`     | trimmed, `''` becomes null. A value that is not 2–6 digits (`ExtensionSchema`) becomes null, with a warning. An operator without an extension gets a warning.                                                                                                   |
 | `email`                    | `email`         | trimmed and lower-cased, `''` becomes null. Anything legacy's own regex would reject becomes null, with a warning. A duplicate (case-insensitive, either against existing users or against an older legacy row) becomes null, with a warning naming the holder. |
 | `created_at`, `updated_at` | same            | `'YYYY-MM-DD HH:MM:SS'` is read as Asia/Tashkent wall-clock time (luxon). An unparsable value falls back to the DB default `now()`.                                                                                                                             |
@@ -95,7 +95,8 @@ Stubs should follow the same pattern. Their TODOs name the natural key for each 
 | —                          | `is_active`     | DB default `true`.                                                                                                                                                                                                                                              |
 
 Accounts `operator200`…`operator209` (created by legacy `scripts/create_200.js` with one shared password)
-get a warning: force a password reset at cutover.
+are imported with `must_change_password = true` (owner decision): they can only change the password after
+signing in, nothing else works until they do.
 
 ### Legacy data with no home in the new schema (not migrated)
 

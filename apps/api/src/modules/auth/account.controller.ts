@@ -39,7 +39,12 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { ClsService } from 'nestjs-cls';
 import type { AppClsStore } from '../../common/cls/app-cls.js';
-import { CurrentUser, Public } from '../../common/decorators/auth.decorators.js';
+import {
+  AllowWhilePasswordChangeRequired,
+  CurrentUser,
+  DenyWhileImpersonating,
+  Public,
+} from '../../common/decorators/auth.decorators.js';
 import { AccountService } from './account.service.js';
 import { SessionManager } from './session-manager.service.js';
 
@@ -54,6 +59,8 @@ export class AccountController {
 
   @Post('password')
   @HttpCode(200)
+  @AllowWhilePasswordChangeRequired()
+  @DenyWhileImpersonating()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: ChangePasswordResponseSchema })
   changePassword(
@@ -104,6 +111,7 @@ export class AccountController {
   }
 
   @Post('email/start')
+  @DenyWhileImpersonating()
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: EmailChangeStatusSchema })
@@ -116,6 +124,7 @@ export class AccountController {
   }
 
   @Post('email/verify')
+  @DenyWhileImpersonating()
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: EmailChangeStatusSchema })
@@ -128,6 +137,7 @@ export class AccountController {
   }
 
   @Delete('email/pending')
+  @DenyWhileImpersonating()
   @HttpCode(204)
   async cancelEmail(@CurrentUser() user: SessionUser): Promise<void> {
     await this.account.cancelEmailChange(user.id);
@@ -144,6 +154,7 @@ export class AccountController {
   }
 
   @Delete('sessions/:id')
+  @DenyWhileImpersonating()
   @HttpCode(204)
   async revokeMine(
     @CurrentUser() user: SessionUser,

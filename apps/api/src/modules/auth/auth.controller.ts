@@ -12,10 +12,11 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import type { AppClsStore } from '../../common/cls/app-cls.js';
-import { CurrentUser, Public } from '../../common/decorators/auth.decorators.js';
+import { AllowWhilePasswordChangeRequired, CurrentUser, Public } from '../../common/decorators/auth.decorators.js';
 import { AppConfig } from '../../config/app-config.js';
 import { MailService } from '../mail/mail.service.js';
 import { AuthService } from './auth.service.js';
+import { ImpersonationService } from './impersonation.service.js';
 import { clearSessionCookie, setSessionCookie } from './session-cookie.js';
 
 @Controller('auth')
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly config: AppConfig,
     private readonly cls: ClsService<AppClsStore>,
     private readonly mail: MailService,
+    private readonly impersonation: ImpersonationService,
   ) {}
 
   /** What the login screen may offer (passkey button, "forgot password"). */
@@ -59,13 +61,16 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(204)
-  async logout(@Res({ passthrough: true }) res: Response): Promise<void> {
+  @AllowWhilePasswordChangeRequired()
+  async logout(@CurrentUser() user: SessionUser, @Res({ passthrough: true }) res: Response): Promise<void> {
     const sessionId = this.cls.get('sessionId');
+    if (sessionId && user.impersonation) await this.impersonation.endOnLogout(sessionId);
     if (sessionId) await this.auth.logout(sessionId);
     clearSessionCookie(res);
   }
 
   @Get('me')
+  @AllowWhilePasswordChangeRequired()
   @SerializeOptions({ schema: MeResponseSchema })
   me(@CurrentUser() user: SessionUser): MeResponse {
     return { user };

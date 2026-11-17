@@ -15,6 +15,8 @@ export interface SessionRow {
   lastSeenAt: Date;
   expiresAt: Date;
   passkeyId: string | null;
+  parentSessionId: string | null;
+  impersonatorUsername: string | null;
 }
 
 /**
@@ -85,6 +87,7 @@ export class SessionManager {
       lastSeenAt: row.lastSeenAt.toISOString(),
       expiresAt: row.expiresAt.toISOString(),
       viaPasskey: row.passkeyId !== null,
+      impersonatedBy: row.impersonatorUsername,
       isCurrent,
       canRevoke: canRevoke && !isCurrent,
     };
@@ -94,6 +97,7 @@ export class SessionManager {
     return this.txHost.tx
       .selectFrom('sessions as s')
       .innerJoin('users as u', 'u.id', 's.userId')
+      .leftJoin('users as iu', 'iu.id', 's.impersonatorUserId')
       .select([
         's.id',
         's.userId',
@@ -105,6 +109,8 @@ export class SessionManager {
         's.lastSeenAt',
         's.expiresAt',
         's.passkeyId',
+        's.parentSessionId',
+        'iu.username as impersonatorUsername',
       ])
       .where('s.expiresAt', '>', sql<Date>`now()`);
   }

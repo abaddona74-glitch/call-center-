@@ -1,8 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { SettingsLayout } from '@/pages/settings';
-import { requireRole } from '../../lib/require-role';
+import { requirePermission } from '../../lib/require-role';
 
 export const Route = createFileRoute('/_app/settings')({
-  beforeLoad: ({ context }) => requireRole(context.user, 'admin'),
+  beforeLoad: ({ context }) =>
+    requirePermission(context.user, 'users.manage', 'sessions.manage', 'security.manage', 'audit.view'),
   component: SettingsLayout,
 });

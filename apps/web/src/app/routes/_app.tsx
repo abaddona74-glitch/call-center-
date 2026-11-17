@@ -8,6 +8,8 @@ export const Route = createFileRoute('/_app')({
   beforeLoad: async ({ context, location }) => {
     const user = await context.queryClient.ensureQueryData(sessionQuery);
     if (!user) throw redirect({ to: '/login', search: { redirect: location.href } });
+    // The server refuses everything else until a forced password change is done.
+    if (user.mustChangePassword && !user.impersonation) throw redirect({ to: '/change-password' });
     realtime.onSessionLost = () => {
       context.queryClient.setQueryData(sessionQuery.queryKey, null);
       window.location.assign('/login');

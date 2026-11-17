@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PasswordSchema } from './auth.js';
+import { PasswordSchema, RoleSchema } from './auth.js';
 
 /**
  * Self-service account contracts: auth options, own password, password reset by email,
@@ -108,13 +108,15 @@ export const SessionInfoSchema = z.object({
   id: z.string(),
   userId: z.number().int(),
   username: z.string(),
-  role: z.enum(['operator', 'admin', 'superuser']),
+  role: RoleSchema,
   ip: z.string().nullable(),
   userAgent: z.string().nullable(),
   createdAt: z.iso.datetime(),
   lastSeenAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   viaPasskey: z.boolean(),
+  /** A superuser acting as this user ("log in as"). */
+  impersonatedBy: z.string().nullable(),
   isCurrent: z.boolean(),
   /** The viewer may revoke it (admin rules; never the current session). */
   canRevoke: z.boolean(),
@@ -126,3 +128,12 @@ export type SessionList = z.infer<typeof SessionListSchema>;
 
 /** Session ids are sha256 hex. */
 export const SessionIdSchema = z.string().regex(/^[0-9a-f]{64}$/, 'Invalid session id');
+
+// --- "Log in as another user" (superuser, permission `impersonate`) --------------------------
+
+/** POST /api/auth/impersonation — start acting as `userId` (new, separate, time-limited session). */
+export const ImpersonationStartSchema = z.object({ userId: z.number().int().positive() });
+export type ImpersonationStart = z.infer<typeof ImpersonationStartSchema>;
+
+/** Minutes an impersonation session lasts (not renewable). */
+export const IMPERSONATION_MINUTES = 30;

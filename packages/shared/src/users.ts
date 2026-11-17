@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { ExtensionSchema, PasswordSchema, RoleSchema, UsernameSchema } from './auth.js';
-import { PermissionsSchema } from './permissions.js';
+import { GroupFlagsSchema } from './permissions.js';
 
 /**
- * User administration (admin+) and operator groups. Base paths /api/users, /api/operator-groups.
- * RBAC: superuser manages everyone; admin manages only operators (cannot create/promote/modify
- * admins or superusers); the last active superuser cannot be removed, demoted or deactivated.
+ * User administration (permission `users.manage`) and operator groups. Base paths /api/users, /api/operator-groups.
+ * Only a superuser manages superusers or grants the superuser role; the last active superuser cannot be
+ * removed, demoted or deactivated.
  */
 
 export const UserIdParamSchema = z.coerce.number().int().positive();
@@ -29,13 +29,16 @@ export const UserSchema = z.object({
   groupId: z.number().int().nullable(),
   groupName: z.string().nullable(),
   isActive: z.boolean(),
+  mustChangePassword: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   lastLoginAt: z.iso.datetime().nullable(),
   passkeyCount: z.number().int(),
   activeSessions: z.number().int(),
-  /** The current admin may edit/reset/delete this user. */
+  /** The current user may edit/reset/delete this user. */
   canManage: z.boolean(),
+  /** The current user may "log in as" this user. */
+  canImpersonate: z.boolean(),
 });
 export type User = z.infer<typeof UserSchema>;
 
@@ -57,6 +60,8 @@ export const CreateUserSchema = z
     extension: optionalExtension.default(null),
     email: optionalEmail.default(null),
     groupId: z.number().int().positive().nullable().default(null),
+    /** Ask for a new password at first login. */
+    mustChangePassword: z.boolean().default(false),
   })
   .refine((u) => u.role !== 'operator' || u.extension !== null, {
     path: ['extension'],
@@ -72,6 +77,7 @@ export const UpdateUserSchema = z
     email: optionalEmail,
     groupId: z.number().int().positive().nullable(),
     isActive: z.boolean(),
+    mustChangePassword: z.boolean(),
   })
   .partial()
   .refine((u) => Object.keys(u).length > 0, { message: 'Nothing to update' });
@@ -82,6 +88,8 @@ export const ResetUserPasswordSchema = z.object({
   password: PasswordSchema,
   /** Also delete the user's passkeys (default: yes — the account may be compromised). */
   revokePasskeys: z.boolean().default(true),
+  /** The user has to replace this password at the next login (default: yes). */
+  mustChangePassword: z.boolean().default(true),
 });
 export type ResetUserPassword = z.input<typeof ResetUserPasswordSchema>;
 
@@ -97,7 +105,7 @@ export const OperatorGroupSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   description: z.string().nullable(),
-  permissions: PermissionsSchema,
+  permissions: GroupFlagsSchema,
   memberCount: z.number().int(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
@@ -116,7 +124,7 @@ const groupDescription = z.preprocess(
 export const CreateOperatorGroupSchema = z.object({
   name: groupName,
   description: groupDescription.default(null),
-  permissions: PermissionsSchema,
+  permissions: GroupFlagsSchema,
 });
 export type CreateOperatorGroup = z.input<typeof CreateOperatorGroupSchema>;
 
@@ -124,7 +132,7 @@ export const UpdateOperatorGroupSchema = z
   .object({
     name: groupName,
     description: groupDescription,
-    permissions: PermissionsSchema,
+    permissions: GroupFlagsSchema,
   })
   .partial()
   .refine((g) => Object.keys(g).length > 0, { message: 'Nothing to update' });

@@ -15,6 +15,7 @@ import {
   SettingsInput,
   SettingsSelect,
 } from '@/shared/ui/settings-panel';
+import { Switch } from '@/shared/ui/switch';
 import { userErrorText } from '../model/errors';
 
 type Values = {
@@ -24,9 +25,19 @@ type Values = {
   extension: string;
   email: string;
   groupId: number | null;
+  mustChangePassword: boolean;
 };
 
-const EMPTY: Values = { username: '', password: '', role: 'operator', extension: '', email: '', groupId: null };
+const EMPTY: Values = {
+  username: '',
+  password: '',
+  role: 'operator',
+  extension: '',
+  email: '',
+  groupId: null,
+  // the admin picks a temporary password; the person sets their own at first login
+  mustChangePassword: true,
+};
 
 /** Legacy "Yangi foydalanuvchi qo'shish" inline form. Only roles the current admin may grant are offered. */
 export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups: OperatorGroup[] }) {
@@ -34,7 +45,8 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
   const { t: tu } = useTranslation('user');
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
-  const grantable = ROLES.filter((r) => actorRole === 'superuser' || r === 'operator');
+  // only a superuser grants the superuser role (the server enforces the same)
+  const grantable = ROLES.filter((r) => actorRole === 'superuser' || r !== 'superuser');
 
   const mutation = useMutation({
     mutationFn: (value: Values) => createUser(value),
@@ -153,6 +165,15 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
             }
           </form.Subscribe>
         </div>
+
+        <form.Field name="mustChangePassword">
+          {(field) => (
+            <label className="flex cursor-pointer items-center gap-3 text-[13px] text-[#cbd5e1]">
+              <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
+              {t('users.mustChange')}
+            </label>
+          )}
+        </form.Field>
         <FieldError>{serverError}</FieldError>
         <div className="flex justify-end">
           <SettingsButton type="submit" tone="success" disabled={mutation.isPending}>

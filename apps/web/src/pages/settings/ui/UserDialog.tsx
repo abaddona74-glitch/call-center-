@@ -58,7 +58,7 @@ function UserForm({
   const { t: tu } = useTranslation('user');
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
-  const grantable = ROLES.filter((r) => actorRole === 'superuser' || r === 'operator');
+  const grantable = ROLES.filter((r) => actorRole === 'superuser' || r !== 'superuser');
 
   const mutation = useMutation({
     mutationFn: async (value: Values) => {
@@ -72,6 +72,7 @@ function UserForm({
       if ((value.email.trim().toLowerCase() || null) !== user.email) patch.email = value.email;
       if (value.groupId !== user.groupId) patch.groupId = value.groupId;
       if (value.isActive !== user.isActive) patch.isActive = value.isActive;
+      if (value.mustChangePassword !== user.mustChangePassword) patch.mustChangePassword = value.mustChangePassword;
       if (Object.keys(patch).length === 0) return user;
       return updateUser(user.id, UpdateUserSchema.parse(patch));
     },
@@ -92,6 +93,7 @@ function UserForm({
     email: string;
     groupId: number | null;
     isActive: boolean;
+    mustChangePassword: boolean;
   };
 
   const form = useForm({
@@ -103,6 +105,7 @@ function UserForm({
       email: user?.email ?? '',
       groupId: user?.groupId ?? null,
       isActive: user?.isActive ?? true,
+      mustChangePassword: user?.mustChangePassword ?? false,
     } as Values,
     validators: {
       onSubmit: ({ value }) => {
@@ -266,6 +269,14 @@ function UserForm({
           )}
         </form.Field>
       )}
+      <form.Field name="mustChangePassword">
+        {(field) => (
+          <label className="flex cursor-pointer items-center gap-3 text-[13px] text-[#cbd5e1]">
+            <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
+            {t('users.mustChange')}
+          </label>
+        )}
+      </form.Field>
 
       <FieldError>{serverError}</FieldError>
       <div className="flex justify-end gap-2">

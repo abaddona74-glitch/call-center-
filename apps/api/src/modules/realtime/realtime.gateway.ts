@@ -36,6 +36,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         socket.close(WS_CLOSE.unauthorized, 'unauthorized');
         return;
       }
+      // No live data until a forced password change is done (same rule as HTTP).
+      if (session.user.mustChangePassword && !session.user.impersonation) {
+        socket.close(WS_CLOSE.forbidden, 'password change required');
+        return;
+      }
       this.realtime.register(socket, session.user, session.sessionId);
       this.realtime.send(socket, 'session.ready', {
         userId: session.user.id,

@@ -9,12 +9,12 @@ import {
 } from '@cc/shared';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, SerializeOptions } from '@nestjs/common';
 import type { z } from 'zod';
-import { Roles } from '../../common/decorators/auth.decorators.js';
+import { RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { UsersService } from './users.service.js';
 
 /** Operator groups and their permission flags (admin+). */
 @Controller('operator-groups')
-@Roles('admin')
+@RequirePermission('users.manage')
 export class OperatorGroupsController {
   constructor(private readonly users: UsersService) {}
 
