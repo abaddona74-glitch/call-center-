@@ -2505,15 +2505,9 @@ label[for="newTicketTargetOperator"] {
     width: 100%;
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     padding: 11px 18px;
-    background: transparent;
-    border: 0;
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
+    box-sizing: border-box;
     transition: background 0.2s ease;
 }
 
@@ -2521,10 +2515,78 @@ label[for="newTicketTargetOperator"] {
     background: rgba(56, 189, 248, 0.05);
 }
 
-.tk-inline-head:focus-visible {
+/* Sarlavhaning asosiy qismi: bosilganda blok ochiladi / yopiladi */
+.tk-inline-head-toggle {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tk-inline-head-toggle:focus-visible {
     outline: 2px solid #38bdf8;
-    outline-offset: -2px;
-    border-radius: 14px;
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+/* "Ticketlar" tugmasi: ro'yxatni (sidebar) ochadi, yangi + jarayondagilar soni bilan */
+.tk-inline-list-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.1);
+    color: #e0f2fe;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.tk-inline-list-btn svg {
+    width: 15px;
+    height: 15px;
+    color: #38bdf8;
+}
+
+.tk-inline-list-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+.tk-inline-list-btn:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.tk-inline-list-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
 }
 
 .tk-inline-head-left {
@@ -2608,10 +2670,13 @@ label[for="newTicketTargetOperator"] {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    padding: 0;
     border-radius: 8px;
     background: rgba(30, 41, 59, 0.8);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #cbd5e1;
+    cursor: pointer;
+    flex-shrink: 0;
     transition: transform 0.28s ease, background 0.2s ease, color 0.2s ease;
 }
 
@@ -2808,6 +2873,10 @@ label[for="newTicketTargetOperator"] {
     }
 
     .tk-inline-head .tk-box-id {
+        display: none;
+    }
+
+    .tk-inline-list-btn > span:not(.tk-inline-list-badge) {
         display: none;
     }
 

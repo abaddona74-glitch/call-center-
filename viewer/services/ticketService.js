@@ -252,15 +252,8 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         }
     }
 
-    // Yaratuvchi: Faqat Zangiota (200+) operatorlari bo'lishi shart!
-    let cleanCreatorId = String(creatorId || '200').trim();
-    const creatorNum = parseInt(cleanCreatorId, 10);
-    if (!isNaN(creatorNum) && creatorNum >= 100 && creatorNum < 200) {
-        throw new Error("Asosiy (100+) operatorlari ticket yarata olmaydi! Ticket yaratuvchi faqat Zangiota (200+) operatori bo'lishi kerak. 100+ operatorlari faqat qabul qiluvchi hisoblanadi.");
-    }
-    if (isNaN(creatorNum) || creatorNum < 200) {
-        cleanCreatorId = '200';
-    }
+    // Yaratuvchi: istalgan operator (100+ / 200+ bo'linishi olib tashlangan)
+    const cleanCreatorId = String(creatorId || '200').trim();
     let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
 
     const cleanTargetId = targetOperatorId ? String(targetOperatorId).trim() : 'all';
@@ -336,38 +329,24 @@ function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, 
     return t;
 }
 
+// Ticket operatorga tegishlimi: o'zi yaratgan yoki aynan unga biriktirilgan
+function isTicketMine(t, operatorId) {
+    const op = String(operatorId || '').trim();
+    if (!op || !t) return false;
+    return String(t.creatorId || '').trim() === op || String(t.targetOperatorId || '').trim() === op;
+}
+
 // 2. Barcha ticketlarni olish
 function getTickets(filter = 'all', operatorId = null) {
     const cleanOp = String(operatorId || '').trim();
-    const opNum = parseInt(cleanOp, 10);
-    const is200Op = !isNaN(opNum) && opNum >= 200;
-    const is100Op = !isNaN(opNum) && opNum >= 100 && opNum < 200;
 
-    let baseTickets = tickets;
-
-    if (is200Op) {
-        // 200+ (Zangiota / Creator) operatorlar faqat o'zi yoki boshqa 200+ lar yaratgan ticketlarni ko'radi
-        baseTickets = tickets.filter(t => {
-            const cNum = parseInt(t.creatorId, 10);
-            return String(t.creatorId).trim() === cleanOp || (!isNaN(cNum) && cNum >= 200);
-        });
-    } else if (is100Op) {
-        // 100+ (Asosiy / Receiver) operatorlar esa faqat o'ziga yoki barchaga yo'naltirilgan ticketlarni ko'radi
-        baseTickets = tickets.filter(t => {
-            const targetClean = String(t.targetOperatorId || 'all').trim();
-            return targetClean === 'all' || targetClean === cleanOp;
-        });
-    }
+    // 100+ / 200+ bo'linishi olib tashlangan: barcha operatorlar barcha ticketlarni ko'radi
+    const baseTickets = tickets;
 
     if (filter === 'mine') {
         if (cleanOp) {
-            if (is200Op) {
-                // 200-lik operator uchun "mine" - bu o'zi yaratgan ticketlar!
-                return baseTickets.filter(t => String(t.creatorId).trim() === cleanOp);
-            } else {
-                // 100-lik operator uchun "mine" - bu o'ziga biriktirilgan ticketlar!
-                return baseTickets.filter(t => String(t.targetOperatorId).trim() === cleanOp);
-            }
+            // "Meniki" = o'zi yaratgan yoki o'ziga biriktirilgan ticketlar
+            return baseTickets.filter(t => isTicketMine(t, cleanOp));
         }
         return baseTickets;
     }
@@ -578,6 +557,7 @@ module.exports = {
     createTicket,
     updateTicket,
     getTickets,
+    isTicketMine,
     getTicketById,
     acceptTicket,
     completeTicket,

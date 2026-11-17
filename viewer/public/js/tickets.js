@@ -388,8 +388,9 @@
             }
         }
 
-        // Floating button badge (Bright Red notification pill)
+        // Yangi + jarayondagi ticketlar soni (inline blokdagi "Ticketlar" tugmasi; eski suzib turuvchi tugma olib tashlangan)
         const floatBadges = [
+            document.getElementById('inlineTicketListBadge'),
             document.getElementById('ticketFloatingBadge'),
             document.getElementById('ticketFloatBadge')
         ];
@@ -458,10 +459,7 @@
 
     function renderTicketCards(container, list, isMini = false) {
         if (!list || list.length === 0) {
-            const isCreator = isCreatorUser();
-            const emptyHint = isCreator 
-                ? "Yangi ticket ochish uchun yuqoridagi \"Yangi Ticket Ochish\" tugmasini bosing"
-                : "Zangiota (200+) dan yangi vazifalar kelganda bu yerda ko'rinadi";
+            const emptyHint = "Yangi ticket ochish uchun \"Murojaat / Vazifa Ochish\" blokidan yoki \"Yangi Ticket Ochish\" tugmasidan foydalaning";
             container.innerHTML = `
                 <div style="text-align: center; color: #64748b; padding: 40px 20px; font-size: 13px;">
                     ${ICONS.clipboard}
@@ -487,7 +485,7 @@
                 ? (isAssignedToMe
                     ? `<span class="tk-target-badge for-me" title="Sizga biriktirilgan vazifa">${ICONS.target} Menga (${escapeHtml(t.targetOperatorName || t.targetOperatorId)})</span>`
                     : `<span class="tk-target-badge specific" title="Mas'ul operator: ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}">${ICONS.target} ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}</span>`)
-                : `<span class="tk-target-badge all" title="Barcha operatorlarga (Asosiy 100+)">${ICONS.people} Barchaga</span>`;
+                : `<span class="tk-target-badge all" title="Barcha operatorlarga">${ICONS.people} Barchaga</span>`;
 
             const assignedText = t.acceptedBy ? `Qabul qildi: ${t.acceptedBy.name}` :
                 (t.status === 'completed' ? `Bajarildi: ${t.completedBy?.name || ''}` :
@@ -928,46 +926,12 @@
     }
 
     // =========================================================================
-    // TICKET CREATION & PERMISSIONS (YARATUVCHI: 200+ ZANGIOTA, QABUL: 100+ ASOSIY)
+    // TICKET CREATION & PERMISSIONS
+    // 100+ (Asosiy) / 200+ (Zangiota) bo'linishi olib tashlangan: istalgan operator ticket yarata oladi
+    // va qabul qila oladi. Qabul qilish / bajarish faqat "Mas'ul (Kimga)" biriktiruviga qarab cheklanadi.
     // =========================================================================
     function isCreatorUser() {
-        const rawId = state.myOperatorId 
-            || localStorage.getItem('viewer_my_operator_id') 
-            || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id))
-            || (window.currentViewerUser && (window.currentViewerUser.operatorId || window.currentViewerUser.operator_id));
-        const opNum = parseInt(rawId, 10);
-
-        const uname = String((state.currentUser && state.currentUser.username) || (window.currentViewerUser && window.currentViewerUser.username) || '').toLowerCase().trim();
-
-        // QAT'IY QOIDA: 100-199 (Asosiy) operatorlari (shu jumladan Maxmudbek / 114) FAQAT QABUL QILUVCHI!
-        // Ular aslo ticket yarata olmaydi va "Yangi Ticket Ochish" tugmasini ko'rmaydi.
-        if (uname === 'maxmudbek' || (!isNaN(opNum) && opNum >= 100 && opNum < 200)) {
-            return false;
-        }
-
-        // Faqat Zangiota (200+) operatorlari ticket yaratuvchi bo'la oladi!
-        if (!isNaN(opNum) && opNum >= 200) {
-            return true;
-        }
-
-        // Username tekshiruvi (operator200, 201, zangiota...)
-        const unameMatch = uname.match(/\d+/);
-        if (unameMatch) {
-            const uNum = parseInt(unameMatch[0], 10);
-            if (uNum >= 200) return true;
-            if (uNum >= 100 && uNum < 200) return false;
-        }
-        if (uname.includes('zangiota')) return true;
-
-        // Tizim superuser (root) faqat birorta 100+ operatoriga bog'lanmagan bo'lsa
-        const role = state.myUserRole 
-            || (state.currentUser && state.currentUser.role) 
-            || (window.currentViewerUser && window.currentViewerUser.role);
-        if (role === 'superuser' && uname === 'superuser') {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     function updateCreateButtonVisibility() {
@@ -993,25 +957,17 @@
             inlinePanel.style.setProperty('display', canCreate ? 'block' : 'none', 'important');
         }
 
-        // 200+ (Creator) lar uchun "🎯 Menga" o'rniga "✍️ Men yaratgan", 100+ lar uchun "🎯 Menga"
-        const sbMineLabel = document.getElementById('sbTabMineLabel');
-        if (sbMineLabel) {
-            sbMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
-            sbMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
-        }
-        const pageMineLabel = document.getElementById('pageTabMineLabel');
-        if (pageMineLabel) {
-            pageMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
-            pageMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
-        }
+        // "Meniki" = o'zim yaratgan yoki menga biriktirilgan ticketlar (serverdagi hisob bilan bir xil)
+        ['sbTabMineLabel', 'pageTabMineLabel'].forEach(id => {
+            const label = document.getElementById(id);
+            if (label) {
+                label.textContent = '👤 Meniki';
+                label.parentElement?.setAttribute('title', 'Siz yaratgan yoki sizga biriktirilgan ticketlar');
+            }
+        });
     }
 
     function openCreateModal() {
-        if (!isCreatorUser()) {
-            alert("Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari esa faqat qabul qiluvchi hisoblanadi!");
-            return;
-        }
-
         // Setup fixed creator info (avtomatik joriy hisob biriktiriladi - fixed, dropdown emas)
         const rawId = String(state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id)) || '200').trim();
         let myOpName = String(state.myOperatorName || (state.currentUser && (state.currentUser.operatorName || state.currentUser.username)) || '').trim();
@@ -1859,7 +1815,8 @@
                 editorName: state.myOperatorName || 'Operator',
                 customerPhone: phoneInput ? phoneInput.value.trim() : '',
                 comment: commentVal,
-                isUrgent: urgentInput ? urgentInput.checked : false,
+                // "Shoshilinch" tugmasi formadan olib tashlangan: maydon yo'q bo'lsa mavjud holat o'zgartirilmaydi
+                ...(urgentInput ? { isUrgent: urgentInput.checked } : {}),
                 targetOperatorId,
                 targetOperatorName,
                 ...(editCustomer ? {

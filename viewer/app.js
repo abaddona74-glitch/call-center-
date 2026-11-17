@@ -1724,13 +1724,10 @@ app.get('/api/tickets', (req, res) => {
         const list = ticketService.getTickets(filter, operatorId);
         const allList = ticketService.getTickets('all', operatorId);
         const cleanOp = String(operatorId || '').trim();
-        const opNum = parseInt(cleanOp, 10);
-        const is200Op = !isNaN(opNum) && opNum >= 200;
 
-        const mineCount = cleanOp 
-            ? (is200Op 
-                ? allList.filter(t => String(t.creatorId).trim() === cleanOp).length 
-                : allList.filter(t => String(t.targetOperatorId).trim() === cleanOp).length)
+        // "Meniki" = o'zi yaratgan yoki o'ziga biriktirilgan (100+ / 200+ bo'linishi yo'q)
+        const mineCount = cleanOp
+            ? allList.filter(t => ticketService.isTicketMine(t, cleanOp)).length
             : 0;
 
         const stats = {
@@ -1767,12 +1764,17 @@ app.get('/api/tickets/call-context', async (req, res) => {
         if (!resp.ok || !json || json.success === false) {
             return res.status(502).json({ success: false, error: (json && json.error) || 'Qo\'ng\'iroq ma\'lumotini olib bo\'lmadi', operatorId });
         }
+        // Mijozlar bazasi 200+ operatorlarga yopiq (checkIs200Operator bilan bir xil qoida):
+        // ularga kontakt (FISH / tashkilot) qaytarilmaydi, faqat qo'ng'iroq ma'lumoti.
+        const role = String(req.user.role || '').toLowerCase();
+        const opNum = parseInt(operatorId, 10);
+        const contactHidden = !isNaN(opNum) && opNum >= 200 && role !== 'superuser' && role !== 'admin';
         res.json({
             success: true,
             operatorId,
             state: json.state || 'none',
             call: json.call || null,
-            contact: json.contact || null
+            contact: contactHidden ? null : (json.contact || null)
         });
     } catch (e) {
         res.status(502).json({ success: false, error: e.message });
@@ -1796,23 +1798,12 @@ app.post('/api/tickets', (req, res) => {
         const clientIp = extractClientIp(req);
         const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName, callId, callTime, callDirection } = req.body || {};
         
-        // Ruxsat tekshiruvi: 100+ operatorlari (shu jumladan Maxmudbek / 114) ticket yarata olmaydi
+        // Ticketni istalgan operator yaratishi mumkin (100+ / 200+ bo'linishi olib tashlangan)
         // Yaratuvchi shaxsi: sessiyadagi req.user ma'lumotlariga qat'iy bog'lanadi (fixed)
         const effectiveCreatorId = String((req.user && (req.user.operatorId || req.user.operator_id)) || creatorId || '200').trim();
         let effectiveCreatorName = String((req.user && (req.user.operatorName || req.user.username)) || creatorName || `Operator ${effectiveCreatorId}`).trim();
         if (!effectiveCreatorName.includes(effectiveCreatorId) && !isNaN(parseInt(effectiveCreatorId, 10))) {
             effectiveCreatorName = `${effectiveCreatorName} (${effectiveCreatorId})`;
-        }
-
-        const opNum = parseInt(effectiveCreatorId, 10);
-        const creatorUname = String((req.user && req.user.username) || effectiveCreatorName || '').toLowerCase().trim();
-        const is100Op = (!isNaN(opNum) && opNum >= 100 && opNum < 200) || creatorUname === 'maxmudbek';
-
-        if (is100Op) {
-            return res.status(403).json({
-                success: false,
-                error: "Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari faqat qabul qiluvchi!"
-            });
         }
 
         const newTicket = ticketService.createTicket({
