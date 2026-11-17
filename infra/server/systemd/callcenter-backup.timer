@@ -1,0 +1,13 @@
+# Installed by infra/server/bootstrap.sh. Daily at 02:30 Asia/Tashkent (21:30 UTC), outside the
+# call-center working hours. Persistent: a run missed while the server was off happens at boot.
+# Next run: systemctl list-timers callcenter-backup.timer
+[Unit]
+Description=Daily call center PostgreSQL backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00 Asia/Tashkent
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -21,7 +21,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:migrate": "node dist/database/migrate.js latest",
     "db:migrate:dev": "nest build && node dist/database/migrate.js latest",
-    "db:rollback": "node dist/database/migrate.js down"
+    "db:rollback": "node dist/database/migrate.js down",
+    "migrate:legacy": "node dist/scripts/migrate-legacy/main.js"
   },
   "dependencies": {
     "@cc/shared": "workspace:*",
