@@ -1,21 +1,11 @@
 import type { DailyPoint, HourlyPoint } from '@cc/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { Segmented } from '@/shared/ui/segmented';
-import { AXIS, GRID, LEGEND, TOOLTIP } from './chart-theme';
+import { AXIS, GRID, TOOLTIP } from './chart-theme';
+import { ChartLegend } from './ChartLegend';
 import '../i18n';
 
 type View = 'hour' | 'day';
@@ -77,6 +67,7 @@ export function CallDynamicsChart({ hourly, daily }: { hourly: HourlyPoint[]; da
           )}
         </div>
       </PanelHeader>
+      <ChartLegend items={series.map((s) => ({ name: s.name, color: s.color }))} />
       <div className="h-[280px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           {effective === 'day' && kind === 'column' ? (
@@ -85,7 +76,6 @@ export function CallDynamicsChart({ hourly, daily }: { hourly: HourlyPoint[]; da
               <XAxis dataKey="label" {...AXIS} />
               <YAxis allowDecimals={false} {...AXIS} />
               <Tooltip {...TOOLTIP} formatter={fmt} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-              <Legend {...LEGEND} />
               {series.map((s) => (
                 <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} radius={[6, 6, 0, 0]} />
               ))}
@@ -96,7 +86,6 @@ export function CallDynamicsChart({ hourly, daily }: { hourly: HourlyPoint[]; da
               <XAxis dataKey="label" {...AXIS} />
               <YAxis allowDecimals={false} {...AXIS} />
               <Tooltip {...TOOLTIP} formatter={fmt} />
-              <Legend {...LEGEND} />
               {series.map((s) => (
                 <Area
                   key={s.key}

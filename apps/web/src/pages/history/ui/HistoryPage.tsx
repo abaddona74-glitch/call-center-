@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { businessToday, callHistoryQuery, type RangePresetId, rangePresets } from '@/entities/call';
+import { businessToday, calendarLabels, callHistoryQuery, type RangePresetId, rangePresets } from '@/entities/call';
 import { useSessionUser } from '@/entities/session';
 import { isHttpError } from '@/shared/api';
-import { DateRangePicker } from '@/shared/ui/date-range-picker';
+import { DateRangeModal } from '@/shared/ui/date-range-modal';
+import { ModalButton } from '@/shared/ui/modal';
+import { toDmy } from '@/shared/ui/range-calendar';
 import { Icon } from '@/shared/ui/icon';
 import { NativeSelect } from '@/shared/ui/native-select';
 import { Pagination } from '@/shared/ui/pagination';
@@ -22,11 +24,12 @@ import { HISTORY_PAGE_SIZE, type HistorySearch, historyParams } from '../model/s
 import '../i18n';
 
 const route = getRouteApi('/_app/history');
-const PRESETS: RangePresetId[] = ['today', 'yesterday', 'week', 'month', 'prevMonth'];
+const PRESETS: RangePresetId[] = ['today', 'week', 'month', 'prevMonth'];
 
 /** "Qo'ng'iroqlar Tarixi" (legacy /history, server CDR source). */
 export function HistoryPage() {
-  const { t } = useTranslation('historyPage');
+  const { t, i18n } = useTranslation('historyPage');
+  const [rangeOpen, setRangeOpen] = useState(false);
   const { t: tc } = useTranslation('call');
   const user = useSessionUser();
   const search = route.useSearch();
@@ -104,29 +107,26 @@ export function HistoryPage() {
   return (
     <div className="flex flex-col gap-5">
       <Panel className="relative z-10">
-        <PanelHeader className="mb-0">
+        <PanelHeader className="mb-0 flex-col items-start">
           <PanelTitle>
             <Icon name="clock" className="size-[18px] text-primary" />
             {t('title')}
           </PanelTitle>
           <div className="flex flex-wrap items-center gap-3">
-            <DateRangePicker
-              value={range}
-              max={today}
-              onChange={(r) => set({ from: r.from, to: r.to, allDays: undefined })}
-              presets={PRESETS.map((id) => ({ label: t(`presets.${id}`), ...presets[id] }))}
-              labels={{
-                button:
-                  search.allDays && search.search
-                    ? t('allDaysLabel')
-                    : range.from === range.to
-                      ? range.from
-                      : `${range.from} — ${range.to}`,
-                from: t('rangeFrom'),
-                to: t('rangeTo'),
-                apply: t('apply'),
-              }}
-            />
+            <button
+              type="button"
+              onClick={() => setRangeOpen(true)}
+              className="inline-flex h-8 items-center gap-[7px] rounded-lg border border-chart-6/40 bg-chart-6/15 px-3.5 text-xs font-semibold text-chart-4 transition-all hover:bg-chart-6/25"
+            >
+              <Icon name="calendar" className="size-[15px]" />
+              {search.allDays && search.search
+                ? t('allDaysLabel')
+                : search.from || search.to
+                  ? range.from === range.to
+                    ? toDmy(range.from)
+                    : `${toDmy(range.from)} — ${toDmy(range.to)}`
+                  : t('range')}
+            </button>
             <SearchBox
               value={term}
               onChange={(e) => setTerm(e.target.value)}
@@ -222,6 +222,43 @@ export function HistoryPage() {
       </Panel>
 
       <CallDetailsDialog call={selected} onClose={() => setSelected(null)} />
+
+      <DateRangeModal
+        open={rangeOpen}
+        onOpenChange={setRangeOpen}
+        initial={range}
+        today={today}
+        max={today}
+        title={t('range')}
+        subtitle={t('rangeSubtitle')}
+        icon={<Icon name="calendar" className="size-5 text-white" />}
+        presets={PRESETS.map((id) => ({ label: t(`presets.${id}`), ...presets[id] }))}
+        labels={{
+          quick: t('quick'),
+          from: t('rangeFrom'),
+          to: t('rangeTo'),
+          summary: (r, days) => t('rangeSummary', { from: toDmy(r.from), to: toDmy(r.to), days }),
+          monthNames: calendarLabels(i18n.language).months,
+          weekdayNames: calendarLabels(i18n.language).weekdays,
+        }}
+      >
+        {(r, valid) => (
+          <>
+            <ModalButton onClick={() => setRangeOpen(false)}>{t('cancel')}</ModalButton>
+            {/* TODO(S5 recordings): "Ovozlarni yuklab olish (.zip)" for the chosen range belongs to the recordings module. */}
+            <ModalButton
+              tone="blueOutline"
+              disabled={!valid}
+              onClick={() => {
+                set({ from: r.from, to: r.to, allDays: undefined });
+                setRangeOpen(false);
+              }}
+            >
+              <Icon name="calendar" className="size-4" /> {t('viewInTable')}
+            </ModalButton>
+          </>
+        )}
+      </DateRangeModal>
     </div>
   );
 }

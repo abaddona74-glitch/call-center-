@@ -1,12 +1,13 @@
 import type { OperatorStatsResponse } from '@cc/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatDuration } from '@/entities/call';
 import { cn } from '@/shared/lib/cn';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { Segmented } from '@/shared/ui/segmented';
-import { AXIS, GRID, LEGEND, TOOLTIP } from './chart-theme';
+import { AXIS, GRID, TOOLTIP } from './chart-theme';
+import { ChartLegend } from './ChartLegend';
 import { DT } from './data-table-classes';
 import '../i18n';
 
@@ -45,6 +46,13 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
           ]}
         />
       </PanelHeader>
+      <ChartLegend
+        items={[
+          { name: t('series.accepted'), color: 'var(--chart-2)' },
+          { name: t('series.outbound'), color: 'var(--chart-4)' },
+          { name: t('series.missed'), color: 'var(--chart-5)' },
+        ]}
+      />
       <div className="mb-5 h-[280px] w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartRows} margin={{ top: 0, right: 8, left: -18, bottom: 0 }}>
@@ -52,7 +60,6 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
             <XAxis dataKey="label" {...AXIS} interval={0} tick={{ ...AXIS.tick, fontSize: 11 }} />
             <YAxis allowDecimals={false} {...AXIS} />
             <Tooltip {...TOOLTIP} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-            <Legend {...LEGEND} />
             <Bar dataKey="accepted" name={t('series.accepted')} fill="var(--chart-2)" radius={6} />
             <Bar dataKey="outbound" name={t('series.outbound')} fill="var(--chart-4)" radius={6} />
             <Bar dataKey="missed" name={t('series.missed')} fill="var(--chart-5)" radius={6} />

@@ -80,21 +80,28 @@ export function CallStatusBadge({ call }: { call: Pick<CallListItem, 'status' | 
   );
 }
 
-/** Yo'nalish column. */
+/** Yo'nalish column: bordered, slightly rounded badge with an icon (legacy history table). */
 export function CallDirectionBadge({ call }: { call: Pick<CallListItem, 'direction' | 'transferred'> }) {
   const { t } = useTranslation('call');
+  const shape = 'rounded-md border px-2 py-[3px]';
   if (call.transferred) {
     return (
-      <Pill tone="cyan">
-        <Icon name="refresh" className="size-3" /> {t('direction.transfer').toLowerCase()}
+      <Pill tone="cyan" className={shape}>
+        <Icon name="refresh" className="size-3" /> {t('direction.transfer')}
       </Pill>
     );
   }
-  if (call.direction === 'internal') return <Pill tone="muted">{t('direction.internal').toLowerCase()}</Pill>;
+  if (call.direction === 'internal') {
+    return (
+      <Pill tone="muted" className={cn(shape, 'border-white/12')}>
+        {t('direction.internal')}
+      </Pill>
+    );
+  }
   const out = call.direction === 'outbound';
   return (
-    <Pill tone={out ? 'purple' : 'info'}>
-      <DirectionMaskIcon outbound={out} /> {t(`direction.${call.direction}`).toLowerCase()}
+    <Pill tone={out ? 'purple' : 'info'} className={cn(shape, !out && 'border-chart-4/30 bg-chart-4/12')}>
+      <DirectionMaskIcon outbound={out} /> {t(`direction.${call.direction}`)}
     </Pill>
   );
 }

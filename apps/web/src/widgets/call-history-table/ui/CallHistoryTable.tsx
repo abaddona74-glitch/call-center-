@@ -2,7 +2,7 @@ import type { CallListItem } from '@cc/shared';
 import { columnVisibilityFeature, createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CallDirectionBadge, CallStatusBadge, DirectionMark, formatDuration, formatPhone } from '@/entities/call';
+import { CallDirectionBadge, CallStatusBadge, DirectionMark, formatDuration } from '@/entities/call';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
@@ -11,6 +11,13 @@ const features = tableFeatures({ columnVisibilityFeature });
 const helper = createColumnHelper<typeof features, CallListItem>();
 
 export type ColumnVisibility = Record<string, boolean>;
+
+/** Legacy `.data-table`: centered cells except time, number (left) and actions (right). */
+const ALIGN: Record<string, string> = {
+  time: 'text-left',
+  phone: 'text-left',
+  action: 'text-right [&>div]:justify-end',
+};
 
 /** Legacy `.recent-calls-table` row tint + 3px left accent (miss / lost / xfer). */
 function rowTone(c: CallListItem): string {
@@ -48,7 +55,7 @@ function OperatorCell({ call, t }: { call: CallListItem; t: (k: string) => strin
       <span className="font-semibold text-foreground">
         {call.operators.map((o, i) => (
           <span key={`${o.ext}-${i}`}>
-            {i > 0 && <span className="px-1 text-muted-foreground">➔</span>}
+            {i > 0 && <span className="px-1.5 text-muted-foreground">›</span>}
             {o.name ? `${o.name} (${o.ext})` : o.ext}
           </span>
         ))}
@@ -131,9 +138,9 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           cell: ({ row: { original: c } }) => (
             <div className="flex items-center gap-2">
               <DirectionMark call={c} />
-              <span className="font-semibold tracking-[0.2px]">
+              <span className="text-sm font-semibold tracking-[0.2px] text-white">
                 {c.clientNumber
-                  ? formatPhone(c.clientNumber)
+                  ? c.clientNumber
                   : c.hiddenNumber && c.direction !== 'internal'
                     ? tc('hidden')
                     : (c.operators[1]?.ext ?? '—')}
@@ -205,7 +212,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
         }),
         helper.display({
           id: 'action',
-          header: () => <span className="block text-right">{t('col.action')}</span>,
+          header: () => t('col.action'),
           cell: ({ row: { original: c } }) => (
             <div className="flex items-center justify-end gap-1.5">
               {c.hasRecording ? (
@@ -253,7 +260,7 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
   const table = useCallHistoryTable(props);
   const visibleCount = table.getVisibleLeafColumns().length;
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="w-full overflow-x-auto rounded-xl border border-white/8">
       <table className="w-full min-w-[760px] border-collapse text-[13px]">
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -261,7 +268,10 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
               {group.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="border-b border-border px-3 pb-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground select-none"
+                  className={cn(
+                    'border-b border-white/8 bg-secondary/70 px-3.5 py-3 text-[11px] font-bold tracking-[0.6px] whitespace-nowrap text-muted-foreground uppercase select-none',
+                    ALIGN[header.column.id] ?? 'text-center',
+                  )}
                 >
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </th>
@@ -286,7 +296,10 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="border-b border-border px-3 py-[11px] whitespace-nowrap tabular-nums text-foreground"
+                    className={cn(
+                      'border-b border-white/5 px-3.5 py-[14px] whitespace-nowrap tabular-nums text-foreground',
+                      ALIGN[cell.column.id] ?? 'text-center',
+                    )}
                   >
                     <table.FlexRender cell={cell} />
                   </td>

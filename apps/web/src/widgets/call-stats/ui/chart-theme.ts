@@ -20,10 +20,3 @@ export const TOOLTIP = {
   itemStyle: { padding: 0 },
   cursor: { stroke: 'rgba(148,163,184,0.25)' },
 } as const;
-
-export const LEGEND = {
-  iconType: 'circle' as const,
-  iconSize: 9,
-  wrapperStyle: { color: 'var(--muted-foreground)', fontSize: 12, paddingBottom: 8 },
-  verticalAlign: 'top' as const,
-};

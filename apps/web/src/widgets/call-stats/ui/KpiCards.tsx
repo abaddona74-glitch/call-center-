@@ -66,11 +66,11 @@ export function KpiCard({
     <div
       title={title}
       className={cn(
-        'group relative flex min-h-[145px] items-center gap-4 overflow-hidden rounded-2xl border border-t-[3px] border-white/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
+        'group relative flex min-h-[145px] items-center gap-3.5 overflow-hidden rounded-2xl border border-t-[3px] border-white/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
         a.border,
       )}
     >
-      <div className="flex size-[62px] min-w-[62px] items-center justify-center rounded-xl">
+      <div className="flex size-[54px] min-w-[54px] items-center justify-center rounded-xl 2xl:size-[62px] 2xl:min-w-[62px]">
         {image ? (
           <img
             src={image}
@@ -84,14 +84,16 @@ export function KpiCard({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <p className={cn('mb-1 truncate text-[11.5px] leading-tight font-bold tracking-[0.4px] uppercase', a.label)}>
+        <p
+          className={cn('mb-1 line-clamp-2 text-[11.5px] leading-tight font-bold tracking-[0.4px] uppercase', a.label)}
+        >
           {label}
         </p>
-        <h3 className="mb-0.5 flex flex-wrap items-baseline gap-1.5 text-[26px] leading-tight font-bold">
+        <h3 className="mb-0.5 flex items-baseline gap-1.5 text-[32px] leading-tight font-extrabold whitespace-nowrap">
           <span>{value}</span>
           {unit && <span className="text-[13px] font-semibold text-muted-foreground">{unit}</span>}
           {badge && (
-            <span className={cn('ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold', a.badge)}>{badge}</span>
+            <span className={cn('ml-0.5 rounded px-1.5 py-0.5 text-[11px] font-semibold', a.badge)}>{badge}</span>
           )}
         </h3>
         {sub && (
