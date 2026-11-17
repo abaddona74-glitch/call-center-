@@ -283,6 +283,7 @@ app.use(async (req, res, next) => {
         p === '/api/version' ||
         p === '/version.json' ||
         p === '/api/dev/visual-prompt' ||
+        p.startsWith('/api/dev/bridge-inbox') ||
         p === '/guide' ||
         p === '/guide.html' ||
         p === '/manual' ||
@@ -363,7 +364,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
         if (filePath.match(/\.(woff2?|ttf|eot|png|jpg|jpeg|gif|svg|ico)$/i)) {
             res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
         } else if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
         }
     }
 }));
@@ -1166,7 +1169,7 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
         if (!fs.existsSync(scratchDir)) {
             fs.mkdirSync(scratchDir, { recursive: true });
         }
-        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
         let queue = [];
         if (fs.existsSync(queuePath)) {
             try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
@@ -1177,6 +1180,57 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
         return res.json({ success: true, message: 'Vazifa Antigravity Inbox ga qabul qilindi', task: taskEntry });
     } catch (e) {
         console.error('visual-prompt api error (viewer):', e);
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Fast Visual AI / Telegram Bridge Inbox API for Local PC Watcher
+app.get('/api/dev/bridge-inbox', (req, res) => {
+    try {
+        let scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            if (fs.existsSync('/opt/call-center/scratch')) {
+                scratchDir = '/opt/call-center/scratch';
+            } else {
+                scratchDir = path.join(__dirname, 'scratch');
+            }
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        return res.json({ success: true, items: queue });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/dev/bridge-inbox/ack', express.json({ limit: '10mb' }), (req, res) => {
+    try {
+        const { id, status } = req.body || {};
+        let scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            if (fs.existsSync('/opt/call-center/scratch')) {
+                scratchDir = '/opt/call-center/scratch';
+            } else {
+                scratchDir = path.join(__dirname, 'scratch');
+            }
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        const item = queue.find(i => String(i.id) === String(id));
+        if (item) {
+            item.status = status || 'processing';
+            if (status === 'completed') item.completedAt = new Date().toISOString();
+            fs.writeFileSync(queuePath, JSON.stringify(queue, null, 2), 'utf8');
+            return res.json({ success: true, item });
+        }
+        return res.json({ success: false, message: 'Item not found' });
+    } catch (e) {
         return res.status(500).json({ success: false, error: e.message });
     }
 });
@@ -1912,6 +1966,8 @@ app.get('/api/viewer/sessions', async (req, res) => {
 
 // Maxsus Ticketlar sahifasi yo'naltmasi
 app.get(['/tickets', '/tickets.html'], (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
     res.sendFile(path.join(__dirname, 'public', 'tickets.html'));
 });
 

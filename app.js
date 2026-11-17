@@ -665,7 +665,7 @@ app.post('/api/dev/visual-prompt', (req, res) => {
         if (!fs.existsSync(scratchDir)) {
             fs.mkdirSync(scratchDir, { recursive: true });
         }
-        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
         let queue = [];
         if (fs.existsSync(queuePath)) {
             try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
