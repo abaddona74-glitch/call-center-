@@ -29,8 +29,8 @@ describe('tickets (e2e)', () => {
 
   beforeAll(async () => {
     t = await createS5TestApp();
-    // Only this file uses the tickets tables in the test database.
-    await t.db.deleteFrom('tickets').execute();
+    // Ticket ids >= 90000 belong to the legacy tickets mapper test, which may run in parallel.
+    await t.db.deleteFrom('tickets').where('id', '<', 90000).execute();
     admin = await t.createUser('admin', null);
     creator = await t.createUser('operator', '201');
     creator2 = await t.createUser('operator', '205');
@@ -345,7 +345,12 @@ describe('tickets (e2e)', () => {
       await http().post('/api/tickets/cleanup').set('Authorization', creator.auth).expect(403);
       const res = await http().post('/api/tickets/cleanup').set('Authorization', admin.auth).expect(200);
       expect(res.body.removed).toBeGreaterThanOrEqual(1);
-      const left = await t.db.selectFrom('tickets').select('id').where('status', '=', 'completed').execute();
+      const left = await t.db
+        .selectFrom('tickets')
+        .select('id')
+        .where('status', '=', 'completed')
+        .where('id', '<', 90000)
+        .execute();
       expect(left).toEqual([]);
     });
   });

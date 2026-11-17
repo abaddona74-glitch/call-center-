@@ -83,9 +83,8 @@ export function Dropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
       <LegacyIcon name="document-upload" className="size-9 text-[#38bdf8]" />
       <span className="text-[13px] font-semibold text-[#f1f5f9]">{t('form.drop')}</span>
       <span className="text-[11.5px] text-[#94a3b8]">{t('form.dropHint')}</span>
-      <span className="mt-0.5 inline-flex gap-1">
-        <Kbd>Ctrl</Kbd>
-        <Kbd>V</Kbd>
+      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-[#f1f5f9]">
+        <Kbd>Ctrl</Kbd>+<Kbd>V</Kbd>
       </span>
       <input
         ref={input}

@@ -97,7 +97,7 @@ export function CreateTicketModal({
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
-        <KdsModalBody className="gap-3.5">
+        <KdsModalBody className="gap-1">
           <KdsField label={t('form.phone')} icon={<Icon name="call" className="size-3.5" />} htmlFor="kds-new-phone">
             <KdsInput
               id="kds-new-phone"

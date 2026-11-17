@@ -322,6 +322,7 @@ function BoxContent({
           )}
           {locked && ticket.target && (
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-3 py-1.5 text-xs font-semibold text-[#f59e0b]">
+              <LegacyIcon name="lock" className="size-3.5" />
               {t('box.lock', { name: personName(ticket.target) })}
             </span>
           )}

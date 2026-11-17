@@ -5,7 +5,7 @@ import { Icon } from '@/shared/ui/icon';
 /** `.tk-form-group` + `.tk-form-label` */
 export function KdsField({ label, icon, htmlFor, children }: { label: string; icon?: ReactNode; htmlFor?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="mb-3.5 flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-xs font-bold text-[#cbd5e1]">
         {icon}
         <span>{label}</span>
@@ -51,7 +51,7 @@ export function UrgentToggle({
   return (
     <div
       className={cn(
-        'flex items-center justify-between rounded-[10px] border px-3.5 py-3 transition-all duration-[250ms]',
+        'mb-3.5 flex items-center justify-between rounded-[10px] border px-3.5 py-3 transition-all duration-[250ms]',
         checked
           ? 'border-[rgba(239,68,68,0.55)] bg-[rgba(239,68,68,0.16)] shadow-[0_0_15px_rgba(239,68,68,0.25)]'
           : 'border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)]',

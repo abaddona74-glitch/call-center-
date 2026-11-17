@@ -1,4 +1,5 @@
-/* Legacy "Studio" player (#modernMusicPlayer, style.css L5358-5715). Dark only, like the rest of the app. */
+/* Legacy "Studio" player (#modernMusicPlayer, style.css L5358-5715). The app is dark, but legacy switches
+   this card alone to a light palette when the OS is in light mode (see docs/rewrite/design/admin-14c-*). */
 .studio {
   --panel: #111a2f; --p2: #17223c; --line: #243152; --tx: #e8edf8; --mu: #8190b0;
   --op: #3ea6ff; --cl: #c58bff; --dim: #2a3858; --head: #fff;
@@ -7,6 +8,10 @@
   box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
   animation: studioSlideFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-color-scheme: light) {
+  .studio { --panel: #fff; --p2: #f2f5fb; --line: #d9e1f0; --tx: #12203b; --mu: #62708f;
+    --op: #1478e0; --cl: #8a43d9; --dim: #cfd8ea; --head: #12203b; }
 }
 @keyframes studioSlideFade { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes studioDiscSpin { to { transform: rotate(360deg); } }

@@ -80,7 +80,7 @@ export function EditTicketModal({
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
-        <KdsModalBody className="gap-3.5">
+        <KdsModalBody className="gap-1">
           <KdsField label={t('form.target')} icon={<LegacyIcon name="target" className="size-3.5" />} htmlFor="kds-edit-target">
             <KdsSelect
               id="kds-edit-target"

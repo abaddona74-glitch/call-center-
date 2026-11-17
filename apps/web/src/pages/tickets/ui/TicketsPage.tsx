@@ -98,7 +98,7 @@ export function TicketsPage() {
                 setPasted([]);
                 setCreateOpen(true);
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-[rgba(16,185,129,0.4)] bg-[linear-gradient(135deg,#10b981_0%,#059669_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#059669_0%,#047857_100%)] hover:shadow-[0_6px_18px_rgba(16,185,129,0.5)] active:scale-[0.96]"
+              className="inline-flex min-w-64 items-center justify-center gap-2 rounded-[10px] border border-[rgba(16,185,129,0.4)] bg-[linear-gradient(135deg,#10b981_0%,#059669_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#059669_0%,#047857_100%)] hover:shadow-[0_6px_18px_rgba(16,185,129,0.5)] active:scale-[0.96]"
             >
               <LegacyIcon name="add" strokeWidth={2} />
               {t('create')}
@@ -224,7 +224,7 @@ export function TicketsPage() {
   );
 }
 
-/** `.live-clock-badge` */
+/** Header clock (legacy tickets page: plain text — the badge styles live only on the main page). */
 function LiveClock() {
   const { t } = useTranslation('ticket');
   const [now, setNow] = useState(() => new Date());
@@ -234,11 +234,7 @@ function LiveClock() {
   }, []);
   const p = (n: number) => String(n).padStart(2, '0');
   return (
-    <div
-      title={t('clock')}
-      className="inline-flex items-center gap-2 rounded-lg border border-[rgba(59,130,246,0.35)] bg-[rgba(30,41,59,0.8)] px-3.5 py-[5px] font-mono text-[13px] font-bold text-[#38bdf8] shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
-    >
-      <span className="size-[7px] rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />
+    <div title={t('clock')} className="text-[17px] font-semibold text-white tabular-nums">
       {p(now.getHours())}:{p(now.getMinutes())}:{p(now.getSeconds())}
     </div>
   );
