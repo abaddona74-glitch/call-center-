@@ -5,7 +5,7 @@
  *
  * DB server: E2E_DATABASE_URL, else DATABASE_URL, else the dev compose Postgres (127.0.0.1:54320).
  */
-import { Global, type INestApplication, Module, StandardSchemaValidationPipe } from '@nestjs/common';
+import { type INestApplication, StandardSchemaValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { Test } from '@nestjs/testing';
@@ -84,11 +84,10 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
   const ami = new InMemoryAmiCommands();
   const cdr = { legs: [] as CdrLeg[] };
 
-  @Global()
-  @Module({ providers: [{ provide: AMI_COMMANDS, useValue: ami }], exports: [AMI_COMMANDS] })
-  class FakeAmiModule {}
-
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule, FakeAmiModule] })
+  // The real AmiModule (global) provides AMI_COMMANDS; replace it rather than registering a second provider.
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(AMI_COMMANDS)
+    .useValue(ami)
     .overrideProvider(CdrLegsReader)
     .useValue({
       available: true,
