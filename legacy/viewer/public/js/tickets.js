@@ -547,6 +547,7 @@
 
         const overlay = document.getElementById('ticketBoxOverlay');
         if (overlay) {
+            overlay.classList.remove('modal-closing');
             overlay.classList.add('active');
         }
 
@@ -562,12 +563,17 @@
             if (typeof callback === 'function') callback();
             return;
         }
+        if (!el.classList.contains('active')) {
+            if (typeof callback === 'function') callback();
+            return;
+        }
+        if (el.classList.contains('modal-closing')) return;
         el.classList.add('modal-closing');
         setTimeout(() => {
             el.classList.remove('modal-closing');
             el.classList.remove('active');
             if (typeof callback === 'function') callback();
-        }, 180);
+        }, 200);
     }
 
     function closeTicketBox() {
@@ -990,6 +996,15 @@
             el.value = rawId;
         });
 
+        // Ortiqcha select maydonlarini DOM dan to'liq tozalash
+        ['newTicketOperator', 'newTicketTargetOperator'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.tagName === 'SELECT') {
+                const group = el.closest('.tk-form-group');
+                if (group) group.remove();
+            }
+        });
+
         state.attachedFiles = [];
         renderAttachedFilesPreview('newTicketPreviewStrip', state.attachedFiles);
 
@@ -997,21 +1012,34 @@
         if (urgentInput) urgentInput.checked = false;
 
         const modal = document.getElementById('createTicketModal');
-        if (modal) modal.classList.add('active');
+        if (modal) {
+            modal.classList.remove('modal-closing');
+            modal.classList.add('active');
+            setTimeout(() => {
+                const commentInput = document.getElementById('newTicketComment');
+                if (commentInput) commentInput.focus();
+            }, 100);
+        }
     }
 
     function closeCreateModal() {
         const modal = document.getElementById('createTicketModal');
-        if (modal) {
-            smoothCloseTicketModal(modal, () => {
-                state.attachedFiles = [];
-                const urgentInput = document.getElementById('newTicketUrgent');
-                if (urgentInput) urgentInput.checked = false;
-            });
-        } else {
+        const cleanup = () => {
             state.attachedFiles = [];
             const urgentInput = document.getElementById('newTicketUrgent');
             if (urgentInput) urgentInput.checked = false;
+            const commentInput = document.getElementById('newTicketComment');
+            if (commentInput) commentInput.value = '';
+            const phoneInput = document.getElementById('newTicketCustomerPhone');
+            if (phoneInput) phoneInput.value = '';
+            const fileInput = document.getElementById('newTicketFileInput');
+            if (fileInput) fileInput.value = '';
+            renderAttachedFilesPreview('newTicketPreviewStrip', []);
+        };
+        if (modal) {
+            smoothCloseTicketModal(modal, cleanup);
+        } else {
+            cleanup();
         }
     }
 
@@ -1169,7 +1197,10 @@
         }
 
         const modal = document.getElementById('editTicketModal');
-        if (modal) modal.classList.add('active');
+        if (modal) {
+            modal.classList.remove('modal-closing');
+            modal.classList.add('active');
+        }
     }
 
     function closeEditModal() {
@@ -1295,6 +1326,7 @@
 
         if (modal) {
             modal.style.display = 'flex';
+            modal.classList.remove('modal-closing');
             modal.classList.add('active');
         }
     }
@@ -1567,6 +1599,7 @@
             newTabBtn.style.display = (fileUrl.startsWith('data:') && fileUrl.length > 500000) ? 'none' : 'inline-flex';
         }
 
+        modal.classList.remove('modal-closing');
         modal.classList.add('active');
 
         if (ftype === 'image') {
@@ -2368,13 +2401,20 @@
     function openImpersonateModal() {
         const modal = document.getElementById('impersonateModal');
         if (!modal) return;
+        modal.classList.remove('modal-closing');
         modal.classList.add('open');
         loadQuickImpersonateList();
     }
 
     function closeImpersonateModal() {
         const modal = document.getElementById('impersonateModal');
-        if (modal) modal.classList.remove('open');
+        if (!modal || !modal.classList.contains('open')) return;
+        if (modal.classList.contains('modal-closing')) return;
+        modal.classList.add('modal-closing');
+        setTimeout(() => {
+            modal.classList.remove('modal-closing');
+            modal.classList.remove('open');
+        }, 200);
     }
 
     async function loadQuickImpersonateList() {
