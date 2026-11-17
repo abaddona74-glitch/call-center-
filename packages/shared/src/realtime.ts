@@ -9,6 +9,8 @@
  * to the `extends` list of `ServerEvents` / `ClientEvents` below — one line per domain.
  */
 
+import type { TelephonyServerEvents } from './realtime/telephony.js';
+
 interface CoreServerEvents {
   /** Sent once right after the connection is authenticated. */
   'session.ready': { userId: number; role: string; serverTime: string };
@@ -21,7 +23,7 @@ interface CoreClientEvents {
   'presence.ping': { tab?: string; visible?: boolean };
 }
 
-export interface ServerEvents extends CoreServerEvents {}
+export interface ServerEvents extends CoreServerEvents, TelephonyServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 

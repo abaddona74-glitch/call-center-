@@ -56,6 +56,28 @@ export class RealtimeService {
     return sent;
   }
 
+  /**
+   * Per-user payloads (e.g. redacted for operators). `project` runs once per connection; returning
+   * `undefined` skips that user. Results that are the same object are serialized once.
+   */
+  broadcastEach<K extends ServerEventName>(type: K, project: (user: SessionUser) => ServerEvents[K] | undefined): number {
+    const frames = new Map<ServerEvents[K], string>();
+    let sent = 0;
+    for (const [socket, conn] of this.connections) {
+      if (socket.readyState !== WebSocket.OPEN) continue;
+      const data = project(conn.user);
+      if (data === undefined) continue;
+      let frame = frames.get(data);
+      if (!frame) {
+        frame = JSON.stringify({ type, data });
+        frames.set(data, frame);
+      }
+      socket.send(frame);
+      sent++;
+    }
+    return sent;
+  }
+
   /** Close every socket of a revoked session / of a user (password change, deactivation). */
   terminate(match: { sessionId?: string; userId?: number }, reason: string): void {
     for (const [socket, conn] of this.connections) {
