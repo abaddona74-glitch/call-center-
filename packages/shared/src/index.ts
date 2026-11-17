@@ -1,4 +1,6 @@
 export * from './auth.js';
+export * from './cdr.js';
+export * from './cdr-access.js';
 export * from './common.js';
 export * from './phone.js';
 export * from './presence.js';
@@ -11,3 +13,4 @@ export * from './blacklist.js';
 export * from './callbacks.js';
 export * from './contacts.js';
 export * from './telephony.js';
+export * from './stats.js';

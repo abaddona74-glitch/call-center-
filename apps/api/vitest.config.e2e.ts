@@ -6,5 +6,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // e2e files share one Postgres database (migrations, users): run them one after another
+    fileParallelism: false,
   },
 });

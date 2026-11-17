@@ -1,8 +1,10 @@
-import type { Role } from '@cc/shared';
+import { CDR_ACCESS, type Role } from '@cc/shared';
 import {
   AudioLines,
   CalendarClock,
+  ChartColumn,
   Headset,
+  History,
   LayoutDashboard,
   type LucideIcon,
   Settings,
@@ -30,6 +32,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/tickets', label: 'nav.tickets', icon: Ticket, minRole: 'operator' },
   { to: '/clients', label: 'nav.clients', icon: Users, minRole: 'operator' },
   { to: '/operators', label: 'nav.operators', icon: Headset, minRole: 'operator' },
+  { to: '/history', label: 'nav.history', icon: History, minRole: CDR_ACCESS['history.page'] },
+  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, minRole: CDR_ACCESS['stats.read'] },
   { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
   { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, minRole: 'admin' },
   { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, minRole: 'admin' },

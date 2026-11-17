@@ -3,6 +3,7 @@
   "nav": { "dashboard": "Главная", "settings": "Настройки", "explorer": "Аудио записи", "tickets": "Тикеты" },
   "nav": { "dashboard": "Главная", "settings": "Настройки", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время" },
   "nav": { "dashboard": "Главная", "operators": "Операторы", "settings": "Настройки" },
+  "nav": { "dashboard": "Главная", "history": "История звонков", "statistics": "Статистика", "settings": "Настройки" },
   "auth": {
     "username": "Логин",
     "password": "Пароль",

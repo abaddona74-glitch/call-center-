@@ -10,7 +10,8 @@ const csv = z
       .filter(Boolean),
   );
 
-const csvWithDefault = (fallback: string) =>
+/** Comma-separated list with a default value. */
+const csvOf = (fallback: string) =>
   z
     .string()
     .default(fallback)
@@ -20,6 +21,7 @@ const csvWithDefault = (fallback: string) =>
         .map((s) => s.trim())
         .filter(Boolean),
     );
+const csvWithDefault = csvOf;
 
 /**
  * Every environment variable the API reads. The app refuses to start when
@@ -50,6 +52,84 @@ export const EnvSchema = z.object({
   PBX_DB_USER: z.string().optional(),
   PBX_DB_PASSWORD: z.string().optional(),
   PBX_DB_NAME: z.string().default('asteriskcdrdb'),
+
+  // --- PBX dialplan conventions (Issabel/FreePBX), used to read CDR rows. See docs/rewrite/METRICS.md ---
+  /** SIP trunk peer names: inbound calls arrive on `SIP/<peer>-…`. */
+  PBX_TRUNK_PEERS: csvOf('712020159'),
+  /** DID / queue numbers that are never a client phone (excluded from client numbers and operator answers). */
+  PBX_SERVICE_NUMBERS: csvOf('2020159,712020159'),
+  /** dcontext values of an external inbound call (DID routing, IVR, queue). */
+  PBX_INBOUND_CONTEXTS: csvOf('ext-queues,from-trunk,ivr-4'),
+  /** dcontext values meaning "the caller entered a queue". */
+  PBX_QUEUE_CONTEXTS: csvOf('ext-queues'),
+  /** `lastdata` fragments meaning the IVR played the "outside working hours" announcement. */
+  PBX_OFF_HOURS_MARKERS: csvOf('working-time,music-working-time'),
+  /** What an operator extension looks like (regex source). */
+  PBX_EXTENSION_PATTERN: z
+    .string()
+    .default('^[0-9]{2,4}$')
+    .refine((v) => {
+      try {
+        new RegExp(v);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Invalid regular expression'),
+  /** One-digit outside-line prefixes operators may dial before a 9-digit number. */
+  PBX_DIAL_PREFIXES: csvOf('0,9'),
+  /** Set false if the PBX cdr table has no `linkedid` column (then legs are grouped by uniqueid). */
+  PBX_CDR_HAS_LINKEDID: z.stringbool().default(true),
+  /** Longest date range for the call history and for stats/export requests. */
+  CDR_HISTORY_MAX_DAYS: z.coerce.number().int().min(1).max(366).default(93),
+  STATS_MAX_DAYS: z.coerce.number().int().min(1).max(1100).default(366),
+
+  // --- Working calendar (Asia/Tashkent). Half-open: START <= t < END ---
+  /** ISO weekdays, 1 = Monday … 7 = Sunday. */
+  WORKING_DAYS: csvOf('1,2,3,4,5').pipe(
+    z
+      .array(
+        z
+          .string()
+          .regex(/^[1-7]$/)
+          .transform(Number),
+      )
+      .min(1),
+  ),
+  WORKING_HOURS_START: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .default('08:00'),
+  WORKING_HOURS_END: z
+    .string()
+    .regex(/^([01]\d|2[0-4]):[0-5]\d$/)
+    .default('21:00'),
+  /**
+   * Holidays (non-working days), comma-separated: "MM-DD" repeats every year, "YYYY-MM-DD" is one date
+   * (movable holidays). Filled by the owner; until a settings screen exists it lives in the environment.
+   */
+  WORKING_HOLIDAYS: csvOf('').pipe(
+    z.array(z.string().regex(/^(\d{4}-)?(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Use MM-DD or YYYY-MM-DD')),
+  ),
+  /** Operator groups by extension range until the groups model exists, e.g. "main:100-199;secondary:200-299". */
+  OPERATOR_GROUPS: z
+    .string()
+    .default('main:100-199;secondary:200-299')
+    .transform((v, ctx) => {
+      const groups: { id: string; from: number; to: number }[] = [];
+      for (const part of v
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean)) {
+        const m = /^([a-z0-9_-]+):(\d+)-(\d+)$/i.exec(part);
+        if (!m) {
+          ctx.addIssue({ code: 'custom', message: `Bad OPERATOR_GROUPS entry "${part}" (expected name:from-to)` });
+          return z.NEVER;
+        }
+        groups.push({ id: m[1], from: Number(m[2]), to: Number(m[3]) });
+      }
+      return groups;
+    }),
 
   // --- Asterisk AMI ---
   AMI_HOST: z.string().optional(),

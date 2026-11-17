@@ -15,6 +15,7 @@
     "db:migrate": "pnpm --filter @cc/api db:migrate",
     "dev:infra": "docker compose -f infra/compose.dev.yml up -d",
     "dev:infra:down": "docker compose -f infra/compose.dev.yml down",
+    "dev:pbx:seed": "node infra/dev-pbx/seed/generate-cdr-seed.mjs | docker exec -i callcenter-dev-pbx-db-1 mariadb -uroot -pdevroot",
     "format:check": "prettier --check \"apps/*/src/**/*.{ts,tsx,css,json}\" \"packages/*/src/**/*.ts\""
   },
   "devDependencies": {

@@ -39,6 +39,7 @@
     "@nestjs/websockets": "^12.5.1",
     "archiver": "^8.0.0",
     "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
     "helmet": "^8.3.0",
     "kysely": "^0.29.9",
     "lru-cache": "^11.5.3",
