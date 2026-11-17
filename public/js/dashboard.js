@@ -5049,8 +5049,8 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori" style="background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border};">
-                <svg class="isax isax-simcard" style="width: 10px; height: 10px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
+            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori">
+                <svg class="isax isax-simcard" style="width: 11px; height: 11px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
@@ -5085,7 +5085,7 @@ function renderActiveConversations(conversations) {
                 tagsEl.innerHTML = `
                     ${opBadgeHtml}
                     <span class="cc-tag time" data-timer="${key}">
-                        <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                        <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #60a5fa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                         <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
                     </span>
                 `;
@@ -5107,7 +5107,7 @@ function renderActiveConversations(conversations) {
                         <div class="cc-tags">
                             ${opBadgeHtml}
                             <span class="cc-tag time" data-timer="${key}">
-                                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #60a5fa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                                 <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
                             </span>
                         </div>

@@ -2394,38 +2394,8 @@
 
             <form onsubmit="window.TicketsApp.handleCreateSubmit(event)" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
                 <div class="tk-box-body">
-                    <div class="tk-form-group">
-                        <label class="tk-form-label" for="newTicketOperator">
-                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
-                            <span>Yaratuvchi operator (Zangiota 200+) *</span>
-                        </label>
-                        <select id="newTicketOperator" class="tk-form-select" required>
-                            <option value="200">Operator 200 (Zangiota)</option>
-                            <option value="203">Operator 203 (Zangiota)</option>
-                            <option value="204">Operator 204 (Zangiota)</option>
-                            <option value="205">Operator 205 (Zangiota)</option>
-                            <option value="206">Operator 206 (Zangiota)</option>
-                            <option value="208">Operator 208 (Zangiota)</option>
-                            <option value="209">Operator 209 (Zangiota)</option>
-                        </select>
-                    </div>
-
-                    <div class="tk-form-group">
-                        <label class="tk-form-label" for="newTicketTargetOperator">
-                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                            <span>Qaysi operatorga (Mas'ul shaxs — Asosiy 100+)</span>
-                        </label>
-                        <select id="newTicketTargetOperator" class="tk-form-select">
-                            <option value="all">Barcha operatorlar (Umumiy — Asosiy 100+)</option>
-                            <option value="101" data-name="Oybek">101 - Oybek</option>
-                            <option value="103" data-name="Feruza">103 - Feruza</option>
-                            <option value="106" data-name="Gulchehra">106 - Gulchehra</option>
-                            <option value="111" data-name="Nozima">111 - Nozima</option>
-                            <option value="114" data-name="Maxmudbek">114 - Maxmudbek</option>
-                            <option value="119" data-name="Muattar">119 - Muattar</option>
-                            <option value="120" data-name="Navruzoy">120 - Navruzoy</option>
-                        </select>
-                    </div>
+                    <input type="hidden" id="newTicketOperator" value="200">
+                    <input type="hidden" id="newTicketTargetOperator" value="all">
 
                     <div class="tk-form-group">
                         <label class="tk-form-label" for="newTicketCustomerPhone">
@@ -3389,8 +3359,8 @@
     <script src="/vendor/mammoth.browser.min.js"></script>
     <script src="/js/tickets.js?v=2.5" defer></script>
     <!-- Viewer Pure Operator Logic -->
-    <script src="/js/viewer.js?v=1794835784758" defer></script>
+    <script src="/js/viewer.js?v=1794836369348" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794835784758" defer></script>
+    <script src="/js/visualInspector.js?v=1794836369348" defer></script>
 </body>
 </html>
