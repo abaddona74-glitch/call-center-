@@ -1,26 +1,49 @@
+# Dependencies / build output
 node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.vite/
+*.tsbuildinfo
 .next/
 out/
+
+# Env & secrets
 .env
-.env.local
-.env.*.local
-ssl/
-data/callcenter.db*
-data/*.json
-data/temp_zips/
-data/.internal_token
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
 *.pfx
-.env.local_bak
-scratch/
-*.tar.gz
+*.p12
+ssl/
+secrets/
+
+# Logs / OS
 *.log
 npm-debug.log*
+pnpm-debug.log*
 .DS_Store
 
-# Runtime state written by proxmoxService
-system_settings.json
+# Local data
+*.db
+*.db-*
+scratch/
+*.tar.gz
 
-# Large binaries and per-operator 3CX configs (kept on the server, not in git)
-public/downloads/**/*.exe
-public/downloads/**/*.msi
-public/downloads/**/*.zip
+# Review notes with vulnerability details (do not publish)
+docs/REVIEW-*.md
+
+# Infra volumes
+infra/**/.data/
+
+# ---- legacy (old system kept for reference) ----
+legacy/data/*.json
+legacy/data/temp_zips/
+legacy/data/.internal_token
+legacy/system_settings.json
+legacy/public/downloads/**/*.exe
+legacy/public/downloads/**/*.msi
+legacy/public/downloads/**/*.zip
