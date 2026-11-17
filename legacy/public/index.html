@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-id" content="1794836369348">
+    <meta name="build-id" content="1794900872716">
     <meta name="description" content="UNICON SOFT Call Center AI va Issabel real-vaqt monitoring boshqaruv paneli">
     <title>Call Center AI | Issabel Real-time Monitoring</title>
     <!-- Favicon Icon -->
@@ -20,7 +20,7 @@
     <!-- WaveSurfer.js olib tashlandi: kutubxona yuklangan, lekin hech qayerda ishlatilmagan edi
          (audio pleyer oddiy <audio> elementidan foydalanadi) — behuda tarmoq/parse xarajati edi -->
 
-    <link rel="stylesheet" href="/css/style.css?v=1794836369348">
+    <link rel="stylesheet" href="/css/style.css?v=1794900872716">
 
     <!-- Instant Pre-render Routing (Miltillash/Flash of Content ni yo'qotish) -->
     <script>
@@ -1867,6 +1867,18 @@
                                         data-i18n="dir_outbound">Chiquvchi</option>
                                     <option value="transfer" style="background: #0f172a; color: #38bdf8;"
                                         data-i18n="dir_transfer">Transfer</option>
+                                </select>
+
+                                <!-- Ovoz / Gapiruvchi filtri (AI Audio Voiceprint) -->
+                                <select id="historyFilterSpeaker" aria-label="Tarix gapiruvchi filtri"
+                                    onchange="applyHistoryFilters()"
+                                    style="height: 32px; padding: 0 10px; font-size: 12px; border-radius: 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid var(--border-color); color: #e2e8f0; outline: none; cursor: pointer;">
+                                    <option value="all" style="background: #0f172a;"
+                                        data-i18n="hist_filter_all_speakers">Barcha ovozlar</option>
+                                    <option value="zuhra" style="background: #0f172a; color: #c084fc;"
+                                        data-i18n="hist_opt_speaker_zuhra">Zuhra opa (119)</option>
+                                    <option value="muattar" style="background: #0f172a; color: #38bdf8;"
+                                        data-i18n="hist_opt_speaker_muattar">Muattar (119)</option>
                                 </select>
 
                                 <!-- STT Matn filtri -->
@@ -6339,15 +6351,15 @@
     </button>
 
     <!-- Iconsax Linear Icons Engine -->
-    <script src="/js/iconsax.js?v=2.0"></script>
+    <script src="/js/iconsax.js?v=1.1"></script>
     <!-- Multi-Language i18n Engine -->
-    <script src="/js/i18n.js?v=3.0"></script>
+    <script src="/js/i18n.js?v=2.6"></script>
     <!-- Blacklist (Qora ro'yxat) moduli -->
-    <script src="/js/blacklist.js?v=2.0" defer></script>
+    <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Main Logic Script -->
-    <script src="/js/dashboard.js?v=1794853150000" defer></script>
+    <script src="/js/dashboard.js?v=1794900872716" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
-    <script src="/js/visualInspector.js?v=1794853150000" defer></script>
+    <script src="/js/visualInspector.js?v=1794900872716" defer></script>
 </body>
 
 </html>
