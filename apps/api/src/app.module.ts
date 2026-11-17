@@ -14,8 +14,12 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { AppConfig } from './config/app-config.js';
 import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule, KYSELY } from './database/database.module.js';
+import { AgentModule } from './modules/agent/agent.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
+import { CallbacksModule } from './modules/callbacks/callbacks.module.js';
+import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
@@ -69,6 +73,10 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     RealtimeModule,
     HealthModule,
     // Feature modules are registered below this line (one import per module).
+    CallbacksModule,
+    ContactsModule,
+    BlacklistModule,
+    AgentModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

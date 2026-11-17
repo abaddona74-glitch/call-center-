@@ -45,6 +45,8 @@ async function bootstrap(): Promise<void> {
   app.use(helmet());
   app.use(cookieParser());
 
+  // Legacy limit: desktop agents upload call journals (sync-batch) of up to ~2 MB.
+  app.useBodyParser('json', { limit: '2mb' });
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new StandardSchemaValidationPipe());
   app.useWebSocketAdapter(new TypedWsAdapter(app));
