@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { RoleBadge } from '@/entities/user';
-import { describeUserAgent, formatDateTime } from '@/shared/lib/format-datetime';
+import { formatDateTime } from '@/shared/lib/format-datetime';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Icon } from '@/shared/ui/icon';
 import { Pill, SettingsButton, SettingsCard, SettingsCardHeader } from '@/shared/ui/settings-panel';
@@ -14,6 +13,7 @@ const col = dataTableColumns<SessionInfo>();
 
 export function SessionsSettingsPage() {
   const { t } = useTranslation('settings');
+  const { t: tu } = useTranslation('user');
   const queryClient = useQueryClient();
   const { data: sessions, isLoading, refetch, isFetching } = useQuery(adminSessionsQuery);
 
@@ -31,50 +31,65 @@ export function SessionsSettingsPage() {
       col.accessor('username', {
         header: () => t('sessions.colUser'),
         cell: ({ row }) => (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-[#e2e8f0]">{row.original.username}</span>
-            <RoleBadge role={row.original.role} />
-            {row.original.isCurrent && <Pill tone="green">{t('sessions.current')}</Pill>}
-            {row.original.viaPasskey && <Pill tone="blue">{t('sessions.passkey')}</Pill>}
+          <div>
+            <div className="flex items-center gap-1.5 font-semibold text-[#f1f5f9]">
+              {row.original.username}
+              {row.original.viaPasskey && <Pill tone="blue">{t('sessions.passkey')}</Pill>}
+            </div>
+            <div className="text-[11px] text-[#94a3b8]">{tu(`role.${row.original.role}`)}</div>
           </div>
         ),
       }),
       col.accessor('ip', {
         header: () => t('sessions.colIp'),
-        cell: ({ getValue }) => <span className="font-mono text-[11px] text-[#38bdf8]">{getValue() ?? '—'}</span>,
+        cell: ({ getValue }) => <span className="font-mono text-[#a5b4fc]">{getValue() ?? '-'}</span>,
       }),
       col.accessor('id', {
         header: () => t('sessions.colId'),
         cell: ({ getValue }) => (
-          <code className="inline-flex max-w-[140px] items-center overflow-hidden rounded-[5px] border border-[rgba(56,189,248,0.2)] bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-ellipsis whitespace-nowrap text-[#38bdf8]">
-            {getValue().slice(0, 12)}…
-          </code>
+          <span className="font-mono text-[11.5px] text-[#94a3b8]" title={t('sessions.idHint')}>
+            {getValue().slice(0, 8)}…{getValue().slice(-6)}
+          </span>
         ),
       }),
       col.accessor('userAgent', {
         header: () => t('sessions.colDevice'),
-        cell: ({ getValue }) => <span title={getValue() ?? ''}>{describeUserAgent(getValue())}</span>,
+        cell: ({ getValue }) => (
+          <span className="block max-w-[180px] truncate text-[11.5px] text-[#cbd5e1]" title={getValue() ?? ''}>
+            {getValue() ?? '-'}
+          </span>
+        ),
       }),
-      col.accessor('createdAt', { header: () => t('sessions.colCreated'), cell: ({ getValue }) => formatDateTime(getValue()) }),
-      col.accessor('lastSeenAt', { header: () => t('sessions.colSeen'), cell: ({ getValue }) => formatDateTime(getValue()) }),
+      col.accessor('createdAt', {
+        header: () => t('sessions.colCreated'),
+        cell: ({ getValue }) => <span className="text-xs text-[#94a3b8]">{formatDateTime(getValue())}</span>,
+      }),
       col.display({
         id: 'actions',
-        header: '',
+        header: () => t('sessions.colActions'),
         cell: ({ row }) =>
-          row.original.canRevoke && (
-            <SettingsButton size="sm" tone="danger" disabled={revoke.isPending} onClick={() => revoke.mutate(row.original.id)}>
-              {t('sessions.revoke')}
-            </SettingsButton>
+          row.original.isCurrent ? (
+            <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>
+          ) : (
+            row.original.canRevoke && (
+              <button
+                type="button"
+                disabled={revoke.isPending}
+                className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
+                onClick={() => revoke.mutate(row.original.id)}
+              >
+                {t('sessions.revoke')}
+              </button>
+            )
           ),
       }),
     ],
-    [t, revoke],
+    [t, tu, revoke],
   );
 
   return (
     <SettingsCard>
       <SettingsCardHeader
-        icon={<Icon name="monitor" className="size-5" />}
         title={t('sessions.title')}
         description={t('sessions.description')}
         actions={

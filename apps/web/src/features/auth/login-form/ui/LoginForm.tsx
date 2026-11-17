@@ -46,12 +46,15 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Which fields get the red border + zigzag (legacy marks only the password on a wrong password). */
+  const [errorField, setErrorField] = useState<'username' | 'password' | 'all' | null>(null);
   const [succeeded, setSucceeded] = useState(false);
 
   const mutation = useMutation({ mutationFn: login });
 
-  const fail = (message: string) => {
+  const fail = (message: string, field: 'username' | 'password' | 'all' = 'all') => {
     setError(message);
+    setErrorField(field);
     onError?.();
   };
 
@@ -59,8 +62,9 @@ export function LoginForm({
     defaultValues: { username: '', password: '' },
     onSubmit: async ({ value }) => {
       const parsed = LoginRequestSchema.safeParse(value);
-      if (!parsed.success) return fail(t('required'));
+      if (!parsed.success) return fail(t('required'), value.username.trim() ? 'password' : 'username');
       setError(null);
+      setErrorField(null);
       try {
         const res = await mutation.mutateAsync(parsed.data);
         setSucceeded(true);
@@ -69,8 +73,13 @@ export function LoginForm({
       } catch (err) {
         const seconds = retryAfterFrom(err);
         if (isHttpError(err, 429)) fail(seconds ? t('locked', { seconds }) : t('lockedNoTime'));
-        else if (isHttpError(err, 401) || isHttpError(err, 400)) fail(t('invalid'));
-        else fail(t('failed'));
+        else if (isHttpError(err, 401) || isHttpError(err, 400)) {
+          const left = err.body?.message.match(/Attempts left: (\d+)/)?.[1];
+          fail(left === undefined ? t('invalid') : `${t('invalid')}. ${t('attemptsLeft', { count: Number(left) })}`, 'password');
+          // like legacy: clear the password and put the cursor back into it
+          form.setFieldValue('password', '');
+          document.getElementById('login-password')?.focus();
+        } else fail(t('failed'));
       }
     },
   });
@@ -99,7 +108,7 @@ export function LoginForm({
       <form.Field name="username">
         {(field) => (
           <div className="lg-group">
-            <div className={cn('lg-input-wrap', error && !succeeded && 'has-error')}>
+            <div className={cn('lg-input-wrap', error && !succeeded && errorField !== 'password' && 'has-error')}>
               <div className="lg-input-icon">
                 <IconUser />
               </div>
@@ -133,7 +142,7 @@ export function LoginForm({
       <form.Field name="password">
         {(field) => (
           <div className="lg-group">
-            <div className={cn('lg-input-wrap', error && !succeeded && 'has-error')}>
+            <div className={cn('lg-input-wrap', error && !succeeded && errorField !== 'username' && 'has-error')}>
               <div className="lg-input-icon">
                 <IconLock />
               </div>

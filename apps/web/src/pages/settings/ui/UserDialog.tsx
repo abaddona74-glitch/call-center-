@@ -124,8 +124,8 @@ function UserForm({
       }}
     >
       <DialogHeader>
-        <DialogTitle>{user ? t('users.dialogEdit') : t('users.dialogCreate')}</DialogTitle>
-        <DialogDescription className="text-[#94a3b8]">{t('users.description')}</DialogDescription>
+        <DialogTitle>{t('users.dialogEdit')}</DialogTitle>
+        <DialogDescription className="text-[#94a3b8]">{t('users.dialogText')}</DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-3.5 sm:grid-cols-2">
@@ -264,7 +264,7 @@ function UserForm({
           {t('common.cancel')}
         </SettingsButton>
         <SettingsButton type="submit" tone={user ? 'primary' : 'success'} disabled={mutation.isPending}>
-          {user ? t('common.save') : t('users.create')}
+          {user ? t('common.save') : t('users.add')}
         </SettingsButton>
       </div>
     </form>

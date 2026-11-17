@@ -55,8 +55,13 @@ export class LoginThrottleService {
     if (wait > 0) throw new LoginBlockedException(wait);
   }
 
-  async registerFailure(username: string, ip: string): Promise<void> {
+  /**
+   * Count one failed attempt. Returns how many more attempts this username+IP has before it is
+   * locked (0 = the next attempt will be refused). Same numbers for existing and unknown usernames.
+   */
+  async registerFailure(username: string, ip: string): Promise<number> {
     const policy = policyFromSettings(await this.settings.getLockout());
+    let remaining = policy.maxAttempts;
     const keys = throttleKeys(username, ip);
     const name = normalizeLoginName(username);
     const now = new Date();
@@ -68,6 +73,7 @@ export class LoginThrottleService {
         .where('key', '=', keys[kind])
         .executeTakeFirst();
       const next: ThrottleState = applyFailure(kind, prev, policy, now);
+      if (kind === 'user_ip') remaining = next.lockedUntil && next.lockedUntil > now ? 0 : policy.maxAttempts - next.failures;
       const values = {
         failures: next.failures,
         lockCount: next.lockCount,
@@ -90,6 +96,7 @@ export class LoginThrottleService {
         this.logger.warn(`login lockout: ${kind} ${kind === 'ip' ? ip : `${name}@${ip}`} until ${next.lockedUntil.toISOString()}`);
       }
     }
+    return remaining;
   }
 
   /** Successful login: forget this user's failures (the IP counter is kept on purpose). */

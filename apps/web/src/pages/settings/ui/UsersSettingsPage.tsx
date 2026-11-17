@@ -5,19 +5,20 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useSessionUser } from '@/entities/session';
 import { RoleBadge, deleteUser, operatorGroupsQuery, userKeys, usersQuery } from '@/entities/user';
-import { formatDateTime } from '@/shared/lib/format-datetime';
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
-import { Icon } from '@/shared/ui/icon';
-import { IconUser } from '@/shared/ui/inline-icons';
 import { Pill, SettingsButton, SettingsCard, SettingsCardHeader, SettingsInput } from '@/shared/ui/settings-panel';
 import { Switch } from '@/shared/ui/switch';
 import { userErrorText } from '../model/errors';
+import { CreateUserCard } from './CreateUserCard';
 import { ResetPasswordDialog } from './ResetPasswordDialog';
 import { UserDialog } from './UserDialog';
 
 const col = dataTableColumns<User>();
 
+const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { timeZone: 'Asia/Tashkent' });
+
+/** Legacy "Foydalanuvchilar (RBAC)" tab: inline create form + users table with Parol / O'chirish. */
 export function UsersSettingsPage() {
   const { t } = useTranslation('settings');
   const { t: tu } = useTranslation('user');
@@ -32,7 +33,6 @@ export function UsersSettingsPage() {
   const { data: groups = [] } = useQuery(operatorGroupsQuery);
 
   const [editing, setEditing] = useState<User | null>(null);
-  const [creating, setCreating] = useState(false);
   const [resetting, setResetting] = useState<User | null>(null);
   const [removing, setRemoving] = useState<User | null>(null);
 
@@ -54,10 +54,10 @@ export function UsersSettingsPage() {
           const u = row.original;
           return (
             <div className="flex items-center gap-2">
-              <span className={u.isActive ? 'font-semibold text-[#e2e8f0]' : 'font-semibold text-[#64748b] line-through'}>
+              <span className={u.isActive ? 'font-semibold text-[#f1f5f9]' : 'font-semibold text-[#64748b] line-through'}>
                 {u.username}
               </span>
-              {u.id === me.id && <Pill tone="blue">{t('sessions.current')}</Pill>}
+              {u.id === me.id && <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>}
               {!u.isActive && <Pill tone="red">{t('users.inactive')}</Pill>}
             </div>
           );
@@ -67,7 +67,7 @@ export function UsersSettingsPage() {
       col.accessor('extension', {
         header: () => t('users.colExtension'),
         cell: ({ getValue }) =>
-          getValue() ? <span className="font-semibold text-[#38bdf8]">{getValue()}</span> : <span className="text-[#64748b]">—</span>,
+          getValue() ? <b className="text-[#f1f5f9]">{getValue()}</b> : <span className="text-[#64748b]">{t('users.none')}</span>,
       }),
       col.accessor('groupName', {
         header: () => t('users.colGroup'),
@@ -77,42 +77,43 @@ export function UsersSettingsPage() {
           ) : row.original.groupName ? (
             <Pill tone="purple">{row.original.groupName}</Pill>
           ) : (
-            <span className="text-[#94a3b8]">{tu('noGroup')}</span>
+            <span className="text-[#64748b]">{tu('noGroup')}</span>
           ),
       }),
       col.accessor('email', {
         header: () => t('users.colEmail'),
-        cell: ({ getValue }) => <span className="text-[#cbd5e1]">{getValue() ?? '—'}</span>,
+        cell: ({ getValue }) =>
+          getValue() ? <span className="text-[#38bdf8]">{getValue()}</span> : <span className="text-[#64748b]">{t('users.notSet')}</span>,
       }),
-      col.accessor('lastLoginAt', {
-        header: () => t('users.colLastLogin'),
-        cell: ({ row }) => (
-          <div className="leading-tight">
-            <div>{formatDateTime(row.original.lastLoginAt)}</div>
-            <div className="text-[10.5px] text-[#64748b]">
-              {t('users.sessions', { count: row.original.activeSessions })} · {t('users.passkeys', { count: row.original.passkeyCount })}
-            </div>
-          </div>
-        ),
+      col.accessor('createdAt', {
+        header: () => t('users.colCreated'),
+        cell: ({ getValue }) => <span className="text-xs text-[#94a3b8]">{formatDate(getValue())}</span>,
       }),
-      col.accessor('createdAt', { header: () => t('users.colCreated'), cell: ({ getValue }) => formatDateTime(getValue()) }),
       col.display({
         id: 'actions',
         header: () => t('users.colActions'),
         cell: ({ row }) => {
           const u = row.original;
-          if (!u.canManage) return <span className="text-[11px] text-[#64748b]">{u.id === me.id ? '' : t('users.readOnly')}</span>;
+          if (!u.canManage) return null;
           return (
-            <div className="flex justify-end gap-1">
-              <SettingsButton size="sm" tone="ghost" title={t('common.edit')} onClick={() => setEditing(u)}>
-                <Icon name="edit" className="size-3.5" />
+            <div className="inline-flex justify-end gap-1">
+              <SettingsButton size="sm" tone="ghost" onClick={() => setEditing(u)}>
+                {t('common.edit')}
               </SettingsButton>
-              <SettingsButton size="sm" tone="ghost" title={t('users.resetPassword')} onClick={() => setResetting(u)}>
-                <Icon name="unlock" className="size-3.5" />
-              </SettingsButton>
-              <SettingsButton size="sm" tone="danger" title={t('common.delete')} onClick={() => setRemoving(u)}>
-                <Icon name="trash" className="size-3.5" />
-              </SettingsButton>
+              <button
+                type="button"
+                className="cursor-pointer rounded-md border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] px-2 py-1 text-[11px] text-[#60a5fa] hover:bg-[rgba(59,130,246,0.25)]"
+                onClick={() => setResetting(u)}
+              >
+                {t('users.passwordBtn')}
+              </button>
+              <button
+                type="button"
+                className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]"
+                onClick={() => setRemoving(u)}
+              >
+                {t('common.delete')}
+              </button>
             </div>
           );
         },
@@ -122,40 +123,42 @@ export function UsersSettingsPage() {
   );
 
   return (
-    <SettingsCard>
-      <SettingsCardHeader
-        icon={<IconUser size={20} />}
-        title={t('users.title')}
-        description={t('users.description')}
-        actions={
-          <>
-            <SettingsInput
-              className="w-48"
-              placeholder={t('common.search')}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label={t('common.search')}
-            />
-            <label className="flex items-center gap-2 text-xs text-[#94a3b8]">
-              <Switch checked={onlyActive} onCheckedChange={setOnlyActive} />
-              {t('users.onlyActive')}
-            </label>
-            <SettingsButton tone="success" onClick={() => setCreating(true)}>
-              + {t('users.create')}
-            </SettingsButton>
-          </>
-        }
-      />
-      <DataTable columns={columns} data={users} loading={isLoading} getRowId={(u) => String(u.id)} empty="—" />
+    <div className="flex flex-col gap-4">
+      <CreateUserCard actorRole={me.role} groups={groups} />
+
+      <SettingsCard>
+        <SettingsCardHeader
+          title={t('users.listTitle')}
+          description={t('users.listText')}
+          actions={
+            <>
+              <SettingsInput
+                className="w-48"
+                placeholder={t('common.search')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label={t('common.search')}
+              />
+              <label className="flex items-center gap-2 text-xs text-[#94a3b8]">
+                <Switch checked={onlyActive} onCheckedChange={setOnlyActive} />
+                {t('users.onlyActive')}
+              </label>
+            </>
+          }
+        />
+        <DataTable
+          variant="plain"
+          columns={columns}
+          data={users}
+          loading={isLoading}
+          getRowId={(u) => String(u.id)}
+          empty={t('users.empty')}
+        />
+      </SettingsCard>
 
       <UserDialog
-        open={creating || editing !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setCreating(false);
-            setEditing(null);
-          }
-        }}
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
         user={editing}
         actorRole={me.role}
         groups={groups}
@@ -171,6 +174,6 @@ export function UsersSettingsPage() {
         pending={remove.isPending}
         onConfirm={() => removing && remove.mutate(removing)}
       />
-    </SettingsCard>
+    </div>
   );
 }

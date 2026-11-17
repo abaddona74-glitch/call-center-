@@ -1,11 +1,19 @@
 import type { Role } from '@cc/shared';
 import { useTranslation } from 'react-i18next';
-import { Pill } from '@/shared/ui/settings-panel';
+import { cn } from '@/shared/lib/cn';
 
-const TONE = { superuser: 'blue', admin: 'purple', operator: 'green' } as const;
+/** Production legacy users table: superuser purple, operator cyan (admin did not exist in the UI — blue). */
+const TONE: Record<Role, string> = {
+  superuser: 'bg-[rgba(168,85,247,0.2)] text-[#c084fc]',
+  admin: 'bg-[rgba(59,130,246,0.2)] text-[#60a5fa]',
+  operator: 'bg-[rgba(56,189,248,0.2)] text-[#38bdf8]',
+};
 
-/** Legacy `.role-tag`: blue superuser, green operator (admin gets purple). */
 export function RoleBadge({ role }: { role: Role }) {
   const { t } = useTranslation('user');
-  return <Pill tone={TONE[role]}>{t(`role.${role}`)}</Pill>;
+  return (
+    <span className={cn('inline-block rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap', TONE[role])}>
+      {t(`role.${role}`)}
+    </span>
+  );
 }

@@ -61,7 +61,13 @@ describe('login protection', () => {
 
   it('locks username+IP after 5 failures, but the user can still log in from another address', async () => {
     const attacker = new Client(e2e);
-    for (let i = 0; i < 5; i++) expect((await attacker.login(victim.username, 'wrong')).status).toBe(401);
+    const left: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      const res = await attacker.login(victim.username, 'wrong');
+      expect(res.status).toBe(401);
+      left.push(res.body.message.match(/Attempts left: (\d+)/)?.[1]);
+    }
+    expect(left).toEqual(['4', '3', '2', '1', '0']);
     const blocked = await attacker.login(victim.username, victim.password);
     expect(blocked.status).toBe(429);
     expect(blocked.body.message).toMatch(/Try again in \d+ s/);

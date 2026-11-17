@@ -832,6 +832,10 @@
   }
 }
 
+/*
+ * Narrow screens. Legacy declared smaller header/logo/input sizes here too, but its base rules came
+ * later in the file and won, so on phones only these took effect (see docs/rewrite/design/mobile-login.png).
+ */
 @media (max-width: 850px) {
   .lg-page {
     padding: 12px 10px;
@@ -840,6 +844,7 @@
     flex-direction: column;
     max-width: 410px;
     border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
   }
   .lg-stage {
     padding: 10px 14px 4px;
@@ -848,6 +853,7 @@
   }
   .lg-stage-svg {
     width: 150px;
+    max-width: 150px;
     height: 76px;
   }
   .lg-stage-caption {
@@ -856,21 +862,6 @@
   }
   .lg-form-col {
     padding: 14px 18px 16px;
-  }
-  .lg-header {
-    margin-bottom: 10px;
-  }
-  .lg-logo {
-    width: 36px;
-    height: 36px;
-    margin-bottom: 6px;
-    border-radius: 10px;
-  }
-  .lg-title {
-    font-size: 18px;
-  }
-  .lg-group {
-    margin-bottom: 14px;
   }
 }
 

@@ -43,12 +43,13 @@ export class AuthService implements OnApplicationBootstrap {
     // Always run scrypt, so response time doesn't reveal whether the username exists.
     const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
     if (!user || !ok || !user.isActive) {
-      await this.throttle.registerFailure(username, ip);
+      const remaining = await this.throttle.registerFailure(username, ip);
       await this.audit.record('auth.login.failed', {
         target: `username:${username.slice(0, 64)}`,
         actorLabel: 'anonymous',
       });
-      throw new UnauthorizedException('Invalid username or password');
+      // The UI shows "attempts left" like legacy; the count is per username+IP, so it reveals nothing.
+      throw new UnauthorizedException(`Invalid username or password. Attempts left: ${remaining}`);
     }
 
     await this.throttle.registerSuccess(username, ip);

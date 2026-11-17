@@ -8,7 +8,7 @@ import { sessionKeys } from '@/entities/session';
 import { accountKeys, cancelEmailChange, emailStatusQuery, startEmailChange, verifyEmailChange } from '@/entities/user';
 import { isHttpError } from '@/shared/api';
 import { registerTranslations } from '@/shared/i18n';
-import { IconInfoCircle, IconSms } from '@/shared/ui/inline-icons';
+import { IconInfoCircle, IconLock, IconSend, IconSms } from '@/shared/ui/inline-icons';
 import { OtpInput } from '@/shared/ui/otp-input';
 import {
   FieldError,
@@ -26,15 +26,21 @@ registerTranslations('authEmail', {
     title: 'Email (Gmail) manzili',
     description: 'Parolni unutganingizda tiklash kodi faqat shu manzilga yuboriladi.',
     hint: 'Parolni unutganingizda, 6 xonali tasdiqlash kodi ushbu manzilga yuboriladi va kirishni o‘zingiz tiklay olasiz.',
-    current: 'Joriy email',
     none: 'Ulanmagan',
-    bound: 'Ulangan',
-    password: 'Joriy hisob paroli',
+    bound: 'Bog‘langan',
+    password: 'Joriy hisob paroli:',
+    passwordPlaceholder: 'Joriy parolingizni kiriting',
+    securityCheck: 'Xavfsizlik tasdig‘i',
+    emailLabel: 'Gmail manzili:',
+    formatOk: 'Format to‘g‘ri',
+    formatOkGmailHint: 'Format to‘g‘ri (Eslatma: Gmail tavsiya etiladi)',
+    getCode: 'Tasdiqlash kodini olish',
+    getChangeCode: 'O‘zgartirish kodini olish',
     passwordHint: 'Begona shaxs hisobingizga boshqa email ulab olmasligi uchun parolingizni tasdiqlang.',
     newEmail: 'Yangi email',
     bind: 'Ulash',
     change: 'O‘zgartirish',
-    unbind: 'Emailni uzish',
+    unbind: 'Hisobdan uzish',
     codeToCurrent: 'Avval joriy manzilingizni tasdiqlang: kod {{to}} ga yuborildi.',
     codeToNew: 'Kod yangi manzilga yuborildi: {{to}}.',
     codeLabel: 'Tasdiqlash kodi',
@@ -57,15 +63,21 @@ registerTranslations('authEmail', {
     title: 'Email (Gmail)',
     description: 'Если забудете пароль, код восстановления придёт только на этот адрес.',
     hint: 'Если забудете пароль, 6-значный код придёт на этот адрес, и вы сможете восстановить доступ сами.',
-    current: 'Текущий email',
     none: 'Не привязан',
     bound: 'Привязан',
-    password: 'Текущий пароль',
+    password: 'Текущий пароль:',
+    passwordPlaceholder: 'Введите текущий пароль',
+    securityCheck: 'Подтверждение',
+    emailLabel: 'Адрес Gmail:',
+    formatOk: 'Формат верный',
+    formatOkGmailHint: 'Формат верный (рекомендуется Gmail)',
+    getCode: 'Получить код подтверждения',
+    getChangeCode: 'Получить код для смены',
     passwordHint: 'Подтвердите пароль, чтобы посторонний не мог привязать к вашей учётной записи свой email.',
     newEmail: 'Новый email',
     bind: 'Привязать',
     change: 'Изменить',
-    unbind: 'Отвязать email',
+    unbind: 'Отвязать',
     codeToCurrent: 'Сначала подтвердите текущий адрес: код отправлен на {{to}}.',
     codeToNew: 'Код отправлен на новый адрес: {{to}}.',
     codeLabel: 'Код подтверждения',
@@ -97,7 +109,12 @@ export function EmailBindingCard() {
   const queryClient = useQueryClient();
   const { data: status } = useQuery(emailStatusQuery);
   const [password, setPassword] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmailRaw] = useState('');
+  const [touched, setTouched] = useState(false);
+  const setEmail = (v: string) => {
+    setTouched(true);
+    setEmailRaw(v);
+  };
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<number | null>(null);
@@ -124,7 +141,8 @@ export function EmailBindingCard() {
     setError(null);
     if (next.step === 'done') {
       setPassword('');
-      setEmail('');
+      setEmailRaw('');
+      setTouched(false);
       void queryClient.invalidateQueries({ queryKey: sessionKeys.me });
       toast.success(next.email ? t('boundDone') : t('unboundDone'));
     }
@@ -146,7 +164,7 @@ export function EmailBindingCard() {
 
   const start = useMutation({
     mutationFn: (action: 'bind' | 'unbind') =>
-      startEmailChange(action === 'bind' ? { action, email, password } : { action, password }),
+      startEmailChange(action === 'bind' ? { action, email: emailValue, password } : { action, password }),
     onSuccess: apply,
     onError: (err) => setError(explain(err)),
   });
@@ -165,12 +183,16 @@ export function EmailBindingCard() {
 
   const begin = (action: 'bind' | 'unbind') => {
     if (!password) return setError(t('needPassword'));
-    if (action === 'bind' && !AccountEmailSchema.safeParse(email).success) return setError(t('invalidEmail'));
+    if (action === 'bind' && !AccountEmailSchema.safeParse(emailValue).success) return setError(t('invalidEmail'));
     start.mutate(action);
   };
 
   const current = status?.email ?? null;
   const pending = status && status.step !== 'done';
+  // Like legacy, the field starts with the bound address; typing replaces it.
+  const emailValue = email || (email === '' && touched ? '' : (current ?? ''));
+  const emailOk = AccountEmailSchema.safeParse(emailValue).success;
+  const isGmail = /@gmail\.com$/i.test(emailValue.trim());
 
   return (
     <SettingsCard>
@@ -178,19 +200,11 @@ export function EmailBindingCard() {
         icon={<IconSms size={20} />}
         title={t('title')}
         description={t('description')}
-        actions={current ? <Pill tone="green">{t('bound')}</Pill> : <Pill tone="amber">{t('none')}</Pill>}
       />
 
       <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(56,189,248,0.25)] bg-[rgba(56,189,248,0.08)] px-3.5 py-3 text-xs leading-relaxed text-[#cbd5e1]">
         <IconInfoCircle size={18} className="mt-px shrink-0 text-[#38bdf8]" />
         <span>{t('hint')}</span>
-      </div>
-
-      <div className="mb-3.5 flex items-center justify-between rounded-xl border border-white/8 bg-[rgba(30,41,59,0.6)] px-4 py-3">
-        <div>
-          <div className="text-[11px] font-semibold tracking-[0.5px] text-[#94a3b8] uppercase">{t('current')}</div>
-          <div className="mt-0.5 text-[15px] font-bold text-[#f1f5f9]">{current ?? '—'}</div>
-        </div>
       </div>
 
       {pending ? (
@@ -230,38 +244,71 @@ export function EmailBindingCard() {
           <div className="flex flex-col gap-1.5">
             <FieldLabel htmlFor="email-password">
               {t('password')}
-              <span className="text-[11px] text-[#f59e0b]">🔒</span>
+              <span className="text-[11px] font-semibold text-[#f59e0b]">🔒 {t('securityCheck')}</span>
             </FieldLabel>
-            <SettingsInput
-              id="email-password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <IconLock size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]" />
+              <SettingsInput
+                id="email-password"
+                type="password"
+                autoComplete="current-password"
+                placeholder={t('passwordPlaceholder')}
+                className="pl-[38px]"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
             <FieldHint>{t('passwordHint')}</FieldHint>
           </div>
           <div className="flex flex-col gap-1.5">
-            <FieldLabel htmlFor="email-new">{t('newEmail')}</FieldLabel>
-            <SettingsInput
-              id="email-new"
-              type="email"
-              autoComplete="email"
-              placeholder="misol@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <FieldLabel htmlFor="email-new">
+              {t('emailLabel')}
+              <span className="flex items-center gap-1.5">
+                {current ? (
+                  <>
+                    <Pill tone="green">{t('bound')}</Pill>
+                    <button
+                      type="button"
+                      disabled={start.isPending}
+                      onClick={() => begin('unbind')}
+                      className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.15)] px-[7px] py-0.5 text-[11px] font-semibold text-[#f87171] hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
+                    >
+                      {t('unbind')}
+                    </button>
+                  </>
+                ) : (
+                  <Pill tone="amber">{t('none')}</Pill>
+                )}
+              </span>
+            </FieldLabel>
+            <div className="relative">
+              <IconSms size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]" />
+              <SettingsInput
+                id="email-new"
+                type="email"
+                autoComplete="email"
+                placeholder="misol@gmail.com"
+                className="pl-[38px]"
+                value={emailValue}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            {emailValue && (
+              <p className={emailOk ? 'text-[11.5px] text-[#38bdf8]' : 'text-[11.5px] text-[#f87171]'}>
+                {emailOk ? (isGmail ? t('formatOk') : t('formatOkGmailHint')) : t('invalidEmail')}
+              </p>
+            )}
           </div>
           <FieldError>{error}</FieldError>
-          <div className="flex flex-wrap justify-end gap-2">
-            {current && (
-              <SettingsButton tone="danger" onClick={() => begin('unbind')} disabled={start.isPending}>
-                {t('unbind')}
-              </SettingsButton>
-            )}
-            <SettingsButton type="submit" disabled={start.isPending}>
-              {current ? t('change') : t('bind')}
-            </SettingsButton>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={start.isPending}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#0284c7] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[#0369a1] disabled:opacity-50"
+            >
+              <IconSend size={16} />
+              {current ? t('getChangeCode') : t('getCode')}
+            </button>
           </div>
         </form>
       )}

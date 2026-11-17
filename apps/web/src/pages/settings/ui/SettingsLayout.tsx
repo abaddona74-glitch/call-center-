@@ -2,16 +2,17 @@ import { Link, Outlet } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/shared/ui/icon';
-import { IconPeople, IconUser } from '@/shared/ui/inline-icons';
+import { IconKey, IconPeople, IconUser } from '@/shared/ui/inline-icons';
 import '../i18n';
 
 type Tab = { to: '/settings/users' | '/settings/groups' | '/settings/sessions' | '/settings/security' | '/settings/audit'; key: string; icon: ReactNode };
 
+/** Legacy order: security first, then users, sessions (groups and audit are new). */
 const TABS: Tab[] = [
+  { to: '/settings/security', key: 'security', icon: <Icon name="timer" /> },
   { to: '/settings/users', key: 'users', icon: <IconUser size={16} /> },
   { to: '/settings/groups', key: 'groups', icon: <IconPeople size={16} /> },
-  { to: '/settings/sessions', key: 'sessions', icon: <Icon name="monitor" /> },
-  { to: '/settings/security', key: 'security', icon: <Icon name="shield-security" /> },
+  { to: '/settings/sessions', key: 'sessions', icon: <IconKey size={16} /> },
   { to: '/settings/audit', key: 'audit', icon: <Icon name="document-text" /> },
 ];
 
