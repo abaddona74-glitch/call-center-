@@ -56,7 +56,7 @@ describe('SessionAuthGuard', () => {
   it('checks @RequirePermission against the effective permissions', async () => {
     await expect(run(operator(), { [PERMISSION_KEY]: 'contacts.view' })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(run(operator(), { [PERMISSION_KEY]: 'canSeeContacts' })).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(run(operator(), { [PERMISSION_KEY]: 'tickets.use' })).resolves.toBe(true);
+    await expect(run(operator(), { [PERMISSION_KEY]: 'tickets.create' })).resolves.toBe(true);
     await expect(run(operator(), { [PERMISSION_KEY]: 'users.manage' })).rejects.toBeInstanceOf(ForbiddenException);
     const exec = operator({ role: 'executive', permissions: [...ROLE_PERMISSIONS.executive] });
     await expect(run(exec, { [PERMISSION_KEY]: 'settings.manage' })).resolves.toBe(true);

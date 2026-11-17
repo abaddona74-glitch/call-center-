@@ -79,7 +79,7 @@ export async function createE2eApp(
   const db = app.get<Kysely<any>>(KYSELY);
   const users: { role: Role; extension: string | null }[] = [
     { role: 'operator', extension: '101' },
-    { role: 'admin', extension: null },
+    { role: 'executive', extension: null },
     { role: 'superuser', extension: null },
   ];
   const cookies = {} as Record<Role, string>;

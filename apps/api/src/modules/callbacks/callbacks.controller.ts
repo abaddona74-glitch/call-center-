@@ -27,7 +27,7 @@ import {
   type SessionUser,
 } from '@cc/shared';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, SerializeOptions } from '@nestjs/common';
-import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { AuditService } from '../audit/audit.service.js';
 import { CallbacksReconciler } from './callbacks.reconciler.js';
 import { CallbacksService } from './callbacks.service.js';
@@ -54,14 +54,14 @@ export class CallbacksController {
   }
 
   @Get('settings')
-  @Roles('admin')
+  @RequirePermission('settings.manage')
   @SerializeOptions({ schema: CallbackSettingsSchema })
   settings(): Promise<CallbackSettings> {
     return this.callbacks.settings();
   }
 
   @Put('settings')
-  @Roles('admin')
+  @RequirePermission('settings.manage')
   @SerializeOptions({ schema: CallbackSettingsSchema })
   updateSettings(
     @Body({ schema: CallbackSettingsSchema }) body: CallbackSettings,
@@ -72,7 +72,7 @@ export class CallbacksController {
 
   /** Re-read the PBX CDR now (legacy "re-check" button). */
   @Post('sync')
-  @Roles('admin')
+  @RequirePermission('callbacks.manage')
   @HttpCode(200)
   @SerializeOptions({ schema: CallbackSyncResultSchema })
   async sync(@Body({ schema: CallbackSyncRequestSchema }) body: CallbackSyncRequest): Promise<CallbackSyncResult> {
@@ -82,7 +82,7 @@ export class CallbacksController {
   }
 
   @Post('dismiss-all')
-  @Roles('admin')
+  @RequirePermission('callbacks.manage')
   @HttpCode(200)
   @SerializeOptions({ schema: DismissAllCallbacksResponseSchema })
   async dismissAll(
@@ -100,7 +100,7 @@ export class CallbacksController {
 
   /** Close without a conversation: not needed (spam, wrong number, duplicate). */
   @Post(':id/dismiss')
-  @Roles('admin')
+  @RequirePermission('callbacks.manage')
   @HttpCode(200)
   @SerializeOptions({ schema: CallbackSchema })
   dismiss(
@@ -113,7 +113,7 @@ export class CallbacksController {
 
   /** Close as handled outside the PBX (e.g. reached by Telegram), with a reason. */
   @Post(':id/resolve')
-  @Roles('admin')
+  @RequirePermission('callbacks.manage')
   @HttpCode(200)
   @SerializeOptions({ schema: CallbackSchema })
   resolve(

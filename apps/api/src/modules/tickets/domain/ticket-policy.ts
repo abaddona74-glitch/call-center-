@@ -1,10 +1,11 @@
 import {
+  type Permission,
   type Role,
   type TicketParty,
   type TicketPermissions,
   type TicketStatus,
   type TicketTransition,
-  hasRoleAtLeast,
+  hasPermission,
 } from '@cc/shared';
 
 /**
@@ -16,6 +17,7 @@ export interface TicketViewer {
   userId: number;
   role: Role;
   extension: string | null;
+  permissions?: readonly Permission[] | null;
 }
 
 /** The facts about a ticket that permissions depend on. */
@@ -31,11 +33,15 @@ export interface TicketFacts {
 }
 
 /**
- * admin+ → admin; operator with extension ≥ `creatorFrom` ("200" group) → creator;
- * other operators with an extension → receiver; no extension → none.
+ * `tickets.process` (executive/superuser) → admin; operator with extension ≥ `creatorFrom` ("200" group)
+ * → creator; other operators with an extension → receiver; no extension → none.
+ * Interim (legacy model) until S7's region-scoped workflow (docs/rewrite/TICKETS.md) replaces it.
  */
-export function ticketParty(viewer: Pick<TicketViewer, 'role' | 'extension'>, creatorFrom: number): TicketParty {
-  if (hasRoleAtLeast(viewer.role, 'admin')) return 'admin';
+export function ticketParty(
+  viewer: Pick<TicketViewer, 'role' | 'extension' | 'permissions'>,
+  creatorFrom: number,
+): TicketParty {
+  if (hasPermission(viewer, 'tickets.process')) return 'admin';
   const ext = viewer.extension && /^\d{2,6}$/.test(viewer.extension) ? Number(viewer.extension) : null;
   if (ext === null) return 'none';
   return ext >= creatorFrom ? 'creator' : 'receiver';

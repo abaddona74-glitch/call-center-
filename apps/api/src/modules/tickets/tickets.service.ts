@@ -130,7 +130,12 @@ export class TicketsService {
   }
 
   private viewer(user: SessionUser): { v: TicketViewer; party: TicketParty } {
-    const v: TicketViewer = { userId: user.id, role: user.role, extension: user.extension };
+    const v: TicketViewer = {
+      userId: user.id,
+      role: user.role,
+      extension: user.extension,
+      permissions: user.permissions,
+    };
     return { v, party: ticketParty(v, this.creatorFrom) };
   }
 

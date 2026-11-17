@@ -52,7 +52,7 @@ describe('permissions by role', () => {
     expect(e.permissions).not.toContain('users.manage');
     expect(e.permissions).not.toContain('impersonate');
     const o = (await obs.get('/auth/me')).body.user;
-    expect(o.permissions.every((p: string) => /\.(view|listen)$/.test(p))).toBe(true);
+    expect(o.permissions.every((p: string) => /\.(view|viewAll|listen)$/.test(p))).toBe(true);
   });
 
   it('audit log needs audit.view: superuser and executive yes, observer and operator no', async () => {
@@ -241,7 +241,7 @@ describe('operator groups and permissions', () => {
     for (const p of ['contacts.view', 'contacts.manage', 'remoteDesktop.use', 'help.request', 'tools.use']) {
       expect(me.permissions).not.toContain(p);
     }
-    expect(me.permissions).toContain('tickets.use');
+    expect(me.permissions).toContain('tickets.create');
 
     expect((await root.patch(`/users/${execId}`, { groupId: zangiota.id })).status).toBe(200);
     expect((await exec.get('/auth/me')).body.user.permissions).toContain('contacts.view');

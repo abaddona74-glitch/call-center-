@@ -7,7 +7,7 @@ import {
   type SessionUser,
   EMPTY_RECORDING_MAX_BYTES,
   estimateRecordingSeconds,
-  hasRoleAtLeast,
+  hasPermission,
   recordingKind,
 } from '@cc/shared';
 import {
@@ -133,7 +133,7 @@ export class RecordingsService {
     const rows = await this.repo.rowsForCall(uniqueid);
     if (rows.length === 0) throw new NotFoundException('Call not found');
 
-    if (!hasRoleAtLeast(user.role, 'admin')) {
+    if (!hasPermission(user, 'recordings.listen')) {
       const ext = user.extension;
       if (!ext || !rows.some((r) => rowInvolvesExtension(r, ext))) {
         await this.audit.record('recordings.denied', { target: `call:${uniqueid}` });

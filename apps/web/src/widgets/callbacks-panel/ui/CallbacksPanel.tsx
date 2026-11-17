@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { callbackPhone, callbacksQuery, relativeTime, useCallbacksLive } from '@/entities/callback';
 import { useContactLookup, useContactsLive } from '@/entities/contact';
-import { useHasRole } from '@/entities/session';
+import { usePermission } from '@/entities/session';
 import { DismissCallbackButton } from '@/features/callbacks/dismiss';
 import { DismissAllCallbacksButton } from '@/features/callbacks/dismiss-all';
 import { SyncCallbacksButton } from '@/features/callbacks/sync';
@@ -32,7 +32,7 @@ function useNow(intervalMs = 30_000): number {
  */
 export function CallbacksPanel({ className }: { className?: string }) {
   const { t } = useTranslation('callbacksPanel');
-  const isAdmin = useHasRole('admin');
+  const isAdmin = usePermission('callbacks.manage');
   const [date, setDate] = useState<DateFilter>('today');
   const [tab, setTab] = useState<Tab>('pending');
   useCallbacksLive();

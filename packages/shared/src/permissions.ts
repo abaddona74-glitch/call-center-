@@ -10,8 +10,10 @@ import type { Role } from './auth.js';
  * Which role has which permission lives ONLY in ROLE_PERMISSIONS below.
  */
 export const PERMISSIONS = [
-  /** Live dashboard, operators board, queues, who is online. */
+  /** Live dashboard, operators board, queues, own calls (operators see citizen numbers masked). */
   'monitor.view',
+  /** Everything live unmasked: all citizen numbers, today's KPI counters, who is online. */
+  'monitor.viewAll',
   /** Call history, statistics, reports and exports. */
   'reports.view',
   /** Listen to / download recordings and transcripts. */
@@ -25,7 +27,16 @@ export const PERMISSIONS = [
   'blacklist.manage',
   /** PBX actions: pause/unpause operators, transfer, hang up, originate, queue adjustments. */
   'actions.call',
-  'tickets.use',
+  /** Tickets (docs/rewrite/TICKETS.md): create a ticket from/after a call. */
+  'tickets.create',
+  /** Call the citizen back on a done/rejected ticket and close it (operators' common queue). */
+  'tickets.callback',
+  /** Take, process, finish, forward tickets — scoped to the executive's regions by the tickets module. */
+  'tickets.process',
+  /** See every ticket of every region (read). */
+  'tickets.viewAll',
+  /** Regions, cities/districts, categories, executive ↔ region assignments. */
+  'tickets.directories.manage',
   /** Tools section (converter, links, installers). */
   'tools.use',
   'remoteDesktop.use',
@@ -52,20 +63,39 @@ const without = (...excluded: Permission[]) => ALL.filter((p) => !excluded.inclu
 /**
  * THE role → permissions map. Interim sets until the owner describes executive/observer:
  *  - superuser: everything;
- *  - executive: everything except user/role/session/security management and impersonation;
- *  - observer: read-only;
- *  - operator: the operator portal (legacy 3005).
+ *  - executive: everything except user/role/session/security management, impersonation and the ticket
+ *    directories; tickets: processes those of its regions (no creating / calling back — operators do that);
+ *  - observer: read-only (sees all tickets, cannot change them);
+ *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   superuser: ALL,
-  executive: without('users.manage', 'sessions.manage', 'security.manage', 'impersonate'),
-  observer: ['monitor.view', 'reports.view', 'recordings.listen', 'callbacks.view', 'contacts.view'],
+  executive: without(
+    'users.manage',
+    'sessions.manage',
+    'security.manage',
+    'impersonate',
+    'tickets.create',
+    'tickets.callback',
+    'tickets.viewAll',
+    'tickets.directories.manage',
+  ),
+  observer: [
+    'monitor.view',
+    'monitor.viewAll',
+    'reports.view',
+    'recordings.listen',
+    'callbacks.view',
+    'contacts.view',
+    'tickets.viewAll',
+  ],
   operator: [
     'monitor.view',
     'callbacks.view',
     'contacts.view',
     'contacts.manage',
-    'tickets.use',
+    'tickets.create',
+    'tickets.callback',
     'tools.use',
     'remoteDesktop.use',
     'help.request',
@@ -136,3 +166,6 @@ export function hasPermission(
   const p = (GROUP_FLAG_PERMISSION as Record<string, Permission>)[permission] ?? (permission as Permission);
   return effectivePermissions(user).has(p);
 }
+
+/** Short alias for api and web: `can(user, 'tickets.process')`. */
+export const can = hasPermission;

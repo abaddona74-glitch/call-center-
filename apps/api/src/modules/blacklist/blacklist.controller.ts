@@ -11,12 +11,12 @@ import {
   type SessionUser,
 } from '@cc/shared';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, SerializeOptions } from '@nestjs/common';
-import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { BlacklistService } from './blacklist.service.js';
 
 /** Blocked caller numbers — admins only (no shared "blacklist password" any more). */
 @Controller('blacklist')
-@Roles('admin')
+@RequirePermission('blacklist.manage')
 export class BlacklistController {
   constructor(private readonly blacklist: BlacklistService) {}
 

@@ -1,4 +1,4 @@
-import { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { PERMISSIONS, ROLE_PERMISSIONS, can, hasPermission, hasRoleAtLeast } from '@cc/shared';
 import { buildSessionUser, parseGroupFlags } from './session-user.js';
 
 const base = { id: 1, username: 'u', extension: '205', email: null };
@@ -22,7 +22,33 @@ describe('role permissions', () => {
   });
 
   it('observer is read-only', () => {
-    for (const p of ROLE_PERMISSIONS.observer) expect(p).toMatch(/\.(view|listen)$/);
+    for (const p of ROLE_PERMISSIONS.observer) expect(p).toMatch(/\.(view|viewAll|listen)$/);
+  });
+
+  it('tickets: operators create and call back, executives process, observers read all, superuser manages directories', () => {
+    const op = { role: 'operator' as const };
+    const exec = { role: 'executive' as const };
+    const obs = { role: 'observer' as const };
+    const su = { role: 'superuser' as const };
+    expect([can(op, 'tickets.create'), can(op, 'tickets.callback'), can(op, 'tickets.process')]).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    expect([can(exec, 'tickets.process'), can(exec, 'tickets.create'), can(exec, 'tickets.viewAll')]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect([can(obs, 'tickets.viewAll'), can(obs, 'tickets.process'), can(obs, 'tickets.callback')]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(can(su, 'tickets.directories.manage')).toBe(true);
+    expect(can(exec, 'tickets.directories.manage')).toBe(false);
+    // the session's own list wins over the role map
+    expect(can({ role: 'operator', permissions: ['monitor.view'] }, 'tickets.create')).toBe(false);
   });
 
   it('keeps the old minimum-level checks working (admin = executive level)', () => {
@@ -39,7 +65,7 @@ describe('session user permissions', () => {
     const u = buildSessionUser({ ...base, role: 'operator', groupId: 2, groupPermissions: restricted });
     expect(u.permissions).not.toContain('contacts.view');
     expect(u.permissions).not.toContain('tools.use');
-    expect(u.permissions).toContain('tickets.use');
+    expect(u.permissions).toContain('tickets.create');
     expect(hasPermission(u, 'canSeeContacts')).toBe(false); // group-flag alias still works
   });
 

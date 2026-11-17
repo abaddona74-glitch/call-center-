@@ -14,7 +14,7 @@ import {
 } from './ticket-policy.js';
 
 const CREATOR_FROM = 200;
-const admin: TicketViewer = { userId: 1, role: 'admin', extension: null };
+const admin: TicketViewer = { userId: 1, role: 'executive', extension: null };
 const creator: TicketViewer = { userId: 2, role: 'operator', extension: '201' };
 const otherCreator: TicketViewer = { userId: 3, role: 'operator', extension: '205' };
 const receiver: TicketViewer = { userId: 4, role: 'operator', extension: '101' };

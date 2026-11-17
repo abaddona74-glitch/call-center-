@@ -103,7 +103,7 @@ export class SftpRecordingStorage implements RecordingStorage, OnApplicationBoot
     if (this.connected === value) return;
     this.connected = value;
     this.logger.log(value ? 'SFTP connected' : 'SFTP disconnected');
-    this.realtime.broadcast('recordings.status', { connected: value }, { minRole: 'admin' });
+    this.realtime.broadcast('recordings.status', { connected: value }, { permission: 'recordings.listen' });
   }
 
   private markDisconnected(): void {

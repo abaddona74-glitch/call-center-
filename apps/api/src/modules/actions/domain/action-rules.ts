@@ -1,13 +1,14 @@
-import { type Role, digitsOnly, normalizeUzPhone, telephonyAccess } from '@cc/shared';
+import { type Permission, type Role, digitsOnly, normalizeUzPhone, telephonyAccess } from '@cc/shared';
 
 /**
  * Who may do what with live calls (pure rules, unit-tested):
- *  - admin/superuser: any operator / any call (as in legacy);
+ *  - `actions.call` (executive/superuser): any operator / any call (as in legacy);
  *  - operator: only their own extension and the calls they are on.
  */
 export interface Actor {
   role: Role;
   extension: string | null;
+  permissions?: readonly Permission[] | null;
 }
 
 export type Decision<T> = { ok: true; value: T } | { ok: false; status: 400 | 403; message: string };
@@ -17,7 +18,7 @@ const bad = (message: string): Decision<never> => ({ ok: false, status: 400, mes
 
 /** Extension the action applies to: the requested one for admins, the own one for operators. */
 export function resolveExtension(actor: Actor, requested: string | undefined, operatorExt: RegExp): Decision<string> {
-  if (telephonyAccess(actor.role).manageAll) {
+  if (telephonyAccess(actor).manageAll) {
     const ext = requested ?? actor.extension;
     if (!ext) return bad('extension is required');
     if (!operatorExt.test(ext)) return bad('Not an operator extension');
@@ -31,7 +32,7 @@ export function resolveExtension(actor: Actor, requested: string | undefined, op
 
 /** May the actor transfer / hang up this call? Operators: only calls they are talking on or dialing. */
 export function canControlCall(actor: Actor, call: { extension: string | null }): boolean {
-  if (telephonyAccess(actor.role).manageAll) return true;
+  if (telephonyAccess(actor).manageAll) return true;
   return actor.extension !== null && call.extension === actor.extension;
 }
 

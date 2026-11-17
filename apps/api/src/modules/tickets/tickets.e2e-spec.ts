@@ -31,7 +31,7 @@ describe('tickets (e2e)', () => {
     t = await createS5TestApp();
     // Ticket ids >= 90000 belong to the legacy tickets mapper test, which may run in parallel.
     await t.db.deleteFrom('tickets').where('id', '<', 90000).execute();
-    admin = await t.createUser('admin', null);
+    admin = await t.createUser('executive', null);
     creator = await t.createUser('operator', '201');
     creator2 = await t.createUser('operator', '205');
     receiver = await t.createUser('operator', '101');

@@ -221,11 +221,11 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 }
 
-export function toViewer(user: Pick<SessionUser, 'role' | 'extension'>): Viewer {
-  return { role: user.role, extension: user.extension };
+export function toViewer(user: Pick<SessionUser, 'role' | 'extension' | 'permissions'>): Viewer {
+  return { role: user.role, extension: user.extension, permissions: user.permissions };
 }
 
-/** Same projection for users with the same role+extension (one JSON serialization per group). */
+/** Same projection for every privileged viewer / per operator extension (one JSON serialization per group). */
 function memo<T>(fn: (v: Viewer) => T): (user: SessionUser) => T {
   const cache = new Map<string, T>();
   return (user) => {

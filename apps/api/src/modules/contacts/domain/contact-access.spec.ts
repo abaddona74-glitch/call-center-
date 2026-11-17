@@ -26,12 +26,13 @@ describe('parseExtensionRanges / inRanges', () => {
 });
 
 describe('contactAccessFor', () => {
-  it('admins and superusers always have access, whatever their extension', () => {
-    expect(contactAccessFor({ role: 'admin', extension: '205' }, ranges)).toEqual({ canView: true, canEdit: true });
+  it('executives and superusers have full access whatever their extension; observers read only', () => {
+    expect(contactAccessFor({ role: 'executive', extension: '205' }, ranges)).toEqual({ canView: true, canEdit: true });
     expect(contactAccessFor({ role: 'superuser', extension: null }, ranges)).toEqual({ canView: true, canEdit: true });
+    expect(contactAccessFor({ role: 'observer', extension: null }, ranges)).toEqual({ canView: true, canEdit: false });
   });
 
-  it('legacy rule: operators of the 200 group are denied, main group allowed', () => {
+  it('legacy rule (user without session permissions): operators of the 200 group are denied', () => {
     expect(contactAccessFor({ role: 'operator', extension: '205' }, ranges)).toEqual({
       canView: false,
       canEdit: false,
@@ -40,18 +41,12 @@ describe('contactAccessFor', () => {
     expect(contactAccessFor({ role: 'operator', extension: null }, ranges)).toEqual({ canView: true, canEdit: true });
   });
 
-  it('group permissions (when the session carries them) override the extension rule', () => {
+  it('session permissions (role + operator group flags) override the extension rule', () => {
     expect(
-      contactAccessFor(
-        { role: 'operator', extension: '205', permissions: { canSeeContacts: true, canEditContacts: false } },
-        ranges,
-      ),
+      contactAccessFor({ role: 'operator', extension: '205', permissions: ['monitor.view', 'contacts.view'] }, ranges),
     ).toEqual({ canView: true, canEdit: false });
     expect(
-      contactAccessFor(
-        { role: 'operator', extension: '101', permissions: { canSeeContacts: false, canEditContacts: true } },
-        ranges,
-      ),
+      contactAccessFor({ role: 'operator', extension: '101', permissions: ['monitor.view', 'contacts.manage'] }, ranges),
     ).toEqual({ canView: false, canEdit: false });
   });
 });

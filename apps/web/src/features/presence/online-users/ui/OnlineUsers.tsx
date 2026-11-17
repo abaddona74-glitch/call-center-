@@ -24,7 +24,7 @@ export function OnlineUsers() {
   usePresencePing();
   useOnlineUsersSync();
   const user = useSessionUser();
-  const allowed = telephonyAccess(user.role).seeAll;
+  const allowed = telephonyAccess(user).seeAll;
   const { t } = useTranslation('onlineUsers');
   const { t: tc } = useTranslation();
   const { data: list = [] } = useQuery({ ...onlineUsersQuery, enabled: allowed });

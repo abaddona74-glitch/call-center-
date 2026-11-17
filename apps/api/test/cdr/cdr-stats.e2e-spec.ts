@@ -36,7 +36,7 @@ const names = [
 ];
 
 let ctx: E2eContext;
-const get = (path: string, role: keyof E2eContext['cookies'] | null = 'admin') => {
+const get = (path: string, role: keyof E2eContext['cookies'] | null = 'executive') => {
   const req = request(ctx.app.getHttpServer()).get(path);
   return role ? req.set('Cookie', ctx.cookies[role]) : req;
 };
@@ -78,7 +78,7 @@ describe('access by role', () => {
   });
 
   it('admins and superusers see recordings', async () => {
-    for (const role of ['admin', 'superuser'] as const) {
+    for (const role of ['executive', 'superuser'] as const) {
       const res = await get(
         '/api/cdr/calls?from=2026-11-16&to=2026-11-16&status=answered&direction=inbound',
         role,
@@ -264,12 +264,12 @@ describe('PBX not configured', () => {
   it('returns 503 "PBX unavailable"', async () => {
     const res = await request(off.app.getHttpServer())
       .get('/api/cdr/calls')
-      .set('Cookie', off.cookies.admin)
+      .set('Cookie', off.cookies.executive)
       .expect(503);
     expect(res.body.message).toMatch(/PBX/);
     await request(off.app.getHttpServer())
       .get('/api/stats/summary?from=2026-11-16&to=2026-11-17')
-      .set('Cookie', off.cookies.admin)
+      .set('Cookie', off.cookies.executive)
       .expect(503);
   });
 });

@@ -28,18 +28,29 @@ export interface NavItem {
 
 /**
  * Sidebar navigation. Feature work adds one line per page here; the route itself
- * must still enforce the role in `beforeLoad` (hiding a link is not a permission check).
+ * must still enforce the permission in `beforeLoad` (hiding a link is not a permission check).
+ * Items without `permission` show for everyone signed in.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'operator' },
-  { to: '/explorer', label: 'nav.explorer', icon: AudioLines, minRole: 'admin' },
-  { to: '/tickets', label: 'nav.tickets', icon: Ticket, minRole: 'operator' },
-  { to: '/clients', label: 'nav.clients', icon: Users, minRole: 'operator' },
-  { to: '/operators', label: 'nav.operators', icon: Headset, minRole: 'operator' },
-  { to: '/history', label: 'nav.history', icon: History, minRole: CDR_ACCESS['history.page'] },
-  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, minRole: CDR_ACCESS['stats.read'] },
-  { to: '/settings', label: 'nav.settings', icon: Settings, permission: ['users.manage', 'sessions.manage', 'security.manage', 'audit.view'] },
-  { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, minRole: 'admin' },
-  { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, minRole: 'admin' },
-  { to: '/profile', label: 'nav.profile', icon: UserRound, minRole: 'operator' },
+  { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'monitor.view' },
+  { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },
+  {
+    to: '/tickets',
+    label: 'nav.tickets',
+    icon: Ticket,
+    permission: ['tickets.create', 'tickets.callback', 'tickets.process', 'tickets.viewAll'],
+  },
+  { to: '/clients', label: 'nav.clients', icon: Users, permission: 'contacts.view' },
+  { to: '/operators', label: 'nav.operators', icon: Headset, permission: 'monitor.view' },
+  { to: '/history', label: 'nav.history', icon: History, permission: CDR_ACCESS['history.page'] },
+  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, permission: CDR_ACCESS['stats.read'] },
+  {
+    to: '/settings',
+    label: 'nav.settings',
+    icon: Settings,
+    permission: ['users.manage', 'sessions.manage', 'security.manage', 'audit.view'],
+  },
+  { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, permission: 'blacklist.manage' },
+  { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, permission: 'settings.manage' },
+  { to: '/profile', label: 'nav.profile', icon: UserRound },
 ];

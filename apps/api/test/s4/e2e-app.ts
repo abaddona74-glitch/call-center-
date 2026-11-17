@@ -105,15 +105,22 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
   const db = new pg.Pool({ connectionString: databaseUrl, max: 2 });
   const sessions = app.get(SessionsService);
 
-  async function user(username: string, role: string, extension: string | null): Promise<E2eUser> {
+  /** `group`: an operator group seeded by S1 (e.g. 'Zangiota' = no phonebook, the legacy "200 group"). */
+  async function user(
+    username: string,
+    role: string,
+    extension: string | null,
+    group: string | null = null,
+  ): Promise<E2eUser> {
     const existing = await db.query<{ id: string }>('select id from users where username = $1', [username]);
     const id = existing.rows[0]
       ? Number(existing.rows[0].id)
       : Number(
           (
             await db.query<{ id: string }>(
-              `insert into users (username, password_hash, role, extension) values ($1, 'x', $2, $3) returning id`,
-              [username, role, extension],
+              `insert into users (username, password_hash, role, extension, group_id)
+               values ($1, 'x', $2, $3, (select id from operator_groups where name = $4)) returning id`,
+              [username, role, extension, group],
             )
           ).rows[0].id,
         );
@@ -123,9 +130,9 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
 
   const users = {
     superuser: await user('superuser', 'superuser', null),
-    admin: await user('admin1', 'admin', null),
+    admin: await user('admin1', 'executive', null),
     op101: await user('op101', 'operator', '101'),
-    op205: await user('op205', 'operator', '205'),
+    op205: await user('op205', 'operator', '205', 'Zangiota'),
   };
 
   return {

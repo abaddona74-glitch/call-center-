@@ -35,6 +35,6 @@ export class PresenceService implements OnApplicationBootstrap, OnApplicationShu
     const signature = signatureOf(list);
     if (signature === this.lastSignature) return;
     this.lastSignature = signature;
-    this.realtime.broadcastEach('presence.online', (user) => (telephonyAccess(user.role).seeAll ? list : undefined));
+    this.realtime.broadcastEach('presence.online', (user) => (telephonyAccess(user).seeAll ? list : undefined));
   }
 }
