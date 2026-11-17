@@ -18,6 +18,8 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
+import { RecordingsModule } from './modules/recordings/recordings.module.js';
+import { TicketsModule } from './modules/tickets/tickets.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
 @Module({
@@ -69,6 +71,8 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     RealtimeModule,
     HealthModule,
     // Feature modules are registered below this line (one import per module).
+    RecordingsModule,
+    TicketsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

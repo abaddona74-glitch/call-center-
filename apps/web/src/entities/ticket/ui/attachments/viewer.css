@@ -1,0 +1,22 @@
+/* Legacy .tk-docx-paper (converted Word document on a white "page"). */
+.kds-docx-paper { max-width: 880px; margin: 0 auto; background: #fff; color: #1e293b; padding: 56px 64px; border-radius: 6px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.55); font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14.5px; line-height: 1.7; }
+.kds-docx-paper h1, .kds-docx-paper h2, .kds-docx-paper h3, .kds-docx-paper h4, .kds-docx-paper h5, .kds-docx-paper h6 {
+  color: #0f172a; font-weight: 700; margin-top: 1.4em; margin-bottom: 0.6em; line-height: 1.3; }
+.kds-docx-paper h1 { font-size: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+.kds-docx-paper h2 { font-size: 20px; }
+.kds-docx-paper h3 { font-size: 17px; }
+.kds-docx-paper p { margin-bottom: 1em; }
+.kds-docx-paper table { width: 100%; border-collapse: collapse; margin: 1.2em 0; font-size: 13.5px; }
+.kds-docx-paper table, .kds-docx-paper th, .kds-docx-paper td { border: 1px solid #cbd5e1; }
+.kds-docx-paper th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-weight: 700; }
+.kds-docx-paper td { padding: 7px 12px; }
+.kds-docx-paper tr:nth-child(even) td { background: #f8fafc; }
+.kds-docx-paper ul, .kds-docx-paper ol { padding-left: 28px; margin-bottom: 1em; }
+.kds-docx-paper ul { list-style: disc; }
+.kds-docx-paper ol { list-style: decimal; }
+.kds-docx-paper li { margin-bottom: 4px; }
+.kds-docx-paper blockquote { border-left: 4px solid #3b82f6; background: #f8fafc; padding: 10px 16px; margin: 1em 0; font-style: italic; color: #475569; }
+.kds-docx-paper img { max-width: 100%; border-radius: 4px; }
+.kds-docx-body a { color: #2563eb; text-decoration: underline; }

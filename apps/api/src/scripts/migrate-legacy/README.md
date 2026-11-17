@@ -41,6 +41,7 @@ Skips, warnings and "not implemented" stubs do not affect the exit code, so read
   | File                        | Legacy location            | Mapper                 |
   | --------------------------- | -------------------------- | ---------------------- |
   | `tickets.json`              | `viewer/data/tickets.json` | tickets                |
+  | `ticket-uploads/` (folder)  | `viewer/public/uploads/tickets/*` (copy the files flat) | tickets (attachments; images/PDF/DOCX only, copied to `TICKETS_UPLOAD_DIR`) |
   | `stt_custom_rules.json`     | `data/`                    | transcripts            |
   | `queue-sync-settings.json`  | `data/`                    | settings               |
   | `system_settings.json`      | repo root (not `data/`)    | settings               |

@@ -51,7 +51,40 @@ export const EnvSchema = z.object({
   SFTP_PORT: z.coerce.number().int().positive().default(22),
   SFTP_USER: z.string().optional(),
   SFTP_PRIVATE_KEY_PATH: z.string().optional(),
+  /** The monitor folder as the SFTP user sees it (`/monitor` for the chrooted user, see DEPLOY.md 11.3). */
   SFTP_MONITOR_PATH: z.string().default('/var/spool/asterisk/monitor'),
+  /**
+   * Pinned PBX host key(s): `SHA256:<base64>` as printed by `ssh-keygen -lf`, comma-separated for rotation.
+   * Required in production — without it the API refuses to connect instead of trusting any host key.
+   */
+  SFTP_HOST_FINGERPRINT: z
+    .string()
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().replace(/=+$/, ''))
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().regex(/^SHA256:[A-Za-z0-9+/]{43}$/, 'Expected SHA256:<base64> (ssh-keygen -lf)')).min(1))
+    .optional(),
+  /** Where Asterisk itself writes recordings; absolute `recordingfile` values in the CDR start with it. */
+  RECORDINGS_PBX_MONITOR_PATH: z.string().default('/var/spool/asterisk/monitor'),
+
+  // --- Recordings ZIP export (temp files outside the web root, deleted after the TTL) ---
+  RECORDINGS_ZIP_DIR: z.string().optional(),
+  RECORDINGS_ZIP_MAX_FILES: z.coerce.number().int().positive().max(5000).default(2000),
+  RECORDINGS_ZIP_MAX_MB: z.coerce.number().int().positive().default(2048),
+  RECORDINGS_ZIP_TTL_MINUTES: z.coerce.number().int().positive().default(120),
+  RECORDINGS_ZIP_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(2),
+
+  // --- Tickets ---
+  /** Attachments live here (a volume outside the web root); served only through the API. */
+  TICKETS_UPLOAD_DIR: z.string().default('.data/ticket-uploads'),
+  TICKETS_MAX_FILE_MB: z.coerce.number().int().positive().max(50).default(10),
+  /** Operators with extension >= this number create tickets ("200" group); others receive them. */
+  TICKETS_CREATOR_EXTENSION_FROM: z.coerce.number().int().positive().default(200),
+  /** Completed tickets (and files) older than N days are deleted daily; 0 = keep forever. */
+  TICKETS_PURGE_COMPLETED_AFTER_DAYS: z.coerce.number().int().min(0).default(7),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

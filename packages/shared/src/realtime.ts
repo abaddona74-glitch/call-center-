@@ -9,6 +9,9 @@
  * to the `extends` list of `ServerEvents` / `ClientEvents` below — one line per domain.
  */
 
+import type { RecordingsServerEvents } from './realtime/recordings.js';
+import type { TicketsServerEvents } from './realtime/tickets.js';
+
 interface CoreServerEvents {
   /** Sent once right after the connection is authenticated. */
   'session.ready': { userId: number; role: string; serverTime: string };
@@ -21,7 +24,10 @@ interface CoreClientEvents {
   'presence.ping': { tab?: string; visible?: boolean };
 }
 
-export interface ServerEvents extends CoreServerEvents {}
+export interface ServerEvents
+  extends CoreServerEvents,
+    RecordingsServerEvents,
+    TicketsServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 
