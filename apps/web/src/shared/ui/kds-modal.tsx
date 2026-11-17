@@ -24,7 +24,8 @@ export function KdsModal({
   /** Accessible title (visually hidden; the visible header is part of `children`). */
   title: string;
   description?: string;
-  width?: number;
+  /** Panel width in px; null = size via className. */
+  width?: number | null;
   closeOnBackdrop?: boolean;
   className?: string;
   overlayClassName?: string;
@@ -49,7 +50,7 @@ export function KdsModal({
             onInteractOutside={(e) => {
               if (!closeOnBackdrop) e.preventDefault();
             }}
-            style={{ width }}
+            style={width ? { width } : undefined}
             className={cn(
               'pointer-events-auto flex max-h-[90vh] max-w-[95vw] flex-col overflow-hidden rounded-[18px] border border-[rgba(59,130,246,0.35)] bg-[#0f172a] text-[#f8fafc] outline-none',
               'shadow-[0_25px_60px_rgba(0,0,0,0.8),0_0_30px_rgba(56,189,248,0.15)]',

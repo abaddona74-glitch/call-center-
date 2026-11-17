@@ -90,6 +90,11 @@ describe('tickets (e2e)', () => {
       expect(res.body.id).toBeGreaterThanOrEqual(1001);
     });
 
+    it('accepts the web form payload (empty phone, target "all", urgent false)', async () => {
+      const res = await create(creator, { body: 'from the form', customerPhone: '', isUrgent: 'false', targetUserId: 'all' }).expect(201);
+      expect(res.body).toMatchObject({ customerPhone: null, isUrgent: false, target: null });
+    });
+
     it('refuses targets that are not receivers', async () => {
       await create(creator, { body: 'x', targetUserId: String(creator2.id) }).expect(400);
       await create(creator, { body: 'x', targetUserId: '999999' }).expect(400);

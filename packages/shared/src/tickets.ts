@@ -148,6 +148,8 @@ export const TicketContextSchema = z.object({
   canCleanup: z.boolean(),
   /** Completed tickets older than this many days are purged automatically (0 = never). */
   purgeCompletedAfterDays: z.number().int(),
+  /** Per-file upload limit (TICKETS_MAX_FILE_MB). */
+  maxFileMb: z.number().int(),
   assignees: z.array(TicketAssigneeSchema),
 });
 export type TicketContext = z.infer<typeof TicketContextSchema>;
@@ -178,6 +180,8 @@ export const CreateTicketFieldsSchema = z.object({
   targetUserId: TargetFieldSchema.optional(),
 });
 export type CreateTicketFields = z.input<typeof CreateTicketFieldsSchema>;
+/** After validation (what the API service receives). */
+export type CreateTicketFieldsParsed = z.output<typeof CreateTicketFieldsSchema>;
 
 export const UpdateTicketRequestSchema = z
   .object({
@@ -199,6 +203,7 @@ export const AddTicketCommentFieldsSchema = z.object({
   body: z.string().trim().max(TICKET_BODY_MAX).default(''),
 });
 export type AddTicketCommentFields = z.input<typeof AddTicketCommentFieldsSchema>;
+export type AddTicketCommentFieldsParsed = z.output<typeof AddTicketCommentFieldsSchema>;
 
 export const TicketCleanupResponseSchema = z.object({ removed: z.number().int() });
 export type TicketCleanupResponse = z.infer<typeof TicketCleanupResponseSchema>;

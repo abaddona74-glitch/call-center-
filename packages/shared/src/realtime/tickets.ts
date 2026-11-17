@@ -18,6 +18,7 @@ export interface TicketsServerEvents {
     actor: { userId: number | null; label: string };
     /** Receivers the ticket is addressed to: null = everyone. */
     targetUserId: number | null;
+    targetLabel: string | null;
     creatorUserId: number | null;
     at: string;
   };

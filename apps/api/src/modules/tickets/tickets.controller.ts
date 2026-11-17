@@ -1,9 +1,9 @@
 import { createReadStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import {
-  type AddTicketCommentFields,
+  type AddTicketCommentFieldsParsed,
   AddTicketCommentFieldsSchema,
-  type CreateTicketFields,
+  type CreateTicketFieldsParsed,
   CreateTicketFieldsSchema,
   type RejectTicketRequest,
   RejectTicketRequestSchema,
@@ -86,7 +86,7 @@ export class TicketsController {
   @UseInterceptors(FilesInterceptor('files', TICKET_MAX_FILES_PER_UPLOAD))
   @SerializeOptions({ schema: TicketDetailSchema })
   create(
-    @Body({ schema: CreateTicketFieldsSchema }) fields: CreateTicketFields,
+    @Body({ schema: CreateTicketFieldsSchema }) fields: CreateTicketFieldsParsed,
     @UploadedFiles() files: IncomingFile[] | undefined,
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDetail> {
@@ -134,7 +134,7 @@ export class TicketsController {
   @SerializeOptions({ schema: TicketDetailSchema })
   comment(
     @Param('id', { schema: TicketIdSchema }) id: number,
-    @Body({ schema: AddTicketCommentFieldsSchema }) fields: AddTicketCommentFields,
+    @Body({ schema: AddTicketCommentFieldsSchema }) fields: AddTicketCommentFieldsParsed,
     @UploadedFiles() files: IncomingFile[] | undefined,
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDetail> {

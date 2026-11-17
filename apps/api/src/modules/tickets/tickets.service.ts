@@ -1,9 +1,7 @@
 import {
-  type AddTicketCommentFields,
-  AddTicketCommentFieldsSchema,
+  type AddTicketCommentFieldsParsed,
   BUSINESS_TIMEZONE,
-  type CreateTicketFields,
-  CreateTicketFieldsSchema,
+  type CreateTicketFieldsParsed,
   type SessionUser,
   type Ticket,
   type TicketAttachment,
@@ -156,6 +154,7 @@ export class TicketsService {
       canCreate,
       canCleanup: party === 'admin',
       purgeCompletedAfterDays: this.config.get('TICKETS_PURGE_COMPLETED_AFTER_DAYS'),
+      maxFileMb: this.config.get('TICKETS_MAX_FILE_MB'),
       assignees: canCreate ? await this.assignees() : [],
     };
   }
@@ -263,8 +262,8 @@ export class TicketsService {
   // Commands
   // ---------------------------------------------------------------------------
 
-  async create(user: SessionUser, rawFields: CreateTicketFields, incoming: IncomingFile[]): Promise<TicketDetail> {
-    const fields = CreateTicketFieldsSchema.parse(rawFields);
+  /** `fields` were validated (and transformed) by the controller's schema — not parsed again here. */
+  async create(user: SessionUser, fields: CreateTicketFieldsParsed, incoming: IncomingFile[]): Promise<TicketDetail> {
     const { v, party } = this.viewer(user);
     if (!canCreateTicket(party)) {
       await this.audit.record('tickets.denied', { details: { action: 'create', party } });
@@ -290,7 +289,7 @@ export class TicketsService {
   private async persistCreate(
     user: SessionUser,
     party: 'admin' | 'creator',
-    fields: ReturnType<typeof CreateTicketFieldsSchema.parse>,
+    fields: CreateTicketFieldsParsed,
     target: ActiveUser | null,
     stored: StoredFile[],
   ): Promise<TicketRow> {
@@ -433,8 +432,7 @@ export class TicketsService {
     return updated;
   }
 
-  async comment(user: SessionUser, id: number, rawFields: AddTicketCommentFields, incoming: IncomingFile[]): Promise<TicketDetail> {
-    const fields = AddTicketCommentFieldsSchema.parse(rawFields);
+  async comment(user: SessionUser, id: number, fields: AddTicketCommentFieldsParsed, incoming: IncomingFile[]): Promise<TicketDetail> {
     const { v, party } = this.viewer(user);
     const row = await this.visibleRow(id, v, party);
     if (!ticketPermissions(facts(row), v, party).comment) throw new ForbiddenException('You cannot comment on this ticket');
@@ -641,6 +639,7 @@ export class TicketsService {
           preview: row.body.slice(0, 120),
           actor: { userId: actor.id, label: await this.label(actor) },
           targetUserId: row.targetAll ? null : row.targetUserId,
+          targetLabel: row.targetAll ? null : row.targetLabel,
           creatorUserId: row.creatorUserId,
           at: new Date().toISOString(),
         },

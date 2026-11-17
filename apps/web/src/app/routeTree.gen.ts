@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -39,17 +40,24 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTicketsRoute = AppTicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/explorer': typeof AppExplorerRoute
   '/settings': typeof AppSettingsRoute
+  '/tickets': typeof AppTicketsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/explorer': typeof AppExplorerRoute
   '/settings': typeof AppSettingsRoute
+  '/tickets': typeof AppTicketsRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -58,19 +66,21 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/tickets': typeof AppTicketsRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/explorer' | '/settings'
+  fullPaths: '/' | '/login' | '/explorer' | '/settings' | '/tickets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/explorer' | '/settings' | '/'
+  to: '/login' | '/explorer' | '/settings' | '/tickets' | '/'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/explorer'
     | '/_app/settings'
+    | '/_app/tickets'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -116,18 +126,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tickets': {
+      id: '/_app/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof AppTicketsRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppExplorerRoute: typeof AppExplorerRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTicketsRoute: typeof AppTicketsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppExplorerRoute: AppExplorerRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppTicketsRoute: AppTicketsRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
