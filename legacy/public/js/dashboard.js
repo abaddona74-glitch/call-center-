@@ -77,15 +77,6 @@ if (typeof window !== 'undefined') {
     window.escapeHtml = escapeHtml;
 }
 
-// onclick="fn('...')" ichiga qo'yiladigan qiymatlar uchun: tirnoq, backslash, <, >, & va boshqa
-// xavfli belgilarni olib tashlaydi (escapeHtml JS-satr kontekstini himoya qilmaydi).
-function safeJsArg(value) {
-    return String(value ?? '').replace(/[^\p{L}\p{N} +()*#.\/_:@-]/gu, '');
-}
-if (typeof window !== 'undefined') {
-    window.safeJsArg = safeJsArg;
-}
-
 // Transfer Modal State
 let activeTransferChannel = null;
 
@@ -1458,12 +1449,6 @@ function animate2DDistributionNumbers(targetValues, duration = 450) {
         p5: Math.min(100, safeNum(_last2DDistValues.p5))
     };
 
-    if (document.hidden) {
-        _last2DDistValues = { ...sanitizedTarget };
-        _currentDist2DInterp = { ...sanitizedTarget };
-        return;
-    }
-
     const prev = _currentDist2DInterp || _last2DDistValues;
     if (
         prev.total === sanitizedTarget.total &&
@@ -1917,7 +1902,7 @@ function setMyPcName(name) {
 function promptChangePcName(e) {
     if (e) e.stopPropagation();
     const current = getMyPcName();
-    const newName = prompt("Kompyuter nomini kiriting (masalan, OPERATOR-101 yoki ADMIN-PC):", current);
+    const newName = prompt("Kompyuter nomini kiriting (masalan, PC-ZUHRA yoki OPERATOR-101):", current);
     if (newName && newName.trim()) {
         setMyPcName(newName);
     }
@@ -1925,6 +1910,19 @@ function promptChangePcName(e) {
 
 let currentOnlineUsersList = [];
 let isOnlineUsersPopoverOpen = false;
+let isGhostModeActive = true;
+
+function toggleGhostMode(enabled) {
+    isGhostModeActive = Boolean(enabled);
+    if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({
+            type: 'toggle_ghost_mode',
+            enabled: isGhostModeActive
+        }));
+    }
+    renderOnlineUsersPopover();
+}
+window.toggleGhostMode = toggleGhostMode;
 
 function toggleOnlineUsersPopover(e) {
     if (e) {
@@ -2056,7 +2054,7 @@ function renderOnlineUsersPopover() {
                     <div class="online-user-top">
                         <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
                             <span class="online-user-name" title="${escapeHtml(u.pcName || 'PC')}">${escapeHtml(u.pcName || 'PC')}</span>
-                            ${isMe ? '<span class="online-user-me-tag">Siz</span>' : ''}
+                            ${isMe ? '<span class="online-user-me-tag">Siz</span>' : ''} ${(u.isGhost || (isMe && isMaxmudbek && isGhostModeActive)) ? '<span class="online-user-ghost-tag" style="background: rgba(168, 85, 247, 0.25); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.45); font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;">👻 Ko\'rinmas</span>' : ''}
                         </div>
                         ${statusBadge}
                     </div>
@@ -2076,6 +2074,30 @@ function renderOnlineUsersPopover() {
         `;
     });
 
+    const ghostBannerHtml = isMaxmudbek ? `
+        <div class="ghost-mode-banner" style="margin: 8px 12px 6px; padding: 10px 12px; background: linear-gradient(135deg, rgba(88, 28, 135, 0.45) 0%, rgba(30, 27, 75, 0.65) 100%); border: 1px solid rgba(168, 85, 247, 0.45); border-radius: 9px; display: flex; align-items: center; justify-content: space-between; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; align-items: center; gap: 9px;">
+                <span style="font-size: 22px; filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.6));">👻</span>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 12px; font-weight: 700; color: #f3e8ff;">Ghost Mode</span>
+                        <span style="font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 999px; background: ${isGhostModeActive ? '#9333ea' : '#475569'}; color: #fff; box-shadow: 0 0 8px ${isGhostModeActive ? 'rgba(168, 85, 247, 0.6)' : 'transparent'};">${isGhostModeActive ? "FAOL (KO'RINMAS)" : "O'CHIRILGAN"}</span>
+                    </div>
+                    <div style="font-size: 10.5px; color: #cbd5e1; margin-top: 1px; line-height: 1.25;">
+                        ${isGhostModeActive 
+                            ? "Sizning onlaynligingiz boshqalarga <b style='color: #c084fc;'>ko'rinmaydi</b>, lekin siz hammani ko'rasiz." 
+                            : "Ghost Mode o'chiq (boshqalar sizni ko'radi)"}
+                    </div>
+                </div>
+            </div>
+            <label style="position: relative; display: inline-block; width: 38px; height: 20px; margin: 0; cursor: pointer; flex-shrink: 0;" title="Ghost Mode-ni yoqish / o'chirish">
+                <input type="checkbox" ${isGhostModeActive ? 'checked' : ''} onchange="toggleGhostMode(this.checked)" style="opacity: 0; width: 0; height: 0;">
+                <span style="position: absolute; cursor: pointer; inset: 0; background-color: ${isGhostModeActive ? '#9333ea' : '#475569'}; transition: .25s; border-radius: 20px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);">
+                    <span style="position: absolute; height: 14px; width: 14px; left: ${isGhostModeActive ? '21px' : '3px'}; bottom: 3px; background-color: white; transition: .25s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></span>
+                </span>
+            </label>
+        </div>` : '';
+
     pop.innerHTML = `
         <div class="online-popover-header">
             <div class="online-popover-title-wrap">
@@ -2086,6 +2108,7 @@ function renderOnlineUsersPopover() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
         </div>
+        ${ghostBannerHtml}
         <div class="online-users-list">
             ${itemsHtml}
         </div>
@@ -2156,20 +2179,13 @@ function initMultiplayerCursors() {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             claimActiveTab();
-            if (typeof renderOperators === 'function' && window._rawLastOperators) {
-                renderOperators(window._rawLastOperators);
-            }
-            if (typeof updateAllTalkingTimers === 'function') {
-                updateAllTalkingTimers();
-            }
         } else {
             sendPresenceHeartbeat(false);
         }
     });
 
-    // Mouse harakatini sahifa kontentiga bog'langan koordinatalar bilan uzatish (~80ms throttle)
+    // Mouse harakatini sahifa kontentiga bog'langan koordinatalar bilan uzatish (~50ms throttle)
     window.addEventListener('mousemove', (e) => {
-        if (document.hidden) return;
         if (!isMultiplayerCursorsEnabled) return;
         if (!ws || ws.readyState !== 1) return; // 1 = WebSocket.OPEN
 
@@ -2179,7 +2195,7 @@ function initMultiplayerCursors() {
         }
 
         const now = performance.now();
-        if (now - lastCursorSendTime < 80) return;
+        if (now - lastCursorSendTime < 50) return;
         lastCursorSendTime = now;
 
         const mainArea = document.getElementById('mainArea') || document.querySelector('.main-area');
@@ -2218,20 +2234,9 @@ function initMultiplayerCursors() {
         }
     });
 
-    // Har 10 soniyada mavjudlikni (presence heartbeat) yangilab turish va xotirani tozalash
+    // Har 10 soniyada mavjudlikni (presence heartbeat) yangilab turish
     setInterval(() => {
         sendPresenceHeartbeat();
-
-        // Stale (harakatsiz/uzilgan) kursorlarni xotiradan va DOM dan tozalash
-        const nowCursor = Date.now();
-        remoteCursorsMap.forEach((item, cId) => {
-            if (nowCursor - (item.lastSeen || 0) > 30000) {
-                if (item.element && item.element.parentNode) {
-                    item.element.remove();
-                }
-                remoteCursorsMap.delete(cId);
-            }
-        });
     }, 10000);
 
     // Oyna o'lchami o'zgarganda kursorlarni to'g'ri qayta joylashtirish
@@ -2309,12 +2314,10 @@ function handleRemoteCursorMove(data) {
             contentY: contentY,
             tab: remoteTab,
             pcName: pcName,
-            color: color,
-            lastSeen: Date.now()
+            color: color
         };
         remoteCursorsMap.set(data.clientId, cursorItem);
     } else {
-        cursorItem.lastSeen = Date.now();
         cursorItem.xRatio = xRatio;
         cursorItem.contentY = contentY;
         cursorItem.tab = remoteTab;
@@ -2384,6 +2387,9 @@ function handleWsMessage(msg) {
         if (msg.data) {
             if (typeof msg.data.onlineCount === 'number') {
                 updateOnlineCursorsCount(msg.data.onlineCount);
+            }
+            if (msg.data.isGhostModeActive !== undefined) {
+                isGhostModeActive = Boolean(msg.data.isGhostModeActive);
             }
             if (Array.isArray(msg.data.users)) {
                 currentOnlineUsersList = msg.data.users;
@@ -3220,13 +3226,12 @@ function appendOtaLog(log) {
     else if (log.step === 'INSTALLING') color = '#fbbf24';
     else if (log.step === 'DOWNLOADED') color = '#a78bfa';
 
-    // XAVFSIZLIK: barcha qiymatlar /api/agent/update-log orqali tashqaridan keladi — ekranlanadi
     row.innerHTML = `
-        <span style="color: var(--text-dim); min-width: 60px;">[${escapeHtml(log.time)}]</span>
-        <span>${escapeHtml(log.icon || 'ℹ️')}</span>
-        <span style="font-weight: 700; color: #fff;">${escapeHtml(log.operatorName)} (${escapeHtml(log.operatorId)}):</span>
-        <span style="color: ${color}; font-weight: 500;">${escapeHtml(log.message)}</span>
-        ${log.hostname ? `<span style="color: var(--text-dim); font-size: 10px; margin-left: auto;">[${escapeHtml(log.hostname)}]</span>` : ''}
+        <span style="color: var(--text-dim); min-width: 60px;">[${log.time}]</span>
+        <span>${log.icon || 'ℹ️'}</span>
+        <span style="font-weight: 700; color: #fff;">${log.operatorName} (${log.operatorId}):</span>
+        <span style="color: ${color}; font-weight: 500;">${log.message}</span>
+        ${log.hostname ? `<span style="color: var(--text-dim); font-size: 10px; margin-left: auto;">[${log.hostname}]</span>` : ''}
     `;
 
     container.appendChild(row);
@@ -5044,8 +5049,8 @@ function renderActiveConversations(conversations) {
         // Operatordan SIM karta va brend ma'lumotlarini aniqlash
         const opInfo = getUzbekistanOperator(c.callerId);
         const opBadgeHtml = opInfo ? `
-            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori" style="background: ${opInfo.bg}; color: ${opInfo.color}; border: 1px solid ${opInfo.border};">
-                <svg class="isax isax-simcard" style="width: 10px; height: 10px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
+            <span class="cc-op-sim-badge cc-tag" title="${opInfo.name} operatori">
+                <svg class="isax isax-simcard" style="width: 11px; height: 11px; color: ${opInfo.color};"><use href="/icons/iconsax/iconsax-sprite.svg#isax-simcard"></use></svg>
                 <span>${opInfo.name}</span>
             </span>
         ` : '';
@@ -5080,7 +5085,7 @@ function renderActiveConversations(conversations) {
                 tagsEl.innerHTML = `
                     ${opBadgeHtml}
                     <span class="cc-tag time" data-timer="${key}">
-                        <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                        <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #60a5fa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                         <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
                     </span>
                 `;
@@ -5102,7 +5107,7 @@ function renderActiveConversations(conversations) {
                         <div class="cc-tags">
                             ${opBadgeHtml}
                             <span class="cc-tag time" data-timer="${key}">
-                                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #38bdf8;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
+                                <svg class="isax isax-timer" style="width: 11px; height: 11px; color: #60a5fa;"><use href="/icons/iconsax/iconsax-sprite.svg#isax-timer"></use></svg>
                                 <span class="cc-live-duration" data-start="${startMs}">${initialDurationText}</span>
                             </span>
                         </div>
@@ -5152,7 +5157,6 @@ window.toggleActiveCallAccordion = function(key, event) {
 // Har soniyada faol suhbatlar davomiyligini (duration) jonli sekundomerda yangilab borish
 if (!window.activeConversationsTicker) {
     window.activeConversationsTicker = setInterval(() => {
-        if (document.hidden) return;
         const timerEls = document.querySelectorAll('.cc-live-duration[data-start]');
         if (!timerEls || timerEls.length === 0) return;
         const now = Date.now();
@@ -5631,7 +5635,6 @@ const operatorTalkingSinceMap = new Map();
 const operatorReadySinceMap = new Map();
 
 function updateAllTalkingTimers() {
-    if (document.hidden) return;
     const timerEls = document.querySelectorAll('.talking-live-timer[data-talking-since]');
     if (!timerEls.length) return;
     const now = Date.now();
@@ -6028,9 +6031,6 @@ function playCardsFlipAnimation(container, firstRects) {
 function renderOperators(operators) {
     if (operators && Array.isArray(operators)) {
         window._rawLastOperators = operators;
-    }
-    if (document.hidden) {
-        return;
     }
     if (window.isVisualInspectorActive) {
         // Visual AI Inspector faol paytida DOM ni almashtirmaslik (foydalanuvchi tanlagan elementlar uzilib ketmasligi uchun)
@@ -6584,38 +6584,11 @@ function syncDashboardGridChildren(grid, newHtml) {
             const opId = newChild.getAttribute('data-op-id');
             const currentChild = grid.children[index];
             if (opId && currentChild && currentChild.getAttribute('data-op-id') === opId) {
-                const sameClass = currentChild.className === newChild.className;
-                const samePresence = currentChild.getAttribute('data-presence') === newChild.getAttribute('data-presence');
-                if (sameClass && samePresence) {
-                    const curDds = currentChild.querySelectorAll('dd');
-                    const newDds = newChild.querySelectorAll('dd');
-                    if (curDds.length === newDds.length) {
-                        for (let d = 0; d < curDds.length; d++) {
-                            if (curDds[d].innerHTML !== newDds[d].innerHTML) {
-                                curDds[d].innerHTML = newDds[d].innerHTML;
-                            }
-                        }
-                    }
-                    const curCaller = currentChild.querySelector('.call .no span:nth-child(2)');
-                    const newCaller = newChild.querySelector('.call .no span:nth-child(2)');
-                    if (curCaller && newCaller && curCaller.textContent !== newCaller.textContent) {
-                        curCaller.textContent = newCaller.textContent;
-                    }
-                    const curTimer = currentChild.querySelector('.talking-live-timer');
-                    const newTimer = newChild.querySelector('.talking-live-timer');
-                    if (curTimer && newTimer) {
-                        const newSince = newTimer.getAttribute('data-talking-since');
-                        if (curTimer.getAttribute('data-talking-since') !== newSince) {
-                            curTimer.setAttribute('data-talking-since', newSince);
-                        }
-                    }
-                } else {
-                    if (currentChild.innerHTML !== newChild.innerHTML) {
-                        currentChild.innerHTML = newChild.innerHTML;
-                    }
-                    if (currentChild.className !== newChild.className) {
-                        currentChild.className = newChild.className;
-                    }
+                if (currentChild.innerHTML !== newChild.innerHTML) {
+                    currentChild.innerHTML = newChild.innerHTML;
+                }
+                if (currentChild.className !== newChild.className) {
+                    currentChild.className = newChild.className;
                 }
                 childToPlace = currentChild;
             }
@@ -6976,7 +6949,23 @@ const OPERATOR_NAMES_MAP = {
     '120': 'Navruzoy'
 };
 
+// Ovoz tahlili (Voiceprint ECAPA) indikatori (Zuhra opa vs Muattar)
 function renderVoiceAnalysisBadge(va) {
+    if (!va || !va.speaker) return '';
+    if (va.speaker === 'zuhra') {
+        const conf = va.confidence || Math.round((va.score || 0) * 100);
+        const segs = va.zuhra_segments ? ` (${va.zuhra_segments} seg)` : '';
+        return `<span class="badge" style="background: rgba(168, 85, 247, 0.22); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.5); font-size: 10px; font-weight: 700; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; cursor: help;" title="AI Ovoz tahlili: Zuhra opa! O'xshashlik: ${conf}%${segs}">
+            <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+            <span>Zuhra: ${conf}%</span>
+        </span>`;
+    }
+    if (va.speaker === 'muattar') {
+        return `<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px; font-weight: 600; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px; border-radius: 6px; cursor: help;" title="AI Ovoz tahlili: Muattar (operator ovozi tasdiqlandi)">
+            <svg class="isax isax-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 12px; height: 12px;"><path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>
+            <span>Muattar</span>
+        </span>`;
+    }
     return '';
 }
 
@@ -6991,8 +6980,9 @@ function applyHistoryFilters() {
     const clearBtn = document.getElementById('btnClearHistoryFilters');
     if (clearBtn) clearBtn.style.display = hasFilter ? 'inline-flex' : 'none';
 
-    // Agar foydalanuvchi Transfer ni tanlasa, avtomatik Server CDR ga o'tkazamiz
-    if (dirVal === 'transfer' && historyDataSource !== 'server') {
+    // Agar foydalanuvchi Transfer yoki Zuhra opa (AI ovoz) ni tanlasa, avtomatik Server CDR ga o'tkazamiz
+    // Chunki transfer va AI ovoz tahlillari to'liq server CDR bazasida mavjud
+    if ((dirVal === 'transfer' || speakerVal === 'zuhra') && historyDataSource !== 'server') {
         setHistorySource('server');
         return;
     }
@@ -7029,6 +7019,12 @@ function applyHistoryFilters() {
             if (dirVal === 'transfer' && !isXfer) return false;
             if (dirVal === 'inbound' && (isOut || isXfer)) return false;
             if (dirVal === 'outbound' && (!isOut || isXfer)) return false;
+        }
+        // Ovoz (Speaker) filtri
+        if (speakerVal !== 'all') {
+            const va = item.voiceAnalysis;
+            if (speakerVal === 'zuhra' && (!va || va.speaker !== 'zuhra')) return false;
+            if (speakerVal === 'muattar' && va && va.speaker !== 'muattar') return false;
         }
         return true;
     });
@@ -7804,7 +7800,7 @@ function renderAgentHistoryTable(data) {
             rowClass += ' xfer';
         }
 
-        const uniqueRowKey = safeJsArg(`agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || index}`);
+        const uniqueRowKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.event_time || index}`;
         const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
         const isChecked = selectedHistoryKeys.has(uniqueRowKey);
         if (isChecked) rowClass += ' row-selected';
@@ -7847,8 +7843,8 @@ function renderAgentHistoryTable(data) {
         // --- Audio / Amal ustuni ---
         const isConnectedOut = isOut && durSec > 0;
         const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-        const safeRec = safeJsArg(item.recording || '');
-        const safeCaller = safeJsArg(item.caller_id || '');
+        const safeRec = (item.recording || '').replace(/'/g, "\\'");
+        const safeCaller = (item.caller_id || '').replace(/'/g, "\\'");
         const callKey = `${item.caller_id || ''}_${durSec}`;
         const isThisPlaying = currentlyPlayingCallKey === callKey;
         const isThisPaused = pausedCallKey === callKey;
@@ -7893,7 +7889,7 @@ function renderAgentHistoryTable(data) {
             `;
         }
 
-        const callerKey = safeJsArg(`agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`);
+        const callerKey = `agent_${item.id || ''}_${item.caller_id || ''}_${item.time || item.event_time || index}`;
         const isExpCaller = isCallerExpanded(callerKey);
         const dirIcon = isOut ? '↗' : '↙';
         const dirClass = isOut ? 'out' : 'in';
@@ -7914,7 +7910,7 @@ function renderAgentHistoryTable(data) {
         }
 
         const hostDisplay = item.hostname
-            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${escapeHtml(item.hostname)}</span>`
+            ? `<span style="display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: #93c5fd;">💻 ${item.hostname}</span>`
             : `<span style="color: var(--mute, #8d9bb0);">Desktop</span>`;
 
         return `
@@ -7964,7 +7960,7 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
     }
     if (isLiveNew) rowClass += ' live-call-new-row';
 
-    const uniqueRowKey = safeJsArg(item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0))));
+    const uniqueRowKey = item.uniqueid || (item.recording || (item.callerId + '_' + (item.time || '') + '_' + (item.duration || 0)));
     const safeKey = String(uniqueRowKey).replace(/'/g, "\\'");
     const isChecked = selectedHistoryKeys.has(uniqueRowKey);
     if (isChecked) rowClass += ' row-selected';
@@ -8016,8 +8012,8 @@ function renderServerHistoryRowHtml(item, rowNum, isLiveNew = false) {
 
     // --- Audio / Amal ustuni ---
     const hasAudio = ((isAns || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-    const safeRec = safeJsArg(item.recording || '');
-    const safeCaller = safeJsArg(item.callerId || '');
+    const safeRec = (item.recording || '').replace(/'/g, "\\'");
+    const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
     const timeVal = item.time || '';
     const callKey = `${item.callerId || ''}_${durSec}`;
     const isThisPlaying = currentlyPlayingCallKey === callKey;
@@ -9960,8 +9956,8 @@ function renderDashboardRecentTable(data, hasActiveFilter = false, totalFiltered
             // Audio Actions
             const isConnectedOut = isOut && durSec > 0;
             const hasAudio = ((item.status === 'ANSWERED' || isConnectedOut) && durSec > 0) || Boolean(item.recording);
-            const safeRec = safeJsArg(item.recording || '');
-            const safeCaller = safeJsArg(item.callerId || '');
+            const safeRec = (item.recording || '').replace(/'/g, "\\'");
+            const safeCaller = (item.callerId || '').replace(/'/g, "\\'");
             const callKey = `${item.callerId || ''}_${durSec}`;
             const isThisPlaying = typeof currentlyPlayingCallKey !== 'undefined' && currentlyPlayingCallKey === callKey;
             const isThisPaused = typeof pausedCallKey !== 'undefined' && pausedCallKey === callKey;
@@ -10895,13 +10891,13 @@ async function loadAgentLogs(page = 1) {
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
                             <span class="phone-icon">${isax('call')}</span>
-                            <span>${r.caller_id ? escapeHtml(r.caller_id) : t('logs_hidden_caller', 'Yashirin')}</span>
+                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
                     <td style="white-space: nowrap; font-weight: 600;">${durFormatted}</td>
-                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${escapeHtml(r.hostname || '-')}</td>
-                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${escapeHtml(r.details || '-')}</td>
+                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${r.hostname || '-'}</td>
+                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${r.details || '-'}</td>
                 </tr>
             `;
         }).join('');
@@ -11855,13 +11851,13 @@ async function loadTabOperatorLogs(opId, page = 1) {
                     <td style="white-space: nowrap;">
                         <div class="phone-cell">
                             <span class="phone-icon">${isax('call')}</span>
-                            <span>${r.caller_id ? escapeHtml(r.caller_id) : t('logs_hidden_caller', 'Yashirin')}</span>
+                            <span>${r.caller_id || t('logs_hidden_caller', 'Yashirin')}</span>
                         </div>
                     </td>
                     <td style="white-space: nowrap;">${typeBadge}</td>
                     <td style="white-space: nowrap; font-weight: 600;">${durFormatted}</td>
-                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${escapeHtml(r.hostname || '-')}</td>
-                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${escapeHtml(r.details || '-')}</td>
+                    <td style="color: var(--text-dim); font-size: 12px; white-space: nowrap;">💻 ${r.hostname || '-'}</td>
+                    <td style="color: var(--text-muted); font-size: 11px; white-space: nowrap;">${r.details || '-'}</td>
                 </tr>
             `;
         }).join('');
@@ -14458,21 +14454,20 @@ async function loadSessionsList() {
         if (data && data.success && Array.isArray(data.sessions) && data.sessions.length > 0) {
             let html = '';
             data.sessions.forEach(s => {
-                const opName = (s.operator && s.operator.name) ? `<span style="color: #38bdf8; font-weight: 600;">${escapeHtml(s.operator.name)}</span>` : '<span style="color: #94a3b8;">Administrator</span>';
-                const tokenMasked = s.tokenPreview ? escapeHtml(s.tokenPreview) : '-';
-                const safeSessionId = String(s.id || '').replace(/[^a-f0-9]/g, '');
+                const opName = (s.operator && s.operator.name) ? `<span style="color: #38bdf8; font-weight: 600;">${s.operator.name}</span>` : '<span style="color: #94a3b8;">Administrator</span>';
+                const tokenMasked = s.token ? `${s.token.slice(0, 8)}...${s.token.slice(-6)}` : '-';
                 const createdTime = s.createdAt ? new Date(s.createdAt).toLocaleTimeString('uz-UZ') : '-';
 
                 const actionHtml = s.isCurrent
                     ? '<span style="color: #34d399; font-size: 11.5px; font-weight: 600;">(Siz)</span>'
-                    : `<button type="button" class="btn-action" onclick="revokeSession('${safeSessionId}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
+                    : `<button type="button" class="btn-action" onclick="revokeSession('${s.token}')" style="padding: 4px 8px; font-size: 11px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; cursor: pointer;">Chiqarish</button>`;
 
                 html += `
                     <tr>
-                        <td style="font-weight: 600; color: #f1f5f9;">${escapeHtml(s.username)} <div style="font-size: 11px;">${opName}</div></td>
-                        <td style="font-family: monospace; color: #a5b4fc;">${escapeHtml(s.ip || '-')}</td>
+                        <td style="font-weight: 600; color: #f1f5f9;">${s.username} <div style="font-size: 11px;">${opName}</div></td>
+                        <td style="font-family: monospace; color: #a5b4fc;">${s.ip || '-'}</td>
                         <td style="font-family: monospace; font-size: 11.5px; color: #94a3b8;">${tokenMasked}</td>
-                        <td style="font-size: 11.5px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(s.userAgent || '')}">${escapeHtml(s.userAgent || '-')}</td>
+                        <td style="font-size: 11.5px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${s.userAgent || ''}">${s.userAgent || '-'}</td>
                         <td style="font-size: 12px; color: #94a3b8;">${createdTime}</td>
                         <td style="text-align: right;">${actionHtml}</td>
                     </tr>
@@ -14488,10 +14483,10 @@ async function loadSessionsList() {
 }
 window.loadSessionsList = loadSessionsList;
 
-async function revokeSession(sessionId) {
+async function revokeSession(token) {
     if (!confirm('Ushbu sessiyani to\'xtatishni (foydalanuvchini chiqarib yuborishni) xohlaysizmi?')) return;
     try {
-        const res = await fetch(`/api/settings/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/settings/sessions/${encodeURIComponent(token)}`, { method: 'DELETE' });
         const data = await res.json();
         if (data && data.success) {
             loadSessionsList();
@@ -15930,10 +15925,6 @@ function renderTopicCharts(summaryData, trendData) {
 
     if (typeof Highcharts !== 'undefined') {
         try {
-            if (chartTopicDistInstance) {
-                try { chartTopicDistInstance.destroy(); } catch (_) {}
-                chartTopicDistInstance = null;
-            }
             chartTopicDistInstance = Highcharts.chart('chartTopicDistribution', {
                 chart: {
                     type: 'pie',
@@ -16025,10 +16016,6 @@ function renderTopicCharts(summaryData, trendData) {
             const seriesOther = timelineList.map(item => item.topics?.other || item.other || 0);
 
             const trendType = (typeof currentTrendChartType !== 'undefined' && currentTrendChartType) ? currentTrendChartType : 'areaspline';
-            if (chartTopicTrendInstance) {
-                try { chartTopicTrendInstance.destroy(); } catch (_) {}
-                chartTopicTrendInstance = null;
-            }
             chartTopicTrendInstance = Highcharts.chart('chartTopicTrend', {
                 chart: {
                     type: trendType,
@@ -16660,16 +16647,16 @@ function renderSecurityEvents(events, jailedIps) {
             : '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border-radius: 6px; padding: 2px 7px; font-size: 11px;">' + ev.status + '</span>';
 
         const unjailBtn = isJailed
-            ? '<button type="button" onclick="unjailSecurityIp(\'' + safeJsArg(ev.ip) + '\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Qamoqdan olish</button>'
+            ? '<button type="button" onclick="unjailSecurityIp(\'' + ev.ip + '\')" style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); color: #38bdf8; border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;">Qamoqdan olish</button>'
             : '<span style="color: #64748b; font-size: 11px;">-</span>';
 
         html += `
             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                <td style="padding: 8px 10px; font-family: monospace; color: #94a3b8;">${escapeHtml(ev.time)}</td>
-                <td style="padding: 8px 10px; font-family: monospace; font-weight: 600; color: #f8fafc;">${escapeHtml(ev.ip)}</td>
-                <td style="padding: 8px 10px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(ev.path)}</td>
+                <td style="padding: 8px 10px; font-family: monospace; color: #94a3b8;">${ev.time}</td>
+                <td style="padding: 8px 10px; font-family: monospace; font-weight: 600; color: #f8fafc;">${ev.ip}</td>
+                <td style="padding: 8px 10px; color: #cbd5e1; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ev.path}</td>
                 <td style="padding: 8px 10px;">${statusBadge}</td>
-                <td style="padding: 8px 10px; color: #94a3b8; font-size: 11.5px;">${escapeHtml(ev.details || '-')}</td>
+                <td style="padding: 8px 10px; color: #94a3b8; font-size: 11.5px;">${ev.details || '-'}</td>
                 <td style="padding: 8px 10px; text-align: right;">${unjailBtn}</td>
             </tr>
         `;

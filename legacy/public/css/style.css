@@ -7968,8 +7968,8 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-panel#callbacksPanel {
     background: rgba(15, 23, 42, 0.65) !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px !important;
-    padding: 10px 10px !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
     margin-bottom: 10px !important;
     backdrop-filter: blur(12px);
 }
@@ -7979,16 +7979,16 @@ body.sidebar-collapsed .page-elevator-btn {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px !important;
+    margin-bottom: 14px !important;
     padding: 0 2px !important;
 }
 
 .cc-panel#activeConversationsPanel .cc-panel-title,
 .cc-panel#callbacksPanel .cc-panel-title {
     margin: 0;
-    font-size: 14.5px;
-    font-weight: 600;
-    color: #f8fafc;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #f8fafc !important;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -7996,14 +7996,14 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 .cc-panel#activeConversationsPanel .cnt {
-    background: rgba(34, 197, 94, 0.16);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    font-size: 11px;
-    font-weight: 600;
-    border-radius: 9999px;
-    padding: 2px 9px;
-    line-height: 1.2;
+    background: rgba(52, 211, 153, 0.12) !important;
+    color: #34d399 !important;
+    border: none !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border-radius: 99px !important;
+    padding: 2px 10px !important;
+    line-height: 1.4 !important;
 }
 
 /* ==========================================================================
@@ -8012,9 +8012,9 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-call {
     display: block !important;
     border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    border-radius: 9px !important;
+    border-radius: 12px !important;
     background: #1a2538 !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 8px !important;
     overflow: hidden !important;
     transition: border-color 0.2s ease, background 0.2s ease !important;
     width: 100% !important;
@@ -8034,8 +8034,8 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-call-main {
     display: flex !important;
     align-items: center !important;
-    gap: 9px !important;
-    padding: 7px 9px !important;
+    gap: 12px !important;
+    padding: 10px 12px !important;
     cursor: pointer !important;
     user-select: none !important;
     transition: background 0.15s ease !important;
@@ -8069,21 +8069,23 @@ body.sidebar-collapsed .page-elevator-btn {
     }
 }
 
-.cc-call-icon {
-    width: 32px !important;
-    height: 32px !important;
-    min-width: 32px !important;
-    border-radius: 8px !important;
+.cc-call-icon,
+.cc-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    border-radius: 10px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     flex: none !important;
     background: rgba(52, 211, 153, 0.12) !important;
     color: #34d399 !important;
 }
 
-.cc-call-icon.outbound {
+.cc-call-icon.outbound,
+.cc-icon.out {
     background: rgba(96, 165, 250, 0.14) !important;
     color: #60a5fa !important;
 }
@@ -8094,9 +8096,10 @@ body.sidebar-collapsed .page-elevator-btn {
     animation: pulseRing 1.5s infinite !important;
 }
 
-.cc-call-icon svg {
-    width: 16px !important;
-    height: 16px !important;
+.cc-call-icon svg,
+.cc-icon svg {
+    width: 18px !important;
+    height: 18px !important;
 }
 
 @keyframes pulseRing {
@@ -8123,7 +8126,7 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-top {
     display: flex !important;
     justify-content: space-between !important;
-    align-items: center !important;
+    align-items: baseline !important;
     gap: 8px !important;
     min-width: 0 !important;
 }
@@ -8132,7 +8135,7 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-num {
     font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
     font-weight: 600 !important;
-    font-size: 13.5px !important;
+    font-size: 15px !important;
     color: #f1f5f9 !important;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.15px;
@@ -8142,14 +8145,13 @@ body.sidebar-collapsed .page-elevator-btn {
     text-overflow: ellipsis !important;
     min-width: 0 !important;
     flex-shrink: 0;
-    max-width: 160px;
 }
 
 .cc-call-info .cc-agent-sub,
 .cc-op {
     font-family: var(--font-sans, "Inter", system-ui, sans-serif) !important;
     color: #94a3b8 !important;
-    font-size: 11.5px !important;
+    font-size: 12px !important;
     font-weight: 400;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -8163,21 +8165,22 @@ body.sidebar-collapsed .page-elevator-btn {
 .cc-tags {
     display: flex !important;
     align-items: center !important;
-    gap: 5px !important;
-    margin-top: 3px !important;
+    gap: 6px !important;
+    margin-top: 6px !important;
     min-width: 0 !important;
 }
 
 .cc-tag {
-    font-size: 10.5px !important;
-    padding: 1.5px 6px !important;
-    border-radius: 5px !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
     background: rgba(96, 165, 250, 0.14) !important;
     color: #60a5fa !important;
     line-height: 1.3 !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 3px !important;
+    gap: 5px !important;
+    border: none !important;
 }
 
 .cc-tag.time {
@@ -8186,8 +8189,16 @@ body.sidebar-collapsed .page-elevator-btn {
 }
 
 .cc-op-sim-badge {
-    min-width: 58px;
-    justify-content: center;
+    background: rgba(96, 165, 250, 0.14) !important;
+    color: #60a5fa !important;
+    border: none !important;
+    font-size: 11px !important;
+    padding: 2px 8px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: auto !important;
 }
 
 .cc-live-duration-wrap {
@@ -8236,13 +8247,13 @@ body.sidebar-collapsed .page-elevator-btn {
     gap: 8px !important;
     padding: 0 12px !important;
     border-top: 1px solid transparent !important;
-    transition: padding 0.25s ease, border-color 0.25s ease !important;
+    transition: padding 0.25s ease, border-top-color 0.25s ease !important;
 }
 
 .cc-call.open .cc-actions-inner {
-    padding: 7px 9px !important;
+    padding: 10px 12px !important;
     border-top-color: rgba(255, 255, 255, 0.08) !important;
-    gap: 6px !important;
+    gap: 8px !important;
 }
 
 .cc-btn {
@@ -8250,11 +8261,11 @@ body.sidebar-collapsed .page-elevator-btn {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 5px !important;
-    padding: 6px 8px !important;
-    border-radius: 7px !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
     border: 1px solid transparent !important;
-    font-size: 12px !important;
+    font-size: 13px !important;
     font-family: inherit !important;
     font-weight: 500 !important;
     cursor: pointer !important;
