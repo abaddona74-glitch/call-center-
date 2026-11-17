@@ -94,3 +94,26 @@ describe('parseBusinessDateTime', () => {
     expect(formatBusinessDateTime(new Date('2026-11-17T05:00:00Z'), 'Asia/Tashkent')).toBe('2026-11-17 10:00:00');
   });
 });
+
+describe('owner decision: Mon–Fri 08:00–21:00 Tashkent + holiday list', () => {
+  const owner: WorkingCalendar = { ...cal, holidays: ['2027-01-01', '2027-03-08', '2027-03-21'] };
+
+  it.each([
+    ['2027-01-01T10:00:00', false, 'New Year (Friday) is a holiday'],
+    ['2027-01-04T10:00:00', true, 'next Monday is working'],
+    ['2027-03-08T09:00:00', false, "Women's Day (Monday)"],
+    ['2027-03-21T12:00:00', false, 'Navruz on a Sunday stays closed'],
+    ['2027-03-20T12:00:00', false, 'Saturday'],
+    ['2027-03-19T20:59:00', true, 'Friday just before closing'],
+    ['2027-03-19T21:00:00', false, 'Friday at closing time'],
+  ])('%s → %s (%s)', (local, expected) => {
+    expect(isWorkingTime(tashkent(local), owner)).toBe(expected);
+  });
+
+  it('a holiday is matched by the Tashkent date, not the UTC date', () => {
+    // 2027-01-01 00:30 Tashkent = 2026-12-31 19:30 UTC: still the holiday in Tashkent.
+    expect(isWorkingTime(new Date('2026-12-31T19:30:00Z'), { ...owner, workStart: '00:00' })).toBe(false);
+    // 2026-12-31 08:30 Tashkent is a normal Thursday.
+    expect(isWorkingTime(new Date('2026-12-31T03:30:00Z'), owner)).toBe(true);
+  });
+});

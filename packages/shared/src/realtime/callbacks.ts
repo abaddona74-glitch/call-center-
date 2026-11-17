@@ -1,8 +1,7 @@
-import type { AgentStatus, AgentUpdateLog } from '../agent.js';
 import type { Callback } from '../callbacks.js';
 
 /**
- * Server → client events of the callbacks / contacts / blacklist / agent slice (session S4).
+ * Server → client events of the callbacks / contacts / blacklist slice (session S4).
  * Contacts and blacklist events carry no data: clients refetch over REST, where permissions
  * are checked (contacts are hidden from some operator groups).
  */
@@ -13,8 +12,4 @@ export interface CallbacksServerEvents {
   'contacts.changed': { at: string };
   /** Admin only. */
   'blacklist.changed': { at: string };
-  /** Admin only: an agent came online / went offline / reported a new version. */
-  'agents.status': AgentStatus;
-  /** Admin only: an agent reported an OTA update step. */
-  'agents.updateLog': AgentUpdateLog;
 }

@@ -2,6 +2,8 @@ import {
   CallbackListResponseSchema,
   type CallbackListQueryInput,
   CallbackSchema,
+  type CallbackSettings,
+  CallbackSettingsSchema,
   CallbackSyncResultSchema,
   DismissAllCallbacksResponseSchema,
 } from '@cc/shared';
@@ -11,7 +13,18 @@ import { api } from '@/shared/api';
 export const callbackKeys = {
   all: ['callbacks'] as const,
   list: (q: CallbackListQueryInput) => ['callbacks', 'list', q] as const,
+  settings: ['callbacks', 'settings'] as const,
 };
+
+/** Working calendar + resolution threshold (admin). */
+export const callbackSettingsQuery = queryOptions({
+  queryKey: callbackKeys.settings,
+  queryFn: ({ signal }) => api('/callbacks/settings', { schema: CallbackSettingsSchema, signal }),
+});
+
+export function saveCallbackSettings(body: CallbackSettings) {
+  return api('/callbacks/settings', { method: 'PUT', body, schema: CallbackSettingsSchema });
+}
 
 export function callbacksQuery(q: CallbackListQueryInput) {
   return queryOptions({

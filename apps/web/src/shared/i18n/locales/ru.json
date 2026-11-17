@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "clients": "Клиенты", "blacklist": "Чёрный список", "agents": "3CX агенты" },
+  "nav": { "dashboard": "Главная", "settings": "Настройки", "clients": "Клиенты", "blacklist": "Чёрный список", "agents": "3CX агенты", "callbackSettings": "Рабочее время" },
   "auth": {
     "username": "Логин",
     "password": "Пароль",

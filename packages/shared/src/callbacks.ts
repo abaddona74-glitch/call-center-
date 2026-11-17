@@ -227,7 +227,12 @@ export const CallbackSettingsSchema = z
     workEnd: HhMmSchema,
     /** Non-working dates (public holidays). */
     holidays: z
-      .array(IsoDateSchema)
+      .array(
+        IsoDateSchema.refine((d) => {
+          const t = new Date(`${d}T00:00:00Z`);
+          return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d);
+        }, 'Not a real calendar date'),
+      )
       .max(400)
       .refine((d) => new Set(d).size === d.length, 'Duplicate holiday'),
     /** A conversation shorter than this does not resolve a callback. */

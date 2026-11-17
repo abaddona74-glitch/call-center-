@@ -1,5 +1,13 @@
 import type { Role } from '@cc/shared';
-import { LayoutDashboard, type LucideIcon, MonitorSmartphone, Settings, ShieldBan, Users } from 'lucide-react';
+import {
+  CalendarClock,
+  LayoutDashboard,
+  type LucideIcon,
+  MonitorSmartphone,
+  Settings,
+  ShieldBan,
+  Users,
+} from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -19,5 +27,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/clients', label: 'nav.clients', icon: Users, minRole: 'operator' },
   { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
   { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, minRole: 'admin' },
+  { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, minRole: 'admin' },
   { to: '/settings/agents', label: 'nav.agents', icon: MonitorSmartphone, minRole: 'admin' },
 ];
