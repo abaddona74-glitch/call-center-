@@ -123,7 +123,10 @@ export function DirectionMark({ call }: { call: Pick<CallListItem, 'direction' |
   };
   const glyph = kind === 'outbound' ? '↗' : kind === 'transfer' ? '⇄' : kind === 'internal' ? '↔' : '↙';
   return (
-    <span className={cn('inline-flex size-5 items-center justify-center rounded text-xs', styles[kind])} title={t(`direction.${kind}`)}>
+    <span
+      className={cn('inline-flex size-5 items-center justify-center rounded text-xs', styles[kind])}
+      title={t(`direction.${kind}`)}
+    >
       {glyph}
     </span>
   );

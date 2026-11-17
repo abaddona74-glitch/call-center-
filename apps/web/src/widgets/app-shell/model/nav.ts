@@ -1,5 +1,5 @@
 import type { Role } from '@cc/shared';
-import { LayoutDashboard, type LucideIcon, Settings } from 'lucide-react';
+import { ChartColumn, History, LayoutDashboard, type LucideIcon, Settings } from 'lucide-react';
 
 export interface NavItem {
   to: string;
@@ -16,5 +16,7 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, minRole: 'operator' },
+  { to: '/history', label: 'nav.history', icon: History, minRole: 'admin' },
+  { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, minRole: 'admin' },
   { to: '/settings', label: 'nav.settings', icon: Settings, minRole: 'admin' },
 ];

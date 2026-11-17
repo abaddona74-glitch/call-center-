@@ -3,7 +3,11 @@ import { cn } from '@/shared/lib/cn';
 import { Icon } from './icon';
 
 /** Legacy `.search-box`: magnifier on the left, dark input. */
-export function SearchBox({ className, inputClassName, ...props }: React.ComponentProps<'input'> & { inputClassName?: string }) {
+export function SearchBox({
+  className,
+  inputClassName,
+  ...props
+}: React.ComponentProps<'input'> & { inputClassName?: string }) {
   return (
     <div className={cn('relative min-w-[240px]', className)}>
       <span className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground/70">

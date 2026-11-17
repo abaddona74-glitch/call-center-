@@ -36,12 +36,21 @@ export function Pagination({
     <div className={cn('mt-4 flex flex-wrap items-center justify-between gap-3 px-1', className)}>
       <div className="text-xs text-muted-foreground">{summary}</div>
       <nav className="inline-flex flex-wrap items-center gap-1.5" aria-label="Pagination">
-        <button type="button" className={btn} disabled={page <= 1} onClick={() => onPageChange(page - 1)} aria-label="Previous">
+        <button
+          type="button"
+          className={btn}
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous"
+        >
           <Icon name="arrow-left" className="size-3.5" />
         </button>
         {pageItems(page, totalPages).map((item, i) =>
           item === 'gap' ? (
-            <span key={`gap-${i}`} className="inline-flex h-8 min-w-6 items-center justify-center text-xs font-bold tracking-[1.5px] text-muted-foreground/70">
+            <span
+              key={`gap-${i}`}
+              className="inline-flex h-8 min-w-6 items-center justify-center text-xs font-bold tracking-[1.5px] text-muted-foreground/70"
+            >
               …
             </span>
           ) : (
@@ -60,7 +69,13 @@ export function Pagination({
             </button>
           ),
         )}
-        <button type="button" className={btn} disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} aria-label="Next">
+        <button
+          type="button"
+          className={btn}
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next"
+        >
           <Icon name="arrow-right" className="size-3.5" />
         </button>
       </nav>
