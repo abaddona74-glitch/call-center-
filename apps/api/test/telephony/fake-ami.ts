@@ -14,6 +14,8 @@ export interface FakeAmiOptions {
  */
 export class FakeAmi {
   readonly actions: AmiMessage[] = [];
+  /** Login attempts (to check e.g. `Events: off`). */
+  readonly logins: AmiMessage[] = [];
   private server: Server | null = null;
   private sockets = new Set<Socket>();
   /** Per-action override: return an error message to fail it. */
@@ -68,6 +70,7 @@ export class FakeAmi {
     const reply = (f: Record<string, string>) => socket.write(serialize({ ...f, ActionID: id }));
     const action = (msg.action ?? '').toLowerCase();
     if (action === 'login') {
+      this.logins.push(msg);
       const ok = msg.username === this.opts.username && msg.secret === this.opts.secret;
       socket.loggedIn = ok;
       return reply(

@@ -171,16 +171,36 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
   private async resync(full: boolean): Promise<void> {
     if (!this.ami.connected || this.resyncing) return;
     this.resyncing = true;
+    // Each poll is independent: a user without the privilege for one action (e.g. PJSIPShowEndpoints
+    // needs `system`, see modules/ami/README.md) must not block the others.
+    const step = async <T>(name: string, run: () => Promise<T>, apply: (v: T) => void) => {
+      try {
+        apply(await run());
+      } catch (err) {
+        this.logger.warn(`AMI resync: ${name} failed: ${(err as Error).message}`);
+      }
+    };
     try {
-      const [peers, queues] = await Promise.all([this.ami.peers(), this.ami.queueStatus()]);
-      this.store.applyPeers(peers, Date.now());
-      this.store.applyQueueStatus(queues, Date.now());
+      await Promise.all([
+        step(
+          'peers',
+          () => this.ami.peers(),
+          (v) => this.store.applyPeers(v, Date.now()),
+        ),
+        step(
+          'QueueStatus',
+          () => this.ami.queueStatus(),
+          (v) => this.store.applyQueueStatus(v, Date.now()),
+        ),
+      ]);
       if (full || this.pollTick++ % 4 === 0) {
-        this.store.resyncChannels(await this.ami.coreShowChannels(), Date.now());
+        await step(
+          'CoreShowChannels',
+          () => this.ami.coreShowChannels(),
+          (v) => this.store.resyncChannels(v, Date.now()),
+        );
       }
       this.flush();
-    } catch (err) {
-      this.logger.warn(`AMI resync failed: ${(err as Error).message}`);
     } finally {
       this.resyncing = false;
     }

@@ -27,14 +27,18 @@ type Listener<T extends unknown[]> = (...args: T) => void;
 
 /**
  * Nest wrapper around AmiClient: lifecycle from config, typed commands with input validation,
- * mapping of AMI failures to HTTP errors. Provides the `AMI_COMMANDS` port (see ami.module.ts).
+ * mapping of AMI failures to HTTP errors. `commands` is the `AMI_COMMANDS` port (see ami.module.ts).
+ *
+ * Two connections when AMI_ASTDB_USER is set (production, see README.md): the main user receives
+ * events and runs call actions; the AstDB user (write=system, events off) only runs DBPut/DBDel/DBGet.
  *
  * When AMI_* is not configured the service stays `disabled` and every command answers 503.
  */
 @Injectable()
-export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplicationShutdown {
+export class AmiService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(AmiService.name);
   private readonly client: AmiClient | null;
+  private readonly astdb: AmiClient | null = null;
   private readonly eventListeners = new Set<Listener<[AmiMessage]>>();
   private readonly stateListeners = new Set<Listener<[AmiStatus]>>();
 
@@ -66,7 +70,36 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
       const status = this.status();
       for (const l of this.stateListeners) l(status);
     });
+
+    const astdbUser = config.get('AMI_ASTDB_USER');
+    const astdbSecret = config.get('AMI_ASTDB_PASSWORD');
+    if (astdbUser && astdbSecret) {
+      this.astdb = new AmiClient({
+        host: config.get('AMI_HOST')!,
+        port: config.get('AMI_PORT'),
+        username: astdbUser,
+        secret: astdbSecret,
+        events: false,
+        pingIntervalMs: config.get('AMI_PING_INTERVAL_SEC') * 1000,
+        log: (level, message) => this.logger[level](`[astdb] ${message}`),
+      });
+      this.astdb.on('state', (state) => {
+        if (state === 'connected') this.logger.log('AMI AstDB connection ready');
+      });
+    }
   }
+
+  /** The `AMI_COMMANDS` port for other modules (blacklist): AstDB + queue pause. */
+  readonly commands: AmiCommands = Object.defineProperty(
+    {
+      dbPut: (family: string, key: string, value: string) => this.dbPut(family, key, value),
+      dbDel: (family: string, key: string) => this.dbDel(family, key),
+      dbGet: (family: string, key: string) => this.dbGet(family, key),
+      queuePause: (params: Parameters<AmiCommands['queuePause']>[0]) => this.queuePause(params),
+    },
+    'connected',
+    { get: () => this.commandsConnected, enumerable: true },
+  ) as AmiCommands;
 
   onApplicationBootstrap(): void {
     if (!this.client) {
@@ -74,18 +107,25 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
       return;
     }
     this.client.start();
+    this.astdb?.start();
   }
 
   async onApplicationShutdown(): Promise<void> {
-    await this.client?.stop();
+    await Promise.all([this.client?.stop(), this.astdb?.stop()]);
   }
 
   get enabled(): boolean {
     return this.client !== null;
   }
 
+  /** Main connection (events, call actions). */
   get connected(): boolean {
     return this.client?.connected ?? false;
+  }
+
+  /** Everything the AMI_COMMANDS port needs is connected (main + AstDB user if separate). */
+  get commandsConnected(): boolean {
+    return this.connected && (this.astdb ? this.astdb.connected : true);
   }
 
   status(): AmiStatus {
@@ -115,14 +155,14 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
     this.check(ASTDB_FAMILY, 'family', family);
     this.check(ASTDB_KEY, 'key', key);
     this.safe('value', value, 255);
-    await this.send('DBPut', { Family: family, Key: key, Val: value });
+    await this.send('DBPut', { Family: family, Key: key, Val: value }, undefined, this.astdb);
   }
 
   async dbDel(family: string, key: string): Promise<void> {
     this.check(ASTDB_FAMILY, 'family', family);
     this.check(ASTDB_KEY, 'key', key);
     try {
-      await this.send('DBDel', { Family: family, Key: key });
+      await this.send('DBDel', { Family: family, Key: key }, undefined, this.astdb);
     } catch (err) {
       // Deleting a missing key is not an error for callers.
       if (err instanceof BadGatewayException && /not found|failed to delete/i.test(err.message)) return;
@@ -139,6 +179,7 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
         { Family: family, Key: key },
         // Asterisk 13+ ends the list with DBGetComplete; older versions send only DBGetResponse.
         { list: true, until: (e) => e.event === 'DBGetResponse' || e.event === 'DBGetComplete' },
+        this.astdb,
       );
       const hit = res.events.find((e) => e.event === 'DBGetResponse');
       return hit?.val ?? null;
@@ -223,15 +264,18 @@ export class AmiService implements AmiCommands, OnApplicationBootstrap, OnApplic
 
   // --- internals ------------------------------------------------------------------------------
 
+  /** `via`: a dedicated connection (AstDB user) if configured, otherwise the main one. */
   private async send(
     action: string,
     fields: Record<string, AmiFieldValue>,
     opts?: ActionOptions,
+    via?: AmiClient | null,
   ): Promise<AmiResponse> {
     if (!this.client) throw new ServiceUnavailableException('AMI is not configured');
-    if (!this.client.connected) throw new ServiceUnavailableException('AMI is not connected');
+    const client = via ?? this.client;
+    if (!client.connected) throw new ServiceUnavailableException('AMI is not connected');
     try {
-      return await this.client.action(action, fields, opts);
+      return await client.action(action, fields, opts);
     } catch (err) {
       if (err instanceof AmiHeaderInjectionError) throw new BadRequestException(err.message);
       if (err instanceof AmiError) {

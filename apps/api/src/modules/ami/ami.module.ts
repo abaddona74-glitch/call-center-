@@ -11,7 +11,10 @@ import { AmiService } from './ami.service.js';
 @Global()
 @Module({
   controllers: [AmiController],
-  providers: [AmiService, { provide: AMI_COMMANDS, useExisting: AmiService }],
+  providers: [
+    AmiService,
+    { provide: AMI_COMMANDS, inject: [AmiService], useFactory: (ami: AmiService) => ami.commands },
+  ],
   exports: [AmiService, AMI_COMMANDS],
 })
 export class AmiModule {}

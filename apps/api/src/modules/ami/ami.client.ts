@@ -16,6 +16,8 @@ export interface AmiClientOptions {
   reconnectMaxMs?: number;
   /** After "Authentication failed" — don't hammer the PBX (account lockouts, log noise). */
   authFailedRetryMs?: number;
+  /** Receive events (default). A commands-only connection logs in with `Events: off`. */
+  events?: boolean;
   log?: (level: 'debug' | 'log' | 'warn' | 'error', message: string) => void;
 }
 
@@ -93,6 +95,7 @@ export class AmiClient extends EventEmitter<ClientEvents> {
       reconnectMinMs: 1_000,
       reconnectMaxMs: 30_000,
       authFailedRetryMs: 60_000,
+      events: true,
       ...options,
     };
   }
@@ -201,7 +204,11 @@ export class AmiClient extends EventEmitter<ClientEvents> {
     this.log('debug', `connected: ${this.parser.banner}`);
     const id = `cc-${++this.seq}`;
     this.loginId = id;
-    const frame = serializeAction('Login', id, { Username: this.o.username, Secret: this.o.secret, Events: 'on' });
+    const frame = serializeAction('Login', id, {
+      Username: this.o.username,
+      Secret: this.o.secret,
+      Events: this.o.events === false ? 'off' : 'on',
+    });
     const timer = setTimeout(() => {
       this.pending.delete(id);
       this._lastError = 'login timed out';

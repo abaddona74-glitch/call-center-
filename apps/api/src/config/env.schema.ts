@@ -45,6 +45,12 @@ export const EnvSchema = z.object({
   AMI_PORT: z.coerce.number().int().positive().default(5038),
   AMI_USER: z.string().optional(),
   AMI_PASSWORD: z.string().optional(),
+  /**
+   * Optional second AMI user only for AstDB (DBPut/DBDel/DBGet — they need write=system), so the
+   * main user never holds `system` together with `originate`. Unset: AstDB goes through AMI_USER.
+   */
+  AMI_ASTDB_USER: z.string().optional(),
+  AMI_ASTDB_PASSWORD: z.string().optional(),
   AMI_PING_INTERVAL_SEC: z.coerce.number().int().min(5).max(300).default(20),
   /** Resync period (QueueStatus + SIPpeers; CoreShowChannels every 4th tick). */
   AMI_POLL_INTERVAL_SEC: z.coerce.number().int().min(5).max(600).default(15),
