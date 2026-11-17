@@ -1,0 +1,46 @@
+import { registerTranslations } from '@/shared/i18n';
+
+registerTranslations('blacklistAdd', {
+  uz: {
+    title: "Yangi raqamni qora ro'yxatga kiritish:",
+    phone: 'Telefon raqam (masalan: 901234567)',
+    note: 'Sababi / Izoh (masalan: Bezori, Spam...)',
+    scope: 'Kimga tushmasin',
+    onlyFor: 'Faqat {{ext}} uchun',
+    global: 'Hamma operatorlar uchun',
+    block: 'Bloklash',
+    adding: "Qo'shilmoqda...",
+    quick: 'Tezkor izohlar:',
+    chips: {
+      bully: { label: 'Bezori', note: 'Bezori / Halovatsiz' },
+      spam: { label: 'Spam', note: 'Spam / Reklama' },
+      dropper: { label: 'Tashlab ketuvchi', note: 'Qayta-qayta tashlab ketuvchi' },
+      wrong: { label: 'Adashgan', note: "Noto'g'ri raqam" },
+    },
+    done: "Raqam muvaffaqiyatli qora ro'yxatga kiritildi!",
+    pending: "Raqam saqlandi, ATSga AMI ulanganda qo'llanadi",
+    invalid: "Iltimos, to'g'ri telefon raqam kiriting!",
+    error: "Raqamni qo'shib bo'lmadi",
+  },
+  ru: {
+    title: 'Добавить номер в чёрный список:',
+    phone: 'Номер телефона (например: 901234567)',
+    note: 'Причина / Заметка (например: хулиган, спам...)',
+    scope: 'Кому не направлять',
+    onlyFor: 'Только для {{ext}}',
+    global: 'Для всех операторов',
+    block: 'Заблокировать',
+    adding: 'Добавление...',
+    quick: 'Быстрые заметки:',
+    chips: {
+      bully: { label: 'Хулиган', note: 'Хулиган / Беспокоит' },
+      spam: { label: 'Спам', note: 'Спам / Реклама' },
+      dropper: { label: 'Бросает трубку', note: 'Постоянно бросает трубку' },
+      wrong: { label: 'Ошибся', note: 'Ошибочный номер' },
+    },
+    done: 'Номер добавлен в чёрный список!',
+    pending: 'Номер сохранён, будет применён на АТС, когда подключится AMI',
+    invalid: 'Введите правильный номер телефона!',
+    error: 'Не удалось добавить номер',
+  },
+});

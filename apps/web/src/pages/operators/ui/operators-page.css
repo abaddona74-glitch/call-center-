@@ -1,0 +1,230 @@
+/* Legacy Operators tab (docs/rewrite/design/admin-10-operators.png). */
+.opp-panel {
+  background: #131d31;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 22px;
+}
+.opp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.opp-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.opp-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.opp-tool[aria-pressed='true'] {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(56, 189, 248, 0.12);
+}
+.opp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+.opp-card {
+  background: #1a2335;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+.opp-card:hover {
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+}
+.opp-card.offline {
+  opacity: 0.75;
+}
+.opp-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.opp-av {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+.opp-card.offline .opp-av {
+  background: #334155;
+  box-shadow: none;
+}
+.opp-who {
+  flex: 1;
+  min-width: 0;
+}
+.opp-who strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opp-who small {
+  font-size: 11px;
+  color: #64748b;
+}
+.opp-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.opp-ext {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.opp-state {
+  font-size: 11px;
+  font-weight: 700;
+}
+.opp-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 14px 0 10px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-weight: 700;
+  font-size: 13px;
+}
+.opp-total b {
+  font-size: 16px;
+}
+.opp-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+.opp-row > span:last-child {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.opp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.opp-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.opp-pill em {
+  font-style: normal;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+.opp-grid.compact .opp-row.extra {
+  display: none;
+}
+.opp-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Rating (legacy stars, medals for the top three, NPC for one star). */
+.opp-stars {
+  color: #fbbf24;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(251, 191, 36, 0.45);
+  cursor: help;
+}
+.opp-medal {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.opp-medal.diamond {
+  background: rgba(0, 242, 254, 0.15);
+  color: #00f2fe;
+}
+.opp-medal.gold {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fbbf24;
+}
+.opp-medal.silver {
+  background: rgba(203, 213, 225, 0.15);
+  color: #cbd5e1;
+}
+.opp-medal.npc {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+.opp-card.mvp-diamond .opp-av {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  box-shadow:
+    0 0 0 2.5px rgba(0, 242, 254, 0.8),
+    0 0 16px rgba(0, 242, 254, 0.45);
+}
+.opp-card.mvp-gold .opp-av {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow:
+    0 0 0 2.5px rgba(251, 191, 36, 0.85),
+    0 0 16px rgba(245, 158, 11, 0.45);
+}
+.opp-card.mvp-silver .opp-av {
+  background: linear-gradient(135deg, #94a3b8, #475569);
+  box-shadow:
+    0 0 0 2.5px rgba(203, 213, 225, 0.8),
+    0 0 14px rgba(148, 163, 184, 0.4);
+}

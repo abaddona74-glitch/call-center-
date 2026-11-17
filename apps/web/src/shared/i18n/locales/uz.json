@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "profile": "Profil" },
+  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "profile": "Profil", "explorer": "Audio Explorer", "tickets": "Ticketlar", "clients": "Mijozlar", "blacklist": "Qora ro'yxat", "callbackSettings": "Ish vaqti", "operators": "Operatorlar", "history": "Qo'ng'iroqlar Tarixi", "statistics": "Statistika" },
   "auth": {
     "username": "Login",
     "password": "Parol",

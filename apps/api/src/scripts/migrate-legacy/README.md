@@ -41,6 +41,7 @@ Skips, warnings and "not implemented" stubs do not affect the exit code, so read
   | File                        | Legacy location            | Mapper                 |
   | --------------------------- | -------------------------- | ---------------------- |
   | `tickets.json`              | `viewer/data/tickets.json` | tickets                |
+  | `ticket-uploads/` (folder)  | `viewer/public/uploads/tickets/*` (copy the files flat) | tickets (attachments; images/PDF/DOCX only, copied to `TICKETS_UPLOAD_DIR`) |
   | `stt_custom_rules.json`     | `data/`                    | transcripts            |
   | `queue-sync-settings.json`  | `data/`                    | settings               |
   | `system_settings.json`      | repo root (not `data/`)    | settings               |
@@ -133,7 +134,6 @@ stay the same, and the deployment keeps the legacy `WEBAUTHN_RP_ID` / `WEBAUTHN_
 | `contacts`               | S4                 | `client_contacts`                                                     | stub                                      |
 | `callbacks`              | S4                 | `pending_callbacks` (all statuses)                                    | stub                                      |
 | `blacklist`              | S4                 | `blacklist` (ext 114 only)                                            | stub                                      |
-| `agent-logs`             | S4                 | `agent_3cx_call_logs`                                                 | stub                                      |
 | `transcripts`            | stage 2 (STT) / S5 | `call_transcriptions`, `stt_learned_rules`, `stt_custom_rules.json`   | stub                                      |
 | `tickets`                | S5                 | `tickets.json` (+ upload files)                                       | stub                                      |
 | `telegram-subscribers`   | stage 2            | `telegram_subscribers.json`                                           | stub                                      |
@@ -145,7 +145,8 @@ missing. Its TODO comment summarises the mapping notes from data.md.
 **Not migrated on purpose** (data.md §5.2 "Drop"): `calls`, `operator_daily_stats`,
 `operator_reject_events`, `operator_missed_events` (check their prod row counts first), `call_topic_analytics`
 (synthetic), `auth_sessions` (users log in again), `auth_lockouts`, `auth_password_resets` and
-`auth_email_verifications`.
+`auth_email_verifications`; `agent_3cx_call_logs` (the 3CX desktop agent is dropped, see
+`docs/rewrite/DECISIONS.md`).
 
 ### Implementing a stub
 

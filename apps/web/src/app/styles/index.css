@@ -27,6 +27,15 @@
   --ring: oklch(0.704 0.04 256.788);
   --success: oklch(0.696 0.17 162.48);
   --warning: oklch(0.769 0.188 70.08);
+  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
+  --chart-1: #6366f1;
+  --chart-2: #10b981;
+  --chart-3: #a855f7;
+  --chart-4: #38bdf8;
+  --chart-5: #f59e0b;
+  --chart-6: #3b82f6;
+  --chart-7: #06b6d4;
+  --chart-8: #ef4444;
 }
 
 /* Legacy dashboard palette (legacy/public/css/style.css :root) — the UI must look the same. */
@@ -55,6 +64,15 @@
   --warning: #f2b035;
   --outbound: #9a8fff;
   --live: #3ea6ff;
+  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
+  --chart-1: #6366f1;
+  --chart-2: #10b981;
+  --chart-3: #a855f7;
+  --chart-4: #38bdf8;
+  --chart-5: #f59e0b;
+  --chart-6: #3b82f6;
+  --chart-7: #06b6d4;
+  --chart-8: #ef4444;
 }
 
 @theme inline {
@@ -85,6 +103,14 @@
   --color-outbound: var(--outbound);
   --color-live: var(--live);
   --color-sidebar: var(--sidebar);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
   --font-sans: "Golos Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }

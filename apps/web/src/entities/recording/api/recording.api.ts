@@ -1,0 +1,63 @@
+import {
+  type CallRecording,
+  CallRecordingSchema,
+  type CreateZipJobRequest,
+  type RecordingTreeResponse,
+  RecordingTreeResponseSchema,
+  RecordingsStatusSchema,
+  type ZipJob,
+  ZipJobSchema,
+} from '@cc/shared';
+import { queryOptions } from '@tanstack/react-query';
+import { api } from '@/shared/api';
+
+export const recordingKeys = {
+  all: ['recordings'] as const,
+  tree: (path: string) => ['recordings', 'tree', path] as const,
+  status: ['recordings', 'status'] as const,
+  call: (uniqueid: string) => ['recordings', 'call', uniqueid] as const,
+};
+
+/** Folder listing of the Asterisk monitor tree (admins). */
+export const recordingTreeQuery = (path: string) =>
+  queryOptions({
+    queryKey: recordingKeys.tree(path),
+    queryFn: ({ signal }): Promise<RecordingTreeResponse> =>
+      api('/recordings/tree', { query: { path }, schema: RecordingTreeResponseSchema, signal }),
+    staleTime: 10_000,
+  });
+
+export const recordingsStatusQuery = queryOptions({
+  queryKey: recordingKeys.status,
+  queryFn: ({ signal }) => api('/recordings/status', { schema: RecordingsStatusSchema, signal }),
+  staleTime: 30_000,
+});
+
+/** The exact recording of a call (by CDR uniqueid). */
+export const callRecordingQuery = (uniqueid: string) =>
+  queryOptions({
+    queryKey: recordingKeys.call(uniqueid),
+    queryFn: ({ signal }): Promise<CallRecording> =>
+      api(`/recordings/calls/${encodeURIComponent(uniqueid)}`, { schema: CallRecordingSchema, signal }),
+    staleTime: 5 * 60_000,
+  });
+
+export function recordingStreamUrl(path: string, download = false): string {
+  return `/api/recordings/stream?path=${encodeURIComponent(path)}${download ? '&download=1' : ''}`;
+}
+
+export function callRecordingStreamUrl(uniqueid: string, download = false): string {
+  return `/api/recordings/calls/${encodeURIComponent(uniqueid)}/stream${download ? '?download=1' : ''}`;
+}
+
+export function createZipJob(body: CreateZipJobRequest): Promise<ZipJob> {
+  return api('/recordings/zip-jobs', { body, schema: ZipJobSchema });
+}
+
+export function cancelZipJob(id: string): Promise<ZipJob> {
+  return api(`/recordings/zip-jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', schema: ZipJobSchema });
+}
+
+export function zipJobDownloadUrl(id: string): string {
+  return `/api/recordings/zip-jobs/${encodeURIComponent(id)}/download`;
+}

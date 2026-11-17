@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "profile": "Профиль" },
+  "nav": { "dashboard": "Главная", "settings": "Настройки", "profile": "Профиль", "explorer": "Аудио записи", "tickets": "Тикеты", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время", "operators": "Операторы", "history": "История звонков", "statistics": "Статистика" },
   "auth": {
     "username": "Логин",
     "password": "Пароль",
