@@ -1,6 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar" },
+  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "clients": "Mijozlar", "blacklist": "Qora ro'yxat", "agents": "3CX agentlar" },
   "auth": {
     "username": "Login",
     "password": "Parol",
