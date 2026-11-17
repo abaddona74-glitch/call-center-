@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ExtensionSchema } from './auth.js';
+import { ExtensionSchema, type Role, hasRoleAtLeast } from './auth.js';
 import { IsoDateSchema } from './common.js';
 
 /**
@@ -221,6 +221,18 @@ export const TelephonyActionResultSchema = z.object({
 export type TelephonyActionResult = z.infer<typeof TelephonyActionResultSchema>;
 
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * Telephony access by role — the ONE place to adapt when roles become permission-based
+ * (owner decision: superuser / executive / observer / operator, see docs/rewrite/DECISIONS.md; S1).
+ * API (REST + WS filtering, action rules) and UI both use it.
+ *  seeAll    — every citizen number, today's KPI counters, the "who is online" list
+ *  manageAll — pause any operator, transfer/hang up any call, click-to-call from any phone
+ * Operators (neither flag) see the board with masked numbers and act only on their own extension/calls.
+ */
+export function telephonyAccess(role: Role): { seeAll: boolean; manageAll: boolean } {
+  return { seeAll: role !== 'operator', manageAll: hasRoleAtLeast(role, 'admin') };
+}
 
 const MASK_CHAR = '•';
 

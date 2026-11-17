@@ -163,7 +163,10 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
       );
     }
     if (sections.has('counters')) {
-      this.realtime.broadcast('telephony.counters', projectCounters(this.store), { minRole: 'admin' });
+      const counters = projectCounters(this.store);
+      this.realtime.broadcastEach('telephony.counters', (user) =>
+        isPrivileged(toViewer(user)) ? counters : undefined,
+      );
     }
   }
 
@@ -227,7 +230,7 @@ function memo<T>(fn: (v: Viewer) => T): (user: SessionUser) => T {
   const cache = new Map<string, T>();
   return (user) => {
     const viewer = toViewer(user);
-    const key = isPrivileged(viewer) ? 'admin' : `op:${viewer.extension ?? ''}`;
+    const key = isPrivileged(viewer) ? 'all' : `op:${viewer.extension ?? ''}`;
     let v = cache.get(key);
     if (v === undefined) {
       v = fn(viewer);

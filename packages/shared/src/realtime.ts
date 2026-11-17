@@ -9,6 +9,7 @@
  * to the `extends` list of `ServerEvents` / `ClientEvents` below — one line per domain.
  */
 
+import type { PresenceServerEvents } from './realtime/presence.js';
 import type { TelephonyServerEvents } from './realtime/telephony.js';
 
 interface CoreServerEvents {
@@ -23,7 +24,7 @@ interface CoreClientEvents {
   'presence.ping': { tab?: string; visible?: boolean };
 }
 
-export interface ServerEvents extends CoreServerEvents, TelephonyServerEvents {}
+export interface ServerEvents extends CoreServerEvents, TelephonyServerEvents, PresenceServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 

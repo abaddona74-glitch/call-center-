@@ -1,6 +1,6 @@
 import type { LiveOperator } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
-import type { CSSProperties, ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type OperatorGroupFilter, inGroup } from '@/entities/operator';
 import { liveSnapshotQuery } from '@/entities/telephony';
@@ -8,6 +8,7 @@ import { PauseOperatorButton } from '@/features/telephony/pause-operator';
 import { Icon } from '@/shared/ui/icon';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { groupForBoard, nextInLine, ranks } from '../model/board';
+import { useFlip } from '../model/use-flip';
 import { OperatorCard } from './OperatorCard';
 import '../i18n';
 import './operators-board.css';
@@ -80,6 +81,9 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
           offline: visible.filter((o) => o.presence === 'offline').sort(byName),
         }
       : groupForBoard(visible, next);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const order = [...groups.talking, ...groups.ready, ...groups.offline].map((o) => o.extension).join(',');
+  useFlip(gridRef, `${order}|${density}|${offlineView}`);
   const card = (op: LiveOperator) => (
     <OperatorCard
       key={op.extension}
@@ -161,7 +165,7 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
         </div>
       </div>
 
-      <div className={density === 'compact' ? 'ob-grid compact' : 'ob-grid'}>
+      <div ref={gridRef} className={density === 'compact' ? 'ob-grid compact' : 'ob-grid'}>
         {isPending && Array.from({ length: 4 }, (_, i) => <div key={i} className="ob-skeleton" />)}
         {!isPending && visible.length === 0 && <div className="ob-empty">{t('empty')}</div>}
         {groups.talking.map(card)}
@@ -184,13 +188,15 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
           : groups.offline.length > 0 && (
               <div className="ob-offs">
                 {groups.offline.map((op) => (
-                  <div key={op.extension} className="row" data-ext={op.extension}>
+                  <div key={op.extension} className="row" data-ext={op.extension} data-flip-id={op.extension}>
                     <div className="av">{op.extension}</div>
                     <div className="who">
                       <strong>{op.name}</strong>
                       <small>Exten {op.extension}</small>
                     </div>
-                    <span className="st">{tp('presence.offline')}</span>
+                    <span className={op.registered ? 'tag on' : 'tag'}>
+                      {t(op.registered ? 'card.phoneOnline' : 'card.phoneOffline')}
+                    </span>
                   </div>
                 ))}
               </div>

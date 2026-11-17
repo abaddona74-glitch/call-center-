@@ -1,4 +1,4 @@
-import { type Role, digitsOnly, hasRoleAtLeast, normalizeUzPhone } from '@cc/shared';
+import { type Role, digitsOnly, normalizeUzPhone, telephonyAccess } from '@cc/shared';
 
 /**
  * Who may do what with live calls (pure rules, unit-tested):
@@ -17,7 +17,7 @@ const bad = (message: string): Decision<never> => ({ ok: false, status: 400, mes
 
 /** Extension the action applies to: the requested one for admins, the own one for operators. */
 export function resolveExtension(actor: Actor, requested: string | undefined, operatorExt: RegExp): Decision<string> {
-  if (hasRoleAtLeast(actor.role, 'admin')) {
+  if (telephonyAccess(actor.role).manageAll) {
     const ext = requested ?? actor.extension;
     if (!ext) return bad('extension is required');
     if (!operatorExt.test(ext)) return bad('Not an operator extension');
@@ -31,7 +31,7 @@ export function resolveExtension(actor: Actor, requested: string | undefined, op
 
 /** May the actor transfer / hang up this call? Operators: only calls they are talking on or dialing. */
 export function canControlCall(actor: Actor, call: { extension: string | null }): boolean {
-  if (hasRoleAtLeast(actor.role, 'admin')) return true;
+  if (telephonyAccess(actor.role).manageAll) return true;
   return actor.extension !== null && call.extension === actor.extension;
 }
 

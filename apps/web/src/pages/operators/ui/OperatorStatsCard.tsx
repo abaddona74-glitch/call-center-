@@ -5,28 +5,40 @@ import { formatSeconds } from '@/entities/telephony';
 import { PauseOperatorButton } from '@/features/telephony/pause-operator';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { type Medal, ratingOf } from '../model/rating';
 
 /**
  * Operators-tab card (legacy admin-10): avatar, "Jami", then one row per number.
  * The desktop-agent rows of legacy (agent version, PC name) come from the agent module (S4);
  * here the SIP registration and the live state take their place.
  */
-export function OperatorStatsCard({ op, controls }: { op: LiveOperator; controls: boolean }) {
+export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; controls: boolean; medal?: Medal }) {
   const { t } = useTranslation('operatorsPage');
   const { t: tp } = useTranslation('operator');
   const { answered, outbound, missed, transfersIn, talkSeconds } = op.today;
   const total = answered + outbound + transfersIn;
   const offline = op.presence === 'offline';
+  const rating = ratingOf(total);
+  const ratingTitle = rating.toNext > 0 ? t('rating.next', { n: rating.toNext }) : t('rating.max');
   return (
-    <article className={cn('opp-card', offline && 'offline')} data-ext={op.extension}>
+    <article className={cn('opp-card', offline && 'offline', medal && `mvp-${medal}`)} data-ext={op.extension}>
       <div className="opp-top">
         <div className="opp-av">{op.extension}</div>
         <div className="opp-who">
-          <strong>{op.name}</strong>
+          <strong>
+            {op.name}
+            {medal && <span className={`opp-medal ${medal}`}>{t(`rating.medal.${medal}`)}</span>}
+            {!medal && rating.stars === 1 && <span className="opp-medal npc">🤖 NPC</span>}
+          </strong>
           <small>Exten: {op.extension}</small>
         </div>
         <div className="opp-badges">
           <span className="opp-ext">#{op.extension}</span>
+          {rating.stars > 0 && (
+            <span className="opp-stars" title={ratingTitle} aria-label={t('rating.stars', { n: rating.stars })}>
+              {'★'.repeat(rating.stars)}
+            </span>
+          )}
           <span className="opp-state" style={{ color: PRESENCE_COLOR[op.presence] }}>
             {tp(`presence.${op.presence}`)}
           </span>

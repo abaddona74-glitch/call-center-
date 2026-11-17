@@ -84,6 +84,7 @@ export function OperatorCard({
       className={cn('opc', PRESENCE_CLASS[op.presence], next && 'next')}
       data-ext={op.extension}
       data-presence={op.presence}
+      data-flip-id={op.extension}
     >
       <div className="head">
         <div className="av">{op.extension}</div>
@@ -150,8 +151,9 @@ export function OperatorCard({
       </dl>
       <div className="foot">
         <span>
-          <em style={{ color: op.registered ? 'var(--op-ok)' : 'var(--op-mu)' }}>
-            ● {t(op.registered ? 'card.sipOnline' : 'card.sipOffline')}
+          {/* Legacy "Agent faol" came from the 3CX desktop agent; now the phone's SIP registration (AMI). */}
+          <em style={{ color: op.registered ? 'var(--op-ok)' : 'var(--op-mu)' }} title={t('card.phoneTitle')}>
+            ● {t(op.registered ? 'card.phoneOnline' : 'card.phoneOffline')}
           </em>
         </span>
         <span className="right">

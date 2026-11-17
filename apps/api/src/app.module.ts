@@ -20,6 +20,7 @@ import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { LiveModule } from './modules/live/live.module.js';
+import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
@@ -75,6 +76,7 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     AmiModule,
     LiveModule,
     ActionsModule,
+    PresenceModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -5,10 +5,16 @@ registerTranslations('operatorsPage', {
     title: 'Operatorlar',
     density: 'Qatorlar',
     callFrom: "Operator telefonidan qo'ng'iroq qilish",
+    rating: {
+      next: "Keyingi yulduzgacha: yana {{n}} ta qo'ng'iroq kerak",
+      max: '🏆 Maksimal daraja (TOP operator)!',
+      stars: '{{n}} ta yulduz',
+      medal: { diamond: '💎 MVP', gold: '🥇 #2', silver: '🥈 #3' },
+    },
     card: {
       total: 'Jami',
       count: '{{n}} ta',
-      sip: 'SIP telefon',
+      sip: 'Telefon (SIP)',
       active: 'Faol',
       inactive: 'Nofaol',
       queue: 'Navbat (callsTaken)',
@@ -23,6 +29,12 @@ registerTranslations('operatorsPage', {
     title: 'Операторы',
     density: 'Строки',
     callFrom: 'Позвонить с телефона оператора',
+    rating: {
+      next: 'До следующей звезды: ещё {{n}} звонков',
+      max: '🏆 Максимальный уровень (TOP оператор)!',
+      stars: '{{n}} звёзд',
+      medal: { diamond: '💎 MVP', gold: '🥇 #2', silver: '🥈 #3' },
+    },
     card: {
       total: 'Всего',
       count: '{{n}}',

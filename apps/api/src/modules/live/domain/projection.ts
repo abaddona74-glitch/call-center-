@@ -4,8 +4,8 @@ import {
   type LiveOperator,
   type LiveQueue,
   type Role,
-  hasRoleAtLeast,
   maskPhone,
+  telephonyAccess,
 } from '@cc/shared';
 import type { LiveStore } from './live-store.js';
 
@@ -22,7 +22,7 @@ export interface Viewer {
   extension: string | null;
 }
 
-export const isPrivileged = (v: Viewer) => hasRoleAtLeast(v.role, 'admin');
+export const isPrivileged = (v: Viewer) => telephonyAccess(v.role).seeAll;
 
 const iso = (ms: number) => new Date(ms).toISOString();
 

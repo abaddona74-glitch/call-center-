@@ -35,7 +35,10 @@ function Kpi({
       <div className="kpi-details">
         <p>{label}</p>
         <h3>
-          <span>{value}</span>
+          {/* re-mounts on change -> legacy `numberPop` */}
+          <span key={value} className="kpi-num">
+            {value}
+          </span>
           <span className="kpi-unit">{t('unit')}</span>
           {badge && <span className={`kpi-badge ${badgeCls}`}>{badge}</span>}
         </h3>

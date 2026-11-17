@@ -95,6 +95,26 @@
   margin: 0 0 2px;
   font-variant-numeric: tabular-nums;
 }
+.kpi-num {
+  display: inline-block;
+  animation: kpiNumberPop 350ms ease-out;
+}
+@keyframes kpiNumberPop {
+  0% {
+    transform: scale(0.95);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kpi-num {
+    animation: none;
+  }
+}
 .kpi-unit {
   font-size: 13px;
   font-weight: 600;

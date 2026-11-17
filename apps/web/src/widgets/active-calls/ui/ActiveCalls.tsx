@@ -1,4 +1,4 @@
-import { type LiveCall, hasRoleAtLeast } from '@cc/shared';
+import { type LiveCall, telephonyAccess } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +19,7 @@ export function ActiveCalls() {
   const { t } = useTranslation('activeCalls');
   const { t: tt } = useTranslation('telephony');
   const user = useSessionUser();
-  const isAdmin = hasRoleAtLeast(user.role, 'admin');
+  const isAdmin = telephonyAccess(user.role).manageAll;
   const { data } = useQuery({ ...liveSnapshotQuery, select: (s) => ({ calls: s.calls, operators: s.operators }) });
   const [openId, setOpenId] = useState<string | null>(null);
   const calls = useLeaving((data?.calls ?? []).filter((c) => SHOWN.has(c.state)));

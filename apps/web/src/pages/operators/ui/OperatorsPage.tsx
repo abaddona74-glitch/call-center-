@@ -1,4 +1,4 @@
-import { type LiveOperator, hasRoleAtLeast } from '@cc/shared';
+import { type LiveOperator, telephonyAccess } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
@@ -11,6 +11,7 @@ import { ActiveCalls } from '@/widgets/active-calls';
 import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
 import { MyPhone } from '@/widgets/my-phone';
 import { QueueWaiters } from '@/widgets/queues';
+import { medals } from '../model/rating';
 import { OperatorStatsCard } from './OperatorStatsCard';
 import '../i18n';
 import './operators-page.css';
@@ -29,7 +30,7 @@ export function OperatorsPage() {
   useLiveTelephonySync();
   const { t } = useTranslation('operatorsPage');
   const user = useSessionUser();
-  const isAdmin = hasRoleAtLeast(user.role, 'admin');
+  const isAdmin = telephonyAccess(user.role).manageAll;
   const { data: operators } = useQuery({ ...liveSnapshotQuery, select: (s) => s.operators });
   const [sort, setSort] = usePersistedState('tabOperatorSortMode', 'total', SORT);
   const [density, setDensity] = usePersistedState('operators_tab_density', 'full', DENSITY);
@@ -43,6 +44,7 @@ export function OperatorsPage() {
           Number(a.extension) - Number(b.extension),
   );
   const open = monitor === 'open';
+  const medalOf = medals(list.map((o) => ({ extension: o.extension, total: totalOf(o) })));
 
   return (
     <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
@@ -83,7 +85,7 @@ export function OperatorsPage() {
           </div>
           <div className={cn('opp-grid', density === 'compact' && 'compact')}>
             {list.map((op) => (
-              <OperatorStatsCard key={op.extension} op={op} controls={isAdmin} />
+              <OperatorStatsCard key={op.extension} op={op} controls={isAdmin} medal={medalOf.get(op.extension)} />
             ))}
           </div>
         </section>
