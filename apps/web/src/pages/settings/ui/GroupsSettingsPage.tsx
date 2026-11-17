@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { createOperatorGroup, deleteOperatorGroup, operatorGroupsQuery, updateOperatorGroup, userKeys } from '@/entities/user';
+import {
+  createOperatorGroup,
+  deleteOperatorGroup,
+  operatorGroupsQuery,
+  updateOperatorGroup,
+  userKeys,
+} from '@/entities/user';
 import { isHttpError } from '@/shared/api';
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
@@ -52,7 +58,10 @@ export function GroupsSettingsPage() {
       />
       <div className="grid gap-3 md:grid-cols-2">
         {groups?.map((g) => (
-          <div key={g.id} className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-[rgba(30,41,59,0.5)] p-4">
+          <div
+            key={g.id}
+            className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-[rgba(30,41,59,0.5)] p-4"
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2 text-sm font-bold text-[#f1f5f9]">
@@ -74,7 +83,11 @@ export function GroupsSettingsPage() {
               {PERMISSION_FLAGS.map((flag) => (
                 <li key={flag} className="flex items-center justify-between gap-2 text-xs">
                   <span className="text-[#cbd5e1]">{tu(`permission.${flag}`)}</span>
-                  {g.permissions[flag] ? <Pill tone="green">{t('common.yes')}</Pill> : <Pill tone="red">{t('common.no')}</Pill>}
+                  {g.permissions[flag] ? (
+                    <Pill tone="green">{t('common.yes')}</Pill>
+                  ) : (
+                    <Pill tone="red">{t('common.no')}</Pill>
+                  )}
                 </li>
               ))}
             </ul>
@@ -127,7 +140,10 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
       onDone();
     },
-    onError: (err) => setError(isHttpError(err, 409) ? t('groups.taken') : isHttpError(err, 400) ? t('groups.nameError') : t('common.failed')),
+    onError: (err) =>
+      setError(
+        isHttpError(err, 409) ? t('groups.taken') : isHttpError(err, 400) ? t('groups.nameError') : t('common.failed'),
+      ),
   });
 
   return (
@@ -150,7 +166,12 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
       </div>
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="g-desc">{t('groups.descriptionLabel')}</FieldLabel>
-        <SettingsInput id="g-desc" value={description} maxLength={300} onChange={(e) => setDescription(e.target.value)} />
+        <SettingsInput
+          id="g-desc"
+          value={description}
+          maxLength={300}
+          onChange={(e) => setDescription(e.target.value)}
+        />
       </div>
       <div className="flex flex-col gap-1">
         <FieldLabel>{t('groups.permissions')}</FieldLabel>

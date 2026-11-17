@@ -19,7 +19,8 @@ registerTranslations('authForgot', {
     resendIn: 'Qayta yuborish: {{seconds}} s',
     badCode: 'Kod noto‘g‘ri yoki muddati o‘tgan',
     step3Title: 'Yangi parol o‘rnatish',
-    step3Text: 'Hisobingiz uchun yangi parolni belgilang (kamida 10 ta belgi). Boshqa qurilmalardagi sessiyalar va passkeylar o‘chiriladi.',
+    step3Text:
+      'Hisobingiz uchun yangi parolni belgilang (kamida 10 ta belgi). Boshqa qurilmalardagi sessiyalar va passkeylar o‘chiriladi.',
     newPassword: 'Yangi parol',
     confirmPassword: 'Parolni takrorlang',
     save: 'Parolni saqlash',

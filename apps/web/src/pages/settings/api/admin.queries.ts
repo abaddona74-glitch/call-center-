@@ -68,7 +68,15 @@ export const auditQuery = (q: AuditFilter) =>
     queryKey: adminKeys.audit(q),
     queryFn: ({ signal }) =>
       api('/audit', {
-        query: { action: q.action, actor: q.actor, target: q.target, from: q.from, to: q.to, page: q.page, pageSize: q.pageSize },
+        query: {
+          action: q.action,
+          actor: q.actor,
+          target: q.target,
+          from: q.from,
+          to: q.to,
+          page: q.page,
+          pageSize: q.pageSize,
+        },
         schema: AuditPageSchema,
         signal,
       }),

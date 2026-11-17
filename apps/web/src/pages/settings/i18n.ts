@@ -65,7 +65,8 @@ registerTranslations('settings', {
       resetFor: 'Foydalanuvchi',
       newPassword: 'Yangi maxfiy parol',
       revokePasskeys: 'Barcha biometrik qurilmalarni ham o‘chirish',
-      revokePasskeysHint: 'Foydalanuvchi barcha telefon va noutbuklaridan chiqariladi va yangi parol bilan qayta ulaydi.',
+      revokePasskeysHint:
+        'Foydalanuvchi barcha telefon va noutbuklaridan chiqariladi va yangi parol bilan qayta ulaydi.',
       resetSubmit: 'Parolni yangilash',
       resetDone: 'Parol yangilandi. Yopilgan sessiyalar: {{sessions}}, o‘chirilgan passkeylar: {{passkeys}}',
       errors: {
@@ -98,7 +99,8 @@ registerTranslations('settings', {
     },
     sessions: {
       title: 'Faol Sessiyalar',
-      description: 'Tizimga hozir ulangan barcha kompyuterlar. Tokenlar saqlanmaydi va ko‘rsatilmaydi — faqat ularning xesh ID si.',
+      description:
+        'Tizimga hozir ulangan barcha kompyuterlar. Tokenlar saqlanmaydi va ko‘rsatilmaydi — faqat ularning xesh ID si.',
       colUser: 'Operator / Foydalanuvchi',
       colIp: 'IP Manzil',
       colId: 'Sessiya ID',
@@ -121,7 +123,8 @@ registerTranslations('settings', {
       maxAttemptsHint:
         '3 dan 10 gacha xato urinishdan so‘ng shu login shu manzildan vaqtincha bloklanadi. Boshqa kompyuterdan kirish bloklanmaydi.',
       lockoutMinutes: 'Bloklanish davomiyligi',
-      lockoutHint: 'Muddati tugagach, blok avtomatik bekor qilinadi. Takroriy bloklashda muddat ikki baravar oshadi (24 soatgacha).',
+      lockoutHint:
+        'Muddati tugagach, blok avtomatik bekor qilinadi. Takroriy bloklashda muddat ikki baravar oshadi (24 soatgacha).',
       ipMaxAttempts: 'IP chegarasi (har qanday login bilan)',
       ipHint: 'Ko‘p loginlarni sinab ko‘rayotgan manzilni bloklaydi',
       minutes: '{{count}} daqiqa',
@@ -279,7 +282,8 @@ registerTranslations('settings', {
       maxAttemptsHint:
         'После 3–10 ошибок этот логин временно блокируется с этого адреса. Вход с другого компьютера не блокируется.',
       lockoutMinutes: 'Длительность блокировки',
-      lockoutHint: 'По истечении срока блокировка снимается автоматически. При повторных блокировках срок удваивается (до 24 ч).',
+      lockoutHint:
+        'По истечении срока блокировка снимается автоматически. При повторных блокировках срок удваивается (до 24 ч).',
       ipMaxAttempts: 'Порог для IP (любые логины)',
       ipHint: 'Блокирует адрес, перебирающий много логинов',
       minutes: '{{count}} мин',

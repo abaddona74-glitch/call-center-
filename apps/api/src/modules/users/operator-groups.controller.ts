@@ -26,7 +26,9 @@ export class OperatorGroupsController {
 
   @Post()
   @SerializeOptions({ schema: OperatorGroupSchema })
-  create(@Body({ schema: CreateOperatorGroupSchema }) body: z.output<typeof CreateOperatorGroupSchema>): Promise<OperatorGroup> {
+  create(
+    @Body({ schema: CreateOperatorGroupSchema }) body: z.output<typeof CreateOperatorGroupSchema>,
+  ): Promise<OperatorGroup> {
     return this.users.createGroup(body);
   }
 

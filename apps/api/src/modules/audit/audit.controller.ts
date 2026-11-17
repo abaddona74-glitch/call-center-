@@ -38,7 +38,11 @@ export class AuditController {
       query = query.where('at', '>=', DateTime.fromISO(q.from, { zone: BUSINESS_TIMEZONE }).startOf('day').toJSDate());
     }
     if (q.to) {
-      query = query.where('at', '<', DateTime.fromISO(q.to, { zone: BUSINESS_TIMEZONE }).plus({ days: 1 }).startOf('day').toJSDate());
+      query = query.where(
+        'at',
+        '<',
+        DateTime.fromISO(q.to, { zone: BUSINESS_TIMEZONE }).plus({ days: 1 }).startOf('day').toJSDate(),
+      );
     }
 
     const [{ total }, rows] = await Promise.all([

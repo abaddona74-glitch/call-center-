@@ -145,10 +145,14 @@ export class AccountController {
 
   @Delete('sessions/:id')
   @HttpCode(204)
-  async revokeMine(@CurrentUser() user: SessionUser, @Param('id', { schema: SessionIdSchema }) id: string): Promise<void> {
+  async revokeMine(
+    @CurrentUser() user: SessionUser,
+    @Param('id', { schema: SessionIdSchema }) id: string,
+  ): Promise<void> {
     const row = await this.sessions.findSession(id);
     // Someone else's session looks exactly like a missing one.
-    if (!row || row.userId !== user.id || id === this.cls.get('sessionId')) throw new NotFoundException('Session not found');
+    if (!row || row.userId !== user.id || id === this.cls.get('sessionId'))
+      throw new NotFoundException('Session not found');
     await this.sessions.revokeSession(id, 'revoked_by_owner');
   }
 }

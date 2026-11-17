@@ -26,7 +26,9 @@ export function CharactersStage({ mode, mood, caption }: { mode: StageMode; mood
         const dist = Math.min(radius, Math.hypot(dx, dy) / 20);
         const px = Math.cos(angle) * dist;
         const py = Math.sin(angle) * dist;
-        eye.querySelector<SVGElement>('.lg-pupil')?.style.setProperty('transform', `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px)`);
+        eye
+          .querySelector<SVGElement>('.lg-pupil')
+          ?.style.setProperty('transform', `translate(${px.toFixed(1)}px, ${py.toFixed(1)}px)`);
         eye
           .querySelector<SVGElement>('.lg-pupil-shine')
           ?.style.setProperty('transform', `translate(${(px * 0.7).toFixed(1)}px, ${(py * 0.7).toFixed(1)}px)`);
@@ -60,7 +62,9 @@ export function CharactersStage({ mode, mood, caption }: { mode: StageMode; mood
           ? document.getElementById('login-password')
           : null;
     if (mode === 'covering') {
-      svg.querySelectorAll<SVGElement>('.lg-pupil, .lg-pupil-shine').forEach((p) => p.style.setProperty('transform', 'translate(0px, 0px)'));
+      svg
+        .querySelectorAll<SVGElement>('.lg-pupil, .lg-pupil-shine')
+        .forEach((p) => p.style.setProperty('transform', 'translate(0px, 0px)'));
     } else if (target) {
       const r = target.getBoundingClientRect();
       const x = mode === 'peeking' ? r.right - 20 : r.left + 50;
@@ -109,7 +113,13 @@ export function CharactersStage({ mode, mood, caption }: { mode: StageMode; mood
             <path d="M92,82 Q100,77 108,82" stroke="#1e1b4b" strokeWidth="2.6" strokeLinecap="round" />
             <path d="M122,82 Q130,77 138,82" stroke="#1e1b4b" strokeWidth="2.6" strokeLinecap="round" />
           </g>
-          <path className="lg-mouth" d="M110,102 Q115,108 120,102" stroke="#1e1b4b" strokeWidth="2.2" strokeLinecap="round" />
+          <path
+            className="lg-mouth"
+            d="M110,102 Q115,108 120,102"
+            stroke="#1e1b4b"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
           <circle className="lg-mouth-o" cx="115" cy="104" r="4" fill="#1e1b4b" />
         </g>
 
@@ -125,7 +135,13 @@ export function CharactersStage({ mode, mood, caption }: { mode: StageMode; mood
             <path d="M179,142 Q186,138 193,142" stroke="#881337" strokeWidth="2.2" strokeLinecap="round" />
             <path d="M201,142 Q208,138 215,142" stroke="#881337" strokeWidth="2.2" strokeLinecap="round" />
           </g>
-          <path className="lg-mouth" d="M194,158 Q198,162 202,158" stroke="#881337" strokeWidth="2" strokeLinecap="round" />
+          <path
+            className="lg-mouth"
+            d="M194,158 Q198,162 202,158"
+            stroke="#881337"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
           <circle className="lg-mouth-o" cx="198" cy="160" r="3" fill="#881337" />
         </g>
 
@@ -158,7 +174,13 @@ export function CharactersStage({ mode, mood, caption }: { mode: StageMode; mood
             <path d="M120,222 Q126,216 132,222" stroke="#7c2d12" strokeWidth="2.4" strokeLinecap="round" />
             <path d="M142,222 Q148,216 154,222" stroke="#7c2d12" strokeWidth="2.4" strokeLinecap="round" />
           </g>
-          <path className="lg-mouth" d="M133,238 Q138,245 143,238" stroke="#7c2d12" strokeWidth="2.2" strokeLinecap="round" />
+          <path
+            className="lg-mouth"
+            d="M133,238 Q138,245 143,238"
+            stroke="#7c2d12"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
           <circle className="lg-mouth-o" cx="138" cy="240" r="3.5" fill="#7c2d12" />
         </g>
       </svg>

@@ -104,7 +104,10 @@ export class SessionsService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async purgeExpired(): Promise<void> {
-    const res = await this.txHost.tx.deleteFrom('sessions').where('expiresAt', '<=', sql<Date>`now()`).executeTakeFirst();
+    const res = await this.txHost.tx
+      .deleteFrom('sessions')
+      .where('expiresAt', '<=', sql<Date>`now()`)
+      .executeTakeFirst();
     const n = Number(res.numDeletedRows ?? 0);
     if (n > 0) this.logger.log(`purged ${n} expired sessions`);
   }

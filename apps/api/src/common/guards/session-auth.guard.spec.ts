@@ -66,7 +66,10 @@ describe('SessionAuthGuard', () => {
     const admin = setup({ ...operator(), role: 'admin' }, { [PERMISSION_KEY]: 'canSeeContacts' });
     await expect(admin.guard.canActivate(admin.ctx)).resolves.toBe(true);
 
-    const legacyShape = setup({ id: 1, username: 'x', role: 'operator', extension: '101', email: null }, { [PERMISSION_KEY]: 'canUseTools' });
+    const legacyShape = setup(
+      { id: 1, username: 'x', role: 'operator', extension: '101', email: null },
+      { [PERMISSION_KEY]: 'canUseTools' },
+    );
     await expect(legacyShape.guard.canActivate(legacyShape.ctx)).resolves.toBe(true);
   });
 });

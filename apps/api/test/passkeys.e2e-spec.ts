@@ -1,5 +1,22 @@
-import { randomUUID } from 'node:crypto';
-import { Client, createE2eApp, createUser, type E2eApp, loginAs, ORIGIN, ROOT, RP_ID, auditActions } from './support/e2e-app.js';
+import { randomBytes, randomUUID, scryptSync } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import { openLegacySources } from '../src/scripts/migrate-legacy/legacy-sources.js';
+import { passkeysMapper } from '../src/scripts/migrate-legacy/mappers/passkeys.mapper.js';
+import { usersMapper } from '../src/scripts/migrate-legacy/mappers/users.mapper.js';
+import {
+  Client,
+  createE2eApp,
+  createUser,
+  type E2eApp,
+  loginAs,
+  ORIGIN,
+  ROOT,
+  RP_ID,
+  auditActions,
+} from './support/e2e-app.js';
 import { SoftAuthenticator } from './support/soft-authenticator.js';
 
 let e2e: E2eApp;
@@ -34,13 +51,22 @@ async function passkeyLogin(auth: SoftAuthenticator, overrides?: Parameters<Soft
 
 describe('registration', () => {
   it('requires the current password and returns legacy-compatible options', async () => {
-    expect((await alice.post('/auth/passkeys/registration/options', { password: 'wrong', name: 'Laptop' })).status).toBe(400);
-    const opts = await alice.post('/auth/passkeys/registration/options', { password: 'Alice-Pass-1234', name: 'Laptop' });
+    expect(
+      (await alice.post('/auth/passkeys/registration/options', { password: 'wrong', name: 'Laptop' })).status,
+    ).toBe(400);
+    const opts = await alice.post('/auth/passkeys/registration/options', {
+      password: 'Alice-Pass-1234',
+      name: 'Laptop',
+    });
     expect(opts.body.rp).toEqual({ name: 'Call Center', id: RP_ID });
     expect(opts.body.user.name).toBe('105 · alice');
     expect(opts.body.authenticatorSelection).toMatchObject({ residentKey: 'required', userVerification: 'required' });
     // user handle = UTF-8 bytes of the users.webauthn_user_id UUID string (as legacy)
-    const { webauthnUserId } = await e2e.db.selectFrom('users').select('webauthnUserId').where('id', '=', aliceId).executeTakeFirstOrThrow();
+    const { webauthnUserId } = await e2e.db
+      .selectFrom('users')
+      .select('webauthnUserId')
+      .where('id', '=', aliceId)
+      .executeTakeFirstOrThrow();
     expect(Buffer.from(opts.body.user.id, 'base64url').toString('utf8')).toBe(webauthnUserId);
   });
 
@@ -59,10 +85,14 @@ describe('registration', () => {
   it('rejects replayed, foreign-origin and duplicate registrations', async () => {
     const opts = await alice.post('/auth/passkeys/registration/options', { password: 'Alice-Pass-1234', name: 'Evil' });
     const other = new SoftAuthenticator(RP_ID, 'https://evil.example');
-    expect((await alice.post('/auth/passkeys/registration/verify', { credential: other.register(opts.body) })).status).toBe(400);
+    expect(
+      (await alice.post('/auth/passkeys/registration/verify', { credential: other.register(opts.body) })).status,
+    ).toBe(400);
     // challenge was single-use
     const again = new SoftAuthenticator(RP_ID, ORIGIN);
-    expect((await alice.post('/auth/passkeys/registration/verify', { credential: again.register(opts.body) })).status).toBe(400);
+    expect(
+      (await alice.post('/auth/passkeys/registration/verify', { credential: again.register(opts.body) })).status,
+    ).toBe(400);
     // same authenticator twice
     expect((await register(alice, device, 'Dup')).status).toBe(409);
   });
@@ -82,7 +112,9 @@ describe('passwordless login', () => {
   });
 
   it('rejects a wrong user handle, a foreign origin and an unknown credential', async () => {
-    expect((await passkeyLogin(device, { userHandle: Buffer.from(randomUUID()).toString('base64url') })).res.status).toBe(401);
+    expect(
+      (await passkeyLogin(device, { userHandle: Buffer.from(randomUUID()).toString('base64url') })).res.status,
+    ).toBe(401);
     expect((await passkeyLogin(device, { userHandle: null })).res.status).toBe(401);
     expect((await passkeyLogin(device, { origin: 'https://evil.example' })).res.status).toBe(401);
     const stranger = new SoftAuthenticator(RP_ID, ORIGIN);
@@ -124,7 +156,11 @@ describe('passwordless login', () => {
     const { res } = await passkeyLogin(legacyKey);
     expect(res.status).toBe(200);
     expect(res.body.user.username).toBe('carol');
-    const row = await e2e.db.selectFrom('passkeys').select('counter').where('id', '=', legacyKey.id).executeTakeFirstOrThrow();
+    const row = await e2e.db
+      .selectFrom('passkeys')
+      .select('counter')
+      .where('id', '=', legacyKey.id)
+      .executeTakeFirstOrThrow();
     expect(Number(row.counter)).toBe(42);
   });
 });
@@ -167,6 +203,63 @@ describe('deleting passkeys', () => {
         .execute();
     }
     const dave = await loginAs(e2e, 'dave', 'Dave-Pass-12345');
-    expect((await dave.post('/auth/passkeys/registration/options', { password: 'Dave-Pass-12345', name: 'one more' })).status).toBe(400);
+    expect(
+      (await dave.post('/auth/passkeys/registration/options', { password: 'Dave-Pass-12345', name: 'one more' }))
+        .status,
+    ).toBe(400);
+  });
+});
+
+describe('legacy migration (users + passkeys mappers)', () => {
+  it('imports a legacy user with a passkey; both the password and the passkey sign in', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'cc-e2e-legacy-'));
+    const file = path.join(dir, 'callcenter.db');
+    const schema = readFileSync(
+      path.join(import.meta.dirname, '../src/scripts/migrate-legacy/__fixtures__/legacy-schema.sql'),
+      'utf8',
+    );
+    const handle = randomUUID();
+    const salt = randomBytes(16).toString('hex');
+    const key = new SoftAuthenticator(RP_ID, ORIGIN);
+    key.counter = 5;
+    key.userHandle = Buffer.from(handle, 'utf8').toString('base64url');
+
+    const legacyDb = new DatabaseSync(file);
+    legacyDb.exec(schema);
+    const userId = legacyDb
+      .prepare(
+        `INSERT INTO auth_users (username, password_hash, salt, role, operator_id, email, webauthn_user_id)
+         VALUES ('zangiota230', ?, ?, 'operator', '230', NULL, ?)`,
+      )
+      .run(scryptSync('Legacy-Pa55', salt, 64).toString('hex'), salt, handle).lastInsertRowid;
+    legacyDb
+      .prepare(
+        `INSERT INTO auth_passkeys (id, user_id, webauthn_user_id, username, public_key, counter, device_type, backed_up,
+           transports, device_name) VALUES (?, ?, ?, 'zangiota230', ?, 5, 'singleDevice', 0, '["internal"]', 'Legacy phone')`,
+      )
+      .run(key.id, userId, handle, key.cosePublicKey());
+    legacyDb.close();
+
+    const legacy = openLegacySources({ sqlitePath: file });
+    try {
+      const ctx = { legacy, db: e2e.db, dryRun: false, logger: { info: () => undefined, warn: () => undefined } };
+      expect(await usersMapper.run(ctx)).toMatchObject({ status: 'ok', inserted: 1, errors: [] });
+      expect(await passkeysMapper.run(ctx)).toMatchObject({ status: 'ok', inserted: 1, errors: [], skipped: [] });
+      // re-running is a no-op
+      expect(await passkeysMapper.run(ctx)).toMatchObject({ inserted: 0, unchanged: 1 });
+    } finally {
+      legacy.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+
+    const byPassword = await new Client(e2e).login('zangiota230', 'Legacy-Pa55');
+    expect(byPassword.status).toBe(200);
+    expect(byPassword.body.user).toMatchObject({ role: 'operator', extension: '230' });
+    expect(byPassword.body.user.permissions.canSeeContacts).toBe(false); // legacy "200 group" -> Zangiota
+
+    const { c, res } = await passkeyLogin(key);
+    expect(res.status).toBe(200);
+    expect(res.body.user.username).toBe('zangiota230');
+    expect((await c.get('/auth/passkeys')).body.items[0]).toMatchObject({ id: key.id, name: 'Legacy phone' });
   });
 });

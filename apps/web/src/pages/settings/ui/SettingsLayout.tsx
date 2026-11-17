@@ -5,7 +5,11 @@ import { Icon } from '@/shared/ui/icon';
 import { IconKey, IconPeople, IconUser } from '@/shared/ui/inline-icons';
 import '../i18n';
 
-type Tab = { to: '/settings/users' | '/settings/groups' | '/settings/sessions' | '/settings/security' | '/settings/audit'; key: string; icon: ReactNode };
+type Tab = {
+  to: '/settings/users' | '/settings/groups' | '/settings/sessions' | '/settings/security' | '/settings/audit';
+  key: string;
+  icon: ReactNode;
+};
 
 /** Legacy order: security first, then users, sessions (groups and audit are new). */
 const TABS: Tab[] = [

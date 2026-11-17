@@ -196,11 +196,7 @@ export function EmailBindingCard() {
 
   return (
     <SettingsCard>
-      <SettingsCardHeader
-        icon={<IconSms size={20} />}
-        title={t('title')}
-        description={t('description')}
-      />
+      <SettingsCardHeader icon={<IconSms size={20} />} title={t('title')} description={t('description')} />
 
       <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(56,189,248,0.25)] bg-[rgba(56,189,248,0.08)] px-3.5 py-3 text-xs leading-relaxed text-[#cbd5e1]">
         <IconInfoCircle size={18} className="mt-px shrink-0 text-[#38bdf8]" />
@@ -216,11 +212,15 @@ export function EmailBindingCard() {
           }}
         >
           <p className="text-xs text-[#cbd5e1]">
-            {status.step === 'verify_current' ? t('codeToCurrent', { to: status.sentTo }) : t('codeToNew', { to: status.sentTo })}
+            {status.step === 'verify_current'
+              ? t('codeToCurrent', { to: status.sentTo })
+              : t('codeToNew', { to: status.sentTo })}
           </p>
           <FieldLabel htmlFor="email-code">
             {t('codeLabel')}
-            <span className={left > 0 ? 'text-[#93c5fd]' : 'text-[#fca5a5]'}>{t('validFor', { time: mmss(left) })}</span>
+            <span className={left > 0 ? 'text-[#93c5fd]' : 'text-[#fca5a5]'}>
+              {t('validFor', { time: mmss(left) })}
+            </span>
           </FieldLabel>
           <OtpInput id="email-code" value={code} onValueChange={setCode} autoFocus />
           <FieldError>{error}</FieldError>
@@ -247,7 +247,10 @@ export function EmailBindingCard() {
               <span className="text-[11px] font-semibold text-[#f59e0b]">🔒 {t('securityCheck')}</span>
             </FieldLabel>
             <div className="relative">
-              <IconLock size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]" />
+              <IconLock
+                size={17}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]"
+              />
               <SettingsInput
                 id="email-password"
                 type="password"
@@ -282,7 +285,10 @@ export function EmailBindingCard() {
               </span>
             </FieldLabel>
             <div className="relative">
-              <IconSms size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]" />
+              <IconSms
+                size={17}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]"
+              />
               <SettingsInput
                 id="email-new"
                 type="email"

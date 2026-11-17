@@ -1,4 +1,11 @@
-import { canGrantRole, canManage, checkCreate, checkCredentialsAdmin, checkDelete, checkUpdate } from './user-policy.js';
+import {
+  canGrantRole,
+  canManage,
+  checkCreate,
+  checkCredentialsAdmin,
+  checkDelete,
+  checkUpdate,
+} from './user-policy.js';
 
 const su = { id: 1, role: 'superuser' as const };
 const su2 = { id: 2, role: 'superuser' as const, isActive: true };

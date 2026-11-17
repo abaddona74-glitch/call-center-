@@ -71,7 +71,10 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(204)
-  async remove(@CurrentUser() actor: SessionUser, @Param('id', { schema: UserIdParamSchema }) id: number): Promise<void> {
+  async remove(
+    @CurrentUser() actor: SessionUser,
+    @Param('id', { schema: UserIdParamSchema }) id: number,
+  ): Promise<void> {
     await this.users.remove(actor, id);
   }
 }

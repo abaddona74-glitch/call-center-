@@ -132,15 +132,18 @@ export class AuthRepository {
   }
 
   /** Invalidate earlier codes of these purposes, then store the new one. */
-  async replaceCode(row: {
-    userId: number;
-    purpose: AuthCodePurpose;
-    email: string;
-    codeHash: string;
-    expiresAt: Date;
-    newEmail?: string | null;
-    ip?: string | null;
-  }, invalidate: AuthCodePurpose[]): Promise<number> {
+  async replaceCode(
+    row: {
+      userId: number;
+      purpose: AuthCodePurpose;
+      email: string;
+      codeHash: string;
+      expiresAt: Date;
+      newEmail?: string | null;
+      ip?: string | null;
+    },
+    invalidate: AuthCodePurpose[],
+  ): Promise<number> {
     await this.consumeCodes(row.userId, invalidate);
     const inserted = await this.txHost.tx
       .insertInto('authCodes')
@@ -161,7 +164,11 @@ export class AuthRepository {
   }
 
   async consumeCode(id: number): Promise<void> {
-    await this.txHost.tx.updateTable('authCodes').set({ consumedAt: sql`now()` }).where('id', '=', id).execute();
+    await this.txHost.tx
+      .updateTable('authCodes')
+      .set({ consumedAt: sql`now()` })
+      .where('id', '=', id)
+      .execute();
   }
 
   /** +1 attempt; returns the new count. */

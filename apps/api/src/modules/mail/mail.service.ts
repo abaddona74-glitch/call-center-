@@ -27,7 +27,9 @@ export class MailService implements OnModuleDestroy {
           port: config.get('SMTP_PORT'),
           secure: config.get('SMTP_SECURE'),
           requireTLS: !config.get('SMTP_SECURE'),
-          auth: config.get('SMTP_USER') ? { user: config.get('SMTP_USER'), pass: config.get('SMTP_PASSWORD') } : undefined,
+          auth: config.get('SMTP_USER')
+            ? { user: config.get('SMTP_USER'), pass: config.get('SMTP_PASSWORD') }
+            : undefined,
           connectionTimeout: 10_000,
           greetingTimeout: 10_000,
           socketTimeout: 20_000,

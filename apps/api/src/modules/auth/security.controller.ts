@@ -6,7 +6,18 @@ import {
   type UnlockResult,
   UnlockResultSchema,
 } from '@cc/shared';
-import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Put, SerializeOptions } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Put,
+  SerializeOptions,
+} from '@nestjs/common';
 import { z } from 'zod';
 import { Roles } from '../../common/decorators/auth.decorators.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -37,7 +48,10 @@ export class SecurityController {
   async putSettings(@Body({ schema: LockoutSettingsSchema }) body: LockoutSettings): Promise<LockoutSettings> {
     const before = await this.settings.getLockout();
     const saved = await this.settings.setLockout(body);
-    await this.audit.record('settings.security.update', { target: 'settings:lockout', details: { before, after: saved } });
+    await this.audit.record('settings.security.update', {
+      target: 'settings:lockout',
+      details: { before, after: saved },
+    });
     return saved;
   }
 

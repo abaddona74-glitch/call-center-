@@ -61,7 +61,13 @@ export function applyFailure(
   policy: ThrottlePolicy,
   now: Date,
 ): ThrottleState {
-  const fresh: ThrottleState = { failures: 0, lockCount: 0, lockedUntil: null, firstFailureAt: now, lastFailureAt: now };
+  const fresh: ThrottleState = {
+    failures: 0,
+    lockCount: 0,
+    lockedUntil: null,
+    firstFailureAt: now,
+    lastFailureAt: now,
+  };
   let state: ThrottleState = prev ? { ...prev } : fresh;
 
   const sinceLast = now.getTime() - state.lastFailureAt.getTime();

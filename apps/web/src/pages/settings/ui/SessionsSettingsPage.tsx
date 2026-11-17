@@ -102,7 +102,13 @@ export function SessionsSettingsPage() {
           </>
         }
       />
-      <DataTable columns={columns} data={sessions} loading={isLoading} getRowId={(s) => s.id} empty={t('sessions.empty')} />
+      <DataTable
+        columns={columns}
+        data={sessions}
+        loading={isLoading}
+        getRowId={(s) => s.id}
+        empty={t('sessions.empty')}
+      />
     </SettingsCard>
   );
 }

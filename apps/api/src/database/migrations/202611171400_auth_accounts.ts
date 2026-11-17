@@ -77,7 +77,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('last_failure_at', 'timestamptz', (c) => c.notNull().defaultTo(sql`now()`))
     .addUniqueConstraint('auth_login_throttle_kind_key_uq', ['kind', 'key'])
     .execute();
-  await db.schema.createIndex('auth_login_throttle_locked_until_idx').on('auth_login_throttle').column('locked_until').execute();
+  await db.schema
+    .createIndex('auth_login_throttle_locked_until_idx')
+    .on('auth_login_throttle')
+    .column('locked_until')
+    .execute();
 
   // --- one-time codes sent by email (password reset, email binding). Only hashes are stored. ---
   await db.schema

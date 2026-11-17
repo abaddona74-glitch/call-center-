@@ -5,7 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/shared/lib/format-datetime';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Icon } from '@/shared/ui/icon';
-import { FieldLabel, Pill, SettingsButton, SettingsCard, SettingsCardHeader, SettingsInput, SettingsSelect } from '@/shared/ui/settings-panel';
+import {
+  FieldLabel,
+  Pill,
+  SettingsButton,
+  SettingsCard,
+  SettingsCardHeader,
+  SettingsInput,
+  SettingsSelect,
+} from '@/shared/ui/settings-panel';
 import { auditActionsQuery, auditQuery } from '../api/admin.queries';
 
 const col = dataTableColumns<AuditEntry>();
@@ -53,12 +61,18 @@ export function AuditSettingsPage() {
 
   const columns = useMemo<DataTableColumn<AuditEntry>[]>(
     () => [
-      col.accessor('at', { header: () => t('audit.colTime'), cell: ({ getValue }) => <span className="whitespace-nowrap">{formatDateTime(getValue())}</span> }),
+      col.accessor('at', {
+        header: () => t('audit.colTime'),
+        cell: ({ getValue }) => <span className="whitespace-nowrap">{formatDateTime(getValue())}</span>,
+      }),
       col.accessor('actorLabel', {
         header: () => t('audit.colActor'),
         cell: ({ getValue }) => <span className="font-semibold text-[#e2e8f0]">{getValue()}</span>,
       }),
-      col.accessor('action', { header: () => t('audit.colAction'), cell: ({ getValue }) => <Pill tone={actionTone(getValue())}>{getValue()}</Pill> }),
+      col.accessor('action', {
+        header: () => t('audit.colAction'),
+        cell: ({ getValue }) => <Pill tone={actionTone(getValue())}>{getValue()}</Pill>,
+      }),
       col.accessor('target', { header: () => t('audit.colTarget'), cell: ({ getValue }) => getValue() ?? '—' }),
       col.accessor('ip', {
         header: () => t('audit.colIp'),
@@ -67,7 +81,10 @@ export function AuditSettingsPage() {
       col.accessor('details', {
         header: () => t('audit.colDetails'),
         cell: ({ getValue }) => (
-          <span className="block max-w-[320px] truncate font-mono text-[11px] text-[#94a3b8]" title={details(getValue())}>
+          <span
+            className="block max-w-[320px] truncate font-mono text-[11px] text-[#94a3b8]"
+            title={details(getValue())}
+          >
             {details(getValue())}
           </span>
         ),
@@ -76,14 +93,20 @@ export function AuditSettingsPage() {
     [t],
   );
 
-  const filter = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setPage(1);
-  };
+  const filter =
+    <T,>(set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setPage(1);
+    };
 
   return (
     <SettingsCard>
-      <SettingsCardHeader icon={<Icon name="document-text" className="size-5" />} title={t('audit.title')} description={t('audit.description')} />
+      <SettingsCardHeader
+        icon={<Icon name="document-text" className="size-5" />}
+        title={t('audit.title')}
+        description={t('audit.description')}
+      />
 
       <div className="mb-3.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_0.9fr_0.9fr_auto] lg:items-end">
         <div className="flex flex-col gap-1.5">
@@ -108,15 +131,32 @@ export function AuditSettingsPage() {
         </div>
         <div className="flex flex-col gap-1.5">
           <FieldLabel htmlFor="audit-target">{t('audit.target')}</FieldLabel>
-          <SettingsInput id="audit-target" placeholder="user:12" value={target} onChange={(e) => filter(setTarget)(e.target.value)} />
+          <SettingsInput
+            id="audit-target"
+            placeholder="user:12"
+            value={target}
+            onChange={(e) => filter(setTarget)(e.target.value)}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <FieldLabel htmlFor="audit-from">{t('audit.from')}</FieldLabel>
-          <SettingsInput id="audit-from" type="date" value={from} onChange={(e) => filter(setFrom)(e.target.value)} className="[color-scheme:dark]" />
+          <SettingsInput
+            id="audit-from"
+            type="date"
+            value={from}
+            onChange={(e) => filter(setFrom)(e.target.value)}
+            className="[color-scheme:dark]"
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <FieldLabel htmlFor="audit-to">{t('audit.to')}</FieldLabel>
-          <SettingsInput id="audit-to" type="date" value={to} onChange={(e) => filter(setTo)(e.target.value)} className="[color-scheme:dark]" />
+          <SettingsInput
+            id="audit-to"
+            type="date"
+            value={to}
+            onChange={(e) => filter(setTo)(e.target.value)}
+            className="[color-scheme:dark]"
+          />
         </div>
         <SettingsButton
           tone="ghost"
@@ -133,7 +173,13 @@ export function AuditSettingsPage() {
         </SettingsButton>
       </div>
 
-      <DataTable columns={columns} data={data?.items} loading={isLoading} getRowId={(e) => String(e.id)} empty={t('audit.empty')} />
+      <DataTable
+        columns={columns}
+        data={data?.items}
+        loading={isLoading}
+        getRowId={(e) => String(e.id)}
+        empty={t('audit.empty')}
+      />
 
       <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#94a3b8]">
         <span>{t('audit.total', { count: data?.total ?? 0 })}</span>

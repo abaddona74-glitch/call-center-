@@ -67,7 +67,11 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
     },
   });
 
-  const text = (name: 'username' | 'password' | 'extension' | 'email', label: string, props: React.ComponentProps<'input'>) => (
+  const text = (
+    name: 'username' | 'password' | 'extension' | 'email',
+    label: string,
+    props: React.ComponentProps<'input'>,
+  ) => (
     <form.Field name={name}>
       {(field) => (
         <div className="flex flex-col gap-1.5">

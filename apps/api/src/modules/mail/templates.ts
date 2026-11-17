@@ -24,7 +24,13 @@ const LINES: Record<CodeMailPurpose, [uz: string, ru: string]> = {
   ],
 };
 
-export function codeMail(purpose: CodeMailPurpose, to: string, username: string, code: string, ttlMinutes: number): MailMessage {
+export function codeMail(
+  purpose: CodeMailPurpose,
+  to: string,
+  username: string,
+  code: string,
+  ttlMinutes: number,
+): MailMessage {
   const [uz, ru] = LINES[purpose];
   const text = [
     `${uz} (${username}): ${code}`,

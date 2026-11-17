@@ -50,7 +50,9 @@ export function ProfilePage() {
   const { t: tu } = useTranslation('user');
   const user = useSessionUser();
   const permissions = usePermissions();
-  const denied = Object.entries(permissions).filter(([, v]) => !v).map(([k]) => k);
+  const denied = Object.entries(permissions)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -115,7 +117,11 @@ function MySessionsCard() {
 
   return (
     <SettingsCard>
-      <SettingsCardHeader icon={<Icon name="monitor" className="size-5" />} title={t('sessionsTitle')} description={t('sessionsText')} />
+      <SettingsCardHeader
+        icon={<Icon name="monitor" className="size-5" />}
+        title={t('sessionsTitle')}
+        description={t('sessionsText')}
+      />
       <ul className="flex flex-col gap-2">
         {sessions?.map((s) => (
           <li

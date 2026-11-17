@@ -54,20 +54,31 @@ export function UsersSettingsPage() {
           const u = row.original;
           return (
             <div className="flex items-center gap-2">
-              <span className={u.isActive ? 'font-semibold text-[#f1f5f9]' : 'font-semibold text-[#64748b] line-through'}>
+              <span
+                className={u.isActive ? 'font-semibold text-[#f1f5f9]' : 'font-semibold text-[#64748b] line-through'}
+              >
                 {u.username}
               </span>
-              {u.id === me.id && <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>}
+              {u.id === me.id && (
+                <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>
+              )}
               {!u.isActive && <Pill tone="red">{t('users.inactive')}</Pill>}
             </div>
           );
         },
       }),
-      col.accessor('role', { header: () => t('users.colRole'), cell: ({ getValue }) => <RoleBadge role={getValue()} /> }),
+      col.accessor('role', {
+        header: () => t('users.colRole'),
+        cell: ({ getValue }) => <RoleBadge role={getValue()} />,
+      }),
       col.accessor('extension', {
         header: () => t('users.colExtension'),
         cell: ({ getValue }) =>
-          getValue() ? <b className="text-[#f1f5f9]">{getValue()}</b> : <span className="text-[#64748b]">{t('users.none')}</span>,
+          getValue() ? (
+            <b className="text-[#f1f5f9]">{getValue()}</b>
+          ) : (
+            <span className="text-[#64748b]">{t('users.none')}</span>
+          ),
       }),
       col.accessor('groupName', {
         header: () => t('users.colGroup'),
@@ -83,7 +94,11 @@ export function UsersSettingsPage() {
       col.accessor('email', {
         header: () => t('users.colEmail'),
         cell: ({ getValue }) =>
-          getValue() ? <span className="text-[#38bdf8]">{getValue()}</span> : <span className="text-[#64748b]">{t('users.notSet')}</span>,
+          getValue() ? (
+            <span className="text-[#38bdf8]">{getValue()}</span>
+          ) : (
+            <span className="text-[#64748b]">{t('users.notSet')}</span>
+          ),
       }),
       col.accessor('createdAt', {
         header: () => t('users.colCreated'),

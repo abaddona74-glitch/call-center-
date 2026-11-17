@@ -84,10 +84,7 @@ export function DataTable<T extends RowData>({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr
-              key={row.id}
-              className={cn('transition-colors hover:bg-white/[0.03]', rowClassName?.(row.original))}
-            >
+            <tr key={row.id} className={cn('transition-colors hover:bg-white/[0.03]', rowClassName?.(row.original))}>
               {row.getAllCells().map((cell) => (
                 <td key={cell.id} className={cn('align-middle text-[#cbd5e1] last:text-right', look.td)}>
                   <table.FlexRender cell={cell} />

@@ -73,7 +73,10 @@ export class UsersRepository {
     }
     if (query.role) q = q.where('u.role', '=', query.role);
     if (query.active !== undefined) q = q.where('u.isActive', '=', query.active);
-    const rows = await q.orderBy('u.role', 'desc').orderBy(sql`lower(u.username)`).execute();
+    const rows = await q
+      .orderBy('u.role', 'desc')
+      .orderBy(sql`lower(u.username)`)
+      .execute();
     return rows.map(normalizeCounts);
   }
 
@@ -132,7 +135,9 @@ export class UsersRepository {
   // --- groups ----------------------------------------------------------------------------
 
   async listGroups(): Promise<OperatorGroup[]> {
-    const rows = await this.groupQuery().orderBy(sql`lower(g.name)`).execute();
+    const rows = await this.groupQuery()
+      .orderBy(sql`lower(g.name)`)
+      .execute();
     return rows.map(toGroup);
   }
 
@@ -176,21 +181,19 @@ export class UsersRepository {
   }
 
   private groupQuery() {
-    return this.txHost.tx
-      .selectFrom('operatorGroups as g')
-      .select((eb) => [
-        'g.id',
-        'g.name',
-        'g.description',
-        'g.permissions',
-        'g.createdAt',
-        'g.updatedAt',
-        eb
-          .selectFrom('users as u')
-          .select((e) => e.fn.countAll<number>().as('n'))
-          .whereRef('u.groupId', '=', 'g.id')
-          .as('memberCount'),
-      ]);
+    return this.txHost.tx.selectFrom('operatorGroups as g').select((eb) => [
+      'g.id',
+      'g.name',
+      'g.description',
+      'g.permissions',
+      'g.createdAt',
+      'g.updatedAt',
+      eb
+        .selectFrom('users as u')
+        .select((e) => e.fn.countAll<number>().as('n'))
+        .whereRef('u.groupId', '=', 'g.id')
+        .as('memberCount'),
+    ]);
   }
 }
 

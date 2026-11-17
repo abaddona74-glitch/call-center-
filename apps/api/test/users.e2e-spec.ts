@@ -23,7 +23,10 @@ describe('users admin: access', () => {
   it('operators get 403 on every admin endpoint', async () => {
     expect((await op.get('/users')).status).toBe(403);
     expect((await op.get(`/users/${opId}`)).status).toBe(403);
-    expect((await op.post('/users', { username: 'x1', password: 'Strong-Pass-123', role: 'operator', extension: '150' })).status).toBe(403);
+    expect(
+      (await op.post('/users', { username: 'x1', password: 'Strong-Pass-123', role: 'operator', extension: '150' }))
+        .status,
+    ).toBe(403);
     expect((await op.patch(`/users/${opId}`, { email: 'a@b.uz' })).status).toBe(403);
     expect((await op.post(`/users/${opId}/password`, { password: 'Strong-Pass-123' })).status).toBe(403);
     expect((await op.delete(`/users/${adminId}`)).status).toBe(403);
@@ -38,15 +41,24 @@ describe('users admin: access', () => {
     expect(res.status).toBe(200);
     const body = JSON.stringify(res.body);
     expect(body).not.toMatch(/passwordHash|scrypt|webauthn/i);
-    const byName = Object.fromEntries(res.body.items.map((u: { username: string; canManage: boolean }) => [u.username, u.canManage]));
+    const byName = Object.fromEntries(
+      res.body.items.map((u: { username: string; canManage: boolean }) => [u.username, u.canManage]),
+    );
     expect(byName).toMatchObject({ root: false, 'boss-admin': false, op101: true });
     const forRoot = Object.fromEntries(
-      (await root.get('/users')).body.items.map((u: { username: string; canManage: boolean }) => [u.username, u.canManage]),
+      (await root.get('/users')).body.items.map((u: { username: string; canManage: boolean }) => [
+        u.username,
+        u.canManage,
+      ]),
     );
     expect(forRoot).toMatchObject({ root: false, 'boss-admin': true, op101: true });
 
-    expect((await admin.get('/users?role=operator')).body.items.every((u: { role: string }) => u.role === 'operator')).toBe(true);
-    expect((await admin.get('/users?search=op1')).body.items.map((u: { username: string }) => u.username)).toEqual(['op101']);
+    expect(
+      (await admin.get('/users?role=operator')).body.items.every((u: { role: string }) => u.role === 'operator'),
+    ).toBe(true);
+    expect((await admin.get('/users?search=op1')).body.items.map((u: { username: string }) => u.username)).toEqual([
+      'op101',
+    ]);
   });
 });
 
@@ -60,20 +72,40 @@ describe('users admin: RBAC rules', () => {
       email: 'Op102@Example.uz',
     });
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ username: 'op102', role: 'operator', email: 'op102@example.uz', canManage: true });
+    expect(created.body).toMatchObject({
+      username: 'op102',
+      role: 'operator',
+      email: 'op102@example.uz',
+      canManage: true,
+    });
 
     for (const role of ['admin', 'superuser']) {
       const res = await admin.post('/users', { username: `new-${role}`, password: 'Strong-Pass-123', role });
       expect(res.status, role).toBe(403);
     }
     // validation: operator without extension, weak password, bad username
-    expect((await admin.post('/users', { username: 'noext', password: 'Strong-Pass-123', role: 'operator' })).status).toBe(400);
-    expect((await admin.post('/users', { username: 'weak', password: '123', role: 'operator', extension: '120' })).status).toBe(400);
-    expect((await admin.post('/users', { username: 'bad name!', password: 'Strong-Pass-123', extension: '120' })).status).toBe(400);
-    // duplicates (case-insensitive)
-    expect((await admin.post('/users', { username: 'OP102', password: 'Strong-Pass-123', extension: '120' })).status).toBe(409);
     expect(
-      (await admin.post('/users', { username: 'op103', password: 'Strong-Pass-123', extension: '103', email: 'op102@example.uz' })).status,
+      (await admin.post('/users', { username: 'noext', password: 'Strong-Pass-123', role: 'operator' })).status,
+    ).toBe(400);
+    expect(
+      (await admin.post('/users', { username: 'weak', password: '123', role: 'operator', extension: '120' })).status,
+    ).toBe(400);
+    expect(
+      (await admin.post('/users', { username: 'bad name!', password: 'Strong-Pass-123', extension: '120' })).status,
+    ).toBe(400);
+    // duplicates (case-insensitive)
+    expect(
+      (await admin.post('/users', { username: 'OP102', password: 'Strong-Pass-123', extension: '120' })).status,
+    ).toBe(409);
+    expect(
+      (
+        await admin.post('/users', {
+          username: 'op103',
+          password: 'Strong-Pass-123',
+          extension: '103',
+          email: 'op102@example.uz',
+        })
+      ).status,
     ).toBe(409);
   });
 
@@ -157,7 +189,12 @@ describe('users admin: RBAC rules', () => {
     expect((await admin.delete(`/users/${id}`)).status).toBe(204);
     expect((await admin.get(`/users/${id}`)).status).toBe(404);
 
-    expect(await auditActions(e2e.db, `user:${id}`)).toEqual(['users.create', 'auth.login', 'users.deactivate', 'users.delete']);
+    expect(await auditActions(e2e.db, `user:${id}`)).toEqual([
+      'users.create',
+      'auth.login',
+      'users.deactivate',
+      'users.delete',
+    ]);
     expect(await auditActions(e2e.db)).toEqual(
       expect.arrayContaining(['users.update', 'users.role_change', 'users.password_reset']),
     );
@@ -193,23 +230,40 @@ describe('operator groups and permissions', () => {
     const created = await admin.post('/operator-groups', {
       name: 'Night shift',
       description: 'after hours',
-      permissions: { canSeeContacts: true, canEditContacts: false, canUseRemoteDesktop: false, canRequestHelp: true, canUseTools: true },
+      permissions: {
+        canSeeContacts: true,
+        canEditContacts: false,
+        canUseRemoteDesktop: false,
+        canRequestHelp: true,
+        canUseTools: true,
+      },
     });
     expect(created.status).toBe(201);
     expect((await admin.post('/operator-groups', { name: 'night SHIFT', permissions: {} })).status).toBe(409);
     expect((await admin.post('/operator-groups', { name: 'x', permissions: {} })).status).toBe(400);
 
     const id = created.body.id;
-    const upd = await admin.patch(`/operator-groups/${id}`, { permissions: { ...created.body.permissions, canEditContacts: true } });
+    const upd = await admin.patch(`/operator-groups/${id}`, {
+      permissions: { ...created.body.permissions, canEditContacts: true },
+    });
     expect(upd.status).toBe(200);
     expect(upd.body.permissions.canEditContacts).toBe(true);
 
-    const member = await createUser(admin, { username: 'night-op', password: 'Night-Pass-123', extension: '140', groupId: id });
-    expect((await admin.get('/operator-groups')).body.items.find((g: { id: number }) => g.id === id).memberCount).toBe(1);
+    const member = await createUser(admin, {
+      username: 'night-op',
+      password: 'Night-Pass-123',
+      extension: '140',
+      groupId: id,
+    });
+    expect((await admin.get('/operator-groups')).body.items.find((g: { id: number }) => g.id === id).memberCount).toBe(
+      1,
+    );
     expect((await admin.delete(`/operator-groups/${id}`)).status).toBe(204);
     expect((await admin.get(`/users/${member}`)).body.groupId).toBeNull();
     expect((await admin.patch(`/users/${member}`, { groupId: 99999 })).status).toBe(400);
-    expect(await auditActions(e2e.db)).toEqual(expect.arrayContaining(['groups.create', 'groups.update', 'groups.delete']));
+    expect(await auditActions(e2e.db)).toEqual(
+      expect.arrayContaining(['groups.create', 'groups.update', 'groups.delete']),
+    );
   });
 });
 

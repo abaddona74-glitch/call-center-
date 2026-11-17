@@ -23,7 +23,12 @@ import { AuditService } from '../audit/audit.service.js';
 import { AuthRepository } from '../auth/auth.repository.js';
 import { AuthService, type LoginResult, type RequestMeta } from '../auth/auth.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
-import { ChallengeStore, readClientChallenge, userHandleFromUuid, uuidFromUserHandle } from './domain/challenge-store.js';
+import {
+  ChallengeStore,
+  readClientChallenge,
+  userHandleFromUuid,
+  uuidFromUserHandle,
+} from './domain/challenge-store.js';
 import { FailTracker } from './domain/fail-tracker.js';
 import { type PasskeyRow, PasskeysRepository, toPasskeyDto } from './passkeys.repository.js';
 
@@ -64,7 +69,12 @@ export class PasskeysService {
 
   // --- registration (logged in, password re-check) ---------------------------------------
 
-  async registrationOptions(user: SessionUser, password: string, name: string, ip: string | undefined): Promise<WebAuthnOptionsJSON> {
+  async registrationOptions(
+    user: SessionUser,
+    password: string,
+    name: string,
+    ip: string | undefined,
+  ): Promise<WebAuthnOptionsJSON> {
     const rp = this.rp;
     const account = await this.auth.verifyCurrentPassword(user.id, password, ip);
     const existing = await this.repo.listByUser(user.id);
@@ -72,7 +82,10 @@ export class PasskeysService {
       throw new BadRequestException(`At most ${MAX_PASSKEYS_PER_USER} passkeys per account`);
     }
     const labels = account.extension
-      ? { userName: `${account.extension} · ${account.username}`, displayName: `Operator ${account.extension} (${account.username})` }
+      ? {
+          userName: `${account.extension} · ${account.username}`,
+          displayName: `Operator ${account.extension} (${account.username})`,
+        }
       : { userName: account.username, displayName: account.username };
 
     const options = await generateRegistrationOptions({

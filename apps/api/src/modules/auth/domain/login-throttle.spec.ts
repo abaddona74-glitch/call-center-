@@ -1,4 +1,10 @@
-import { applyFailure, policyFromSettings, retryAfterSeconds, throttleKeys, type ThrottleState } from './login-throttle.js';
+import {
+  applyFailure,
+  policyFromSettings,
+  retryAfterSeconds,
+  throttleKeys,
+  type ThrottleState,
+} from './login-throttle.js';
 
 const policy = policyFromSettings({ maxAttempts: 3, lockoutMinutes: 10, ipMaxAttempts: 10 });
 const t0 = new Date('2026-11-17T10:00:00Z');

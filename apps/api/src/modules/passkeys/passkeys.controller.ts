@@ -17,7 +17,19 @@ import {
   type WebAuthnOptionsJSON,
   WebAuthnOptionsSchema,
 } from '@cc/shared';
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Req, Res, SerializeOptions } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+  SerializeOptions,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
@@ -98,7 +110,10 @@ export class PasskeysController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<MeResponse> {
-    const result = await this.passkeys.loginVerify(body.credential, { ip: req.ip, userAgent: req.headers['user-agent'] });
+    const result = await this.passkeys.loginVerify(body.credential, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
     setSessionCookie(res, result.token, result.expiresAt, this.config.get('COOKIE_SECURE'));
     return { user: result.user };
   }

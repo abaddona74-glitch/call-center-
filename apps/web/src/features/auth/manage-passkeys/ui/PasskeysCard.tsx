@@ -1,10 +1,22 @@
 import type { Passkey } from '@cc/shared';
-import { type PublicKeyCredentialCreationOptionsJSON, WebAuthnError, browserSupportsWebAuthn, startRegistration } from '@simplewebauthn/browser';
+import {
+  type PublicKeyCredentialCreationOptionsJSON,
+  WebAuthnError,
+  browserSupportsWebAuthn,
+  startRegistration,
+} from '@simplewebauthn/browser';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { accountKeys, deletePasskey, myPasskeysQuery, passkeyRegistrationOptions, passkeyRegistrationVerify, renamePasskey } from '@/entities/user';
+import {
+  accountKeys,
+  deletePasskey,
+  myPasskeysQuery,
+  passkeyRegistrationOptions,
+  passkeyRegistrationVerify,
+  renamePasskey,
+} from '@/entities/user';
 import { isHttpError } from '@/shared/api';
 import { registerTranslations } from '@/shared/i18n';
 import { formatDateTime } from '@/shared/lib/format-datetime';
@@ -109,7 +121,9 @@ export function PasskeysCard() {
   const add = useMutation({
     mutationFn: async () => {
       const options = await passkeyRegistrationOptions({ name: name.trim(), password });
-      const credential = await startRegistration({ optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON });
+      const credential = await startRegistration({
+        optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
+      });
       return passkeyRegistrationVerify(credential);
     },
     onSuccess: () => {
@@ -159,7 +173,9 @@ export function PasskeysCard() {
       <SettingsCardHeader icon={<IconFingerprint size={20} />} title={t('title')} description={t('description')} />
 
       <ul className="mb-4 flex flex-col gap-2">
-        {!isLoading && passkeys?.length === 0 && <li className="py-3 text-center text-xs text-[#94a3b8]">{t('empty')}</li>}
+        {!isLoading && passkeys?.length === 0 && (
+          <li className="py-3 text-center text-xs text-[#94a3b8]">{t('empty')}</li>
+        )}
         {passkeys?.map((pk) => (
           <li
             key={pk.id}
@@ -200,13 +216,23 @@ export function PasskeysCard() {
                   <SettingsButton size="sm" tone="ghost" onClick={() => setEditing(null)}>
                     {t('cancel')}
                   </SettingsButton>
-                  <SettingsButton size="sm" tone="success" disabled={!editing.name.trim()} onClick={() => rename.mutate(editing)}>
+                  <SettingsButton
+                    size="sm"
+                    tone="success"
+                    disabled={!editing.name.trim()}
+                    onClick={() => rename.mutate(editing)}
+                  >
                     {t('save')}
                   </SettingsButton>
                 </>
               ) : (
                 <>
-                  <SettingsButton size="sm" tone="ghost" title={t('rename')} onClick={() => setEditing({ id: pk.id, name: pk.name })}>
+                  <SettingsButton
+                    size="sm"
+                    tone="ghost"
+                    title={t('rename')}
+                    onClick={() => setEditing({ id: pk.id, name: pk.name })}
+                  >
                     <Icon name="edit" className="size-3.5" />
                   </SettingsButton>
                   <SettingsButton size="sm" tone="danger" title={t('remove')} onClick={() => setToDelete(pk)}>

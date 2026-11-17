@@ -6,7 +6,14 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { createUser, updateUser, userKeys } from '@/entities/user';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
-import { FieldError, FieldHint, FieldLabel, SettingsButton, SettingsInput, SettingsSelect } from '@/shared/ui/settings-panel';
+import {
+  FieldError,
+  FieldHint,
+  FieldLabel,
+  SettingsButton,
+  SettingsInput,
+  SettingsSelect,
+} from '@/shared/ui/settings-panel';
 import { Switch } from '@/shared/ui/switch';
 import { userErrorText } from '../model/errors';
 
@@ -99,7 +106,9 @@ function UserForm({
     } as Values,
     validators: {
       onSubmit: ({ value }) => {
-        const schema = user ? CreateUserSchema.safeParse({ ...value, password: 'x'.repeat(10) }) : CreateUserSchema.safeParse(value);
+        const schema = user
+          ? CreateUserSchema.safeParse({ ...value, password: 'x'.repeat(10) })
+          : CreateUserSchema.safeParse(value);
         if (schema.success) return undefined;
         const fields: Record<string, string> = {};
         for (const issue of schema.error.issues) {
@@ -270,4 +279,3 @@ function UserForm({
     </form>
   );
 }
-

@@ -98,7 +98,10 @@ export function ChangePasswordCard() {
           void form.handleSubmit();
         }}
       >
-        <form.Field name="currentPassword" validators={{ onSubmit: ({ value }) => (value ? undefined : t('wrongCurrent')) }}>
+        <form.Field
+          name="currentPassword"
+          validators={{ onSubmit: ({ value }) => (value ? undefined : t('wrongCurrent')) }}
+        >
           {(field) => (
             <div className="flex flex-col gap-1.5">
               <FieldLabel htmlFor="cp-current">{t('current')}</FieldLabel>
@@ -116,7 +119,9 @@ export function ChangePasswordCard() {
         <div className="grid gap-3.5 sm:grid-cols-2">
           <form.Field
             name="newPassword"
-            validators={{ onSubmit: ({ value }) => (PasswordSchema.safeParse(value).success ? undefined : t('tooShort')) }}
+            validators={{
+              onSubmit: ({ value }) => (PasswordSchema.safeParse(value).success ? undefined : t('tooShort')),
+            }}
           >
             {(field) => (
               <div className="flex flex-col gap-1.5">
@@ -137,7 +142,8 @@ export function ChangePasswordCard() {
             name="confirm"
             validators={{
               onChangeListenTo: ['newPassword'],
-              onSubmit: ({ value, fieldApi }) => (value === fieldApi.form.getFieldValue('newPassword') ? undefined : t('mismatch')),
+              onSubmit: ({ value, fieldApi }) =>
+                value === fieldApi.form.getFieldValue('newPassword') ? undefined : t('mismatch'),
             }}
           >
             {(field) => (

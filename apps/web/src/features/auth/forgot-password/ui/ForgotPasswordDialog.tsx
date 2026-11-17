@@ -159,7 +159,11 @@ export function ForgotPasswordDialog({
                   />
                 </div>
               </div>
-              <button type="submit" className={cn('lg-submit', identifier.trim() && 'is-ready')} disabled={request.isPending}>
+              <button
+                type="submit"
+                className={cn('lg-submit', identifier.trim() && 'is-ready')}
+                disabled={request.isPending}
+              >
                 <span className="lg-submit-content">{t('send')}</span>
               </button>
             </form>
@@ -196,7 +200,12 @@ export function ForgotPasswordDialog({
                 <span className="lg-submit-content">{t('verify')}</span>
               </button>
               <div className="mt-3.5 flex justify-center">
-                <button type="button" className="lg-link-btn" disabled={resendLeft > 0 || request.isPending} onClick={() => request.mutate()}>
+                <button
+                  type="button"
+                  className="lg-link-btn"
+                  disabled={resendLeft > 0 || request.isPending}
+                  onClick={() => request.mutate()}
+                >
                   {resendLeft > 0 ? t('resendIn', { seconds: resendLeft }) : t('resend')}
                 </button>
               </div>
@@ -247,7 +256,11 @@ export function ForgotPasswordDialog({
                   />
                 </div>
               </div>
-              <button type="submit" className={cn('lg-submit', password && confirm && 'is-ready')} disabled={complete.isPending}>
+              <button
+                type="submit"
+                className={cn('lg-submit', password && confirm && 'is-ready')}
+                disabled={complete.isPending}
+              >
                 <span className="lg-submit-content">{t('save')}</span>
               </button>
             </form>

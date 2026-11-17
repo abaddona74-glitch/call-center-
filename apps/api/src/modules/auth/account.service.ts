@@ -110,7 +110,9 @@ export class AccountService {
       },
       ['password_reset'],
     );
-    const sent = await this.mail.send(codeMail('password_reset', user.email, user.username, code, CODE_TTL_SECONDS / 60));
+    const sent = await this.mail.send(
+      codeMail('password_reset', user.email, user.username, code, CODE_TTL_SECONDS / 60),
+    );
     await this.audit.record('auth.password_reset.requested', {
       actorLabel: 'anonymous',
       target: `user:${user.id}`,
@@ -193,8 +195,10 @@ export class AccountService {
     const newEmail = requestedEmail;
 
     if (newEmail !== null) {
-      if (user.email && user.email.toLowerCase() === newEmail) throw new BadRequestException('This email is already bound');
-      if (await this.repo.emailTaken(newEmail, user.id)) throw new ConflictException('This email is used by another account');
+      if (user.email && user.email.toLowerCase() === newEmail)
+        throw new BadRequestException('This email is already bound');
+      if (await this.repo.emailTaken(newEmail, user.id))
+        throw new ConflictException('This email is used by another account');
     } else if (!user.email) {
       throw new BadRequestException('No email is bound');
     }
@@ -223,7 +227,8 @@ export class AccountService {
 
     if (row.purpose === 'email_current' && row.newEmail) {
       // Current email confirmed; now confirm the new one.
-      if (await this.repo.emailTaken(row.newEmail, user.id)) throw new ConflictException('This email is used by another account');
+      if (await this.repo.emailTaken(row.newEmail, user.id))
+        throw new ConflictException('This email is used by another account');
       return this.issueEmailCode(user.id, user.username, 'email_new', row.newEmail, row.newEmail, ip);
     }
 
@@ -234,7 +239,10 @@ export class AccountService {
     await this.repo.setEmail(user.id, finalEmail);
     await this.audit.record(finalEmail ? 'auth.email.bound' : 'auth.email.unbound', {
       target: `user:${user.id}`,
-      details: { email: finalEmail ? maskEmail(finalEmail) : null, previous: user.email ? maskEmail(user.email) : null },
+      details: {
+        email: finalEmail ? maskEmail(finalEmail) : null,
+        previous: user.email ? maskEmail(user.email) : null,
+      },
     });
     return { step: 'done', sentTo: null, expiresInSeconds: null, email: finalEmail };
   }
@@ -268,7 +276,10 @@ export class AccountService {
     );
     const sent = await this.mail.send(codeMail(purpose, to, username, code, CODE_TTL_SECONDS / 60));
     if (!sent) throw new BadRequestException('The email could not be sent. Try again later');
-    await this.audit.record('auth.email.code_sent', { target: `user:${userId}`, details: { purpose, to: maskEmail(to) } });
+    await this.audit.record('auth.email.code_sent', {
+      target: `user:${userId}`,
+      details: { purpose, to: maskEmail(to) },
+    });
     return {
       step: purpose === 'email_current' ? 'verify_current' : 'verify_new',
       sentTo: maskEmail(to),

@@ -34,14 +34,22 @@ registerTranslations('authPasskeyLogin', {
 });
 
 /** "Sign in with passkey" (discoverable credential: the device shows its own account picker). */
-export function PasskeyLoginButton({ onSuccess, onError }: { onSuccess: (user: SessionUser) => void; onError?: () => void }) {
+export function PasskeyLoginButton({
+  onSuccess,
+  onError,
+}: {
+  onSuccess: (user: SessionUser) => void;
+  onError?: () => void;
+}) {
   const { t } = useTranslation('authPasskeyLogin');
   const [message, setMessage] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const options = await passkeyLoginOptions();
-      const credential = await startAuthentication({ optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON });
+      const credential = await startAuthentication({
+        optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,
+      });
       return passkeyLoginVerify(credential);
     },
     onSuccess: (res) => {

@@ -14,7 +14,14 @@ import {
   SettingsCardHeader,
   SettingsSelect,
 } from '@/shared/ui/settings-panel';
-import { adminKeys, lockoutsQuery, saveSecuritySettings, securitySettingsQuery, unlock, unlockAll } from '../api/admin.queries';
+import {
+  adminKeys,
+  lockoutsQuery,
+  saveSecuritySettings,
+  securitySettingsQuery,
+  unlock,
+  unlockAll,
+} from '../api/admin.queries';
 
 /** Legacy duration choices (minutes). */
 const DURATIONS = [15, 30, 60, 120, 360, 720, 1440];
@@ -44,7 +51,9 @@ function RangeField({
     <div className="flex flex-col gap-1.5">
       <FieldLabel htmlFor={id}>
         {label}
-        <span className="rounded-md bg-[rgba(59,130,246,0.2)] px-2 py-0.5 text-[11px] font-bold text-[#60a5fa]">{badge}</span>
+        <span className="rounded-md bg-[rgba(59,130,246,0.2)] px-2 py-0.5 text-[11px] font-bold text-[#60a5fa]">
+          {badge}
+        </span>
       </FieldLabel>
       <div className="flex items-center gap-2.5">
         <span className="text-[11px] font-semibold text-[#64748b]">{min}</span>
@@ -96,9 +105,16 @@ export function SecuritySettingsPage() {
     },
   });
 
-  const durations = draft && !DURATIONS.includes(draft.lockoutMinutes) ? [...DURATIONS, draft.lockoutMinutes].sort((a, b) => a - b) : DURATIONS;
+  const durations =
+    draft && !DURATIONS.includes(draft.lockoutMinutes)
+      ? [...DURATIONS, draft.lockoutMinutes].sort((a, b) => a - b)
+      : DURATIONS;
   const durationLabel = (m: number) =>
-    m < 60 ? t('security.minutes', { count: m }) : m === 1440 ? t('security.day') : t('security.hours', { count: m / 60, minutes: m });
+    m < 60
+      ? t('security.minutes', { count: m })
+      : m === 1440
+        ? t('security.day')
+        : t('security.hours', { count: m / 60, minutes: m });
   const valid = draft ? LockoutSettingsSchema.safeParse(draft).success : false;
   const dirty = draft && settings && JSON.stringify(draft) !== JSON.stringify(settings);
 
@@ -189,7 +205,9 @@ export function SecuritySettingsPage() {
             ))}
           </div>
         ) : (
-          <div className="py-[18px] text-center text-[12.5px] text-[#94a3b8]">{isLoading ? '…' : t('security.empty')}</div>
+          <div className="py-[18px] text-center text-[12.5px] text-[#94a3b8]">
+            {isLoading ? '…' : t('security.empty')}
+          </div>
         )}
       </SettingsCard>
     </div>
@@ -199,7 +217,8 @@ export function SecuritySettingsPage() {
 function LockoutRow({ entry, pending, onUnlock }: { entry: LockoutEntry; pending: boolean; onUnlock: () => void }) {
   const { t } = useTranslation('settings');
   const minutes = Math.max(0, Math.ceil((new Date(entry.lockedUntil).getTime() - Date.now()) / 60_000));
-  const title = entry.kind === 'ip' ? entry.ip : entry.kind === 'user' ? entry.username : `${entry.username} @ ${entry.ip}`;
+  const title =
+    entry.kind === 'ip' ? entry.ip : entry.kind === 'user' ? entry.username : `${entry.username} @ ${entry.ip}`;
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-3.5 py-2.5">
       <div className="flex flex-wrap items-center gap-2.5">

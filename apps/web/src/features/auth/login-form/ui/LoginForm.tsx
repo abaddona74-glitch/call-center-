@@ -75,7 +75,10 @@ export function LoginForm({
         if (isHttpError(err, 429)) fail(seconds ? t('locked', { seconds }) : t('lockedNoTime'));
         else if (isHttpError(err, 401) || isHttpError(err, 400)) {
           const left = err.body?.message.match(/Attempts left: (\d+)/)?.[1];
-          fail(left === undefined ? t('invalid') : `${t('invalid')}. ${t('attemptsLeft', { count: Number(left) })}`, 'password');
+          fail(
+            left === undefined ? t('invalid') : `${t('invalid')}. ${t('attemptsLeft', { count: Number(left) })}`,
+            'password',
+          );
           // like legacy: clear the password and put the cursor back into it
           form.setFieldValue('password', '');
           document.getElementById('login-password')?.focus();

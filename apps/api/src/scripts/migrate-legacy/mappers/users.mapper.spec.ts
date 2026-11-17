@@ -13,6 +13,7 @@ import {
   type ExistingUser,
   planUsers,
   transformLegacyUser,
+  transformLegacyUserWith,
   type UserValues,
   type UsersRepository,
 } from './users.mapper.js';
@@ -72,6 +73,10 @@ class InMemoryUsersRepository implements UsersRepository {
     return this.rows.map(({ createdAt: _c, ...u }) => ({ ...u }));
   }
 
+  async groupIdByName(): Promise<number | null> {
+    return null;
+  }
+
   async insertIfAbsent(v: UserValues): Promise<number | null> {
     const taken = this.rows.some(
       (u) =>
@@ -80,7 +85,7 @@ class InMemoryUsersRepository implements UsersRepository {
     );
     if (taken) return null;
     const id = this.rows.length + 1;
-    this.rows.push({ id, ...v });
+    this.rows.push({ id, ...v, webauthnUserId: v.webauthnUserId ?? randomUUID() });
     this.inserts++;
     return id;
   }
@@ -228,7 +233,15 @@ describe('users mapper', () => {
 
     it('leaves users that already exist untouched and says which fields differ', () => {
       const existing: ExistingUser[] = [
-        { id: 7, username: 'Test_Admin', passwordHash: 'scrypt$changed', role: 'admin', extension: null, email: null },
+        {
+          id: 7,
+          username: 'Test_Admin',
+          passwordHash: 'scrypt$changed',
+          role: 'admin',
+          extension: null,
+          email: null,
+          webauthnUserId: randomUUID(),
+        },
         {
           id: 8,
           username: 'someone',
@@ -236,6 +249,7 @@ describe('users mapper', () => {
           role: 'operator',
           extension: '150',
           email: 'op101@example.test',
+          webauthnUserId: randomUUID(),
         },
       ];
       const plan = planUsers(rows().map(transformLegacyUser), existing);
@@ -278,8 +292,41 @@ describe('users mapper', () => {
         '#8 mgr_unknown',
         '#9 no_role',
       ]);
-      expect(report.notes.some((n) => n.includes('webauthn_user_id (12 users)'))).toBe(true);
+      expect(report.notes).toContain('7 of 7 inserted users keep their legacy passkey handle (webauthn_user_id)');
       expect(repo.inserts).toBe(0);
+    });
+
+    it('keeps the legacy passkey handle and puts operators 200+ into the restricted group', () => {
+      const legacyRow = rows().find((r) => r.username === 'operator205')!;
+      const r = transformLegacyUserWith(legacyRow, { restrictedGroupId: 2 });
+      expect(r.ok && r.values.webauthnUserId).toBe(String(legacyRow.webauthn_user_id));
+      expect(r.ok && r.values.groupId).toBe(2);
+      const op101 = transformLegacyUserWith(
+        rows().find((x) => x.username === 'op101')!,
+        { restrictedGroupId: 2 },
+      );
+      expect(op101.ok && op101.values.groupId).toBeUndefined();
+      const bad = transformLegacyUser({ ...legacyRow, webauthn_user_id: 'not-a-uuid' });
+      expect(bad.ok && bad.values.webauthnUserId).toBeUndefined();
+      expect(bad.ok && bad.warnings.some((w) => w.startsWith('webauthn_user_id is not a UUID'))).toBe(true);
+    });
+
+    it('does not reuse a passkey handle another user already has', () => {
+      const legacyRow = rows().find((r) => r.username === 'op101')!;
+      const taken: ExistingUser = {
+        id: 50,
+        username: 'someone-else',
+        passwordHash: 'x',
+        role: 'operator',
+        extension: '150',
+        email: null,
+        webauthnUserId: String(legacyRow.webauthn_user_id),
+      };
+      const plan = planUsers([transformLegacyUser(legacyRow)], [taken]);
+      expect(plan.inserts[0].values.webauthnUserId).toBeUndefined();
+      expect(plan.warnings.some((w) => w.reason.includes('webauthn_user_id already belongs to users.id 50'))).toBe(
+        true,
+      );
     });
 
     it('is idempotent: a second real run inserts nothing and reports the same rows as unchanged', async () => {

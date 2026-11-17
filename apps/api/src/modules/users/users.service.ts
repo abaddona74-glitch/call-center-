@@ -213,7 +213,8 @@ export class UsersService {
     const after = (await this.repo.findGroup(id))!;
     if (patch.permissions) {
       // Connected clients of members reload with the new permissions.
-      for (const userId of await this.repo.groupMemberIds(id)) this.sessions.refreshSockets(userId, 'permissions_changed');
+      for (const userId of await this.repo.groupMemberIds(id))
+        this.sessions.refreshSockets(userId, 'permissions_changed');
     }
     await this.audit.record('groups.update', {
       target: `group:${id}`,

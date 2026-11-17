@@ -46,7 +46,15 @@ describe('login / me / logout', () => {
 
   it('requires a session everywhere else', async () => {
     const anon = new Client(e2e);
-    for (const path of ['/auth/me', '/auth/sessions', '/auth/passkeys', '/users', '/sessions', '/security/settings', '/audit']) {
+    for (const path of [
+      '/auth/me',
+      '/auth/sessions',
+      '/auth/passkeys',
+      '/users',
+      '/sessions',
+      '/security/settings',
+      '/audit',
+    ]) {
       expect((await anon.get(path)).status, path).toBe(401);
     }
   });
@@ -77,7 +85,9 @@ describe('login protection', () => {
 
     const lockouts = await root.get('/security/lockouts');
     expect(lockouts.status).toBe(200);
-    const entry = lockouts.body.items.find((l: { kind: string; ip: string }) => l.kind === 'user_ip' && l.ip === attacker.ip);
+    const entry = lockouts.body.items.find(
+      (l: { kind: string; ip: string }) => l.kind === 'user_ip' && l.ip === attacker.ip,
+    );
     expect(entry).toMatchObject({ username: victim.username });
 
     // admin unlock
@@ -113,13 +123,21 @@ describe('login protection', () => {
     const admin = await loginAs(e2e, 'sec-admin', 'Admin-Pass-123');
     const op = await loginAs(e2e, 'sec-op', 'Oper-Pass-1234');
 
-    expect((await admin.get('/security/settings')).body).toEqual({ maxAttempts: 5, lockoutMinutes: 15, ipMaxAttempts: 30 });
-    expect((await admin.put('/security/settings', { maxAttempts: 3, lockoutMinutes: 1, ipMaxAttempts: 10 })).status).toBe(403);
+    expect((await admin.get('/security/settings')).body).toEqual({
+      maxAttempts: 5,
+      lockoutMinutes: 15,
+      ipMaxAttempts: 30,
+    });
+    expect(
+      (await admin.put('/security/settings', { maxAttempts: 3, lockoutMinutes: 1, ipMaxAttempts: 10 })).status,
+    ).toBe(403);
     expect((await admin.get('/security/lockouts')).status).toBe(200);
     expect((await op.get('/security/settings')).status).toBe(403);
     expect((await op.get('/security/lockouts')).status).toBe(403);
     expect((await op.post('/security/lockouts/clear')).status).toBe(403);
-    expect((await root.put('/security/settings', { maxAttempts: 2, lockoutMinutes: 1, ipMaxAttempts: 10 })).status).toBe(400);
+    expect(
+      (await root.put('/security/settings', { maxAttempts: 2, lockoutMinutes: 1, ipMaxAttempts: 10 })).status,
+    ).toBe(400);
   });
 });
 
@@ -178,12 +196,16 @@ describe('sessions admin', () => {
 
     const seen = await admin.get('/sessions');
     expect(seen.status).toBe(200);
-    const roles = new Set(seen.body.items.map((s: { role: string; username: string }) => (s.username === 'sa-admin' ? 'self' : s.role)));
+    const roles = new Set(
+      seen.body.items.map((s: { role: string; username: string }) => (s.username === 'sa-admin' ? 'self' : s.role)),
+    );
     expect(roles.has('superuser')).toBe(false);
     expect(roles.has('operator')).toBe(true);
 
     const all = await root.get('/sessions');
-    const rootSession = all.body.items.find((s: { username: string; isCurrent: boolean }) => s.username === 'root' && !s.isCurrent);
+    const rootSession = all.body.items.find(
+      (s: { username: string; isCurrent: boolean }) => s.username === 'root' && !s.isCurrent,
+    );
     expect(rootSession).toBeTruthy();
     expect((await admin.delete(`/sessions/${rootSession.id}`)).status).toBe(403);
 

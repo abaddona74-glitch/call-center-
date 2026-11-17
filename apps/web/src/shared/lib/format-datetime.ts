@@ -18,8 +18,17 @@ export function formatDateTime(iso: string | null | undefined): string {
 /** Short browser/OS label from a user agent ("Chrome · Windows"). */
 export function describeUserAgent(ua: string | null | undefined): string {
   if (!ua) return '—';
-  const browser =
-    /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /OPR\//.test(ua)
+      ? 'Opera'
+      : /Chrome\//.test(ua)
+        ? 'Chrome'
+        : /Firefox\//.test(ua)
+          ? 'Firefox'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : 'Browser';
   const os = /Windows/.test(ua)
     ? 'Windows'
     : /Android/.test(ua)

@@ -37,7 +37,10 @@ export type PasskeyRegistrationStart = z.infer<typeof PasskeyRegistrationStartSc
 export const WebAuthnOptionsSchema = z.looseObject({ challenge: z.string() });
 export type WebAuthnOptionsJSON = z.infer<typeof WebAuthnOptionsSchema>;
 
-const base64url = z.string().regex(/^[A-Za-z0-9_-]*={0,2}$/).max(20_000);
+const base64url = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]*={0,2}$/)
+  .max(20_000);
 
 /** RegistrationResponseJSON from the browser. */
 export const RegistrationCredentialSchema = z.looseObject({

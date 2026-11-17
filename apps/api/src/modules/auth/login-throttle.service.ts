@@ -73,7 +73,8 @@ export class LoginThrottleService {
         .where('key', '=', keys[kind])
         .executeTakeFirst();
       const next: ThrottleState = applyFailure(kind, prev, policy, now);
-      if (kind === 'user_ip') remaining = next.lockedUntil && next.lockedUntil > now ? 0 : policy.maxAttempts - next.failures;
+      if (kind === 'user_ip')
+        remaining = next.lockedUntil && next.lockedUntil > now ? 0 : policy.maxAttempts - next.failures;
       const values = {
         failures: next.failures,
         lockCount: next.lockCount,
@@ -93,7 +94,9 @@ export class LoginThrottleService {
         .onConflict((oc) => oc.columns(['kind', 'key']).doUpdateSet(values))
         .execute();
       if (next.lockedUntil && (!prev?.lockedUntil || prev.lockedUntil < now) && kind !== 'user') {
-        this.logger.warn(`login lockout: ${kind} ${kind === 'ip' ? ip : `${name}@${ip}`} until ${next.lockedUntil.toISOString()}`);
+        this.logger.warn(
+          `login lockout: ${kind} ${kind === 'ip' ? ip : `${name}@${ip}`} until ${next.lockedUntil.toISOString()}`,
+        );
       }
     }
     return remaining;
@@ -116,10 +119,7 @@ export class LoginThrottleService {
   /** Clear every counter of a username (after an admin unlock or a completed password reset). */
   async clearUser(username: string): Promise<number> {
     const name = normalizeLoginName(username);
-    const res = await this.txHost.tx
-      .deleteFrom('authLoginThrottle')
-      .where('username', '=', name)
-      .executeTakeFirst();
+    const res = await this.txHost.tx.deleteFrom('authLoginThrottle').where('username', '=', name).executeTakeFirst();
     return Number(res.numDeletedRows ?? 0);
   }
 
@@ -142,7 +142,9 @@ export class LoginThrottleService {
     }));
   }
 
-  async findById(id: number): Promise<{ id: number; kind: LockoutKind; username: string | null; ip: string | null } | undefined> {
+  async findById(
+    id: number,
+  ): Promise<{ id: number; kind: LockoutKind; username: string | null; ip: string | null } | undefined> {
     return this.txHost.tx
       .selectFrom('authLoginThrottle')
       .select(['id', 'kind', 'username', 'ip'])

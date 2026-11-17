@@ -1,5 +1,11 @@
 import type { SessionUser } from '@cc/shared';
-import { BadRequestException, Injectable, Logger, type OnApplicationBootstrap, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AppConfig } from '../../config/app-config.js';
 import { type DbHost, InjectDb } from '../../database/db.js';
 import { AuditService } from '../audit/audit.service.js';
@@ -102,7 +108,9 @@ export class AuthService implements OnApplicationBootstrap {
       .catch(() => undefined); // table may not exist yet if migrations are run separately
     if (existing) return;
     if (!password) {
-      this.logger.warn('No superuser exists. Set BOOTSTRAP_SUPERUSER_PASSWORD (min 12 chars) and restart to create one.');
+      this.logger.warn(
+        'No superuser exists. Set BOOTSTRAP_SUPERUSER_PASSWORD (min 12 chars) and restart to create one.',
+      );
       return;
     }
     const username = this.config.get('BOOTSTRAP_SUPERUSER_USERNAME');
@@ -111,6 +119,8 @@ export class AuthService implements OnApplicationBootstrap {
       .values({ username, passwordHash: await hashPassword(password), role: 'superuser' })
       .execute();
     await this.audit.record('users.bootstrap_superuser', { target: `username:${username}`, actorLabel: 'system' });
-    this.logger.warn(`Created bootstrap superuser "${username}". Remove BOOTSTRAP_SUPERUSER_PASSWORD from the environment.`);
+    this.logger.warn(
+      `Created bootstrap superuser "${username}". Remove BOOTSTRAP_SUPERUSER_PASSWORD from the environment.`,
+    );
   }
 }

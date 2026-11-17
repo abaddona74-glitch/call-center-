@@ -51,7 +51,12 @@ export interface UserChange {
 /**
  * @param activeSuperusers number of active superusers right now (including the target if it is one)
  */
-export function checkUpdate(actor: Actor, target: TargetUser, change: UserChange, activeSuperusers: number): PolicyResult {
+export function checkUpdate(
+  actor: Actor,
+  target: TargetUser,
+  change: UserChange,
+  activeSuperusers: number,
+): PolicyResult {
   const self = actor.id === target.id;
   // Admins editing themselves go through the profile, not the users admin.
   if (!canManage(actor, target)) return deny('You cannot manage this account');
