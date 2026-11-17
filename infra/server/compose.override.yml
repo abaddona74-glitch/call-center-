@@ -1,0 +1,22 @@
+# Production overrides, installed by infra/server/deploy.sh as /opt/callcenter/compose.override.yml.
+# `docker compose` merges this file with compose.yml automatically when run in /opt/callcenter.
+services:
+  api:
+    # The server never builds: images come from GHCR (deploy.sh pulls them by commit SHA).
+    build: !reset null
+    environment:
+      # deploy.sh runs migrations as an explicit step BEFORE switching containers. The app must
+      # not migrate on start: after a rollback an OLDER image would refuse to start because the
+      # database already has migrations it does not know (kysely: "previously executed migration
+      # ... is missing"). compose.yml hardcodes "true" for the all-in-one local stack.
+      DB_MIGRATE_ON_START: 'false'
+    # Recordings over SFTP (S5): create /opt/callcenter/secrets/sftp_recordings_key (directory 700,
+    # file 644 so the container user can read it), set SFTP_PRIVATE_KEY_PATH=/run/secrets/sftp_recordings_key
+    # in .env, then uncomment both blocks below.
+    # secrets:
+    #   - sftp_recordings_key
+  web:
+    build: !reset null
+# secrets:
+#   sftp_recordings_key:
+#     file: ./secrets/sftp_recordings_key
