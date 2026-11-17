@@ -51,12 +51,24 @@ export const EnvSchema = z.object({
   SFTP_PORT: z.coerce.number().int().positive().default(22),
   SFTP_USER: z.string().optional(),
   SFTP_PRIVATE_KEY_PATH: z.string().optional(),
+  /** The monitor folder as the SFTP user sees it (`/monitor` for the chrooted user, see DEPLOY.md 11.3). */
   SFTP_MONITOR_PATH: z.string().default('/var/spool/asterisk/monitor'),
-  /** Pinned host key, `SHA256:<base64>` as printed by `ssh-keygen -lf`. Strongly recommended in production. */
+  /**
+   * Pinned PBX host key(s): `SHA256:<base64>` as printed by `ssh-keygen -lf`, comma-separated for rotation.
+   * Required in production — without it the API refuses to connect instead of trusting any host key.
+   */
   SFTP_HOST_FINGERPRINT: z
     .string()
-    .regex(/^SHA256:[A-Za-z0-9+/]{43}=?$/, 'Expected SHA256:<base64> (ssh-keygen -lf)')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().replace(/=+$/, ''))
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().regex(/^SHA256:[A-Za-z0-9+/]{43}$/, 'Expected SHA256:<base64> (ssh-keygen -lf)')).min(1))
     .optional(),
+  /** Where Asterisk itself writes recordings; absolute `recordingfile` values in the CDR start with it. */
+  RECORDINGS_PBX_MONITOR_PATH: z.string().default('/var/spool/asterisk/monitor'),
 
   // --- Recordings ZIP export (temp files outside the web root, deleted after the TTL) ---
   RECORDINGS_ZIP_DIR: z.string().optional(),

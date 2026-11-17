@@ -71,8 +71,12 @@ export class SftpRecordingStorage implements RecordingStorage, OnApplicationBoot
       this.logger.warn('SFTP_* not configured — recordings are unavailable');
       return;
     }
-    if (this.config.isProduction && !this.config.get('SFTP_HOST_FINGERPRINT')) {
-      this.logger.warn('SFTP_HOST_FINGERPRINT is not set — the PBX host key is not pinned');
+    if (!this.config.get('SFTP_HOST_FINGERPRINT')) {
+      if (this.config.isProduction) {
+        this.logger.error('SFTP_HOST_FINGERPRINT is not set — refusing to connect to an unpinned PBX host key');
+        return;
+      }
+      this.logger.warn('SFTP_HOST_FINGERPRINT is not set — accepting any host key (development only)');
     }
     void this.getClient().catch(() => undefined);
   }
@@ -119,7 +123,11 @@ export class SftpRecordingStorage implements RecordingStorage, OnApplicationBoot
   }
 
   private async connect(): Promise<SftpClient> {
-    const fingerprint = this.config.get('SFTP_HOST_FINGERPRINT');
+    const pins = this.config.get('SFTP_HOST_FINGERPRINT');
+    if (!pins && this.config.isProduction) {
+      this.setConnected(false);
+      throw new StorageUnavailableError('SFTP host key is not pinned (SFTP_HOST_FINGERPRINT)');
+    }
     const client = new SftpClient('cc-recordings');
     try {
       const privateKey = await readFile(this.config.get('SFTP_PRIVATE_KEY_PATH') as string);
@@ -132,9 +140,8 @@ export class SftpRecordingStorage implements RecordingStorage, OnApplicationBoot
         retries: 1,
         keepaliveInterval: 15_000,
         keepaliveCountMax: 3,
-        hostVerifier: fingerprint
-          ? (key: Buffer) => hostKeyFingerprint(key) === fingerprint.replace(/=+$/, '')
-          : undefined,
+        // A changed PBX host key fails the handshake (possible MITM) until the pin is updated.
+        hostVerifier: pins ? (key: Buffer) => pins.includes(hostKeyFingerprint(key)) : undefined,
       });
     } catch (err) {
       this.setConnected(false);

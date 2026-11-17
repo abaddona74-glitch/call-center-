@@ -35,8 +35,8 @@ services:
       timeout: 3s
       retries: 30
 
-  # Stand-in for the PBX recordings share: user "recordings", key auth only (no password),
-  # chrooted, monitor folder mounted read-only at the same path as on Issabel.
+  # Stand-in for the PBX recordings share, laid out like production (DEPLOY.md 11.3): user "recordings",
+  # key auth only (no password), chrooted, the monitor folder read-only at /monitor (SFTP_MONITOR_PATH=/monitor).
   # Prepare keys and sample WAVs first: node infra/dev-pbx/sftp/setup.mjs
   sftp:
     image: atmoz/sftp:alpine
@@ -46,7 +46,7 @@ services:
       - "127.0.0.1:2222:22"
     volumes:
       - ./dev-pbx/sftp/.data/keys/id_ed25519.pub:/home/recordings/.ssh/keys/id_ed25519.pub:ro
-      - ./dev-pbx/sftp/.data/monitor:/home/recordings/var/spool/asterisk/monitor:ro
+      - ./dev-pbx/sftp/.data/monitor:/home/recordings/monitor:ro
 
 volumes:
   pg-data:

@@ -80,4 +80,7 @@ writeFileSync(path.join(monitorDir, '2026/11/16/notes.txt'), 'not a recording\n'
 symlinkSync('/etc/passwd', path.join(monitorDir, '2026/11/16/escape.wav'));
 
 console.log(`SFTP dev data ready in ${root}`);
-console.log(`API settings: SFTP_HOST=127.0.0.1 SFTP_PORT=2222 SFTP_USER=recordings SFTP_PRIVATE_KEY_PATH=${keyFile}`);
+console.log(
+  `API settings: SFTP_HOST=127.0.0.1 SFTP_PORT=2222 SFTP_USER=recordings SFTP_MONITOR_PATH=/monitor SFTP_PRIVATE_KEY_PATH=${keyFile}`,
+);
+console.log('Host key pin (after `up -d sftp`): ssh-keyscan -p 2222 127.0.0.1 | ssh-keygen -lf -');

@@ -233,7 +233,7 @@ export class ZipJobsService implements OnModuleInit, OnApplicationShutdown {
   }
 
   private async resolveItems(req: ParsedRequest): Promise<JobItem[]> {
-    const root = this.config.get('SFTP_MONITOR_PATH');
+    const root = [this.config.get('RECORDINGS_PBX_MONITOR_PATH'), this.config.get('SFTP_MONITOR_PATH')];
     if (req.source === 'files') {
       const unique = new Set<string>();
       for (const p of req.paths) {

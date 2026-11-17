@@ -29,19 +29,28 @@ export function pickRecordingRow(rows: readonly CdrRecordingRow[], uniqueid: str
 
 /**
  * Monitor-relative paths where `recordingfile` may live, most likely first.
- * Asterisk stores either a bare file name (in YYYY/MM/DD of the call) or a full path.
+ * Asterisk stores either a bare file name (in YYYY/MM/DD of the call) or a full path on the PBX
+ * (`/var/spool/asterisk/monitor/...`); `monitorRoots` lists the absolute prefixes that mean "the monitor
+ * folder" (the PBX path and the SFTP path, which differ for a chrooted user: `/monitor`).
  * Every candidate is a valid relative audio path; unsafe values yield [].
  */
-export function recordingFileCandidates(recordingfile: string, calldate: string | null, monitorRoot: string): string[] {
+export function recordingFileCandidates(
+  recordingfile: string,
+  calldate: string | null,
+  monitorRoots: string | readonly string[],
+): string[] {
   let raw = recordingfile.trim();
   // oxlint-disable-next-line no-control-regex -- rejecting control characters on purpose
   if (!raw || /[\u0000-\u001f\\]/.test(raw) || raw.split('/').includes('..')) return [];
   if (!isAudioFileName(raw)) raw = `${raw}.wav`;
 
-  const root = path.posix.normalize(monitorRoot).replace(/\/+$/, '');
+  const roots = (typeof monitorRoots === 'string' ? [monitorRoots] : monitorRoots).map((r) =>
+    path.posix.normalize(r).replace(/\/+$/, ''),
+  );
   const candidates: string[] = [];
   if (raw.startsWith('/')) {
-    if (!raw.startsWith(`${root}/`)) return [];
+    const root = roots.find((r) => r && raw.startsWith(`${r}/`));
+    if (!root) return [];
     candidates.push(raw.slice(root.length + 1));
   } else if (raw.includes('/')) {
     candidates.push(raw);

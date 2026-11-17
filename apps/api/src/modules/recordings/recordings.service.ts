@@ -88,6 +88,11 @@ export class RecordingsService {
     private readonly config: AppConfig,
   ) {}
 
+  /** Absolute prefixes of the monitor folder: as Asterisk writes them into the CDR, and as the SFTP user sees it. */
+  monitorRoots(): string[] {
+    return [this.config.get('RECORDINGS_PBX_MONITOR_PATH'), this.config.get('SFTP_MONITOR_PATH')];
+  }
+
   status(): RecordingsStatus {
     return { configured: this.storage.configured, connected: this.storage.isConnected() };
   }
@@ -138,7 +143,7 @@ export class RecordingsService {
 
     const row = pickRecordingRow(rows, uniqueid);
     if (!row) throw new NotFoundException('This call has no recording');
-    const candidates = recordingFileCandidates(row.recordingfile, row.calldate, this.config.get('SFTP_MONITOR_PATH'));
+    const candidates = recordingFileCandidates(row.recordingfile, row.calldate, this.monitorRoots());
     return storageCall(async () => {
       for (const candidate of candidates) {
         const stat = await this.storage.stat(candidate);

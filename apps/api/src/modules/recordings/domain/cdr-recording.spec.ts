@@ -53,6 +53,14 @@ describe('recordingFileCandidates', () => {
     expect(recordingFileCandidates('', '2026-11-17 10:00:00', ROOT)).toEqual([]);
   });
 
+  it('maps PBX paths onto a chrooted SFTP root (/monitor)', () => {
+    const roots = [ROOT, '/monitor'];
+    expect(recordingFileCandidates(`${ROOT}/2026/11/17/a.wav`, null, roots)).toEqual(['2026/11/17/a.wav']);
+    expect(recordingFileCandidates('/monitor/2026/11/17/a.wav', null, roots)).toEqual(['2026/11/17/a.wav']);
+    expect(recordingFileCandidates('/var/spool/asterisk/monitor-other/a.wav', null, roots)).toEqual([]);
+    expect(recordingFileCandidates('/monitor/../etc/passwd.wav', null, roots)).toEqual([]);
+  });
+
   it('adds .wav when the extension is missing', () => {
     expect(recordingFileCandidates('g101-20261116-153000-1763290200.7', '2026-11-16 15:30:00', ROOT)).toEqual([
       '2026/11/16/g101-20261116-153000-1763290200.7.wav',
