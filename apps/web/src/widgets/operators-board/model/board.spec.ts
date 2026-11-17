@@ -1,6 +1,6 @@
 import type { LiveOperator } from '@cc/shared';
 import { describe, expect, it } from 'vitest';
-import { grandTotal, nextInLine, ranks } from './board';
+import { grandTotal, groupForBoard, nextInLine, ranks } from './board';
 
 const op = (
   extension: string,
@@ -54,5 +54,12 @@ describe('operators board model', () => {
   it('predicts the next free operator with the fewest calls', () => {
     expect(nextInLine(ops)).toBe('103');
     expect(nextInLine([ops[2], ops[3]])).toBeNull();
+  });
+
+  it('groups like legacy: talking, ready (next first), offline', () => {
+    const g = groupForBoard(ops, '103');
+    expect(g.talking.map((o) => o.extension)).toEqual(['106']);
+    expect(g.ready.map((o) => o.extension)).toEqual(['103', '101', '119']);
+    expect(g.offline.map((o) => o.extension)).toEqual(['120']);
   });
 });

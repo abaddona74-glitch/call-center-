@@ -6,6 +6,9 @@ registerTranslations('operatorsBoard', {
     density: 'Qatorlar',
     empty: "Bu guruhda operatorlar yo'q",
     offlineSep: 'Oflayn operatorlar',
+    readySep: 'Kutmoqda (Tayyor)',
+    offlineFull: "To'liq statistika",
+    offlineCompact: 'Ixcham qatorlar',
     sum: { talking: 'suhbatda', waiting: 'kutmoqda', offline: 'oflayn' },
     card: {
       talkingWith: 'Suhbatdagi raqam',
@@ -35,6 +38,9 @@ registerTranslations('operatorsBoard', {
     density: 'Компактно',
     empty: 'В этой группе нет операторов',
     offlineSep: 'Операторы офлайн',
+    readySep: 'Ожидают (готовы)',
+    offlineFull: 'Полная статистика',
+    offlineCompact: 'Компактные строки',
     sum: { talking: 'в разговоре', waiting: 'ожидают', offline: 'офлайн' },
     card: {
       talkingWith: 'Номер собеседника',

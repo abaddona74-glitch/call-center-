@@ -76,7 +76,6 @@ export function ActiveCalls() {
                   </span>
                 </span>
                 <span className="cc-tags">
-                  <span className={cn('cc-tag', tag[0])}>{tag[1]}</span>
                   {carrier && (
                     <span className="cc-tag" style={{ color: carrier.color }} title={carrier.name}>
                       <Icon name="simcard" className="size-[11px]" />

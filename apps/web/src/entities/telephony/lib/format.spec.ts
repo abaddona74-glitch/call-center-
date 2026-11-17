@@ -9,9 +9,9 @@ describe('telephony format', () => {
   });
 
   it('displays phones', () => {
-    expect(displayPhone('901234567', 'Yashirin')).toBe('+998 (90) 123-45-67');
+    expect(displayPhone('901234567', 'Yashirin')).toBe('901234567');
     expect(displayPhone(null, 'Yashirin')).toBe('Yashirin');
-    expect(displayPhone('90 ••• •• 67', 'Yashirin')).toBe('+998 90 ••• •• 67');
+    expect(displayPhone('90 ••• •• 67', 'Yashirin')).toBe('90 ••• •• 67');
   });
 
   it('detects the mobile carrier', () => {

@@ -290,9 +290,17 @@
   display: block;
 }
 .opc .call .timer {
+  /* legacy .talking-live-timer box with the card's 17px digits */
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
   font-weight: 700;
-  color: var(--op-live);
   font-size: 17px;
+  letter-spacing: 0.5px;
+  color: #60a5fa;
+  background: rgba(30, 58, 138, 0.45);
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: 6px;
+  padding: 2px 7px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
   flex-shrink: 0;
 }
 .opc .ring-dot {
@@ -429,25 +437,150 @@
   display: none;
 }
 
-/* --- offline separator + compact rows --- */
-.ob-sep {
+/* --- "SAO" group dividers (legacy .op-grid-divider) + compact offline rows --- */
+.ob-div {
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin: 28px 0 14px;
-  color: var(--op-mu);
-  font-size: 13px;
-  grid-column: 1 / -1;
+  gap: 12px;
+  margin: 18px 0 12px;
+  user-select: none;
 }
-.ob-sep::after {
-  content: '';
+.ob-div-line {
+  position: relative;
   flex: 1;
-  height: 1px;
-  background: var(--op-line);
+  height: 1.5px;
 }
-.ob-sep b {
-  color: var(--op-off);
+.ob-div-line.left {
+  background: linear-gradient(90deg, transparent, var(--c));
+}
+.ob-div-line.right {
+  background: linear-gradient(270deg, transparent, var(--c));
+}
+.ob-div-line::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  background: var(--c);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px var(--c);
+}
+.ob-div-line.left::after {
+  right: 0;
+}
+.ob-div-line.right::after {
+  left: 0;
+}
+.ob-div-line .track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.ob-div-line .shine {
+  position: absolute;
+  top: 0;
+  width: 80px;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+}
+.ob-div-line.left .shine {
+  left: -80px;
+  animation: obShineL 21s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+.ob-div-line.right .shine {
+  left: 100%;
+  animation: obShineR 21s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+@keyframes obShineL {
+  0% {
+    left: -80px;
+    opacity: 0;
+  }
+  2%,
+  24% {
+    opacity: 1;
+  }
+  28.5%,
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+@keyframes obShineR {
+  0% {
+    left: 100%;
+    opacity: 0;
+  }
+  2%,
+  24% {
+    opacity: 1;
+  }
+  28.5%,
+  100% {
+    left: -80px;
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-div-line .shine {
+    animation: none;
+    opacity: 0;
+  }
+}
+.ob-div .glow {
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c) 60%, transparent));
+  flex-shrink: 0;
+}
+.ob-div-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 20px;
+  color: var(--c);
   font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--c) 22%, #0d1322),
+    color-mix(in srgb, var(--c) 8%, #0d1322)
+  );
+  border-top: 1px solid var(--c);
+  border-bottom: 1px solid var(--c);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 12px 100%, 0 50%);
+  box-shadow: inset 0 0 12px color-mix(in srgb, var(--c) 15%, transparent);
+  white-space: nowrap;
+}
+.ob-div-label .diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--c);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px var(--c);
+}
+.ob-div-label .count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--c) 25%, transparent);
+  color: #fff;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.ob-div-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  color: #fecaca;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
 }
 .ob-offs {
   grid-column: 1 / -1;

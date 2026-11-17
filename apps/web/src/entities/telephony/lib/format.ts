@@ -1,5 +1,3 @@
-import { formatUzPhone, isMaskedPhone } from '@cc/shared';
-
 /** "02:05" / "1:02:05" (legacy formatSeconds). */
 export function formatSeconds(total: number): string {
   const sec = Math.max(0, Math.round(total || 0));
@@ -11,10 +9,9 @@ export function formatSeconds(total: number): string {
     : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Phone for display: "+998 (90) 123-45-67", masked numbers as they come, null -> fallback text. */
+/** Phone for display, like legacy: plain national digits ("901234567"); masked as received; null -> fallback. */
 export function displayPhone(phone: string | null, hidden: string): string {
-  if (!phone) return hidden;
-  return isMaskedPhone(phone) ? `+998 ${phone}` : formatUzPhone(phone);
+  return phone ?? hidden;
 }
 
 export interface Carrier {

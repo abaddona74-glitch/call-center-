@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatSeconds, liveSnapshotQuery } from '@/entities/telephony';
+import { Icon } from '@/shared/ui/icon';
 import '../i18n';
 import './live-counters.css';
 
@@ -13,6 +14,7 @@ function Kpi({
   badge,
   badgeCls,
   sub,
+  extra = false,
 }: {
   color: string;
   icon: string;
@@ -21,10 +23,12 @@ function Kpi({
   badge?: string;
   badgeCls?: string;
   sub: ReactNode;
+  /** Hidden when the grid is narrow (legacy shows 6 cards while the monitor panel is open). */
+  extra?: boolean;
 }) {
   const { t } = useTranslation('liveCounters');
   return (
-    <div className={`kpi-card ${color}`}>
+    <div className={`kpi-card ${color}${extra ? ' extra' : ''}`}>
       <div className="kpi-icon">
         <img src={`/images/kpi/${icon}.png`} alt="" width={54} height={54} />
       </div>
@@ -35,7 +39,10 @@ function Kpi({
           <span className="kpi-unit">{t('unit')}</span>
           {badge && <span className={`kpi-badge ${badgeCls}`}>{badge}</span>}
         </h3>
-        <div className="kpi-sub">{sub}</div>
+        <div className="kpi-sub">
+          <Icon name="user" />
+          {sub}
+        </div>
       </div>
     </div>
   );
@@ -102,19 +109,6 @@ export function LiveCounters() {
           }
         />
         <Kpi
-          color="green"
-          icon="answered-calls-icon"
-          label={t('answered')}
-          value={c.answered}
-          badge={`${c.answerRate}%`}
-          badgeCls="success"
-          sub={
-            <span>
-              {t('hangupClient')}: <b>{c.clientHangups}</b> · {t('hangupOperator')}: <b>{c.operatorHangups}</b>
-            </span>
-          }
-        />
-        <Kpi
           color="amber"
           icon="queue"
           label={t('abandoned')}
@@ -145,7 +139,23 @@ export function LiveCounters() {
           value={c.operatorMissed}
           sub={<span>{t('missedHint')}</span>}
         />
+        {/* Shown when there is room (legacy: only with the monitor panel collapsed). */}
         <Kpi
+          extra
+          color="green"
+          icon="answered-calls-icon"
+          label={t('answered')}
+          value={c.answered}
+          badge={`${c.answerRate}%`}
+          badgeCls="success"
+          sub={
+            <span>
+              {t('hangupClient')}: <b>{c.clientHangups}</b> · {t('hangupOperator')}: <b>{c.operatorHangups}</b>
+            </span>
+          }
+        />
+        <Kpi
+          extra
           color="cyan"
           icon="answered-calls-icon"
           label={t('onlineOps')}

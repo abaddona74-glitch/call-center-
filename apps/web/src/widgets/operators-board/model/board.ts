@@ -1,5 +1,4 @@
 import type { LiveOperator } from '@cc/shared';
-import { useState } from 'react';
 
 /** Calls an operator handled today (legacy grandTotal = answered + outbound + transfers in). */
 export const grandTotal = (op: LiveOperator) => op.today.answered + op.today.outbound + op.today.transfersIn;
@@ -25,27 +24,18 @@ export function nextInLine(ops: LiveOperator[]): string | null {
   return free[0].extension;
 }
 
-/** useState persisted in localStorage (UI preference only; storage may be unavailable). */
-export function usePersistedState<T extends string>(
-  key: string,
-  initial: T,
-  allowed: readonly T[],
-): [T, (v: T) => void] {
-  const [value, setValue] = useState<T>(() => {
-    try {
-      const saved = localStorage.getItem(key) as T | null;
-      return saved && allowed.includes(saved) ? saved : initial;
-    } catch {
-      return initial;
-    }
-  });
-  const set = (v: T) => {
-    setValue(v);
-    try {
-      localStorage.setItem(key, v);
-    } catch {
-      /* ignore */
-    }
+/**
+ * Legacy board layout: talking operators first (busiest first), then "Kutmoqda (Tayyor)" —
+ * waiting, ringing and paused, the predicted next operator first — then offline operators.
+ */
+export function groupForBoard(ops: LiveOperator[], next: string | null) {
+  const byScore = (a: LiveOperator, b: LiveOperator) =>
+    grandTotal(b) - grandTotal(a) || Number(a.extension) - Number(b.extension);
+  return {
+    talking: ops.filter((o) => o.presence === 'talking').sort(byScore),
+    ready: ops
+      .filter((o) => o.presence !== 'talking' && o.presence !== 'offline')
+      .sort((a, b) => (a.extension === next ? -1 : b.extension === next ? 1 : byScore(a, b))),
+    offline: ops.filter((o) => o.presence === 'offline').sort(byScore),
   };
-  return [value, set];
 }

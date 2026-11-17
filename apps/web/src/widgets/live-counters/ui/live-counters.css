@@ -8,16 +8,6 @@
 .kpi-wrap {
   container-type: inline-size;
 }
-@container (max-width: 1080px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@container (max-width: 520px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-}
 .kpi-card {
   background: #131d31;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -88,9 +78,11 @@
 }
 .kpi-details p {
   color: var(--kpi);
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0 0 6px;
 }
 .kpi-details h3 {
   display: flex;
@@ -140,8 +132,51 @@
   color: #38bdf8;
   font-weight: 700;
 }
+.kpi-sub svg {
+  width: 12px;
+  height: 12px;
+  color: var(--kpi);
+}
 .kpi-note {
   margin-top: 8px;
   font-size: 11px;
   color: #64748b;
+}
+
+/* Like legacy with the monitor panel open: 6 cards in 3 columns; the 2 extra cards return when wide. */
+@container (max-width: 1080px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .kpi-card {
+    padding: 16px;
+    gap: 12px;
+    min-height: 128px;
+  }
+  .kpi-card.extra {
+    display: none;
+  }
+  .kpi-icon {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+  }
+  .kpi-icon img {
+    width: 42px;
+    height: 42px;
+  }
+  .kpi-details p {
+    font-size: 11px;
+  }
+}
+@container (max-width: 620px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@container (max-width: 420px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }

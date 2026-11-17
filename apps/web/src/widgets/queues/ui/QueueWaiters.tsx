@@ -30,21 +30,26 @@ export function QueueWaiters() {
         {waiting.map((w) => {
           const carrier = carrierOf(w.phone);
           return (
-            <div key={w.callId} className="qp-item" data-call-id={w.callId}>
-              <span className="qp-pos">{w.position}</span>
+            <div key={w.callId} className="qp-item" data-call-id={w.callId} title={`${t('queue')} ${w.queue}`}>
               <div className="min-w-0 flex-1">
-                <div className="qp-num">{displayPhone(w.phone, tt('hidden'))}</div>
-                <div className="qp-meta">
-                  <span>
-                    {t('queue')} {w.queue}
-                  </span>
-                  {carrier && <span style={{ color: carrier.color }}>{carrier.name}</span>}
+                <div className="qp-line">
+                  <Icon name="call-incoming" className="qp-ic" />
+                  <span className="qp-num">{displayPhone(w.phone, tt('hidden'))}</span>
+                  {carrier && (
+                    <span className="qp-carrier" style={{ color: carrier.color }}>
+                      <Icon name="simcard" className="size-[9px]" />
+                      {carrier.name}
+                    </span>
+                  )}
                 </div>
               </div>
-              <span className="qp-wait" title={t('waitTitle')}>
-                <Icon name="timer" className="size-2.5 text-[#38bdf8]" />
-                <LiveTimer since={w.joinedAt} />
-              </span>
+              <div className="qp-right">
+                <span className="qp-pos">{t('position', { n: w.position })}</span>
+                <span className="qp-wait" title={t('waitTitle')}>
+                  <Icon name="timer" className="size-2.5 text-[#38bdf8]" />
+                  <LiveTimer since={w.joinedAt} />
+                </span>
+              </div>
             </div>
           );
         })}

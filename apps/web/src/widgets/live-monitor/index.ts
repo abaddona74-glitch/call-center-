@@ -1,1 +1,1 @@
-export { LiveMonitor } from './ui/LiveMonitor';
+export { LiveMonitor, LiveMonitorReopen } from './ui/LiveMonitor';
