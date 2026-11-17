@@ -34,6 +34,9 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-callcenter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-callcenter}
       DB_MIGRATE_ON_START: "true"
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+    volumes:
+      # ticket attachments (/data/tickets) and temporary recording ZIPs (/data/recording-zips)
+      - api-data:/data
 
   web:
     image: ${REGISTRY:-ghcr.io/nuriddin2468}/call-center-web:${IMAGE_TAG:-local}
@@ -54,3 +57,4 @@ services:
 volumes:
   pg-data:
   caddy-data:
+  api-data:

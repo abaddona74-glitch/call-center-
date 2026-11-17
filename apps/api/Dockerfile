@@ -19,7 +19,7 @@ RUN pnpm --filter @cc/api deploy --prod --legacy /out
 FROM node:26-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
+RUN addgroup -S app && adduser -S app -G app && mkdir -p /data && chown app:app /data
 COPY --from=build --chown=app:app /out ./
 USER app
 EXPOSE 3000

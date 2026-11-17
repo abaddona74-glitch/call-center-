@@ -38,6 +38,7 @@ docs/REVIEW-*.md
 
 # Infra volumes
 infra/**/.data/
+apps/api/.data/
 
 # ---- legacy (old system kept for reference) ----
 legacy/data/*.json
