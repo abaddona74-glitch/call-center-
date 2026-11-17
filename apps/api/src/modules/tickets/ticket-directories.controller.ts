@@ -43,7 +43,10 @@ export class TicketDirectoriesController {
 
   @Post('regions')
   @SerializeOptions({ schema: TicketRegionSchema })
-  createRegion(@Body({ schema: RegionInputSchema }) body: RegionInput, @CurrentUser() user: SessionUser): Promise<TicketRegion> {
+  createRegion(
+    @Body({ schema: RegionInputSchema }) body: RegionInput,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketRegion> {
     return this.dirs.createRegion(user, body);
   }
 
@@ -59,7 +62,10 @@ export class TicketDirectoriesController {
 
   @Delete('regions/:id')
   @HttpCode(204)
-  deleteRegion(@Param('id', { schema: DirectoryIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<void> {
+  deleteRegion(
+    @Param('id', { schema: DirectoryIdSchema }) id: number,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
     return this.dirs.deleteRegion(user, id);
   }
 
@@ -91,7 +97,10 @@ export class TicketDirectoriesController {
 
   @Post('categories')
   @SerializeOptions({ schema: TicketCategorySchema })
-  createCategory(@Body({ schema: CategoryInputSchema }) body: CategoryInput, @CurrentUser() user: SessionUser): Promise<TicketCategory> {
+  createCategory(
+    @Body({ schema: CategoryInputSchema }) body: CategoryInput,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketCategory> {
     return this.dirs.createCategory(user, body);
   }
 
@@ -107,7 +116,10 @@ export class TicketDirectoriesController {
 
   @Delete('categories/:id')
   @HttpCode(204)
-  deleteCategory(@Param('id', { schema: DirectoryIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<void> {
+  deleteCategory(
+    @Param('id', { schema: DirectoryIdSchema }) id: number,
+    @CurrentUser() user: SessionUser,
+  ): Promise<void> {
     return this.dirs.deleteCategory(user, id);
   }
 

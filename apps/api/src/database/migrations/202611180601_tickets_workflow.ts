@@ -138,7 +138,10 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('outcome_note', 'text')
     .addColumn('outcome_at', 'timestamptz')
     .addColumn('recording_status', 'text', (c) =>
-      c.notNull().defaultTo('pending').check(sql`recording_status in ('pending', 'found', 'none', 'unavailable')`),
+      c
+        .notNull()
+        .defaultTo('pending')
+        .check(sql`recording_status in ('pending', 'found', 'none', 'unavailable')`),
     )
     // monitor-relative path of the recording (validated, never user input)
     .addColumn('recording_path', 'text')
@@ -251,6 +254,10 @@ export async function down(db: Kysely<any>): Promise<void> {
   await sql`alter table tickets add constraint tickets_status_check check (status in ('open', 'accepted', 'completed', 'rejected'))`.execute(
     db,
   );
-  await sql`alter table tickets add constraint tickets_creator_party_check check (creator_party in ('admin', 'creator'))`.execute(db);
-  await sql`alter table tickets add constraint tickets_target_chk check (target_all or target_label is not null)`.execute(db);
+  await sql`alter table tickets add constraint tickets_creator_party_check check (creator_party in ('admin', 'creator'))`.execute(
+    db,
+  );
+  await sql`alter table tickets add constraint tickets_target_chk check (target_all or target_label is not null)`.execute(
+    db,
+  );
 }

@@ -54,7 +54,12 @@ describe('tickets workflow (e2e)', () => {
     return req;
   }
 
-  const base = () => ({ regionId: tashkent, categoryId: category, phone: '+998 90 123 45 67', description: 'ERI kaliti ishlamayapti' });
+  const base = () => ({
+    regionId: tashkent,
+    categoryId: category,
+    phone: '+998 90 123 45 67',
+    description: 'ERI kaliti ishlamayapti',
+  });
 
   async function newTicket(user = op, over: Record<string, string | number> = {}): Promise<TicketDetail> {
     const res = await create(user, { ...base(), ...over });
@@ -62,7 +67,8 @@ describe('tickets workflow (e2e)', () => {
     return res.body as TicketDetail;
   }
 
-  const post = (user: TestUser, url: string, body: object = {}) => http().post(url).set('Authorization', user.auth).send(body);
+  const post = (user: TestUser, url: string, body: object = {}) =>
+    http().post(url).set('Authorization', user.auth).send(body);
   const get = (user: TestUser, url: string) => http().get(url).set('Authorization', user.auth);
 
   /** A ticket that went through the region and waits in the callback queue. */
@@ -119,7 +125,8 @@ describe('tickets workflow (e2e)', () => {
     tashkent = regions.find((r) => r.code === 'toshkent-shahri')!.id;
     samarqand = regions.find((r) => r.code === 'samarqand')!.id;
     andijon = regions.find((r) => r.code === 'andijon')!.id;
-    category = (await t.db.selectFrom('ticketCategories').select('id').orderBy('sortOrder').executeTakeFirstOrThrow()).id;
+    category = (await t.db.selectFrom('ticketCategories').select('id').orderBy('sortOrder').executeTakeFirstOrThrow())
+      .id;
 
     superuser = await t.createUser('superuser', '100');
     exec = await t.createUser('admin', null);
@@ -132,7 +139,9 @@ describe('tickets workflow (e2e)', () => {
     // Many tickets per minute from one test client: the per-IP rate limit is not under test here.
     vi.spyOn(ThrottlerGuard.prototype, 'canActivate').mockResolvedValue(true);
     broadcast = vi.spyOn(t.app.get(RealtimeService), 'broadcast');
-    originate = vi.spyOn(t.app.get(ActionsService), 'originate').mockResolvedValue({ ok: true, message: 'Calling your phone…' });
+    originate = vi
+      .spyOn(t.app.get(ActionsService), 'originate')
+      .mockResolvedValue({ ok: true, message: 'Calling your phone…' });
     callControl = vi.spyOn(t.app.get(LiveService), 'callControl').mockReturnValue(null);
     findCall = vi.spyOn(t.app.get(PbxCallsService), 'findCall').mockResolvedValue(null);
     recordingFile = vi.spyOn(t.app.get(RecordingsService), 'file').mockImplementation(async (p: string) => ({
@@ -170,7 +179,9 @@ describe('tickets workflow (e2e)', () => {
         nameRu: 'Республика Каракалпакстан',
         cities: [],
       });
-      expect(res.body.categories.map((c: { nameRu: string }) => c.nameRu)).toEqual(expect.arrayContaining(['Ключ ЭЦП', 'ЭДО', 'Другое']));
+      expect(res.body.categories.map((c: { nameRu: string }) => c.nameRu)).toEqual(
+        expect.arrayContaining(['Ключ ЭЦП', 'ЭДО', 'Другое']),
+      );
       await http().get('/api/tickets/directories').expect(401);
     });
 
@@ -181,42 +192,99 @@ describe('tickets workflow (e2e)', () => {
       const r = await post(superuser, '/api/tickets/directories/regions', region).expect(201);
       await post(superuser, '/api/tickets/directories/regions', region).expect(409);
       await post(superuser, '/api/tickets/directories/regions', { ...region, code: 'Bad Code' }).expect(400);
-      await http().patch(`/api/tickets/directories/regions/${r.body.id}`).set('Authorization', superuser.auth).send({ nameRu: 'Новая' }).expect(200);
+      await http()
+        .patch(`/api/tickets/directories/regions/${r.body.id}`)
+        .set('Authorization', superuser.auth)
+        .send({ nameRu: 'Новая' })
+        .expect(200);
 
-      const city = await post(superuser, `/api/tickets/directories/regions/${r.body.id}/cities`, { nameUz: 'Markaz', nameRu: 'Центр' }).expect(201);
-      await post(exec, `/api/tickets/directories/regions/${r.body.id}/cities`, { nameUz: 'X tumani', nameRu: 'X район' }).expect(403);
-      await post(superuser, `/api/tickets/directories/regions/${r.body.id}/cities`, { nameUz: 'Markaz', nameRu: 'Центр' }).expect(409);
+      const city = await post(superuser, `/api/tickets/directories/regions/${r.body.id}/cities`, {
+        nameUz: 'Markaz',
+        nameRu: 'Центр',
+      }).expect(201);
+      await post(exec, `/api/tickets/directories/regions/${r.body.id}/cities`, {
+        nameUz: 'X tumani',
+        nameRu: 'X район',
+      }).expect(403);
+      await post(superuser, `/api/tickets/directories/regions/${r.body.id}/cities`, {
+        nameUz: 'Markaz',
+        nameRu: 'Центр',
+      }).expect(409);
       // a region with cities cannot be deleted
-      await http().delete(`/api/tickets/directories/regions/${r.body.id}`).set('Authorization', superuser.auth).expect(409);
-      await http().patch(`/api/tickets/directories/cities/${city.body.id}`).set('Authorization', superuser.auth).send({ isActive: false }).expect(200);
-      await http().delete(`/api/tickets/directories/cities/${city.body.id}`).set('Authorization', exec.auth).expect(403);
-      await http().delete(`/api/tickets/directories/cities/${city.body.id}`).set('Authorization', superuser.auth).expect(204);
-      await http().delete(`/api/tickets/directories/regions/${r.body.id}`).set('Authorization', superuser.auth).expect(204);
+      await http()
+        .delete(`/api/tickets/directories/regions/${r.body.id}`)
+        .set('Authorization', superuser.auth)
+        .expect(409);
+      await http()
+        .patch(`/api/tickets/directories/cities/${city.body.id}`)
+        .set('Authorization', superuser.auth)
+        .send({ isActive: false })
+        .expect(200);
+      await http()
+        .delete(`/api/tickets/directories/cities/${city.body.id}`)
+        .set('Authorization', exec.auth)
+        .expect(403);
+      await http()
+        .delete(`/api/tickets/directories/cities/${city.body.id}`)
+        .set('Authorization', superuser.auth)
+        .expect(204);
+      await http()
+        .delete(`/api/tickets/directories/regions/${r.body.id}`)
+        .set('Authorization', superuser.auth)
+        .expect(204);
 
-      const cat = await post(superuser, '/api/tickets/directories/categories', { nameUz: `Sinov ${Date.now()}`, nameRu: 'Тест' }).expect(201);
-      await http().patch(`/api/tickets/directories/categories/${cat.body.id}`).set('Authorization', exec.auth).send({ nameRu: 'Новое имя' }).expect(403);
-      await http().delete(`/api/tickets/directories/categories/${cat.body.id}`).set('Authorization', superuser.auth).expect(204);
+      const cat = await post(superuser, '/api/tickets/directories/categories', {
+        nameUz: `Sinov ${Date.now()}`,
+        nameRu: 'Тест',
+      }).expect(201);
+      await http()
+        .patch(`/api/tickets/directories/categories/${cat.body.id}`)
+        .set('Authorization', exec.auth)
+        .send({ nameRu: 'Новое имя' })
+        .expect(403);
+      await http()
+        .delete(`/api/tickets/directories/categories/${cat.body.id}`)
+        .set('Authorization', superuser.auth)
+        .expect(204);
 
       const audit = await t.db.selectFrom('auditLog').select('action').where('action', 'like', 'tickets.%').execute();
       expect(audit.map((a) => a.action)).toEqual(
-        expect.arrayContaining(['tickets.region.create', 'tickets.region.update', 'tickets.city.create', 'tickets.city.delete', 'tickets.region.delete', 'tickets.category.create']),
+        expect.arrayContaining([
+          'tickets.region.create',
+          'tickets.region.update',
+          'tickets.city.create',
+          'tickets.city.delete',
+          'tickets.region.delete',
+          'tickets.category.create',
+        ]),
       );
     });
 
     it('a region or category used by tickets can only be deactivated', async () => {
       const tk = await newTicket();
-      await http().delete(`/api/tickets/directories/regions/${tashkent}`).set('Authorization', superuser.auth).expect(409);
-      await http().delete(`/api/tickets/directories/categories/${category}`).set('Authorization', superuser.auth).expect(409);
+      await http()
+        .delete(`/api/tickets/directories/regions/${tashkent}`)
+        .set('Authorization', superuser.auth)
+        .expect(409);
+      await http()
+        .delete(`/api/tickets/directories/categories/${category}`)
+        .set('Authorization', superuser.auth)
+        .expect(409);
       expect(tk.region?.id).toBe(tashkent);
     });
 
     it('assigns executives to regions (many-to-many)', async () => {
       const put = (user: TestUser, userId: number, regionIds: number[]) =>
-        http().put(`/api/tickets/directories/executives/${userId}/regions`).set('Authorization', user.auth).send({ regionIds });
+        http()
+          .put(`/api/tickets/directories/executives/${userId}/regions`)
+          .set('Authorization', user.auth)
+          .send({ regionIds });
       await put(exec, exec.id, [tashkent]).expect(403);
       await put(superuser, op.id, [tashkent]).expect(400);
       await put(superuser, exec.id, [999_999]).expect(400);
-      expect((await put(superuser, exec.id, [tashkent, andijon]).expect(200)).body.regionIds).toEqual([tashkent, andijon].sort((a, b) => a - b));
+      expect((await put(superuser, exec.id, [tashkent, andijon]).expect(200)).body.regionIds).toEqual(
+        [tashkent, andijon].sort((a, b) => a - b),
+      );
       await put(superuser, execOther.id, [tashkent]).expect(200);
       await put(superuser, execSam.id, [samarqand]).expect(200);
       const list = await get(superuser, '/api/tickets/directories/executives').expect(200);
@@ -224,7 +292,11 @@ describe('tickets workflow (e2e)', () => {
       await get(exec, '/api/tickets/directories/executives').expect(403);
 
       const ctx = await get(exec, '/api/tickets/context').expect(200);
-      expect(ctx.body).toMatchObject({ kind: 'executive', capabilities: { work: true, create: false }, slaWorkingDays: 3 });
+      expect(ctx.body).toMatchObject({
+        kind: 'executive',
+        capabilities: { work: true, create: false },
+        slaWorkingDays: 3,
+      });
       expect(ctx.body.regionIds).toEqual(expect.arrayContaining([tashkent, andijon]));
     });
   });
@@ -232,7 +304,12 @@ describe('tickets workflow (e2e)', () => {
   // -------------------------------------------------------------------------------------------------
   describe('create', () => {
     it('operator opens a ticket by hand; identity from the session; phone normalized; SLA due date set', async () => {
-      const res = await create(op, { ...base(), customerName: 'Aliyev Vali', creatorUserId: superuser.id, status: 'closed' }).expect(201);
+      const res = await create(op, {
+        ...base(),
+        customerName: 'Aliyev Vali',
+        creatorUserId: superuser.id,
+        status: 'closed',
+      }).expect(201);
       expect(res.body).toMatchObject({
         status: 'new',
         customerPhone: '901234567',
@@ -245,7 +322,13 @@ describe('tickets workflow (e2e)', () => {
       const days = (Date.parse(res.body.dueAt) - Date.parse(res.body.createdAt)) / 86_400_000;
       expect(days).toBeGreaterThanOrEqual(3);
       expect(days).toBeLessThanOrEqual(7);
-      expect(res.body.events).toEqual([expect.objectContaining({ kind: 'created', toStatus: 'new', actor: expect.objectContaining({ userId: op.id }) })]);
+      expect(res.body.events).toEqual([
+        expect.objectContaining({
+          kind: 'created',
+          toStatus: 'new',
+          actor: expect.objectContaining({ userId: op.id }),
+        }),
+      ]);
     });
 
     it('validates region, city, category and phone', async () => {
@@ -253,7 +336,10 @@ describe('tickets workflow (e2e)', () => {
       await create(op, { ...base(), categoryId: 999_999 }).expect(400);
       await create(op, { ...base(), phone: '' }).expect(400);
       await create(op, { ...base(), description: '' }).expect(400);
-      const city = await post(superuser, `/api/tickets/directories/regions/${samarqand}/cities`, { nameUz: `Urgut ${Date.now()}`, nameRu: 'Ургут' }).expect(201);
+      const city = await post(superuser, `/api/tickets/directories/regions/${samarqand}/cities`, {
+        nameUz: `Urgut ${Date.now()}`,
+        nameRu: 'Ургут',
+      }).expect(201);
       await create(op, { ...base(), cityId: city.body.id }).expect(400); // city of another region
       const ok = await create(op, { ...base(), regionId: samarqand, cityId: city.body.id }).expect(201);
       expect(ok.body.city).toMatchObject({ id: city.body.id, nameRu: 'Ургут' });
@@ -270,8 +356,19 @@ describe('tickets workflow (e2e)', () => {
       await get(op2, '/api/tickets/call-prefill?callId=1763373600.11').expect(403);
 
       const res = await create(op, { ...base(), callId: '1763373600.11', phone: '909999999' }).expect(201);
-      expect(res.body).toMatchObject({ customerPhone: '901112233', originCallId: '1763373600.11', lastContact: { userId: op.id }, lastContactIsMe: true });
-      expect(res.body.calls).toEqual([expect.objectContaining({ kind: 'origin', callId: '1763373600.11', recording: { status: 'pending', fileName: null } })]);
+      expect(res.body).toMatchObject({
+        customerPhone: '901112233',
+        originCallId: '1763373600.11',
+        lastContact: { userId: op.id },
+        lastContactIsMe: true,
+      });
+      expect(res.body.calls).toEqual([
+        expect.objectContaining({
+          kind: 'origin',
+          callId: '1763373600.11',
+          recording: { status: 'pending', fileName: null },
+        }),
+      ]);
       await create(op2, { ...base(), callId: '1763373600.11' }).expect(403);
       await create(op, { ...base(), callId: 'not-a-call' }).expect(400);
 
@@ -287,10 +384,17 @@ describe('tickets workflow (e2e)', () => {
         talkSeconds: 70,
         hangupParty: 'client',
       });
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0) }).where('ticketId', '=', res.body.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0) })
+        .where('ticketId', '=', res.body.id)
+        .execute();
       expect(await t.app.get(TicketRecordingsService).linkDue(new Date())).toBeGreaterThanOrEqual(1);
       const after = await get(op, `/api/tickets/${res.body.id}`).expect(200);
-      expect(after.body.calls[0]).toMatchObject({ talkSeconds: 70, recording: { status: 'found', fileName: 'in-901112233.wav' } });
+      expect(after.body.calls[0]).toMatchObject({
+        talkSeconds: 70,
+        recording: { status: 'found', fileName: 'in-901112233.wav' },
+      });
     });
 
     it('from the history: only a call the operator took part in; its recording is attached', async () => {
@@ -300,10 +404,17 @@ describe('tickets workflow (e2e)', () => {
       await create(op2, { ...base(), callId: '1763370000.5' }).expect(403);
       const res = await create(op, { ...base(), callId: '1763370000.5' }).expect(201);
       expect(res.body.customerPhone).toBe('935557788');
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0) }).where('ticketId', '=', res.body.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0) })
+        .where('ticketId', '=', res.body.id)
+        .execute();
       await t.app.get(TicketRecordingsService).linkDue(new Date());
       const after = await get(op, `/api/tickets/${res.body.id}`).expect(200);
-      expect(after.body.calls[0].recording).toEqual({ status: 'found', fileName: 'q-2020159-935557788-20261117-140000-1763370000.5.wav' });
+      expect(after.body.calls[0].recording).toEqual({
+        status: 'found',
+        fileName: 'q-2020159-935557788-20261117-140000-1763370000.5.wav',
+      });
       expect(recordingFile).toHaveBeenCalledWith('2026/11/17/q-2020159-935557788-20261117-140000-1763370000.5.wav');
 
       findCall.mockResolvedValue(null);
@@ -315,11 +426,23 @@ describe('tickets workflow (e2e)', () => {
       findCall.mockResolvedValue(pastCall({ id: '1763370000.7', recordingFile: null }));
       const res = await create(op, { ...base(), callId: '1763370000.7' }).expect(201);
       const svc = t.app.get(TicketRecordingsService);
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0) }).where('ticketId', '=', res.body.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0) })
+        .where('ticketId', '=', res.body.id)
+        .execute();
       await svc.linkDue(new Date());
-      let row = await t.db.selectFrom('ticketCalls').selectAll().where('ticketId', '=', res.body.id).executeTakeFirstOrThrow();
+      let row = await t.db
+        .selectFrom('ticketCalls')
+        .selectAll()
+        .where('ticketId', '=', res.body.id)
+        .executeTakeFirstOrThrow();
       expect(row).toMatchObject({ recordingStatus: 'pending', recordingChecks: 1 });
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0), recordingDeadline: new Date(0) }).where('id', '=', row.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0), recordingDeadline: new Date(0) })
+        .where('id', '=', row.id)
+        .execute();
       await svc.linkDue(new Date());
       row = await t.db.selectFrom('ticketCalls').selectAll().where('id', '=', row.id).executeTakeFirstOrThrow();
       expect(row.recordingStatus).toBe('none');
@@ -366,7 +489,9 @@ describe('tickets workflow (e2e)', () => {
       expect(ids).not.toContain(op2.id);
       expect(changed[0][1]).toMatchObject({ id: tk.id, action: 'created', status: 'new', regionId: tashkent });
       const unread = broadcast.mock.calls.filter((c) => c[0] === 'tickets.unread');
-      expect(unread.map((c) => (c[2] as { userIds: number[] }).userIds[0])).toEqual(expect.arrayContaining([exec.id, execOther.id]));
+      expect(unread.map((c) => (c[2] as { userIds: number[] }).userIds[0])).toEqual(
+        expect.arrayContaining([exec.id, execOther.id]),
+      );
       expect(unread.map((c) => (c[2] as { userIds: number[] }).userIds[0])).not.toContain(execSam.id);
     });
 
@@ -389,20 +514,50 @@ describe('tickets workflow (e2e)', () => {
       await post(execSam, `/api/tickets/${tk.id}/assign`).expect(404);
       await post(op, `/api/tickets/${tk.id}/assign`).expect(403);
       const a = await post(exec, `/api/tickets/${tk.id}/assign`).expect(200);
-      expect(a.body).toMatchObject({ status: 'assigned', assignee: { userId: exec.id }, actions: { start: true, assign: false } });
+      expect(a.body).toMatchObject({
+        status: 'assigned',
+        assignee: { userId: exec.id },
+        actions: { start: true, assign: false },
+      });
       await post(execOther, `/api/tickets/${tk.id}/assign`).expect(409);
       await post(execOther, `/api/tickets/${tk.id}/start`).expect(403);
       // another executive of the region sees it but cannot change it
-      expect((await get(execOther, `/api/tickets/${tk.id}`).expect(200)).body.actions).toMatchObject({ start: false, forward: false });
+      expect((await get(execOther, `/api/tickets/${tk.id}`).expect(200)).body.actions).toMatchObject({
+        start: false,
+        forward: false,
+      });
       await post(exec, `/api/tickets/${tk.id}/resolve`).expect(409);
       await post(exec, `/api/tickets/${tk.id}/start`).expect(200);
       await post(exec, `/api/tickets/${tk.id}/reject`, {}).expect(400);
       const done = await post(exec, `/api/tickets/${tk.id}/resolve`, { note: 'Hal qilindi' }).expect(200);
-      expect(done.body).toMatchObject({ status: 'callback_pending', resolution: 'done', resolutionNote: 'Hal qilindi', resolvedBy: { userId: exec.id } });
-      expect(done.body.events.map((e: { kind: string }) => e.kind)).toEqual(['created', 'assigned', 'started', 'done', 'returned']);
+      expect(done.body).toMatchObject({
+        status: 'callback_pending',
+        resolution: 'done',
+        resolutionNote: 'Hal qilindi',
+        resolvedBy: { userId: exec.id },
+      });
+      expect(done.body.events.map((e: { kind: string }) => e.kind)).toEqual([
+        'created',
+        'assigned',
+        'started',
+        'done',
+        'returned',
+      ]);
       expect(done.body.events.at(-1)).toMatchObject({ fromStatus: 'done', toStatus: 'callback_pending', actor: null });
-      const audit = await t.db.selectFrom('auditLog').select('action').where('target', '=', `ticket:${tk.id}`).execute();
-      expect(audit.map((x) => x.action)).toEqual(expect.arrayContaining(['tickets.create', 'tickets.assign', 'tickets.start', 'tickets.resolve', 'tickets.denied']));
+      const audit = await t.db
+        .selectFrom('auditLog')
+        .select('action')
+        .where('target', '=', `ticket:${tk.id}`)
+        .execute();
+      expect(audit.map((x) => x.action)).toEqual(
+        expect.arrayContaining([
+          'tickets.create',
+          'tickets.assign',
+          'tickets.start',
+          'tickets.resolve',
+          'tickets.denied',
+        ]),
+      );
     });
 
     it('rejected needs a note and also returns to operators', async () => {
@@ -422,11 +577,18 @@ describe('tickets workflow (e2e)', () => {
       await post(exec, `/api/tickets/${tk.id}/forward`, { regionId: tashkent, note: 'xx' }).expect(400);
       await post(exec, `/api/tickets/${tk.id}/forward`, { regionId: 999_999, note: 'xx' }).expect(400);
       broadcast.mockClear();
-      await post(exec, `/api/tickets/${tk.id}/forward`, { regionId: samarqand, note: 'Samarqandga tegishli' }).expect(200);
+      await post(exec, `/api/tickets/${tk.id}/forward`, { regionId: samarqand, note: 'Samarqandga tegishli' }).expect(
+        200,
+      );
       await get(exec, `/api/tickets/${tk.id}`).expect(404);
       const s = await get(execSam, `/api/tickets/${tk.id}`).expect(200);
       expect(s.body).toMatchObject({ status: 'new', region: { id: samarqand }, assignee: null, city: null });
-      expect(s.body.events.at(-1)).toMatchObject({ kind: 'forwarded', fromRegion: { id: tashkent }, toRegion: { id: samarqand }, note: 'Samarqandga tegishli' });
+      expect(s.body.events.at(-1)).toMatchObject({
+        kind: 'forwarded',
+        fromRegion: { id: tashkent },
+        toRegion: { id: samarqand },
+        note: 'Samarqandga tegishli',
+      });
       const revoked = broadcast.mock.calls.find((c) => c[0] === 'tickets.revoked');
       const lostAccess = (revoked as unknown[])[2] as { userIds: number[] };
       expect(lostAccess.userIds).toEqual(expect.arrayContaining([exec.id, execOther.id]));
@@ -465,12 +627,22 @@ describe('tickets workflow (e2e)', () => {
         hangupParty: 'operator',
       });
     const answered = (callId: string, ext = '202', phone = '901234567') =>
-      events().emitAsync(CallEvents.Answered, { callId, direction: 'outbound', phone, at: new Date().toISOString(), extension: ext });
+      events().emitAsync(CallEvents.Answered, {
+        callId,
+        direction: 'outbound',
+        phone,
+        at: new Date().toISOString(),
+        extension: ext,
+      });
 
     it('every operator sees the shared queue; tickets of citizens I talked to come first', async () => {
       const a = await queued();
       const b = await queued();
-      await t.db.updateTable('tickets').set({ lastContactUserId: op2.id, lastContactLabel: 'op2', lastContactAt: new Date() }).where('id', '=', a.id).execute();
+      await t.db
+        .updateTable('tickets')
+        .set({ lastContactUserId: op2.id, lastContactLabel: 'op2', lastContactAt: new Date() })
+        .where('id', '=', a.id)
+        .execute();
       const list2 = await get(op2, '/api/tickets?view=callback').expect(200);
       const ids2 = list2.body.items.map((i: { id: number }) => i.id);
       expect(ids2.indexOf(a.id)).toBeLessThan(ids2.indexOf(b.id));
@@ -478,7 +650,11 @@ describe('tickets workflow (e2e)', () => {
       // for op neither is "mine": the oldest resolution first; once op talked to b's citizen, b goes up
       let ids1 = (await get(op, '/api/tickets?view=callback').expect(200)).body.items.map((i: { id: number }) => i.id);
       expect(ids1.indexOf(a.id)).toBeLessThan(ids1.indexOf(b.id));
-      await t.db.updateTable('tickets').set({ lastContactUserId: op.id, lastContactLabel: 'op', lastContactAt: new Date() }).where('id', '=', b.id).execute();
+      await t.db
+        .updateTable('tickets')
+        .set({ lastContactUserId: op.id, lastContactLabel: 'op', lastContactAt: new Date() })
+        .where('id', '=', b.id)
+        .execute();
       ids1 = (await get(op, '/api/tickets?view=callback').expect(200)).body.items.map((i: { id: number }) => i.id);
       expect(ids1.indexOf(b.id)).toBeLessThan(ids1.indexOf(a.id));
     });
@@ -491,13 +667,22 @@ describe('tickets workflow (e2e)', () => {
 
       const c = await post(op2, `/api/tickets/${tk.id}/callback/call`).expect(200);
       expect(originate).toHaveBeenCalledWith(expect.objectContaining({ id: op2.id }), { to: '901234567' });
-      expect(c.body.calls.at(-1)).toMatchObject({ kind: 'callback', attemptStatus: 'dialing', operator: { userId: op2.id, extension: '202' } });
+      expect(c.body.calls.at(-1)).toMatchObject({
+        kind: 'callback',
+        attemptStatus: 'dialing',
+        operator: { userId: op2.id, extension: '202' },
+      });
       await post(op, `/api/tickets/${tk.id}/callback/call`).expect(409); // someone is already calling
 
       // another number / extension does not count
       await answered('1763380000.1', '202', '909999999');
       await answered('1763380000.2', '203');
-      let row = await t.db.selectFrom('ticketCalls').selectAll().where('ticketId', '=', tk.id).where('kind', '=', 'callback').executeTakeFirstOrThrow();
+      let row = await t.db
+        .selectFrom('ticketCalls')
+        .selectAll()
+        .where('ticketId', '=', tk.id)
+        .where('kind', '=', 'callback')
+        .executeTakeFirstOrThrow();
       expect(row).toMatchObject({ attemptStatus: 'dialing', callId: null });
 
       await answered('1763380000.3');
@@ -510,16 +695,33 @@ describe('tickets workflow (e2e)', () => {
       expect(d.body.actions.recordOutcome).toBe(true);
       await post(op, `/api/tickets/${tk.id}/callback/outcome`, { outcome: 'informed' }).expect(409); // not op's attempt
 
-      const closed = await post(op2, `/api/tickets/${tk.id}/callback/outcome`, { outcome: 'informed', note: 'Fuqaro mamnun' }).expect(200);
-      expect(closed.body).toMatchObject({ status: 'closed', closedBy: { userId: op2.id }, callbackOutcome: 'informed', callbackNote: 'Fuqaro mamnun', callbackAttempts: 1 });
-      expect(closed.body.events.at(-1)).toMatchObject({ kind: 'closed', fromStatus: 'callback_pending', toStatus: 'closed' });
+      const closed = await post(op2, `/api/tickets/${tk.id}/callback/outcome`, {
+        outcome: 'informed',
+        note: 'Fuqaro mamnun',
+      }).expect(200);
+      expect(closed.body).toMatchObject({
+        status: 'closed',
+        closedBy: { userId: op2.id },
+        callbackOutcome: 'informed',
+        callbackNote: 'Fuqaro mamnun',
+        callbackAttempts: 1,
+      });
+      expect(closed.body.events.at(-1)).toMatchObject({
+        kind: 'closed',
+        fromStatus: 'callback_pending',
+        toStatus: 'closed',
+      });
       // op2 closed it → still sees it; another operator who is not the creator does not
       await get(op2, `/api/tickets/${tk.id}`).expect(200);
       const op3 = await t.createUser('operator', '203');
       await get(op3, `/api/tickets/${tk.id}`).expect(404);
 
       findCall.mockResolvedValue(pastCall({ id: '1763380000.3', recordingFile: '2026/11/17/out-202-901234567.wav' }));
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0) }).where('id', '=', row.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0) })
+        .where('id', '=', row.id)
+        .execute();
       await t.app.get(TicketRecordingsService).linkDue(new Date());
       const withRec = await get(op2, `/api/tickets/${tk.id}`).expect(200);
       expect(withRec.body.calls.at(-1).recording).toEqual({ status: 'found', fileName: 'out-202-901234567.wav' });
@@ -541,7 +743,10 @@ describe('tickets workflow (e2e)', () => {
       await post(op2, `/api/tickets/${tk.id}/callback/call`).expect(200);
       await ended('1763380001.2', 0, false);
       await post(op2, `/api/tickets/${tk.id}/callback/outcome`, { outcome: 'unresolved' }).expect(409);
-      d = (await post(op2, `/api/tickets/${tk.id}/callback/outcome`, { outcome: 'not_reached', note: 'Javob bermadi' }).expect(200));
+      d = await post(op2, `/api/tickets/${tk.id}/callback/outcome`, {
+        outcome: 'not_reached',
+        note: 'Javob bermadi',
+      }).expect(200);
       expect(d.body).toMatchObject({ status: 'callback_pending', callbackAttempts: 2 });
       expect(d.body.events.filter((e: { kind: string }) => e.kind === 'callback_attempt')).toHaveLength(2);
 
@@ -625,7 +830,11 @@ describe('tickets workflow (e2e)', () => {
         .attach('files', await docx(paragraph('Salom <script>alert(1)</script>')), 'xat.docx')
         .expect(201);
       expect(c.body.comments[0]).toMatchObject({ body: 'Ko‘rib chiqyapman', author: { userId: exec.id } });
-      await http().post(`/api/tickets/${tk.id}/comments`).set('Authorization', execSam.auth).field('body', 'x').expect(404);
+      await http()
+        .post(`/api/tickets/${tk.id}/comments`)
+        .set('Authorization', execSam.auth)
+        .field('body', 'x')
+        .expect(404);
       await http().post(`/api/tickets/${tk.id}/comments`).set('Authorization', op.auth).field('body', '').expect(400);
       const att = c.body.comments[0].attachments[0];
       const p = await get(op, `/api/tickets/${tk.id}/attachments/${att.id}/preview`).expect(200);
@@ -638,14 +847,22 @@ describe('tickets workflow (e2e)', () => {
       const tk = (await create(op, { ...base(), callId: '1763370000.8' }).expect(201)).body as TicketDetail;
       const url = `/api/tickets/${tk.id}/calls/${tk.calls[0].id}/recording`;
       await get(exec, url).expect(404); // not found yet
-      await t.db.updateTable('ticketCalls').set({ recordingNextAt: new Date(0) }).where('ticketId', '=', tk.id).execute();
+      await t.db
+        .updateTable('ticketCalls')
+        .set({ recordingNextAt: new Date(0) })
+        .where('ticketId', '=', tk.id)
+        .execute();
       await t.app.get(TicketRecordingsService).linkDue(new Date());
       const ok = await get(exec, url).expect(200);
       expect(ok.headers['content-type']).toBe('audio/wav');
       await get(execSam, url).expect(404);
       await get(op2, url).expect(404);
       await get(exec, `/api/tickets/${tk.id}/calls/999999/recording`).expect(404);
-      const audit = await t.db.selectFrom('auditLog').select('action').where('target', '=', `ticket:${tk.id}`).execute();
+      const audit = await t.db
+        .selectFrom('auditLog')
+        .select('action')
+        .where('target', '=', `ticket:${tk.id}`)
+        .execute();
       expect(audit.map((a) => a.action)).toContain('tickets.recording.play');
     });
 
@@ -666,7 +883,11 @@ describe('tickets workflow (e2e)', () => {
       const late = await queued();
       await t.db
         .updateTable('tickets')
-        .set({ dueAt: new Date(Date.now() - 86_400_000), resolvedAt: new Date(), createdAt: new Date(Date.now() - 2 * 86_400_000) })
+        .set({
+          dueAt: new Date(Date.now() - 86_400_000),
+          resolvedAt: new Date(),
+          createdAt: new Date(Date.now() - 2 * 86_400_000),
+        })
         .where('id', '=', late.id)
         .execute();
       const today = new Date().toISOString().slice(0, 10);

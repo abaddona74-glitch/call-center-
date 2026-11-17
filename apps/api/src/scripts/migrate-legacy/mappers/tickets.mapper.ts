@@ -117,8 +117,7 @@ export interface TicketValues {
 }
 
 export type TicketTransform =
-  | { ok: true; key: string; values: TicketValues; warnings: string[] }
-  | { ok: false; key: string; reason: string };
+  { ok: true; key: string; values: TicketValues; warnings: string[] } | { ok: false; key: string; reason: string };
 
 function toDate(v: number | string | null | undefined): Date | null {
   if (v === null || v === undefined || v === '') return null;
@@ -170,7 +169,8 @@ export function transformLegacyTicket(raw: unknown, now = new Date()): TicketTra
   const description = `${t.isUrgent ? URGENT_PREFIX : ''}${text}`.slice(0, 4000);
   const assignee = t.acceptedBy ? person(t.acceptedBy.id, t.acceptedBy.name) : null;
   const assignedAt = toDate(t.acceptedBy?.at);
-  const resolver = mapped.resolution === 'done' ? t.completedBy : mapped.resolution === 'rejected' ? t.rejectedBy : null;
+  const resolver =
+    mapped.resolution === 'done' ? t.completedBy : mapped.resolution === 'rejected' ? t.rejectedBy : null;
   const resolvedAt = mapped.resolution ? (toDate(resolver?.at) ?? updatedAt) : null;
 
   return {
@@ -267,7 +267,11 @@ export function createTicketsMapper(
       const regionCode = deps.defaultRegion();
       let regionId: number | null = null;
       if (regionCode) {
-        const region = await db.selectFrom('ticketRegions').select('id').where('code', '=', regionCode).executeTakeFirst();
+        const region = await db
+          .selectFrom('ticketRegions')
+          .select('id')
+          .where('code', '=', regionCode)
+          .executeTakeFirst();
         if (!region) {
           report.status = 'failed';
           report.errors.push({ key: 'LEGACY_TICKETS_DEFAULT_REGION', reason: `no region with code "${regionCode}"` });
@@ -276,7 +280,9 @@ export function createTicketsMapper(
         regionId = region.id;
         report.notes.push(`imported tickets are put into region "${regionCode}"`);
       } else {
-        report.notes.push('LEGACY_TICKETS_DEFAULT_REGION not set: open imported tickets wait in the superuser triage view');
+        report.notes.push(
+          'LEGACY_TICKETS_DEFAULT_REGION not set: open imported tickets wait in the superuser triage view',
+        );
       }
       // extension → user id; active users win, then the oldest account.
       const users = await db
@@ -293,7 +299,9 @@ export function createTicketsMapper(
       const transforms = list.map((raw) => transformLegacyTicket(raw));
       const ids = transforms.flatMap((t) => (t.ok ? [t.values.id] : []));
       const existing = new Set(
-        ids.length ? (await db.selectFrom('tickets').select('id').where('id', 'in', ids).execute()).map((r) => r.id) : [],
+        ids.length
+          ? (await db.selectFrom('tickets').select('id').where('id', 'in', ids).execute()).map((r) => r.id)
+          : [],
       );
       const seen = new Set<number>();
       let fileCount = 0;
@@ -318,7 +326,8 @@ export function createTicketsMapper(
           return null;
         }
         fileCount++;
-        if (ctx.dryRun) return { key: 'dry-run', fileName: '', mimeType: type.mime, kind: type.kind, size: data.length };
+        if (ctx.dryRun)
+          return { key: 'dry-run', fileName: '', mimeType: type.mime, kind: type.kind, size: data.length };
         const dir = deps.uploadDir();
         mkdirSync(dir, { recursive: true, mode: 0o700 });
         const storageKey = randomUUID();
@@ -350,7 +359,8 @@ export function createTicketsMapper(
         for (const w of t.warnings) report.warnings.push({ key: t.key, reason: w });
         const issues: RowIssue[] = [];
         for (const p of [v.creator, v.assignee, v.resolvedBy].filter((x): x is PersonValue => Boolean(x?.extension))) {
-          if (uid(p) === null) issues.push({ key: t.key, reason: `no user with extension ${p.extension}; kept as label only` });
+          if (uid(p) === null)
+            issues.push({ key: t.key, reason: `no user with extension ${p.extension}; kept as label only` });
         }
         report.warnings.push(...issues);
 
@@ -377,7 +387,12 @@ export function createTicketsMapper(
               ${v.closedAt}, ${v.createdAt}, ${v.updatedAt}
             )`.execute(db);
 
-          const event = (kind: 'created' | 'done' | 'rejected' | 'closed', at: Date, who: PersonValue | null, extra: object = {}) => ({
+          const event = (
+            kind: 'created' | 'done' | 'rejected' | 'closed',
+            at: Date,
+            who: PersonValue | null,
+            extra: object = {},
+          ) => ({
             ticketId: v.id,
             kind,
             actorUserId: uid(who),
@@ -388,9 +403,12 @@ export function createTicketsMapper(
           });
           const events = [event('created', v.createdAt, v.creator, { toStatus: 'new' as const, toRegionId: regionId })];
           if (v.resolution && v.resolvedAt) {
-            events.push(event(v.resolution, v.resolvedAt, v.resolvedBy, { toStatus: v.resolution, note: v.resolutionNote }));
+            events.push(
+              event(v.resolution, v.resolvedAt, v.resolvedBy, { toStatus: v.resolution, note: v.resolutionNote }),
+            );
           }
-          if (v.closedAt) events.push(event('closed', v.closedAt, null, { toStatus: 'closed' as const, note: 'legacy import' }));
+          if (v.closedAt)
+            events.push(event('closed', v.closedAt, null, { toStatus: 'closed' as const, note: 'legacy import' }));
           await db.insertInto('ticketEvents').values(events).execute();
 
           const attach = async (files: LegacyFile[], commentId: number | null) => {

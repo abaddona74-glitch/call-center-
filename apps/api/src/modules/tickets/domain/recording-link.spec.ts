@@ -14,8 +14,16 @@ describe('recording link schedule', () => {
 
   it('retries until the deadline, then gives up', () => {
     const deadline = new Date(now.getTime() + 60_000);
-    expect(afterCheck({ kind: 'found', path: '2026/11/17/a.wav' }, deadline, now)).toEqual({ status: 'found', nextAt: null, path: '2026/11/17/a.wav' });
-    expect(afterCheck({ kind: 'missing' }, deadline, now)).toEqual({ status: 'pending', nextAt: new Date(now.getTime() + RECORDING_RETRY_MS), path: null });
+    expect(afterCheck({ kind: 'found', path: '2026/11/17/a.wav' }, deadline, now)).toEqual({
+      status: 'found',
+      nextAt: null,
+      path: '2026/11/17/a.wav',
+    });
+    expect(afterCheck({ kind: 'missing' }, deadline, now)).toEqual({
+      status: 'pending',
+      nextAt: new Date(now.getTime() + RECORDING_RETRY_MS),
+      path: null,
+    });
     expect(afterCheck({ kind: 'missing' }, now, now).status).toBe('none');
     expect(afterCheck({ kind: 'unavailable' }, now, now).status).toBe('unavailable');
     expect(afterCheck({ kind: 'unavailable' }, deadline, now).status).toBe('pending');

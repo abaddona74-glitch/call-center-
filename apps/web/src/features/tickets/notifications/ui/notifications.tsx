@@ -89,13 +89,10 @@ function useAudioUnlock(): void {
 /** `.tk-sound-toggle-btn` */
 export function SoundToggle() {
   const { t } = useTranslation('ticket');
-  const enabled = useSyncExternalStore(
-    (l) => {
-      soundListeners.add(l);
-      return () => soundListeners.delete(l);
-    },
-    readSound,
-  );
+  const enabled = useSyncExternalStore((l) => {
+    soundListeners.add(l);
+    return () => soundListeners.delete(l);
+  }, readSound);
   return (
     <button
       type="button"
@@ -222,7 +219,8 @@ export function useTicketLive({
   useRealtimeEvent('tickets.changed', (e) => {
     void queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
     void queryClient.invalidateQueries({ queryKey: ticketKeys.detail(e.id) });
-    if ((e.action === 'created' || e.action === 'forwarded') && e.id !== openTicketId) setArrived((s) => new Set(s).add(e.id));
+    if ((e.action === 'created' || e.action === 'forwarded') && e.id !== openTicketId)
+      setArrived((s) => new Set(s).add(e.id));
   });
 
   useRealtimeEvent('tickets.revoked', (e) => {

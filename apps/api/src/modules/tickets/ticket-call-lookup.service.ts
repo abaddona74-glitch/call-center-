@@ -53,7 +53,8 @@ export class TicketCallLookup {
     if (!found) throw new NotFoundException('Call not found');
     const call = found.call;
     const ext = user.extension;
-    const tookPart = ext !== null && (call.operators.includes(ext) || call.firstOperator === ext || call.finalOperator === ext);
+    const tookPart =
+      ext !== null && (call.operators.includes(ext) || call.firstOperator === ext || call.finalOperator === ext);
     if (!anyCall && !tookPart) throw new ForbiddenException('You can only open a ticket for a call you took part in');
     return {
       callId: call.id,

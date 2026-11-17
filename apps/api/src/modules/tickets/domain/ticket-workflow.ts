@@ -123,7 +123,12 @@ function isAssignee(actor: TicketActor, t: TicketFacts): boolean {
  * Checks one workflow action by a person. `return` (done/rejected → callback queue) is the system's,
  * and `close` goes through the callback rules (ticket-callback.ts), so both are refused here.
  */
-export function decideAction(actor: TicketActor, t: TicketFacts, action: TicketAction, input: ActionInput = {}): Decision<TicketStatus> {
+export function decideAction(
+  actor: TicketActor,
+  t: TicketFacts,
+  action: TicketAction,
+  input: ActionInput = {},
+): Decision<TicketStatus> {
   if (!canViewTicket(actor, t)) return deny('not_found', 'Ticket not found');
   const to = nextStatus(t.status, action);
   if (!to) return deny('conflict', `A ticket in status "${t.status}" cannot be ${ACTION_VERB[action]}`);
@@ -148,13 +153,15 @@ export function decideAction(actor: TicketActor, t: TicketFacts, action: TicketA
       return { ok: true, value: to };
     case 'forward': {
       const triage = t.regionId === null;
-      if (triage ? !admin : !worksHere(actor, t)) return deny('forbidden', 'Only executives of this region can forward the ticket');
+      if (triage ? !admin : !worksHere(actor, t))
+        return deny('forbidden', 'Only executives of this region can forward the ticket');
       if (t.status !== 'new' && !(isAssignee(actor, t) || admin)) {
         return deny('forbidden', 'Only the executive who took the ticket can forward it');
       }
       if (!input.regionId) return deny('invalid', 'Choose the region to forward to');
       if (input.regionId === t.regionId) return deny('invalid', 'The ticket is already in this region');
-      if (!triage && (!input.note || input.note.trim().length < 2)) return deny('invalid', 'Write why the ticket is forwarded');
+      if (!triage && (!input.note || input.note.trim().length < 2))
+        return deny('invalid', 'Write why the ticket is forwarded');
       return { ok: true, value: to };
     }
     default:
@@ -225,11 +232,7 @@ export function inView(actor: TicketActor, t: TicketFacts, view: TicketView): bo
 }
 
 /** Executive "unread": a `new` ticket of my region that I have not opened since it arrived there. */
-export function isUnread(
-  actor: TicketActor,
-  t: TicketFacts & { regionChangedAt: Date },
-  readAt: Date | null,
-): boolean {
+export function isUnread(actor: TicketActor, t: TicketFacts & { regionChangedAt: Date }, readAt: Date | null): boolean {
   if (actor.kind !== 'executive' || t.status !== 'new' || !inMyRegion(actor, t)) return false;
   return readAt === null || readAt < t.regionChangedAt;
 }

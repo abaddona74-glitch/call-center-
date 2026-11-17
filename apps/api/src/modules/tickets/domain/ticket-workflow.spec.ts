@@ -50,7 +50,9 @@ describe('state machine', () => {
   });
 
   it('allows nothing else', () => {
-    const allowed = Object.entries(TICKET_TRANSITIONS).flatMap(([from, map]) => Object.keys(map).map((a) => `${from}:${a}`));
+    const allowed = Object.entries(TICKET_TRANSITIONS).flatMap(([from, map]) =>
+      Object.keys(map).map((a) => `${from}:${a}`),
+    );
     expect(allowed.sort()).toEqual(
       [
         'new:assign',
@@ -118,7 +120,10 @@ describe('executive actions', () => {
     const assigned = ticket({ status: 'in_progress', assigneeUserId: exec.userId });
     expect(canViewTicket(execOther, assigned)).toBe(true);
     for (const a of ['resolve', 'reject', 'forward'] as const) {
-      expect(decideAction(execOther, assigned, a, { note: 'xx', regionId: SAMARQAND })).toMatchObject({ ok: false, code: 'forbidden' });
+      expect(decideAction(execOther, assigned, a, { note: 'xx', regionId: SAMARQAND })).toMatchObject({
+        ok: false,
+        code: 'forbidden',
+      });
     }
     expect(decideAction(superuser, assigned, 'resolve')).toEqual({ ok: true, value: 'done' });
   });
@@ -128,14 +133,29 @@ describe('executive actions', () => {
   });
 
   it('wrong status is a conflict', () => {
-    expect(decideAction(exec, ticket({ status: 'assigned', assigneeUserId: 99 }), 'assign')).toMatchObject({ ok: false, code: 'conflict' });
-    expect(decideAction(superuser, ticket({ status: 'closed' }), 'forward', { regionId: 2 })).toMatchObject({ ok: false, code: 'conflict' });
+    expect(decideAction(exec, ticket({ status: 'assigned', assigneeUserId: 99 }), 'assign')).toMatchObject({
+      ok: false,
+      code: 'conflict',
+    });
+    expect(decideAction(superuser, ticket({ status: 'closed' }), 'forward', { regionId: 2 })).toMatchObject({
+      ok: false,
+      code: 'conflict',
+    });
   });
 
   it('forward: needs another region and a comment; `new` tickets by any executive of the region', () => {
-    expect(decideAction(exec, ticket(), 'forward', { regionId: SAMARQAND, note: 'Samarqandga tegishli' })).toEqual({ ok: true, value: 'new' });
-    expect(decideAction(exec, ticket(), 'forward', { regionId: SAMARQAND })).toMatchObject({ ok: false, code: 'invalid' });
-    expect(decideAction(exec, ticket(), 'forward', { regionId: TASHKENT, note: 'xx' })).toMatchObject({ ok: false, code: 'invalid' });
+    expect(decideAction(exec, ticket(), 'forward', { regionId: SAMARQAND, note: 'Samarqandga tegishli' })).toEqual({
+      ok: true,
+      value: 'new',
+    });
+    expect(decideAction(exec, ticket(), 'forward', { regionId: SAMARQAND })).toMatchObject({
+      ok: false,
+      code: 'invalid',
+    });
+    expect(decideAction(exec, ticket(), 'forward', { regionId: TASHKENT, note: 'xx' })).toMatchObject({
+      ok: false,
+      code: 'invalid',
+    });
     expect(decideAction(exec, ticket(), 'forward', { note: 'xx' })).toMatchObject({ ok: false, code: 'invalid' });
   });
 
@@ -147,12 +167,21 @@ describe('executive actions', () => {
 
   it('operators cannot do regional work', () => {
     expect(decideAction(op, ticket(), 'assign')).toMatchObject({ ok: false, code: 'forbidden' });
-    expect(decideAction(op, ticket(), 'forward', { regionId: SAMARQAND, note: 'xx' })).toMatchObject({ ok: false, code: 'forbidden' });
+    expect(decideAction(op, ticket(), 'forward', { regionId: SAMARQAND, note: 'xx' })).toMatchObject({
+      ok: false,
+      code: 'forbidden',
+    });
   });
 
   it('return and close are never done through decideAction', () => {
-    expect(decideAction(superuser, ticket({ status: 'done' }), 'return')).toMatchObject({ ok: false, code: 'forbidden' });
-    expect(decideAction(superuser, ticket({ status: 'callback_pending' }), 'close')).toMatchObject({ ok: false, code: 'forbidden' });
+    expect(decideAction(superuser, ticket({ status: 'done' }), 'return')).toMatchObject({
+      ok: false,
+      code: 'forbidden',
+    });
+    expect(decideAction(superuser, ticket({ status: 'callback_pending' }), 'close')).toMatchObject({
+      ok: false,
+      code: 'forbidden',
+    });
   });
 });
 

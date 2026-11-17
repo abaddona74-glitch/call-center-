@@ -57,7 +57,14 @@ export const ticketListQuery = (q: TicketListParams) =>
     queryKey: ticketKeys.list(q),
     queryFn: ({ signal }) =>
       api('/tickets', {
-        query: { view: q.view, status: q.status, regionId: q.regionId, categoryId: q.categoryId, overdue: q.overdue ? 'true' : undefined, q: q.q },
+        query: {
+          view: q.view,
+          status: q.status,
+          regionId: q.regionId,
+          categoryId: q.categoryId,
+          overdue: q.overdue ? 'true' : undefined,
+          q: q.q,
+        },
         schema: TicketListResponseSchema,
         signal,
       }),
@@ -96,7 +103,8 @@ export const ticketExecutivesQuery = queryOptions({
 export const ticketCallPrefillQuery = (callId: string) =>
   queryOptions({
     queryKey: ticketKeys.prefill(callId),
-    queryFn: ({ signal }) => api('/tickets/call-prefill', { query: { callId }, schema: TicketCallPrefillSchema, signal }),
+    queryFn: ({ signal }) =>
+      api('/tickets/call-prefill', { query: { callId }, schema: TicketCallPrefillSchema, signal }),
     staleTime: 0,
     retry: false,
   });
@@ -133,9 +141,11 @@ export const ticketActions = {
   start: (id: number) => detail(`/tickets/${id}/start`),
   resolve: (id: number, note?: string) => detail(`/tickets/${id}/resolve`, note ? { note } : {}),
   reject: (id: number, note: string) => detail(`/tickets/${id}/reject`, { note }),
-  forward: (id: number, regionId: number, note?: string) => detail(`/tickets/${id}/forward`, { regionId, ...(note ? { note } : {}) }),
+  forward: (id: number, regionId: number, note?: string) =>
+    detail(`/tickets/${id}/forward`, { regionId, ...(note ? { note } : {}) }),
   call: (id: number) => detail(`/tickets/${id}/callback/call`),
-  outcome: (id: number, outcome: CallbackOutcome, note?: string) => detail(`/tickets/${id}/callback/outcome`, { outcome, ...(note ? { note } : {}) }),
+  outcome: (id: number, outcome: CallbackOutcome, note?: string) =>
+    detail(`/tickets/${id}/callback/outcome`, { outcome, ...(note ? { note } : {}) }),
   forceClose: (id: number, note: string) => detail(`/tickets/${id}/close`, { note }),
   remove: (id: number) => api(`/tickets/${id}`, { method: 'DELETE' }),
 };
@@ -158,17 +168,25 @@ export function fetchDocPreview(ticketId: number, attachmentId: number): Promise
 
 /** Superuser: ticket directories. */
 export const ticketDirectories = {
-  createRegion: (body: RegionInput) => api('/tickets/directories/regions', { method: 'POST', body, schema: TicketRegionSchema }),
-  updateRegion: (id: number, body: RegionPatch) => api(`/tickets/directories/regions/${id}`, { method: 'PATCH', body, schema: TicketRegionSchema }),
+  createRegion: (body: RegionInput) =>
+    api('/tickets/directories/regions', { method: 'POST', body, schema: TicketRegionSchema }),
+  updateRegion: (id: number, body: RegionPatch) =>
+    api(`/tickets/directories/regions/${id}`, { method: 'PATCH', body, schema: TicketRegionSchema }),
   deleteRegion: (id: number) => api(`/tickets/directories/regions/${id}`, { method: 'DELETE' }),
   createCity: (regionId: number, body: CityInput) =>
     api(`/tickets/directories/regions/${regionId}/cities`, { method: 'POST', body, schema: TicketCitySchema }),
-  updateCity: (id: number, body: CityPatch) => api(`/tickets/directories/cities/${id}`, { method: 'PATCH', body, schema: TicketCitySchema }),
+  updateCity: (id: number, body: CityPatch) =>
+    api(`/tickets/directories/cities/${id}`, { method: 'PATCH', body, schema: TicketCitySchema }),
   deleteCity: (id: number) => api(`/tickets/directories/cities/${id}`, { method: 'DELETE' }),
-  createCategory: (body: CategoryInput) => api('/tickets/directories/categories', { method: 'POST', body, schema: TicketCategorySchema }),
+  createCategory: (body: CategoryInput) =>
+    api('/tickets/directories/categories', { method: 'POST', body, schema: TicketCategorySchema }),
   updateCategory: (id: number, body: CategoryPatch) =>
     api(`/tickets/directories/categories/${id}`, { method: 'PATCH', body, schema: TicketCategorySchema }),
   deleteCategory: (id: number) => api(`/tickets/directories/categories/${id}`, { method: 'DELETE' }),
   setExecutiveRegions: (userId: number, regionIds: number[]) =>
-    api(`/tickets/directories/executives/${userId}/regions`, { method: 'PUT', body: { regionIds }, schema: TicketExecutiveSchema }),
+    api(`/tickets/directories/executives/${userId}/regions`, {
+      method: 'PUT',
+      body: { regionIds },
+      schema: TicketExecutiveSchema,
+    }),
 };

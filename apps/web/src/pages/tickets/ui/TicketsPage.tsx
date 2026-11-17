@@ -49,7 +49,15 @@ const VIEW_COLOR: Record<TicketView, string> = {
  * Tickets board (legacy KDS look): role-specific tabs — operator: mine + callback queue; executive: region
  * queue (unread) + my work + all of my regions; superuser: everything + triage. Filters, SLA highlighting.
  */
-export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: TicketView; openId?: number; onSearch: (s: { view?: TicketView; open?: number }) => void }) {
+export function TicketsPage({
+  view: viewParam,
+  openId,
+  onSearch,
+}: {
+  view?: TicketView;
+  openId?: number;
+  onSearch: (s: { view?: TicketView; open?: number }) => void;
+}) {
   const { t, i18n } = useTranslation('ticket');
   const ctx = useQuery(ticketContextQuery);
   const dirs = useQuery(ticketDirectoriesQuery);
@@ -110,9 +118,17 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
 
   const c = ctx.data;
   const counts = list.data?.counts;
-  const regionOptions = (dirs.data?.regions ?? []).filter((r) => c?.capabilities.viewAll || c?.regionIds.includes(r.id));
+  const regionOptions = (dirs.data?.regions ?? []).filter(
+    (r) => c?.capabilities.viewAll || c?.regionIds.includes(r.id),
+  );
   const viewLabel = (v: TicketView) =>
-    v === 'mine' ? (c?.kind === 'operator' ? t('view.mineOperator') : c?.kind === 'executive' ? t('view.mineExecutive') : t('view.mineSuperuser')) : t(`view.${v}`);
+    v === 'mine'
+      ? c?.kind === 'operator'
+        ? t('view.mineOperator')
+        : c?.kind === 'executive'
+          ? t('view.mineExecutive')
+          : t('view.mineSuperuser')
+      : t(`view.${v}`);
 
   return (
     <div className="mx-auto w-full max-w-[1750px]">
@@ -173,9 +189,18 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
                     )}
                   >
                     <span style={!active ? { color: VIEW_COLOR[v] } : undefined}>{viewLabel(v)}</span>
-                    <span className={cn('rounded-[10px] px-[7px] py-px text-[11px] font-extrabold', active ? 'bg-white text-[#0369a1]' : 'bg-white/12')}>{n}</span>
+                    <span
+                      className={cn(
+                        'rounded-[10px] px-[7px] py-px text-[11px] font-extrabold',
+                        active ? 'bg-white text-[#0369a1]' : 'bg-white/12',
+                      )}
+                    >
+                      {n}
+                    </span>
                     {v === 'queue' && c?.kind === 'executive' && c.unread > 0 && (
-                      <span className="rounded-[10px] bg-[#ef4444] px-[6px] py-px text-[10px] font-extrabold text-white">{t('unread', { n: c.unread })}</span>
+                      <span className="rounded-[10px] bg-[#ef4444] px-[6px] py-px text-[10px] font-extrabold text-white">
+                        {t('unread', { n: c.unread })}
+                      </span>
                     )}
                   </button>
                 );
@@ -193,12 +218,24 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
               >
                 <Icon name="timer" className="size-4" />
                 {t('filter.overdue')}
-                <span className="rounded-[10px] bg-white/12 px-[7px] py-px text-[11px] font-extrabold">{counts?.overdue ?? 0}</span>
+                <span className="rounded-[10px] bg-white/12 px-[7px] py-px text-[11px] font-extrabold">
+                  {counts?.overdue ?? 0}
+                </span>
               </button>
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-              <KdsInput value={search} placeholder={t('filter.search')} maxLength={60} onChange={(e) => setSearch(e.target.value)} aria-label={t('filter.search')} />
-              <KdsSelect value={status} onChange={(e) => setStatus(e.target.value as TicketStatus | '')} aria-label={t('filter.allStatuses')}>
+              <KdsInput
+                value={search}
+                placeholder={t('filter.search')}
+                maxLength={60}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label={t('filter.search')}
+              />
+              <KdsSelect
+                value={status}
+                onChange={(e) => setStatus(e.target.value as TicketStatus | '')}
+                aria-label={t('filter.allStatuses')}
+              >
                 <option value="">{t('filter.allStatuses')}</option>
                 {TICKET_STATUSES.map((s) => (
                   <option key={s} value={s}>
@@ -206,7 +243,12 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
                   </option>
                 ))}
               </KdsSelect>
-              <KdsSelect value={regionId} onChange={(e) => setRegionId(e.target.value)} aria-label={t('filter.allRegions')} disabled={regionOptions.length < 2 && !c?.capabilities.viewAll}>
+              <KdsSelect
+                value={regionId}
+                onChange={(e) => setRegionId(e.target.value)}
+                aria-label={t('filter.allRegions')}
+                disabled={regionOptions.length < 2 && !c?.capabilities.viewAll}
+              >
                 <option value="">{t('filter.allRegions')}</option>
                 {regionOptions.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -214,7 +256,11 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
                   </option>
                 ))}
               </KdsSelect>
-              <KdsSelect value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('filter.allCategories')}>
+              <KdsSelect
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                aria-label={t('filter.allCategories')}
+              >
                 <option value="">{t('filter.allCategories')}</option>
                 {(dirs.data?.categories ?? []).map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -227,9 +273,16 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
 
           <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-[18px]">
             {list.isPending ? (
-              Array.from({ length: 6 }, (_, i) => <div key={i} className="h-[170px] animate-pulse rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-[rgba(15,23,42,0.85)]" />)
+              Array.from({ length: 6 }, (_, i) => (
+                <div
+                  key={i}
+                  className="h-[170px] animate-pulse rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-[rgba(15,23,42,0.85)]"
+                />
+              ))
             ) : list.isError ? (
-              <div className="col-span-full py-10 text-center text-[13px] text-[#f87171]">{t('error', { message: list.error.message })}</div>
+              <div className="col-span-full py-10 text-center text-[13px] text-[#f87171]">
+                {t('error', { message: list.error.message })}
+              </div>
             ) : list.data.items.length === 0 ? (
               <div className="col-span-full px-5 py-10 text-center text-[13px] text-[#64748b]">
                 <Icon name="clipboard-text" className="mx-auto size-4" />
@@ -246,9 +299,15 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
                   footer={
                     view === 'callback' && (ticket.actions.call || ticket.actions.recordOutcome) ? (
                       <>
-                        {ticket.actions.call && <CallbackCallButton ticketId={ticket.id} compact onCalled={() => setOutcomeFor(ticket.id)} />}
+                        {ticket.actions.call && (
+                          <CallbackCallButton ticketId={ticket.id} compact onCalled={() => setOutcomeFor(ticket.id)} />
+                        )}
                         {ticket.actions.recordOutcome && (
-                          <button type="button" onClick={() => setOutcomeFor(ticket.id)} className="text-xs font-semibold text-[#c084fc] hover:underline">
+                          <button
+                            type="button"
+                            onClick={() => setOutcomeFor(ticket.id)}
+                            className="text-xs font-semibold text-[#c084fc] hover:underline"
+                          >
                             {t('box.outcome')}
                           </button>
                         )}
@@ -264,7 +323,13 @@ export function TicketsPage({ view: viewParam, openId, onSearch }: { view?: Tick
 
       {c && (
         <>
-          <CreateTicketModal open={createOpen} onOpenChange={setCreateOpen} maxFileMb={c.maxFileMb} initialFiles={pasted} onCreated={(id) => openTicket(id)} />
+          <CreateTicketModal
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            maxFileMb={c.maxFileMb}
+            initialFiles={pasted}
+            onCreated={(id) => openTicket(id)}
+          />
           <TicketBox ticketId={openId ?? null} maxFileMb={c.maxFileMb} onClose={() => openTicket(null)} />
           <CallbackOutcomeModal ticketId={outcomeFor} open={outcomeFor !== null} onClose={() => setOutcomeFor(null)} />
         </>
@@ -278,7 +343,9 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: 'warn' }
     <div
       className={cn(
         'mb-5 rounded-xl border px-6 py-4 text-center text-sm',
-        tone === 'warn' ? 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.1)] text-[#fbbf24]' : 'border-white/8 bg-[rgba(15,23,42,0.7)] py-10 text-[#94a3b8]',
+        tone === 'warn'
+          ? 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.1)] text-[#fbbf24]'
+          : 'border-white/8 bg-[rgba(15,23,42,0.7)] py-10 text-[#94a3b8]',
       )}
     >
       {children}
@@ -301,4 +368,3 @@ function LiveClock() {
     </div>
   );
 }
-

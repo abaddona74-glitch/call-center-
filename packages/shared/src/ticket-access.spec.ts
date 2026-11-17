@@ -13,9 +13,24 @@ describe('ticket access', () => {
   });
 
   it('gives each actor only its own capabilities', () => {
-    expect(ticketCapabilities({ role: 'operator' })).toMatchObject({ create: true, callback: true, work: false, viewAll: false });
-    expect(ticketCapabilities({ role: 'executive' })).toMatchObject({ create: false, callback: false, work: true, reports: true });
-    expect(ticketCapabilities({ role: 'observer' })).toMatchObject({ viewAll: true, comment: false, work: false, create: false });
+    expect(ticketCapabilities({ role: 'operator' })).toMatchObject({
+      create: true,
+      callback: true,
+      work: false,
+      viewAll: false,
+    });
+    expect(ticketCapabilities({ role: 'executive' })).toMatchObject({
+      create: false,
+      callback: false,
+      work: true,
+      reports: true,
+    });
+    expect(ticketCapabilities({ role: 'observer' })).toMatchObject({
+      viewAll: true,
+      comment: false,
+      work: false,
+      create: false,
+    });
     expect(Object.values(ticketCapabilities({ role: 'superuser' })).every(Boolean)).toBe(true);
     expect(Object.values(ticketCapabilities({ role: 'nobody' })).some(Boolean)).toBe(false);
   });

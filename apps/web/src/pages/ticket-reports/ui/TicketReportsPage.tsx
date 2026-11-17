@@ -49,7 +49,9 @@ export function TicketReportsPage() {
                 }}
                 className={cn(
                   'rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition-colors',
-                  active ? 'border-[#38bdf8] bg-[rgba(56,189,248,0.2)] text-white' : 'border-white/10 bg-white/5 text-[#94a3b8] hover:text-white',
+                  active
+                    ? 'border-[#38bdf8] bg-[rgba(56,189,248,0.2)] text-white'
+                    : 'border-white/10 bg-white/5 text-[#94a3b8] hover:text-white',
                 )}
               >
                 {t(`preset.${p}`)}
@@ -58,11 +60,24 @@ export function TicketReportsPage() {
           })}
           <label className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
             {t('from')}
-            <input type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]" />
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => e.target.value && setFrom(e.target.value)}
+              className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]"
+            />
           </label>
           <label className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
             {t('to')}
-            <input type="date" value={to} min={from} max={today} onChange={(e) => e.target.value && setTo(e.target.value)} className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]" />
+            <input
+              type="date"
+              value={to}
+              min={from}
+              max={today}
+              onChange={(e) => e.target.value && setTo(e.target.value)}
+              className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]"
+            />
           </label>
           <Link to="/tickets" className="text-xs font-semibold text-[#38bdf8] hover:underline">
             ← {t('back')}
@@ -76,12 +91,19 @@ export function TicketReportsPage() {
         <Kpi label={t('kpi.total')} value={r?.total ?? '…'} color="#38bdf8" icon="clipboard-text" />
         <Kpi label={t('kpi.resolved')} value={r?.resolved ?? '…'} color="#34d399" icon="tick-circle" />
         <Kpi label={t('kpi.closed')} value={r?.closed ?? '…'} color="#94a3b8" icon="call" />
-        <Kpi label={t('kpi.overdue')} value={r ? `${r.overdue} · ${Math.round(r.overdueShare * 100)}%` : '…'} color="#f87171" icon="timer" />
+        <Kpi
+          label={t('kpi.overdue')}
+          value={r ? `${r.overdue} · ${Math.round(r.overdueShare * 100)}%` : '…'}
+          color="#f87171"
+          icon="timer"
+        />
         <Kpi label={t('kpi.avg')} value={r ? hours(r.avgResolutionHours) : '…'} color="#c084fc" icon="clock" />
       </div>
 
       {r && r.total === 0 ? (
-        <div className="rounded-2xl border border-white/8 bg-muted py-10 text-center text-sm text-[#94a3b8]">{t('empty')}</div>
+        <div className="rounded-2xl border border-white/8 bg-muted py-10 text-center text-sm text-[#94a3b8]">
+          {t('empty')}
+        </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-2">
           <Panel title={t('byRegion')}>
@@ -96,7 +118,13 @@ export function TicketReportsPage() {
                 <div key={s.status} className="grid grid-cols-[150px_1fr_48px] items-center gap-3 text-[13px]">
                   <TicketStatusBadge status={s.status} className="justify-self-start" />
                   <div className="h-2.5 overflow-hidden rounded-full bg-white/6">
-                    <div className="h-full rounded-full" style={{ width: `${r && r.total ? (s.count / r.total) * 100 : 0}%`, background: STATUS_STRIPE[s.status] }} />
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${r && r.total ? (s.count / r.total) * 100 : 0}%`,
+                        background: STATUS_STRIPE[s.status],
+                      }}
+                    />
                   </div>
                   <span className="text-right font-bold text-white tabular-nums">{s.count}</span>
                 </div>
@@ -161,7 +189,14 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
               </td>
               <td className="py-2 text-right font-bold text-white tabular-nums">{r.total}</td>
               <td className="py-2 text-right text-[#34d399] tabular-nums">{r.resolved}</td>
-              <td className={cn('py-2 text-right tabular-nums', r.overdue > 0 ? 'font-bold text-[#f87171]' : 'text-[#94a3b8]')}>{r.overdue}</td>
+              <td
+                className={cn(
+                  'py-2 text-right tabular-nums',
+                  r.overdue > 0 ? 'font-bold text-[#f87171]' : 'text-[#94a3b8]',
+                )}
+              >
+                {r.overdue}
+              </td>
               <td className="py-2 text-right text-[#c084fc] tabular-nums">{r.avgResolutionHours ?? '—'}</td>
             </tr>
           ))}

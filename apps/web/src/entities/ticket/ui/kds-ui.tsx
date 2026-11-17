@@ -2,7 +2,17 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
 
 /** `.tk-form-group` + `.tk-form-label` */
-export function KdsField({ label, icon, htmlFor, children }: { label: string; icon?: ReactNode; htmlFor?: string; children: ReactNode }) {
+export function KdsField({
+  label,
+  icon,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  icon?: ReactNode;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="mb-3.5 flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-xs font-bold text-[#cbd5e1]">
@@ -27,7 +37,14 @@ export function KdsTextarea({ className, ...props }: ComponentProps<'textarea'>)
 
 export function KdsSelect({ className, children, ...props }: ComponentProps<'select'>) {
   return (
-    <select {...props} className={cn(inputBase, 'bg-[rgba(15,23,42,0.85)] focus:bg-[rgba(15,23,42,0.98)] [&_option]:bg-[#0f172a] [&_option]:text-[#f1f5f9]', className)}>
+    <select
+      {...props}
+      className={cn(
+        inputBase,
+        'bg-[rgba(15,23,42,0.85)] focus:bg-[rgba(15,23,42,0.98)] [&_option]:bg-[#0f172a] [&_option]:text-[#f1f5f9]',
+        className,
+      )}
+    >
       {children}
     </select>
   );
@@ -45,8 +62,7 @@ const ACTION: Record<ActionVariant, string> = {
   reject:
     'bg-[linear-gradient(135deg,#ef4444,#dc2626)] text-white shadow-[0_4px_14px_rgba(239,68,68,0.35)] hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(239,68,68,0.5)]',
   delete: 'border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]',
-  edit:
-    'border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] text-[#38bdf8] hover:bg-[rgba(56,189,248,0.28)] hover:text-white hover:shadow-[0_4px_14px_rgba(56,189,248,0.3)]',
+  edit: 'border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] text-[#38bdf8] hover:bg-[rgba(56,189,248,0.28)] hover:text-white hover:shadow-[0_4px_14px_rgba(56,189,248,0.3)]',
 };
 
 /** `.tk-action-btn.{variant}` */

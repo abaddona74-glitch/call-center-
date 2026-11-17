@@ -72,11 +72,22 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('created_at', 'timestamptz', (c) => c.notNull().defaultTo(sql`now()`))
     .addPrimaryKeyConstraint('ticket_executive_regions_pk', ['user_id', 'region_id'])
     .execute();
-  await db.schema.createIndex('ticket_executive_regions_region_idx').on('ticket_executive_regions').column('region_id').execute();
+  await db.schema
+    .createIndex('ticket_executive_regions_region_idx')
+    .on('ticket_executive_regions')
+    .column('region_id')
+    .execute();
 
   await db
     .insertInto('ticket_regions')
-    .values(REGIONS.map(([code, nameUz, nameRu], i) => ({ code, name_uz: nameUz, name_ru: nameRu, sort_order: (i + 1) * 10 })))
+    .values(
+      REGIONS.map(([code, nameUz, nameRu], i) => ({
+        code,
+        name_uz: nameUz,
+        name_ru: nameRu,
+        sort_order: (i + 1) * 10,
+      })),
+    )
     .execute();
   await db
     .insertInto('ticket_categories')

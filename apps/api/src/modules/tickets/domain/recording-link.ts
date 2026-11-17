@@ -17,7 +17,10 @@ export interface RecordingSchedule {
 
 /** A call that is still going on (ticket opened during the call, or a callback just placed). */
 export function scheduleForRunningCall(now: Date): RecordingSchedule {
-  return { nextAt: new Date(now.getTime() + RECORDING_RETRY_MS), deadline: new Date(now.getTime() + RECORDING_OPEN_CALL_MS) };
+  return {
+    nextAt: new Date(now.getTime() + RECORDING_RETRY_MS),
+    deadline: new Date(now.getTime() + RECORDING_OPEN_CALL_MS),
+  };
 }
 
 /** The call has ended (AMI) or is a past call from the history: look now, keep trying for a while. */

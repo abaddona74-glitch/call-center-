@@ -1,5 +1,5 @@
 {
-  "app": {"title": "Call Center"},
+  "app": { "title": "Call Center" },
   "nav": {
     "dashboard": "Главная",
     "settings": "Настройки",
@@ -22,7 +22,7 @@
     "invalidCredentials": "Неверный логин или пароль",
     "tooManyAttempts": "Слишком много попыток. Попробуйте позже"
   },
-  "realtime": {"open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—"},
-  "common": {"error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро"},
-  "roles": {"operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь"}
+  "realtime": { "open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—" },
+  "common": { "error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро" },
+  "roles": { "operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь" }
 }

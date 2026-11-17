@@ -163,7 +163,14 @@ export class TicketsService {
     const rows = await this.repo.listVisible(actor, query);
     const now = new Date();
     const overdue = (r: TicketRow) =>
-      isOverdue({ status: r.status, dueAt: r.dueAt ? new Date(r.dueAt) : null, resolvedAt: r.resolvedAt ? new Date(r.resolvedAt) : null }, now);
+      isOverdue(
+        {
+          status: r.status,
+          dueAt: r.dueAt ? new Date(r.dueAt) : null,
+          resolvedAt: r.resolvedAt ? new Date(r.resolvedAt) : null,
+        },
+        now,
+      );
 
     const counts = { all: 0, mine: 0, queue: 0, callback: 0, triage: 0, overdue: 0 };
     for (const r of rows) {
@@ -177,8 +184,16 @@ export class TicketsService {
     if (view === 'callback') {
       selected = selected.sort((a, b) =>
         compareCallbackQueue(
-          { id: a.id, lastContactUserId: a.lastContactUserId, resolvedAt: a.resolvedAt ? new Date(a.resolvedAt) : null },
-          { id: b.id, lastContactUserId: b.lastContactUserId, resolvedAt: b.resolvedAt ? new Date(b.resolvedAt) : null },
+          {
+            id: a.id,
+            lastContactUserId: a.lastContactUserId,
+            resolvedAt: a.resolvedAt ? new Date(a.resolvedAt) : null,
+          },
+          {
+            id: b.id,
+            lastContactUserId: b.lastContactUserId,
+            resolvedAt: b.resolvedAt ? new Date(b.resolvedAt) : null,
+          },
           actor.userId,
         ),
       );
@@ -240,7 +255,8 @@ export class TicketsService {
     const cityId = fields.cityId ?? null;
     if (cityId !== null) {
       const city = await this.dirs.findCity(cityId);
-      if (!city?.isActive || city.regionId !== region.id) throw new BadRequestException('The city/district does not belong to the region');
+      if (!city?.isActive || city.regionId !== region.id)
+        throw new BadRequestException('The city/district does not belong to the region');
     }
 
     const call = fields.callId ? await this.calls.resolve(actor, user, fields.callId) : null;
@@ -290,7 +306,12 @@ export class TicketsService {
     };
     if (call && (call.source === 'live' || call.answered)) {
       // The operator who opens the ticket from a call has just talked to the citizen.
-      Object.assign(values, { lastContactUserId: me.userId, lastContactLabel: me.label, lastContactExtension: call.extension, lastContactAt: now });
+      Object.assign(values, {
+        lastContactUserId: me.userId,
+        lastContactLabel: me.label,
+        lastContactExtension: call.extension,
+        lastContactAt: now,
+      });
     }
     const row = await this.repo.insert(values);
     await this.repo.insertAttachments(stored.map((f) => this.attachmentRow(row.id, null, f, user)));
@@ -314,7 +335,13 @@ export class TicketsService {
     }
     await this.audit.record('tickets.create', {
       target: `ticket:${row.id}`,
-      details: { regionId: row.regionId, categoryId: row.categoryId, callId: call?.callId ?? null, source: call?.source ?? 'manual', files: stored.length },
+      details: {
+        regionId: row.regionId,
+        categoryId: row.categoryId,
+        callId: call?.callId ?? null,
+        source: call?.source ?? 'manual',
+        files: stored.length,
+      },
     });
     return row;
   }
@@ -327,7 +354,12 @@ export class TicketsService {
   // Regional workflow
   // ---------------------------------------------------------------------------
 
-  async act(user: SessionUser, id: number, action: 'assign' | 'start' | 'resolve' | 'reject' | 'forward', input: ActionInput = {}): Promise<TicketDetail> {
+  async act(
+    user: SessionUser,
+    id: number,
+    action: 'assign' | 'start' | 'resolve' | 'reject' | 'forward',
+    input: ActionInput = {},
+  ): Promise<TicketDetail> {
     const actor = await this.presenter.actorFor(user);
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('Ticket not found');
@@ -335,7 +367,10 @@ export class TicketsService {
     if (!decision.ok) {
       if (decision.code === 'forbidden' || decision.code === 'not_found') {
         // Outside the transaction, so the denial stays in the audit log.
-        await this.audit.record('tickets.denied', { target: `ticket:${id}`, details: { action, kind: actor.kind, reason: decision.code } });
+        await this.audit.record('tickets.denied', {
+          target: `ticket:${id}`,
+          details: { action, kind: actor.kind, reason: decision.code },
+        });
       }
       throw denialToHttp(decision);
     }
@@ -344,7 +379,10 @@ export class TicketsService {
       if (!target?.isActive) throw new BadRequestException('Choose an active region');
     }
     const updated = await this.persistAction(user, row, action, input);
-    await this.notifier.changed(row, updated, ACTION_NOTICE[action], { userId: user.id, label: (await this.me(user)).label });
+    await this.notifier.changed(row, updated, ACTION_NOTICE[action], {
+      userId: user.id,
+      label: (await this.me(user)).label,
+    });
     return this.presenter.detail(updated, actor);
   }
 
@@ -363,7 +401,13 @@ export class TicketsService {
 
     switch (action) {
       case 'assign':
-        Object.assign(changes, { status: 'assigned', assigneeUserId: me.userId, assigneeLabel: me.label, assigneeExtension: me.extension, assignedAt: now });
+        Object.assign(changes, {
+          status: 'assigned',
+          assigneeUserId: me.userId,
+          assigneeLabel: me.label,
+          assigneeExtension: me.extension,
+          assignedAt: now,
+        });
         events.push(this.event(row.id, ACTION_EVENT.assign, me, { fromStatus: row.status, toStatus: 'assigned' }));
         break;
       case 'start':
@@ -430,7 +474,9 @@ export class TicketsService {
     ticketId: number,
     kind: TicketEventKind,
     actor: Me | null,
-    extra: Partial<Pick<Insertable<TicketEventsTable>, 'fromStatus' | 'toStatus' | 'fromRegionId' | 'toRegionId' | 'note'>> = {},
+    extra: Partial<
+      Pick<Insertable<TicketEventsTable>, 'fromStatus' | 'toStatus' | 'fromRegionId' | 'toRegionId' | 'note'>
+    > = {},
   ): Insertable<TicketEventsTable> {
     return {
       ticketId,
@@ -450,7 +496,12 @@ export class TicketsService {
   // Chat, delete
   // ---------------------------------------------------------------------------
 
-  async comment(user: SessionUser, id: number, fields: AddTicketCommentFieldsParsed, incoming: IncomingFile[]): Promise<TicketDetail> {
+  async comment(
+    user: SessionUser,
+    id: number,
+    fields: AddTicketCommentFieldsParsed,
+    incoming: IncomingFile[],
+  ): Promise<TicketDetail> {
     const actor = await this.presenter.actorFor(user);
     const row = await this.visibleRow(id, actor);
     if (!canComment(actor, ticketFacts(row))) throw new ForbiddenException('You cannot write in this ticket');
@@ -480,14 +531,20 @@ export class TicketsService {
       body,
     });
     await this.repo.insertAttachments(stored.map((f) => this.attachmentRow(row.id, comment.id, f, user)));
-    await this.audit.record('tickets.comment', { target: `ticket:${row.id}`, details: { commentId: comment.id, files: stored.length } });
+    await this.audit.record('tickets.comment', {
+      target: `ticket:${row.id}`,
+      details: { commentId: comment.id, files: stored.length },
+    });
   }
 
   async remove(user: SessionUser, id: number): Promise<void> {
     const actor = await this.presenter.actorFor(user);
     const row = await this.visibleRow(id, actor);
     if (!canDelete(actor)) {
-      await this.audit.record('tickets.denied', { target: `ticket:${id}`, details: { action: 'delete', kind: actor.kind } });
+      await this.audit.record('tickets.denied', {
+        target: `ticket:${id}`,
+        details: { action: 'delete', kind: actor.kind },
+      });
       throw new ForbiddenException('Only the superuser can delete tickets');
     }
     const keys = await this.persistDelete(row);
@@ -517,7 +574,11 @@ export class TicketsService {
   // Attachments
   // ---------------------------------------------------------------------------
 
-  async attachment(user: SessionUser, ticketId: number, attachmentId: number): Promise<{ row: TicketAttachmentRow; path: string }> {
+  async attachment(
+    user: SessionUser,
+    ticketId: number,
+    attachmentId: number,
+  ): Promise<{ row: TicketAttachmentRow; path: string }> {
     const actor = await this.presenter.actorFor(user);
     await this.visibleRow(ticketId, actor);
     const row = await this.repo.findAttachment(ticketId, attachmentId);
@@ -525,7 +586,10 @@ export class TicketsService {
     const key = `${user.id}:${row.id}`;
     if (!this.downloadAudit.has(key)) {
       this.downloadAudit.set(key, true);
-      await this.audit.record('tickets.attachment.download', { target: `ticket:${ticketId}`, details: { attachmentId } });
+      await this.audit.record('tickets.attachment.download', {
+        target: `ticket:${ticketId}`,
+        details: { attachmentId },
+      });
     }
     return { row, path: this.files.pathOf(row.storageKey) };
   }
@@ -537,7 +601,8 @@ export class TicketsService {
     const cached = this.previews.get(row.id);
     if (cached !== undefined) return { html: cached };
     const buffer = await this.files.read(row.storageKey);
-    if (detectAttachmentType(buffer)?.kind !== 'docx') throw new UnsupportedMediaTypeException('The document cannot be previewed');
+    if (detectAttachmentType(buffer)?.kind !== 'docx')
+      throw new UnsupportedMediaTypeException('The document cannot be previewed');
     let html: string;
     try {
       html = sanitizeDocHtml((await mammoth.convertToHtml({ buffer })).value);

@@ -15,6 +15,7 @@
 | S4 | Callback'и, клиенты, чёрный список, агент | `modules/{callbacks,contacts,blacklist,agent}` | `pages/{clients}`, `widgets/callbacks-panel`, `features/{callbacks,contacts,blacklist}/*`, `entities/{contact,callback}` | 3004 / 5177 | `callcenter_s4` |
 | S5 | Записи и тикеты (бывший viewer) | `modules/{recordings,tickets}` | `pages/{explorer,tickets}`, `entities/{recording,ticket}` | 3005 / 5178 | `callcenter_s5` |
 | S6 | Платформа | миграция данных legacy → Postgres, деплой, бэкапы, скриншоты-эталоны дизайна | `docs/rewrite/design/*` | 3006 / 5179 | `callcenter_s6` |
+| S7 | Тикеты: оператор → область → перезвон (`TICKETS.md`) | `modules/tickets` (принял от S5), маппер legacy-тикетов | `pages/{tickets,ticket-reports,settings-tickets}`, `widgets/{ticket-box,ticket-callback-queue}`, `features/tickets/*`, `entities/ticket` | 3007 / 5180 | `callcenter_s7` |
 
 ### Контракты между сессиями
 - **S3 → S4:** события `call.*` из `apps/api/src/common/events/domain-events.ts`. S3 их публикует из AMI, S4 подписывается (закрытие callback'ов, учёт попыток). S4 пишет свои тесты на синтетических событиях, не дожидаясь S3.

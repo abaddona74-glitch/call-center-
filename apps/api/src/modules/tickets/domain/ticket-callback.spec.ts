@@ -12,7 +12,13 @@ import {
 const t0 = new Date('2026-11-17T10:00:00Z');
 const plus = (ms: number) => new Date(t0.getTime() + ms);
 const attempt = { extension: '201', phone: '901234567', startedAt: t0, callId: null, status: 'dialing' as const };
-const event = { callId: '1763373600.10', direction: 'outbound' as const, extension: '201', phone: '901234567', at: plus(4_000) };
+const event = {
+  callId: '1763373600.10',
+  direction: 'outbound' as const,
+  extension: '201',
+  phone: '901234567',
+  at: plus(4_000),
+};
 
 describe('eventMatchesAttempt', () => {
   it('matches the outbound call from my extension to the ticket number shortly after pressing call', () => {
@@ -48,7 +54,8 @@ describe('conversation and outcome', () => {
     expect(decideOutcome('dialing', 'other')).toEqual({ kind: 'pending' });
     expect(decideOutcome('not_connected', 'informed')).toMatchObject({ kind: 'error' });
     expect(decideOutcome('failed', 'informed')).toMatchObject({ kind: 'error' });
-    for (const s of ['connected', 'not_connected', 'dialing'] as const) expect(decideOutcome(s, 'not_reached')).toEqual({ kind: 'attempt' });
+    for (const s of ['connected', 'not_connected', 'dialing'] as const)
+      expect(decideOutcome(s, 'not_reached')).toEqual({ kind: 'attempt' });
   });
 
   it('an outcome given during the call is applied when it ends', () => {

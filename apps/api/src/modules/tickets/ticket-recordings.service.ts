@@ -90,19 +90,27 @@ export class TicketRecordingsService {
       }
       return { kind: 'missing' };
     } catch (err) {
-      if (err instanceof ServiceUnavailableException || (err instanceof HttpException && err.getStatus() === 503)) return { kind: 'unavailable' };
+      if (err instanceof ServiceUnavailableException || (err instanceof HttpException && err.getStatus() === 503))
+        return { kind: 'unavailable' };
       this.logger.warn(`recording lookup for call ${row.callId} failed: ${(err as Error).message}`);
       return { kind: 'unavailable' };
     }
   }
 
   /** Audio of a ticket call, for users who may see the ticket (no "took part in the call" rule here). */
-  async stream(user: SessionUser, ticketId: number, callRowId: number, range: string | undefined, download: boolean): Promise<PreparedStream> {
+  async stream(
+    user: SessionUser,
+    ticketId: number,
+    callRowId: number,
+    range: string | undefined,
+    download: boolean,
+  ): Promise<PreparedStream> {
     const actor = await this.presenter.actorFor(user);
     await this.tickets.visibleRow(ticketId, actor);
     const row = await this.repo.findCall(ticketId, callRowId);
     if (!row) throw new NotFoundException('Call not found');
-    if (row.recordingStatus !== 'found' || !row.recordingPath) throw new NotFoundException('This call has no recording');
+    if (row.recordingStatus !== 'found' || !row.recordingPath)
+      throw new NotFoundException('This call has no recording');
     const file = await this.recordings.file(row.recordingPath);
     const key = `${user.id}:${row.id}:${download ? 'd' : 'p'}`;
     if (download || !this.playAudit.has(key)) {

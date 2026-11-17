@@ -22,10 +22,14 @@ export class TicketReportsService {
     const to = DateTime.fromISO(q.to, { zone: BUSINESS_TIMEZONE }).startOf('day').plus({ days: 1 });
     if (!from.isValid || !to.isValid) throw new BadRequestException('Invalid date');
     if (to <= from) throw new BadRequestException('`from` must not be after `to`');
-    if (to.diff(from, 'days').days > MAX_DAYS) throw new BadRequestException(`Date range is limited to ${MAX_DAYS} days`);
+    if (to.diff(from, 'days').days > MAX_DAYS)
+      throw new BadRequestException(`Date range is limited to ${MAX_DAYS} days`);
 
     const regionScope = actor.capabilities.viewAll ? null : [...actor.regionIds];
-    const [rows, refs] = await Promise.all([this.repo.createdBetween(from.toJSDate(), to.toJSDate(), regionScope), this.presenter.refs()]);
+    const [rows, refs] = await Promise.all([
+      this.repo.createdBetween(from.toJSDate(), to.toJSDate(), regionScope),
+      this.presenter.refs(),
+    ]);
     return buildTicketReport(
       rows.map((r) => ({
         status: r.status,

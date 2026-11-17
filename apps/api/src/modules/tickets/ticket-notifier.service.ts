@@ -58,12 +58,16 @@ export class TicketNotifier {
         );
       }
       const lost = [...was].filter((id) => !now.has(id));
-      if (lost.length > 0) this.realtime.broadcast('tickets.revoked', { id: row.id, code: ticketCode(row.id) }, { userIds: lost });
+      if (lost.length > 0)
+        this.realtime.broadcast('tickets.revoked', { id: row.id, code: ticketCode(row.id) }, { userIds: lost });
 
       const regions = new Set([before?.regionId, after?.regionId].filter((r): r is number => typeof r === 'number'));
-      const statusTouchesQueue = before?.status === 'new' || after?.status === 'new' || before?.regionId !== after?.regionId;
+      const statusTouchesQueue =
+        before?.status === 'new' || after?.status === 'new' || before?.regionId !== after?.regionId;
       if (regions.size > 0 && statusTouchesQueue) {
-        await this.pushUnread(actors.filter((a) => a.kind === 'executive' && [...regions].some((r) => a.regionIds.has(r))));
+        await this.pushUnread(
+          actors.filter((a) => a.kind === 'executive' && [...regions].some((r) => a.regionIds.has(r))),
+        );
       }
     } catch (err) {
       this.logger.warn(`ticket notification failed: ${(err as Error).message}`);

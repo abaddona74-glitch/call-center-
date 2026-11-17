@@ -140,7 +140,10 @@ export class TicketsRepository {
   }
 
   /** Remember who last talked to the citizen on every open ticket of that number. */
-  async setLastContact(phone: string, contact: { userId: number | null; label: string; extension: string | null; at: Date }): Promise<number[]> {
+  async setLastContact(
+    phone: string,
+    contact: { userId: number | null; label: string; extension: string | null; at: Date },
+  ): Promise<number[]> {
     const rows = await this.db
       .updateTable('tickets')
       .set({
@@ -193,7 +196,12 @@ export class TicketsRepository {
   }
 
   findCall(ticketId: number, id: number): Promise<TicketCallRow | undefined> {
-    return this.db.selectFrom('ticketCalls').selectAll().where('ticketId', '=', ticketId).where('id', '=', id).executeTakeFirst();
+    return this.db
+      .selectFrom('ticketCalls')
+      .selectAll()
+      .where('ticketId', '=', ticketId)
+      .where('id', '=', id)
+      .executeTakeFirst();
   }
 
   callsWithCallId(callId: string): Promise<TicketCallRow[]> {
@@ -264,7 +272,12 @@ export class TicketsRepository {
 
   async attachmentsOf(ticketIds: number[]): Promise<TicketAttachmentRow[]> {
     if (ticketIds.length === 0) return [];
-    return this.db.selectFrom('ticketAttachments').selectAll().where('ticketId', 'in', ticketIds).orderBy('id').execute();
+    return this.db
+      .selectFrom('ticketAttachments')
+      .selectAll()
+      .where('ticketId', 'in', ticketIds)
+      .orderBy('id')
+      .execute();
   }
 
   async countsOf(ticketIds: number[]): Promise<{ comments: Map<number, number>; attachments: Map<number, number> }> {
@@ -312,7 +325,11 @@ export class TicketsRepository {
 
   async storageKeysOf(ticketIds: number[]): Promise<string[]> {
     if (ticketIds.length === 0) return [];
-    const rows = await this.db.selectFrom('ticketAttachments').select('storageKey').where('ticketId', 'in', ticketIds).execute();
+    const rows = await this.db
+      .selectFrom('ticketAttachments')
+      .select('storageKey')
+      .where('ticketId', 'in', ticketIds)
+      .execute();
     return rows.map((r) => r.storageKey);
   }
 
@@ -343,7 +360,11 @@ export class TicketsRepository {
   }
 
   async regionIdsOf(userId: number): Promise<number[]> {
-    const rows = await this.db.selectFrom('ticketExecutiveRegions').select('regionId').where('userId', '=', userId).execute();
+    const rows = await this.db
+      .selectFrom('ticketExecutiveRegions')
+      .select('regionId')
+      .where('userId', '=', userId)
+      .execute();
     return rows.map((r) => r.regionId);
   }
 

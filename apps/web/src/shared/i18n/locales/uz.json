@@ -1,5 +1,5 @@
 {
-  "app": {"title": "Call Center"},
+  "app": { "title": "Call Center" },
   "nav": {
     "dashboard": "Bosh sahifa",
     "settings": "Sozlamalar",
@@ -22,7 +22,7 @@
     "invalidCredentials": "Login yoki parol noto'g'ri",
     "tooManyAttempts": "Urinishlar juda ko'p. Birozdan so'ng qayta urinib ko'ring"
   },
-  "realtime": {"open": "Onlayn", "connecting": "Ulanmoqda…", "closed": "Aloqa uzildi", "idle": "—"},
-  "common": {"error": "Xatolik yuz berdi", "loading": "Yuklanmoqda…", "comingSoon": "Tez orada"},
-  "roles": {"operator": "Operator", "admin": "Administrator", "superuser": "Superuser"}
+  "realtime": { "open": "Onlayn", "connecting": "Ulanmoqda…", "closed": "Aloqa uzildi", "idle": "—" },
+  "common": { "error": "Xatolik yuz berdi", "loading": "Yuklanmoqda…", "comingSoon": "Tez orada" },
+  "roles": { "operator": "Operator", "admin": "Administrator", "superuser": "Superuser" }
 }

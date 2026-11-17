@@ -2,7 +2,8 @@ import { registerTranslations } from '@/shared/i18n';
 
 const uz = {
   title: 'Ticket sozlamalari',
-  subtitle: 'Hududlar, shahar/tumanlar, toifalar va ijrochilarni hududlarga biriktirish. Barcha o‘zgarishlar audit jurnaliga yoziladi.',
+  subtitle:
+    'Hududlar, shahar/tumanlar, toifalar va ijrochilarni hududlarga biriktirish. Barcha o‘zgarishlar audit jurnaliga yoziladi.',
   regions: 'Hududlar (viloyatlar)',
   cities: 'Shahar / tumanlar',
   citiesOf: '{{region}}: shahar / tumanlar',
@@ -32,7 +33,8 @@ const uz = {
 
 const ru: typeof uz = {
   title: 'Настройки тикетов',
-  subtitle: 'Области, города/районы, категории и привязка исполнителей к областям. Все изменения пишутся в журнал аудита.',
+  subtitle:
+    'Области, города/районы, категории и привязка исполнителей к областям. Все изменения пишутся в журнал аудита.',
   regions: 'Области',
   cities: 'Города / районы',
   citiesOf: '{{region}}: города / районы',

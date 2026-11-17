@@ -23,8 +23,18 @@ import {
   usePasteTarget,
 } from '@/entities/ticket';
 import { Icon } from '@/shared/ui/icon';
-import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, KdsModalHeader } from '@/shared/ui/kds-modal';
+import {
+  KdsCloseButton,
+  KdsIdBadge,
+  KdsModal,
+  KdsModalActions,
+  KdsModalBody,
+  KdsModalHeader,
+} from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
+
+/** Stable default: a fresh `[]` per render would re-run the "load initial files" effect forever. */
+const NO_FILES: File[] = [];
 
 /**
  * New ticket: region + city/district + category + description + attachments. With `callId` (a call in
@@ -36,7 +46,7 @@ export function CreateTicketModal({
   onOpenChange,
   maxFileMb,
   callId = null,
-  initialFiles = [],
+  initialFiles = NO_FILES,
   onCreated,
 }: {
   open: boolean;
@@ -116,7 +126,11 @@ export function CreateTicketModal({
   const regions = (dirs.data?.regions ?? []).filter((r) => r.isActive);
   const cities = regions.find((r) => String(r.id) === regionId)?.cities.filter((c) => c.isActive) ?? [];
   const categories = (dirs.data?.categories ?? []).filter((c) => c.isActive);
-  const source = !callId ? t('form.sourceManual') : prefill.data?.source === 'live' ? t('form.sourceLive') : t('form.sourceHistory');
+  const source = !callId
+    ? t('form.sourceManual')
+    : prefill.data?.source === 'live'
+      ? t('form.sourceLive')
+      : t('form.sourceHistory');
   const openTickets = prefill.data?.openTickets ?? [];
 
   return (
@@ -136,7 +150,9 @@ export function CreateTicketModal({
           <div className="flex items-center gap-3">
             <KdsIdBadge>{t('form.newBadge')}</KdsIdBadge>
             <h3 className="m-0 text-base font-bold text-white">{t('form.newTitle')}</h3>
-            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-[#94a3b8]">{source}</span>
+            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-semibold text-[#94a3b8]">
+              {source}
+            </span>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
@@ -149,7 +165,13 @@ export function CreateTicketModal({
                   title={t('form.phoneFromCall')}
                   className="rounded-[10px] border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.08)] px-3.5 py-2.5 text-[13.5px] font-bold text-[#38bdf8]"
                 >
-                  {prefill.isPending ? t('form.callLoading') : callPhone ? formatUzPhone(callPhone) : prefill.isError ? prefill.error.message : '—'}
+                  {prefill.isPending
+                    ? t('form.callLoading')
+                    : callPhone
+                      ? formatUzPhone(callPhone)
+                      : prefill.isError
+                        ? prefill.error.message
+                        : '—'}
                 </div>
               ) : (
                 <KdsInput
@@ -164,7 +186,13 @@ export function CreateTicketModal({
               )}
             </KdsField>
             <KdsField label={t('form.name')} icon={<Icon name="user" className="size-3.5" />} htmlFor="kds-new-name">
-              <KdsInput id="kds-new-name" value={name} maxLength={120} placeholder={t('form.namePlaceholder')} onChange={(e) => setName(e.target.value)} />
+              <KdsInput
+                id="kds-new-name"
+                value={name}
+                maxLength={120}
+                placeholder={t('form.namePlaceholder')}
+                onChange={(e) => setName(e.target.value)}
+              />
             </KdsField>
           </div>
           {openTickets.length > 0 && (
@@ -174,7 +202,11 @@ export function CreateTicketModal({
             </div>
           )}
           <div className="grid gap-x-3 sm:grid-cols-2">
-            <KdsField label={t('form.region')} icon={<Icon name="location" className="size-3.5" />} htmlFor="kds-new-region">
+            <KdsField
+              label={t('form.region')}
+              icon={<Icon name="location" className="size-3.5" />}
+              htmlFor="kds-new-region"
+            >
               <KdsSelect
                 id="kds-new-region"
                 required
@@ -193,7 +225,12 @@ export function CreateTicketModal({
               </KdsSelect>
             </KdsField>
             <KdsField label={t('form.city')} icon={<Icon name="global" className="size-3.5" />} htmlFor="kds-new-city">
-              <KdsSelect id="kds-new-city" value={cityId} disabled={!regionId || cities.length === 0} onChange={(e) => setCityId(e.target.value)}>
+              <KdsSelect
+                id="kds-new-city"
+                value={cityId}
+                disabled={!regionId || cities.length === 0}
+                onChange={(e) => setCityId(e.target.value)}
+              >
                 <option value="">{t('form.cityAny')}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -203,8 +240,17 @@ export function CreateTicketModal({
               </KdsSelect>
             </KdsField>
           </div>
-          <KdsField label={t('form.category')} icon={<Icon name="folder" className="size-3.5" />} htmlFor="kds-new-category">
-            <KdsSelect id="kds-new-category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <KdsField
+            label={t('form.category')}
+            icon={<Icon name="folder" className="size-3.5" />}
+            htmlFor="kds-new-category"
+          >
+            <KdsSelect
+              id="kds-new-category"
+              required
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
               <option value="">{t('form.categoryPick')}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -213,7 +259,11 @@ export function CreateTicketModal({
               ))}
             </KdsSelect>
           </KdsField>
-          <KdsField label={t('form.description')} icon={<LegacyIcon name="message" className="size-3.5" />} htmlFor="kds-new-description">
+          <KdsField
+            label={t('form.description')}
+            icon={<LegacyIcon name="message" className="size-3.5" />}
+            htmlFor="kds-new-description"
+          >
             <KdsTextarea
               id="kds-new-description"
               ref={descRef}

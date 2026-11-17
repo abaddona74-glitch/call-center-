@@ -15,7 +15,13 @@ import { ATTEMPT_STALE_MS } from './domain/ticket-callback.js';
 import { type TicketActor, type TicketFacts, isUnread, ticketActions, ticketActor } from './domain/ticket-workflow.js';
 import { TicketDirectoriesRepository } from './ticket-directories.repository.js';
 import { TicketsRepository } from './tickets.repository.js';
-import type { TicketAttachmentRow, TicketCallRow, TicketCommentRow, TicketEventRow, TicketRow } from './tickets.tables.js';
+import type {
+  TicketAttachmentRow,
+  TicketCallRow,
+  TicketCommentRow,
+  TicketEventRow,
+  TicketRow,
+} from './tickets.tables.js';
 
 export interface DirectoryRefs {
   regions: Map<number, TicketRef>;
@@ -85,9 +91,20 @@ export class TicketPresenter {
   }
 
   async refs(): Promise<DirectoryRefs> {
-    const [regions, cities, categories] = await Promise.all([this.dirs.regions(), this.dirs.cities(), this.dirs.categories()]);
-    const ref = (r: { id: number; nameUz: string; nameRu: string }): [number, TicketRef] => [r.id, { id: r.id, nameUz: r.nameUz, nameRu: r.nameRu }];
-    return { regions: new Map(regions.map(ref)), cities: new Map(cities.map(ref)), categories: new Map(categories.map(ref)) };
+    const [regions, cities, categories] = await Promise.all([
+      this.dirs.regions(),
+      this.dirs.cities(),
+      this.dirs.categories(),
+    ]);
+    const ref = (r: { id: number; nameUz: string; nameRu: string }): [number, TicketRef] => [
+      r.id,
+      { id: r.id, nameUz: r.nameUz, nameRu: r.nameRu },
+    ];
+    return {
+      regions: new Map(regions.map(ref)),
+      cities: new Map(cities.map(ref)),
+      categories: new Map(categories.map(ref)),
+    };
   }
 
   /** Display label for a user: PBX name of the extension, else the username. */
@@ -105,7 +122,9 @@ export class TicketPresenter {
       refs ?? this.refs(),
       this.repo.countsOf(ids),
       actor.kind === 'executive' ? this.repo.readsOf(actor.userId, ids) : Promise.resolve(new Map<number, Date>()),
-      actor.capabilities.callback ? this.repo.callsOf(rows.filter((x) => x.status === 'callback_pending').map((x) => x.id)) : Promise.resolve([]),
+      actor.capabilities.callback
+        ? this.repo.callsOf(rows.filter((x) => x.status === 'callback_pending').map((x) => x.id))
+        : Promise.resolve([]),
     ]);
     const now = new Date();
     return rows.map((row) =>
@@ -128,7 +147,12 @@ export class TicketPresenter {
     const facts = ticketFacts(row);
     const lastContact =
       row.lastContactLabel !== null && row.lastContactAt
-        ? { userId: row.lastContactUserId, label: row.lastContactLabel, extension: row.lastContactExtension, at: new Date(row.lastContactAt).toISOString() }
+        ? {
+            userId: row.lastContactUserId,
+            label: row.lastContactLabel,
+            extension: row.lastContactExtension,
+            at: new Date(row.lastContactAt).toISOString(),
+          }
         : null;
     return {
       id: row.id,
@@ -151,7 +175,11 @@ export class TicketPresenter {
       resolvedAt: iso(row.resolvedAt),
       dueAt: iso(row.dueAt),
       overdue: isOverdue(
-        { status: row.status, dueAt: row.dueAt ? new Date(row.dueAt) : null, resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : null },
+        {
+          status: row.status,
+          dueAt: row.dueAt ? new Date(row.dueAt) : null,
+          resolvedAt: row.resolvedAt ? new Date(row.resolvedAt) : null,
+        },
         extra.now,
       ),
       closedAt: iso(row.closedAt),
@@ -167,7 +195,9 @@ export class TicketPresenter {
       attachmentCount: extra.attachments,
       commentCount: extra.comments,
       unread: isUnread(actor, { ...facts, regionChangedAt: new Date(row.regionChangedAt) }, extra.readAt),
-      actions: ticketActions(actor, facts, { hasOpenAttempt: openAttemptOf(extra.calls, actor.userId, extra.now) !== null }),
+      actions: ticketActions(actor, facts, {
+        hasOpenAttempt: openAttemptOf(extra.calls, actor.userId, extra.now) !== null,
+      }),
     };
   }
 

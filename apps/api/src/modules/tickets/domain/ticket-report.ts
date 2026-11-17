@@ -81,7 +81,8 @@ export function buildTicketReport(
     avgResolutionHours: avg(a.hours),
   });
   const unknown: NamedRef = { nameUz: 'Koʻrsatilmagan', nameRu: 'Не указано' };
-  const sortRows = (rows: TicketReportRow[]) => rows.sort((a, b) => b.total - a.total || a.nameUz.localeCompare(b.nameUz));
+  const sortRows = (rows: TicketReportRow[]) =>
+    rows.sort((a, b) => b.total - a.total || a.nameUz.localeCompare(b.nameUz));
 
   return {
     from: range.from,
@@ -94,7 +95,9 @@ export function buildTicketReport(
     avgResolutionHours: avg(total.hours),
     byStatus: TICKET_STATUSES.map((status) => ({ status, count: byStatus.get(status) ?? 0 })),
     byRegion: sortRows([...byRegion].map(([id, a]) => row(id, (id !== null && names.regions.get(id)) || unknown, a))),
-    byCategory: sortRows([...byCategory].map(([id, a]) => row(id, (id !== null && names.categories.get(id)) || unknown, a))),
+    byCategory: sortRows(
+      [...byCategory].map(([id, a]) => row(id, (id !== null && names.categories.get(id)) || unknown, a)),
+    ),
     byExecutive: sortRows([...byExecutive].map(([id, a]) => row(id, { nameUz: a.label, nameRu: a.label }, a))),
   };
 }

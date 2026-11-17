@@ -14,7 +14,15 @@ import type { TicketActorKind, TicketCapabilities } from './ticket-access.js';
  * confirmed by AMI, plus the operator's outcome. "Not reached" records an attempt and the ticket
  * stays in the shared callback queue.
  */
-export const TICKET_STATUSES = ['new', 'assigned', 'in_progress', 'done', 'rejected', 'callback_pending', 'closed'] as const;
+export const TICKET_STATUSES = [
+  'new',
+  'assigned',
+  'in_progress',
+  'done',
+  'rejected',
+  'callback_pending',
+  'closed',
+] as const;
 export const TicketStatusSchema = z.enum(TICKET_STATUSES);
 export type TicketStatus = z.infer<typeof TicketStatusSchema>;
 
@@ -64,7 +72,11 @@ export type TicketAttachmentKind = z.infer<typeof TicketAttachmentKindSchema>;
 export const TICKET_ATTACHMENT_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,application/pdf,.docx';
 export const TICKET_MAX_FILES_PER_UPLOAD = 10;
 
-const Id = z.coerce.number().int().positive().max(2 ** 31);
+const Id = z.coerce
+  .number()
+  .int()
+  .positive()
+  .max(2 ** 31);
 export const TicketIdSchema = Id;
 export const TicketAttachmentIdSchema = Id;
 export const TicketCallRowIdSchema = Id;
@@ -127,7 +139,10 @@ export const RegionInputSchema = z.object({
   isActive: z.boolean().default(true),
 });
 export type RegionInput = z.input<typeof RegionInputSchema>;
-export const RegionPatchSchema = RegionInputSchema.partial().refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+export const RegionPatchSchema = RegionInputSchema.partial().refine(
+  (v) => Object.keys(v).length > 0,
+  'Nothing to update',
+);
 export type RegionPatch = z.infer<typeof RegionPatchSchema>;
 
 export const CityInputSchema = z.object({
@@ -146,7 +161,10 @@ export const CategoryInputSchema = z.object({
   isActive: z.boolean().default(true),
 });
 export type CategoryInput = z.input<typeof CategoryInputSchema>;
-export const CategoryPatchSchema = CategoryInputSchema.partial().refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+export const CategoryPatchSchema = CategoryInputSchema.partial().refine(
+  (v) => Object.keys(v).length > 0,
+  'Nothing to update',
+);
 export type CategoryPatch = z.infer<typeof CategoryPatchSchema>;
 
 export const TicketExecutiveSchema = z.object({
@@ -384,7 +402,10 @@ const PhoneFieldSchema = z
 export const TICKET_DESCRIPTION_MAX = 4000;
 
 /** Asterisk linkedid / uniqueid, e.g. "1763370000.42". */
-const CallRefSchema = z.string().trim().regex(/^[0-9]{1,20}\.[0-9]{1,10}$/, 'Invalid call id');
+const CallRefSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{1,20}\.[0-9]{1,10}$/, 'Invalid call id');
 
 /**
  * multipart/form-data fields of POST /tickets (files go in `files`).

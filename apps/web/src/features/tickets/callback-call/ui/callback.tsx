@@ -7,7 +7,14 @@ import { toast } from 'sonner';
 import { KdsAction, KdsField, KdsTextarea, ticketActions, ticketKeys, ticketQuery } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
-import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, KdsModalHeader } from '@/shared/ui/kds-modal';
+import {
+  KdsCloseButton,
+  KdsIdBadge,
+  KdsModal,
+  KdsModalActions,
+  KdsModalBody,
+  KdsModalHeader,
+} from '@/shared/ui/kds-modal';
 
 /**
  * "Call" for the callback queue: AMI Originate from my own extension to the ticket's number (the server
@@ -58,10 +65,22 @@ const OUTCOME_TONE: Record<CallbackOutcome, string> = {
  * Outcome of my callback: the attempt state comes live from the ticket (WS → refetch). The ticket closes
  * only when AMI confirmed a conversation ≥ 10 s AND an outcome is recorded (the server decides).
  */
-export function CallbackOutcomeModal({ ticketId, open, onClose }: { ticketId: number | null; open: boolean; onClose: () => void }) {
+export function CallbackOutcomeModal({
+  ticketId,
+  open,
+  onClose,
+}: {
+  ticketId: number | null;
+  open: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation('ticket');
   const queryClient = useQueryClient();
-  const detail = useQuery({ ...ticketQuery(ticketId ?? 0), enabled: open && ticketId !== null, refetchInterval: open ? 5_000 : false });
+  const detail = useQuery({
+    ...ticketQuery(ticketId ?? 0),
+    enabled: open && ticketId !== null,
+    refetchInterval: open ? 5_000 : false,
+  });
   const [outcome, setOutcome] = useState<CallbackOutcome | null>(null);
   const [note, setNote] = useState('');
 
@@ -80,7 +99,8 @@ export function CallbackOutcomeModal({ ticketId, open, onClose }: { ticketId: nu
     onSuccess: async (d) => {
       queryClient.setQueryData(ticketKeys.detail(d.id), d);
       if (d.status === 'closed') toast.success(t('callback.closed', { code: d.code }));
-      else if (outcome === 'not_reached' || d.calls.at(-1)?.attemptStatus === 'not_connected') toast.info(t('callback.attemptSaved'));
+      else if (outcome === 'not_reached' || d.calls.at(-1)?.attemptStatus === 'not_connected')
+        toast.info(t('callback.attemptSaved'));
       else toast.info(t('callback.pendingSaved'));
       onClose();
       await queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
@@ -89,7 +109,13 @@ export function CallbackOutcomeModal({ ticketId, open, onClose }: { ticketId: nu
   });
 
   return (
-    <KdsModal open={open} onOpenChange={(o) => !o && onClose()} title={t('callback.outcomeTitle')} width={540} closeOnBackdrop>
+    <KdsModal
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title={t('callback.outcomeTitle')}
+      width={540}
+      closeOnBackdrop
+    >
       <form
         className="flex flex-1 flex-col overflow-hidden"
         onSubmit={(e) => {
@@ -147,7 +173,11 @@ export function CallbackOutcomeModal({ ticketId, open, onClose }: { ticketId: nu
               </button>
             ))}
           </div>
-          <KdsField label={t('callback.note')} icon={<Icon name="edit" className="size-3.5" />} htmlFor="kds-outcome-note">
+          <KdsField
+            label={t('callback.note')}
+            icon={<Icon name="edit" className="size-3.5" />}
+            htmlFor="kds-outcome-note"
+          >
             <KdsTextarea
               id="kds-outcome-note"
               value={note}
@@ -173,7 +203,15 @@ export function CallbackOutcomeModal({ ticketId, open, onClose }: { ticketId: nu
 }
 
 /** Superuser: close a queued ticket without a confirmed call (reason required, audited). */
-export function ForceCloseModal({ ticket, open, onClose }: { ticket: TicketDetail; open: boolean; onClose: () => void }) {
+export function ForceCloseModal({
+  ticket,
+  open,
+  onClose,
+}: {
+  ticket: TicketDetail;
+  open: boolean;
+  onClose: () => void;
+}) {
   const { t } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const [note, setNote] = useState('');
@@ -190,7 +228,13 @@ export function ForceCloseModal({ ticket, open, onClose }: { ticket: TicketDetai
     onError: (err) => toast.error(t('error', { message: err.message })),
   });
   return (
-    <KdsModal open={open} onOpenChange={(o) => !o && onClose()} title={t('callback.forceTitle')} width={480} closeOnBackdrop>
+    <KdsModal
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      title={t('callback.forceTitle')}
+      width={480}
+      closeOnBackdrop
+    >
       <form
         className="flex flex-1 flex-col overflow-hidden"
         onSubmit={(e) => {
@@ -207,14 +251,27 @@ export function ForceCloseModal({ ticket, open, onClose }: { ticket: TicketDetai
         </KdsModalHeader>
         <KdsModalBody className="px-5 py-[18px]">
           <KdsField label={t('callback.forceNote')} htmlFor="kds-force-note">
-            <KdsTextarea id="kds-force-note" required minLength={2} maxLength={1000} value={note} className="min-h-20" onChange={(e) => setNote(e.target.value)} />
+            <KdsTextarea
+              id="kds-force-note"
+              required
+              minLength={2}
+              maxLength={1000}
+              value={note}
+              className="min-h-20"
+              onChange={(e) => setNote(e.target.value)}
+            />
           </KdsField>
         </KdsModalBody>
         <KdsModalActions className="justify-end gap-2.5 px-5 py-3">
           <KdsAction variant="delete" onClick={onClose}>
             {t('callback.cancel')}
           </KdsAction>
-          <KdsAction type="submit" variant="reject" disabled={save.isPending || note.trim().length < 2} className="px-4 py-2">
+          <KdsAction
+            type="submit"
+            variant="reject"
+            disabled={save.isPending || note.trim().length < 2}
+            className="px-4 py-2"
+          >
             {t('callback.forceSubmit')}
           </KdsAction>
         </KdsModalActions>

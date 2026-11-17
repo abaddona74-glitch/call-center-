@@ -95,19 +95,28 @@ export class TicketsController {
 
   @Get('call-prefill')
   @SerializeOptions({ schema: TicketCallPrefillSchema })
-  callPrefill(@Query({ schema: TicketCallPrefillQuerySchema }) q: { callId: string }, @CurrentUser() user: SessionUser): Promise<TicketCallPrefill> {
+  callPrefill(
+    @Query({ schema: TicketCallPrefillQuerySchema }) q: { callId: string },
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketCallPrefill> {
     return this.tickets.callPrefill(user, q.callId);
   }
 
   @Get('reports')
   @SerializeOptions({ schema: TicketReportSchema })
-  report(@Query({ schema: TicketReportQuerySchema }) q: TicketReportQuery, @CurrentUser() user: SessionUser): Promise<TicketReport> {
+  report(
+    @Query({ schema: TicketReportQuerySchema }) q: TicketReportQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketReport> {
     return this.reports.report(user, q);
   }
 
   @Get()
   @SerializeOptions({ schema: TicketListResponseSchema })
-  list(@Query({ schema: TicketListQuerySchema }) query: TicketListQueryParsed, @CurrentUser() user: SessionUser): Promise<TicketListResponse> {
+  list(
+    @Query({ schema: TicketListQuerySchema }) query: TicketListQueryParsed,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketListResponse> {
     return this.tickets.list(user, query);
   }
 

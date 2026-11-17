@@ -19,5 +19,11 @@ export const Route = createFileRoute('/_app/tickets')({
 function TicketsRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  return <TicketsPage view={search.view} openId={search.open} onSearch={(s) => void navigate({ search: s, replace: true })} />;
+  return (
+    <TicketsPage
+      view={search.view}
+      openId={search.open}
+      onSearch={(s) => void navigate({ search: s, replace: true })}
+    />
+  );
 }

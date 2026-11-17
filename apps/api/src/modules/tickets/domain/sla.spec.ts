@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { WorkingCalendar } from '../../../common/time/working-calendar.js';
 import { hoursBetween, isOverdue, slaDueAt } from './sla.js';
 
-const cal = new WorkingCalendar({ days: [1, 2, 3, 4, 5], start: '08:00', end: '21:00', holidays: ['01-01', '2026-11-19'] });
+const cal = new WorkingCalendar({
+  days: [1, 2, 3, 4, 5],
+  start: '08:00',
+  end: '21:00',
+  holidays: ['01-01', '2026-11-19'],
+});
 // Tashkent is UTC+5 all year.
 const at = (local: string) => new Date(`${local}+05:00`);
 
@@ -49,8 +54,15 @@ describe('isOverdue', () => {
     expect(isOverdue({ status: 'new', dueAt, resolvedAt: null }, at('2026-11-26T09:59:59'))).toBe(false);
   });
   it('resolved tickets by their resolution time, forever', () => {
-    expect(isOverdue({ status: 'closed', dueAt, resolvedAt: at('2026-11-27T08:00:00') }, at('2026-11-20T00:00:00'))).toBe(true);
-    expect(isOverdue({ status: 'callback_pending', dueAt, resolvedAt: at('2026-11-25T08:00:00') }, at('2027-01-01T00:00:00'))).toBe(false);
+    expect(
+      isOverdue({ status: 'closed', dueAt, resolvedAt: at('2026-11-27T08:00:00') }, at('2026-11-20T00:00:00')),
+    ).toBe(true);
+    expect(
+      isOverdue(
+        { status: 'callback_pending', dueAt, resolvedAt: at('2026-11-25T08:00:00') },
+        at('2027-01-01T00:00:00'),
+      ),
+    ).toBe(false);
   });
   it('legacy tickets without due date or resolution time are never overdue', () => {
     expect(isOverdue({ status: 'new', dueAt: null, resolvedAt: null }, new Date())).toBe(false);

@@ -77,7 +77,10 @@ describe('transformLegacyTicket', () => {
   });
 
   it('admin creators keep their label; unusable phones are dropped with a warning', () => {
-    const r = transformLegacyTicket(legacy({ targetOperatorId: 'all', creatorId: 'admin', creatorName: null, customerPhone: '12' }), NOW);
+    const r = transformLegacyTicket(
+      legacy({ targetOperatorId: 'all', creatorId: 'admin', creatorName: null, customerPhone: '12' }),
+      NOW,
+    );
     if (!r.ok) throw new Error(r.reason);
     expect(r.values.creator).toEqual({ extension: null, label: 'admin' });
     expect(r.values.customerPhone).toBeNull();
@@ -88,8 +91,23 @@ describe('transformLegacyTicket', () => {
     const r = transformLegacyTicket(
       legacy({
         comments: [
-          { id: 'cm_1_sys', operatorId: '101', operatorName: 'Oybek', text: '🚫 Ticket rad etildi. Sabab: Dublikat', isSystem: true, files: [], createdAt: 1763370300000 },
-          { id: 'cm_2', operatorId: 101, operatorName: 'Oybek', text: 'Qabul qildim', files: [], createdAt: 1763370400000 },
+          {
+            id: 'cm_1_sys',
+            operatorId: '101',
+            operatorName: 'Oybek',
+            text: '🚫 Ticket rad etildi. Sabab: Dublikat',
+            isSystem: true,
+            files: [],
+            createdAt: 1763370300000,
+          },
+          {
+            id: 'cm_2',
+            operatorId: 101,
+            operatorName: 'Oybek',
+            text: 'Qabul qildim',
+            files: [],
+            createdAt: 1763370400000,
+          },
         ],
       }),
       NOW,
@@ -103,7 +121,10 @@ describe('transformLegacyTicket', () => {
 
   it('skips unreadable tickets with a reason', () => {
     expect(transformLegacyTicket(legacy({ id: 'X-1' }), NOW)).toMatchObject({ ok: false });
-    expect(transformLegacyTicket(legacy({ status: 'archived' }), NOW)).toMatchObject({ ok: false, reason: expect.stringContaining('status') });
+    expect(transformLegacyTicket(legacy({ status: 'archived' }), NOW)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('status'),
+    });
     expect(transformLegacyTicket({ foo: 1 }, NOW)).toMatchObject({ ok: false, key: '?' });
   });
 

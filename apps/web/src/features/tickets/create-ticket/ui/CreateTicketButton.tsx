@@ -10,7 +10,15 @@ import { CreateTicketModal } from './CreateTicketModal';
  * "Ticket" button next to a call (my active call, a row in the history). Hidden for users who cannot
  * open tickets. The server takes the number from the call and checks the user took part in it.
  */
-export function CreateTicketButton({ callId, className, variant = 'pill' }: { callId: string; className?: string; variant?: 'pill' | 'table' }) {
+export function CreateTicketButton({
+  callId,
+  className,
+  variant = 'pill',
+}: {
+  callId: string;
+  className?: string;
+  variant?: 'pill' | 'table';
+}) {
   const { t } = useTranslation('ticket');
   const ctx = useQuery(ticketContextQuery);
   const [open, setOpen] = useState(false);

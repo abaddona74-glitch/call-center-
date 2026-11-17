@@ -30,7 +30,9 @@ export interface CallEventFacts {
 }
 
 export function isOpenAttempt(a: Pick<AttemptFacts, 'status' | 'startedAt'>, now: Date): boolean {
-  return (a.status === 'dialing' || a.status === 'answered') && now.getTime() - a.startedAt.getTime() < ATTEMPT_STALE_MS;
+  return (
+    (a.status === 'dialing' || a.status === 'answered') && now.getTime() - a.startedAt.getTime() < ATTEMPT_STALE_MS
+  );
 }
 
 /**
@@ -47,7 +49,11 @@ export function eventMatchesAttempt(a: AttemptFacts, e: CallEventFacts): boolean
   return dt >= -5_000 && dt <= ATTEMPT_MATCH_WINDOW_MS;
 }
 
-export function attemptStatusAfterEnd(answered: boolean, talkSeconds: number, minTalk = CALLBACK_MIN_TALK_SECONDS): CallAttemptStatus {
+export function attemptStatusAfterEnd(
+  answered: boolean,
+  talkSeconds: number,
+  minTalk = CALLBACK_MIN_TALK_SECONDS,
+): CallAttemptStatus {
   return answered && talkSeconds >= minTalk ? 'connected' : 'not_connected';
 }
 
@@ -77,7 +83,10 @@ export function decideOutcome(attemptStatus: CallAttemptStatus, outcome: Callbac
 }
 
 /** After the call ended: what to do with an outcome the operator already gave. */
-export function decideAfterEnd(status: CallAttemptStatus, outcome: CallbackOutcome | null): 'close' | 'attempt' | 'wait' {
+export function decideAfterEnd(
+  status: CallAttemptStatus,
+  outcome: CallbackOutcome | null,
+): 'close' | 'attempt' | 'wait' {
   if (!outcome) return 'wait';
   if (outcome === 'not_reached') return 'attempt';
   return status === 'connected' ? 'close' : 'attempt';

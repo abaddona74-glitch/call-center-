@@ -18,7 +18,13 @@ const STATUS_BADGE: Record<TicketStatus, string> = {
 export function TicketStatusBadge({ status, className }: { status: TicketStatus; className?: string }) {
   const { t } = useTranslation('ticket');
   return (
-    <span className={cn('inline-flex items-center gap-[5px] rounded-xl border px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap', STATUS_BADGE[status], className)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-[5px] rounded-xl border px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap',
+        STATUS_BADGE[status],
+        className,
+      )}
+    >
       {t(`status.${status}`)}
     </span>
   );

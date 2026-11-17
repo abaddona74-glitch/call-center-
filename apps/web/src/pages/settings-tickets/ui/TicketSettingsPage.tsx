@@ -3,7 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { KdsAction, KdsInput, refName, ticketDirectories, ticketDirectoriesQuery, ticketExecutivesQuery, ticketKeys } from '@/entities/ticket';
+import {
+  KdsAction,
+  KdsInput,
+  refName,
+  ticketDirectories,
+  ticketDirectoriesQuery,
+  ticketExecutivesQuery,
+  ticketKeys,
+} from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 
@@ -46,7 +54,9 @@ export function TicketSettingsPage() {
             <>
               <CityForm regionId={region.id} />
               <ul className="mt-3 flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-1">
-                {region.cities.length === 0 && <li className="py-3 text-center text-xs text-slate-500">{t('empty')}</li>}
+                {region.cities.length === 0 && (
+                  <li className="py-3 text-center text-xs text-slate-500">{t('empty')}</li>
+                )}
                 {region.cities.map((c) => (
                   <DirectoryRow key={c.id} row={c} kind="city" />
                 ))}
@@ -99,12 +109,38 @@ function useDirMutation<A>(fn: (a: A) => Promise<unknown>, onDone?: () => void) 
   });
 }
 
-function NameInputs({ uz, ru, setUz, setRu }: { uz: string; ru: string; setUz: (v: string) => void; setRu: (v: string) => void }) {
+function NameInputs({
+  uz,
+  ru,
+  setUz,
+  setRu,
+}: {
+  uz: string;
+  ru: string;
+  setUz: (v: string) => void;
+  setRu: (v: string) => void;
+}) {
   const { t } = useTranslation('ticketSettings');
   return (
     <>
-      <KdsInput value={uz} onChange={(e) => setUz(e.target.value)} placeholder={t('nameUz')} aria-label={t('nameUz')} required minLength={2} maxLength={120} />
-      <KdsInput value={ru} onChange={(e) => setRu(e.target.value)} placeholder={t('nameRu')} aria-label={t('nameRu')} required minLength={2} maxLength={120} />
+      <KdsInput
+        value={uz}
+        onChange={(e) => setUz(e.target.value)}
+        placeholder={t('nameUz')}
+        aria-label={t('nameUz')}
+        required
+        minLength={2}
+        maxLength={120}
+      />
+      <KdsInput
+        value={ru}
+        onChange={(e) => setRu(e.target.value)}
+        placeholder={t('nameRu')}
+        aria-label={t('nameRu')}
+        required
+        minLength={2}
+        maxLength={120}
+      />
     </>
   );
 }
@@ -114,14 +150,28 @@ function RegionForm() {
   const [code, setCode] = useState('');
   const [uz, setUz] = useState('');
   const [ru, setRu] = useState('');
-  const save = useDirMutation(() => ticketDirectories.createRegion({ code: code.trim(), nameUz: uz.trim(), nameRu: ru.trim() }), () => {
-    setCode('');
-    setUz('');
-    setRu('');
-  });
+  const save = useDirMutation(
+    () => ticketDirectories.createRegion({ code: code.trim(), nameUz: uz.trim(), nameRu: ru.trim() }),
+    () => {
+      setCode('');
+      setUz('');
+      setRu('');
+    },
+  );
   return (
-    <form className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]" onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}>
-      <KdsInput value={code} onChange={(e) => setCode(e.target.value.toLowerCase())} placeholder={t('code')} aria-label={t('code')} required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={60} />
+    <form
+      className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]"
+      onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}
+    >
+      <KdsInput
+        value={code}
+        onChange={(e) => setCode(e.target.value.toLowerCase())}
+        placeholder={t('code')}
+        aria-label={t('code')}
+        required
+        pattern="[a-z0-9]+(-[a-z0-9]+)*"
+        maxLength={60}
+      />
       <NameInputs uz={uz} ru={ru} setUz={setUz} setRu={setRu} />
       <KdsAction type="submit" variant="complete" disabled={save.isPending} className="justify-center px-3.5 py-2">
         {t('add')}
@@ -134,12 +184,18 @@ function CityForm({ regionId }: { regionId: number }) {
   const { t } = useTranslation('ticketSettings');
   const [uz, setUz] = useState('');
   const [ru, setRu] = useState('');
-  const save = useDirMutation(() => ticketDirectories.createCity(regionId, { nameUz: uz.trim(), nameRu: ru.trim() }), () => {
-    setUz('');
-    setRu('');
-  });
+  const save = useDirMutation(
+    () => ticketDirectories.createCity(regionId, { nameUz: uz.trim(), nameRu: ru.trim() }),
+    () => {
+      setUz('');
+      setRu('');
+    },
+  );
   return (
-    <form className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]" onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}>
+    <form
+      className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+      onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}
+    >
       <NameInputs uz={uz} ru={ru} setUz={setUz} setRu={setRu} />
       <KdsAction type="submit" variant="complete" disabled={save.isPending} className="justify-center px-3.5 py-2">
         {t('add')}
@@ -152,12 +208,18 @@ function CategoryForm() {
   const { t } = useTranslation('ticketSettings');
   const [uz, setUz] = useState('');
   const [ru, setRu] = useState('');
-  const save = useDirMutation(() => ticketDirectories.createCategory({ nameUz: uz.trim(), nameRu: ru.trim() }), () => {
-    setUz('');
-    setRu('');
-  });
+  const save = useDirMutation(
+    () => ticketDirectories.createCategory({ nameUz: uz.trim(), nameRu: ru.trim() }),
+    () => {
+      setUz('');
+      setRu('');
+    },
+  );
   return (
-    <form className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]" onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}>
+    <form
+      className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+      onSubmit={(e: FormEvent) => (e.preventDefault(), save.mutate(undefined))}
+    >
       <NameInputs uz={uz} ru={ru} setUz={setUz} setRu={setRu} />
       <KdsAction type="submit" variant="complete" disabled={save.isPending} className="justify-center px-3.5 py-2">
         {t('add')}
@@ -188,11 +250,14 @@ function DirectoryRow({
   const [editing, setEditing] = useState(false);
   const [uz, setUz] = useState(row.nameUz);
   const [ru, setRu] = useState(row.nameRu);
-  const update = useDirMutation((patch: { nameUz?: string; nameRu?: string; isActive?: boolean }) => {
-    if (kind === 'region') return ticketDirectories.updateRegion(row.id, patch);
-    if (kind === 'city') return ticketDirectories.updateCity(row.id, patch);
-    return ticketDirectories.updateCategory(row.id, patch);
-  }, () => setEditing(false));
+  const update = useDirMutation(
+    (patch: { nameUz?: string; nameRu?: string; isActive?: boolean }) => {
+      if (kind === 'region') return ticketDirectories.updateRegion(row.id, patch);
+      if (kind === 'city') return ticketDirectories.updateCity(row.id, patch);
+      return ticketDirectories.updateCategory(row.id, patch);
+    },
+    () => setEditing(false),
+  );
   const remove = useDirMutation(() => {
     if (kind === 'region') return ticketDirectories.deleteRegion(row.id);
     if (kind === 'city') return ticketDirectories.deleteCity(row.id);
@@ -202,9 +267,17 @@ function DirectoryRow({
   if (editing) {
     return (
       <li className="rounded-xl border border-[rgba(56,189,248,0.35)] bg-[rgba(15,23,42,0.6)] p-2">
-        <form className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]" onSubmit={(e: FormEvent) => (e.preventDefault(), update.mutate({ nameUz: uz.trim(), nameRu: ru.trim() }))}>
+        <form
+          className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"
+          onSubmit={(e: FormEvent) => (e.preventDefault(), update.mutate({ nameUz: uz.trim(), nameRu: ru.trim() }))}
+        >
           <NameInputs uz={uz} ru={ru} setUz={setUz} setRu={setRu} />
-          <KdsAction type="submit" variant="primary" className="justify-center px-3 py-2 text-xs" disabled={update.isPending}>
+          <KdsAction
+            type="submit"
+            variant="primary"
+            className="justify-center px-3 py-2 text-xs"
+            disabled={update.isPending}
+          >
             {t('save')}
           </KdsAction>
           <KdsAction variant="delete" className="justify-center px-3 py-2 text-xs" onClick={() => setEditing(false)}>
@@ -222,21 +295,38 @@ function DirectoryRow({
         !row.isActive && 'opacity-55',
       )}
     >
-      <button type="button" disabled={!onSelect} onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default">
+      <button
+        type="button"
+        disabled={!onSelect}
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
+      >
         <span className="truncate font-semibold text-white">{refName(row, i18n.language)}</span>
-        <span className="truncate text-xs text-slate-500">{i18n.language.startsWith('ru') ? row.nameUz : row.nameRu}</span>
+        <span className="truncate text-xs text-slate-500">
+          {i18n.language.startsWith('ru') ? row.nameUz : row.nameRu}
+        </span>
         {extra}
-        {count !== undefined && count > 0 && <span className="rounded-md bg-white/8 px-1.5 text-[11px] text-slate-300">{count}</span>}
+        {count !== undefined && count > 0 && (
+          <span className="rounded-md bg-white/8 px-1.5 text-[11px] text-slate-300">{count}</span>
+        )}
       </button>
       {!row.isActive && <span className="text-[11px] font-semibold text-[#fbbf24]">{t('inactive')}</span>}
-      <button type="button" title={t('rename')} onClick={() => setEditing(true)} className="rounded p-1 text-slate-400 hover:text-[#38bdf8]">
+      <button
+        type="button"
+        title={t('rename')}
+        onClick={() => setEditing(true)}
+        className="rounded p-1 text-slate-400 hover:text-[#38bdf8]"
+      >
         <Icon name="edit" className="size-3.5" />
       </button>
       <button
         type="button"
         title={row.isActive ? t('deactivate') : t('activate')}
         onClick={() => update.mutate({ isActive: !row.isActive })}
-        className={cn('rounded px-1.5 py-0.5 text-[11px] font-semibold', row.isActive ? 'text-slate-400 hover:text-[#fbbf24]' : 'text-[#34d399] hover:text-white')}
+        className={cn(
+          'rounded px-1.5 py-0.5 text-[11px] font-semibold',
+          row.isActive ? 'text-slate-400 hover:text-[#fbbf24]' : 'text-[#34d399] hover:text-white',
+        )}
       >
         {row.isActive ? t('deactivate') : t('activate')}
       </button>
@@ -257,8 +347,12 @@ function DirectoryRow({
 function ExecutiveRegions({ regions }: { regions: Array<TicketRegion & { cities: TicketCity[] }> }) {
   const { t, i18n } = useTranslation('ticketSettings');
   const execs = useQuery(ticketExecutivesQuery);
-  const save = useDirMutation((v: { userId: number; regionIds: number[] }) => ticketDirectories.setExecutiveRegions(v.userId, v.regionIds), () => toast.success(t('saved')));
-  if (execs.data && execs.data.length === 0) return <p className="py-4 text-center text-sm text-slate-400">{t('noExecutives')}</p>;
+  const save = useDirMutation(
+    (v: { userId: number; regionIds: number[] }) => ticketDirectories.setExecutiveRegions(v.userId, v.regionIds),
+    () => toast.success(t('saved')),
+  );
+  if (execs.data && execs.data.length === 0)
+    return <p className="py-4 text-center text-sm text-slate-400">{t('noExecutives')}</p>;
   return (
     <ul className="flex flex-col gap-3">
       {(execs.data ?? []).map((e) => (
@@ -280,7 +374,12 @@ function ExecutiveRegions({ regions }: { regions: Array<TicketRegion & { cities:
                     type="button"
                     aria-pressed={on}
                     disabled={save.isPending}
-                    onClick={() => save.mutate({ userId: e.userId, regionIds: on ? e.regionIds.filter((x) => x !== r.id) : [...e.regionIds, r.id] })}
+                    onClick={() =>
+                      save.mutate({
+                        userId: e.userId,
+                        regionIds: on ? e.regionIds.filter((x) => x !== r.id) : [...e.regionIds, r.id],
+                      })
+                    }
                     className={cn(
                       'rounded-[20px] border px-3 py-1 text-[11.5px] font-semibold transition-all duration-150',
                       on

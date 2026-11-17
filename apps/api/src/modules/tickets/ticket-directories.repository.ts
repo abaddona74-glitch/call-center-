@@ -48,7 +48,12 @@ export class TicketDirectoriesRepository {
   }
 
   updateRegion(id: number, v: Updateable<TicketRegionsTable>): Promise<TicketRegionRow | undefined> {
-    return this.db.updateTable('ticketRegions').set({ ...v, updatedAt: new Date() }).where('id', '=', id).returningAll().executeTakeFirst();
+    return this.db
+      .updateTable('ticketRegions')
+      .set({ ...v, updatedAt: new Date() })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
   }
 
   async deleteRegion(id: number): Promise<void> {
@@ -60,7 +65,12 @@ export class TicketDirectoriesRepository {
   }
 
   updateCity(id: number, v: Updateable<TicketCitiesTable>): Promise<TicketCityRow | undefined> {
-    return this.db.updateTable('ticketCities').set({ ...v, updatedAt: new Date() }).where('id', '=', id).returningAll().executeTakeFirst();
+    return this.db
+      .updateTable('ticketCities')
+      .set({ ...v, updatedAt: new Date() })
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
   }
 
   async deleteCity(id: number): Promise<void> {
@@ -88,19 +98,30 @@ export class TicketDirectoriesRepository {
   async regionInUse(id: number): Promise<boolean> {
     const t = await this.db.selectFrom('tickets').select('id').where('regionId', '=', id).limit(1).executeTakeFirst();
     if (t) return true;
-    const c = await this.db.selectFrom('ticketCities').select('id').where('regionId', '=', id).limit(1).executeTakeFirst();
+    const c = await this.db
+      .selectFrom('ticketCities')
+      .select('id')
+      .where('regionId', '=', id)
+      .limit(1)
+      .executeTakeFirst();
     return Boolean(c);
   }
 
   async cityInUse(id: number): Promise<boolean> {
-    return Boolean(await this.db.selectFrom('tickets').select('id').where('cityId', '=', id).limit(1).executeTakeFirst());
+    return Boolean(
+      await this.db.selectFrom('tickets').select('id').where('cityId', '=', id).limit(1).executeTakeFirst(),
+    );
   }
 
   async categoryInUse(id: number): Promise<boolean> {
-    return Boolean(await this.db.selectFrom('tickets').select('id').where('categoryId', '=', id).limit(1).executeTakeFirst());
+    return Boolean(
+      await this.db.selectFrom('tickets').select('id').where('categoryId', '=', id).limit(1).executeTakeFirst(),
+    );
   }
 
-  usersWithRoles(roles: string[]): Promise<Array<{ id: number; username: string; role: string; extension: string | null }>> {
+  usersWithRoles(
+    roles: string[],
+  ): Promise<Array<{ id: number; username: string; role: string; extension: string | null }>> {
     // `role` is compared as text so S1's new role names work before and after its migration.
     return this.db
       .selectFrom('users')

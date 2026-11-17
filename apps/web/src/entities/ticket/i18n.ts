@@ -101,7 +101,7 @@ const uz = {
     description: 'Murojaat mazmuni',
     descriptionPlaceholder: 'Fuqaro nima so‘radi, qanday muammo…',
     files: 'Fayl biriktirish (Rasm, PDF, Word .docx)',
-    drop: "Faylni (Rasm, PDF, Word .docx) bu yerga tashlang yoki tanlang",
+    drop: 'Faylni (Rasm, PDF, Word .docx) bu yerga tashlang yoki tanlang',
     dropHint: "yoki clipboarddan to'g'ridan-to'g'ri tashlang:",
     fileRejected: '"{{name}}": faqat rasm (PNG, JPEG, GIF, WEBP), PDF va Word (.docx) fayllar qabul qilinadi',
     fileTooBig: '"{{name}}": fayl hajmi {{mb}} MB dan oshmasligi kerak',
@@ -245,7 +245,8 @@ const uz = {
     original: 'Aslini yuklab olish',
     noText: 'Hujjatda matn topilmadi.',
     failTitle: 'Hujjatni ochishda cheklov',
-    failText: "Ushbu format to'g'ridan-to'g'ri render qilinmadi. Faylni to'liq ko'rish uchun quyidagi tugma orqali yuklab olishingiz mumkin.",
+    failText:
+      "Ushbu format to'g'ridan-to'g'ri render qilinmadi. Faylni to'liq ko'rish uchun quyidagi tugma orqali yuklab olishingiz mumkin.",
     failDownload: 'Faylni yuklab olish ({{name}})',
     view: "Ko'rish",
     viewTitle: "In-place ko'rish",

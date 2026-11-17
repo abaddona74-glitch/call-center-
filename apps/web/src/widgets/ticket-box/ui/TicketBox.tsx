@@ -31,17 +31,38 @@ import { ForwardTicketModal } from '@/features/tickets/forward-ticket';
 import { ResolveTicketModal } from '@/features/tickets/resolve-ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
-import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, KdsModalHeader } from '@/shared/ui/kds-modal';
+import {
+  KdsCloseButton,
+  KdsIdBadge,
+  KdsModal,
+  KdsModalActions,
+  KdsModalBody,
+  KdsModalHeader,
+} from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
 /** Ticket card ("box", legacy `#ticketBoxOverlay` look): details, timeline, calls with recordings, chat, actions. */
-export function TicketBox({ ticketId, maxFileMb, onClose }: { ticketId: number | null; maxFileMb: number; onClose: () => void }) {
+export function TicketBox({
+  ticketId,
+  maxFileMb,
+  onClose,
+}: {
+  ticketId: number | null;
+  maxFileMb: number;
+  onClose: () => void;
+}) {
   const { t } = useTranslation('ticket');
   const query = useQuery({ ...ticketQuery(ticketId ?? 0), enabled: ticketId !== null });
   const ticket = ticketId !== null ? query.data : undefined;
 
   return (
-    <KdsModal open={ticketId !== null} onOpenChange={(o) => !o && onClose()} title={ticket?.code ?? 'Ticket'} width={860} closeOnBackdrop>
+    <KdsModal
+      open={ticketId !== null}
+      onOpenChange={(o) => !o && onClose()}
+      title={ticket?.code ?? 'Ticket'}
+      width={860}
+      closeOnBackdrop
+    >
       {ticket ? (
         <BoxContent key={ticket.id} ticket={ticket} maxFileMb={maxFileMb} onClose={onClose} />
       ) : (
@@ -84,7 +105,8 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
   const onError = (err: Error) => toast.error(t('error', { message: err.message }));
 
   const move = useMutation({
-    mutationFn: (step: 'assign' | 'start') => (step === 'assign' ? ticketActions.assign(ticket.id) : ticketActions.start(ticket.id)),
+    mutationFn: (step: 'assign' | 'start') =>
+      step === 'assign' ? ticketActions.assign(ticket.id) : ticketActions.start(ticket.id),
     onSuccess: onDetail,
     onError,
   });
@@ -109,7 +131,8 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
 
   const lang = i18n.language;
   const busy = move.isPending || remove.isPending;
-  const workingByOther = !a.start && !a.resolve && ticket.assignee && (ticket.status === 'assigned' || ticket.status === 'in_progress');
+  const workingByOther =
+    !a.start && !a.resolve && ticket.assignee && (ticket.status === 'assigned' || ticket.status === 'in_progress');
 
   return (
     <>
@@ -134,7 +157,9 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
             {ticket.region ? refName(ticket.region, lang) : t('card.noRegion')}
           </Meta>
           <Meta label={t('box.metaCity')}>{ticket.city ? refName(ticket.city, lang) : t('box.noValue')}</Meta>
-          <Meta label={t('box.metaCategory')}>{ticket.category ? refName(ticket.category, lang) : t('box.noValue')}</Meta>
+          <Meta label={t('box.metaCategory')}>
+            {ticket.category ? refName(ticket.category, lang) : t('box.noValue')}
+          </Meta>
           <Meta label={t('box.metaCreator')}>{personName(ticket.creator)}</Meta>
           <Meta label={t('box.metaCreated')}>
             <span title={dateTime(ticket.createdAt)}>{timeAgo(ticket.createdAt, t)}</span>
@@ -192,14 +217,26 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               <div className="text-xs text-[#64748b] italic">{t('box.noReplies')}</div>
             ) : (
               ticket.comments.map((c) => (
-                <div key={c.id} className={cn('rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5', c.isSystem && 'border-l-[3px] border-l-[#ef4444] bg-[rgba(239,68,68,0.08)]')}>
+                <div
+                  key={c.id}
+                  className={cn(
+                    'rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5',
+                    c.isSystem && 'border-l-[3px] border-l-[#ef4444] bg-[rgba(239,68,68,0.08)]',
+                  )}
+                >
                   <div className="mb-1 flex justify-between text-[11.5px]">
-                    <span className={cn('font-bold', c.isSystem ? 'text-[#f87171]' : 'text-[#38bdf8]')}>{personName(c.author)}</span>
+                    <span className={cn('font-bold', c.isSystem ? 'text-[#f87171]' : 'text-[#38bdf8]')}>
+                      {personName(c.author)}
+                    </span>
                     <span className="text-[#64748b]" title={dateTime(c.createdAt)}>
                       {timeAgo(c.createdAt, t)}
                     </span>
                   </div>
-                  {c.body && <div className="text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap text-[#e2e8f0]">{c.body}</div>}
+                  {c.body && (
+                    <div className="text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap text-[#e2e8f0]">
+                      {c.body}
+                    </div>
+                  )}
                   {c.attachments.length > 0 && (
                     <div className="mt-2">
                       <AttachmentGallery ticketId={ticket.id} attachments={c.attachments} compact onOpen={setViewer} />
@@ -212,7 +249,13 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
 
           {a.comment && (
             <div className="mt-3 flex flex-col gap-2">
-              <KdsTextarea value={reply} maxLength={4000} onChange={(e) => setReply(e.target.value)} placeholder={t('box.replyPlaceholder')} className="min-h-[70px]" />
+              <KdsTextarea
+                value={reply}
+                maxLength={4000}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder={t('box.replyPlaceholder')}
+                className="min-h-[70px]"
+              />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <AttachButton onFiles={(added) => setFiles((cur) => acceptFiles(cur, added, maxFileMb, t))} />
@@ -233,7 +276,11 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
                   {t('box.send')}
                 </KdsAction>
               </div>
-              <PreviewStrip files={files} onRemove={(i) => setFiles((cur) => cur.filter((_, idx) => idx !== i))} onOpen={(file) => setViewer({ kind: 'local', file })} />
+              <PreviewStrip
+                files={files}
+                onRemove={(i) => setFiles((cur) => cur.filter((_, idx) => idx !== i))}
+                onOpen={(file) => setViewer({ kind: 'local', file })}
+              />
             </div>
           )}
         </div>
@@ -336,7 +383,12 @@ function ResolutionBanner({ ticket }: { ticket: TicketDetail }) {
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className={cn('inline-flex items-center gap-1.5 text-[13px] font-bold', done ? 'text-[#34d399]' : 'text-[#f87171]')}>
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 text-[13px] font-bold',
+            done ? 'text-[#34d399]' : 'text-[#f87171]',
+          )}
+        >
           <Icon name={done ? 'tick-circle' : 'close-circle'} className="size-4" />
           {t('box.metaResolution')}: {t(`resolution.${ticket.resolution as 'done' | 'rejected'}`)}
         </span>
@@ -369,13 +421,20 @@ function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
       </span>
       <span className="text-[#94a3b8]">{dateTime(call.startedAt)}</span>
       {call.operator && <span className="text-[#cbd5e1]">{personName(call.operator)}</span>}
-      {call.talkSeconds !== null && call.talkSeconds > 0 && <span className="text-[#94a3b8]">{t('box.talk', { n: call.talkSeconds })}</span>}
+      {call.talkSeconds !== null && call.talkSeconds > 0 && (
+        <span className="text-[#94a3b8]">{t('box.talk', { n: call.talkSeconds })}</span>
+      )}
       {call.attemptStatus && <span className={cn('font-semibold', tone)}>{t(`attempt.${call.attemptStatus}`)}</span>}
       {call.outcome && <span className="font-semibold text-[#c084fc]">{t(`outcome.${call.outcome}`)}</span>}
       <span className="ml-auto">
         {call.recording.status === 'found' ? (
           // oxlint-disable-next-line jsx-a11y/media-has-caption -- phone recordings have no captions
-          <audio controls preload="none" src={recordingUrl(ticketId, call.id)} className="h-8 w-[260px] [color-scheme:dark]" />
+          <audio
+            controls
+            preload="none"
+            src={recordingUrl(ticketId, call.id)}
+            className="h-8 w-[260px] [color-scheme:dark]"
+          />
         ) : (
           <span className="text-[11.5px] text-[#64748b]">{t(`box.recording.${call.recording.status}`)}</span>
         )}
@@ -388,7 +447,10 @@ function TimelineItem({ event }: { event: TicketEvent }) {
   const { t, i18n } = useTranslation('ticket');
   const label =
     event.kind === 'forwarded'
-      ? t('event.forwarded', { from: refName(event.fromRegion, i18n.language) || '—', to: refName(event.toRegion, i18n.language) })
+      ? t('event.forwarded', {
+          from: refName(event.fromRegion, i18n.language) || '—',
+          to: refName(event.toRegion, i18n.language),
+        })
       : t(`event.${event.kind}`);
   return (
     <li className="relative">
@@ -398,7 +460,9 @@ function TimelineItem({ event }: { event: TicketEvent }) {
         <span className="text-[#94a3b8]">{event.actor ? personName(event.actor) : t('box.system')}</span>
         <span className="text-[11px] text-[#64748b]">{dateTime(event.createdAt)}</span>
       </div>
-      {event.note && <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-[#cbd5e1]">{event.note}</div>}
+      {event.note && (
+        <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-[#cbd5e1]">{event.note}</div>
+      )}
     </li>
   );
 }

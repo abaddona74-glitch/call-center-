@@ -3,12 +3,36 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { KdsAction, KdsField, KdsSelect, KdsTextarea, refName, ticketActions, ticketDirectoriesQuery, ticketKeys } from '@/entities/ticket';
+import {
+  KdsAction,
+  KdsField,
+  KdsSelect,
+  KdsTextarea,
+  refName,
+  ticketActions,
+  ticketDirectoriesQuery,
+  ticketKeys,
+} from '@/entities/ticket';
 import { Icon } from '@/shared/ui/icon';
-import { KdsCloseButton, KdsIdBadge, KdsModal, KdsModalActions, KdsModalBody, KdsModalHeader } from '@/shared/ui/kds-modal';
+import {
+  KdsCloseButton,
+  KdsIdBadge,
+  KdsModal,
+  KdsModalActions,
+  KdsModalBody,
+  KdsModalHeader,
+} from '@/shared/ui/kds-modal';
 
 /** Forward to another region (back to `new` there). For tickets without a region (triage) the note is optional. */
-export function ForwardTicketModal({ ticket, open, onClose }: { ticket: TicketDetail; open: boolean; onClose: () => void }) {
+export function ForwardTicketModal({
+  ticket,
+  open,
+  onClose,
+}: {
+  ticket: TicketDetail;
+  open: boolean;
+  onClose: () => void;
+}) {
   const { t, i18n } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const dirs = useQuery({ ...ticketDirectoriesQuery, enabled: open });
@@ -53,7 +77,11 @@ export function ForwardTicketModal({ ticket, open, onClose }: { ticket: TicketDe
         </KdsModalHeader>
         <KdsModalBody className="gap-1 px-5 py-[18px]">
           {triage && <p className="mb-3 text-[13px] text-[#cbd5e1]">{t('forward.triageHint')}</p>}
-          <KdsField label={t('forward.region')} icon={<Icon name="location" className="size-3.5" />} htmlFor="kds-forward-region">
+          <KdsField
+            label={t('forward.region')}
+            icon={<Icon name="location" className="size-3.5" />}
+            htmlFor="kds-forward-region"
+          >
             <KdsSelect id="kds-forward-region" required value={regionId} onChange={(e) => setRegionId(e.target.value)}>
               <option value="">{t('form.regionPick')}</option>
               {regions.map((r) => (
@@ -63,7 +91,11 @@ export function ForwardTicketModal({ ticket, open, onClose }: { ticket: TicketDe
               ))}
             </KdsSelect>
           </KdsField>
-          <KdsField label={t('forward.note')} icon={<Icon name="edit" className="size-3.5" />} htmlFor="kds-forward-note">
+          <KdsField
+            label={t('forward.note')}
+            icon={<Icon name="edit" className="size-3.5" />}
+            htmlFor="kds-forward-note"
+          >
             <KdsTextarea
               id="kds-forward-note"
               required={!triage}
