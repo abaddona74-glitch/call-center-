@@ -1,6 +1,7 @@
 {
   "app": { "title": "Call Center" },
   "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "explorer": "Audio Explorer", "tickets": "Ticketlar" },
+  "nav": { "dashboard": "Bosh sahifa", "settings": "Sozlamalar", "clients": "Mijozlar", "blacklist": "Qora ro'yxat", "callbackSettings": "Ish vaqti" },
   "auth": {
     "username": "Login",
     "password": "Parol",

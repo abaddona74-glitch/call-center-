@@ -6,3 +6,6 @@ export * from './recordings.js';
 export * from './tickets.js';
 export type * from './realtime/recordings.js';
 export type * from './realtime/tickets.js';
+export * from './blacklist.js';
+export * from './callbacks.js';
+export * from './contacts.js';

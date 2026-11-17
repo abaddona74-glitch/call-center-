@@ -16,6 +16,9 @@ import { AppConfigModule } from './config/config.module.js';
 import { DatabaseModule, KYSELY } from './database/database.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
+import { CallbacksModule } from './modules/callbacks/callbacks.module.js';
+import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { RecordingsModule } from './modules/recordings/recordings.module.js';
@@ -73,6 +76,9 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     // Feature modules are registered below this line (one import per module).
     RecordingsModule,
     TicketsModule,
+    CallbacksModule,
+    ContactsModule,
+    BlacklistModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

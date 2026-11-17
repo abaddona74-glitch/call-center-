@@ -10,6 +10,17 @@ const csv = z
       .filter(Boolean),
   );
 
+const csvWithDefault = (fallback: string) =>
+  z
+    .string()
+    .default(fallback)
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+
 /**
  * Every environment variable the API reads. The app refuses to start when
  * something required is missing or malformed. Keep `.env.example` in sync.
@@ -85,6 +96,17 @@ export const EnvSchema = z.object({
   TICKETS_CREATOR_EXTENSION_FROM: z.coerce.number().int().positive().default(200),
   /** Completed tickets (and files) older than N days are deleted daily; 0 = keep forever. */
   TICKETS_PURGE_COMPLETED_AFTER_DAYS: z.coerce.number().int().min(0).default(7),
+
+  // --- Callbacks / contacts / blacklist ---
+  /** Missed calls are re-read from the PBX CDR this often (catches calls missed while the API was down). 0 = off. */
+  CALLBACKS_RECONCILE_INTERVAL_SEC: z.coerce.number().int().min(0).default(300),
+  CALLBACKS_RECONCILE_LOOKBACK_HOURS: z.coerce.number().int().min(1).max(744).default(48),
+  /** Operator extensions that may not see the phonebook until operator groups carry permissions (legacy "200 group"). */
+  CONTACTS_DENIED_EXTENSION_RANGES: csvWithDefault('200-999').pipe(
+    z.array(z.string().regex(/^\d{2,6}(-\d{2,6})?$/, 'Expected "200-299" or "205"')),
+  ),
+  /** Extensions with a personal AstDB block list `blacklist_<ext>` read by the PBX dialplan (legacy: 114). */
+  BLACKLIST_OPERATOR_EXTENSIONS: csvWithDefault('114').pipe(z.array(z.string().regex(/^\d{2,6}$/))),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -97,9 +119,7 @@ export function validateEnv(raw: Record<string, unknown>): Env {
   );
   const result = EnvSchema.safeParse(cleaned);
   if (!result.success) {
-    const details = result.error.issues
-      .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
-      .join('\n');
+    const details = result.error.issues.map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
   }
   return result.data;

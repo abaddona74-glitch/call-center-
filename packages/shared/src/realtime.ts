@@ -11,6 +11,7 @@
 
 import type { RecordingsServerEvents } from './realtime/recordings.js';
 import type { TicketsServerEvents } from './realtime/tickets.js';
+import type { CallbacksServerEvents } from './realtime/callbacks.js';
 
 interface CoreServerEvents {
   /** Sent once right after the connection is authenticated. */
@@ -27,7 +28,8 @@ interface CoreClientEvents {
 export interface ServerEvents
   extends CoreServerEvents,
     RecordingsServerEvents,
-    TicketsServerEvents {}
+    TicketsServerEvents,
+    CallbacksServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 
