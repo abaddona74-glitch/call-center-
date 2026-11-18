@@ -46,6 +46,9 @@ services:
       - "127.0.0.1:2222:22"
     volumes:
       - ./dev-pbx/sftp/.data/keys/id_ed25519.pub:/home/recordings/.ssh/keys/id_ed25519.pub:ro
+      # Fixed host keys: a recreated container keeps the fingerprint the API pins.
+      - ./dev-pbx/sftp/.data/keys/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+      - ./dev-pbx/sftp/.data/keys/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key:ro
       - ./dev-pbx/sftp/.data/monitor:/home/recordings/monitor:ro
 
 volumes:

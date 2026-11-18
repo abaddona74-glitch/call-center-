@@ -2,16 +2,19 @@
 /**
  * Prepares the dev SFTP stand-in for the PBX recordings share (service `sftp` in compose.dev.yml):
  *   - an ed25519 client key pair for the API (private key stays in .data/, never committed),
+ *   - the server's SSH host keys, mounted into the container so the fingerprint the API pins
+ *     (SFTP_HOST_FINGERPRINT) survives `docker compose up` recreating the container,
  *   - a `monitor/` tree laid out like Asterisk (YYYY/MM/DD/*.wav) with small generated WAV files
  *     whose names match `recordingfile` in infra/dev-pbx/mariadb-init/02-seed.sql.
  *
  *   node infra/dev-pbx/sftp/setup.mjs
  *   docker compose -f infra/compose.dev.yml up -d sftp
  *
+ * Run it before the first `up` and again after pulling changes to this script.
  * Idempotent: existing keys are kept, WAV files are rewritten.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, rmdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root = path.join(import.meta.dirname, '.data');
@@ -19,13 +22,22 @@ const keysDir = path.join(root, 'keys');
 const monitorDir = path.join(root, 'monitor');
 
 mkdirSync(keysDir, { recursive: true });
-const keyFile = path.join(keysDir, 'id_ed25519');
-if (!existsSync(keyFile)) {
-  // Fixed arguments, no shell.
-  execFileSync('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-C', 'cc-dev-recordings', '-f', keyFile], {
-    stdio: 'inherit',
-  });
+/** Fixed arguments, no shell. Existing keys are kept so the client key and host pin stay valid. */
+function keygen(file, type, comment) {
+  // `docker compose up` before this script leaves an empty directory where a key file should be.
+  if (existsSync(file) && statSync(file).isDirectory()) rmdirSync(file);
+  if (existsSync(file)) return;
+  const bits = type === 'rsa' ? ['-b', '4096'] : [];
+  execFileSync('ssh-keygen', ['-q', '-t', type, ...bits, '-N', '', '-C', comment, '-f', file], { stdio: 'inherit' });
 }
+const keyFile = path.join(keysDir, 'id_ed25519');
+keygen(keyFile, 'ed25519', 'cc-dev-recordings');
+const hostKeyFile = path.join(keysDir, 'ssh_host_ed25519_key');
+keygen(hostKeyFile, 'ed25519', 'cc-dev-sftp-host');
+keygen(path.join(keysDir, 'ssh_host_rsa_key'), 'rsa', 'cc-dev-sftp-host');
+// "256 SHA256:xxxx comment (ED25519)" → "SHA256:xxxx"
+const hostFingerprint = execFileSync('ssh-keygen', ['-l', '-E', 'sha256', '-f', `${hostKeyFile}.pub`], { encoding: 'utf8' })
+  .split(' ')[1];
 
 /** 8 kHz, 16-bit, mono PCM — the format Asterisk records in (16000 bytes per second). */
 function wav(seconds, seed) {
@@ -83,4 +95,4 @@ console.log(`SFTP dev data ready in ${root}`);
 console.log(
   `API settings: SFTP_HOST=127.0.0.1 SFTP_PORT=2222 SFTP_USER=recordings SFTP_MONITOR_PATH=/monitor SFTP_PRIVATE_KEY_PATH=${keyFile}`,
 );
-console.log('Host key pin (after `up -d sftp`): ssh-keyscan -p 2222 127.0.0.1 | ssh-keygen -lf -');
+console.log(`Host key pin: SFTP_HOST_FINGERPRINT=${hostFingerprint}`);
