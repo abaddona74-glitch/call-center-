@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { sql } from 'kysely';
 import { AppConfig } from '../../config/app-config.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import { CallbacksService } from './callbacks.service.js';
@@ -20,7 +21,15 @@ const MAX_ROWS = 50_000;
 /** Reads raw CDR legs for a time window (read-only PBX user). Separate class so tests can replace it. */
 @Injectable()
 export class CdrLegsReader {
-  constructor(@InjectPbxDb() private readonly pbx: PbxDb) {}
+  private readonly hasLinkedid: boolean;
+
+  constructor(
+    @InjectPbxDb() private readonly pbx: PbxDb,
+    config: AppConfig,
+  ) {
+    // Some Issabel PBXs have no cdr.linkedid column (PBX_CDR_HAS_LINKEDID=false): legs are keyed by uniqueid.
+    this.hasLinkedid = config.get('PBX_CDR_HAS_LINKEDID');
+  }
 
   get available(): boolean {
     return this.pbx !== null;
@@ -43,8 +52,8 @@ export class CdrLegsReader {
         'duration',
         'billsec',
         'uniqueid',
-        'linkedid',
       ])
+      .select(this.hasLinkedid ? sql<string>`linkedid`.as('linkedid') : sql<string>`uniqueid`.as('linkedid'))
       .where('calldate', '>=', from)
       .where('calldate', '<', to)
       .orderBy('calldate')

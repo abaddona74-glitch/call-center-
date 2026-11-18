@@ -1,6 +1,7 @@
 import type { Contact, ContactInputParsed, ContactListQuery } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { type Selectable, sql } from 'kysely';
+import { AppConfig } from '../../config/app-config.js';
 import { type DbHost, InjectDb } from '../../database/db.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import type { ContactsTable } from './contacts.tables.js';
@@ -18,10 +19,15 @@ function escapeLike(v: string): string {
 
 @Injectable()
 export class ContactsRepository {
+  private readonly hasLinkedid: boolean;
+
   constructor(
     @InjectDb() private readonly txHost: DbHost,
     @InjectPbxDb() private readonly pbx: PbxDb,
-  ) {}
+    config: AppConfig,
+  ) {
+    this.hasLinkedid = config.get('PBX_CDR_HAS_LINKEDID');
+  }
 
   async list(q: ContactListQuery): Promise<{ items: Contact[]; total: number }> {
     let base = this.txHost.tx.selectFrom('contacts');
@@ -121,7 +127,8 @@ export class ContactsRepository {
     if (!this.pbx) return [];
     const operatorAnswered = sql`(disposition = 'ANSWERED' AND billsec > 0
       AND (dstchannel LIKE 'Local/%' OR dstchannel REGEXP '^(SIP|PJSIP)/[0-9]{2,6}-'))`;
-    const callKey = sql`IF(linkedid <> '', linkedid, uniqueid)`;
+    // Without cdr.linkedid (PBX_CDR_HAS_LINKEDID=false) a call is keyed by uniqueid.
+    const callKey = this.hasLinkedid ? sql`IF(linkedid <> '', linkedid, uniqueid)` : sql`uniqueid`;
     const res = await sql<{
       src: string;
       calls: number | string;
