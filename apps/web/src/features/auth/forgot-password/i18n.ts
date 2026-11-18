@@ -1,0 +1,63 @@
+import { registerTranslations } from '@/shared/i18n';
+
+registerTranslations('authForgot', {
+  uz: {
+    step1Title: 'Parolni tiklash',
+    step1Text:
+      'Login yoki hisobingizga ulangan email manzilini kiriting. Email ulangan bo‘lsa, unga 6 xonali tasdiqlash kodi yuboriladi.',
+    identifier: 'Login yoki Email',
+    identifierPlaceholder: 'login yoki misol@gmail.com',
+    send: 'Kodni yuborish',
+    step2Title: 'Tasdiqlash kodi',
+    step2Text:
+      'Agar hisobga email ulangan bo‘lsa, kod o‘sha manzilga yuborildi. Email ulanmagan bo‘lsa, administratorga murojaat qiling.',
+    validFor: 'Amal qilish vaqti',
+    expired: 'Kod muddati tugadi — qayta yuboring',
+    attemptsWarning: '5 marta xato kiritilsa, kod bekor bo‘ladi va yangisini so‘rash kerak.',
+    verify: 'Kodni tasdiqlash',
+    resend: 'Kodni qayta yuborish',
+    resendIn: 'Qayta yuborish: {{seconds}} s',
+    badCode: 'Kod noto‘g‘ri yoki muddati o‘tgan',
+    step3Title: 'Yangi parol o‘rnatish',
+    step3Text:
+      'Hisobingiz uchun yangi parolni belgilang (kamida 10 ta belgi). Boshqa qurilmalardagi sessiyalar va passkeylar o‘chiriladi.',
+    newPassword: 'Yangi parol',
+    confirmPassword: 'Parolni takrorlang',
+    save: 'Parolni saqlash',
+    tooShort: 'Parol kamida 10 ta belgidan iborat bo‘lishi kerak',
+    mismatch: 'Parollar mos kelmadi',
+    expiredLink: 'Tiklash muddati tugadi. Kodni qaytadan so‘rang',
+    tooMany: 'Juda ko‘p so‘rov. Birozdan so‘ng urinib ko‘ring',
+    failed: 'Xatolik yuz berdi. Qayta urinib ko‘ring',
+    close: 'Yopish',
+  },
+  ru: {
+    step1Title: 'Восстановление пароля',
+    step1Text:
+      'Введите логин или email, привязанный к учётной записи. Если email привязан, на него придёт 6-значный код подтверждения.',
+    identifier: 'Логин или email',
+    identifierPlaceholder: 'логин или primer@gmail.com',
+    send: 'Отправить код',
+    step2Title: 'Код подтверждения',
+    step2Text:
+      'Если к учётной записи привязан email, код отправлен на него. Если email не привязан, обратитесь к администратору.',
+    validFor: 'Действует',
+    expired: 'Срок кода истёк — отправьте снова',
+    attemptsWarning: 'После 5 неверных попыток код аннулируется, потребуется новый.',
+    verify: 'Подтвердить код',
+    resend: 'Отправить код ещё раз',
+    resendIn: 'Повторно через {{seconds}} с',
+    badCode: 'Неверный или просроченный код',
+    step3Title: 'Новый пароль',
+    step3Text: 'Задайте новый пароль (минимум 10 символов). Сеансы на других устройствах и passkey будут удалены.',
+    newPassword: 'Новый пароль',
+    confirmPassword: 'Повторите пароль',
+    save: 'Сохранить пароль',
+    tooShort: 'Пароль должен быть не короче 10 символов',
+    mismatch: 'Пароли не совпадают',
+    expiredLink: 'Время на смену пароля истекло. Запросите код заново',
+    tooMany: 'Слишком много запросов. Попробуйте позже',
+    failed: 'Произошла ошибка. Попробуйте ещё раз',
+    close: 'Закрыть',
+  },
+});

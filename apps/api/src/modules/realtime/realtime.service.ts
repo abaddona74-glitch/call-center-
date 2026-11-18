@@ -1,4 +1,14 @@
-import { type Role, type ServerEventName, type ServerEvents, type SessionUser, WS_CLOSE, hasRoleAtLeast } from '@cc/shared';
+import {
+  type Permission,
+  type Role,
+  type RoleLevel,
+  type ServerEventName,
+  type ServerEvents,
+  type SessionUser,
+  WS_CLOSE,
+  hasPermission,
+  hasRoleAtLeast,
+} from '@cc/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import WebSocket from 'ws';
 
@@ -13,15 +23,17 @@ interface Connection {
 }
 
 export interface BroadcastFilter {
-  /** Only users with at least this role. */
-  minRole?: Role;
+  /** Only users with this permission (preferred, see ROLE_PERMISSIONS in @cc/shared). */
+  permission?: Permission;
+  /** @deprecated minimum role level ('admin' = executive); use `permission`. */
+  minRole?: RoleLevel;
   /** Only these users. */
   userIds?: number[];
 }
 
 /**
  * Registry of authenticated WebSocket connections + typed broadcasting.
- * Modules push events with `realtime.broadcast('calls.hangup', payload, { minRole: 'admin' })`.
+ * Modules push events with `realtime.broadcast('calls.hangup', payload, { permission: 'monitor.view' })`.
  * Payload types come from `ServerEvents` in @cc/shared.
  */
 @Injectable()
@@ -62,6 +74,7 @@ export class RealtimeService {
     let sent = 0;
     for (const [socket, conn] of this.connections) {
       if (socket.readyState !== WebSocket.OPEN) continue;
+      if (filter.permission && !hasPermission(conn.user, filter.permission)) continue;
       if (filter.minRole && !hasRoleAtLeast(conn.user.role, filter.minRole)) continue;
       if (filter.userIds && !filter.userIds.includes(conn.user.id)) continue;
       socket.send(frame);

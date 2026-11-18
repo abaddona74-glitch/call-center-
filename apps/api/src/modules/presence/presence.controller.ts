@@ -13,7 +13,7 @@ export class PresenceController {
   @SkipThrottle()
   @SerializeOptions({ schema: OnlineUsersSchema })
   online(@CurrentUser() user: SessionUser): OnlineUser[] {
-    if (!telephonyAccess(user.role).seeAll) throw new ForbiddenException('Insufficient permissions');
+    if (!telephonyAccess(user).seeAll) throw new ForbiddenException('Insufficient permissions');
     return this.presence.online();
   }
 }

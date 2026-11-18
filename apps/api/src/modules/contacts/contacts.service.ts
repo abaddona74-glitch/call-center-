@@ -23,7 +23,6 @@ import { AuditService } from '../audit/audit.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { ContactsRepository } from './contacts.repository.js';
 import {
-  type ContactAccessUser,
   type ExtensionRange,
   contactAccessFor,
   parseExtensionRanges,
@@ -44,7 +43,7 @@ export class ContactsService {
   }
 
   access(user: SessionUser): ContactAccess {
-    return contactAccessFor(user as ContactAccessUser, this.deniedRanges);
+    return contactAccessFor(user, this.deniedRanges);
   }
 
   private assertView(user: SessionUser): void {

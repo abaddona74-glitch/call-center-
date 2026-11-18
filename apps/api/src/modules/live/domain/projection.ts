@@ -3,6 +3,7 @@ import {
   type LiveCounters,
   type LiveOperator,
   type LiveQueue,
+  type Permission,
   type Role,
   maskPhone,
   telephonyAccess,
@@ -13,16 +14,17 @@ import type { LiveStore } from './live-store.js';
  * Read models sent to clients (REST snapshot + WS). Pure functions over the store.
  *
  * Visibility (same for REST and WS):
- *  - admin/superuser: everything;
+ *  - `monitor.viewAll` (executive/observer/superuser): everything;
  *  - operator: the presence board, queues and active calls, but citizen numbers only for the
  *    calls on their own extension (others are masked); no KPI counters.
  */
 export interface Viewer {
   role: Role;
   extension: string | null;
+  permissions?: readonly Permission[] | null;
 }
 
-export const isPrivileged = (v: Viewer) => telephonyAccess(v.role).seeAll;
+export const isPrivileged = (v: Viewer) => telephonyAccess(v).seeAll;
 
 const iso = (ms: number) => new Date(ms).toISOString();
 

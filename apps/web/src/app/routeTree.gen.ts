@@ -10,20 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppSettingsAuditRouteImport } from './routes/_app/settings/audit'
+import { Route as AppSettingsGroupsRouteImport } from './routes/_app/settings/groups'
+import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
+import { Route as AppSettingsSessionsRouteImport } from './routes/_app/settings/sessions'
+import { Route as AppSettingsUsersRouteImport } from './routes/_app/settings/users'
 import { Route as AppSettingsBlacklistRouteImport } from './routes/_app/settings_.blacklist'
 import { Route as AppSettingsCallbacksRouteImport } from './routes/_app/settings_.callbacks'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChangePasswordRoute = ChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -56,6 +69,11 @@ const AppOperatorsRoute = AppOperatorsRouteImport.update({
   path: '/operators',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -71,6 +89,36 @@ const AppTicketsRoute = AppTicketsRouteImport.update({
   path: '/tickets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAuditRoute = AppSettingsAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsGroupsRoute = AppSettingsGroupsRouteImport.update({
+  id: '/groups',
+  path: '/groups',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsSessionsRoute = AppSettingsSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsUsersRoute = AppSettingsUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsBlacklistRoute = AppSettingsBlacklistRouteImport.update({
   id: '/settings_/blacklist',
   path: '/settings/blacklist',
@@ -84,90 +132,137 @@ const AppSettingsCallbacksRoute = AppSettingsCallbacksRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
-  '/settings': typeof AppSettingsRoute
+  '/profile': typeof AppProfileRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
+  '/settings/audit': typeof AppSettingsAuditRoute
+  '/settings/groups': typeof AppSettingsGroupsRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
+  '/settings/sessions': typeof AppSettingsSessionsRoute
+  '/settings/users': typeof AppSettingsUsersRoute
   '/settings/blacklist': typeof AppSettingsBlacklistRoute
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
-  '/settings': typeof AppSettingsRoute
+  '/profile': typeof AppProfileRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
   '/': typeof AppIndexRoute
+  '/settings/audit': typeof AppSettingsAuditRoute
+  '/settings/groups': typeof AppSettingsGroupsRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
+  '/settings/sessions': typeof AppSettingsSessionsRoute
+  '/settings/users': typeof AppSettingsUsersRoute
   '/settings/blacklist': typeof AppSettingsBlacklistRoute
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/operators': typeof AppOperatorsRoute
-  '/_app/settings': typeof AppSettingsRoute
+  '/_app/profile': typeof AppProfileRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/statistics': typeof AppStatisticsRoute
   '/_app/tickets': typeof AppTicketsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/settings/audit': typeof AppSettingsAuditRoute
+  '/_app/settings/groups': typeof AppSettingsGroupsRoute
+  '/_app/settings/security': typeof AppSettingsSecurityRoute
+  '/_app/settings/sessions': typeof AppSettingsSessionsRoute
+  '/_app/settings/users': typeof AppSettingsUsersRoute
   '/_app/settings_/blacklist': typeof AppSettingsBlacklistRoute
   '/_app/settings_/callbacks': typeof AppSettingsCallbacksRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/change-password'
     | '/login'
     | '/clients'
     | '/explorer'
     | '/history'
     | '/operators'
+    | '/profile'
     | '/settings'
     | '/statistics'
     | '/tickets'
+    | '/settings/audit'
+    | '/settings/groups'
+    | '/settings/security'
+    | '/settings/sessions'
+    | '/settings/users'
     | '/settings/blacklist'
     | '/settings/callbacks'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/change-password'
     | '/login'
     | '/clients'
     | '/explorer'
     | '/history'
     | '/operators'
-    | '/settings'
+    | '/profile'
     | '/statistics'
     | '/tickets'
     | '/'
+    | '/settings/audit'
+    | '/settings/groups'
+    | '/settings/security'
+    | '/settings/sessions'
+    | '/settings/users'
     | '/settings/blacklist'
     | '/settings/callbacks'
+    | '/settings'
   id:
     | '__root__'
     | '/_app'
+    | '/change-password'
     | '/login'
     | '/_app/clients'
     | '/_app/explorer'
     | '/_app/history'
     | '/_app/operators'
+    | '/_app/profile'
     | '/_app/settings'
     | '/_app/statistics'
     | '/_app/tickets'
     | '/_app/'
+    | '/_app/settings/audit'
+    | '/_app/settings/groups'
+    | '/_app/settings/security'
+    | '/_app/settings/sessions'
+    | '/_app/settings/users'
     | '/_app/settings_/blacklist'
     | '/_app/settings_/callbacks'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  ChangePasswordRoute: typeof ChangePasswordRoute
   LoginRoute: typeof LoginRoute
 }
 
@@ -178,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/change-password': {
+      id: '/change-password'
+      path: '/change-password'
+      fullPath: '/change-password'
+      preLoaderRoute: typeof ChangePasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -222,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOperatorsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -243,6 +352,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTicketsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/audit': {
+      id: '/_app/settings/audit'
+      path: '/audit'
+      fullPath: '/settings/audit'
+      preLoaderRoute: typeof AppSettingsAuditRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/groups': {
+      id: '/_app/settings/groups'
+      path: '/groups'
+      fullPath: '/settings/groups'
+      preLoaderRoute: typeof AppSettingsGroupsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/security': {
+      id: '/_app/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AppSettingsSecurityRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/sessions': {
+      id: '/_app/settings/sessions'
+      path: '/sessions'
+      fullPath: '/settings/sessions'
+      preLoaderRoute: typeof AppSettingsSessionsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/users': {
+      id: '/_app/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AppSettingsUsersRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings_/blacklist': {
       id: '/_app/settings_/blacklist'
       path: '/settings/blacklist'
@@ -260,12 +411,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsAuditRoute: typeof AppSettingsAuditRoute
+  AppSettingsGroupsRoute: typeof AppSettingsGroupsRoute
+  AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
+  AppSettingsSessionsRoute: typeof AppSettingsSessionsRoute
+  AppSettingsUsersRoute: typeof AppSettingsUsersRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAuditRoute: AppSettingsAuditRoute,
+  AppSettingsGroupsRoute: AppSettingsGroupsRoute,
+  AppSettingsSecurityRoute: AppSettingsSecurityRoute,
+  AppSettingsSessionsRoute: AppSettingsSessionsRoute,
+  AppSettingsUsersRoute: AppSettingsUsersRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppClientsRoute: typeof AppClientsRoute
   AppExplorerRoute: typeof AppExplorerRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppOperatorsRoute: typeof AppOperatorsRoute
-  AppSettingsRoute: typeof AppSettingsRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppStatisticsRoute: typeof AppStatisticsRoute
   AppTicketsRoute: typeof AppTicketsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -278,7 +452,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppExplorerRoute: AppExplorerRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppOperatorsRoute: AppOperatorsRoute,
-  AppSettingsRoute: AppSettingsRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppStatisticsRoute: AppStatisticsRoute,
   AppTicketsRoute: AppTicketsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -290,6 +465,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  ChangePasswordRoute: ChangePasswordRoute,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport

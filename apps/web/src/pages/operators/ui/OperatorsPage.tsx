@@ -30,7 +30,7 @@ export function OperatorsPage() {
   useLiveTelephonySync();
   const { t } = useTranslation('operatorsPage');
   const user = useSessionUser();
-  const isAdmin = telephonyAccess(user.role).manageAll;
+  const isAdmin = telephonyAccess(user).manageAll;
   const { data: operators } = useQuery({ ...liveSnapshotQuery, select: (s) => s.operators });
   const [sort, setSort] = usePersistedState('tabOperatorSortMode', 'total', SORT);
   const [density, setDensity] = usePersistedState('operators_tab_density', 'full', DENSITY);

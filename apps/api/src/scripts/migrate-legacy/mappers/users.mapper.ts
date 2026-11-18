@@ -1,5 +1,5 @@
 import { ExtensionSchema, type Role, RoleSchema, UsernameSchema } from '@cc/shared';
-import type { Kysely } from 'kysely';
+import { type Kysely, sql } from 'kysely';
 import { z } from 'zod';
 import type { DB } from '../../../database/db.js';
 import { fromLegacy } from '../../../modules/auth/password-hasher.js';
@@ -22,6 +22,10 @@ const SALT_RE = /^[0-9a-fA-F]{32}$/;
 const LEGACY_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Accounts created by legacy scripts/create_200.js, all with one shared password. */
 const SHARED_PASSWORD_USERNAME_RE = /^operator20[0-9]$/;
+/** Legacy `webauthn_user_id` is `crypto.randomUUID()` text; the passkey user handle is its UTF-8 bytes. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+/** Legacy "200 group" (Zangiota 42): operators with extension >= 200 (see the auth_accounts migration). */
+export const RESTRICTED_GROUP_NAME = 'Zangiota';
 
 const optionalText = z
   .union([z.string(), z.number()])
@@ -39,6 +43,8 @@ export const LegacyUserRowSchema = z.object({
   email: optionalText,
   created_at: optionalText,
   updated_at: optionalText,
+  /** Added by webauthnService; the passkey user handle. Absent on databases that never had passkeys. */
+  webauthn_user_id: optionalText,
 });
 export type LegacyUserRow = z.infer<typeof LegacyUserRowSchema>;
 
@@ -49,8 +55,19 @@ export interface UserValues {
   role: Role;
   extension: string | null;
   email: string | null;
+  /** Legacy passkey user handle (lowercase UUID text). Omitted = a new one is generated. */
+  webauthnUserId?: string;
+  /** Operator group; operators with extension >= 200 go to the "Zangiota" group like the legacy rule. */
+  groupId?: number | null;
+  /** Forced password change at first login (the shared-password accounts operator200–operator209). */
+  mustChangePassword?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface TransformOptions {
+  /** operator_groups.id of "Zangiota" in the target, if it exists. */
+  restrictedGroupId?: number | null;
 }
 
 export type TransformResult =
@@ -64,6 +81,7 @@ export interface ExistingUser {
   role: Role;
   extension: string | null;
   email: string | null;
+  webauthnUserId: string;
 }
 
 export interface PlannedInsert {
@@ -82,6 +100,8 @@ export interface UsersPlan {
 /** Target-side operations; Kysely in production, an in-memory fake in specs. */
 export interface UsersRepository {
   listExisting(): Promise<ExistingUser[]>;
+  /** operator_groups.id by name (case-insensitive), or null. */
+  groupIdByName(name: string): Promise<number | null>;
   /** Inserts unless a unique key (username / email) is already taken; returns the new id or null. */
   insertIfAbsent(values: UserValues): Promise<number | null>;
 }
@@ -92,9 +112,18 @@ export class KyselyUsersRepository implements UsersRepository {
   listExisting(): Promise<ExistingUser[]> {
     return this.db
       .selectFrom('users')
-      .select(['id', 'username', 'passwordHash', 'role', 'extension', 'email'])
+      .select(['id', 'username', 'passwordHash', 'role', 'extension', 'email', 'webauthnUserId'])
       .orderBy('id')
       .execute();
+  }
+
+  async groupIdByName(name: string): Promise<number | null> {
+    const row = await this.db
+      .selectFrom('operatorGroups')
+      .select('id')
+      .where(sql`lower(name)`, '=', name.toLowerCase())
+      .executeTakeFirst();
+    return row?.id ?? null;
   }
 
   async insertIfAbsent(values: UserValues): Promise<number | null> {
@@ -115,6 +144,10 @@ function rowKey(id: unknown, username: unknown): string {
 
 /** Pure: one legacy row → insert values or a skip reason. Never throws. */
 export function transformLegacyUser(raw: SqliteRow): TransformResult {
+  return transformLegacyUserWith(raw, {});
+}
+
+export function transformLegacyUserWith(raw: SqliteRow, opts: TransformOptions): TransformResult {
   const parsed = LegacyUserRowSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
@@ -133,10 +166,13 @@ export function transformLegacyUser(raw: SqliteRow): TransformResult {
     warnings.push('username does not match the new username rules (3-32 chars of [a-zA-Z0-9_.-]); kept as is');
   }
 
-  const role = RoleSchema.safeParse(row.role?.trim().toLowerCase());
+  // Owner decision 2026-11-17: there is no `admin` role any more; legacy admins become superusers.
+  const legacyRole = row.role?.trim().toLowerCase();
+  const role = RoleSchema.safeParse(legacyRole === 'admin' ? 'superuser' : legacyRole);
   if (!role.success) {
     return skip(`unknown role ${JSON.stringify(row.role?.slice(0, 32) ?? null)}`);
   }
+  if (legacyRole === 'admin') warnings.push('legacy role admin becomes superuser (owner decision)');
 
   if (!HASH_RE.test(row.password_hash)) {
     return skip(`password_hash is not 128 hex chars (length ${row.password_hash.length})`);
@@ -162,11 +198,23 @@ export function transformLegacyUser(raw: SqliteRow): TransformResult {
   }
   if (role.data === 'operator' && !extension) warnings.push('operator has no extension');
 
-  if (SHARED_PASSWORD_USERNAME_RE.test(username)) {
-    warnings.push('created by legacy scripts/create_200.js with a shared password; force a password reset at cutover');
+  const sharedPassword = SHARED_PASSWORD_USERNAME_RE.test(username);
+  if (sharedPassword) {
+    warnings.push('created by legacy scripts/create_200.js with a shared password; must change it at first login');
   }
 
   const values: UserValues = { username, passwordHash, role: role.data, extension, email };
+  if (sharedPassword) values.mustChangePassword = true;
+
+  const handle = row.webauthn_user_id?.trim().toLowerCase();
+  if (handle && UUID_RE.test(handle)) values.webauthnUserId = handle;
+  else if (handle) {
+    warnings.push("webauthn_user_id is not a UUID; a new one is generated, so this user's passkeys cannot be migrated");
+  }
+
+  if (role.data === 'operator' && extension && Number(extension) >= 200 && opts.restrictedGroupId) {
+    values.groupId = opts.restrictedGroupId;
+  }
   const createdAt = parseLegacyLocalTime(row.created_at);
   const updatedAt = parseLegacyLocalTime(row.updated_at);
   if (createdAt) values.createdAt = createdAt;
@@ -199,6 +247,9 @@ export function planUsers(results: readonly TransformResult[], existing: readonl
     if (u.email) emailOwners.set(u.email.toLowerCase(), { label: `users.id ${u.id} (${u.username})`, userId: u.id });
   }
   const seenUsernames = new Map<string, string>();
+  const handleOwners = new Map(
+    existing.map((u) => [u.webauthnUserId.toLowerCase(), `users.id ${u.id} (${u.username})`]),
+  );
 
   const order = (r: TransformResult) => r.legacyId ?? Number.MAX_SAFE_INTEGER;
   const sorted = [...results].sort((a, b) => order(a) - order(b));
@@ -234,6 +285,18 @@ export function planUsers(results: readonly TransformResult[], existing: readonl
     }
 
     const values = { ...r.values };
+    if (values.webauthnUserId) {
+      const owner = handleOwners.get(values.webauthnUserId);
+      if (owner) {
+        plan.warnings.push({
+          key: r.key,
+          reason: `webauthn_user_id already belongs to ${owner}; a new one is generated (passkeys of this user cannot be migrated)`,
+        });
+        delete values.webauthnUserId;
+      } else {
+        handleOwners.set(values.webauthnUserId, `legacy user ${r.key}`);
+      }
+    }
     if (values.email) {
       const owner = emailOwners.get(values.email);
       if (owner) {
@@ -266,7 +329,16 @@ export function createUsersMapper(
       const rows = sqlite.all('SELECT * FROM auth_users ORDER BY id');
       report.read = rows.length;
       const repo = repositoryFor(ctx.db);
-      const plan = planUsers(rows.map(transformLegacyUser), await repo.listExisting());
+      const restrictedGroupId = await repo.groupIdByName(RESTRICTED_GROUP_NAME);
+      if (!restrictedGroupId) {
+        report.notes.push(
+          `operator group "${RESTRICTED_GROUP_NAME}" not found; operators 200+ are imported without a group`,
+        );
+      }
+      const plan = planUsers(
+        rows.map((row) => transformLegacyUserWith(row, { restrictedGroupId })),
+        await repo.listExisting(),
+      );
       report.skipped = plan.skipped;
       report.warnings = plan.warnings;
       report.unchanged = plan.unchanged;
@@ -291,14 +363,13 @@ export function createUsersMapper(
       report.notes.push(
         'legacy ids are not kept (users.id is an identity column); later mappers resolve users by username',
       );
-      if (sqlite.columns('auth_users').includes('webauthn_user_id')) {
-        const [{ n }] = sqlite.all(
-          "SELECT COUNT(*) AS n FROM auth_users WHERE webauthn_user_id IS NOT NULL AND webauthn_user_id <> ''",
-        );
-        report.notes.push(
-          `auth_users.webauthn_user_id (${Number(n)} users) has no column in users; passkeys need it unchanged — S1 must add it before the passkeys mapper can run`,
-        );
-      }
+      const withHandle = plan.inserts.filter((i) => i.values.webauthnUserId).length;
+      report.notes.push(
+        `${withHandle} of ${plan.inserts.length} inserted users keep their legacy passkey handle (webauthn_user_id)`,
+      );
+      const grouped = plan.inserts.filter((i) => i.values.groupId).length;
+      if (grouped > 0)
+        report.notes.push(`${grouped} operators with extension >= 200 put into "${RESTRICTED_GROUP_NAME}"`);
       return report;
     },
   };

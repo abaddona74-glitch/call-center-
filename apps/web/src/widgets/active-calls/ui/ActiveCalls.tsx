@@ -19,7 +19,7 @@ export function ActiveCalls() {
   const { t } = useTranslation('activeCalls');
   const { t: tt } = useTranslation('telephony');
   const user = useSessionUser();
-  const isAdmin = telephonyAccess(user.role).manageAll;
+  const isAdmin = telephonyAccess(user).manageAll;
   const { data } = useQuery({ ...liveSnapshotQuery, select: (s) => ({ calls: s.calls, operators: s.operators }) });
   const [openId, setOpenId] = useState<string | null>(null);
   const calls = useLeaving((data?.calls ?? []).filter((c) => SHOWN.has(c.state)));

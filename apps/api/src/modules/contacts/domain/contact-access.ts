@@ -1,15 +1,15 @@
-import type { ContactAccess, Role } from '@cc/shared';
+import { type ContactAccess, type Permission, type Role, hasPermission } from '@cc/shared';
 
 /**
- * Who may see / edit the phonebook. The single place to change when operator groups land (S1):
- * once the session user carries `permissions` (canSeeContacts / canEditContacts), those win; until
- * then the legacy rule applies — operators whose extension falls in a denied range (the "200 group")
- * get neither. Admins and superusers always may.
+ * Who may see / edit the phonebook: the `contacts.view` / `contacts.manage` permissions (role map + the
+ * operator group's canSeeContacts / canEditContacts flags, see @cc/shared permissions). Sessions always
+ * carry `permissions`; only a user object without them falls back to the role map plus the legacy rule —
+ * operators whose extension falls in a denied range (the "200 group") get neither.
  */
 export interface ContactAccessUser {
   role: Role;
   extension: string | null;
-  permissions?: { canSeeContacts?: boolean; canEditContacts?: boolean } | null;
+  permissions?: readonly Permission[] | null;
 }
 
 export interface ExtensionRange {
@@ -32,11 +32,9 @@ export function inRanges(extension: string | null, ranges: readonly ExtensionRan
 }
 
 export function contactAccessFor(user: ContactAccessUser, deniedRanges: readonly ExtensionRange[]): ContactAccess {
-  if (user.role === 'admin' || user.role === 'superuser') return { canView: true, canEdit: true };
-  if (user.permissions) {
-    const canView = user.permissions.canSeeContacts ?? true;
-    return { canView, canEdit: canView && (user.permissions.canEditContacts ?? true) };
+  if (!user.permissions && user.role === 'operator' && inRanges(user.extension, deniedRanges)) {
+    return { canView: false, canEdit: false };
   }
-  const denied = inRanges(user.extension, deniedRanges);
-  return { canView: !denied, canEdit: !denied };
+  const canView = hasPermission(user, 'contacts.view');
+  return { canView, canEdit: canView && hasPermission(user, 'contacts.manage') };
 }

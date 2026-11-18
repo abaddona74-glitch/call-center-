@@ -44,12 +44,12 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
   it('serves history and stats from the seeded PBX', async () => {
     const res = await request(ctx.app.getHttpServer())
       .get(`/api/cdr/calls?pageSize=5`)
-      .set('Cookie', ctx.cookies.admin)
+      .set('Cookie', ctx.cookies.executive)
       .expect(200);
     expect(res.body.range.to).toBe(today);
     const summary = await request(ctx.app.getHttpServer())
       .get(`/api/stats/summary?from=${today}&to=${today}&scope=all`)
-      .set('Cookie', ctx.cookies.admin)
+      .set('Cookie', ctx.cookies.executive)
       .expect(200);
     expect(summary.body.inbound.offered).toBeGreaterThanOrEqual(summary.body.inbound.answered);
   });

@@ -9,7 +9,7 @@ import {
   type CallbackSource,
   type OutboundFailureCause,
   type SessionUser,
-  hasRoleAtLeast,
+  hasPermission,
 } from '@cc/shared';
 import { Transactional } from '@nestjs-cls/transactional';
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
@@ -396,7 +396,7 @@ export class CallbacksService {
   private async assignTx(id: number, userId: number | null, actor: SessionUser): Promise<void> {
     const cb = await this.repo.findByIdForUpdate(id);
     if (!cb) throw new NotFoundException('Callback not found');
-    if (!hasRoleAtLeast(actor.role, 'admin')) {
+    if (!hasPermission(actor, 'callbacks.manage')) {
       // Operators may take a callback themselves or release their own — never assign other people.
       const takes = userId === actor.id && (cb.assignedUserId === null || cb.assignedUserId === actor.id);
       const releases = userId === null && cb.assignedUserId === actor.id;

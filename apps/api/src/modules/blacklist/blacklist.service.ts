@@ -273,6 +273,6 @@ export class BlacklistService implements OnApplicationBootstrap {
   }
 
   private changed(): void {
-    this.realtime.broadcast('blacklist.changed', { at: new Date().toISOString() }, { minRole: 'admin' });
+    this.realtime.broadcast('blacklist.changed', { at: new Date().toISOString() }, { permission: 'blacklist.manage' });
   }
 }

@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { ExplorerPage } from '@/pages/explorer';
-import { requireRole } from '../../lib/require-role';
+import { requirePermission } from '../../lib/require-role';
 
-/** Recordings browser — admins only (the API enforces the same). */
+/** Recordings browser — `recordings.listen` (the API enforces the same). */
 export const Route = createFileRoute('/_app/explorer')({
-  beforeLoad: ({ context }) => requireRole(context.user, 'admin'),
+  beforeLoad: ({ context }) => requirePermission(context.user, 'recordings.listen'),
   component: ExplorerPage,
 });

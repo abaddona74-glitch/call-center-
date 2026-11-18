@@ -25,11 +25,14 @@ import { CdrModule } from './modules/cdr/cdr.module.js';
 import { ExportModule } from './modules/export/export.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { LiveModule } from './modules/live/live.module.js';
+import { MailModule } from './modules/mail/mail.module.js';
+import { PasskeysModule } from './modules/passkeys/passkeys.module.js';
 import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { RecordingsModule } from './modules/recordings/recordings.module.js';
-import { TicketsModule } from './modules/tickets/tickets.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
+import { TicketsModule } from './modules/tickets/tickets.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
 @Module({
@@ -81,6 +84,9 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     RealtimeModule,
     HealthModule,
     // Feature modules are registered below this line (one import per module).
+    MailModule,
+    UsersModule,
+    PasskeysModule,
     RecordingsModule,
     TicketsModule,
     CallbacksModule,

@@ -10,7 +10,7 @@ import {
   type SessionUser,
 } from '@cc/shared';
 import { Controller, Get, Param, Query, SerializeOptions } from '@nestjs/common';
-import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { CdrService } from './cdr.service.js';
 
 /**
@@ -18,7 +18,7 @@ import { CdrService } from './cdr.service.js';
  * the viewer's /api/calls/details); recording file names need CDR_ACCESS['calls.recordings'].
  */
 @Controller('cdr')
-@Roles(CDR_ACCESS['calls.read'])
+@RequirePermission(CDR_ACCESS['calls.read'])
 export class CdrController {
   constructor(private readonly cdr: CdrService) {}
 

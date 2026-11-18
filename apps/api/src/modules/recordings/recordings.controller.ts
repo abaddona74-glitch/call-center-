@@ -40,7 +40,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
-import { CurrentUser, Roles } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { contentDisposition } from '../../common/http/content-disposition.js';
 import { parseRangeHeader } from './domain/http-range.js';
 import { type PreparedStream, RecordingsService } from './recordings.service.js';
@@ -58,21 +58,21 @@ export class RecordingsController {
   ) {}
 
   @Get('status')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @SerializeOptions({ schema: RecordingsStatusSchema })
   status(): RecordingsStatus {
     return this.recordings.status();
   }
 
   @Get('tree')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @SerializeOptions({ schema: RecordingTreeResponseSchema })
   tree(@Query({ schema: RecordingTreeQuerySchema }) query: RecordingTreeQuery): Promise<RecordingTreeResponse> {
     return this.recordings.tree(query.path);
   }
 
   @Get('stream')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   async stream(
     @Query({ schema: RecordingStreamQuerySchema }) query: RecordingStreamQuery,
     @CurrentUser() user: SessionUser,
@@ -105,7 +105,7 @@ export class RecordingsController {
   }
 
   @Post('zip-jobs')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @SerializeOptions({ schema: ZipJobSchema })
   createZip(
@@ -116,21 +116,21 @@ export class RecordingsController {
   }
 
   @Get('zip-jobs')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @SerializeOptions({ schema: ZipJobListResponseSchema })
   listZips(@CurrentUser() user: SessionUser): ZipJobListResponse {
     return { items: this.zipJobs.list(user) };
   }
 
   @Get('zip-jobs/:id')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @SerializeOptions({ schema: ZipJobSchema })
   getZip(@Param('id', { schema: ZipJobIdSchema }) id: string, @CurrentUser() user: SessionUser): ZipJob {
     return this.zipJobs.get(id, user);
   }
 
   @Post('zip-jobs/:id/cancel')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   @HttpCode(200)
   @SerializeOptions({ schema: ZipJobSchema })
   cancelZip(@Param('id', { schema: ZipJobIdSchema }) id: string, @CurrentUser() user: SessionUser): Promise<ZipJob> {
@@ -138,7 +138,7 @@ export class RecordingsController {
   }
 
   @Get('zip-jobs/:id/download')
-  @Roles('admin')
+  @RequirePermission('recordings.listen')
   async downloadZip(
     @Param('id', { schema: ZipJobIdSchema }) id: string,
     @CurrentUser() user: SessionUser,

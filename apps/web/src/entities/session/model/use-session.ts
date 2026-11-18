@@ -1,4 +1,4 @@
-import { type Role, type SessionUser, hasRoleAtLeast } from '@cc/shared';
+import { type RoleLevel, type SessionUser, hasRoleAtLeast } from '@cc/shared';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { sessionQuery } from '../api/session.queries';
 
@@ -12,6 +12,7 @@ export function useSessionUser(): SessionUser {
   return data;
 }
 
-export function useHasRole(minimum: Role): boolean {
+/** @deprecated minimum role level ('admin' = executive). Use `usePermission`. */
+export function useHasRole(minimum: RoleLevel): boolean {
   return hasRoleAtLeast(useSessionUser().role, minimum);
 }

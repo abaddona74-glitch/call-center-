@@ -87,31 +87,49 @@ Stubs should follow the same pattern. Their TODOs name the natural key for each 
 | -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `username`                 | `username`      | trimmed. An empty username is skipped. One that only differs by case from an older legacy row is skipped (new unique index). One outside `UsernameSchema` is kept, with a warning.                                                                              |
 | `password_hash` + `salt`   | `password_hash` | `fromLegacy(salt, hash)` produces `scrypt$16384$8$1$<salt>$<hash>`. The hash must be 128 hex chars and the salt 32 hex chars, otherwise the row is skipped. The salt is kept byte-for-byte (it is used as text).                                                |
-| `role`                     | `role`          | trimmed and lower-cased, then must be `operator`, `admin` or `superuser` (`RoleSchema`). Anything else is skipped.                                                                                                                                              |
+| `role`                     | `role`          | trimmed and lower-cased; legacy `admin` becomes `superuser` (owner decision 2026-11-17, with a warning). Then it must be `operator`, `observer`, `executive` or `superuser` (`RoleSchema`). Anything else is skipped. |
 | `operator_id`              | `extension`     | trimmed, `''` becomes null. A value that is not 2–6 digits (`ExtensionSchema`) becomes null, with a warning. An operator without an extension gets a warning.                                                                                                   |
 | `email`                    | `email`         | trimmed and lower-cased, `''` becomes null. Anything legacy's own regex would reject becomes null, with a warning. A duplicate (case-insensitive, either against existing users or against an older legacy row) becomes null, with a warning naming the holder. |
 | `created_at`, `updated_at` | same            | `'YYYY-MM-DD HH:MM:SS'` is read as Asia/Tashkent wall-clock time (luxon). An unparsable value falls back to the DB default `now()`.                                                                                                                             |
+| `webauthn_user_id`         | `webauthn_user_id` | copied verbatim (lower-cased UUID text): it is the passkey user handle. Missing → a new UUID (no passkeys to keep). Not a UUID, or already held by another user → a new UUID, with a warning (that user's passkeys are then skipped). |
+| `operator_id` ≥ 200        | `group_id`      | operators with extension ≥ 200 go to the operator group "Zangiota" (legacy "200 group" restrictions). Others get no group (no restrictions).                                                                                                                   |
 | —                          | `is_active`     | DB default `true`.                                                                                                                                                                                                                                              |
 
 Accounts `operator200`…`operator209` (created by legacy `scripts/create_200.js` with one shared password)
-get a warning: force a password reset at cutover.
+are imported with `must_change_password = true` (owner decision): they can only change the password after
+signing in, nothing else works until they do.
 
-### Legacy data with no home in the new schema (not migrated, schema untouched — S1 owns `users`)
+### Legacy data with no home in the new schema (not migrated)
 
-- **`auth_users.webauthn_user_id`**: `users` has no such column yet. Passkeys cannot be migrated without it,
-  because the WebAuthn user handle is the UTF-8 of this UUID string. S1 has to add the column, and then this
-  mapper should copy it verbatim.
 - **Legacy `id`**: `users.id` is `GENERATED ALWAYS AS IDENTITY`, so ids are not preserved. Later mappers
   resolve users through legacy `auth_users.username` → `users.id`. Only passkeys (and the dropped
   `auth_password_resets`) referenced the legacy id.
 - `salt` and `password_hash` are merged into one column, so nothing is lost there.
+
+## passkeys mapper (`auth_passkeys` → `passkeys`)
+
+A passkey keeps working only if the credential id, the COSE public key bytes, the counter and the user handle
+stay the same, and the deployment keeps the legacy `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGINS` (env, see
+`apps/api/.env.example`). The mapper copies `id`, `public_key` (byte-for-byte), `counter`, `device_type`,
+`backed_up`, `transports` (JSON → `text[]`, unknown values dropped), `device_name` → `name` (≤ 60 chars),
+`created_at`/`last_used_at` (Tashkent local time). The owner is resolved by legacy username (case-insensitive).
+
+- **Skipped** (with the reason): owner missing in legacy or not migrated; the passkey's `webauthn_user_id`
+  differs from its owner's (legacy refused such logins too); the public key is not a COSE key; the credential
+  id already belongs to another user.
+- **Handle adoption:** if the target user already existed with a different handle (e.g. the bootstrap
+  `superuser`) and has **no** passkeys yet, it adopts the legacy handle (counted as `updated`, with a warning).
+  A user who already registered passkeys in the new system is never changed; the legacy passkey is skipped.
+- Idempotent: insert-if-absent by credential id. Legacy passkey sessions are not migrated (users sign in again).
+- Proven end to end in `apps/api/test/passkeys.e2e-spec.ts` (migrate a legacy user + passkey, then sign in with
+  the password and with the passkey through the API).
 
 ## Mappers
 
 | Mapper                   | Owner              | Legacy source                                                         | Status                                    |
 | ------------------------ | ------------------ | --------------------------------------------------------------------- | ----------------------------------------- |
 | `users`                  | S1                 | `auth_users`                                                          | implemented (S6)                          |
-| `passkeys`               | S1                 | `auth_passkeys`                                                       | stub, blocked on `users.webauthn_user_id` |
+| `passkeys`               | S1                 | `auth_passkeys`                                                       | implemented (S1)                          |
 | `settings`               | S1                 | `system_settings`, `queue-sync-settings.json`, `system_settings.json` | stub                                      |
 | `contacts`               | S4                 | `client_contacts`                                                     | stub                                      |
 | `callbacks`              | S4                 | `pending_callbacks` (all statuses)                                    | stub                                      |

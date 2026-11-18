@@ -24,13 +24,13 @@ src/modules/<module>/
 ```
 
 - **Валидация.** Вход: `@Body({ schema })`, `@Query({ schema })`, `@Param('id', { schema })` со схемой из `@cc/shared` (встроенный в Nest 12 Standard Schema, глобальный `StandardSchemaValidationPipe`). Выход: `@SerializeOptions({ schema })` — лишние поля (хеши, токены) отрезаются автоматически.
-- **Доступ.** Глобальный `SessionAuthGuard`: всё закрыто по умолчанию. `@Public()` — только осознанно. `@Roles('admin')` = admin и выше. Личность — только из сессии (`@CurrentUser()` / CLS `user`), **никогда** из тела запроса (`operatorId`, `editorId` и т.п.).
+- **Доступ.** Глобальный `SessionAuthGuard`: всё закрыто по умолчанию. `@Public()` — только осознанно. Доступ — по разрешениям, не по ролям: `@RequirePermission('blacklist.manage')`; в коде сервисов — `can(user, 'tickets.process')` / `hasPermission` из `@cc/shared`. Какая роль что может — только в `ROLE_PERMISSIONS` (`packages/shared/src/permissions.ts`); роли `superuser`/`executive`/`observer`/`operator`, роли `admin` нет (`@Roles` / `hasRoleAtLeast` — устаревшая совместимость). Личность — только из сессии (`@CurrentUser()` / CLS `user`), **никогда** из тела запроса (`operatorId`, `editorId` и т.п.).
 - **БД.** `@InjectDb() private readonly txHost: DbHost` → `this.txHost.tx...`. Никакой склейки SQL-строк; `sql\`\`` — только с параметрами, `sql.raw` с пользовательскими данными запрещён. Транзакция — декоратор `@Transactional()` (nestjs-cls), не передавать `trx` руками.
 - **АТС.** MariaDB — `@InjectPbxDb()` (может быть `null` → вернуть 503 «PBX unavailable»), только SELECT. Asterisk — только через модуль AMI. **Запрещено:** `child_process` с shell, SSH, `asterisk -rx`. Python (STT/конвертер) — только `spawn` без shell, фиксированные аргументы, таймаут, лимиты.
 - **Миграции.** `src/database/migrations/YYYYMMDDHHmm_<module>_<что>.ts` (UTC), `up` + `down`. Не править уже применённые — добавлять новые. Таблицы — snake_case, в TS — camelCase (CamelCasePlugin). Время — `timestamptz`.
 - **Время и бизнес-правила.** Всё в `Asia/Tashkent` (`BUSINESS_TIMEZONE`, luxon). Рабочие часы/дни — из конфигурации, не хардкод.
 - **Аудит.** Любое изменение пользователей, ролей, настроек, ручная правка статистики, удаление данных → `AuditService.record('<domain>.<action>', { target, details })`.
-- **Realtime.** Новые события — `packages/shared/src/realtime/<domain>.ts` + одна строка в `extends` в `realtime.ts`. Отправка — `RealtimeService.broadcast(type, data, { minRole })`. По WS нельзя отдавать то, что этой роли нельзя получить через REST.
+- **Realtime.** Новые события — `packages/shared/src/realtime/<domain>.ts` + одна строка в `extends` в `realtime.ts`. Отправка — `RealtimeService.broadcast(type, data, { permission })`. По WS нельзя отдавать то, что этой роли нельзя получить через REST.
 - **Связь модулей.** Через доменные события (`common/events/domain-events.ts`, `@nestjs/event-emitter`), а не прямые вызовы чужих сервисов. Новые события добавлять туда же.
 - **Конфигурация.** Новая переменная → `config/env.schema.ts` + `apps/api/.env.example` + `infra/.env.example`.
 - **Ошибки.** Бросать `HttpException`-наследников с понятным сообщением; фильтр сам приведёт к формату `ApiError` с `requestId`.
@@ -50,7 +50,7 @@ src/modules/<module>/
 | `shared` | без бизнес-логики: `api` (http, ws), `ui` (shadcn), `lib`, `config`, `i18n` | |
 
 - У каждого слайса публичный API — `index.ts`; импорт только через него (`@/entities/session`, не `@/entities/session/api/...`). `pnpm --filter @cc/web lint` (steiger) должен проходить.
-- **Маршруты** — TanStack Router, file-based, `src/app/routes`. Авторизованные — под `_app/`. Роль — `beforeLoad: ({ context }) => requireRole(context.user, 'admin')`. Данные для экрана — в `loader` через `context.queryClient.ensureQueryData(xQuery)`.
+- **Маршруты** — TanStack Router, file-based, `src/app/routes`. Авторизованные — под `_app/`. Доступ — `beforeLoad: ({ context }) => requirePermission(context.user, 'blacklist.manage')`; в компонентах — `usePermission(...)`; пункт меню — поле `permission` в `nav.ts`. Данные для экрана — в `loader` через `context.queryClient.ensureQueryData(xQuery)`.
 - **Данные** — TanStack Query: `queryOptions` и фабрики ключей в `entities/<x>/api`. Мутации инвалидируют ключи. Live-обновления: `useRealtimeEvent('x.updated', (d) => queryClient.setQueryData(...))`.
 - **Формы** — TanStack Form + zod-схема из `@cc/shared`. **Таблицы** — TanStack Table (общий `shared/ui/data-table`, создать при первой необходимости).
 - **Дизайн — как в старой системе.** Сверять с `legacy/public/css/style.css`, `docs/rewrite/legacy/frontend.md` и скриншотами в `docs/rewrite/design/`. Цвета только токенами (`bg-card`, `text-muted-foreground`, `text-success`, `text-warning`, `text-destructive`, `text-outbound`, `text-live`), шрифт Golos Text, иконки iconsax — `<Icon name="call" />` из `shared/ui/icon`. shadcn-компоненты — основа поведения, внешний вид подгоняем под legacy.

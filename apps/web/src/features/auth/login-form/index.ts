@@ -1,1 +1,1 @@
-export { LoginForm } from './ui/LoginForm';
+export { LoginForm, type LoginFieldFocus } from './ui/LoginForm';

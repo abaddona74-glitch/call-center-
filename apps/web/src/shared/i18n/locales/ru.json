@@ -1,9 +1,6 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "explorer": "Аудио записи", "tickets": "Тикеты" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время" },
-  "nav": { "dashboard": "Главная", "operators": "Операторы", "settings": "Настройки" },
-  "nav": { "dashboard": "Главная", "history": "История звонков", "statistics": "Статистика", "settings": "Настройки" },
+  "nav": { "dashboard": "Главная", "settings": "Настройки", "profile": "Профиль", "explorer": "Аудио записи", "tickets": "Тикеты", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время", "operators": "Операторы", "history": "История звонков", "statistics": "Статистика" },
   "auth": {
     "username": "Логин",
     "password": "Пароль",
@@ -14,5 +11,5 @@
   },
   "realtime": { "open": "Онлайн", "connecting": "Подключение…", "closed": "Нет связи", "idle": "—" },
   "common": { "error": "Произошла ошибка", "loading": "Загрузка…", "comingSoon": "Скоро" },
-  "roles": { "operator": "Оператор", "admin": "Администратор", "superuser": "Суперпользователь" }
+  "roles": { "operator": "Оператор", "observer": "Наблюдатель", "executive": "Руководитель", "superuser": "Суперпользователь" }
 }

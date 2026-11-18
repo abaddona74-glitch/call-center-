@@ -18,7 +18,7 @@ import {
   WorkingCalendarSchema,
 } from '@cc/shared';
 import { Controller, Get, Query, SerializeOptions } from '@nestjs/common';
-import { Roles } from '../../common/decorators/auth.decorators.js';
+import { RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { StatsService } from './stats.service.js';
 
 /**
@@ -36,28 +36,28 @@ export class StatsController {
   }
 
   @Get('summary')
-  @Roles(CDR_ACCESS['stats.read'])
+  @RequirePermission(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: StatsSummarySchema })
   summary(@Query({ schema: StatsQuerySchema }) q: StatsQuery): Promise<StatsSummary> {
     return this.stats.summary(q);
   }
 
   @Get('series')
-  @Roles(CDR_ACCESS['stats.read'])
+  @RequirePermission(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: StatsSeriesResponseSchema })
   series(@Query({ schema: StatsQuerySchema }) q: StatsQuery): Promise<StatsSeriesResponse> {
     return this.stats.series(q);
   }
 
   @Get('operators')
-  @Roles(CDR_ACCESS['stats.operators'])
+  @RequirePermission(CDR_ACCESS['stats.operators'])
   @SerializeOptions({ schema: OperatorStatsResponseSchema })
   operators(@Query({ schema: OperatorStatsQuerySchema }) q: OperatorStatsQuery): Promise<OperatorStatsResponse> {
     return this.stats.operators(q);
   }
 
   @Get('top-clients')
-  @Roles(CDR_ACCESS['stats.read'])
+  @RequirePermission(CDR_ACCESS['stats.read'])
   @SerializeOptions({ schema: TopClientsResponseSchema })
   topClients(@Query({ schema: TopClientsQuerySchema }) q: TopClientsQuery): Promise<TopClientsResponse> {
     return this.stats.topClients(q);
