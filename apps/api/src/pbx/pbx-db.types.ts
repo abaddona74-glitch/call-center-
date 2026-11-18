@@ -38,7 +38,25 @@ export interface AsteriskUsersTable {
   name: string;
 }
 
+/**
+ * Post-call survey answers, written by the PBX dialplan ([operator-baho] context + AGI operator_baho.php).
+ * Optional: the table exists only after the survey is installed on the PBX and granted to the read-only user.
+ */
+export interface OperatorBahoTable {
+  id: number;
+  rated_at: string;
+  uniqueid: string;
+  linkedid: string;
+  queue: string;
+  operator_ext: string;
+  operator_name: string;
+  member_interface: string;
+  src: string;
+  baho: number;
+}
+
 export interface PbxDB {
   cdr: CdrTable;
+  operator_baho: OperatorBahoTable;
   'asterisk.users': AsteriskUsersTable;
 }

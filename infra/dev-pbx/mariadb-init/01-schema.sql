@@ -36,6 +36,25 @@ CREATE TABLE IF NOT EXISTS cdr (
   KEY uniqueid (uniqueid)
 );
 
+-- Post-call survey answers, written on the real PBX by the [operator-baho] dialplan + AGI operator_baho.php.
+CREATE TABLE IF NOT EXISTS operator_baho (
+  id               INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  rated_at         DATETIME         NOT NULL,
+  uniqueid         VARCHAR(32)      NOT NULL,
+  linkedid         VARCHAR(32)      NOT NULL DEFAULT '',
+  queue            VARCHAR(20)      NOT NULL DEFAULT '',
+  operator_ext     VARCHAR(20)      NOT NULL DEFAULT '',
+  operator_name    VARCHAR(80)      NOT NULL DEFAULT '',
+  member_interface VARCHAR(80)      NOT NULL DEFAULT '',
+  src              VARCHAR(80)      NOT NULL DEFAULT '',
+  baho             TINYINT UNSIGNED NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_uniqueid (uniqueid),
+  KEY idx_rated_at (rated_at),
+  KEY idx_operator (operator_ext, rated_at),
+  KEY idx_linkedid (linkedid)
+);
+
 USE asterisk;
 CREATE TABLE IF NOT EXISTS users (
   extension VARCHAR(20) NOT NULL DEFAULT '',

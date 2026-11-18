@@ -1,6 +1,15 @@
 import { wallToIso } from '../../../common/time/business-time.js';
 import { calls, inbound, internal, outbound, TEST_CALENDAR } from '../../../pbx/calls/testing/cdr-fixtures.js';
-import { dailySeries, hourlySeries, lostClients, operatorStats, percent, summarize, topClients } from './metrics.js';
+import {
+  dailySeries,
+  hourlySeries,
+  lostClients,
+  operatorStats,
+  percent,
+  summarize,
+  surveyByOperator,
+  topClients,
+} from './metrics.js';
 
 /**
  * A small fixture day (Tue 2026-11-17) + one Saturday call and one evening call:
@@ -156,6 +165,48 @@ describe('operatorStats', () => {
   it('all scope includes the Saturday call', () => {
     const all = operatorStats(day, { scope: 'all', names, groupOf });
     expect(all.find((r) => r.ext === '101')?.answered).toBe(2);
+  });
+});
+
+describe('surveyByOperator', () => {
+  const at = (start: string) => {
+    const c = day.find((x) => x.start === start);
+    if (!c) throw new Error(`no fixture call at ${start}`);
+    return c.id;
+  };
+  const A = at('2026-11-17 09:10:00'); // answered by 101
+  const F = at('2026-11-17 11:30:00'); // answered by 103
+  const K = at('2026-11-14 10:00:00'); // Saturday, answered by 101
+  const ratings = [
+    { linkedid: A, uniqueid: A, operatorExt: '101', score: 5 },
+    { linkedid: A, uniqueid: A, operatorExt: '101', score: 1 }, // a second answer for the same call: ignored
+    { linkedid: '', uniqueid: F, operatorExt: '', score: 3 }, // matched by uniqueid, operator from the call
+    { linkedid: K, uniqueid: K, operatorExt: '101', score: 4 },
+    { linkedid: 'nope', uniqueid: 'nope', operatorExt: '101', score: 1 }, // call outside the range
+    { linkedid: F, uniqueid: F, operatorExt: '103', score: 7 }, // not a 1–5 answer
+  ];
+
+  it('counts each in-scope call once, falls back to the final operator', () => {
+    expect(surveyByOperator(ratings, day, 'working')).toEqual(
+      new Map([
+        ['101', { count: 1, sum: 5 }],
+        ['103', { count: 1, sum: 3 }],
+      ]),
+    );
+  });
+
+  it('all scope includes the Saturday call', () => {
+    expect(surveyByOperator(ratings, day, 'all').get('101')).toEqual({ count: 2, sum: 9 });
+  });
+
+  it('feeds surveyCount / surveyAvg of the operator table', () => {
+    const survey = surveyByOperator(ratings, day, 'all');
+    const rows = operatorStats(day, { scope: 'all', names, groupOf, knownExtensions: ['120'], survey });
+    const by = Object.fromEntries(rows.map((r) => [r.ext, r]));
+    expect(by['101']).toMatchObject({ surveyCount: 2, surveyAvg: 4.5 });
+    expect(by['103']).toMatchObject({ surveyCount: 1, surveyAvg: 3 });
+    expect(by['120']).toMatchObject({ surveyCount: 0, surveyAvg: null });
+    expect(operatorStats(day, { scope: 'all', names, groupOf })[0]).toMatchObject({ surveyCount: 0, surveyAvg: null });
   });
 });
 

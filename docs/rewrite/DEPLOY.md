@@ -551,12 +551,14 @@ bin/restore.sh --yes-destroy-current-data backups/pre-deploy/<файл>.dump   #
 
 ### 11.1 MariaDB: `cc_readonly`
 
-Приложение читает только `asteriskcdrdb.cdr` и колонки `extension`, `name` из `asterisk.users`
+Приложение читает только `asteriskcdrdb.cdr`, `asteriskcdrdb.operator_baho` (если опрос установлен) и колонки `extension`, `name` из `asterisk.users`
 (`apps/api/src/pbx/pbx-db.types.ts`). В `asterisk.users` есть и другие колонки (в том числе пароли), поэтому права — на колонки.
 
 ```sql
 CREATE USER 'cc_readonly'@'<APP_VM_IP>' IDENTIFIED BY '<STRONG_PASSWORD>';
 GRANT SELECT ON asteriskcdrdb.cdr TO 'cc_readonly'@'<APP_VM_IP>';
+-- Опрос после звонка (столбец «Mijoz bahosi», METRICS.md §3). Только после того, как таблица создана на АТС:
+GRANT SELECT ON asteriskcdrdb.operator_baho TO 'cc_readonly'@'<APP_VM_IP>';
 GRANT SELECT (extension, name) ON asterisk.users TO 'cc_readonly'@'<APP_VM_IP>';
 ALTER USER 'cc_readonly'@'<APP_VM_IP>' WITH MAX_USER_CONNECTIONS 10;
 SHOW GRANTS FOR 'cc_readonly'@'<APP_VM_IP>';

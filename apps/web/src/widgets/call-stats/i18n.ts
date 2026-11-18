@@ -53,7 +53,9 @@ registerTranslations('callStats', {
       total: "Jami qo'ng'iroqlar",
       talk: 'Jami suhbat vaqti',
       avg: "O'rtacha suhbat",
+      survey: 'Mijoz bahosi',
     },
+    surveyVotes: '{{n}} ta baho',
     attemptsShort: 'urinish',
     topClients: 'Eng faol mijozlar',
     tcCol: {
@@ -120,7 +122,9 @@ registerTranslations('callStats', {
       total: 'Всего звонков',
       talk: 'Общая длительность',
       avg: 'Среднее время',
+      survey: 'Оценка клиентов',
     },
+    surveyVotes: 'оценок: {{n}}',
     attemptsShort: 'попыт.',
     topClients: 'Самые активные клиенты',
     tcCol: {

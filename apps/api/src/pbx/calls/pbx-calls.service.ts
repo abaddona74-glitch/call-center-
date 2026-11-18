@@ -8,6 +8,7 @@ import { type AssembledCall, assembleCalls } from './call-assembler.js';
 import type { CdrRow } from './cdr-row.js';
 import { CdrRepository } from './cdr.repository.js';
 import type { PbxDialplan } from './dialplan.js';
+import type { SurveyRating } from './survey-rating.js';
 import { WORKING_CALENDAR_CHANGED, WorkingCalendarService } from '../../modules/working-calendar/working-calendar.service.js';
 import { dialplanFromConfig, groupOf, type OperatorGroup } from './pbx-calls.config.js';
 
@@ -125,6 +126,14 @@ export class PbxCallsService {
   /** Most recent days on which a number appears (all-days phone search). */
   daysWithNumbers(variants: string[], limit: number): Promise<string[]> {
     return this.repo.daysWithNumbers(variants, limit);
+  }
+
+  /**
+   * Survey ratings given while calls of `from`..`to` could still be rated (the same window as the day loads,
+   * so a call just before midnight keeps its rating). Callers match them to calls by id. null = no survey.
+   */
+  surveyRatingsForRange(from: string, to: string): Promise<SurveyRating[] | null> {
+    return this.repo.surveyRatings(this.dayWindow(from)[0], this.dayWindow(to)[1]);
   }
 
   /** Extension → name from asterisk.users (refreshed every minute). */

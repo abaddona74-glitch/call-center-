@@ -79,6 +79,10 @@ export const OperatorStatsRowSchema = z.object({
   talkSec: int,
   /** talkSec / number of calls the operator talked on. */
   avgTalkSec: int,
+  /** Post-call survey: ratings (1–5) clients gave this operator for in-scope calls of the range. */
+  surveyCount: int,
+  /** Average rating, two decimals; null without ratings. */
+  surveyAvg: z.number().min(1).max(5).nullable(),
 });
 export type OperatorStatsRow = z.infer<typeof OperatorStatsRowSchema>;
 
@@ -96,6 +100,8 @@ export const OperatorStatsResponseSchema = z.object({
   range: RangeSchema,
   operators: z.array(OperatorStatsRowSchema),
   groups: z.array(z.object({ id: z.string(), from: int, to: int })),
+  /** false while the PBX survey table is missing or not granted to the read-only user (UI hides the column). */
+  surveyAvailable: z.boolean(),
 });
 export type OperatorStatsResponse = z.infer<typeof OperatorStatsResponseSchema>;
 

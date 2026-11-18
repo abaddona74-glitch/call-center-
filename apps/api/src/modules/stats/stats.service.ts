@@ -10,7 +10,7 @@ import type {
 import { Injectable } from '@nestjs/common';
 import { datesBetween, wallToIso } from '../../common/time/business-time.js';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
-import { dailySeries, hourlySeries, operatorStats, summarize, topClients } from './domain/metrics.js';
+import { dailySeries, hourlySeries, operatorStats, summarize, surveyByOperator, topClients } from './domain/metrics.js';
 
 @Injectable()
 export class StatsService {
@@ -36,7 +36,11 @@ export class StatsService {
   }
 
   async operators(q: OperatorStatsQuery): Promise<OperatorStatsResponse> {
-    const [calls, names] = await Promise.all([this.load(q), this.calls.operatorNames()]);
+    const calls = await this.load(q);
+    const [names, ratings] = await Promise.all([
+      this.calls.operatorNames(),
+      this.calls.surveyRatingsForRange(q.from, q.to),
+    ]);
     return {
       range: { from: q.from, to: q.to, scope: q.scope },
       operators: operatorStats(calls, {
@@ -45,8 +49,10 @@ export class StatsService {
         groupOf: (ext) => this.calls.groupOf(ext),
         knownExtensions: names.keys(),
         group: q.group,
+        survey: ratings ? surveyByOperator(ratings, calls, q.scope) : undefined,
       }),
       groups: this.calls.groups,
+      surveyAvailable: ratings !== null,
     };
   }
 
