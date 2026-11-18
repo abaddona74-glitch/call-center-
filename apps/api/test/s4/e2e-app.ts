@@ -71,7 +71,6 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
     PBX_DB_USER: '',
     AMI_HOST: '',
     CALLBACKS_RECONCILE_INTERVAL_SEC: '0',
-    CONTACTS_DENIED_EXTENSION_RANGES: '200-999',
     BLACKLIST_OPERATOR_EXTENSIONS: '114',
     ...env,
   });

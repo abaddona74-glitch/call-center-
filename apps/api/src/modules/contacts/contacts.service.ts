@@ -18,32 +18,22 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { AppConfig } from '../../config/app-config.js';
 import { AuditService } from '../audit/audit.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { ContactsRepository } from './contacts.repository.js';
-import {
-  type ExtensionRange,
-  contactAccessFor,
-  parseExtensionRanges,
-} from './domain/contact-access.js';
+import { contactAccessFor } from './domain/contact-access.js';
 import { topCallers } from './domain/top-callers.js';
 
 @Injectable()
 export class ContactsService {
-  private readonly deniedRanges: ExtensionRange[];
-
   constructor(
     private readonly repo: ContactsRepository,
     private readonly audit: AuditService,
     private readonly realtime: RealtimeService,
-    config: AppConfig,
-  ) {
-    this.deniedRanges = parseExtensionRanges(config.get('CONTACTS_DENIED_EXTENSION_RANGES'));
-  }
+  ) {}
 
   access(user: SessionUser): ContactAccess {
-    return contactAccessFor(user, this.deniedRanges);
+    return contactAccessFor(user);
   }
 
   private assertView(user: SessionUser): void {

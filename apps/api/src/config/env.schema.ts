@@ -233,10 +233,6 @@ export const EnvSchema = z.object({
   /** Missed calls are re-read from the PBX CDR this often (catches calls missed while the API was down). 0 = off. */
   CALLBACKS_RECONCILE_INTERVAL_SEC: z.coerce.number().int().min(0).default(300),
   CALLBACKS_RECONCILE_LOOKBACK_HOURS: z.coerce.number().int().min(1).max(744).default(48),
-  /** Operator extensions that may not see the phonebook until operator groups carry permissions (legacy "200 group"). */
-  CONTACTS_DENIED_EXTENSION_RANGES: csvWithDefault('200-999').pipe(
-    z.array(z.string().regex(/^\d{2,6}(-\d{2,6})?$/, 'Expected "200-299" or "205"')),
-  ),
   /** Extensions with a personal AstDB block list `blacklist_<ext>` read by the PBX dialplan (legacy: 114). */
   BLACKLIST_OPERATOR_EXTENSIONS: csvWithDefault('114').pipe(z.array(z.string().regex(/^\d{2,6}$/))),
 });
