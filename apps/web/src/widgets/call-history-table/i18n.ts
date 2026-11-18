@@ -96,3 +96,18 @@ registerTranslations('callHistory', {
     },
   },
 });
+
+registerTranslations('recentCalls', {
+  uz: {
+    title: "So'nggi qo'ng'iroqlar",
+    segment: { all: 'Hammasi', missed: 'Javobsiz', abandoned: 'Navbatdan chiqdi', transfer: 'Transfer' },
+    searchPlaceholder: 'Raqam yoki operator…',
+    total: 'Jami: {{total}} ta yozuv',
+  },
+  ru: {
+    title: 'Последние звонки',
+    segment: { all: 'Все', missed: 'Без ответа', abandoned: 'Вышли из очереди', transfer: 'Перевод' },
+    searchPlaceholder: 'Номер или оператор…',
+    total: 'Всего: {{total}}',
+  },
+});

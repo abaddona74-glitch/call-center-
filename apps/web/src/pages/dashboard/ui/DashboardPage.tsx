@@ -1,8 +1,10 @@
+import { CDR_ACCESS } from '@cc/shared';
 import { usePermission } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
 import { cn } from '@/shared/lib/cn';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { ActiveCalls } from '@/widgets/active-calls';
+import { RecentCallsPanel } from '@/widgets/call-history-table';
 import { CallbacksPanel } from '@/widgets/callbacks-panel';
 import { LiveCounters } from '@/widgets/live-counters';
 import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
@@ -21,16 +23,14 @@ export function DashboardPage() {
   const [monitor, setMonitor] = usePersistedState('cc_sidebar_collapsed', 'open', MONITOR);
   const open = monitor === 'open';
   const canSeeCallbacks = usePermission('callbacks.view');
+  const canSeeRecent = usePermission(CDR_ACCESS['history.page']);
   return (
     <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
         <LiveCounters />
         <OperatorsBoard />
-        {/*
-          ── SLOT: recent calls "So'nggi qo'ng'iroqlar" (CDR history, session S2) ──────────
-          Legacy shows it under the operators (docs/rewrite/design/admin-02c-dashboard-recent-calls.png).
-        */}
+        {canSeeRecent && <RecentCallsPanel />}
       </div>
       {open ? (
         <LiveMonitor onCollapse={() => setMonitor('collapsed')}>
