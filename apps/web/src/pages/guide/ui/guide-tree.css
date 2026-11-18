@@ -7,7 +7,7 @@
   flex-direction: column;
   overflow: hidden;
   background-color: #080d1a;
-  color: #f8fafc;
+  color: var(--ink);
   user-select: none;
 }
 
@@ -19,12 +19,12 @@
   gap: 16px;
   height: 64px;
   padding: 0 24px;
-  background: rgba(15, 23, 42, 0.94);
+  background: color-mix(in srgb, var(--glass) 94%, transparent);
   border-bottom: 1px solid rgba(59, 130, 246, 0.25);
   backdrop-filter: blur(16px);
   position: relative;
   z-index: 100;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--shadow-color) 40%, transparent);
 }
 .guide-header-left {
   display: flex;
@@ -37,10 +37,10 @@
   align-items: center;
   gap: 7px;
   padding: 7px 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 15%, transparent);
   border-radius: 9px;
-  color: #cbd5e1;
+  color: var(--ink-2);
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -50,7 +50,7 @@
 .guide-back-btn:hover {
   background: rgba(56, 189, 248, 0.15);
   border-color: rgba(56, 189, 248, 0.4);
-  color: #fff;
+  color: var(--ink);
   transform: translateX(-2px);
 }
 .guide-title-box {
@@ -68,12 +68,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #38bdf8;
+  color: var(--info);
 }
 .guide-title {
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   margin: 0;
   display: flex;
   align-items: center;
@@ -86,7 +86,7 @@
   padding: 2px 8px;
   border-radius: 5px;
   background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--positive);
   border: 1px solid rgba(16, 185, 129, 0.4);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -101,10 +101,10 @@
   align-items: center;
   gap: 7px;
   padding: 7px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--tint) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 15%, transparent);
   border-radius: 9px;
-  color: #cbd5e1;
+  color: var(--ink-2);
   font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -112,8 +112,8 @@
   transition: all 0.2s ease;
 }
 .guide-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--tint) 10%, transparent);
+  color: var(--ink);
 }
 
 /* Infinite canvas */
@@ -124,8 +124,8 @@
   background-color: #080d1a;
   background-image:
     radial-gradient(rgba(56, 189, 248, 0.07) 1.2px, transparent 1.2px),
-    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in srgb, var(--tint) 1.5%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--tint) 1.5%, transparent) 1px, transparent 1px);
   background-size:
     32px 32px,
     128px 128px,
@@ -158,11 +158,11 @@
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  background: rgba(15, 23, 42, 0.85);
+  background: color-mix(in srgb, var(--glass) 85%, transparent);
   border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 12px;
   backdrop-filter: blur(14px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--shadow-color) 50%, transparent);
   z-index: 50;
   cursor: default;
 }
@@ -170,9 +170,9 @@
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
+  background: color-mix(in srgb, var(--tint) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
+  color: var(--ink-2);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -184,12 +184,12 @@
 .guide-ctrl-btn:hover {
   background: rgba(56, 189, 248, 0.2);
   border-color: rgba(56, 189, 248, 0.4);
-  color: #fff;
+  color: var(--ink);
 }
 .guide-zoom-badge {
   font-size: 12px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--info);
   padding: 0 10px;
   min-width: 54px;
   text-align: center;
@@ -210,17 +210,17 @@
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--glass) 75%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
   border-radius: 10px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--mute);
   backdrop-filter: blur(12px);
   z-index: 50;
   pointer-events: none;
 }
 .guide-helper-pill b {
-  color: #e2e8f0;
+  color: var(--foreground);
 }
 
 @media (max-width: 900px) {
@@ -232,4 +232,10 @@
   .guide-helper-pill {
     display: none;
   }
+}
+
+/* Light theme: the legacy canvas is navy (#080d1a); on light it is the page background, same dot grid. */
+:root:not(.dark) .guide-page,
+:root:not(.dark) .guide-viewport {
+  background-color: var(--background);
 }

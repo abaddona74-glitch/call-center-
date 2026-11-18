@@ -91,7 +91,7 @@ export function TicketMiniCard({
         )}
       </div>
       {ticket.organization && (
-        <div className="truncate text-[11.5px] font-semibold text-[#cbd5e1]" title={ticket.organization.name}>
+        <div className="truncate text-[11.5px] font-semibold text-ink-2" title={ticket.organization.name}>
           {ticket.organization.name}
         </div>
       )}

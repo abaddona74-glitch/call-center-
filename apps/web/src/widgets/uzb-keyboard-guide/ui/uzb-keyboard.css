@@ -1,12 +1,12 @@
 /* Ported from legacy/viewer/public/tools/uzb2026.html (<style>). */
 .uk-root {
-  --uk-card: rgba(15, 23, 42, 0.85);
+  --uk-card: color-mix(in srgb, var(--glass) 85%, transparent);
   --uk-border: rgba(59, 130, 246, 0.25);
   --uk-border-hi: rgba(56, 189, 248, 0.5);
-  --uk-text: #f8fafc;
-  --uk-muted: #94a3b8;
-  --uk-dim: #64748b;
-  --uk-blue: #38bdf8;
+  --uk-text: var(--ink);
+  --uk-muted: var(--mute);
+  --uk-dim: var(--dim);
+  --uk-blue: var(--info);
   max-width: 1200px;
   margin: 0 auto;
   min-width: 0;
@@ -26,7 +26,7 @@
   background: var(--uk-card);
   border: 1px solid var(--uk-border);
   border-radius: 16px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--shadow-color) 50%, transparent);
   backdrop-filter: blur(12px);
   margin-bottom: 24px;
   flex-wrap: wrap;
@@ -53,7 +53,7 @@
   font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.3px;
-  color: #fff;
+  color: var(--ink);
 }
 .uk-header-title p {
   margin: 2px 0 0;
@@ -71,7 +71,7 @@
   border-radius: 10px;
   font-weight: 700;
   font-size: 13.5px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid color-mix(in srgb, var(--tint) 20%, transparent);
   box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
   transition: all 0.2s ease;
   cursor: pointer;
@@ -101,7 +101,7 @@
 .uk-alert-text {
   margin: 0;
   font-size: 13.5px;
-  color: #e2e8f0;
+  color: var(--foreground);
 }
 .uk-alert-text strong {
   color: var(--uk-blue);
@@ -130,7 +130,7 @@
   border: 1px solid var(--uk-border);
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 40%, transparent);
   backdrop-filter: blur(10px);
 }
 .uk-card-head {
@@ -140,7 +140,7 @@
   gap: 10px;
   margin-bottom: 18px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
 }
 .uk-card-title {
   margin: 0;
@@ -149,7 +149,7 @@
   gap: 10px;
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .uk-card-badge {
   font-size: 11px;
@@ -159,13 +159,13 @@
   padding: 4px 10px;
   border-radius: 20px;
   background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  color: var(--positive);
   border: 1px solid rgba(16, 185, 129, 0.3);
   white-space: nowrap;
 }
 .uk-card-badge.blue {
   background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
+  color: var(--info);
   border-color: rgba(56, 189, 248, 0.3);
 }
 
@@ -183,15 +183,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(30, 41, 59, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--glass-2) 60%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   border-radius: 12px;
   padding: 12px 14px;
   transition: all 0.2s ease;
 }
 .uk-key-item:hover {
   border-color: var(--uk-border-hi);
-  background: rgba(30, 41, 59, 0.9);
+  background: color-mix(in srgb, var(--glass-2) 90%, transparent);
   transform: translateY(-1px);
 }
 .uk-combo {
@@ -202,15 +202,15 @@
 .uk-kbd {
   display: inline-block;
   padding: 3px 8px;
-  background: #1e293b;
-  color: #38bdf8;
+  background: var(--glass-2);
+  color: var(--info);
   border: 1px solid rgba(56, 189, 248, 0.4);
   border-bottom: 2px solid rgba(56, 189, 248, 0.6);
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 700;
   font-family: monospace;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-color) 30%, transparent);
 }
 .uk-arrow {
   color: var(--uk-dim);
@@ -220,7 +220,7 @@
 .uk-result {
   font-size: 18px;
   font-weight: 800;
-  color: #fff;
+  color: var(--ink);
   background: rgba(56, 189, 248, 0.15);
   padding: 2px 10px;
   border-radius: 8px;
@@ -251,7 +251,7 @@
 }
 .uk-playground-label {
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   font-size: 13px;
 }
 .uk-count {
@@ -263,11 +263,11 @@
   display: block;
   width: 100%;
   height: 140px;
-  background: #0f172a;
+  background: var(--sidebar);
   border: 1px solid var(--uk-border);
   border-radius: 12px;
   padding: 14px;
-  color: #fff;
+  color: var(--ink);
   font-size: 15px;
   font-family: inherit;
   resize: vertical;
@@ -301,9 +301,9 @@
   margin-right: 4px;
 }
 .uk-quick-btn {
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--glass-2) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
+  color: var(--ink);
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 14px;
@@ -320,8 +320,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 15%, transparent);
   color: var(--uk-text);
   padding: 7px 14px;
   border-radius: 8px;
@@ -331,8 +331,8 @@
   transition: all 0.15s ease;
 }
 .uk-copy-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background: color-mix(in srgb, var(--tint) 15%, transparent);
+  color: var(--ink);
 }
 
 /* Install guide */
@@ -349,8 +349,8 @@
   align-items: flex-start;
   gap: 16px;
   padding: 14px 16px;
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--glass-2) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 6%, transparent);
   border-radius: 12px;
 }
 .uk-step-num {
@@ -371,7 +371,7 @@
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .uk-step p {
   margin: 0;
@@ -379,7 +379,7 @@
   color: var(--uk-muted);
 }
 .uk-step code {
-  background: rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--well) 40%, transparent);
   padding: 2px 6px;
   border-radius: 4px;
   color: var(--uk-blue);
@@ -400,13 +400,13 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 4px;
-  color: #f59e0b;
+  color: color-mix(in oklab, #f59e0b, var(--ink) var(--shade));
   font-size: 13px;
 }
 .uk-why p {
   margin: 0;
   font-size: 12.5px;
-  color: #cbd5e1;
+  color: var(--ink-2);
   line-height: 1.5;
 }
 .uk-why code {

@@ -76,14 +76,14 @@ export function SoftphoneGuidePage() {
           </div>
 
           <div className="softphone-step">
-            <strong className="text-white">1-qadam:</strong>{' '}
+            <strong className="text-ink">1-qadam:</strong>{' '}
             <a href={SOFTPHONE_MSI_URL} download className="softphone-link">
               3CXPhone6.msi
             </a>{' '}
             faylini yuklab oling va kompyuterga o'rnating.
           </div>
           <div className="softphone-step softphone-step--last">
-            <strong className="text-white">2-qadam:</strong> Dasturni ochib, yuqoridagi jadval asosida operatoringiz
+            <strong className="text-ink">2-qadam:</strong> Dasturni ochib, yuqoridagi jadval asosida operatoringiz
             hisobini (Account) yarating va <b>OK</b> bosing. "On Hook" (yashil) holatiga o'tadi.
           </div>
         </div>

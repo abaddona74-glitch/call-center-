@@ -119,8 +119,8 @@ function OrganizationsCard() {
       title={t('organizations')}
       extra={s ? t('organizationsCount', { n: s.active.toLocaleString('ru-RU') }) : undefined}
     >
-      <p className="mb-3 text-xs text-slate-400">{t('organizationsHint')}</p>
-      <p className="mb-3 text-[13px] text-slate-300">
+      <p className="mb-3 text-xs text-mute">{t('organizationsHint')}</p>
+      <p className="mb-3 text-[13px] text-ink-2">
         {s?.importedAt ? t('organizationsImportedAt', { date: dateTime(s.importedAt) }) : t('organizationsEmpty')}
       </p>
       <input
@@ -144,7 +144,7 @@ function OrganizationsCard() {
         {upload.isPending ? t('organizationsImporting') : t('organizationsPick')}
       </KdsAction>
       {result && (
-        <p className="mt-3 rounded-[10px] border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.08)] px-3 py-2 text-xs text-[#6ee7b7]">
+        <p className="mt-3 rounded-[10px] border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.08)] px-3 py-2 text-xs text-[#6ee7b7] light:text-positive">
           {t('organizationsResult', result)}
         </p>
       )}

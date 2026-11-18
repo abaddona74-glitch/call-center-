@@ -78,6 +78,8 @@
   /* mid-tone accent text (#f59e0b, #ef4444, carrier/status colors) is too light on white: in light it is
      mixed this much toward ink (text-shade-[…] utility, accentText() in shared/lib/theme) */
   --shade: 40%;
+  /* very pale accents (100-300 shades, e.g. #bae6fd) need a stronger mix to read on white */
+  --shade-strong: 62%;
   /* chart / KPI accent palette (legacy Chart.js + KPI cards), the same in both themes */
   --chart-1: #6366f1;
   --chart-2: #10b981;
@@ -140,6 +142,7 @@
   --lilac-soft: #c4b5fd;
   --shadow-color: #000000;
   --shade: 0%;
+  --shade-strong: 0%;
   --scrollbar-thumb: rgb(255 255 255 / 0.2);
 }
 
