@@ -16,6 +16,9 @@
 :root {
   color-scheme: light;
   --radius: 12px; /* legacy --radius-md */
+  /* Width of the full-height right panel ("Jonli Monitor", legacy --sidebar-width). */
+  --right-dock-width: 385px;
+  --scrollbar-thumb: rgb(15 23 42 / 0.22);
   --background: #eef2f8;
   --foreground: #12203b;
   --card: #ffffff;
@@ -137,6 +140,7 @@
   --lilac-soft: #c4b5fd;
   --shadow-color: #000000;
   --shade: 0%;
+  --scrollbar-thumb: rgb(255 255 255 / 0.2);
 }
 
 @theme inline {
@@ -213,18 +217,26 @@
   transition: none !important;
 }
 
-/* Light theme: thin slate scrollbars with no track, like the dark ones. */
-.light,
-.light * {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(15 23 42 / 0.22) transparent;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  /* Thin scrollbars with no track behind the thumb, both themes (legacy style.css global
+     scrollbars; the native light track looked like a white strip on the dark theme).
+     The thumb is hidden while nothing scrolls and shows only while its element is being
+     scrolled ([data-scrolling], set by shared/lib/auto-hide-scrollbars), in the theme's
+     --scrollbar-thumb color. The gutter keeps its width either way, so content never shifts
+     when the thumb appears. Utilities such as [scrollbar-width:none] still override this. */
+  :root,
+  :root * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  :root[data-scrolling],
+  :root [data-scrolling] {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }

@@ -9,6 +9,10 @@ import '../i18n';
  * Right sidebar "Jonli Monitor" (legacy aside.right-sidebar): header with a pulse dot and a
  * collapse button, scrollable body with the panels passed as children, footer with the AMI pill
  * and the "Queue Info" line (Asterisk callsTaken of online operators, lowest first).
+ *
+ * From `xl` up it is docked like the legacy one: fixed to the right edge, full viewport height,
+ * next to the top header. `data-right-dock` makes the app shell reserve its width, so the header
+ * and the page end where the sidebar starts. Below `xl` it is an ordinary card under the page.
  */
 export function LiveMonitor({ children, onCollapse }: { children: ReactNode; onCollapse?: () => void }) {
   const { t } = useTranslation('liveMonitor');
@@ -23,8 +27,11 @@ export function LiveMonitor({ children, onCollapse }: { children: ReactNode; onC
     }),
   });
   return (
-    <aside className="flex max-h-[calc(100svh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-tint/8 bg-sidebar shadow-[-8px_0_24px_color-mix(in_srgb,var(--shadow-color)_40%,transparent)] xl:sticky xl:top-20">
-      <div className="flex items-center justify-between border-b border-tint/8 px-5 py-[18px]">
+    <aside
+      data-right-dock
+      className="flex max-h-[calc(100svh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-tint/8 bg-sidebar shadow-[-8px_0_24px_color-mix(in_srgb,var(--shadow-color)_40%,transparent)] xl:fixed xl:inset-y-0 xl:right-0 xl:z-40 xl:max-h-none xl:w-(--right-dock-width) xl:rounded-none xl:border-y-0 xl:border-r-0 xl:shadow-[-12px_0_36px_color-mix(in_srgb,var(--shadow-color)_65%,transparent)]"
+    >
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-tint/8 px-5">
         <h2 className="flex items-center gap-2 text-[15px] font-bold">
           <span className="inline-block size-[7px] rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />
           {t('title')}
@@ -42,7 +49,7 @@ export function LiveMonitor({ children, onCollapse }: { children: ReactNode; onC
         )}
       </div>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-3.5 [scrollbar-width:thin]">{children}</div>
-      <div className="flex flex-col gap-2 border-t border-tint/8 bg-sidebar/85 px-4 py-3">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-tint/8 bg-sidebar/85 px-4 py-3">
         <AmiStatusPill status={data?.ami} />
         <div
           className="flex items-center gap-2 rounded-lg border border-[#6366f1]/35 bg-[#6366f1]/12 px-3 py-[7px] text-[11px] font-semibold text-brand-pale"
