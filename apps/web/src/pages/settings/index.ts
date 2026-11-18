@@ -7,4 +7,5 @@ export { SessionsSettingsPage } from './ui/SessionsSettingsPage';
 export { SecuritySettingsPage } from './ui/SecuritySettingsPage';
 export { AuditSettingsPage } from './ui/AuditSettingsPage';
 export { WorkingCalendarSettingsPage } from './ui/WorkingCalendarSettingsPage';
+export { ExcludedOperatorsSettingsPage } from './ui/ExcludedOperatorsSettingsPage';
 export { SETTINGS_TABS, firstSettingsTab } from './model/tabs';

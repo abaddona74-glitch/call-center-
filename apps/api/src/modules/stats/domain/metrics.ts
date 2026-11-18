@@ -124,6 +124,8 @@ export function operatorStats(
     /** Extensions to list even without calls (the operator directory). */
     knownExtensions?: Iterable<string>;
     group?: string;
+    /** Excluded operators (settings): no row of their own; their calls still count in the totals. */
+    excluded?: ReadonlySet<string>;
   },
 ): OperatorStatsRow[] {
   const acc = new Map<string, OperatorAcc>();
@@ -170,6 +172,7 @@ export function operatorStats(
   }
 
   return [...acc.entries()]
+    .filter(([ext]) => !opts.excluded?.has(ext))
     .map(([ext, a]) => {
       const total = a.answered + a.transferredIn + a.outbound;
       return {

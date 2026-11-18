@@ -10,11 +10,15 @@ import type {
 import { Injectable } from '@nestjs/common';
 import { datesBetween, wallToIso } from '../../common/time/business-time.js';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
+import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
 import { dailySeries, hourlySeries, operatorStats, summarize, topClients } from './domain/metrics.js';
 
 @Injectable()
 export class StatsService {
-  constructor(private readonly calls: PbxCallsService) {}
+  constructor(
+    private readonly calls: PbxCallsService,
+    private readonly excluded: ExcludedOperatorsService,
+  ) {}
 
   private async load(q: { from: string; to: string }) {
     this.calls.assertRange(q.from, q.to, this.calls.maxStatsDays);
@@ -45,6 +49,7 @@ export class StatsService {
         groupOf: (ext) => this.calls.groupOf(ext),
         knownExtensions: names.keys(),
         group: q.group,
+        excluded: this.excluded.extensions(),
       }),
       groups: this.calls.groups,
     };

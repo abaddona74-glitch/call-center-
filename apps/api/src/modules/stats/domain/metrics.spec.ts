@@ -157,6 +157,17 @@ describe('operatorStats', () => {
     const all = operatorStats(day, { scope: 'all', names, groupOf });
     expect(all.find((r) => r.ext === '101')?.answered).toBe(2);
   });
+
+  it('excluded operators get no row (even when known); the others are not changed', () => {
+    const excluded = new Set(['103', '120']);
+    const filtered = operatorStats(day, { scope: 'working', names, groupOf, knownExtensions: ['120'], excluded });
+    expect(filtered.map((r) => r.ext)).toEqual(['101', '106', '111']);
+    for (const r of filtered) expect(r).toEqual(by[r.ext]);
+    // legacy: totals are not filtered — their calls still count in the summary
+    expect(summarize(day, { ...range, scope: 'working' }).inbound.answered).toBe(
+      rows.reduce((s, r) => s + r.answered + r.transferredIn, 0),
+    );
+  });
 });
 
 describe('series', () => {

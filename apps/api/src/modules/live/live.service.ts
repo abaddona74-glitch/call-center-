@@ -7,8 +7,10 @@ import {
   type SessionUser,
 } from '@cc/shared';
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
+import { SettingsEvents } from '../../common/events/domain-events.js';
 import { AppConfig } from '../../config/app-config.js';
+import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { AmiService } from '../ami/ami.service.js';
 import { LiveStore, type LiveSection } from './domain/live-store.js';
@@ -50,6 +52,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly events: EventEmitter2,
     private readonly repo: LiveRepository,
     private readonly config: AppConfig,
+    private readonly excluded: ExcludedOperatorsService,
   ) {
     this.store = new LiveStore(
       { operatorExtension: new RegExp(config.get('LIVE_OPERATOR_EXTENSION_PATTERN')), timezone: BUSINESS_TIMEZONE },
@@ -92,7 +95,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     const now = Date.now();
     const viewer = toViewer(user);
     return {
-      operators: operatorsFor(viewer, projectOperators(this.store, now)),
+      operators: operatorsFor(viewer, projectOperators(this.store, now, this.excluded.extensions())),
       calls: callsFor(viewer, projectCalls(this.store, now)),
       queues: queuesFor(viewer, projectQueues(this.store)),
       counters: isPrivileged(viewer) ? projectCounters(this.store) : null,
@@ -119,6 +122,13 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     return projectOperators(this.store, Date.now()).find((o) => o.extension === ext);
   }
 
+  /** The excluded operators list changed: push the board again without (or with) them. */
+  @OnEvent(SettingsEvents.ExcludedOperatorsChanged)
+  onExcludedOperatorsChanged(): void {
+    this.dirty.add('operators');
+    if (!this.publishTimer) this.publishTimer = setTimeout(() => this.publish(), PUBLISH_DEBOUNCE_MS);
+  }
+
   // --- internals ------------------------------------------------------------------------------
 
   /** Emit domain events and schedule a coalesced WS publish. */
@@ -142,7 +152,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     const sections = new Set(this.dirty);
     this.dirty.clear();
     if (sections.has('operators')) {
-      const list = projectOperators(this.store, now);
+      const list = projectOperators(this.store, now, this.excluded.extensions());
       this.realtime.broadcastEach(
         'telephony.operators',
         memo((v) => operatorsFor(v, list)),

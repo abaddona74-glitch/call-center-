@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { type Kysely, sql } from 'kysely';
 import pg from 'pg';
 import request from 'supertest';
@@ -65,7 +65,10 @@ async function resetSchema(url: string): Promise<void> {
   }
 }
 
-export async function createE2eApp(): Promise<E2eApp> {
+/** `override`: replace providers before compiling (e.g. a fake CdrRepository for the PBX). */
+export async function createE2eApp(
+  override: (b: TestingModuleBuilder) => TestingModuleBuilder = (b) => b,
+): Promise<E2eApp> {
   const url = testDatabaseUrl();
   Object.assign(process.env, {
     NODE_ENV: 'test',
@@ -90,10 +93,11 @@ export async function createE2eApp(): Promise<E2eApp> {
   const { configureApp } = await import('../../src/app.setup.js');
   const { MailService } = await import('../../src/modules/mail/mail.service.js');
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(MailService)
-    .useValue(mail)
-    .compile();
+  const moduleRef = await override(
+    Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(MailService)
+      .useValue(mail),
+  ).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ logger: ['error'] });
   configureApp(app);
   await app.listen(0, '127.0.0.1');

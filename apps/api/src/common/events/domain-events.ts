@@ -63,3 +63,14 @@ export interface CallOperatorMissedEvent extends CallEventBase {
   extension: string;
   reason: 'no_answer' | 'rejected' | 'busy' | 'unavailable';
 }
+
+/** System settings changed: consumers drop caches derived from them and re-publish live views. */
+export const SettingsEvents = {
+  /** The excluded operators list changed (settings screen or a restart after migrate-legacy). */
+  ExcludedOperatorsChanged: 'settings.excluded_operators_changed',
+} as const;
+
+export interface ExcludedOperatorsChangedEvent {
+  /** The new list, sorted by number. */
+  extensions: string[];
+}
