@@ -1,0 +1,235 @@
+/* "Tizimlar va Rollar Daraxti" page — ported from legacy `public/guide.html` (colors and sizes are the legacy ones). */
+.guide-page {
+  /* Full-bleed inside the shell like the legacy full-screen page: cancel <main>'s p-6, fill below the h-14 header. */
+  margin: -1.5rem;
+  height: calc(100svh - 3.5rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #080d1a;
+  color: #f8fafc;
+  user-select: none;
+}
+
+.guide-header {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  height: 64px;
+  padding: 0 24px;
+  background: rgba(15, 23, 42, 0.94);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  backdrop-filter: blur(16px);
+  position: relative;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+.guide-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.guide-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.guide-back-btn:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #fff;
+  transform: translateX(-2px);
+}
+.guide-title-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.guide-icon-badge {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.25));
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+}
+.guide-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.guide-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.guide-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.guide-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  color: #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.guide-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* Infinite canvas */
+.guide-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #080d1a;
+  background-image:
+    radial-gradient(rgba(56, 189, 248, 0.07) 1.2px, transparent 1.2px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size:
+    32px 32px,
+    128px 128px,
+    128px 128px;
+  cursor: grab;
+  touch-action: none;
+}
+.guide-viewport.is-dragging {
+  cursor: grabbing !important;
+}
+.guide-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  padding: 60px 100px 300px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100%;
+  backface-visibility: visible;
+}
+
+/* Floating zoom panel */
+.guide-controls {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  cursor: default;
+}
+.guide-ctrl-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.guide-ctrl-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #fff;
+}
+.guide-zoom-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+  padding: 0 10px;
+  min-width: 54px;
+  text-align: center;
+  cursor: pointer;
+  font-family: monospace;
+  background: none;
+  border: 0;
+}
+.guide-zoom-badge:hover {
+  text-decoration: underline;
+}
+
+.guide-helper-pill {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  backdrop-filter: blur(12px);
+  z-index: 50;
+  pointer-events: none;
+}
+.guide-helper-pill b {
+  color: #e2e8f0;
+}
+
+@media (max-width: 900px) {
+  .guide-header {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+  }
+  .guide-helper-pill {
+    display: none;
+  }
+}
