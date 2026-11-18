@@ -39,11 +39,7 @@ export function KdsSelect({ className, children, ...props }: ComponentProps<'sel
   return (
     <select
       {...props}
-      className={cn(
-        inputBase,
-        'bg-glass/85 focus:bg-glass/98 [&_option]:bg-sidebar [&_option]:text-ink',
-        className,
-      )}
+      className={cn(inputBase, 'bg-glass/85 focus:bg-glass/98 [&_option]:bg-sidebar [&_option]:text-ink', className)}
     >
       {children}
     </select>

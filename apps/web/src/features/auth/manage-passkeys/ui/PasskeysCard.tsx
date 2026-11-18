@@ -173,9 +173,7 @@ export function PasskeysCard() {
       <SettingsCardHeader icon={<IconFingerprint size={20} />} title={t('title')} description={t('description')} />
 
       <ul className="mb-4 flex flex-col gap-2">
-        {!isLoading && passkeys?.length === 0 && (
-          <li className="py-3 text-center text-xs text-mute">{t('empty')}</li>
-        )}
+        {!isLoading && passkeys?.length === 0 && <li className="py-3 text-center text-xs text-mute">{t('empty')}</li>}
         {passkeys?.map((pk) => (
           <li
             key={pk.id}

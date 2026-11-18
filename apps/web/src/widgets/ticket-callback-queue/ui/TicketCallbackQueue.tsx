@@ -51,11 +51,7 @@ export function TicketCallbackQueue() {
           </h2>
           <p className="m-0 mt-0.5 text-xs text-muted-foreground">{t('callback.queueHint')}</p>
         </div>
-        <Link
-          to="/tickets"
-          search={{ view: 'callback' }}
-          className="text-xs font-semibold text-info hover:underline"
-        >
+        <Link to="/tickets" search={{ view: 'callback' }} className="text-xs font-semibold text-info hover:underline">
           {t('callback.openAll')} →
         </Link>
       </div>
@@ -88,17 +84,12 @@ export function TicketCallbackQueue() {
               {tk.region && <RegionBadge label={refName(tk.region, i18n.language)} />}
               {tk.resolution && (
                 <span
-                  className={cn(
-                    'text-[11px] font-bold',
-                    tk.resolution === 'done' ? 'text-positive' : 'text-danger',
-                  )}
+                  className={cn('text-[11px] font-bold', tk.resolution === 'done' ? 'text-positive' : 'text-danger')}
                 >
                   {t(`resolution.${tk.resolution}`)}
                 </span>
               )}
-              <span
-                className={cn('text-[11px]', tk.lastContactIsMe ? 'font-bold text-info' : 'text-muted-foreground')}
-              >
+              <span className={cn('text-[11px]', tk.lastContactIsMe ? 'font-bold text-info' : 'text-muted-foreground')}>
                 {tk.lastContactIsMe
                   ? `★ ${t('callback.yourCitizen')}`
                   : tk.lastContact

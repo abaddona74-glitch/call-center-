@@ -247,10 +247,7 @@ export function EmailBindingCard() {
               <span className="text-[11px] font-semibold text-shade-[#f59e0b]">🔒 {t('securityCheck')}</span>
             </FieldLabel>
             <div className="relative">
-              <IconLock
-                size={17}
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim"
-              />
+              <IconLock size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
               <SettingsInput
                 id="email-password"
                 type="password"
@@ -285,10 +282,7 @@ export function EmailBindingCard() {
               </span>
             </FieldLabel>
             <div className="relative">
-              <IconSms
-                size={17}
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim"
-              />
+              <IconSms size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim" />
               <SettingsInput
                 id="email-new"
                 type="email"

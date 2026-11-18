@@ -205,9 +205,7 @@ export function SecuritySettingsPage() {
             ))}
           </div>
         ) : (
-          <div className="py-[18px] text-center text-[12.5px] text-mute">
-            {isLoading ? '…' : t('security.empty')}
-          </div>
+          <div className="py-[18px] text-center text-[12.5px] text-mute">{isLoading ? '…' : t('security.empty')}</div>
         )}
       </SettingsCard>
     </div>

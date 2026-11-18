@@ -58,10 +58,7 @@ export function GroupsSettingsPage() {
       />
       <div className="grid gap-3 md:grid-cols-2">
         {groups?.map((g) => (
-          <div
-            key={g.id}
-            className="flex flex-col gap-3 rounded-xl border border-tint/[0.07] bg-glass-2/50 p-4"
-          >
+          <div key={g.id} className="flex flex-col gap-3 rounded-xl border border-tint/[0.07] bg-glass-2/50 p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-2 text-sm font-bold text-ink">

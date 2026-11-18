@@ -225,10 +225,7 @@ export function ClientsPage() {
                             </button>
                             <DeleteContactButton
                               phone={c.phone}
-                              className={cn(
-                                actionBtn,
-                                'hover:border-red-500/40 hover:bg-red-500/20 hover:text-danger',
-                              )}
+                              className={cn(actionBtn, 'hover:border-red-500/40 hover:bg-red-500/20 hover:text-danger')}
                             />
                           </>
                         )}
@@ -328,9 +325,7 @@ function TopCallerCard({
             <h4 title={client.phone} className="truncate text-sm font-bold text-ink">
               {displayName}
             </h4>
-            <p className={cn('mt-0.5 truncate text-[11.5px]', saved ? 'text-mute' : 'text-caution')}>
-              {subInfo}
-            </p>
+            <p className={cn('mt-0.5 truncate text-[11.5px]', saved ? 'text-mute' : 'text-caution')}>{subInfo}</p>
           </div>
         </div>
         <LanguageBadge language={c?.language ?? null} />

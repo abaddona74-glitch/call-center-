@@ -44,10 +44,7 @@ const inputClass =
 function FieldLabel({ icon, children, hint }: { icon: ReactNode; children: ReactNode; hint?: string }) {
   return (
     <label
-      className={cn(
-        'mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-dim',
-        hint && 'justify-between',
-      )}
+      className={cn('mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-dim', hint && 'justify-between')}
     >
       <span className="flex items-center gap-1.5">
         {icon}

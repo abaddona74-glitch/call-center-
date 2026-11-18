@@ -63,9 +63,7 @@ export function TicketSettingsPage() {
             <>
               <CityForm regionId={region.id} />
               <ul className="mt-3 flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-1">
-                {region.cities.length === 0 && (
-                  <li className="py-3 text-center text-xs text-dim">{t('empty')}</li>
-                )}
+                {region.cities.length === 0 && <li className="py-3 text-center text-xs text-dim">{t('empty')}</li>}
                 {region.cities.map((c) => (
                   <DirectoryRow key={c.id} row={c} kind="city" />
                 ))}
@@ -371,9 +369,7 @@ function DirectoryRow({
         className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
       >
         <span className="truncate font-semibold text-ink">{refName(row, i18n.language)}</span>
-        <span className="truncate text-xs text-dim">
-          {i18n.language.startsWith('ru') ? row.nameUz : row.nameRu}
-        </span>
+        <span className="truncate text-xs text-dim">{i18n.language.startsWith('ru') ? row.nameUz : row.nameRu}</span>
         {extra}
         {count !== undefined && count > 0 && (
           <span className="rounded-md bg-tint/8 px-1.5 text-[11px] text-ink-2">{count}</span>

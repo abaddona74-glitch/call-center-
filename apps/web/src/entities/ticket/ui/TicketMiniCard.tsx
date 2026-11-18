@@ -119,12 +119,7 @@ export function TicketMiniCard({
         </div>
       )}
       {ticket.lastContact && ticket.status === 'callback_pending' && (
-        <div
-          className={cn(
-            'mt-1.5 text-[11px] font-semibold',
-            ticket.lastContactIsMe ? 'text-info' : 'text-mute',
-          )}
-        >
+        <div className={cn('mt-1.5 text-[11px] font-semibold', ticket.lastContactIsMe ? 'text-info' : 'text-mute')}>
           {ticket.lastContactIsMe
             ? `★ ${t('card.yourCitizen')}`
             : t('card.lastContact', { name: personName(ticket.lastContact) })}
@@ -146,9 +141,7 @@ export function TicketMiniCard({
             </span>
           )}
           {ticket.callbackAttempts > 0 && (
-            <span className="whitespace-nowrap text-caution">
-              {t('card.attempts', { n: ticket.callbackAttempts })}
-            </span>
+            <span className="whitespace-nowrap text-caution">{t('card.attempts', { n: ticket.callbackAttempts })}</span>
           )}
           {ticket.attachmentCount > 0 && (
             <span

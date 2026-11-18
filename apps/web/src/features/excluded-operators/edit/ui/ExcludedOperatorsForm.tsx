@@ -60,11 +60,11 @@ export function ExcludedOperatorsForm({ initial }: { initial: ExcludedOperatorsI
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {!initial.directoryAvailable && <p className="text-[11.5px] text-[#fbbf24]">{t('noDirectory')}</p>}
+      {!initial.directoryAvailable && <p className="text-[11.5px] text-caution">{t('noDirectory')}</p>}
 
-      <div className="rounded-[10px] border border-white/[0.07] bg-[rgba(15,23,42,0.35)] p-1.5">
+      <div className="rounded-[10px] border border-tint/[0.07] bg-glass/35 p-1.5">
         {visible.length === 0 ? (
-          <div className="p-3 text-center text-[13px] text-[#94a3b8]">{t('empty')}</div>
+          <div className="p-3 text-center text-[13px] text-mute">{t('empty')}</div>
         ) : (
           <div className="grid max-h-[340px] grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-2.5 overflow-y-auto p-1">
             {visible.map((op) => {
@@ -72,7 +72,7 @@ export function ExcludedOperatorsForm({ initial }: { initial: ExcludedOperatorsI
               return (
                 <label
                   key={op.extension}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 transition-all hover:border-white/15 hover:bg-white/[0.05]"
+                  className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-tint/[0.08] bg-tint/[0.03] px-3.5 py-2.5 transition-all hover:border-tint/15 hover:bg-tint/[0.05]"
                 >
                   <input
                     type="checkbox"
@@ -81,18 +81,18 @@ export function ExcludedOperatorsForm({ initial }: { initial: ExcludedOperatorsI
                     onChange={() => toggle(op.extension)}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-semibold text-[#f1f5f9]">
+                    <div className="truncate text-[13px] font-semibold text-ink">
                       {op.name ?? t('operator', { ext: op.extension })} ({op.extension})
                     </div>
                     <div
                       className={cn(
                         'flex items-center gap-1 text-[11px] font-medium',
-                        checked ? 'text-[#ef4444]' : 'text-[#94a3b8]',
+                        checked ? 'text-shade-[#ef4444]' : 'text-mute',
                       )}
                     >
                       <Icon
                         name={checked ? 'close-circle' : 'tick-circle'}
-                        className={cn('size-3 shrink-0', checked ? 'text-[#ef4444]' : 'text-[#22c55e]')}
+                        className={cn('size-3 shrink-0', checked ? 'text-shade-[#ef4444]' : 'text-shade-[#22c55e]')}
                       />
                       {checked ? t('excluded') : t('included')}
                     </div>
@@ -105,7 +105,7 @@ export function ExcludedOperatorsForm({ initial }: { initial: ExcludedOperatorsI
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-[#94a3b8]">{t('count', { count: selected.size })}</span>
+        <span className="text-xs text-mute">{t('count', { count: selected.size })}</span>
         <SettingsButton type="submit" disabled={mutation.isPending}>
           <Icon name="tick-circle" className="size-4" /> {t('save')}
         </SettingsButton>

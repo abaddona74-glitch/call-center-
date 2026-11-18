@@ -6,12 +6,7 @@ import { cn } from '@/shared/lib/cn';
  * section cards, card headers, form labels, inputs, selects and action buttons.
  */
 export function SettingsCard({ className, ...props }: ComponentProps<'section'>) {
-  return (
-    <section
-      className={cn('rounded-[14px] border border-tint/[0.07] bg-glass/55 p-4', className)}
-      {...props}
-    />
-  );
+  return <section className={cn('rounded-[14px] border border-tint/[0.07] bg-glass/55 p-4', className)} {...props} />;
 }
 
 export function SettingsCardHeader({
@@ -45,10 +40,7 @@ export function SettingsCardHeader({
 
 export function FieldLabel({ className, ...props }: ComponentProps<'label'>) {
   return (
-    <label
-      className={cn('flex items-center justify-between text-xs font-semibold text-ink-2', className)}
-      {...props}
-    />
+    <label className={cn('flex items-center justify-between text-xs font-semibold text-ink-2', className)} {...props} />
   );
 }
 

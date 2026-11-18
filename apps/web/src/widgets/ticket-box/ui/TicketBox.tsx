@@ -460,12 +460,7 @@ function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
       <span className="ml-auto">
         {call.recording.status === 'found' ? (
           // oxlint-disable-next-line jsx-a11y/media-has-caption -- phone recordings have no captions
-          <audio
-            controls
-            preload="none"
-            src={recordingUrl(ticketId, call.id)}
-            className="h-8 w-[260px]"
-          />
+          <audio controls preload="none" src={recordingUrl(ticketId, call.id)} className="h-8 w-[260px]" />
         ) : (
           <span className="text-[11.5px] text-dim">{t(`box.recording.${call.recording.status}`)}</span>
         )}
@@ -491,9 +486,7 @@ function TimelineItem({ event }: { event: TicketEvent }) {
         <span className="text-mute">{event.actor ? personName(event.actor) : t('box.system')}</span>
         <span className="text-[11px] text-dim">{dateTime(event.createdAt)}</span>
       </div>
-      {event.note && (
-        <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-ink-2">{event.note}</div>
-      )}
+      {event.note && <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-ink-2">{event.note}</div>}
     </li>
   );
 }
