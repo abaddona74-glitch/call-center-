@@ -418,7 +418,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
         if (filePath.match(/\.(woff2?|ttf|eot|png|jpg|jpeg|gif|svg|ico)$/i)) {
             res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
         } else if (filePath.endsWith('.js') || filePath.endsWith('.css') || filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
         }
     }
 }));
@@ -1209,7 +1211,7 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
         if (!fs.existsSync(scratchDir)) {
             fs.mkdirSync(scratchDir, { recursive: true });
         }
-        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
         let queue = [];
         if (fs.existsSync(queuePath)) {
             try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
@@ -1220,6 +1222,57 @@ app.post('/api/dev/visual-prompt', express.json({ limit: '10mb' }), async (req, 
         return res.json({ success: true, message: 'Vazifa Antigravity Inbox ga qabul qilindi', task: taskEntry });
     } catch (e) {
         console.error('visual-prompt api error (viewer):', e);
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Fast Visual AI / Telegram Bridge Inbox API for Local PC Watcher
+app.get('/api/dev/bridge-inbox', (req, res) => {
+    try {
+        let scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            if (fs.existsSync('/opt/call-center/scratch')) {
+                scratchDir = '/opt/call-center/scratch';
+            } else {
+                scratchDir = path.join(__dirname, 'scratch');
+            }
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        return res.json({ success: true, items: queue });
+    } catch (e) {
+        return res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/dev/bridge-inbox/ack', express.json({ limit: '10mb' }), (req, res) => {
+    try {
+        const { id, status } = req.body || {};
+        let scratchDir = path.join(__dirname, '..', 'scratch');
+        if (!fs.existsSync(scratchDir)) {
+            if (fs.existsSync('/opt/call-center/scratch')) {
+                scratchDir = '/opt/call-center/scratch';
+            } else {
+                scratchDir = path.join(__dirname, 'scratch');
+            }
+        }
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
+        let queue = [];
+        if (fs.existsSync(queuePath)) {
+            try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
+        }
+        const item = queue.find(i => String(i.id) === String(id));
+        if (item) {
+            item.status = status || 'processing';
+            if (status === 'completed') item.completedAt = new Date().toISOString();
+            fs.writeFileSync(queuePath, JSON.stringify(queue, null, 2), 'utf8');
+            return res.json({ success: true, item });
+        }
+        return res.json({ success: false, message: 'Item not found' });
+    } catch (e) {
         return res.status(500).json({ success: false, error: e.message });
     }
 });
@@ -1730,13 +1783,10 @@ app.get('/api/tickets', (req, res) => {
         const list = ticketService.getTickets(filter, operatorId);
         const allList = ticketService.getTickets('all', operatorId);
         const cleanOp = String(operatorId || '').trim();
-        const opNum = parseInt(cleanOp, 10);
-        const is200Op = !isNaN(opNum) && opNum >= 200;
 
+        // "Meniki" = o'zi yaratgan yoki o'ziga biriktirilgan (100+ / 200+ bo'linishi yo'q)
         const mineCount = cleanOp 
-            ? (is200Op 
-                ? allList.filter(t => String(t.creatorId).trim() === cleanOp).length 
-                : allList.filter(t => String(t.targetOperatorId).trim() === cleanOp).length)
+            ? allList.filter(t => ticketService.isTicketMine(t, cleanOp)).length
             : 0;
 
         const stats = {
@@ -1750,6 +1800,43 @@ app.get('/api/tickets', (req, res) => {
         res.json({ success: true, total: list.length, stats, data: list });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 1b. Ticket ochish uchun operatorning qo'ng'iroq konteksti (mijoz raqami + ovoz ID).
+// Operator raqami sessiyadagi hisobdan (yoki IP biriktiruvidan) olinadi, brauzer yuborgan qiymatga ishonilmaydi.
+// Diqqat: '/api/tickets/:id' dan OLDIN e'lon qilinishi shart.
+app.get('/api/tickets/call-context', async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ success: false, error: 'Avtorizatsiya talab qilinadi' });
+        }
+        const clientIp = extractClientIp(req);
+        const autoMappedOp = operatorIpMap.get(clientIp);
+        const operatorId = String(req.user.operatorId || (autoMappedOp && autoMappedOp.id) || '').replace(/\D/g, '');
+        if (!operatorId) {
+            return res.json({ success: true, state: 'no_operator', operatorId: null, call: null, contact: null });
+        }
+
+        const resp = await fetch(`${UPSTREAM_HTTP}/api/calls/operator-context?operator=${encodeURIComponent(operatorId)}`);
+        const json = await resp.json();
+        if (!resp.ok || !json || json.success === false) {
+            return res.status(502).json({ success: false, error: (json && json.error) || 'Qo\'ng\'iroq ma\'lumotini olib bo\'lmadi', operatorId });
+        }
+        // Mijozlar bazasi 200+ operatorlarga yopiq (checkIs200Operator bilan bir xil qoida):
+        // ularga kontakt (FISH / tashkilot) qaytarilmaydi, faqat qo'ng'iroq ma'lumoti.
+        const role = String(req.user.role || '').toLowerCase();
+        const opNum = parseInt(operatorId, 10);
+        const contactHidden = !isNaN(opNum) && opNum >= 200 && role !== 'superuser' && role !== 'admin';
+        res.json({
+            success: true,
+            operatorId,
+            state: json.state || 'none',
+            call: json.call || null,
+            contact: contactHidden ? null : (json.contact || null)
+        });
+    } catch (e) {
+        res.status(502).json({ success: false, error: e.message });
     }
 });
 
@@ -1768,25 +1855,14 @@ app.get('/api/tickets/:id', (req, res) => {
 app.post('/api/tickets', (req, res) => {
     try {
         const clientIp = extractClientIp(req);
-        const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
+        const { creatorId, creatorName, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName, callId, callTime, callDirection } = req.body || {};
         
-        // Ruxsat tekshiruvi: 100+ operatorlari (shu jumladan Maxmudbek / 114) ticket yarata olmaydi
+        // Ticketni istalgan operator yaratishi mumkin (100+ / 200+ bo'linishi olib tashlangan)
         // Yaratuvchi shaxsi: sessiyadagi req.user ma'lumotlariga qat'iy bog'lanadi (fixed)
         const effectiveCreatorId = String((req.user && (req.user.operatorId || req.user.operator_id)) || creatorId || '200').trim();
         let effectiveCreatorName = String((req.user && (req.user.operatorName || req.user.username)) || creatorName || `Operator ${effectiveCreatorId}`).trim();
         if (!effectiveCreatorName.includes(effectiveCreatorId) && !isNaN(parseInt(effectiveCreatorId, 10))) {
             effectiveCreatorName = `${effectiveCreatorName} (${effectiveCreatorId})`;
-        }
-
-        const opNum = parseInt(effectiveCreatorId, 10);
-        const creatorUname = String((req.user && req.user.username) || effectiveCreatorName || '').toLowerCase().trim();
-        const is100Op = (!isNaN(opNum) && opNum >= 100 && opNum < 200) || creatorUname === 'maxmudbek';
-
-        if (is100Op) {
-            return res.status(403).json({
-                success: false,
-                error: "Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari faqat qabul qiluvchi!"
-            });
         }
 
         const newTicket = ticketService.createTicket({
@@ -1799,7 +1875,13 @@ app.post('/api/tickets', (req, res) => {
             files,
             isUrgent,
             targetOperatorId,
-            targetOperatorName
+            targetOperatorName,
+            city,
+            organization,
+            customerName,
+            callId,
+            callTime,
+            callDirection
         });
 
         // Barcha ulangan operatorlarga real-time xabar
@@ -1814,7 +1896,7 @@ app.post('/api/tickets', (req, res) => {
 // 3b. Ticketni tahrirlash (Edit ticket)
 const handleTicketEdit = (req, res) => {
     try {
-        const { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName } = req.body || {};
+        const { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName } = req.body || {};
         const updated = ticketService.updateTicket(req.params.id, {
             editorId,
             editorName,
@@ -1822,7 +1904,10 @@ const handleTicketEdit = (req, res) => {
             comment,
             isUrgent,
             targetOperatorId,
-            targetOperatorName
+            targetOperatorName,
+            city,
+            organization,
+            customerName
         });
         broadcastTicketEvent('ticket_updated', updated);
         res.json({ success: true, data: updated });
@@ -1972,6 +2057,8 @@ app.get('/api/viewer/sessions', async (req, res) => {
 
 // Maxsus Ticketlar sahifasi yo'naltmasi
 app.get(['/tickets', '/tickets.html'], (req, res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
     res.sendFile(path.join(__dirname, 'public', 'tickets.html'));
 });
 

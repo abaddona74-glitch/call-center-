@@ -1,0 +1,447 @@
+/*
+ * Focus tree — ported from legacy `public/guide.html` (`.ft-*`, variant "canvas") and the "Operator manual"
+ * modal in `viewer/public/index.html` (variant "compact"). Colors and sizes are the legacy ones.
+ */
+.gft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.gft-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.gft-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
+  position: relative;
+}
+
+.gft-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 600px;
+  opacity: 1;
+  transform: scale(1);
+  margin: 0 var(--gft-col-m);
+  padding: 0;
+  position: relative;
+  transition:
+    max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    margin 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gft-col.is-collapsed {
+  max-width: 0 !important;
+  opacity: 0 !important;
+  transform: scale(0.68) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+/* Cards */
+.gft-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  border-radius: 14px;
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  z-index: 10;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    background 0.3s ease,
+    border-color 0.3s ease;
+}
+.gft-card:focus-visible {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6);
+}
+.gft-card.is-open {
+  transform: scale(1.1) !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7) !important;
+  z-index: 25 !important;
+}
+.gft-card.gft-leaf {
+  cursor: default;
+}
+.gft-card.gft-link:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(56, 189, 248, 0.4);
+}
+.gft-external {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.gft-anchor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Hint boxes under the nodes (canvas) */
+.gft-hint-card {
+  position: relative;
+  width: auto;
+  max-width: 260px;
+  min-width: 150px;
+  background: #0b1329;
+  border: 1px dashed rgba(56, 189, 248, 0.55);
+  border-radius: 10px;
+  padding: 8px 14px;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(56, 189, 248, 0.15);
+  z-index: 20;
+  text-align: center;
+  white-space: normal;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gft-hint-card:hover {
+  border-style: solid;
+  border-color: #38bdf8;
+  transform: scale(1.04);
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.8),
+    0 0 22px rgba(56, 189, 248, 0.3);
+}
+.gft-hint-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+.gft-hint-text {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #e2e8f0;
+  font-weight: 400;
+}
+.gft-hide-hints .gft-hint-card {
+  display: none !important;
+}
+
+/* Depth tints (canvas: solid) */
+.gft-depth-0 {
+  background: #0c1c38;
+  border: 1.5px solid rgba(56, 189, 248, 0.55);
+  color: #38bdf8;
+}
+.gft-depth-0:hover:not(.gft-leaf),
+.gft-depth-0.is-open {
+  background: #0e2a54;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+.gft-depth-0 .gft-badge {
+  background: rgba(56, 189, 248, 0.25);
+  color: #bae6fd;
+}
+.gft-depth-1 {
+  background: #062820;
+  border: 1.5px solid rgba(16, 185, 129, 0.55);
+  color: #34d399;
+}
+.gft-depth-1:hover:not(.gft-leaf),
+.gft-depth-1.is-open {
+  background: #093c30;
+  border-color: #34d399;
+  color: #ffffff;
+}
+.gft-depth-1 .gft-badge {
+  background: rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+}
+.gft-depth-2 {
+  background: #201338;
+  border: 1.5px solid rgba(168, 85, 247, 0.55);
+  color: #c084fc;
+}
+.gft-depth-2:hover:not(.gft-leaf),
+.gft-depth-2.is-open {
+  background: #311d54;
+  border-color: #c084fc;
+  color: #ffffff;
+}
+.gft-depth-2 .gft-badge {
+  background: rgba(168, 85, 247, 0.25);
+  color: #f3e8ff;
+}
+
+.gft-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Subtrees */
+.gft-subtree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-height: 0;
+  opacity: 0;
+  transform: scale(0.85);
+  transform-origin: top center;
+  pointer-events: none;
+  overflow: hidden;
+  transition:
+    max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.gft-subtree.is-open {
+  max-height: 1400px !important;
+  opacity: 1 !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+  overflow: visible !important;
+}
+
+/* 1px connector lines. The horizontal bar also spans the column margins (legacy left gaps there). */
+.gft {
+  --gft-line: rgba(148, 163, 184, 0.45);
+  --gft-gap: 24px;
+  --gft-col-m: 20px;
+}
+.gft-stem {
+  width: 1px;
+  height: var(--gft-gap);
+  background: var(--gft-line);
+  margin: 0 auto;
+  flex-shrink: 0;
+}
+.gft-connector {
+  width: 100%;
+  height: var(--gft-gap);
+  position: relative;
+  flex-shrink: 0;
+}
+.gft-connector.gft-single {
+  width: 1px;
+  background: var(--gft-line);
+  margin: 0 auto;
+}
+.gft-connector.gft-first::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  right: calc(-1 * var(--gft-col-m));
+  top: 0;
+  bottom: 0;
+  border-top: 1px solid var(--gft-line);
+  border-left: 1px solid var(--gft-line);
+  border-top-left-radius: 8px;
+}
+.gft-connector.gft-last::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--gft-col-m));
+  right: 50%;
+  top: 0;
+  bottom: 0;
+  border-top: 1px solid var(--gft-line);
+  border-right: 1px solid var(--gft-line);
+  border-top-right-radius: 8px;
+}
+.gft-connector.gft-mid::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--gft-col-m));
+  right: calc(-1 * var(--gft-col-m));
+  top: 0;
+  border-top: 1px solid var(--gft-line);
+}
+.gft-connector.gft-mid::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--gft-line);
+}
+
+/* ---- compact: the tree tab of the "Operator manual" ---- */
+.gft--compact {
+  --gft-line: rgba(148, 163, 184, 0.4);
+  --gft-gap: 20px;
+  --gft-col-m: 14px;
+}
+.gft--compact .gft-col {
+  max-width: 450px;
+}
+.gft--compact .gft-card {
+  gap: 8px;
+  padding: 9px 20px;
+  font-size: 14px;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.gft--compact .gft-card.is-open {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+}
+.gft--compact .gft-card:focus-visible {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.5);
+}
+.gft--compact .gft-anchor {
+  gap: 0;
+}
+.gft--compact .gft-badge {
+  width: 18px;
+  height: 18px;
+}
+.gft--compact .gft-connector.gft-mid::after {
+  transform: translateX(-50%);
+}
+/*
+ * Legacy bug fix: in the modal a closed subtree still took its full width, so the top row did not fit and the
+ * last system ("Mahalla") was cut off. Here a closed subtree is out of the flow, and the open column grows to
+ * its subtree (the tab scrolls sideways when a level is wider than the page).
+ */
+.gft--compact .gft-subtree:not(.is-open) {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+}
+.gft--compact .gft-col.is-open {
+  max-width: none;
+}
+.gft--compact .gft-depth-0 {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+}
+.gft--compact .gft-depth-0:hover:not(.gft-leaf),
+.gft--compact .gft-depth-0.is-open {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38bdf8;
+}
+.gft--compact .gft-depth-1 {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+.gft--compact .gft-depth-1:hover:not(.gft-leaf),
+.gft--compact .gft-depth-1.is-open {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #34d399;
+}
+.gft--compact .gft-depth-2 {
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+}
+.gft--compact .gft-depth-2:hover:not(.gft-leaf),
+.gft--compact .gft-depth-2.is-open {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: #c084fc;
+}
+
+.gft-hint-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 250px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    visibility 0.2s;
+  z-index: 1000;
+  white-space: normal;
+}
+.gft-hint-popover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #0f172a;
+}
+.gft-anchor:hover .gft-hint-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.gft-hint-popover-badge {
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.gft-hint-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  max-width: 190px;
+  margin-top: 5px;
+  text-align: center;
+  line-height: 1.35;
+  word-break: break-word;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gft-col,
+  .gft-card,
+  .gft-subtree,
+  .gft-badge {
+    transition: none !important;
+  }
+}

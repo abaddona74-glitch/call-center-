@@ -185,6 +185,62 @@ export const CategoryPatchSchema = CategoryInputSchema.partial().refine(
 );
 export type CategoryPatch = z.infer<typeof CategoryPatchSchema>;
 
+// ---------------------------------------------------------------------------------------------
+// Organizations (the registry export the superuser imports from .xlsx; ~47 000 rows)
+// ---------------------------------------------------------------------------------------------
+
+export const TicketOrganizationSchema = z.object({
+  id: z.number().int(),
+  /** Latin name from the registry (Cyrillic / Russian when the registry has no Latin one). */
+  name: z.string(),
+  /** INN (STIR); a few registry rows have none, and branches can share one. */
+  tin: z.string().nullable(),
+  /** Ticket region the registry region maps to; null for republic-level organizations. */
+  regionId: z.number().int().nullable(),
+  /** District / city name from the registry (display only). */
+  district: z.string().nullable(),
+});
+export type TicketOrganization = z.infer<typeof TicketOrganizationSchema>;
+
+/** GET /tickets/directories/organizations — name words or an INN; the ticket's region ranks first. */
+export const TicketOrganizationSearchQuerySchema = z.object({
+  q: z.string().trim().min(2).max(100),
+  regionId: Id.optional(),
+});
+export type TicketOrganizationSearchQuery = z.input<typeof TicketOrganizationSearchQuerySchema>;
+
+export const TICKET_ORGANIZATION_SEARCH_LIMIT = 20;
+
+export const TicketOrganizationSearchResultSchema = z.object({ items: z.array(TicketOrganizationSchema) });
+export type TicketOrganizationSearchResult = z.infer<typeof TicketOrganizationSearchResultSchema>;
+
+export const TicketOrganizationSummarySchema = z.object({
+  /** Offered in the ticket form. */
+  active: z.number().int(),
+  /** Including the ones a later import no longer had (tickets keep their snapshot). */
+  total: z.number().int(),
+  /** Last import; null = the registry was never imported. */
+  importedAt: z.string().nullable(),
+});
+export type TicketOrganizationSummary = z.infer<typeof TicketOrganizationSummarySchema>;
+
+/** The registry .xlsx is ~6 MB. */
+export const TICKET_ORGANIZATION_IMPORT_MAX_MB = 30;
+
+export const TicketOrganizationImportResultSchema = z.object({
+  /** Data rows read from the file. */
+  rows: z.number().int(),
+  added: z.number().int(),
+  updated: z.number().int(),
+  /** Were active, missing from this file: no longer offered. */
+  deactivated: z.number().int(),
+  /** Rows without an id or a name. */
+  skipped: z.number().int(),
+  /** Rows whose region did not match a ticket region (republic-level, or an unknown name). */
+  withoutRegion: z.number().int(),
+});
+export type TicketOrganizationImportResult = z.infer<typeof TicketOrganizationImportResultSchema>;
+
 export const TicketExecutiveSchema = z.object({
   userId: z.number().int(),
   username: z.string(),
@@ -214,6 +270,15 @@ export type TicketPerson = z.infer<typeof TicketPersonSchema>;
 
 export const TicketRefSchema = z.object({ id: z.number().int(), nameUz: z.string(), nameRu: z.string() });
 export type TicketRef = z.infer<typeof TicketRefSchema>;
+
+/** The citizen's organization as it was when the ticket was opened (the registry can change later). */
+export const TicketOrganizationRefSchema = z.object({
+  /** Registry row; null = typed by the operator (not in the registry). */
+  id: z.number().int().nullable(),
+  name: z.string(),
+  tin: z.string().nullable(),
+});
+export type TicketOrganizationRef = z.infer<typeof TicketOrganizationRefSchema>;
 
 export const TicketAttachmentSchema = z.object({
   id: z.number().int(),
@@ -266,6 +331,8 @@ export const TicketSchema = z.object({
   /** normalizeUzPhone form; null only for migrated legacy tickets without a number. */
   customerPhone: z.string().nullable(),
   customerName: z.string().nullable(),
+  /** null only for migrated legacy tickets. */
+  organization: TicketOrganizationRefSchema.nullable(),
   region: TicketRefSchema.nullable(),
   city: TicketRefSchema.nullable(),
   category: TicketRefSchema.nullable(),
@@ -372,7 +439,7 @@ export const TicketListQuerySchema = z.object({
   regionId: Id.optional(),
   categoryId: Id.optional(),
   overdue: queryBool.optional(),
-  /** TK-number, number fragment of the phone, or text in the description / name. */
+  /** TK-number, number fragment of the phone, start of the organization INN, or text in the description / name / organization. */
   q: z.string().trim().max(60).optional(),
 });
 export type TicketListQuery = z.input<typeof TicketListQuerySchema>;
@@ -437,14 +504,19 @@ const CallRefSchema = z
   .trim()
   .regex(/^[0-9]{1,20}\.[0-9]{1,10}$/, 'Invalid call id');
 
+export const TICKET_ORGANIZATION_NAME_MAX = 255;
+
 /**
  * multipart/form-data fields of POST /tickets (files go in `files`).
  * With `callId` the phone comes from the call (live state, or the CDR for a past call) — `phone` is ignored.
+ * The organization is required: `organizationId` (registry) or, when it is not there, `organizationName`.
  */
 export const CreateTicketFieldsSchema = z.object({
   callId: z.union([z.literal(''), CallRefSchema]).optional(),
   phone: PhoneFieldSchema.optional(),
   customerName: z.string().trim().max(120).optional(),
+  organizationId: formId.optional(),
+  organizationName: z.string().trim().max(TICKET_ORGANIZATION_NAME_MAX).optional(),
   regionId: Id,
   cityId: formId.optional(),
   categoryId: Id,

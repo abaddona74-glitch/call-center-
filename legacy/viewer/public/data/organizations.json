@@ -1,0 +1,61 @@
+{
+  "_izoh": "Ticket ochish formasidagi 'Shahar' va 'Tashkilot nomi' ro'yxati. Har bir shahar/viloyatning 'organizations' massiviga tashkilot nomlarini qo'shing. Ro'yxatda yo'q tashkilotni operator 'Boshqa (ro'yxatda yo'q)' orqali qo'lda yozadi. Boshlang'ich ma'lumot tools/managers.html dagi ro'yxatlardan olingan.",
+  "cities": [
+    {
+      "name": "Respublika (vazirlik va idoralar)",
+      "organizations": [
+        "Adliya vazirligi",
+        "Energetika vazirligi",
+        "Favqulodda vaziyatlar vazirligi",
+        "Ichki ishlar vazirligi",
+        "Investitsiyalar, sanoat va savdo vazirligi",
+        "Iqtisodiyot va moliya vazirligi",
+        "Kambag'allikni qisqartirish va bandlik vazirligi",
+        "Madaniyat vazirligi",
+        "Maktabgacha va maktab ta'limi vazirligi",
+        "Mudofaa vazirligi",
+        "Oliy ta'lim, fan va innovatsiyalar vazirligi",
+        "Qishloq xo'jaligi vazirligi",
+        "Qurilish va uy-joy kommunal xo'jaligi vazirligi",
+        "Raqamli texnologiyalar vazirligi",
+        "Sog'liqni saqlash vazirligi",
+        "Sport vazirligi",
+        "Suv xo'jaligi vazirligi",
+        "Tashqi ishlar vazirligi",
+        "Tog'-kon sanoati va geologiya vazirligi",
+        "Transport vazirligi"
+      ]
+    },
+    {
+      "name": "Toshkent shahri",
+      "organizations": [
+        "Toshkent shahar hokimiyati",
+        "Bektemir tumani",
+        "Chilonzor tumani",
+        "Mirobod tumani",
+        "Mirzo Ulug'bek tumani",
+        "Olmazor tumani",
+        "Sergeli tumani",
+        "Shayxontohur tumani",
+        "Uchtepa tumani",
+        "Yakkasaroy tumani",
+        "Yangi hayot tumani",
+        "Yashnobod tumani",
+        "Yunusobod tumani"
+      ]
+    },
+    { "name": "Toshkent viloyati", "organizations": [] },
+    { "name": "Andijon viloyati", "organizations": [] },
+    { "name": "Buxoro viloyati", "organizations": [] },
+    { "name": "Farg'ona viloyati", "organizations": [] },
+    { "name": "Jizzax viloyati", "organizations": [] },
+    { "name": "Namangan viloyati", "organizations": [] },
+    { "name": "Navoiy viloyati", "organizations": [] },
+    { "name": "Qashqadaryo viloyati", "organizations": [] },
+    { "name": "Qoraqalpog'iston Respublikasi", "organizations": [] },
+    { "name": "Samarqand viloyati", "organizations": [] },
+    { "name": "Sirdaryo viloyati", "organizations": [] },
+    { "name": "Surxondaryo viloyati", "organizations": [] },
+    { "name": "Xorazm viloyati", "organizations": [] }
+  ]
+}

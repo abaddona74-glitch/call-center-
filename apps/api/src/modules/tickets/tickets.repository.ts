@@ -36,7 +36,8 @@ const LIST_LIMIT = 3000;
 /** Without a status filter, closed tickets older than this are left out of lists (reports still count them). */
 const CLOSED_LIST_DAYS = 90;
 
-function likeEscape(s: string): string {
+/** Escapes `%`, `_` and `\` for a LIKE pattern. */
+export function likeEscape(s: string): string {
   return s.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
 
@@ -91,9 +92,12 @@ export class TicketsRepository {
         const ors = [
           eb('description', 'ilike', `%${likeEscape(text)}%`),
           eb('customerName', 'ilike', `%${likeEscape(text)}%`),
+          eb('organizationName', 'ilike', `%${likeEscape(text)}%`),
         ];
         if (code) ors.push(eb('id', '=', Number(code[1])));
-        if (digits.length >= 3) ors.push(eb('customerPhone', 'like', `%${digits}%`));
+        if (digits.length >= 3) {
+          ors.push(eb('customerPhone', 'like', `%${digits}%`), eb('organizationTin', 'like', `${digits}%`));
+        }
         return eb.or(ors);
       });
     }

@@ -16,6 +16,8 @@
 | S5 | Записи и тикеты (бывший viewer) | `modules/{recordings,tickets}` | `pages/{explorer,tickets}`, `entities/{recording,ticket}` | 3005 / 5178 | `callcenter_s5` |
 | S6 | Платформа | миграция данных legacy → Postgres, деплой, бэкапы, скриншоты-эталоны дизайна | `docs/rewrite/design/*` | 3006 / 5179 | `callcenter_s6` |
 | S7 | Тикеты: оператор → область → перезвон (`TICKETS.md`) | `modules/tickets` (принял от S5), маппер legacy-тикетов | `pages/{tickets,ticket-reports,settings-tickets}`, `widgets/{ticket-box,ticket-callback-queue}`, `features/tickets/*`, `entities/ticket` | 3007 / 5180 | `callcenter_s7` |
+| S8 | Инструменты (этап 2) | `modules/tools` (конвертер, Uzcrypto), статика инструментов | `pages/tools`, `features/tools/*`, `entities/tool` | 3008 / 5181 | `callcenter_s8` |
+| S9 | Руководство для операторов (этап 2) | `modules/guide` (если нужен API; иначе только фронт) | `pages/guide`, `widgets/guide-*`, `entities/guide` | 3009 / 5182 | `callcenter_s9` |
 
 ### Контракты между сессиями
 - **S3 → S4:** события `call.*` из `apps/api/src/common/events/domain-events.ts`. S3 их публикует из AMI, S4 подписывается (закрытие callback'ов, учёт попыток). S4 пишет свои тесты на синтетических событиях, не дожидаясь S3.
@@ -32,7 +34,9 @@
 - Темы звонков — только по реальным транскриптам; без транскрипта — «не классифицировано».
 
 ## Этап 2 — перенос «прочего» как есть
-Telegram-уведомления (с белым списком чатов), Proxmox watchdog (только уведомления), RustDesk-список ПК, конвертер документов, uzcrypto-ссылки, speedtest, STT/Gemini/темы (без выдуманных данных).
+Раздел «Инструменты» (конвертер документов, ссылки Ijro / Uzcrypto / AnyDesk-очиститель, telegram-форма) и руководство для операторов (дерево знаний, инструкции).
+
+**Не переносим** (решение владельца 18.11.2026): Telegram-уведомления, Proxmox watchdog, RustDesk, speedtest, распознавание речи и Gemini (темы звонков убраны ещё раньше). Автозапуск Kerio и АТС после отключения света чинится на самом хосте Proxmox, а не из приложения: это пункт отложенных правок прода (`docs/REVIEW-backlog-prod.md`, локальный файл).
 
 ## Этап 3 — переход
 Прогон миграции данных на копии прод-БД → параллельный запуск новой системы рядом со старой (только чтение АТС) → проверка пользователем → переключение. **Деплой — только после явного подтверждения владельца.**

@@ -5748,9 +5748,8 @@ html[data-tab="operators"] #btnExportExcel {
 .modal-overlay,
 .help-modal-overlay,
 .modal-backdrop,
-.tk-modal-overlay,
-.tk-doc-modal-overlay,
-.impersonate-modal-backdrop,
+.tk-modal-overlay.active,
+.tk-doc-modal-overlay.active,
 #toolIframeModal,
 #detailModal,
 #clientContactModal,
@@ -5760,12 +5759,12 @@ html[data-tab="operators"] #btnExportExcel {
 #outgoingHelpModal,
 #operatorSelectSelfModal,
 #viewerHistoryModal,
-#createTicketModal,
-#editTicketModal,
-#tkDocViewerModal,
-#ticketBoxOverlay,
-.tk-modal-overlay.active,
-#impersonateModal,
+#createTicketModal.active,
+#editTicketModal.active,
+#tkDocViewerModal.active,
+#ticketBoxOverlay.active,
+#rejectTicketModal.active,
+#impersonateModal.open,
 #modalViewerProfile {
     animation: modalBackdropFadeIn var(--duration-modal) var(--ease-out) forwards !important;
 }
@@ -5774,10 +5773,14 @@ html[data-tab="operators"] #btnExportExcel {
 .modal-overlay > .glass-panel,
 .help-modal-card,
 .modal-card,
-.tk-box-modal,
-.tk-doc-modal-container,
-.tk-modal-container,
-.impersonate-modal-card,
+.tk-modal-overlay.active .tk-box-modal,
+.tk-modal-overlay.active .tk-doc-modal-container,
+.tk-modal-overlay.active .tk-modal-container,
+#createTicketModal.active .tk-box-modal,
+#editTicketModal.active .tk-box-modal,
+#ticketBoxOverlay.active .tk-box-modal,
+#rejectTicketModal.active .tk-box-modal,
+#impersonateModal.open .impersonate-modal-card,
 .viewer-history-modal-panel,
 #toolIframeModal > .glass-panel,
 #detailModal > .glass-panel,
@@ -5785,7 +5788,6 @@ html[data-tab="operators"] #btnExportExcel {
 #converterModal > .glass-panel,
 #clientDirectoryModal > .glass-panel,
 #operatorSelectSelfModal > .glass-panel,
-#ticketBoxOverlay .tk-box-modal,
 #modalViewerProfile .modal-card {
     animation: modalPanelScaleIn var(--duration-modal) var(--ease-out) forwards !important;
     transform-origin: center center;
@@ -5807,8 +5809,10 @@ html[data-tab="operators"] #btnExportExcel {
 #ticketBoxOverlay.modal-closing,
 #createTicketModal.modal-closing,
 #editTicketModal.modal-closing,
+#rejectTicketModal.modal-closing,
 #tkDocViewerModal.modal-closing,
-#modalViewerProfile.modal-closing {
+#modalViewerProfile.modal-closing,
+#impersonateModal.modal-closing {
     animation: modalBackdropFadeOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
 }
 
@@ -5826,11 +5830,59 @@ html[data-tab="operators"] #btnExportExcel {
 #operatorSelectSelfModal.modal-closing > .glass-panel,
 #viewerHistoryModal.modal-closing .viewer-history-modal-panel,
 #ticketBoxOverlay.modal-closing .tk-box-modal,
-#createTicketModal.modal-closing .tk-modal-container,
-#editTicketModal.modal-closing .tk-modal-container,
+#createTicketModal.modal-closing .tk-box-modal,
+#editTicketModal.modal-closing .tk-box-modal,
+#rejectTicketModal.modal-closing .tk-box-modal,
 #tkDocViewerModal.modal-closing .tk-doc-modal-container,
-#modalViewerProfile.modal-closing .modal-card {
+#modalViewerProfile.modal-closing .modal-card,
+#impersonateModal.modal-closing .impersonate-modal-card {
     animation: modalPanelScaleOut 200ms cubic-bezier(0.2, 0, 0, 1) forwards !important;
+}
+
+/* 4. Inactive Modal Overlay Safety - Prevents Flash & Replay */
+.tk-modal-overlay:not(.active):not(.modal-closing),
+#createTicketModal:not(.active):not(.modal-closing),
+#editTicketModal:not(.active):not(.modal-closing),
+#tkDocViewerModal:not(.active):not(.modal-closing),
+#ticketBoxOverlay:not(.active):not(.modal-closing),
+#rejectTicketModal:not(.active):not(.modal-closing),
+#impersonateModal:not(.open):not(.modal-closing) {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    animation: none !important;
+    transition: none !important;
+}
+
+.tk-modal-overlay:not(.active):not(.modal-closing) .tk-box-modal,
+.tk-modal-overlay:not(.active):not(.modal-closing) .tk-doc-modal-container,
+.tk-modal-overlay:not(.active):not(.modal-closing) .tk-modal-container,
+#createTicketModal:not(.active):not(.modal-closing) .tk-box-modal,
+#editTicketModal:not(.active):not(.modal-closing) .tk-box-modal,
+#ticketBoxOverlay:not(.active):not(.modal-closing) .tk-box-modal,
+#impersonateModal:not(.open):not(.modal-closing) .impersonate-modal-card {
+    animation: none !important;
+    opacity: 0 !important;
+    transition: none !important;
+}
+
+/* Active & Closing states maintain display flex */
+.tk-modal-overlay.active,
+.tk-modal-overlay.modal-closing,
+#createTicketModal.active,
+#createTicketModal.modal-closing,
+#editTicketModal.active,
+#editTicketModal.modal-closing,
+#tkDocViewerModal.active,
+#tkDocViewerModal.modal-closing,
+#ticketBoxOverlay.active,
+#ticketBoxOverlay.modal-closing,
+#rejectTicketModal.active,
+#rejectTicketModal.modal-closing,
+#impersonateModal.open,
+#impersonateModal.modal-closing {
+    display: flex !important;
 }
 
 @keyframes modalBackdropFadeIn {

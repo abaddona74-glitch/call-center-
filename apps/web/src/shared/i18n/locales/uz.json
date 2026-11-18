@@ -13,7 +13,9 @@
     "history": "Qo'ng'iroqlar Tarixi",
     "statistics": "Statistika",
     "ticketReports": "Ticket hisoboti",
-    "ticketSettings": "Ticket sozlamalari"
+    "ticketSettings": "Ticket sozlamalari",
+    "tools": "Asboblar",
+    "guide": "Yo'riqnoma"
   },
   "auth": {
     "username": "Login",

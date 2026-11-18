@@ -1,24 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { logout, sessionKeys } from '@/entities/session';
 import { realtime } from '@/shared/api';
-import { PATHS } from '@/shared/config';
 import { Button } from '@/shared/ui/button';
 
 export function LogoutButton() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const mutation = useMutation({
     mutationFn: logout,
-    onSettled: async () => {
+    // Clearing the session makes the `_app` gate unmount the pages, drop cached data and open the login page.
+    onSettled: () => {
       realtime.disconnect();
       queryClient.setQueryData(sessionKeys.me, null);
-      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'session' });
-      await navigate({ to: PATHS.login });
     },
   });
 

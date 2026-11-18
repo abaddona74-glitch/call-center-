@@ -704,7 +704,7 @@ app.post('/api/dev/visual-prompt', (req, res) => {
         if (!fs.existsSync(scratchDir)) {
             fs.mkdirSync(scratchDir, { recursive: true });
         }
-        const queuePath = path.join(scratchDir, 'ui_inbox.json');
+        const queuePath = path.join(scratchDir, 'ui_inbox_v2.json');
         let queue = [];
         if (fs.existsSync(queuePath)) {
             try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf8')); } catch (e) {}
@@ -2478,6 +2478,71 @@ app.get('/api/calls/details', async (req, res) => {
         res.json({ success: true, ...paginatedData });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message, total: 0, page: 1, totalPages: 1, limit, data: [] });
+    }
+});
+
+// Operatorning hozirgi (yoki bugungi so'nggi) qo'ng'irog'i: ticket ochishda mijoz raqami va ovoz ID (CDR uniqueid) ni
+// avtomatik biriktirish uchun. Viewer (3005) shu endpointni 127.0.0.1 orqali chaqiradi. Ovoz fayli yo'li qaytarilmaydi.
+app.get('/api/calls/operator-context', async (req, res) => {
+    const ext = String(req.query.operator || '').replace(/\D/g, '').slice(0, 6);
+    if (!ext) {
+        return res.status(400).json({ success: false, error: 'operator parametri kerak' });
+    }
+
+    const findContact = (phone) => {
+        try {
+            const c = (typeof dbService.getContact === 'function') ? dbService.getContact(phone) : null;
+            return c ? { name: c.name || '', organization: c.organization || '' } : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    try {
+        // 1. Hozir davom etayotgan suhbat (AMI)
+        const live = amiService.getOperatorActiveCall(ext);
+        if (live) {
+            return res.json({
+                success: true,
+                state: 'active',
+                call: {
+                    callId: live.callId || '',
+                    callerId: live.callerId,
+                    time: live.startTime ? new Date(live.startTime).toISOString() : null,
+                    direction: live.direction,
+                    source: live.source
+                },
+                contact: findContact(live.callerId)
+            });
+        }
+
+        // 2. Bugungi eng so'nggi javob berilgan qo'ng'iroq (Issabel CDR, bugun uchun kesh yo'q)
+        const detail = await issabelDbService.fetchCallsDetail({ type: 'operator', operatorExt: ext, page: 1, limit: 10, dateStr: '' });
+        const last = (detail && Array.isArray(detail.data) ? detail.data : []).find(c => {
+            const digits = String(c.callerId || '').replace(/\D/g, '');
+            return c.status === 'ANSWERED' && digits.length >= 7;
+        });
+        if (last) {
+            const rawId = String(last.id || '');
+            return res.json({
+                success: true,
+                state: 'ended',
+                call: {
+                    callId: /^[\d.]+$/.test(rawId) ? rawId : '',
+                    callerId: last.callerId,
+                    time: last.time || null,
+                    duration: last.duration || 0,
+                    direction: last.direction || 'inbound',
+                    source: rawId.startsWith('3cx_') ? '3cx' : 'cdr'
+                },
+                contact: findContact(last.callerId)
+            });
+        }
+
+        res.json({ success: true, state: 'none', call: null, contact: null });
+    } catch (e) {
+        console.error('API /api/calls/operator-context xatosi:', e.message);
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 

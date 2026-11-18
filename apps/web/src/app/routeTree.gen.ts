@@ -21,6 +21,10 @@ import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
+import { Route as AppToolsRouteImport } from './routes/_app/tools'
+import { Route as AppGuideIndexRouteImport } from './routes/_app/guide/index'
+import { Route as AppGuideManualRouteImport } from './routes/_app/guide/manual'
+import { Route as AppGuideSoftphoneRouteImport } from './routes/_app/guide/softphone'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsAuditRouteImport } from './routes/_app/settings/audit'
 import { Route as AppSettingsCalendarRouteImport } from './routes/_app/settings/calendar'
@@ -32,6 +36,8 @@ import { Route as AppSettingsBlacklistRouteImport } from './routes/_app/settings
 import { Route as AppSettingsCallbacksRouteImport } from './routes/_app/settings_.callbacks'
 import { Route as AppSettingsTicketsRouteImport } from './routes/_app/settings_.tickets'
 import { Route as AppTicketsReportsRouteImport } from './routes/_app/tickets_.reports'
+import { Route as AppToolsManagersRouteImport } from './routes/_app/tools_.managers'
+import { Route as AppToolsUzb2026RouteImport } from './routes/_app/tools_.uzb2026'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -92,6 +98,26 @@ const AppTicketsRoute = AppTicketsRouteImport.update({
   path: '/tickets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppToolsRoute = AppToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGuideIndexRoute = AppGuideIndexRouteImport.update({
+  id: '/guide/',
+  path: '/guide/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGuideManualRoute = AppGuideManualRouteImport.update({
+  id: '/guide/manual',
+  path: '/guide/manual',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGuideSoftphoneRoute = AppGuideSoftphoneRouteImport.update({
+  id: '/guide/softphone',
+  path: '/guide/softphone',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -147,6 +173,16 @@ const AppTicketsReportsRoute = AppTicketsReportsRouteImport.update({
   path: '/tickets/reports',
   getParentRoute: () => AppRoute,
 } as any)
+const AppToolsManagersRoute = AppToolsManagersRouteImport.update({
+  id: '/tools_/managers',
+  path: '/tools/managers',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppToolsUzb2026Route = AppToolsUzb2026RouteImport.update({
+  id: '/tools_/uzb2026',
+  path: '/tools/uzb2026',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -160,6 +196,9 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRouteWithChildren
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
+  '/tools': typeof AppToolsRoute
+  '/guide/manual': typeof AppGuideManualRoute
+  '/guide/softphone': typeof AppGuideSoftphoneRoute
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/groups': typeof AppSettingsGroupsRoute
@@ -170,6 +209,9 @@ export interface FileRoutesByFullPath {
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
   '/settings/tickets': typeof AppSettingsTicketsRoute
   '/tickets/reports': typeof AppTicketsReportsRoute
+  '/tools/managers': typeof AppToolsManagersRoute
+  '/tools/uzb2026': typeof AppToolsUzb2026Route
+  '/guide/': typeof AppGuideIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -182,7 +224,10 @@ export interface FileRoutesByTo {
   '/profile': typeof AppProfileRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
+  '/tools': typeof AppToolsRoute
   '/': typeof AppIndexRoute
+  '/guide/manual': typeof AppGuideManualRoute
+  '/guide/softphone': typeof AppGuideSoftphoneRoute
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/groups': typeof AppSettingsGroupsRoute
@@ -193,6 +238,9 @@ export interface FileRoutesByTo {
   '/settings/callbacks': typeof AppSettingsCallbacksRoute
   '/settings/tickets': typeof AppSettingsTicketsRoute
   '/tickets/reports': typeof AppTicketsReportsRoute
+  '/tools/managers': typeof AppToolsManagersRoute
+  '/tools/uzb2026': typeof AppToolsUzb2026Route
+  '/guide': typeof AppGuideIndexRoute
   '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -208,7 +256,10 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/statistics': typeof AppStatisticsRoute
   '/_app/tickets': typeof AppTicketsRoute
+  '/_app/tools': typeof AppToolsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/guide/manual': typeof AppGuideManualRoute
+  '/_app/guide/softphone': typeof AppGuideSoftphoneRoute
   '/_app/settings/audit': typeof AppSettingsAuditRoute
   '/_app/settings/calendar': typeof AppSettingsCalendarRoute
   '/_app/settings/groups': typeof AppSettingsGroupsRoute
@@ -219,6 +270,9 @@ export interface FileRoutesById {
   '/_app/settings_/callbacks': typeof AppSettingsCallbacksRoute
   '/_app/settings_/tickets': typeof AppSettingsTicketsRoute
   '/_app/tickets_/reports': typeof AppTicketsReportsRoute
+  '/_app/tools_/managers': typeof AppToolsManagersRoute
+  '/_app/tools_/uzb2026': typeof AppToolsUzb2026Route
+  '/_app/guide/': typeof AppGuideIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -235,6 +289,9 @@ export interface FileRouteTypes {
     | '/settings'
     | '/statistics'
     | '/tickets'
+    | '/tools'
+    | '/guide/manual'
+    | '/guide/softphone'
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/groups'
@@ -245,6 +302,9 @@ export interface FileRouteTypes {
     | '/settings/callbacks'
     | '/settings/tickets'
     | '/tickets/reports'
+    | '/tools/managers'
+    | '/tools/uzb2026'
+    | '/guide/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -257,7 +317,10 @@ export interface FileRouteTypes {
     | '/profile'
     | '/statistics'
     | '/tickets'
+    | '/tools'
     | '/'
+    | '/guide/manual'
+    | '/guide/softphone'
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/groups'
@@ -268,6 +331,9 @@ export interface FileRouteTypes {
     | '/settings/callbacks'
     | '/settings/tickets'
     | '/tickets/reports'
+    | '/tools/managers'
+    | '/tools/uzb2026'
+    | '/guide'
     | '/settings'
   id:
     | '__root__'
@@ -282,7 +348,10 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/statistics'
     | '/_app/tickets'
+    | '/_app/tools'
     | '/_app/'
+    | '/_app/guide/manual'
+    | '/_app/guide/softphone'
     | '/_app/settings/audit'
     | '/_app/settings/calendar'
     | '/_app/settings/groups'
@@ -293,6 +362,9 @@ export interface FileRouteTypes {
     | '/_app/settings_/callbacks'
     | '/_app/settings_/tickets'
     | '/_app/tickets_/reports'
+    | '/_app/tools_/managers'
+    | '/_app/tools_/uzb2026'
+    | '/_app/guide/'
     | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -388,6 +460,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTicketsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tools': {
+      id: '/_app/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof AppToolsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/guide/': {
+      id: '/_app/guide/'
+      path: '/guide'
+      fullPath: '/guide/'
+      preLoaderRoute: typeof AppGuideIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/guide/manual': {
+      id: '/_app/guide/manual'
+      path: '/guide/manual'
+      fullPath: '/guide/manual'
+      preLoaderRoute: typeof AppGuideManualRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/guide/softphone': {
+      id: '/_app/guide/softphone'
+      path: '/guide/softphone'
+      fullPath: '/guide/softphone'
+      preLoaderRoute: typeof AppGuideSoftphoneRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/': {
       id: '/_app/settings/'
       path: '/'
@@ -465,6 +565,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTicketsReportsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/tools_/managers': {
+      id: '/_app/tools_/managers'
+      path: '/tools/managers'
+      fullPath: '/tools/managers'
+      preLoaderRoute: typeof AppToolsManagersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tools_/uzb2026': {
+      id: '/_app/tools_/uzb2026'
+      path: '/tools/uzb2026'
+      fullPath: '/tools/uzb2026'
+      preLoaderRoute: typeof AppToolsUzb2026RouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -501,11 +615,17 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppStatisticsRoute: typeof AppStatisticsRoute
   AppTicketsRoute: typeof AppTicketsRoute
+  AppToolsRoute: typeof AppToolsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppGuideManualRoute: typeof AppGuideManualRoute
+  AppGuideSoftphoneRoute: typeof AppGuideSoftphoneRoute
   AppSettingsBlacklistRoute: typeof AppSettingsBlacklistRoute
   AppSettingsCallbacksRoute: typeof AppSettingsCallbacksRoute
   AppSettingsTicketsRoute: typeof AppSettingsTicketsRoute
   AppTicketsReportsRoute: typeof AppTicketsReportsRoute
+  AppToolsManagersRoute: typeof AppToolsManagersRoute
+  AppToolsUzb2026Route: typeof AppToolsUzb2026Route
+  AppGuideIndexRoute: typeof AppGuideIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -517,11 +637,17 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppStatisticsRoute: AppStatisticsRoute,
   AppTicketsRoute: AppTicketsRoute,
+  AppToolsRoute: AppToolsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppGuideManualRoute: AppGuideManualRoute,
+  AppGuideSoftphoneRoute: AppGuideSoftphoneRoute,
   AppSettingsBlacklistRoute: AppSettingsBlacklistRoute,
   AppSettingsCallbacksRoute: AppSettingsCallbacksRoute,
   AppSettingsTicketsRoute: AppSettingsTicketsRoute,
   AppTicketsReportsRoute: AppTicketsReportsRoute,
+  AppToolsManagersRoute: AppToolsManagersRoute,
+  AppToolsUzb2026Route: AppToolsUzb2026Route,
+  AppGuideIndexRoute: AppGuideIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

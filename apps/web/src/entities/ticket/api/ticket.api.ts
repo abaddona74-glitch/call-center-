@@ -18,6 +18,10 @@ import {
   TicketDocPreviewSchema,
   TicketExecutiveSchema,
   TicketListResponseSchema,
+  type TicketOrganizationImportResult,
+  TicketOrganizationImportResultSchema,
+  TicketOrganizationSearchResultSchema,
+  TicketOrganizationSummarySchema,
   TicketRegionSchema,
   type TicketReportQuery,
   type TicketStatus,
@@ -49,6 +53,8 @@ export const ticketKeys = {
   directories: ['tickets', 'directories'] as const,
   executives: ['tickets', 'executives'] as const,
   prefill: (callId: string) => ['tickets', 'prefill', callId] as const,
+  organizations: (q: string, regionId: number | null) => ['tickets', 'organizations', q, regionId] as const,
+  organizationsSummary: ['tickets', 'organizations', 'summary'] as const,
   report: (q: TicketReportQuery) => ['tickets', 'report', q] as const,
 };
 
@@ -114,6 +120,41 @@ export const ticketReportQuery = (q: TicketReportQuery) =>
     queryKey: ticketKeys.report(q),
     queryFn: ({ signal }) => api('/tickets/reports', { query: q, schema: TicketReportSchema, signal }),
   });
+
+/** Ticket form: registry organizations by name words or INN (the ticket's region ranks first). */
+export const ticketOrganizationsQuery = (q: string, regionId: number | null) =>
+  queryOptions({
+    queryKey: ticketKeys.organizations(q, regionId),
+    queryFn: ({ signal }) =>
+      api('/tickets/directories/organizations', {
+        query: { q, regionId: regionId ?? undefined },
+        schema: TicketOrganizationSearchResultSchema,
+        signal,
+      }),
+    staleTime: 5 * 60_000,
+  });
+
+/** Superuser (Settings → Tickets): how many organizations the registry has, last import. */
+export const ticketOrganizationsSummaryQuery = queryOptions({
+  queryKey: ticketKeys.organizationsSummary,
+  queryFn: ({ signal }) =>
+    api('/tickets/directories/organizations/summary', { schema: TicketOrganizationSummarySchema, signal }),
+});
+
+/** Superuser: replace the organization registry with a new .xlsx export. */
+export async function importTicketOrganizations(file: File): Promise<TicketOrganizationImportResult> {
+  const form = new FormData();
+  form.append('file', file, file.name);
+  const res = await fetch('/api/tickets/directories/organizations/import', {
+    method: 'POST',
+    body: form,
+    credentials: 'same-origin',
+  });
+  const text = await res.text();
+  const json: unknown = text ? JSON.parse(text) : undefined;
+  if (!res.ok) throw new HttpError(res.status, (json as ApiError | undefined) ?? null);
+  return TicketOrganizationImportResultSchema.parse(json);
+}
 
 /** multipart/form-data request (the JSON `api()` helper can't send files). */
 async function upload(path: string, fields: Record<string, string>, files: File[]): Promise<TicketDetail> {

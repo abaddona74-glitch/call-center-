@@ -21,3 +21,5 @@ export * from './contacts.js';
 export * from './telephony.js';
 export * from './stats.js';
 export * from './working-calendar.js';
+export * from './tools.js';
+export * from './docx.js';

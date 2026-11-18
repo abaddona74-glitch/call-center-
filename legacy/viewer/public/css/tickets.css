@@ -2480,3 +2480,688 @@ label[for="newTicketTargetOperator"] {
 
 
 
+
+/* ==========================================================================
+   INLINE: YANGI TICKET OCHISH BLOKI
+   "Bog'lanishi kerak bo'lgan mijozlar" paneli ostida, ochiladigan / yopiladigan
+   ========================================================================== */
+.tk-inline-panel {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tk-inline-panel.expanded {
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(56, 189, 248, 0.08);
+}
+
+.tk-inline-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 18px;
+    box-sizing: border-box;
+    transition: background 0.2s ease;
+}
+
+.tk-inline-head:hover {
+    background: rgba(56, 189, 248, 0.05);
+}
+
+/* Sarlavhaning asosiy qismi: bosilganda blok ochiladi / yopiladi */
+.tk-inline-head-toggle {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tk-inline-head-toggle:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+/* "Ticketlar" tugmasi: ro'yxatni (sidebar) ochadi, yangi + jarayondagilar soni bilan */
+.tk-inline-list-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.1);
+    color: #e0f2fe;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.tk-inline-list-btn svg {
+    width: 15px;
+    height: 15px;
+    color: #38bdf8;
+}
+
+.tk-inline-list-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+.tk-inline-list-btn:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.tk-inline-list-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+.tk-inline-head-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tk-inline-head-left > svg {
+    width: 20px;
+    height: 20px;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-inline-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tk-inline-head .tk-box-id {
+    font-size: 11px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+
+.tk-inline-draft {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 6px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+}
+
+.tk-inline-draft::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+}
+
+.tk-inline-panel.has-draft:not(.expanded) .tk-inline-draft {
+    display: inline-flex;
+}
+
+.tk-inline-head-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.tk-inline-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.tk-inline-hint .tk-kbd {
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+.tk-inline-chevron {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 8px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.28s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.tk-inline-chevron svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tk-inline-head:hover .tk-inline-chevron {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.tk-inline-panel.expanded .tk-inline-chevron {
+    transform: rotate(180deg);
+}
+
+/* Ochilish / yopilish animatsiyasi (balandlik avtomatik) */
+.tk-inline-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s ease;
+}
+
+.tk-inline-panel.expanded .tk-inline-body {
+    grid-template-rows: 1fr;
+}
+
+.tk-inline-body-inner {
+    min-height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    transition: visibility 0s linear 0.28s;
+}
+
+.tk-inline-panel.expanded .tk-inline-body-inner {
+    visibility: visible;
+    transition-delay: 0s;
+}
+
+.tk-inline-form {
+    margin: 0;
+    padding: 14px 18px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tk-inline-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    gap: 14px;
+}
+
+.tk-inline-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tk-inline-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 10px;
+    align-items: end;
+}
+
+/* Modal formadagi elementlarni ixcham ko'rinishga moslash */
+.tk-inline-panel .tk-form-group {
+    margin-bottom: 0;
+    gap: 5px;
+}
+
+.tk-inline-panel .tk-form-input {
+    padding: 8px 12px;
+    font-size: 13px;
+    height: 38px;
+}
+
+.tk-inline-panel .tk-form-textarea {
+    min-height: 74px;
+    padding: 9px 12px;
+    font-size: 13px;
+}
+
+.tk-inline-panel .tk-urgent-toggle-row {
+    margin-bottom: 0;
+    padding: 6px 12px;
+    min-height: 38px;
+    box-sizing: border-box;
+    gap: 10px;
+}
+
+.tk-inline-panel .tk-urgent-label {
+    font-size: 12.5px;
+}
+
+.tk-inline-panel .tk-urgent-desc {
+    font-size: 10.5px;
+}
+
+.tk-inline-files {
+    flex: 1;
+}
+
+.tk-inline-panel .tk-dropzone {
+    flex: 1;
+    min-height: 92px;
+    padding: 12px;
+    gap: 5px;
+    border-width: 1.5px;
+}
+
+.tk-inline-panel .tk-dropzone:hover,
+.tk-inline-panel .tk-dropzone.drag-over {
+    transform: none;
+}
+
+.tk-inline-panel .tk-dropzone:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+.tk-inline-panel .tk-dropzone-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.tk-inline-panel .tk-dropzone-text {
+    font-size: 12px;
+}
+
+.tk-inline-panel .tk-dropzone-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+}
+
+.tk-inline-panel .tk-dropzone-hint .tk-kbd {
+    font-size: 10px;
+    padding: 1px 5px;
+}
+
+.tk-inline-panel .tk-preview-strip {
+    margin-top: 4px;
+}
+
+.tk-inline-panel .tk-preview-strip:empty {
+    display: none;
+}
+
+.tk-inline-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tk-inline-note {
+    margin-right: auto;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.tk-inline-panel .tk-action-btn {
+    padding: 7px 16px;
+    font-size: 12.5px;
+}
+
+.tk-inline-panel .tk-action-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    transform: none;
+}
+
+@media (max-width: 1100px) {
+    .tk-inline-hint {
+        display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .tk-inline-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .tk-inline-head {
+        padding: 10px 14px;
+    }
+
+    .tk-inline-head .tk-box-id {
+        display: none;
+    }
+
+    .tk-inline-list-btn > span:not(.tk-inline-list-badge) {
+        display: none;
+    }
+
+    .tk-inline-form {
+        padding: 12px 14px;
+    }
+
+    .tk-inline-row {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-inline-note {
+        display: none;
+    }
+
+    .tk-inline-actions .tk-action-btn {
+        flex: 1;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tk-inline-body,
+    .tk-inline-chevron {
+        transition: none;
+    }
+}
+
+/* ==========================================================================
+   MIJOZ MA'LUMOTLARI (Shahar / Tashkilot / FISH) va QO'NG'IROQ SATRI
+   ========================================================================== */
+.tk-customer-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 12px;
+}
+
+.tk-customer-fields .tk-form-select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.tk-org-other {
+    margin-top: 6px;
+}
+
+.tk-org-other[hidden] {
+    display: none;
+}
+
+/* Avtomatik qo'ng'iroq satri: mijoz raqami + ovoz ID */
+.tk-call-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px 8px 12px;
+    margin-bottom: 14px;
+    border-radius: 10px;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    min-height: 40px;
+    box-sizing: border-box;
+}
+
+.tk-call-strip:empty {
+    display: none;
+}
+
+.tk-call-strip[data-state="active"] {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.35);
+}
+
+.tk-call-strip[data-state="ended"] {
+    background: rgba(56, 189, 248, 0.07);
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.tk-call-strip-icon {
+    display: inline-flex;
+    color: #38bdf8;
+    flex-shrink: 0;
+}
+
+.tk-call-strip[data-state="active"] .tk-call-strip-icon {
+    color: #34d399;
+}
+
+.tk-call-strip-info {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    min-width: 0;
+    flex: 1;
+    font-size: 12.5px;
+    color: #e2e8f0;
+}
+
+.tk-call-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #7dd3fc;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 6px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.tk-call-pill.live {
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.14);
+    border-color: rgba(16, 185, 129, 0.4);
+}
+
+.tk-call-pill.live::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+    animation: tkCallPulse 1.6s ease-out infinite;
+}
+
+@keyframes tkCallPulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+    100% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+}
+
+.tk-call-phone {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.tk-call-muted {
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.tk-call-id {
+    color: #94a3b8;
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.tk-call-id code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 1px 6px;
+}
+
+.tk-call-strip-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.tk-call-strip-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 23, 42, 0.6);
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.tk-call-strip-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.tk-call-strip-btn:focus-visible,
+.tk-call-strip-link:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 1px;
+}
+
+.tk-call-strip-link {
+    background: none;
+    border: 0;
+    padding: 4px 6px;
+    color: #38bdf8;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Telefon maydoni yonidagi "AVTO" belgisi */
+.tk-auto-badge {
+    display: none;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #6ee7b7;
+    background: rgba(16, 185, 129, 0.14);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+    padding: 0 5px;
+    line-height: 15px;
+}
+
+.tk-auto-badge.show {
+    display: inline-block;
+}
+
+/* Ticket kartasidagi mijoz satri */
+.tk-mini-customer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    margin-top: 4px;
+    min-width: 0;
+}
+
+.tk-mini-customer svg {
+    flex-shrink: 0;
+    color: #38bdf8;
+}
+
+.tk-mini-customer span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Ticket ichidagi ovoz ID (bosilganda nusxa olinadi) */
+.tk-call-id-val {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.tk-call-id-val.copyable {
+    cursor: copy;
+    text-decoration: underline dotted rgba(148, 163, 184, 0.6);
+    text-underline-offset: 3px;
+}
+
+.tk-call-id-val.copied {
+    color: #34d399 !important;
+}
+
+/* Inline blokda ixcham ko'rinish */
+.tk-inline-panel .tk-call-strip {
+    margin-bottom: 12px;
+}
+
+.tk-inline-panel .tk-customer-fields {
+    margin-bottom: 10px;
+}
+
+.tk-inline-panel .tk-form-select {
+    padding: 8px 12px;
+    font-size: 13px;
+    height: 38px;
+}
+
+@media (max-width: 700px) {
+    .tk-customer-fields {
+        grid-template-columns: 1fr;
+    }
+
+    .tk-inline-panel .tk-customer-fields {
+        gap: 10px;
+    }
+}

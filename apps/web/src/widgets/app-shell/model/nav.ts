@@ -2,6 +2,7 @@ import type { Permission } from '@cc/shared';
 import { CDR_ACCESS } from '@cc/shared';
 import {
   AudioLines,
+  BookOpen,
   CalendarClock,
   ClipboardList,
   ChartColumn,
@@ -15,6 +16,7 @@ import {
   Ticket,
   UserRound,
   Users,
+  Wrench,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -65,5 +67,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MapPinned,
     permission: 'tickets.directories.manage',
   },
+  { to: '/tools', label: 'nav.tools', icon: Wrench, permission: 'tools.view' },
   { to: '/profile', label: 'nav.profile', icon: UserRound },
+  // Operator guide: static content for every signed-in user (no permission, see routes/_app/guide)
+  { to: '/guide', label: 'nav.guide', icon: BookOpen },
 ];

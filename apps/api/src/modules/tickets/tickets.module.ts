@@ -13,6 +13,8 @@ import { TicketDirectoriesRepository } from './ticket-directories.repository.js'
 import { TicketDirectoriesService } from './ticket-directories.service.js';
 import { TicketFilesStore } from './ticket-files.store.js';
 import { TicketNotifier } from './ticket-notifier.service.js';
+import { TicketOrganizationsRepository } from './ticket-organizations.repository.js';
+import { TicketOrganizationsService } from './ticket-organizations.service.js';
 import { TicketPresenter } from './ticket-presenter.service.js';
 import { TicketRecordingsService } from './ticket-recordings.service.js';
 import { TicketReportsService } from './ticket-reports.service.js';
@@ -38,9 +40,9 @@ import { TicketsService } from './tickets.service.js';
         limits: {
           fileSize: config.get('TICKETS_MAX_FILE_MB') * 1024 * 1024,
           files: TICKET_MAX_FILES_PER_UPLOAD,
-          fields: 10,
+          fields: 12,
           fieldSize: 64 * 1024,
-          parts: TICKET_MAX_FILES_PER_UPLOAD + 10,
+          parts: TICKET_MAX_FILES_PER_UPLOAD + 12,
         },
       }),
     }),
@@ -52,6 +54,8 @@ import { TicketsService } from './tickets.service.js';
     TicketsRepository,
     TicketDirectoriesService,
     TicketDirectoriesRepository,
+    TicketOrganizationsService,
+    TicketOrganizationsRepository,
     TicketPresenter,
     TicketNotifier,
     TicketCallLookup,

@@ -1,6 +1,7 @@
-{
-  "buildId": "1794836369348",
-  "buildTime": "2026-11-16T13:39:29.348Z",
-  "version": "1.0.0",
-  "app": "call-center-viewer"
+﻿{
+  "buildId": "1794911080000",
+  "buildTime": "2026-11-17T15:04:30.000Z",
+  "version": "2.5.0",
+  "app": "call-center-viewer",
+  "patch": "remove-operator-selects-v2.7"
 }

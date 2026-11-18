@@ -4,6 +4,11 @@ const { execSync } = require('child_process');
 const { Client } = require('ssh2');
 const SftpClient = require('ssh2-sftp-client');
 
+try {
+    require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+    require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
+} catch (e) {}
+
 // Production Server Configuration
 const SERVER_HOST = process.env.DEPLOY_HOST || '';
 const SERVER_PORT = parseInt(process.env.DEPLOY_PORT || '22', 10);
