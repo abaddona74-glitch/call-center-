@@ -37,6 +37,11 @@ import { ToolsModule } from './modules/tools/tools.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
+/** Path without the query string: queries carry phone numbers and search text. */
+const pathOf = (url: string | undefined) => (url ?? '').split('?')[0];
+/** Express keeps the full path in `originalUrl` (`url` can be rewritten by routers). */
+const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).originalUrl ?? req.url;
+
 @Module({
   imports: [
     AppConfigModule,
@@ -69,6 +74,28 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
           genReqId: (req) => String(req.headers['x-request-id'] ?? randomUUID()),
           redact: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
           autoLogging: { ignore: (req) => req.url?.startsWith('/api/health') ?? false },
+          // One short access line per request (method, path, status, time) instead of every header;
+          // logs written while handling a request carry only its id.
+          quietReqLogger: true,
+          quietResLogger: true,
+          serializers: {
+            req: (req: { id?: unknown; method?: string; url?: string }) => ({
+              id: req.id,
+              method: req.method,
+              path: pathOf(req.url),
+            }),
+            res: (res: { statusCode?: number }) => ({ statusCode: res.statusCode }),
+          },
+          customLogLevel: (_req, res, err) =>
+            err || res.statusCode >= 500
+              ? 'error'
+              : res.statusCode >= 400 && res.statusCode !== 401 && res.statusCode !== 404
+                ? 'warn'
+                : 'info',
+          customSuccessMessage: (req, res, ms) =>
+            `${req.method} ${pathOf(requestUrl(req))} ${res.statusCode} ${Math.round(ms)}ms`,
+          customErrorMessage: (req, res, err) =>
+            `${req.method} ${pathOf(requestUrl(req))} ${res.statusCode} ${err.message}`,
           transport: config.isProduction ? undefined : { target: 'pino-pretty', options: { singleLine: true } },
         },
       }),

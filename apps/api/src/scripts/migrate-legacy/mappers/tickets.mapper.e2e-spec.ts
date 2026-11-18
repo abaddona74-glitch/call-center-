@@ -28,7 +28,15 @@ describe('tickets mapper (e2e, real Postgres)', () => {
     await createMigrator(db).migrateToLatest();
     await db.deleteFrom('tickets').where('id', 'in', IDS).execute();
 
-    const ext = String(150 + (randomBytes(1)[0] % 40));
+    // The mapper finds the receiver by extension: take one no other user in this shared database has.
+    const used = new Set(
+      (await db.selectFrom('users').select('extension').where('extension', 'is not', null).execute()).map(
+        (u) => u.extension,
+      ),
+    );
+    const free = Array.from({ length: 850 }, (_, i) => String(150 + i)).find((e) => !used.has(e));
+    if (!free) throw new Error('No free test extension in 150–999');
+    const ext = free;
     receiverId = (
       await db
         .insertInto('users')
