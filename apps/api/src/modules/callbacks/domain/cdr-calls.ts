@@ -62,13 +62,34 @@ export interface CdrCallsOptions {
   timezone: string;
   /** `lastdata` of the PBX "outside working hours" announcement. */
   afterHoursMarker?: RegExp;
+  /**
+   * Only calls whose first leg is at or after this moment. The caller reads some rows before it, so a call
+   * that began earlier and is only partly in the read window is recognised and left out instead of being
+   * judged by its tail (e.g. failed attempts after a transfer, without the answered leg → a false "missed").
+   */
+  startedFrom?: Date;
 }
 
 const EXT = /^[0-9]{2,6}$/;
 const CHANNEL_EXT = /^(?:SIP|PJSIP|IAX2)\/([0-9]{2,6})-/i;
 const LOCAL_EXT = /^Local\/([0-9]{2,6})@/i;
+/** Same as the reader's SQL `channel LIKE 'Local/%'` (case-insensitive under MySQL's default collation). */
+const LOCAL_CHANNEL = /^Local\//i;
 /** Contexts where `dst` is the dialed extension (as opposed to a queue or IVR number). */
 const EXTENSION_DIAL_CONTEXTS = new Set(['from-internal-xfer', 'ext-local', 'from-did-direct']);
+
+/**
+ * A queue member's own ring attempt that never reached a phone: the `Local/<ext>@from-queue-…` half dialing
+ * `SIP/<ext>` from `from-internal` with no peer channel (BUSY/CONGESTION; ~half of all CDR rows in production).
+ * When legs are keyed by uniqueid (no `cdr.linkedid`), such a row is its own group whose first leg is from
+ * `from-internal` on a non-operator channel, so it never yields a fact, and `CdrLegsReader` filters these rows
+ * in SQL. Rows with a peer channel are kept: an answered member leg can be bridged and transferred, and the
+ * transfer adds a second row to the same Local channel that this row has to keep heading (see the spec).
+ * With linkedid the member legs belong to the caller's call and are never filtered.
+ */
+export function isQueueMemberRingAttempt(leg: Pick<CdrLeg, 'channel' | 'dcontext' | 'dstchannel'>): boolean {
+  return LOCAL_CHANNEL.test(leg.channel) && leg.dcontext === 'from-internal' && leg.dstchannel === '';
+}
 
 /** Operator extension a leg was sent to, or null. */
 export function operatorOfLeg(leg: Pick<CdrLeg, 'dst' | 'dstchannel' | 'dcontext'>): string | null {
@@ -110,6 +131,7 @@ export function callFactsFromCdr(legs: readonly CdrLeg[], opts: CdrCallsOptions)
     const first = callLegs[0];
     const startedAt = parseBusinessDateTime(first.calldate, opts.timezone);
     if (!startedAt) continue;
+    if (opts.startedFrom && startedAt < opts.startedFrom) continue; // only partly in the window
     const endedAt = callLegs.reduce<Date>((max, l) => {
       const end = legEnd(l, opts.timezone);
       return end && end > max ? end : max;

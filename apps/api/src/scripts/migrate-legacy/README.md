@@ -218,9 +218,9 @@ All statuses (owner decision 2026-11-18): open stays open, resolved and dismisse
   skipped.
 - **Idempotency:** insert if absent by `legacy_id`; an imported callback is never modified.
 
-**Living with the CDR reconciliation (`callbacks.reconciler.ts`).** The reconciler replays the last
-`CALLBACKS_RECONCILE_LOOKBACK_HOURS` (48 h) of CDR and de-duplicates calls by Asterisk linkedid
-(`callback_events (kind, call_id)`). Legacy rows have no linkedid or uniqueid — only the time of the latest missed
+**Living with the CDR reconciliation (`callbacks.reconciler.ts`).** The reconciler replays CDR calls (on startup
+the last `CALLBACKS_RECONCILE_LOOKBACK_HOURS` = 48 h, then every tick from the previous run's end minus a 2 h
+overlap) and de-duplicates calls by Asterisk linkedid (`callback_events (kind, call_id)`). Legacy rows have no linkedid or uniqueid — only the time of the latest missed
 call per row — so a replayed call cannot be matched to a legacy row by id, and the first runs after cutover would
 count calls legacy already counted again (`missed_count`, `outbound_attempts`, timeline). Decision: the mapper
 writes `callback_settings.legacy_imported_until` = the latest timestamp in `pending_callbacks` (`call_time`,

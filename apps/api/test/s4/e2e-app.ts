@@ -90,7 +90,12 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
     .overrideProvider(CdrLegsReader)
     .useValue({
       available: true,
-      read: async (from: string, to: string) => cdr.legs.filter((l) => l.calldate >= from && l.calldate < to),
+      // One slice of the reconciliation window, like CdrLegsReader.read (oldest first, at most `limit` rows).
+      read: async (from: string, to: string, limit: number) =>
+        cdr.legs
+          .filter((l) => l.calldate >= from && l.calldate < to)
+          .sort((a, b) => a.calldate.localeCompare(b.calldate))
+          .slice(0, limit),
     })
     .compile();
 

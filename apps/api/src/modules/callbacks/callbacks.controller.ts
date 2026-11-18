@@ -76,7 +76,7 @@ export class CallbacksController {
   @HttpCode(200)
   @SerializeOptions({ schema: CallbackSyncResultSchema })
   async sync(@Body({ schema: CallbackSyncRequestSchema }) body: CallbackSyncRequest): Promise<CallbackSyncResult> {
-    const result = await this.reconciler.run(body.hours);
+    const result = await this.reconciler.sync(body.hours);
     await this.audit.record('callbacks.sync', { target: 'callbacks', details: { hours: body.hours, ...result } });
     return result;
   }
