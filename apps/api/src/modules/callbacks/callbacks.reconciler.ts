@@ -9,6 +9,7 @@ import {
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { sql } from 'kysely';
 import { AppConfig } from '../../config/app-config.js';
+import { notQueueMemberRingAttempt } from '../../pbx/calls/cdr-filters.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import { CallbacksService } from './callbacks.service.js';
 import { deriveMissedSource, handledByLegacy } from './domain/callback-rules.js';
@@ -91,13 +92,7 @@ export class CdrLegsReader {
       .select(this.hasLinkedid ? sql<string>`linkedid`.as('linkedid') : sql<string>`uniqueid`.as('linkedid'))
       .where('calldate', '>=', from)
       .where('calldate', '<', to)
-      .$if(!this.hasLinkedid, (qb) =>
-        qb.where((eb) =>
-          eb.not(
-            eb.and([eb('channel', 'like', 'Local/%'), eb('dcontext', '=', 'from-internal'), eb('dstchannel', '=', '')]),
-          ),
-        ),
-      )
+      .$if(!this.hasLinkedid, (qb) => qb.where(notQueueMemberRingAttempt))
       .orderBy('calldate')
       .limit(limit)
       .execute();

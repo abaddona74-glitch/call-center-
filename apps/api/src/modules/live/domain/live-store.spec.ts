@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { OperatorToday } from '@cc/shared';
 import { CallEvents } from '../../../common/events/domain-events.js';
+import { type CounterSeed, dayStartMs, emptyOperatorToday, emptySeed } from './cdr-seed.js';
 import { type AmiEvent, type LiveDomainEvent, LiveStore } from './live-store.js';
 import {
   callsFor,
@@ -638,5 +640,143 @@ describe('projection — operators see only their own numbers', () => {
       },
     });
     expect(store.calls.size).toBe(0);
+  });
+});
+
+describe('LiveStore — live counting boundary and the CDR seed', () => {
+  // Asterisk ids: "<epoch seconds>.<n>"; T0 = 10:00:00 Tashkent = epoch 1794891600.
+  const BOUNDARY = T0 + 1_000; // the API started counting live at 10:00:01
+  const sec = (offset: number) => String(Math.floor((T0 + offset) / 1000));
+  const before = { trunk: `${sec(-60_000)}.1`, sip: `${sec(-55_000)}.2` };
+  const preTrunk = ch('SIP/712020159-0000000a', before.trunk, before.trunk, {
+    channelstate: '6',
+    calleridnum: '901111111',
+    context: 'from-trunk',
+  });
+  const preSip101 = ch('SIP/101-0000000b', before.sip, before.trunk, { channelstate: '6', exten: '101' });
+  const queued = `${sec(-10_000)}.3`;
+  const preQueued = ch('SIP/712020159-0000000c', queued, queued, {
+    channelstate: '6',
+    calleridnum: '902222222',
+    context: 'ext-queues',
+  });
+  const after = `${sec(5_000)}.7`;
+  const postTrunk = ch('SIP/712020159-0000000d', after, after, {
+    channelstate: '4',
+    calleridnum: '903333333',
+    context: 'from-trunk',
+  });
+  const seedOf = (
+    counters: Partial<CounterSeed['counters']>,
+    operators: Record<string, Partial<OperatorToday>> = {},
+  ) => {
+    const seed = emptySeed('2026-11-17', dayStartMs('2026-11-17', 'Asia/Tashkent'), BOUNDARY);
+    return {
+      ...seed,
+      counters: { ...seed.counters, ...counters },
+      operators: new Map(Object.entries(operators).map(([ext, t]) => [ext, { ...emptyOperatorToday(), ...t }])),
+    };
+  };
+
+  it('never counts live a call that was in progress at startup, and reports it when it ends', () => {
+    const store = new LiveStore(config, T0);
+    store.applyPeers([{ event: 'PeerEntry', objectname: '101', status: 'OK (5 ms)' }], T0);
+    store.startCounting(BOUNDARY, T0 + 400);
+    // in progress, found by the startup resync
+    store.resyncChannels(
+      [
+        { event: 'CoreShowChannel', ...preTrunk, duration: '00:01:00', bridgeid: 'b1' },
+        { event: 'CoreShowChannel', ...preSip101, duration: '00:00:55', bridgeid: 'b1' },
+      ],
+      T0 + 500,
+    );
+    expect(op(store, '101', T0 + 500).presence).toBe('talking');
+    // in progress too, but first seen through a live event after startup (it began 10 s before the boundary)
+    // and then a live call that began after it
+    feed(store, [
+      [2_000, { event: 'QueueCallerJoin', ...preQueued, queue: '2020159', position: '1' }],
+      [5_000, { event: 'Newchannel', ...postTrunk }],
+      [30_000, { event: 'BlindTransfer', result: 'Success', transfereruniqueid: before.sip }],
+      [60_000, { event: 'Hangup', ...preSip101, cause: '16' }],
+      [60_000, { event: 'Hangup', ...preTrunk, cause: '16' }],
+      [61_000, { event: 'Hangup', ...preQueued, cause: '16' }],
+    ]);
+
+    expect(projectCounters(store)).toMatchObject({
+      since: new Date(BOUNDARY).toISOString(),
+      seededThrough: null,
+      inbound: 1, // only the call after the boundary
+      answered: 0,
+      abandoned: 0,
+      unanswered: 0,
+      talkSeconds: 0,
+      unknownHangups: 0,
+    });
+    expect(op(store, '101', T0 + 61_000).today).toEqual(emptyOperatorToday());
+    expect(store.drainSeedSideEnded()).toEqual([
+      { callId: before.trunk, startedAt: T0 - 60_000 },
+      { callId: queued, startedAt: T0 - 10_000 },
+    ]);
+    expect(store.drainSeedSideEnded()).toEqual([]);
+  });
+
+  it('startCounting restarts the live counters and moves known earlier calls to the CDR side', () => {
+    const store = new LiveStore(config, T0 - 120_000);
+    feed(store, [[-60_000, { event: 'Newchannel', ...preTrunk, channelstate: '4' }]]);
+    expect(projectCounters(store).inbound).toBe(1);
+    store.startCounting(BOUNDARY, T0 + 400);
+    expect(store.countFrom).toBe(BOUNDARY);
+    expect(projectCounters(store)).toMatchObject({ inbound: 0, since: new Date(BOUNDARY).toISOString() });
+    feed(store, [[10_000, { event: 'Hangup', ...preTrunk, cause: '16' }]]);
+    expect(projectCounters(store).unanswered).toBe(0);
+    expect(store.drainSeedSideEnded().map((e) => e.callId)).toEqual([before.trunk]);
+  });
+
+  it('the projection adds the CDR seed to the live counters and to each operator', () => {
+    const store = new LiveStore(config, T0);
+    store.setDirectory([{ extension: '101', name: 'Ali' }], T0);
+    store.startCounting(BOUNDARY, T0 + 400);
+    feed(store, [[5_000, { event: 'Newchannel', ...postTrunk }]]);
+    store.drainChanged();
+    const applied = store.applySeed(
+      seedOf(
+        { inbound: 9, answered: 6, abandoned: 2, ivrOnly: 1, unanswered: 3, talkSeconds: 600, unknownHangups: 6 },
+        { '101': { answered: 4, talkSeconds: 400 } },
+      ),
+    );
+    expect(applied).toBe(true);
+    expect(store.drainChanged()).toEqual(new Set(['counters', 'operators']));
+    expect(projectCounters(store)).toMatchObject({
+      since: '2026-11-16T19:00:00.000Z', // midnight in Tashkent
+      seededThrough: new Date(BOUNDARY).toISOString(),
+      inbound: 10,
+      answered: 6,
+      answerRate: 60,
+      abandoned: 2,
+      ivrOnly: 1,
+      unanswered: 3,
+      talkSeconds: 600,
+      clientHangups: 0,
+      unknownHangups: 6,
+    });
+    expect(op(store, '101', T0 + 5_000).today).toMatchObject({ answered: 4, talkSeconds: 400 });
+    // a seed of another day is ignored
+    expect(store.applySeed({ ...seedOf({ inbound: 1 }), date: '2026-11-16' })).toBe(false);
+    expect(projectCounters(store).inbound).toBe(10);
+  });
+
+  it('counts the next day live from its start: the seed goes at midnight', () => {
+    const store = new LiveStore(config, T0);
+    store.startCounting(BOUNDARY, T0 + 400);
+    store.applySeed(seedOf({ inbound: 9 }, { '101': { answered: 4 } }));
+    const nextDay = Date.UTC(2026, 10, 17, 19, 0, 1); // 00:00:01 Tashkent on the 18th
+    store.tick(nextDay);
+    expect(store.todaySeed).toBeNull();
+    expect(projectCounters(store)).toMatchObject({
+      date: '2026-11-18',
+      since: new Date(nextDay).toISOString(),
+      seededThrough: null,
+      inbound: 0,
+    });
   });
 });

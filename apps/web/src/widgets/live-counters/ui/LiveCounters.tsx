@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatSeconds, liveSnapshotQuery } from '@/entities/telephony';
+import { tashkentDateTime } from '@/shared/lib/tashkent-time';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
 import './live-counters.css';
@@ -51,9 +52,12 @@ function Kpi({
   );
 }
 
+/** "HH:mm" in Tashkent. */
+const hhmm = (iso: string) => tashkentDateTime(iso).slice(11, 16);
+
 /**
- * Today's KPI cards from live AMI counters (admins only; operators get no counters).
- * They cover the time the API has been connected today — CDR statistics are the reference (S2).
+ * Today's KPI cards (admins only; operators get no counters). The calls before the API started counting live come
+ * from the PBX CDR (`seededThrough`), later ones from AMI; without that seed they cover only the time since `since`.
  */
 export function LiveCounters() {
   const { t } = useTranslation('liveCounters');
@@ -69,9 +73,14 @@ export function LiveCounters() {
   const c = data?.c;
   if (!c || !data) return null;
   const pct = (n: number, d: number) => (d ? `${Math.round((n * 100) / d)}%` : '0%');
-  const since = new Date(c.since);
-  const partial = since.getHours() * 60 + since.getMinutes() > 5;
-  const sinceText = `${String(since.getHours()).padStart(2, '0')}:${String(since.getMinutes()).padStart(2, '0')}`;
+  const sinceText = hhmm(c.since);
+  const [h, m] = sinceText.split(':').map(Number);
+  // Whole day: seeded from the CDR, or counted live since (about) midnight.
+  const note = c.seededThrough
+    ? t('seeded', { time: hhmm(c.seededThrough) })
+    : h * 60 + m > 5
+      ? t('since', { time: sinceText })
+      : null;
 
   return (
     <section className="kpi-wrap" aria-label={t('title')}>
@@ -170,7 +179,7 @@ export function LiveCounters() {
           }
         />
       </div>
-      {partial && <div className="kpi-note">{t('since', { time: sinceText })}</div>}
+      {note && <div className="kpi-note">{note}</div>}
     </section>
   );
 }

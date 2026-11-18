@@ -17,6 +17,14 @@ const DAY_OVERLAP_SEC = 2 * 3600;
 const LOAD_CONCURRENCY = 4;
 const DIRECTORY_TTL_MS = 60_000;
 
+/** A slice of a bounded CDR read had more rows than allowed: nothing was returned. */
+export class CdrSliceOverflowError extends Error {
+  constructor(from: string, to: string, cap: number) {
+    super(`CDR slice ${from}..${to} has more than ${cap} rows`);
+    this.name = 'CdrSliceOverflowError';
+  }
+}
+
 /**
  * Calls (assembled from CDR legs) for Asia/Tashkent calendar days, with a per-day cache:
  * today is re-read every 15 s, yesterday every 2 min, older days are stable for hours.
@@ -57,6 +65,11 @@ export class PbxCallsService {
 
   today(): string {
     return todayInZone(this.calendar.timezone);
+  }
+
+  /** The PBX database is configured (it may still be unreachable). */
+  get enabled(): boolean {
+    return this.repo.enabled;
   }
 
   groupOf(ext: string): string | null {
@@ -107,6 +120,32 @@ export class PbxCallsService {
     } finally {
       this.inflight.delete(date);
     }
+  }
+
+  /**
+   * Calls assembled exactly as `callsForDay` assembles them, from the rows dated in `[fromMs, toMs)`, read slice by slice
+   * (`CdrRepository.rowsSlice`): at most `maxRowsPerSlice` rows per `sliceMs`. A fuller slice means the window cannot be
+   * read whole, so it throws CdrSliceOverflowError instead of returning cut-off calls. Uncached, not filtered by day:
+   * for bounded background reads (the live counters' seed). `rows`/`queries` report the PBX cost.
+   */
+  async callsFromSlices(
+    fromMs: number,
+    toMs: number,
+    opts: { sliceMs: number; maxRowsPerSlice: number },
+  ): Promise<{ calls: AssembledCall[]; rows: number; queries: number }> {
+    if (!(opts.sliceMs > 0)) throw new RangeError('sliceMs must be positive');
+    const zone = this.calendar.timezone;
+    const rows: CdrRow[] = [];
+    let queries = 0;
+    for (let start = fromMs; start < toMs; start += opts.sliceMs) {
+      const from = epochToWall(start, zone);
+      const to = epochToWall(Math.min(start + opts.sliceMs, toMs), zone);
+      const slice = await this.repo.rowsSlice(from, to, opts.maxRowsPerSlice + 1);
+      queries++;
+      if (slice.length > opts.maxRowsPerSlice) throw new CdrSliceOverflowError(from, to, opts.maxRowsPerSlice);
+      for (const row of slice) rows.push(row);
+    }
+    return { calls: assembleCalls(rows, this.dialplan, this.calendar), rows: rows.length, queries };
   }
 
   /** A call and its raw legs, by linkedid/uniqueid. */
