@@ -675,3 +675,19 @@
 :root:not(.dark) .opc .call .timer {
   background: rgba(37, 99, 235, 0.08);
 }
+/* Light theme: the group divider plate is mixed into the legacy navy (#0d1322) — mix it into white instead,
+   with a softer glow. */
+:root:not(.dark) .ob-div-label {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--c) 16%, #ffffff),
+    color-mix(in srgb, var(--c) 6%, #ffffff)
+  );
+  box-shadow: inset 0 0 10px color-mix(in srgb, var(--c) 12%, transparent);
+}
+:root:not(.dark) .ob-div .glow {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c) 35%, transparent));
+}
+:root:not(.dark) .ob-div-label .count {
+  background: color-mix(in srgb, var(--c) 20%, #ffffff);
+}
