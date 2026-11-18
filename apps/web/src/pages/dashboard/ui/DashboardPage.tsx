@@ -1,7 +1,9 @@
+import { usePermission } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
 import { cn } from '@/shared/lib/cn';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { ActiveCalls } from '@/widgets/active-calls';
+import { CallbacksPanel } from '@/widgets/callbacks-panel';
 import { LiveCounters } from '@/widgets/live-counters';
 import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
 import { MyPhone } from '@/widgets/my-phone';
@@ -18,6 +20,7 @@ export function DashboardPage() {
   useLiveTelephonySync();
   const [monitor, setMonitor] = usePersistedState('cc_sidebar_collapsed', 'open', MONITOR);
   const open = monitor === 'open';
+  const canSeeCallbacks = usePermission('callbacks.view');
   return (
     <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
       <div className="flex min-w-0 flex-col gap-6">
@@ -33,11 +36,7 @@ export function DashboardPage() {
         <LiveMonitor onCollapse={() => setMonitor('collapsed')}>
           <QueueWaiters />
           <ActiveCalls />
-          {/*
-            ── SLOT: callbacks panel (session S4) ────────────────────────────────
-            Render `<CallbacksPanel />` from `@/widgets/callbacks-panel` here
-            ("Qayta bog'lanish kerak", legacy #callbacksPanel under active calls).
-          */}
+          {canSeeCallbacks && <CallbacksPanel />}
         </LiveMonitor>
       ) : (
         <LiveMonitorReopen onClick={() => setMonitor('open')} />
