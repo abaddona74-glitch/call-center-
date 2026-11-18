@@ -28,17 +28,17 @@
   border: 1px solid rgba(56, 189, 248, 0.45);
   border-radius: 18px;
   overflow: hidden;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .guide-panel--manual {
   width: 860px;
   background: #0b1329;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.95);
+  box-shadow: 0 25px 60px color-mix(in srgb, var(--shadow-color) 95%, transparent);
 }
 .guide-panel--softphone {
   width: 620px;
-  background: #0f172a;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9);
+  background: var(--sidebar);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--shadow-color) 90%, transparent);
 }
 
 .guide-panel-header {
@@ -47,8 +47,8 @@
   align-items: center;
   gap: 12px;
   padding: 18px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
+  background: color-mix(in srgb, var(--glass) 95%, transparent);
 }
 .guide-panel-heading {
   display: flex;
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  color: #38bdf8;
+  color: var(--info);
 }
 .guide-panel-icon--manual {
   width: 44px;
@@ -82,7 +82,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .guide-panel-title--manual {
   display: flex;
@@ -95,13 +95,13 @@
   padding: 2px 8px;
   border-radius: 6px;
   background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--positive);
   border: 1px solid rgba(16, 185, 129, 0.4);
 }
 .guide-panel-subtitle {
   margin: 3px 0 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--mute);
 }
 .guide-panel-close {
   display: flex;
@@ -111,9 +111,9 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
+  background: color-mix(in srgb, var(--tint) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 15%, transparent);
+  color: var(--ink-2);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -122,27 +122,27 @@
   height: 32px;
 }
 .guide-panel-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--tint) 10%, transparent);
+  color: var(--ink);
 }
 
 .guide-panel-footer {
   display: flex;
   align-items: center;
   padding: 14px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
 }
 .guide-panel-footer--manual {
   justify-content: space-between;
-  background: rgba(15, 23, 42, 0.95);
+  background: color-mix(in srgb, var(--glass) 95%, transparent);
 }
 .guide-panel-footer--softphone {
   justify-content: flex-end;
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--tint) 2%, transparent);
 }
 .guide-panel-footnote {
   font-size: 12px;
-  color: #64748b;
+  color: var(--dim);
 }
 .guide-panel-done {
   background: linear-gradient(135deg, #0284c7, #0369a1);
@@ -168,8 +168,8 @@
   display: flex;
   gap: 8px;
   padding: 12px 24px;
-  background: rgba(15, 23, 42, 0.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--glass) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   overflow-x: auto;
 }
 .manual-tab-btn {
@@ -178,10 +178,10 @@
   align-items: center;
   gap: 8px;
   padding: 9px 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--tint) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   border-radius: 10px;
-  color: #94a3b8;
+  color: var(--mute);
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
@@ -189,12 +189,12 @@
   white-space: nowrap;
 }
 .manual-tab-btn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
+  border-color: color-mix(in srgb, var(--tint) 18%, transparent);
 }
 .manual-tab-btn.active {
-  color: #fff;
+  color: var(--ink);
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(16, 185, 129, 0.2));
   border-color: rgba(56, 189, 248, 0.6);
   box-shadow: 0 2px 12px rgba(56, 189, 248, 0.25);
@@ -205,7 +205,7 @@
   padding: 22px 26px;
   font-size: 13.5px;
   line-height: 1.6;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 
 /* ---- operator manual: tree tab ---- */
@@ -233,36 +233,36 @@
   margin: 0;
   font-size: 15px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--info);
 }
 .manual-tree-pill {
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 6px;
   background: rgba(56, 189, 248, 0.2);
-  color: #7dd3fc;
+  color: color-mix(in oklab, #7dd3fc, var(--ink) var(--shade-strong));
 }
 .manual-tree-text {
   margin: 4px 0 0;
   font-size: 12.5px;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .manual-tree-reset {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 18%, transparent);
   border-radius: 8px;
-  color: #fff;
+  color: var(--ink);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
 }
 .manual-tree-reset:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: color-mix(in srgb, var(--tint) 14%, transparent);
 }
 /* legacy `.ft-container` */
 .manual-tree {
@@ -279,23 +279,23 @@
 
 /* ---- operator manual: content cards ---- */
 .manual-card {
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--glass) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   border-radius: 12px;
   padding: 16px 18px;
   margin-bottom: 14px;
 }
 .manual-card--accent {
-  border-left: 3px solid #38bdf8;
+  border-left: 3px solid var(--info);
 }
 .manual-card--success {
-  border-left: 3px solid #34d399;
+  border-left: 3px solid var(--positive);
 }
 .manual-card--warning {
-  border-left: 3px solid #fbbf24;
+  border-left: 3px solid var(--caution);
 }
 .manual-card--danger {
-  border-left: 3px solid #f87171;
+  border-left: 3px solid var(--danger);
 }
 .manual-h4 {
   margin: 0 0 10px;
@@ -310,16 +310,16 @@
   margin-bottom: 12px;
 }
 .manual-h4.is-accent {
-  color: #38bdf8;
+  color: var(--info);
 }
 .manual-h4.is-success {
-  color: #34d399;
+  color: var(--positive);
 }
 .manual-h4.is-warning {
-  color: #fbbf24;
+  color: var(--caution);
 }
 .manual-h4.is-danger {
-  color: #f87171;
+  color: var(--danger);
 }
 .manual-quote {
   background: rgba(56, 189, 248, 0.1);
@@ -329,16 +329,16 @@
   margin-bottom: 10px;
 }
 .manual-say {
-  color: #67e8f9;
+  color: color-mix(in oklab, #67e8f9, var(--ink) var(--shade-strong));
   font-style: italic;
 }
 .manual-note {
   margin: 0;
-  color: #94a3b8;
+  color: var(--mute);
   font-size: 12.5px;
 }
 .manual-soft-box {
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--tint) 3%, transparent);
   border-radius: 8px;
   padding: 10px 14px;
 }
@@ -374,38 +374,38 @@
   vertical-align: top;
 }
 .manual-table tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 6%, transparent);
 }
 .manual-table tbody tr:last-child {
   border-bottom: 0;
 }
 .manual-table td {
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .manual-table--dont thead tr {
   background: rgba(239, 68, 68, 0.08);
 }
 .manual-table--dont .manual-wrong {
-  color: #f87171;
+  color: var(--danger);
 }
 .manual-table--numbers {
   font-size: 13px;
 }
 .manual-table--numbers thead tr {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
+  border-bottom-color: color-mix(in srgb, var(--tint) 10%, transparent);
+  background: color-mix(in srgb, var(--tint) 3%, transparent);
 }
 .manual-table--numbers th {
-  color: #94a3b8;
+  color: var(--mute);
 }
 .manual-table .manual-ext {
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--info);
   font-family: monospace;
 }
 .manual-table .manual-dept {
   font-weight: 600;
-  color: #fff;
+  color: var(--ink);
 }
 
 .manual-grid-2 {
@@ -439,7 +439,7 @@
   margin: 8px 0 0;
   padding-left: 18px;
   font-size: 12.5px;
-  color: #cbd5e1;
+  color: var(--ink-2);
   list-style: decimal;
 }
 .manual-box-list--13 {
@@ -454,7 +454,7 @@
 .manual-box-text {
   margin: 8px 0 0;
   font-size: 12.5px;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .manual-step {
   margin-bottom: 12px;
@@ -465,10 +465,10 @@
 .manual-step p {
   margin: 4px 0 0;
   font-size: 12.5px;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .manual-code {
-  color: #38bdf8;
+  color: var(--info);
   font-family: monospace;
 }
 
@@ -477,7 +477,7 @@
   padding: 22px 24px;
   font-size: 13px;
   line-height: 1.6;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .softphone-params {
   background: rgba(56, 189, 248, 0.08);
@@ -490,7 +490,7 @@
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--info);
 }
 .softphone-table {
   width: 100%;
@@ -498,7 +498,7 @@
   font-size: 12.5px;
 }
 .softphone-table tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 6%, transparent);
 }
 .softphone-table tr:last-child {
   border-bottom: 0;
@@ -506,18 +506,18 @@
 .softphone-table td {
   padding: 6px 0;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--ink);
 }
 .softphone-table td:first-child {
   width: 45%;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--mute);
 }
 .softphone-table .softphone-secret {
-  color: #34d399;
+  color: var(--positive);
 }
 .softphone-table .softphone-host {
-  color: #38bdf8;
+  color: var(--info);
   font-family: monospace;
 }
 .softphone-step {
@@ -527,7 +527,7 @@
   margin-bottom: 6px;
 }
 .softphone-link {
-  color: #38bdf8;
+  color: var(--info);
   text-decoration: underline;
 }
 
@@ -541,4 +541,9 @@
   .manual-body {
     padding: 16px 12px;
   }
+}
+
+/* Light theme: the manual panel's legacy navy (#0b1329) becomes a light panel. */
+:root:not(.dark) .guide-panel--manual {
+  background: var(--sidebar);
 }

@@ -11,15 +11,28 @@ import { ChartLegend } from './ChartLegend';
 import { DT } from './data-table-classes';
 import '../i18n';
 
+/** Colour of an average client rating (1–5). */
+function surveyTone(avg: number): string {
+  if (avg >= 4.5) return 'text-success';
+  if (avg >= 3.5) return '';
+  if (avg >= 2.5) return 'text-warning';
+  return 'text-destructive';
+}
+
 /**
- * Per-operator distribution: legacy grouped bar chart (Qabul qilingan #10b981, Chiquvchi #38bdf8,
- * O'tkazib yuborilgan #f59e0b) + the table with the same columns as the Excel summary sheet.
+ * Per-operator distribution: legacy grouped bar chart (Qabul qilingan #10b981, Chiquvchi var(--info),
+ * O'tkazib yuborilgan #f59e0b) + the table with the same columns as the Excel summary sheet,
+ * plus the clients' post-call rating when the PBX survey is installed (`surveyAvailable`).
  */
 export function OperatorsSection({ data }: { data: OperatorStatsResponse | undefined }) {
   const { t } = useTranslation('callStats');
   const [group, setGroup] = useState<string>('all');
   const rows = (data?.operators ?? []).filter((r) => group === 'all' || r.group === group);
   const groups = data?.groups ?? [];
+  const columns = [
+    ...(['operator', 'answered', 'transfer', 'outbound', 'missed', 'total', 'talk', 'avg'] as const),
+    ...(data?.surveyAvailable ? (['survey'] as const) : []),
+  ];
   const chartRows = rows
     .filter((r) => r.total + r.missed > 0)
     .map((r) => ({
@@ -59,7 +72,7 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
             <CartesianGrid {...GRID} />
             <XAxis dataKey="label" {...AXIS} interval={0} tick={{ ...AXIS.tick, fontSize: 11 }} />
             <YAxis allowDecimals={false} {...AXIS} />
-            <Tooltip {...TOOLTIP} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Tooltip {...TOOLTIP} cursor={{ fill: 'color-mix(in srgb, var(--tint) 4%, transparent)' }} />
             <Bar dataKey="accepted" name={t('series.accepted')} fill="var(--chart-2)" radius={6} />
             <Bar dataKey="outbound" name={t('series.outbound')} fill="var(--chart-4)" radius={6} />
             <Bar dataKey="missed" name={t('series.missed')} fill="var(--chart-5)" radius={6} />
@@ -70,19 +83,17 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
         <table className={DT.table}>
           <thead>
             <tr>
-              {(['operator', 'answered', 'transfer', 'outbound', 'missed', 'total', 'talk', 'avg'] as const).map(
-                (c) => (
-                  <th key={c} className={cn(DT.th, c === 'operator' && 'text-left')}>
-                    {t(`opCol.${c}`)}
-                  </th>
-                ),
-              )}
+              {columns.map((c) => (
+                <th key={c} className={cn(DT.th, c === 'operator' && 'text-left')}>
+                  {t(`opCol.${c}`)}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className={cn(DT.td, 'py-6 text-muted-foreground')}>
+                <td colSpan={columns.length} className={cn(DT.td, 'py-6 text-muted-foreground')}>
                   {t('empty')}
                 </td>
               </tr>
@@ -100,7 +111,7 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
                     {r.transferredIn} / {r.transferredOut}
                   </td>
                   <td className={DT.td}>
-                    <span className="font-semibold text-chart-4">{r.outbound}</span>
+                    <span className="font-semibold text-shade-chart-4">{r.outbound}</span>
                     <span className="ml-1 text-[11px] text-muted-foreground">
                       ({r.outboundAttempts} {t('attemptsShort')})
                     </span>
@@ -109,6 +120,22 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
                   <td className={cn(DT.td, 'text-[15px] font-bold')}>{r.total}</td>
                   <td className={cn(DT.td, 'font-mono')}>{formatDuration(r.talkSec)}</td>
                   <td className={cn(DT.td, 'font-mono text-muted-foreground')}>{formatDuration(r.avgTalkSec)}</td>
+                  {data?.surveyAvailable && (
+                    <td className={DT.td}>
+                      {r.surveyAvg === null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <>
+                          <span className={cn('font-semibold', surveyTone(r.surveyAvg))}>
+                            ★ {r.surveyAvg.toFixed(1)}
+                          </span>
+                          <span className="ml-1 text-[11px] text-muted-foreground">
+                            ({t('surveyVotes', { n: r.surveyCount })})
+                          </span>
+                        </>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

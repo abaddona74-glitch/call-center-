@@ -212,6 +212,9 @@ describe('stats', () => {
     });
     expect(rowsByExt['103']).toMatchObject({ answered: 0, transferredOut: 1, outbound: 1, total: 1 });
     expect(rowsByExt['120']).toMatchObject({ total: 0 });
+    // No survey table on this PBX: the column is hidden and the rows carry no ratings.
+    expect(ops.body.surveyAvailable).toBe(false);
+    expect(rowsByExt['101']).toMatchObject({ surveyCount: 0, surveyAvg: null });
     const credited = ops.body.operators.reduce(
       (s: number, r: { answered: number; transferredIn: number }) => s + r.answered + r.transferredIn,
       0,

@@ -1,0 +1,7 @@
+
+; ==== OPERATOR-BAHO BOSHI ====
+; ext-queues: QOPTIONS ga "c" qo'shiladi (operator go'shakni qo'ysa mijoz dialplanda davom etadi)
+; va navbatdan keyin mijoz [operator-baho] ga yuboriladi. O'CHIRISH: shu 2 qatorni o'chirib "dialplan reload".
+VQ_CONTINUE = c
+VQ_DEST = operator-baho^s^1
+; ==== OPERATOR-BAHO OXIRI ====

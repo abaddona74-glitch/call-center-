@@ -118,7 +118,7 @@ export function ForgotPasswordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-[440px] [&>button]:top-5 [&>button]:right-5 [&>button]:text-[#64748b]">
+      <DialogContent className="border-0 bg-transparent p-0 shadow-none sm:max-w-[440px] [&>button]:top-5 [&>button]:right-5 [&>button]:text-dim">
         <div className="lg-modal">
           <div className="lg-modal-header">
             <div className={cn('lg-modal-badge', header.tone)}>{header.icon}</div>

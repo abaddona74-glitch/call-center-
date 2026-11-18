@@ -60,10 +60,10 @@ export function OrganizationPicker({
         className="flex items-center gap-3 rounded-[10px] border border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.08)] px-3.5 py-2"
       >
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[13.5px] font-bold text-white" title={value.name}>
+          <div className="truncate text-[13.5px] font-bold text-ink" title={value.name}>
             {value.name}
           </div>
-          <div className="text-[11.5px] font-semibold text-[#94a3b8]">
+          <div className="text-[11.5px] font-semibold text-mute">
             {value.tin ? t('form.organizationTin', { tin: value.tin }) : t('form.organizationManual')}
           </div>
         </div>
@@ -71,7 +71,7 @@ export function OrganizationPicker({
           type="button"
           title={t('form.organizationClear')}
           aria-label={t('form.organizationClear')}
-          className="rounded-md px-2 py-1 text-lg leading-none text-[#94a3b8] hover:bg-white/10 hover:text-white"
+          className="rounded-md px-2 py-1 text-lg leading-none text-mute hover:bg-tint/10 hover:text-ink"
           onClick={() => {
             onChange(null);
             setText(value.id === null ? value.name : '');
@@ -125,10 +125,10 @@ export function OrganizationPicker({
         <div
           id={listId}
           role="listbox"
-          className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-[10px] border border-white/12 bg-[#0f172a] py-1 shadow-[0_12px_32px_rgba(0,0,0,0.5)]"
+          className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-[10px] border border-tint/12 bg-sidebar py-1 shadow-[0_12px_32px_color-mix(in_srgb,var(--shadow-color)_50%,transparent)]"
         >
           {typed.length < 2 ? (
-            <div className="px-3.5 py-2 text-xs text-[#64748b]">{t('form.organizationHint')}</div>
+            <div className="px-3.5 py-2 text-xs text-dim">{t('form.organizationHint')}</div>
           ) : (
             <>
               {items.map((org, i) => (
@@ -138,7 +138,7 @@ export function OrganizationPicker({
                   aria-selected={i === active}
                   className={cn(
                     'cursor-pointer px-3.5 py-2',
-                    i === active ? 'bg-[rgba(56,189,248,0.15)]' : 'hover:bg-white/5',
+                    i === active ? 'bg-[rgba(56,189,248,0.15)]' : 'hover:bg-tint/5',
                   )}
                   onMouseEnter={() => setActive(i)}
                   onMouseDown={(e) => {
@@ -146,24 +146,24 @@ export function OrganizationPicker({
                     choose(i);
                   }}
                 >
-                  <div className="text-[13px] font-semibold text-[#f1f5f9]">{org.name}</div>
-                  <div className="text-[11.5px] text-[#94a3b8]">
+                  <div className="text-[13px] font-semibold text-ink">{org.name}</div>
+                  <div className="text-[11.5px] text-mute">
                     {[org.tin && t('form.organizationTin', { tin: org.tin }), org.district].filter(Boolean).join(' · ')}
                   </div>
                 </div>
               ))}
               {enabled && search.isFetching && items.length === 0 && (
-                <div className="px-3.5 py-2 text-xs text-[#64748b]">{t('form.organizationSearching')}</div>
+                <div className="px-3.5 py-2 text-xs text-dim">{t('form.organizationSearching')}</div>
               )}
               {enabled && !search.isFetching && items.length === 0 && (
-                <div className="px-3.5 py-2 text-xs text-[#64748b]">{t('form.organizationNone')}</div>
+                <div className="px-3.5 py-2 text-xs text-dim">{t('form.organizationNone')}</div>
               )}
               <div
                 role="option"
                 aria-selected={active === items.length}
                 className={cn(
-                  'cursor-pointer border-t border-white/8 px-3.5 py-2 text-[12.5px] font-semibold text-[#fbbf24]',
-                  active === items.length ? 'bg-[rgba(245,158,11,0.15)]' : 'hover:bg-white/5',
+                  'cursor-pointer border-t border-tint/8 px-3.5 py-2 text-[12.5px] font-semibold text-caution',
+                  active === items.length ? 'bg-[rgba(245,158,11,0.15)]' : 'hover:bg-tint/5',
                 )}
                 onMouseEnter={() => setActive(items.length)}
                 onMouseDown={(e) => {

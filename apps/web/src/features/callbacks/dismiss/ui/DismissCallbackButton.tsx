@@ -57,7 +57,7 @@ export function DismissCallbackButton({ id, phone }: { id: number; phone: string
           rows={2}
           autoFocus
           placeholder={t('reasonPlaceholder')}
-          className="mb-4 w-full resize-none rounded-lg border border-white/15 bg-sidebar/80 px-3 py-2 text-left text-[13px] text-white outline-none placeholder:text-muted-foreground focus:border-destructive"
+          className="mb-4 w-full resize-none rounded-lg border border-tint/15 bg-sidebar/80 px-3 py-2 text-left text-[13px] text-ink outline-none placeholder:text-muted-foreground focus:border-destructive"
         />
       </DangerConfirmDialog>
     </span>

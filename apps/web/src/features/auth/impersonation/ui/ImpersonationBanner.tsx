@@ -51,21 +51,21 @@ export function ImpersonationBanner() {
       className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(245,158,11,0.45)] bg-[linear-gradient(90deg,rgba(245,158,11,0.22),rgba(239,68,68,0.18))] px-6 py-2.5 text-[13px] text-[#fde68a] shadow-[0_4px_18px_rgba(245,158,11,0.18)]"
     >
       <div className="flex items-center gap-2.5">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-[rgba(245,158,11,0.25)] text-[#fbbf24]">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-[rgba(245,158,11,0.25)] text-caution">
           <IconUser size={16} />
         </span>
         <div>
-          <div className="font-bold text-[#fef3c7]">{t('acting', { by: info.by.username, user: user.username })}</div>
-          <div className="text-[11.5px] text-[#fcd34d]/80">{t('hint')}</div>
+          <div className="font-bold text-[#fef3c7] light:text-caution">{t('acting', { by: info.by.username, user: user.username })}</div>
+          <div className="text-[11.5px] text-caution-soft/80">{t('hint')}</div>
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <span className="font-mono text-xs text-[#fde68a]">{t('left', { time: mmss(left) })}</span>
+        <span className="font-mono text-xs text-[#fde68a] light:text-caution">{t('left', { time: mmss(left) })}</span>
         <button
           type="button"
           disabled={stop.isPending}
           onClick={() => stop.mutate()}
-          className="cursor-pointer rounded-lg border border-[rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.25)] px-3.5 py-1.5 text-xs font-bold text-white transition-colors hover:bg-[rgba(239,68,68,0.4)] disabled:opacity-50"
+          className="cursor-pointer rounded-lg border border-[rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.25)] px-3.5 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-[rgba(239,68,68,0.4)] disabled:opacity-50"
         >
           {t('stop')}
         </button>

@@ -42,15 +42,15 @@ function showZipToast(job: ZipJob, t: TFunction<'recording'>): void {
   if (job.status === 'ready') startDownload(job);
   toast.custom(
     (id) => (
-      <div className="w-[360px] rounded-[14px] border border-[rgba(56,189,248,0.35)] bg-[rgba(15,23,42,0.94)] p-3.5 text-[#f8fafc] shadow-[0_16px_36px_rgba(0,0,0,0.6)] backdrop-blur-[16px]">
+      <div className="w-[360px] rounded-[14px] border border-[rgba(56,189,248,0.35)] bg-glass/94 p-3.5 text-ink shadow-[0_16px_36px_color-mix(in_srgb,var(--shadow-color)_60%,transparent)] backdrop-blur-[16px]">
         <div className="flex items-center gap-2 text-[13px] font-bold">
-          <LegacyIcon name="document-download" className="size-4 text-[#38bdf8]" />
+          <LegacyIcon name="document-download" className="size-4 text-info" />
           <span className="truncate">{job.zipName}</span>
         </div>
-        <div className={cn('mt-1 text-xs', job.status === 'failed' ? 'text-[#f87171]' : 'text-[#94a3b8]')}>{statusText(job, t)}</div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className={cn('mt-1 text-xs', job.status === 'failed' ? 'text-danger' : 'text-mute')}>{statusText(job, t)}</div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-tint/10">
           <div
-            className={cn('h-full rounded-full transition-[width] duration-300', job.status === 'failed' ? 'bg-[#ef4444]' : 'bg-[#38bdf8]')}
+            className={cn('h-full rounded-full transition-[width] duration-300', job.status === 'failed' ? 'bg-[#ef4444]' : 'bg-info')}
             style={{ width: `${job.progress}%` }}
           />
         </div>
@@ -66,13 +66,13 @@ function showZipToast(job: ZipJob, t: TFunction<'recording'>): void {
           {active ? (
             <button
               type="button"
-              className="rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2.5 py-1 text-[11px] font-semibold text-[#f87171]"
+              className="rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2.5 py-1 text-[11px] font-semibold text-danger"
               onClick={() => void cancelZipJob(job.id).catch(() => undefined)}
             >
               {t('zipJob.cancel')}
             </button>
           ) : (
-            <button type="button" className="px-1 text-[#94a3b8] hover:text-white" onClick={() => toast.dismiss(id)}>
+            <button type="button" className="px-1 text-mute hover:text-ink" onClick={() => toast.dismiss(id)}>
               ×
             </button>
           )}

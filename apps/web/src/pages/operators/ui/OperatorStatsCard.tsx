@@ -5,6 +5,7 @@ import { formatSeconds } from '@/entities/telephony';
 import { PauseOperatorButton } from '@/features/telephony/pause-operator';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { accentText } from '@/shared/lib/theme';
 import { type Medal, ratingOf } from '../model/rating';
 
 /**
@@ -39,7 +40,7 @@ export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; c
               {'★'.repeat(rating.stars)}
             </span>
           )}
-          <span className="opp-state" style={{ color: PRESENCE_COLOR[op.presence] }}>
+          <span className="opp-state" style={{ color: accentText(PRESENCE_COLOR[op.presence]) }}>
             {tp(`presence.${op.presence}`)}
           </span>
         </div>
@@ -52,7 +53,7 @@ export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; c
       </div>
       <div className="opp-row">
         <span>{t('card.sip')}:</span>
-        <span className="opp-pill" style={{ color: op.registered ? '#34d399' : '#f87171' }}>
+        <span className="opp-pill" style={{ color: op.registered ? 'var(--positive)' : 'var(--danger)' }}>
           <i />
           {t(op.registered ? 'card.active' : 'card.inactive')}
           {op.ip && <em>{op.ip}</em>}
@@ -60,27 +61,27 @@ export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; c
       </div>
       <div className="opp-row">
         <span>{t('card.queue')}:</span>
-        <span className="text-[#93c5fd]">{op.queue ? op.queue.callsTaken : '—'}</span>
+        <span className="text-link-soft">{op.queue ? op.queue.callsTaken : '—'}</span>
       </div>
       <div className="opp-row">
         <span>{t('card.answered')}:</span>
-        <span className="text-[#34d399]">{t('card.count', { n: answered })}</span>
+        <span className="text-positive">{t('card.count', { n: answered })}</span>
       </div>
       <div className="opp-row">
         <span>{t('card.outbound')}:</span>
-        <span className="text-[#38bdf8]">{t('card.count', { n: outbound })}</span>
+        <span className="text-info">{t('card.count', { n: outbound })}</span>
       </div>
       <div className="opp-row">
         <span>{t('card.missed')}:</span>
-        <span className="text-[#fbbf24]">{t('card.count', { n: missed })}</span>
+        <span className="text-caution">{t('card.count', { n: missed })}</span>
       </div>
       <div className="opp-row extra">
         <span>{t('card.talkTotal')}:</span>
-        <span className="text-[#f1f5f9]">{formatSeconds(talkSeconds)}</span>
+        <span className="text-ink">{formatSeconds(talkSeconds)}</span>
       </div>
       <div className="opp-row extra">
         <span>{t('card.talkAvg')}:</span>
-        <span className="text-[#f1f5f9]">{formatSeconds(total ? talkSeconds / total : 0)}</span>
+        <span className="text-ink">{formatSeconds(total ? talkSeconds / total : 0)}</span>
       </div>
       {controls && !offline && (
         <div className="opp-actions">

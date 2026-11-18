@@ -10,31 +10,31 @@ type Accent = 'blue' | 'cyan' | 'purple' | 'green' | 'amber' | 'red' | 'indigo' 
 
 /** Legacy `.kpi-card.<color>`: top border + label color. */
 const ACCENTS: Record<Accent, { border: string; label: string; badge: string; sub: string }> = {
-  blue: { border: 'border-t-chart-6', label: 'text-chart-6', badge: '', sub: 'text-chart-6' },
-  cyan: { border: 'border-t-chart-7', label: 'text-chart-7', badge: '', sub: 'text-chart-7' },
+  blue: { border: 'border-t-chart-6', label: 'text-shade-chart-6', badge: '', sub: 'text-shade-chart-6' },
+  cyan: { border: 'border-t-chart-7', label: 'text-shade-chart-7', badge: '', sub: 'text-shade-chart-7' },
   purple: {
     border: 'border-t-chart-3',
     label: 'text-outbound',
     badge: 'border border-chart-3/30 bg-chart-3/20 text-outbound',
-    sub: 'text-chart-3',
+    sub: 'text-shade-chart-3',
   },
   green: {
     border: 'border-t-chart-2',
     label: 'text-success',
     badge: 'bg-chart-2/20 text-success',
-    sub: 'text-chart-2',
+    sub: 'text-shade-chart-2',
   },
   amber: {
     border: 'border-t-chart-5',
     label: 'text-warning',
     badge: 'bg-chart-5/20 text-warning',
-    sub: 'text-chart-5',
+    sub: 'text-shade-chart-5',
   },
   red: {
     border: 'border-t-chart-8',
     label: 'text-destructive',
     badge: 'bg-chart-8/20 text-destructive',
-    sub: 'text-chart-8',
+    sub: 'text-shade-chart-8',
   },
   indigo: { border: 'border-t-primary', label: 'text-primary', badge: '', sub: 'text-primary' },
   teal: { border: 'border-t-success', label: 'text-success', badge: '', sub: 'text-success' },
@@ -66,7 +66,7 @@ export function KpiCard({
     <div
       title={title}
       className={cn(
-        'group relative flex min-h-[145px] items-center gap-3.5 overflow-hidden rounded-2xl border border-t-[3px] border-white/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
+        'group relative flex min-h-[145px] items-center gap-3.5 overflow-hidden rounded-2xl border border-t-[3px] border-tint/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
         a.border,
       )}
     >
@@ -77,7 +77,7 @@ export function KpiCard({
             alt=""
             width={54}
             height={54}
-            className="size-[54px] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.45)] transition-transform duration-200 group-hover:scale-110"
+            className="size-[54px] object-contain drop-shadow-[0_4px_10px_color-mix(in_srgb,var(--shadow-color)_45%,transparent)] transition-transform duration-200 group-hover:scale-110"
           />
         ) : (
           <Icon name={icon ?? 'chart'} className={cn('size-10', a.label)} />
@@ -108,7 +108,7 @@ export function KpiCard({
 }
 
 function B({ children }: { children: React.ReactNode }) {
-  return <b className="font-bold text-chart-4">{children}</b>;
+  return <b className="font-bold text-shade-chart-4">{children}</b>;
 }
 
 /** Legacy dashboard KPI grid, fed from the CDR summary of the chosen period. */

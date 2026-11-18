@@ -45,18 +45,18 @@ export function CallbacksPanel({ className }: { className?: string }) {
   const items = data?.items ?? [];
 
   return (
-    <div className={cn('rounded-[14px] border border-white/10 bg-sidebar/65 p-[14px] backdrop-blur-[12px]', className)}>
+    <div className={cn('rounded-[14px] border border-tint/10 bg-sidebar/65 p-[14px] backdrop-blur-[12px]', className)}>
       <div className="mb-[14px] flex items-center justify-between gap-2 px-0.5">
-        <h2 className="m-0 flex-1 text-[15px] font-semibold text-slate-50">{t('title')}</h2>
+        <h2 className="m-0 flex-1 text-[15px] font-semibold text-ink">{t('title')}</h2>
         <div className="flex items-center gap-1.5">
-          <div className="inline-flex overflow-hidden rounded-lg border border-white/10 bg-black/25">
+          <div className="inline-flex overflow-hidden rounded-lg border border-tint/10 bg-well/25">
             {(['today', 'all'] as const).map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setDate(d)}
                 className={cn(
-                  'px-2 py-[3px] text-[11px] font-medium text-muted-foreground transition-all duration-150 hover:text-white',
+                  'px-2 py-[3px] text-[11px] font-medium text-muted-foreground transition-all duration-150 hover:text-ink',
                   date === d && 'bg-foreground font-semibold text-background hover:text-background',
                 )}
               >
@@ -76,7 +76,7 @@ export function CallbacksPanel({ className }: { className?: string }) {
             type="button"
             onClick={() => setTab(c)}
             className={cn(
-              'inline-flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-border px-1 py-[5px] text-[11px] font-medium text-muted-foreground transition-all duration-150 hover:bg-white/5 hover:text-foreground',
+              'inline-flex min-w-0 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-border px-1 py-[5px] text-[11px] font-medium text-muted-foreground transition-all duration-150 hover:bg-tint/5 hover:text-foreground',
               tab === c && 'border-warning bg-warning font-bold text-background hover:bg-warning hover:text-background',
             )}
           >
@@ -91,7 +91,7 @@ export function CallbacksPanel({ className }: { className?: string }) {
         ) : isError ? (
           <div className="p-3.5 text-center text-[11px] text-destructive">{t('error')}</div>
         ) : items.length === 0 ? (
-          <div className="p-3.5 text-center text-[11px] text-slate-500">{t(`empty.${tab}`)}</div>
+          <div className="p-3.5 text-center text-[11px] text-dim">{t(`empty.${tab}`)}</div>
         ) : (
           items.map((cb) => (
             <CallbackRow
@@ -164,7 +164,7 @@ function CallbackRow({
       onClick={() => void copy()}
       onKeyDown={(e) => e.key === 'Enter' && void copy()}
       className={cn(
-        'group relative flex cursor-pointer items-center gap-2.5 rounded-lg border-t border-white/[0.06] p-2 transition-[background,transform] duration-150 first:border-t-0 first:pt-1 hover:bg-white/[0.04]',
+        'group relative flex cursor-pointer items-center gap-2.5 rounded-lg border-t border-tint/[0.06] p-2 transition-[background,transform] duration-150 first:border-t-0 first:pt-1 hover:bg-tint/[0.04]',
         flash && 'scale-[0.98] bg-success/15',
       )}
     >
@@ -172,7 +172,7 @@ function CallbackRow({
         <div className="inline-flex items-center gap-1.5 text-sm leading-tight font-semibold tracking-[0.1px] text-foreground tabular-nums">
           {phone}
           {attempts > 1 && (
-            <span className="inline-flex items-center gap-[5px] rounded-md bg-blue-400/15 px-2 py-0.5 text-[11px] leading-[1.3] font-semibold whitespace-nowrap text-blue-400">
+            <span className="inline-flex items-center gap-[5px] rounded-md bg-blue-400/15 px-2 py-0.5 text-[11px] leading-[1.3] font-semibold whitespace-nowrap text-link">
               {t('times', { n: attempts })}
             </span>
           )}
@@ -181,7 +181,7 @@ function CallbackRow({
       </div>
       <div className="ml-auto shrink-0 text-right text-xs leading-[1.35] text-muted-foreground tabular-nums">
         <div>{shortTashkentTime(shownAt, new Date(now))}</div>
-        {rel && <div className="mt-px text-[11px] text-slate-500">{rel}</div>}
+        {rel && <div className="mt-px text-[11px] text-dim">{rel}</div>}
       </div>
       {canDismiss && <DismissCallbackButton id={cb.id} phone={cb.phone} />}
     </div>

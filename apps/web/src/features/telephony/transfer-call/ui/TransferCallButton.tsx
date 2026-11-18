@@ -7,6 +7,7 @@ import { PRESENCE_COLOR, compareForBoard } from '@/entities/operator';
 import { telephonyActions } from '@/entities/telephony';
 import { cn } from '@/shared/lib/cn';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
+import { accentText } from '@/shared/lib/theme';
 import '../i18n';
 
 /** "O'tkazish" → modal with operators (free ones first) → AMI Redirect of the citizen leg. */
@@ -58,7 +59,7 @@ export function TransferCallButton({
         <span>{t('transfer.button')}</span>
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="border-white/10 bg-[#0f172a] sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogContent className="border-tint/10 bg-sidebar sm:max-w-md" onClick={(e) => e.stopPropagation()}>
           <DialogHeader>
             <DialogTitle>{t('transfer.title')}</DialogTitle>
             <DialogDescription>{t('transfer.description')}</DialogDescription>
@@ -74,17 +75,17 @@ export function TransferCallButton({
                 disabled={mutation.isPending}
                 onClick={() => mutation.mutate(op.extension)}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg border border-white/8 bg-[#1a2538] px-3 py-2 text-left transition-colors hover:border-[#60a5fa]/50 hover:bg-[#60a5fa]/8 disabled:opacity-50',
+                  'flex items-center gap-3 rounded-lg border border-tint/8 bg-secondary px-3 py-2 text-left transition-colors hover:border-link/50 hover:bg-link/8 disabled:opacity-50',
                 )}
               >
                 <span
-                  className="grid size-9 place-items-center rounded-lg border border-white/10 bg-[#18223a] text-sm font-bold tabular-nums"
-                  style={{ color: PRESENCE_COLOR[op.presence] }}
+                  className="grid size-9 place-items-center rounded-lg border border-tint/10 bg-panel-2 text-sm font-bold tabular-nums"
+                  style={{ color: accentText(PRESENCE_COLOR[op.presence]) }}
                 >
                   {op.extension}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">{op.name}</span>
-                <span className="text-xs font-semibold" style={{ color: PRESENCE_COLOR[op.presence] }}>
+                <span className="text-xs font-semibold" style={{ color: accentText(PRESENCE_COLOR[op.presence]) }}>
                   {tp(`presence.${op.presence}`)}
                 </span>
               </button>

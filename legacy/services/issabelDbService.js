@@ -2821,6 +2821,43 @@ class IssabelDbService {
         }
     }
 
+    /**
+     * Mijozlarning operatorga qo'ygan bahosi (1–5) — Issabel so'rovnomasi yozadigan
+     * asteriskcdrdb.operator_baho jadvalidan, bitta kun uchun (rated_at bo'yicha).
+     * Natija: Map(ext -> { count, avg }). Jadval yo'q / xato bo'lsa — bo'sh Map,
+     * operator statistikasining qolgan qismi buzilmaydi.
+     */
+    async fetchSurveyStats(dateStr = '') {
+        const day = (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) ? dateStr : this.getTodayDate();
+        if (!this.surveyCache) this.surveyCache = new Map();
+        const ttl = day === this.getTodayDate() ? 25000 : 300000;
+        const hit = this.surveyCache.get(day);
+        if (hit && Date.now() - hit.at < ttl) return hit.data;
+
+        const data = new Map();
+        try {
+            const raw = await this.execQuery(
+                `SELECT operator_ext, COUNT(*), ROUND(AVG(baho), 2) FROM asteriskcdrdb.operator_baho ` +
+                `WHERE rated_at >= '${day} 00:00:00' AND rated_at <= '${day} 23:59:59' AND operator_ext <> '' ` +
+                `GROUP BY operator_ext;`
+            );
+            for (const line of (raw || '').split('\n')) {
+                const parts = line.split('\t');
+                const ext = (parts[0] || '').trim();
+                if (!/^[0-9]{2,5}$/.test(ext)) continue;
+                const avg = parseFloat(parts[2]);
+                data.set(ext, { count: parseInt(parts[1], 10) || 0, avg: Number.isFinite(avg) ? avg : null });
+            }
+            this._surveyWarned = false;
+        } catch (err) {
+            if (!this._surveyWarned) console.warn('⚠️ fetchSurveyStats (operator_baho):', err.message);
+            this._surveyWarned = true;
+        }
+        this.surveyCache.set(day, { at: Date.now(), data });
+        if (this.surveyCache.size > 60) this.surveyCache.delete(this.surveyCache.keys().next().value);
+        return data;
+    }
+
     getOperatorName(ext) {
         const raw = this.operatorNames.get(String(ext)) || `Operator ${ext}`;
         // Agar nom allaqachon "(ext)" bilan tugagan bo'lsa (masalan Issabel DB'da

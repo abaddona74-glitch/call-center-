@@ -47,11 +47,11 @@ export function OperatorsPage() {
   const medalOf = medals(list.map((o) => ({ extension: o.extension, total: totalOf(o) })));
 
   return (
-    <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
+    <div className="grid items-start gap-6">
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
         {isAdmin && (
-          <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-white/8 bg-[#131d31] px-5 py-4">
+          <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-tint/8 bg-muted px-5 py-4">
             <div className="text-sm font-semibold">{t('callFrom')}</div>
             <ClickToCallForm operators={operators ?? []} className="ml-auto" />
           </section>

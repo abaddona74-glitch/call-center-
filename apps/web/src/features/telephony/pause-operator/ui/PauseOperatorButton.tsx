@@ -40,7 +40,7 @@ export function PauseOperatorButton({
     return (
       <button
         type="button"
-        className={cn(base, 'border-[#34d6a0]/40 bg-[#34d6a0]/12 text-[#34d6a0]')}
+        className={cn(base, 'border-positive/40 bg-positive/12 text-positive')}
         disabled={mutation.isPending}
         onClick={(e) => {
           e.stopPropagation();
@@ -58,7 +58,7 @@ export function PauseOperatorButton({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={cn(base, 'border-[#f59e0b]/40 bg-[#f59e0b]/12 text-[#fbbf24]')}
+          className={cn(base, 'border-[#f59e0b]/40 bg-[#f59e0b]/12 text-caution')}
           disabled={mutation.isPending}
           onClick={(e) => e.stopPropagation()}
         >

@@ -41,11 +41,11 @@ export function TicketMiniCard({
         }
       }}
       className={cn(
-        'relative cursor-pointer overflow-hidden rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-[rgba(15,23,42,0.85)] px-5 py-[18px] text-left shadow-[0_8px_24px_rgba(0,0,0,0.45)] outline-none transition-all duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
-        'hover:-translate-y-[3px] hover:border-[rgba(56,189,248,0.55)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.6),0_0_15px_rgba(56,189,248,0.15)] focus-visible:border-[rgba(56,189,248,0.55)]',
+        'relative cursor-pointer overflow-hidden rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-glass/85 px-5 py-[18px] text-left shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_45%,transparent)] outline-none transition-all duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+        'hover:-translate-y-[3px] hover:border-[rgba(56,189,248,0.55)] hover:shadow-[0_12px_32px_color-mix(in_srgb,var(--shadow-color)_60%,transparent),0_0_15px_rgba(56,189,248,0.15)] focus-visible:border-[rgba(56,189,248,0.55)]',
         ticket.lastContactIsMe &&
           ticket.status === 'callback_pending' &&
-          'border-[rgba(56,189,248,0.45)]! bg-[linear-gradient(135deg,rgba(30,41,59,0.88)_0%,rgba(14,165,233,0.1)_100%)]!',
+          'border-[rgba(56,189,248,0.45)]! bg-[linear-gradient(135deg,color-mix(in_srgb,var(--glass-2)_88%,transparent)_0%,rgba(14,165,233,0.1)_100%)]!',
         late && 'border-[rgba(239,68,68,0.45)]',
         highlight && 'animate-[tkNewGlow_2.2s_ease-in-out_infinite]',
       )}
@@ -57,7 +57,7 @@ export function TicketMiniCard({
       />
       <div className="mb-1.5 flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <span className="rounded bg-[rgba(56,189,248,0.12)] px-1.5 py-0.5 font-mono text-[11.5px] font-extrabold text-[#38bdf8]">
+          <span className="rounded bg-[rgba(56,189,248,0.12)] px-1.5 py-0.5 font-mono text-[11.5px] font-extrabold text-info">
             {ticket.code}
           </span>
           {ticket.region ? (
@@ -69,7 +69,7 @@ export function TicketMiniCard({
             <RegionBadge label={t('card.noRegion')} muted />
           )}
           {ticket.unread && (
-            <span className="rounded-md border border-[rgba(14,165,233,0.6)] bg-[rgba(14,165,233,0.22)] px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-[0.5px] text-[#38bdf8]">
+            <span className="rounded-md border border-[rgba(14,165,233,0.6)] bg-[rgba(14,165,233,0.22)] px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-[0.5px] text-info">
               {t('card.unread')}
             </span>
           )}
@@ -78,9 +78,9 @@ export function TicketMiniCard({
         </div>
         <TicketStatusBadge status={ticket.status} />
       </div>
-      <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[#e2e8f0]">
+      <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <Icon name="call" className="size-3.5 text-[#38bdf8]" />
+          <Icon name="call" className="size-3.5 text-info" />
           {ticket.customerPhone ? formatUzPhone(ticket.customerPhone) : '—'}
         </span>
         {ticket.customerName && (
@@ -91,14 +91,14 @@ export function TicketMiniCard({
         )}
       </div>
       {ticket.organization && (
-        <div className="truncate text-[11.5px] font-semibold text-[#cbd5e1]" title={ticket.organization.name}>
+        <div className="truncate text-[11.5px] font-semibold text-ink-2" title={ticket.organization.name}>
           {ticket.organization.name}
         </div>
       )}
       {ticket.category && (
-        <div className="text-[11px] font-semibold text-[#94a3b8]">{refName(ticket.category, i18n.language)}</div>
+        <div className="text-[11px] font-semibold text-mute">{refName(ticket.category, i18n.language)}</div>
       )}
-      <div className="my-2.5 line-clamp-3 text-[13.5px] leading-[1.4] break-words whitespace-pre-line text-[#cbd5e1]">
+      <div className="my-2.5 line-clamp-3 text-[13.5px] leading-[1.4] break-words whitespace-pre-line text-ink-2">
         {ticket.description}
       </div>
       {ticket.status === 'callback_pending' && ticket.resolution && (
@@ -106,8 +106,8 @@ export function TicketMiniCard({
           className={cn(
             'mt-[5px] flex items-center gap-[5px] rounded-md border border-dashed px-2 py-[3.5px] text-[11px] leading-[1.35] font-semibold',
             ticket.resolution === 'done'
-              ? 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.12)] text-[#34d399]'
-              : 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.12)] text-[#f87171]',
+              ? 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.12)] text-positive'
+              : 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.12)] text-danger',
           )}
           title={ticket.resolutionNote ?? undefined}
         >
@@ -122,7 +122,7 @@ export function TicketMiniCard({
         <div
           className={cn(
             'mt-1.5 text-[11px] font-semibold',
-            ticket.lastContactIsMe ? 'text-[#38bdf8]' : 'text-[#94a3b8]',
+            ticket.lastContactIsMe ? 'text-info' : 'text-mute',
           )}
         >
           {ticket.lastContactIsMe
@@ -130,30 +130,30 @@ export function TicketMiniCard({
             : t('card.lastContact', { name: personName(ticket.lastContact) })}
         </div>
       )}
-      <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-1.5 text-[11px] text-[#64748b]">
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-tint/5 pt-1.5 text-[11px] text-dim">
         <span className="whitespace-nowrap" title={dateTime(ticket.createdAt)}>
           {timeAgo(ticket.createdAt, t)} · {ticket.creator.label}
         </span>
         <div className="flex min-w-0 items-center gap-2">
           {ticket.dueAt && ticket.status !== 'closed' && !ticket.resolvedAt && (
-            <span className={cn('whitespace-nowrap', ticket.overdue ? 'font-bold text-[#f87171]' : '')}>
+            <span className={cn('whitespace-nowrap', ticket.overdue ? 'font-bold text-danger' : '')}>
               {t('card.due', { date: dateTime(ticket.dueAt) })}
             </span>
           )}
           {ticket.callbackDueAt && ticket.status === 'callback_pending' && (
-            <span className={cn('whitespace-nowrap', ticket.callbackOverdue ? 'font-bold text-[#f87171]' : '')}>
+            <span className={cn('whitespace-nowrap', ticket.callbackOverdue ? 'font-bold text-danger' : '')}>
               {t('card.callbackDue', { date: dateTime(ticket.callbackDueAt) })}
             </span>
           )}
           {ticket.callbackAttempts > 0 && (
-            <span className="whitespace-nowrap text-[#fbbf24]">
+            <span className="whitespace-nowrap text-caution">
               {t('card.attempts', { n: ticket.callbackAttempts })}
             </span>
           )}
           {ticket.attachmentCount > 0 && (
             <span
               title={t('card.files', { n: ticket.attachmentCount })}
-              className="inline-flex items-center gap-1 font-semibold text-[#38bdf8]"
+              className="inline-flex items-center gap-1 font-semibold text-info"
             >
               <LegacyIcon name="gallery" className="size-3.5" />
               {ticket.attachmentCount}
@@ -162,14 +162,14 @@ export function TicketMiniCard({
           {ticket.commentCount > 0 && (
             <span
               title={t('card.replies', { n: ticket.commentCount })}
-              className="inline-flex items-center gap-[3px] font-semibold text-[#94a3b8]"
+              className="inline-flex items-center gap-[3px] font-semibold text-mute"
             >
               <Icon name="clipboard-text" className="size-4" />
               {ticket.commentCount}
             </span>
           )}
           {holder && (
-            <span title={holder} className="truncate font-semibold text-[#c084fc]">
+            <span title={holder} className="truncate font-semibold text-violet">
               {holder}
             </span>
           )}

@@ -69,16 +69,16 @@ export function ResolveTicketModal({
         <KdsModalHeader className={reject ? 'border-b-[rgba(239,68,68,0.25)]' : undefined}>
           <div className="flex items-center gap-3">
             <KdsIdBadge
-              className={reject ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.18)] text-[#f87171]' : undefined}
+              className={reject ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.18)] text-danger' : undefined}
             >
               {ticket.code}
             </KdsIdBadge>
-            <h3 className="m-0 text-base font-bold text-white">{title}</h3>
+            <h3 className="m-0 text-base font-bold text-ink">{title}</h3>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
         <KdsModalBody className="gap-3.5 px-5 py-[18px]">
-          <p className="text-[13px] leading-[1.45] text-[#cbd5e1]">{t('resolve.hint')}</p>
+          <p className="text-[13px] leading-[1.45] text-ink-2">{t('resolve.hint')}</p>
           <KdsField
             label={reject ? t('resolve.noteReject') : t('resolve.noteDone')}
             icon={<LegacyIcon name="message" className="size-3.5" />}

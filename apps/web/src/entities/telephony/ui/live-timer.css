@@ -8,14 +8,14 @@
     background 0.2s ease;
 }
 .live-timer--warning {
-  color: #fcd34d !important;
+  color: var(--caution-soft) !important;
   background: rgba(146, 64, 14, 0.45) !important;
   border-color: rgba(245, 158, 11, 0.6) !important;
   box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3) !important;
   padding: 2px 8px !important;
 }
 .live-timer--danger {
-  color: #fca5a5 !important;
+  color: var(--danger-soft) !important;
   background: rgba(153, 27, 27, 0.55) !important;
   border-color: rgba(239, 68, 68, 0.7) !important;
   box-shadow: 0 2px 12px rgba(239, 68, 68, 0.4) !important;
@@ -35,4 +35,14 @@
   .live-timer--danger {
     animation: none !important;
   }
+}
+
+/* Light theme: the legacy deep amber/red plates turn the colored digits unreadable on white. */
+:root:not(.dark) .live-timer--warning {
+  background: rgba(245, 158, 11, 0.14) !important;
+  box-shadow: none !important;
+}
+:root:not(.dark) .live-timer--danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  box-shadow: none !important;
 }

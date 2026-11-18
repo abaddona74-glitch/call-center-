@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Kysely } from 'kysely';
 import { FileMigrationProvider, type MigrationResultSet, Migrator } from 'kysely/migration';
 
@@ -17,6 +18,8 @@ export function createMigrator(db: Kysely<any>): Migrator {
       fs,
       path,
       migrationFolder: path.join(import.meta.dirname, 'migrations'),
+      // ESM import() needs a file:// URL; a bare "C:\..." path fails on Windows.
+      import: (filePath) => import(pathToFileURL(filePath).href),
     }),
     migrationTableName: 'kysely_migration',
     migrationLockTableName: 'kysely_migration_lock',

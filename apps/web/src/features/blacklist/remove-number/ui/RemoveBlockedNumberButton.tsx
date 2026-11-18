@@ -25,7 +25,7 @@ export function RemoveBlockedNumberButton({ id, label }: { id: number; label: st
         type="button"
         title={t('tooltip')}
         onClick={() => setOpen(true)}
-        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-500/25 bg-red-500/[0.12] px-2.5 py-[5px] text-xs text-red-300 transition-all hover:border-red-500 hover:bg-red-500 hover:text-white hover:shadow-[0_2px_8px_rgba(239,68,68,0.4)]"
+        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-500/25 bg-red-500/[0.12] px-2.5 py-[5px] text-xs text-danger-soft transition-all hover:border-red-500 hover:bg-red-500 hover:text-white hover:shadow-[0_2px_8px_rgba(239,68,68,0.4)]"
       >
         <Icon name="trash" className="size-[13px]" /> {t('delete')}
       </button>

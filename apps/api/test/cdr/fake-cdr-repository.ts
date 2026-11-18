@@ -1,4 +1,5 @@
 import type { CdrRow } from '../../src/pbx/calls/cdr-row.js';
+import type { SurveyRating } from '../../src/pbx/calls/survey-rating.js';
 
 /** In-memory stand-in for CdrRepository (same method contracts, fixture rows instead of MariaDB). */
 export class FakeCdrRepository {
@@ -6,6 +7,7 @@ export class FakeCdrRepository {
   constructor(
     private readonly rows: CdrRow[],
     private readonly names: { extension: string; name: string | null }[],
+    private readonly ratings: SurveyRating[] | null = null,
   ) {}
 
   async rowsBetween(fromWall: string, toWall: string): Promise<CdrRow[]> {
@@ -29,5 +31,10 @@ export class FakeCdrRepository {
 
   async operatorNames() {
     return this.names;
+  }
+
+  /** null = survey not installed on the PBX (the default for the fixtures). */
+  async surveyRatings(): Promise<SurveyRating[] | null> {
+    return this.ratings;
   }
 }

@@ -1,7 +1,7 @@
 /* Legacy Operators tab (docs/rewrite/design/admin-10-operators.png). */
 .opp-panel {
-  background: #131d31;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   border-radius: 16px;
   padding: 22px;
 }
@@ -26,15 +26,15 @@
   gap: 6px;
   padding: 6px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #cbd5e1;
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
+  background: color-mix(in srgb, var(--tint) 4%, transparent);
+  color: var(--ink-2);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 .opp-tool[aria-pressed='true'] {
-  color: #38bdf8;
+  color: var(--info);
   border-color: rgba(56, 189, 248, 0.5);
   background: rgba(56, 189, 248, 0.12);
 }
@@ -44,8 +44,8 @@
   gap: 16px;
 }
 .opp-card {
-  background: #1a2335;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--secondary);
+  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   border-radius: 12px;
   padding: 16px;
   transition:
@@ -89,14 +89,14 @@
   display: block;
   font-size: 15px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .opp-who small {
   font-size: 11px;
-  color: #64748b;
+  color: var(--dim);
 }
 .opp-badges {
   display: flex;
@@ -109,9 +109,9 @@
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 999px;
-  color: #94a3b8;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--mute);
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
 }
 .opp-state {
   font-size: 11px;
@@ -124,7 +124,7 @@
   margin: 14px 0 10px;
   padding-bottom: 10px;
   border-bottom: 2px solid rgba(16, 185, 129, 0.35);
-  color: #34d399;
+  color: var(--positive);
   font-weight: 700;
   font-size: 13px;
 }
@@ -138,7 +138,7 @@
   gap: 8px;
   padding: 7px 0;
   font-size: 13px;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .opp-row > span:last-child {
   font-weight: 700;
@@ -164,7 +164,7 @@
   border-radius: 999px;
   border: 1px solid rgba(16, 185, 129, 0.4);
   background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: var(--positive);
 }
 .opp-grid.compact .opp-row.extra {
   display: none;
@@ -174,12 +174,12 @@
   justify-content: flex-end;
   padding-top: 8px;
   margin-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid color-mix(in srgb, var(--tint) 6%, transparent);
 }
 
 /* Rating (legacy stars, medals for the top three, NPC for one star). */
 .opp-stars {
-  color: #fbbf24;
+  color: var(--caution);
   font-size: 13px;
   letter-spacing: 1px;
   text-shadow: 0 0 6px rgba(251, 191, 36, 0.45);
@@ -196,19 +196,19 @@
 }
 .opp-medal.diamond {
   background: rgba(0, 242, 254, 0.15);
-  color: #00f2fe;
+  color: color-mix(in oklab, #00f2fe, var(--ink) var(--shade));
 }
 .opp-medal.gold {
   background: rgba(251, 191, 36, 0.18);
-  color: #fbbf24;
+  color: var(--caution);
 }
 .opp-medal.silver {
-  background: rgba(203, 213, 225, 0.15);
-  color: #cbd5e1;
+  background: color-mix(in srgb, var(--ink-2) 15%, transparent);
+  color: var(--ink-2);
 }
 .opp-medal.npc {
-  background: rgba(148, 163, 184, 0.12);
-  color: #94a3b8;
+  background: color-mix(in srgb, var(--mute) 12%, transparent);
+  color: var(--mute);
 }
 .opp-card.mvp-diamond .opp-av {
   background: linear-gradient(135deg, #0284c7, #0369a1);
@@ -225,6 +225,6 @@
 .opp-card.mvp-silver .opp-av {
   background: linear-gradient(135deg, #94a3b8, #475569);
   box-shadow:
-    0 0 0 2.5px rgba(203, 213, 225, 0.8),
-    0 0 14px rgba(148, 163, 184, 0.4);
+    0 0 0 2.5px color-mix(in srgb, var(--ink-2) 80%, transparent),
+    0 0 14px color-mix(in srgb, var(--mute) 40%, transparent);
 }

@@ -15,7 +15,7 @@ export function pageItems(page: number, totalPages: number): (number | 'gap')[] 
 }
 
 const btn =
-  'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 px-[7px] text-xs font-semibold text-muted-foreground transition-all hover:-translate-y-px hover:border-chart-4/40 hover:bg-chart-4/12 hover:text-chart-4 disabled:pointer-events-none disabled:opacity-35';
+  'inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-tint/10 bg-tint/5 px-[7px] text-xs font-semibold text-muted-foreground transition-all hover:-translate-y-px hover:border-chart-4/40 hover:bg-chart-4/12 hover:text-shade-chart-4 disabled:pointer-events-none disabled:opacity-35';
 
 /** Legacy `.pagination-controls-wrapper` / `.page-btn`. */
 export function Pagination({

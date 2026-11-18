@@ -27,7 +27,7 @@ export function CallRecordingButton({ uniqueid, label, disabled }: { uniqueid: s
 
   if (!uniqueid || disabled) {
     return (
-      <button type="button" disabled title={t('call.noneTitle')} className={cn(base, 'cursor-not-allowed border-[#26344a] text-[#e8edf5] opacity-45')}>
+      <button type="button" disabled title={t('call.noneTitle')} className={cn(base, 'cursor-not-allowed border-border text-foreground opacity-45')}>
         <Icon name="close-circle" className="size-3" />
         {t('call.none')}
       </button>

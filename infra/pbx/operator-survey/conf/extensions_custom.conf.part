@@ -1,0 +1,20 @@
+
+; ==== OPERATOR-BAHO BOSHI ====
+; Mijoz navbatda operator bilan gaplashgan va operator go'shakni BIRINCHI qo'ygan bo'lsa,
+; ext-queues dagi ${VQ_DEST} orqali shu yerga keladi (globals_custom.conf: VQ_CONTINUE=c, VQ_DEST).
+; Mijoz o'zi birinchi go'shakni qo'ysa — so'rovnoma bo'lmaydi.
+[operator-baho]
+exten => s,1,NoOp(Operator bahosi: status=${QUEUESTATUS} member=${MEMBERINTERFACE} uid=${UNIQUEID})
+ same => n,GotoIf($["${QUEUESTATUS}" != "CONTINUE"]?end)
+ ; So'rovnoma qismi CDR'ga alohida qator bo'lib tushmasin (suhbat qatori o'zgarmaydi)
+ same => n,Set(CDR_PROP(disable)=1)
+ same => n,Set(BAHO_TRY=0)
+ same => n(ask),Set(BAHO_TRY=$[${BAHO_TRY} + 1])
+ same => n,Read(BAHO,custom/baho-savol,1,,1,7)
+ same => n,GotoIf(${REGEX("^[1-5]$" ${BAHO})}?save)
+ same => n,GotoIf($[${BAHO_TRY} < 2]?ask)
+ same => n,Goto(end)
+ same => n(save),AGI(operator_baho.php,${BAHO})
+ same => n,Playback(custom/baho-rahmat)
+ same => n(end),Hangup()
+; ==== OPERATOR-BAHO OXIRI ====

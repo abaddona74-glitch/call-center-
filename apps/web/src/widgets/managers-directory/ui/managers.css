@@ -1,12 +1,12 @@
 /* Ported from legacy/viewer/public/tools/managers.html (<style>). Sizes scale with --md-scale (A− / A+). */
 .md-root {
   --md-scale: 1;
-  --md-card: rgba(15, 23, 42, 0.85);
+  --md-card: color-mix(in srgb, var(--glass) 85%, transparent);
   --md-border: rgba(59, 130, 246, 0.25);
-  --md-text: #f8fafc;
-  --md-muted: #94a3b8;
-  --md-dim: #64748b;
-  --md-blue: #38bdf8;
+  --md-text: var(--ink);
+  --md-muted: var(--mute);
+  --md-dim: var(--dim);
+  --md-blue: var(--info);
   --md-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   max-width: 1400px;
   margin: 0 auto;
@@ -27,7 +27,7 @@
   background: var(--md-card);
   border: 1px solid var(--md-border);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--shadow-color) 50%, transparent);
   backdrop-filter: blur(12px);
   margin-bottom: 18px;
   flex-wrap: wrap;
@@ -54,7 +54,7 @@
   font-size: calc(18px * var(--md-scale));
   font-weight: 800;
   letter-spacing: -0.3px;
-  color: #fff;
+  color: var(--ink);
 }
 .md-header-title p {
   margin: 2px 0 0;
@@ -72,7 +72,7 @@
 .md-zoom {
   display: inline-flex;
   align-items: center;
-  background: rgba(30, 41, 59, 0.85);
+  background: color-mix(in srgb, var(--glass-2) 85%, transparent);
   border: 1px solid var(--md-border);
   border-radius: 8px;
   padding: 2px;
@@ -90,8 +90,8 @@
   transition: all 0.15s ease;
 }
 .md-zoom-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: color-mix(in srgb, var(--tint) 10%, transparent);
+  color: var(--ink);
 }
 .md-zoom-btn:disabled {
   opacity: 0.4;
@@ -102,7 +102,7 @@
   color: var(--md-muted);
 }
 .md-zoom-btn.md-print-btn {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
   padding: 7px 14px;
   border-radius: 8px;
 }
@@ -144,12 +144,12 @@
   white-space: nowrap;
 }
 .md-tab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--tint) 5%, transparent);
 }
 .md-tab.active {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.18));
-  color: #60a5fa;
+  color: var(--link);
   border-color: rgba(59, 130, 246, 0.5);
   box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
 }
@@ -158,17 +158,17 @@
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--tint) 10%, transparent);
   color: inherit;
 }
 .md-tab.active .md-tab-badge {
   background: rgba(59, 130, 246, 0.4);
-  color: #fff;
+  color: var(--ink);
 }
 .md-tab .md-tab-badge.exat,
 .md-tab.active .md-tab-badge.exat {
   background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--positive);
   border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
@@ -193,11 +193,11 @@
   background: var(--md-card);
   border: 1px solid var(--md-border);
   border-radius: 12px;
-  color: #fff;
+  color: var(--ink);
   font-size: calc(14px * var(--md-scale));
   outline: none;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--shadow-color) 30%, transparent);
 }
 .md-search-input::placeholder {
   color: var(--md-dim);
@@ -206,14 +206,14 @@
   border-color: var(--md-blue);
   box-shadow:
     0 0 0 3px rgba(56, 189, 248, 0.15),
-    0 4px 20px rgba(0, 0, 0, 0.5);
+    0 4px 20px color-mix(in srgb, var(--shadow-color) 50%, transparent);
 }
 .md-search-clear {
   position: absolute;
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--tint) 10%, transparent);
   border: none;
   color: var(--md-muted);
   width: 24px;
@@ -225,7 +225,7 @@
   justify-content: center;
 }
 .md-search-clear:hover {
-  color: #fff;
+  color: var(--ink);
 }
 
 /* Table card */
@@ -234,16 +234,16 @@
   border: 1px solid var(--md-border);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 15px 40px color-mix(in srgb, var(--shadow-color) 60%, transparent);
   backdrop-filter: blur(12px);
 }
 .md-card-head {
   padding: 16px 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(30, 41, 59, 0.5);
+  background: color-mix(in srgb, var(--glass-2) 50%, transparent);
   flex-wrap: wrap;
   gap: 10px;
 }
@@ -251,7 +251,7 @@
   margin: 0;
   font-size: calc(14px * var(--md-scale));
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -259,10 +259,10 @@
 .md-count {
   font-size: 12px;
   color: var(--md-muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
   padding: 3px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid color-mix(in srgb, var(--tint) 10%, transparent);
 }
 .md-table-wrap {
   overflow-x: auto;
@@ -276,7 +276,7 @@
   font-size: calc(13.5px * var(--md-scale));
 }
 .md-table thead {
-  background: rgba(15, 23, 42, 0.95);
+  background: color-mix(in srgb, var(--glass) 95%, transparent);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -284,7 +284,7 @@
 .md-table th {
   padding: 14px 18px;
   font-weight: 700;
-  color: #cbd5e1;
+  color: var(--ink-2);
   font-size: calc(12px * var(--md-scale));
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -293,7 +293,7 @@
 }
 .md-table td {
   padding: 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in srgb, var(--tint) 6%, transparent);
   color: var(--md-text);
   vertical-align: middle;
   transition: background 0.15s ease;
@@ -317,7 +317,7 @@
 
 .md-org {
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   font-family: 'Golos Text', 'Inter', sans-serif;
   font-size: calc(14px * var(--md-scale));
 }
@@ -325,11 +325,11 @@
   color: var(--md-blue);
 }
 .md-org.exat {
-  color: #34d399;
+  color: var(--positive);
 }
 .md-officer {
   font-weight: 600;
-  color: #38bdf8;
+  color: var(--info);
   font-size: calc(13.5px * var(--md-scale));
 }
 .md-officer.big {
@@ -338,7 +338,7 @@
 }
 .md-lead {
   font-weight: 700;
-  color: #fcd34d;
+  color: var(--caution);
   background: rgba(245, 158, 11, 0.1);
   padding: 6px 12px;
   border-radius: 8px;
@@ -359,30 +359,30 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.7);
+  background: color-mix(in srgb, var(--glass) 70%, transparent);
   border: 1px solid rgba(56, 189, 248, 0.3);
   border-radius: 8px;
   padding: 5px 10px;
   font-family: 'Inter', monospace;
   font-weight: 700;
   font-size: calc(13px * var(--md-scale));
-  color: #38bdf8;
+  color: var(--info);
   transition: all 0.2s ease;
   width: fit-content;
   white-space: nowrap;
 }
 .md-phone:hover {
-  border-color: #38bdf8;
+  border-color: var(--info);
   background: rgba(56, 189, 248, 0.15);
   transform: translateY(-1px);
 }
 .md-phone.office {
   border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
+  color: var(--caution);
   background: rgba(245, 158, 11, 0.08);
 }
 .md-phone.office:hover {
-  border-color: #fbbf24;
+  border-color: var(--caution);
   background: rgba(245, 158, 11, 0.18);
 }
 .md-phone-link {
@@ -402,8 +402,8 @@
   justify-content: center;
 }
 .md-phone-action:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.15);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--tint) 15%, transparent);
 }
 
 /* Ministries */
@@ -421,17 +421,17 @@
   padding: 5px 10px;
   border-radius: 6px;
   font-size: calc(12.5px * var(--md-scale));
-  color: #ddd6fe;
+  color: color-mix(in oklab, #ddd6fe, var(--ink) var(--shade-strong));
 }
 .md-ministry svg {
-  color: #a78bfa;
+  color: var(--violet);
   flex-shrink: 0;
 }
 
 /* Search match */
 .md-mark {
   background: rgba(245, 158, 11, 0.4);
-  color: #fff;
+  color: var(--ink);
   border-radius: 3px;
   padding: 0 2px;
 }
@@ -452,7 +452,7 @@
 .md-contracts-title {
   font-size: calc(14px * var(--md-scale));
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .md-contracts-sub {
   font-size: calc(12px * var(--md-scale));
@@ -466,7 +466,7 @@
   border-radius: 14px;
   padding: 18px 22px;
   margin-bottom: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 25%, transparent);
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -481,7 +481,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #10b981;
+  color: color-mix(in oklab, #10b981, var(--ink) var(--shade));
 }
 .md-exat-head {
   display: flex;
@@ -493,7 +493,7 @@
 .md-exat-title {
   font-size: calc(16px * var(--md-scale));
   font-weight: 800;
-  color: #fff;
+  color: var(--ink);
   letter-spacing: -0.2px;
 }
 .md-exat-badge {
@@ -502,34 +502,34 @@
   font-weight: 700;
   border-radius: 20px;
   background: rgba(16, 185, 129, 0.25);
-  color: #34d399;
+  color: var(--positive);
   border: 1px solid rgba(16, 185, 129, 0.4);
 }
 .md-exat-text {
   margin: 0 0 10px;
   font-size: calc(13px * var(--md-scale));
   line-height: 1.55;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .md-exat-note {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: calc(12px * var(--md-scale));
-  color: #94a3b8;
-  background: rgba(0, 0, 0, 0.25);
+  color: var(--mute);
+  background: color-mix(in srgb, var(--well) 25%, transparent);
   padding: 8px 12px;
   border-radius: 8px;
   border-left: 3px solid #10b981;
 }
 .md-exat-note svg {
-  color: #34d399;
+  color: var(--positive);
   flex-shrink: 0;
 }
 .md-exat-service {
   font-size: calc(14.5px * var(--md-scale));
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .md-exat-line {
   font-size: calc(12px * var(--md-scale));
@@ -561,7 +561,7 @@
 .md-skeleton-row {
   height: 34px;
   border-radius: 8px;
-  background: rgba(148, 163, 184, 0.1);
+  background: color-mix(in srgb, var(--mute) 10%, transparent);
   animation: md-pulse 1.4s ease-in-out infinite;
 }
 .md-error {
@@ -571,11 +571,11 @@
   justify-content: center;
   gap: 12px;
   flex-wrap: wrap;
-  color: #fca5a5;
+  color: var(--danger);
 }
 .md-retry {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--tint) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tint) 15%, transparent);
   color: var(--md-text);
   padding: 6px 14px;
   border-radius: 8px;
@@ -584,7 +584,7 @@
   cursor: pointer;
 }
 .md-retry:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--tint) 15%, transparent);
 }
 
 /* Tactile feedback */

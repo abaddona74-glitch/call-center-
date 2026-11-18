@@ -104,7 +104,7 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
       <div className="ob-head">
         <div className="flex flex-wrap items-center gap-[18px]">
           <h3 className="ob-title">
-            <Icon name="headphone" className="size-5 text-[#818cf8]" />
+            <Icon name="headphone" className="size-5 text-brand-soft" />
             {t('title')}
           </h3>
           <div className="ob-tabs" role="group">
@@ -114,8 +114,8 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
                   <span
                     className="dot"
                     style={{
-                      background: g === 'main' ? '#38bdf8' : '#a855f7',
-                      color: g === 'main' ? '#38bdf8' : '#a855f7',
+                      background: g === 'main' ? 'var(--info)' : '#a855f7',
+                      color: g === 'main' ? 'var(--info)' : '#a855f7',
                     }}
                   />
                 )}

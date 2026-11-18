@@ -24,14 +24,14 @@ export function ExplorerPage() {
 
   return (
     <div className="mx-auto w-full animate-[ccPageFadeIn_0.3s_ease-in-out]">
-      <div className="mb-6 rounded-2xl border border-white/8 bg-[#131d31] p-[22px]">
-        <h3 className="inline-flex items-center gap-2 text-base font-semibold text-[#f8fafc]">
+      <div className="mb-6 rounded-2xl border border-tint/8 bg-muted p-[22px]">
+        <h3 className="inline-flex items-center gap-2 text-base font-semibold text-ink">
           <EqualizerGlyph />
           <span>{t('title')}</span>
         </h3>
       </div>
       <StudioPlayer ref={playerRef} />
-      <div className="min-w-0 rounded-2xl border border-white/8 bg-[#131d31] p-[22px]">
+      <div className="min-w-0 rounded-2xl border border-tint/8 bg-muted p-[22px]">
         <ExplorerBrowser onPlay={revealPlayer} />
       </div>
       <SkipToast />

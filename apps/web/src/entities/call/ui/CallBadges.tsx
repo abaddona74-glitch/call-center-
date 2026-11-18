@@ -24,10 +24,10 @@ export type PillTone = 'success' | 'danger' | 'info' | 'warning' | 'purple' | 'c
 const PILL_TONES: Record<PillTone, string> = {
   success: 'bg-success/15 text-success',
   danger: 'bg-destructive/15 text-destructive',
-  info: 'bg-chart-7/15 text-chart-4',
+  info: 'bg-chart-7/15 text-shade-chart-4',
   warning: 'bg-warning/15 text-warning',
   purple: 'border border-chart-3/40 bg-chart-3/15 text-outbound',
-  cyan: 'border border-chart-4/45 bg-chart-4/15 text-chart-4',
+  cyan: 'border border-chart-4/45 bg-chart-4/15 text-shade-chart-4',
   muted: 'bg-muted-foreground/15 text-muted-foreground',
 };
 
@@ -93,7 +93,7 @@ export function CallDirectionBadge({ call }: { call: Pick<CallListItem, 'directi
   }
   if (call.direction === 'internal') {
     return (
-      <Pill tone="muted" className={cn(shape, 'border-white/12')}>
+      <Pill tone="muted" className={cn(shape, 'border-tint/12')}>
         {t('direction.internal')}
       </Pill>
     );
