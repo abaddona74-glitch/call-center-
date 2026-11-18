@@ -9,8 +9,9 @@
  * After S1 lands, only this file changes: `ticketCapabilities()` should read
  * `hasPermission(user, 'tickets.…')` (add `tickets.create`, `tickets.work`, `tickets.callback`,
  * `tickets.viewAll`, `tickets.manage`, `tickets.reports` to S1's PERMISSIONS / ROLE_PERMISSIONS).
- * `ticketActorKind()` stays: executives are scoped to their regions, operators to their own tickets
- * plus the shared callback queue.
+ * `ticketActorKind()` stays: executives are scoped to their regions; operators see tickets they opened,
+ * the shared callback queue and (read-only) closed tickets they called back on; observers see everything
+ * read-only.
  */
 
 export type TicketActorKind = 'superuser' | 'executive' | 'observer' | 'operator' | 'none';
@@ -20,7 +21,7 @@ export interface TicketCapabilities {
   viewAll: boolean;
   /** Opens tickets (from a call, from the history). */
   create: boolean;
-  /** Regional work: take, start, done / rejected, forward. Executives: only in their regions. */
+  /** Regional work: take, start, done / rejected, forward, release back to the queue. Executives: only in their regions. */
   work: boolean;
   /** Calls citizens back from the shared callback queue and closes tickets. */
   callback: boolean;
@@ -32,6 +33,11 @@ export interface TicketCapabilities {
   reports: boolean;
   /** Close without a confirmed call (with a reason), delete, triage tickets without a region. */
   administer: boolean;
+  /**
+   * Unread counter + chime/toast when a ticket arrives in (or is released back to) the queue of my regions.
+   * Executives only: the superuser and observers see every region and would be alerted for all of them.
+   */
+  regionAlerts: boolean;
 }
 
 export function ticketActorKind(user: { role: string } | null | undefined): TicketActorKind {
@@ -59,6 +65,7 @@ const NONE: TicketCapabilities = {
   manageDirectories: false,
   reports: false,
   administer: false,
+  regionAlerts: false,
 };
 
 export function ticketCapabilities(user: { role: string } | null | undefined): TicketCapabilities {
@@ -73,10 +80,12 @@ export function ticketCapabilities(user: { role: string } | null | undefined): T
         manageDirectories: true,
         reports: true,
         administer: true,
+        regionAlerts: false,
       };
     case 'executive':
-      return { ...NONE, work: true, comment: true, reports: true };
+      return { ...NONE, work: true, comment: true, reports: true, regionAlerts: true };
     case 'observer':
+      // Read-only: lists, cards, timeline, recordings, attachments, reports. No actions, no alerts.
       return { ...NONE, viewAll: true, reports: true };
     case 'operator':
       return { ...NONE, create: true, callback: true, comment: true };

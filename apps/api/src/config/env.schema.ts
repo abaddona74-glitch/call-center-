@@ -205,6 +205,11 @@ export const EnvSchema = z.object({
   TICKETS_MAX_FILE_MB: z.coerce.number().int().positive().max(50).default(10),
   /** SLA: working days (Mon–Fri minus WORKING_HOLIDAYS, Asia/Tashkent) from creation to done/rejected. */
   TICKETS_SLA_WORKING_DAYS: z.coerce.number().int().min(1).max(60).default(3),
+  /**
+   * Callback SLA: working days from done/rejected to closed (same calendar). TEMPORARY default 1 —
+   * the owner has not chosen the value yet (docs/rewrite/TICKETS.md).
+   */
+  TICKETS_CALLBACK_SLA_WORKING_DAYS: z.coerce.number().int().min(1).max(60).default(1),
   /** After a ticket's call ended, look for its recording in the CDR for this many minutes. */
   TICKETS_RECORDING_LOOKUP_MINUTES: z.coerce.number().int().min(1).max(240).default(10),
   /**

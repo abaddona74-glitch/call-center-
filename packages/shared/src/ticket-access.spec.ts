@@ -24,14 +24,23 @@ describe('ticket access', () => {
       callback: false,
       work: true,
       reports: true,
+      regionAlerts: true,
     });
     expect(ticketCapabilities({ role: 'observer' })).toMatchObject({
       viewAll: true,
       comment: false,
       work: false,
       create: false,
+      callback: false,
+      administer: false,
+      manageDirectories: false,
+      reports: true,
+      regionAlerts: false,
     });
-    expect(Object.values(ticketCapabilities({ role: 'superuser' })).every(Boolean)).toBe(true);
+    const { regionAlerts, ...superuser } = ticketCapabilities({ role: 'superuser' });
+    expect(Object.values(superuser).every(Boolean)).toBe(true);
+    // Sees every region: a chime for each new ticket in the country would be noise.
+    expect(regionAlerts).toBe(false);
     expect(Object.values(ticketCapabilities({ role: 'nobody' })).some(Boolean)).toBe(false);
   });
 });

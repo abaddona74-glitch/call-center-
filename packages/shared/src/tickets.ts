@@ -7,8 +7,13 @@ import type { TicketActorKind, TicketCapabilities } from './ticket-access.js';
  *
  *   new ──assign──▶ assigned ──start──▶ in_progress ──resolve──▶ done ─────┐
  *    ▲                 │                     │      ──reject───▶ rejected ─┤ (automatic "return")
- *    └──── forward ────┴─────────────────────┘                             ▼
- *          (another region, back to `new`)                         callback_pending ──close──▶ closed
+ *    ├──── forward ────┴─────────────────────┤                             ▼
+ *    │     (another region, back to `new`)   │                     callback_pending ──close──▶ closed
+ *    └──── release ────┴─────────────────────┘
+ *          (same region, back to its queue; the executive who holds it, or the superuser)
+ *
+ * SLA: the region has TICKETS_SLA_WORKING_DAYS from creation to done/rejected; the callback step has
+ * TICKETS_CALLBACK_SLA_WORKING_DAYS from done/rejected to closed (separate "callback overdue" flag).
  *
  * `close` needs a conversation of at least CALLBACK_MIN_TALK_SECONDS with the ticket's number,
  * confirmed by AMI, plus the operator's outcome. "Not reached" records an attempt and the ticket
@@ -26,8 +31,20 @@ export const TICKET_STATUSES = [
 export const TicketStatusSchema = z.enum(TICKET_STATUSES);
 export type TicketStatus = z.infer<typeof TicketStatusSchema>;
 
-/** `return` is done by the system right after done/rejected; `close` by an operator (or superuser). */
-export const TICKET_ACTIONS = ['assign', 'start', 'resolve', 'reject', 'forward', 'return', 'close'] as const;
+/**
+ * `return` is done by the system right after done/rejected; `close` by an operator (or superuser).
+ * `release` = the executive gives a taken ticket back to the queue of the same region (note required).
+ */
+export const TICKET_ACTIONS = [
+  'assign',
+  'start',
+  'resolve',
+  'reject',
+  'forward',
+  'release',
+  'return',
+  'close',
+] as const;
 export const TicketActionSchema = z.enum(TICKET_ACTIONS);
 export type TicketAction = z.infer<typeof TicketActionSchema>;
 
@@ -60,6 +77,7 @@ export const TICKET_EVENT_KINDS = [
   'rejected',
   'returned',
   'forwarded',
+  'released',
   'callback_attempt',
   'closed',
 ] as const;
@@ -224,6 +242,8 @@ export const TicketActionsSchema = z.object({
   resolve: z.boolean(),
   reject: z.boolean(),
   forward: z.boolean(),
+  /** Give the ticket back to the queue of its region (the executive who holds it, or the superuser). */
+  release: z.boolean(),
   comment: z.boolean(),
   /** Start a callback call (click-to-call to the ticket's number). */
   call: z.boolean(),
@@ -261,7 +281,12 @@ export const TicketSchema = z.object({
   resolvedAt: z.string().nullable(),
   /** SLA: created + N working days (Mon–Fri, holidays, Asia/Tashkent). */
   dueAt: z.string().nullable(),
+  /** Regional SLA missed (done/rejected after dueAt, or still with the region past it). */
   overdue: z.boolean(),
+  /** Callback SLA: done/rejected + N working days (TICKETS_CALLBACK_SLA_WORKING_DAYS). */
+  callbackDueAt: z.string().nullable(),
+  /** Callback SLA missed (closed after callbackDueAt, or still in the callback queue past it). */
+  callbackOverdue: z.boolean(),
   closedAt: z.string().nullable(),
   closedBy: TicketPersonSchema.nullable(),
   callbackOutcome: TicketCloseOutcomeSchema.nullable(),
@@ -326,7 +351,8 @@ export const TicketDetailSchema = TicketSchema.extend({
 export type TicketDetail = z.infer<typeof TicketDetailSchema>;
 
 /**
- * mine     — operator: tickets I opened; executive: assigned to me (not closed); superuser: opened or assigned to me
+ * mine     — operator: tickets I opened or called back on; executive: assigned to me (not closed);
+ *            superuser: opened or assigned to me
  * queue    — `new` tickets of my regions (superuser: all regions)
  * callback — the shared callback queue (`callback_pending`), my citizens first
  * triage   — superuser: tickets without a region
@@ -359,6 +385,8 @@ export const TicketCountsSchema = z.object({
   callback: z.number().int(),
   triage: z.number().int(),
   overdue: z.number().int(),
+  /** Tickets in the callback queue past the callback SLA. */
+  callbackOverdue: z.number().int(),
 });
 export type TicketCounts = z.infer<typeof TicketCountsSchema>;
 
@@ -379,11 +407,13 @@ export const TicketContextSchema = z.object({
     manageDirectories: z.boolean(),
     reports: z.boolean(),
     administer: z.boolean(),
+    regionAlerts: z.boolean(),
   }) satisfies z.ZodType<TicketCapabilities>,
   /** Executive: regions I work for. */
   regionIds: z.array(z.number().int()),
   maxFileMb: z.number().int(),
   slaWorkingDays: z.number().int(),
+  callbackSlaWorkingDays: z.number().int(),
   unread: z.number().int(),
 });
 export type TicketContext = z.infer<typeof TicketContextSchema>;
@@ -447,6 +477,10 @@ export const ForwardTicketRequestSchema = z.object({
 });
 export type ForwardTicketRequest = z.infer<typeof ForwardTicketRequestSchema>;
 
+/** Give a taken ticket back to the queue of its region: why (shown in the timeline). */
+export const ReleaseTicketRequestSchema = z.object({ note: z.string().trim().min(2).max(1000) });
+export type ReleaseTicketRequest = z.infer<typeof ReleaseTicketRequestSchema>;
+
 export const CallbackOutcomeRequestSchema = z.object({
   outcome: CallbackOutcomeSchema,
   note: z.string().trim().max(1000).optional(),
@@ -482,7 +516,10 @@ export const TicketReportRowSchema = z.object({
   total: z.number().int(),
   /** Reached done / rejected (or later). */
   resolved: z.number().int(),
+  /** Regional SLA missed. */
   overdue: z.number().int(),
+  /** Callback SLA missed (a separate metric from the regional SLA). */
+  callbackOverdue: z.number().int(),
   /** Average created → done/rejected, hours. */
   avgResolutionHours: z.number().nullable(),
 });
@@ -497,6 +534,9 @@ export const TicketReportSchema = z.object({
   overdue: z.number().int(),
   /** overdue / total (0 when there are no tickets). */
   overdueShare: z.number(),
+  callbackOverdue: z.number().int(),
+  /** callbackOverdue / tickets that reached done/rejected (0 when none did). */
+  callbackOverdueShare: z.number(),
   avgResolutionHours: z.number().nullable(),
   byStatus: z.array(z.object({ status: TicketStatusSchema, count: z.number().int() })),
   byRegion: z.array(TicketReportRowSchema),

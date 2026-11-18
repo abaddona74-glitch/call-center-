@@ -31,7 +31,7 @@ function viewsFor(ctx: TicketContext | undefined): TicketView[] {
     case 'superuser':
       return ['all', 'queue', 'mine', 'callback', 'triage'];
     case 'observer':
-      return ['all', 'callback'];
+      return ['all', 'queue', 'callback'];
     default:
       return [];
   }
@@ -197,7 +197,15 @@ export function TicketsPage({
                     >
                       {n}
                     </span>
-                    {v === 'queue' && c?.kind === 'executive' && c.unread > 0 && (
+                    {v === 'callback' && (counts?.callbackOverdue ?? 0) > 0 && (
+                      <span
+                        title={t('card.callbackOverdue')}
+                        className="rounded-[10px] bg-[#ef4444] px-[6px] py-px text-[10px] font-extrabold text-white"
+                      >
+                        {t('callback.overdueCount', { n: counts?.callbackOverdue })}
+                      </span>
+                    )}
+                    {v === 'queue' && c?.capabilities.regionAlerts && c.unread > 0 && (
                       <span className="rounded-[10px] bg-[#ef4444] px-[6px] py-px text-[10px] font-extrabold text-white">
                         {t('unread', { n: c.unread })}
                       </span>

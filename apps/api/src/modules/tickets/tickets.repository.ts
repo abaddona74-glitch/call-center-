@@ -1,6 +1,6 @@
 import type { TicketStatus } from '@cc/shared';
 import { Injectable, Logger } from '@nestjs/common';
-import type { Insertable, Updateable } from 'kysely';
+import { type Insertable, type Updateable, sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
 import { type DbHost, InjectDb } from '../../database/db.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
@@ -68,6 +68,7 @@ export class TicketsRepository {
           eb.or([
             eb('creatorUserId', '=', actor.userId),
             eb('status', '=', 'callback_pending'),
+            eb(eb.val(actor.userId), '=', eb.fn.any('callbackUserIds')),
             eb('closedByUserId', '=', actor.userId),
           ]),
         );
@@ -136,6 +137,16 @@ export class TicketsRepository {
       .where('status', '<>', 'closed')
       .orderBy('id', 'desc')
       .limit(20)
+      .execute();
+  }
+
+  /** Remember that the user called this ticket back (read access after closing). No version bump. */
+  async addCallbackUser(id: number, userId: number): Promise<void> {
+    await this.db
+      .updateTable('tickets')
+      .set({ callbackUserIds: sql<number[]>`array_append(callback_user_ids, ${userId}::integer)` })
+      .where('id', '=', id)
+      .where((eb) => eb.not(eb(eb.val(userId), '=', eb.fn.any('callbackUserIds'))))
       .execute();
   }
 

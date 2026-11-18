@@ -1,4 +1,4 @@
-import type { ServerEvents } from '@cc/shared';
+import type { ServerEvents, TicketChangeAction } from '@cc/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
@@ -150,7 +150,12 @@ function startTitleFlash(text: string): void {
 type Changed = ServerEvents['tickets.changed'];
 
 function showTicketToast(e: Changed, t: TFunction<'ticket'>, onOpen: (id: number) => void): void {
-  const badge = e.action === 'forwarded' ? t('toast.forwarded') : t('toast.newInRegion');
+  const badge =
+    e.action === 'forwarded'
+      ? t('toast.forwarded')
+      : e.action === 'released'
+        ? t('toast.released')
+        : t('toast.newInRegion');
   toast.custom(
     (id) => (
       <div
@@ -202,6 +207,9 @@ function showTicketToast(e: Changed, t: TFunction<'ticket'>, onOpen: (id: number
   );
 }
 
+/** A ticket lands in a region queue: opened there, forwarded there, or released back by its executive. */
+const ARRIVALS: ReadonlySet<TicketChangeAction> = new Set<TicketChangeAction>(['created', 'forwarded', 'released']);
+
 /**
  * Keeps ticket lists/details fresh from WS events on the tickets screens and tracks tickets that just
  * arrived (highlighted until opened). Sound/toasts are played once, globally, by `TicketAlerts`.
@@ -219,8 +227,7 @@ export function useTicketLive({
   useRealtimeEvent('tickets.changed', (e) => {
     void queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
     void queryClient.invalidateQueries({ queryKey: ticketKeys.detail(e.id) });
-    if ((e.action === 'created' || e.action === 'forwarded') && e.id !== openTicketId)
-      setArrived((s) => new Set(s).add(e.id));
+    if (ARRIVALS.has(e.action) && e.id !== openTicketId) setArrived((s) => new Set(s).add(e.id));
   });
 
   useRealtimeEvent('tickets.revoked', (e) => {
@@ -242,16 +249,17 @@ export function useTicketLive({
 }
 
 /**
- * Header element (one line in the app shell): for executives, the unread counter of new tickets in their
- * regions + chime, toast and title flash when a ticket arrives — on every page. Nothing for other roles.
+ * Header element (one line in the app shell): for executives (`regionAlerts`), the unread counter of new
+ * tickets in their regions + chime, toast and title flash when a ticket arrives or is released back to the
+ * queue — on every page. Nothing for other roles (the superuser and observers see every region).
  */
 export function TicketAlerts({ meId }: { meId: number }) {
   const { t } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const ctx = useQuery(ticketContextQuery);
-  const executive = ctx.data?.kind === 'executive';
-  const unread = useQuery({ ...ticketUnreadQuery, enabled: executive });
+  const alerts = Boolean(ctx.data?.capabilities.regionAlerts);
+  const unread = useQuery({ ...ticketUnreadQuery, enabled: alerts });
   useAudioUnlock();
 
   useEffect(() => {
@@ -265,14 +273,13 @@ export function TicketAlerts({ meId }: { meId: number }) {
 
   useRealtimeEvent('tickets.unread', (e) => queryClient.setQueryData(ticketKeys.unread, { count: e.count }));
   useRealtimeEvent('tickets.changed', (e) => {
-    if (!executive || e.actor.userId === meId || e.status !== 'new') return;
-    if (e.action !== 'created' && e.action !== 'forwarded') return;
+    if (!alerts || e.actor.userId === meId || e.status !== 'new' || !ARRIVALS.has(e.action)) return;
     playChime(false);
     showTicketToast(e, t, (id) => void navigate({ to: '/tickets', search: { view: 'queue', open: id } }));
     if (document.hidden || !document.hasFocus()) startTitleFlash(t('toast.flash'));
   });
 
-  if (!executive) return null;
+  if (!alerts) return null;
   const count = unread.data?.count ?? ctx.data?.unread ?? 0;
   return (
     <button

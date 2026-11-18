@@ -40,6 +40,8 @@ export class TicketReportsService {
         createdAt: new Date(r.createdAt),
         dueAt: r.dueAt ? new Date(r.dueAt) : null,
         resolvedAt: r.resolvedAt ? new Date(r.resolvedAt) : null,
+        callbackDueAt: r.callbackDueAt ? new Date(r.callbackDueAt) : null,
+        closedAt: r.closedAt ? new Date(r.closedAt) : null,
       })),
       { regions: refs.regions, categories: refs.categories },
       { from: q.from, to: q.to },

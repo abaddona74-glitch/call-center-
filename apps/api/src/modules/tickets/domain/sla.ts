@@ -4,6 +4,8 @@ import { DateTime } from 'luxon';
 /**
  * Ticket SLA: N working days (owner: 3; Mon–Fri, holidays excluded, Asia/Tashkent) from creation to
  * done/rejected. The working days come from the shared WorkingCalendar (common/time/working-calendar.ts).
+ * The callback step has its own SLA (TICKETS_CALLBACK_SLA_WORKING_DAYS) from done/rejected to closed,
+ * computed with the same function and calendar.
  *
  * Due time = the creation wall-clock time, N working days later. A ticket opened on a non-working day
  * starts counting at 00:00 of the next working day (Saturday → due Thursday 00:00 for N = 3).
@@ -48,6 +50,20 @@ export function isOverdue(t: SlaFacts, now: Date): boolean {
   if (t.resolvedAt) return t.resolvedAt.getTime() > t.dueAt.getTime();
   if (t.status === 'closed' || t.status === 'callback_pending') return false; // legacy rows without a resolution time
   return now.getTime() > t.dueAt.getTime();
+}
+
+export interface CallbackSlaFacts {
+  callbackDueAt: Date | null;
+  closedAt: Date | null;
+}
+
+/**
+ * Callback overdue = closed later than the callback due time, or still waiting for the callback after it.
+ * Tickets without a callback due time (not yet done/rejected, legacy rows) are never callback-overdue.
+ */
+export function isCallbackOverdue(t: CallbackSlaFacts, now: Date): boolean {
+  if (!t.callbackDueAt) return false;
+  return (t.closedAt ?? now).getTime() > t.callbackDueAt.getTime();
 }
 
 /** Hours between two instants, one decimal (reports). */

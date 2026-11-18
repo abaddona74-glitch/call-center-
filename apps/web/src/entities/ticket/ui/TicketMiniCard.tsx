@@ -24,7 +24,8 @@ export function TicketMiniCard({
   footer?: ReactNode;
 }) {
   const { t, i18n } = useTranslation('ticket');
-  const stripe = ticket.overdue ? 'linear-gradient(180deg,#ef4444,#f97316)' : STATUS_STRIPE[ticket.status];
+  const late = ticket.overdue || ticket.callbackOverdue;
+  const stripe = late ? 'linear-gradient(180deg,#ef4444,#f97316)' : STATUS_STRIPE[ticket.status];
   const holder = ticket.assignee ? t('card.assignee', { name: ticket.assignee.label }) : null;
 
   return (
@@ -45,13 +46,13 @@ export function TicketMiniCard({
         ticket.lastContactIsMe &&
           ticket.status === 'callback_pending' &&
           'border-[rgba(56,189,248,0.45)]! bg-[linear-gradient(135deg,rgba(30,41,59,0.88)_0%,rgba(14,165,233,0.1)_100%)]!',
-        ticket.overdue && 'border-[rgba(239,68,68,0.45)]',
+        late && 'border-[rgba(239,68,68,0.45)]',
         highlight && 'animate-[tkNewGlow_2.2s_ease-in-out_infinite]',
       )}
     >
       <span
         aria-hidden="true"
-        className={cn('absolute inset-y-0 left-0 w-1', ticket.overdue && 'shadow-[0_0_8px_rgba(239,68,68,0.8)]')}
+        className={cn('absolute inset-y-0 left-0 w-1', late && 'shadow-[0_0_8px_rgba(239,68,68,0.8)]')}
         style={{ background: stripe }}
       />
       <div className="mb-1.5 flex items-start justify-between gap-2">
@@ -73,6 +74,7 @@ export function TicketMiniCard({
             </span>
           )}
           {ticket.overdue && <OverdueBadge label={t('card.overdue')} />}
+          {ticket.callbackOverdue && <OverdueBadge label={t('card.callbackOverdue')} />}
         </div>
         <TicketStatusBadge status={ticket.status} />
       </div>
@@ -131,6 +133,11 @@ export function TicketMiniCard({
           {ticket.dueAt && ticket.status !== 'closed' && !ticket.resolvedAt && (
             <span className={cn('whitespace-nowrap', ticket.overdue ? 'font-bold text-[#f87171]' : '')}>
               {t('card.due', { date: dateTime(ticket.dueAt) })}
+            </span>
+          )}
+          {ticket.callbackDueAt && ticket.status === 'callback_pending' && (
+            <span className={cn('whitespace-nowrap', ticket.callbackOverdue ? 'font-bold text-[#f87171]' : '')}>
+              {t('card.callbackDue', { date: dateTime(ticket.callbackDueAt) })}
             </span>
           )}
           {ticket.callbackAttempts > 0 && (

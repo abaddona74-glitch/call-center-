@@ -1,10 +1,11 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import type { LiveCall, TicketDetail } from '@cc/shared';
+import type { LiveCall, Role, Ticket, TicketDetail } from '@cc/shared';
 import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { sql } from 'kysely';
 import request from 'supertest';
 import { type MockInstance, afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HTML_XSS, PDF_MIN, PNG_1PX, docx, paragraph } from '../../../test/fixtures/files.js';
@@ -22,7 +23,8 @@ import { TicketRecordingsService } from './ticket-recordings.service.js';
  * Tickets workflow (docs/rewrite/TICKETS.md) end to end on a real Postgres. AMI, CDR and SFTP are faked at
  * the service boundary (live call state, PbxCallsService.findCall, ActionsService.originate,
  * RecordingsService.file/prepareStream); AMI call events are emitted like the live module does.
- * Executives use the pre-S1 role name `admin` (ticketActorKind maps it to executive).
+ * Executives use the pre-S1 role name `admin` (ticketActorKind maps it to executive). The observer (an S1
+ * role) is inserted by widening users_role_check for the "owner decisions" block and restoring it after.
  */
 describe('tickets workflow (e2e)', () => {
   let t: S5TestApp;
@@ -906,6 +908,288 @@ describe('tickets workflow (e2e)', () => {
       await get(op, `/api/tickets/reports?from=${from}&to=${today}`).expect(403);
       await get(superuser, `/api/tickets/reports?from=${today}&to=${from}`).expect(400);
       await get(superuser, '/api/tickets/reports?from=2020-01-01&to=2026-12-31').expect(400);
+    });
+  });
+  // -------------------------------------------------------------------------------------------------
+  describe('owner decisions (18.11.2026)', () => {
+    const ids = (items: Ticket[]) => items.map((i) => i.id);
+    const sentTo = (event: string) =>
+      broadcast.mock.calls.filter((c) => c[0] === event).flatMap((c) => (c[2] as { userIds: number[] }).userIds);
+
+    describe('release back to the region queue', () => {
+      it('only the executive who holds it, with a note; back to `new`, unread again for the region', async () => {
+        const tk = await newTicket();
+        await post(exec, `/api/tickets/${tk.id}/assign`).expect(200);
+        await post(exec, `/api/tickets/${tk.id}/start`).expect(200);
+        await post(execOther, `/api/tickets/${tk.id}/release`, { note: 'Men olaman' }).expect(403);
+        await post(execSam, `/api/tickets/${tk.id}/release`, { note: 'xx' }).expect(404);
+        await post(op, `/api/tickets/${tk.id}/release`, { note: 'xx' }).expect(403);
+        await post(exec, `/api/tickets/${tk.id}/release`, {}).expect(400);
+        await post(exec, `/api/tickets/${tk.id}/release`, { note: ' ' }).expect(400);
+
+        // execOther already opened the ticket before it was taken: release makes it unread again
+        await get(execOther, `/api/tickets/${tk.id}`).expect(200);
+        broadcast.mockClear();
+        const r = await post(exec, `/api/tickets/${tk.id}/release`, { note: 'Boshqa bo‘limga tegishli' }).expect(200);
+        expect(r.body).toMatchObject({
+          status: 'new',
+          region: { id: tashkent },
+          assignee: null,
+          assignedAt: null,
+          startedAt: null,
+          dueAt: tk.dueAt, // the SLA keeps running from creation
+          actions: { assign: true, release: false },
+        });
+        expect(r.body.events.at(-1)).toMatchObject({
+          kind: 'released',
+          fromStatus: 'in_progress',
+          toStatus: 'new',
+          actor: { userId: exec.id },
+          note: 'Boshqa bo‘limga tegishli',
+        });
+
+        const changed = broadcast.mock.calls.find((c) => c[0] === 'tickets.changed');
+        expect(changed?.[1]).toMatchObject({ id: tk.id, action: 'released', status: 'new', regionId: tashkent });
+        expect(sentTo('tickets.changed')).toEqual(expect.arrayContaining([exec.id, execOther.id, superuser.id, op.id]));
+        expect(sentTo('tickets.changed')).not.toContain(execSam.id);
+        expect(sentTo('tickets.unread')).toEqual(expect.arrayContaining([exec.id, execOther.id]));
+
+        const queueOther = await get(execOther, '/api/tickets?view=queue').expect(200);
+        expect(queueOther.body.items.find((i: Ticket) => i.id === tk.id)?.unread).toBe(true);
+        const queueMine = await get(exec, '/api/tickets?view=queue').expect(200);
+        expect(queueMine.body.items.find((i: Ticket) => i.id === tk.id)?.unread).toBe(false);
+
+        const audit = await t.db
+          .selectFrom('auditLog')
+          .select(['action', 'details'])
+          .where('target', '=', `ticket:${tk.id}`)
+          .where('action', '=', 'tickets.release')
+          .executeTakeFirstOrThrow();
+        expect(audit.details).toMatchObject({ from: 'in_progress', to: 'new', note: 'Boshqa bo‘limga tegishli' });
+
+        // anyone of the region can take it now; nothing to release while it is in the queue
+        await post(exec, `/api/tickets/${tk.id}/release`, { note: 'xx' }).expect(409);
+        await post(execOther, `/api/tickets/${tk.id}/assign`).expect(200);
+      });
+
+      it('the superuser may release a ticket someone else holds', async () => {
+        const tk = await newTicket();
+        await post(exec, `/api/tickets/${tk.id}/assign`).expect(200);
+        const r = await post(superuser, `/api/tickets/${tk.id}/release`, { note: 'Ijrochi kasal' }).expect(200);
+        expect(r.body).toMatchObject({ status: 'new', assignee: null });
+      });
+
+      it('nobody assigns a ticket to someone else: "assign" always takes it for the caller', async () => {
+        const tk = await newTicket();
+        const r = await post(superuser, `/api/tickets/${tk.id}/assign`, { userId: exec.id, assigneeUserId: exec.id });
+        expect(r.status).toBe(200);
+        expect(r.body.assignee).toMatchObject({ userId: superuser.id });
+      });
+    });
+
+    describe('operators keep closed tickets they called back on', () => {
+      it('read-only card, timeline, attachments and recordings; a stranger operator gets 404', async () => {
+        findCall.mockResolvedValue(pastCall({ id: '1763370000.21' }));
+        const created = await create(op, { ...base(), callId: '1763370000.21' }, [[PNG_1PX, 'ariza.png']]).expect(201);
+        const tk = created.body as TicketDetail;
+        await t.db
+          .updateTable('ticketCalls')
+          .set({ recordingNextAt: new Date(0) })
+          .where('ticketId', '=', tk.id)
+          .execute();
+        await t.app.get(TicketRecordingsService).linkDue(new Date());
+        await post(exec, `/api/tickets/${tk.id}/assign`).expect(200);
+        await post(exec, `/api/tickets/${tk.id}/start`).expect(200);
+        await post(exec, `/api/tickets/${tk.id}/resolve`, { note: 'Hal qilindi' }).expect(200);
+
+        const caller = await t.createUser('operator', String(3000 + Math.floor(Math.random() * 6000)));
+        const stranger = await t.createUser('operator', null);
+        await post(caller, `/api/tickets/${tk.id}/callback/call`).expect(200);
+        broadcast.mockClear();
+        await post(superuser, `/api/tickets/${tk.id}/close`, { note: 'Fuqaro o‘zi keldi' }).expect(200);
+        expect(sentTo('tickets.changed')).toContain(caller.id);
+        expect(sentTo('tickets.changed')).not.toContain(stranger.id);
+        expect(sentTo('tickets.revoked')).toContain(stranger.id);
+        expect(sentTo('tickets.revoked')).not.toContain(caller.id);
+
+        const d = await get(caller, `/api/tickets/${tk.id}`).expect(200);
+        expect(d.body.status).toBe('closed');
+        expect(Object.values(d.body.actions).some(Boolean)).toBe(false);
+        expect(d.body.events.map((e: { kind: string }) => e.kind)).toEqual(
+          expect.arrayContaining(['created', 'assigned', 'started', 'done', 'returned', 'closed']),
+        );
+        const attachment = `/api/tickets/${tk.id}/attachments/${tk.attachments[0].id}`;
+        const recording = `/api/tickets/${tk.id}/calls/${tk.calls[0].id}/recording`;
+        await get(caller, attachment).expect(200);
+        await get(caller, recording).expect(200);
+        const mine = await get(caller, '/api/tickets?view=mine').expect(200);
+        expect(ids(mine.body.items)).toContain(tk.id);
+
+        await get(stranger, `/api/tickets/${tk.id}`).expect(404);
+        await get(stranger, attachment).expect(404);
+        await get(stranger, recording).expect(404);
+        const all = await get(stranger, '/api/tickets?view=all').expect(200);
+        expect(ids(all.body.items)).not.toContain(tk.id);
+
+        // read-only: nothing to do with a closed ticket
+        await http()
+          .post(`/api/tickets/${tk.id}/comments`)
+          .set('Authorization', caller.auth)
+          .field('body', 'Yana savol')
+          .expect(403);
+        await post(caller, `/api/tickets/${tk.id}/callback/call`).expect(409);
+        await post(caller, `/api/tickets/${tk.id}/callback/outcome`, { outcome: 'informed' }).expect(409);
+      });
+    });
+
+    describe('callback SLA', () => {
+      it('done/rejected + N working days; overdue in the queue and in reports, apart from the region SLA', async () => {
+        const ctx = await get(op, '/api/tickets/context').expect(200);
+        expect(ctx.body.callbackSlaWorkingDays).toBe(1);
+        const tk = await queued();
+        expect(tk.callbackDueAt).not.toBeNull();
+        expect(Date.parse(tk.callbackDueAt as string)).toBeGreaterThan(Date.parse(tk.resolvedAt as string));
+        expect(tk).toMatchObject({ overdue: false, callbackOverdue: false });
+
+        await t.db
+          .updateTable('tickets')
+          .set({ callbackDueAt: new Date(Date.now() - 3_600_000) })
+          .where('id', '=', tk.id)
+          .execute();
+        const q = await get(op2, '/api/tickets?view=callback').expect(200);
+        expect(q.body.items.find((i: Ticket) => i.id === tk.id)).toMatchObject({
+          callbackOverdue: true,
+          overdue: false,
+        });
+        expect(q.body.counts.callbackOverdue).toBeGreaterThanOrEqual(1);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const r = await get(superuser, `/api/tickets/reports?from=${today}&to=${today}`).expect(200);
+        expect(r.body.callbackOverdue).toBeGreaterThanOrEqual(1);
+        expect(r.body.callbackOverdueShare).toBeGreaterThan(0);
+        expect(r.body.byRegion.find((x: { id: number }) => x.id === tashkent).callbackOverdue).toBeGreaterThanOrEqual(
+          1,
+        );
+      });
+    });
+
+    describe('observer: everything, read-only', () => {
+      let observer: TestUser;
+
+      beforeAll(async () => {
+        // S1 adds `observer` to users.role; until then widen the check for this block only.
+        await sql`alter table users drop constraint users_role_check`.execute(t.db);
+        await sql`alter table users add constraint users_role_check check (role in ('operator', 'admin', 'superuser', 'observer'))`.execute(
+          t.db,
+        );
+        observer = await t.createUser('observer' as Role, null);
+      });
+
+      afterAll(async () => {
+        await t.db
+          .updateTable('users')
+          .set({ role: 'operator', isActive: false })
+          .where('role', '=', 'observer' as Role)
+          .execute();
+        await sql`alter table users drop constraint users_role_check`.execute(t.db);
+        await sql`alter table users add constraint users_role_check check (role in ('operator', 'admin', 'superuser'))`.execute(
+          t.db,
+        );
+      });
+
+      it('sees every region: lists, cards, timeline, attachments, recordings, reports; no counter', async () => {
+        findCall.mockResolvedValue(pastCall({ id: '1763370000.31' }));
+        const tash = (await create(op, { ...base(), callId: '1763370000.31' }, [[PNG_1PX, 'a.png']]).expect(201))
+          .body as TicketDetail;
+        await t.db
+          .updateTable('ticketCalls')
+          .set({ recordingNextAt: new Date(0) })
+          .where('ticketId', '=', tash.id)
+          .execute();
+        await t.app.get(TicketRecordingsService).linkDue(new Date());
+        broadcast.mockClear();
+        const sam = await newTicket(op, { regionId: samarqand });
+        // WS: the observer gets the notices (lists refresh) but never the unread counter
+        expect(sentTo('tickets.changed')).toContain(observer.id);
+        expect(sentTo('tickets.unread')).not.toContain(observer.id);
+
+        const ctx = await get(observer, '/api/tickets/context').expect(200);
+        expect(ctx.body).toMatchObject({
+          kind: 'observer',
+          unread: 0,
+          capabilities: { viewAll: true, reports: true, create: false, work: false, callback: false, comment: false },
+        });
+        expect((await get(observer, '/api/tickets/unread').expect(200)).body.count).toBe(0);
+        const all = await get(observer, '/api/tickets?view=all').expect(200);
+        expect(ids(all.body.items)).toEqual(expect.arrayContaining([tash.id, sam.id]));
+        expect(all.body.items.every((i: Ticket) => !i.unread && !Object.values(i.actions).some(Boolean))).toBe(true);
+
+        const d = await get(observer, `/api/tickets/${sam.id}`).expect(200);
+        expect(d.body.events[0]).toMatchObject({ kind: 'created' });
+        const reads = await t.db.selectFrom('ticketReads').selectAll().where('userId', '=', observer.id).execute();
+        expect(reads).toEqual([]);
+        await get(observer, `/api/tickets/${tash.id}/attachments/${tash.attachments[0].id}`).expect(200);
+        await get(observer, `/api/tickets/${tash.id}/calls/${tash.calls[0].id}/recording`).expect(200);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const r = await get(observer, `/api/tickets/reports?from=${today}&to=${today}`).expect(200);
+        expect(r.body.byRegion.map((x: { id: number }) => x.id)).toEqual(expect.arrayContaining([tashkent, samarqand]));
+      });
+
+      it('cannot change anything', async () => {
+        const fresh = await newTicket();
+        const working = await newTicket();
+        await post(exec, `/api/tickets/${working.id}/assign`).expect(200);
+        await post(exec, `/api/tickets/${working.id}/start`).expect(200);
+        const inQueue = await queued();
+        const before = await t.db
+          .selectFrom('tickets')
+          .select(['id', 'version', 'status'])
+          .where('id', 'in', [fresh.id, working.id, inQueue.id])
+          .orderBy('id')
+          .execute();
+
+        await create(observer, base()).expect(403);
+        await post(observer, `/api/tickets/${fresh.id}/assign`).expect(403);
+        await post(observer, `/api/tickets/${fresh.id}/forward`, { regionId: samarqand, note: 'xx' }).expect(403);
+        await post(observer, `/api/tickets/${working.id}/start`).expect(409); // already started
+        await post(observer, `/api/tickets/${working.id}/resolve`, { note: 'xx' }).expect(403);
+        await post(observer, `/api/tickets/${working.id}/reject`, { note: 'xx' }).expect(403);
+        await post(observer, `/api/tickets/${working.id}/release`, { note: 'xx' }).expect(403);
+        await post(observer, `/api/tickets/${working.id}/forward`, { regionId: samarqand, note: 'xx' }).expect(403);
+        await http()
+          .post(`/api/tickets/${fresh.id}/comments`)
+          .set('Authorization', observer.auth)
+          .field('body', 'Kuzatuvchi')
+          .expect(403);
+        await post(observer, `/api/tickets/${inQueue.id}/callback/call`).expect(403);
+        await post(observer, `/api/tickets/${inQueue.id}/callback/outcome`, { outcome: 'informed' }).expect(403);
+        await post(observer, `/api/tickets/${inQueue.id}/close`, { note: 'Yopilsin' }).expect(403);
+        await http().delete(`/api/tickets/${fresh.id}`).set('Authorization', observer.auth).expect(403);
+        await post(observer, '/api/tickets/directories/categories', { nameUz: 'Kuzatuv', nameRu: 'Наблюдение' }).expect(
+          403,
+        );
+        await http()
+          .put(`/api/tickets/directories/executives/${exec.id}/regions`)
+          .set('Authorization', observer.auth)
+          .send({ regionIds: [tashkent, samarqand] })
+          .expect(403);
+        expect(originate).not.toHaveBeenCalled();
+
+        const after = await t.db
+          .selectFrom('tickets')
+          .select(['id', 'version', 'status'])
+          .where('id', 'in', [fresh.id, working.id, inQueue.id])
+          .orderBy('id')
+          .execute();
+        expect(after).toEqual(before);
+        const comments = await t.db
+          .selectFrom('ticketComments')
+          .select('id')
+          .where('ticketId', '=', fresh.id)
+          .execute();
+        expect(comments).toEqual([]);
+      });
     });
   });
 });

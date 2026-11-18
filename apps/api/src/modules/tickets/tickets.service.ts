@@ -37,7 +37,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { type DetectedType, detectAttachmentType, safeAttachmentName } from './domain/attachment-type.js';
 import { sanitizeDocHtml } from './domain/doc-html.js';
 import { scheduleForEndedCall, scheduleForRunningCall } from './domain/recording-link.js';
-import { isOverdue, slaDueAt } from './domain/sla.js';
+import { isCallbackOverdue, isOverdue, slaDueAt } from './domain/sla.js';
 import { compareCallbackQueue } from './domain/ticket-callback.js';
 import {
   type ActionInput,
@@ -94,17 +94,19 @@ export function denialToHttp(d: Denial): Error {
   }
 }
 
-const ACTION_EVENT: Record<'assign' | 'start' | 'forward', TicketEventKind> = {
+const ACTION_EVENT: Record<'assign' | 'start' | 'forward' | 'release', TicketEventKind> = {
   assign: 'assigned',
   start: 'started',
   forward: 'forwarded',
+  release: 'released',
 };
-const ACTION_NOTICE: Record<'assign' | 'start' | 'resolve' | 'reject' | 'forward', TicketChangeAction> = {
+const ACTION_NOTICE: Record<ManualAction, TicketChangeAction> = {
   assign: 'assigned',
   start: 'started',
   resolve: 'done',
   reject: 'rejected',
   forward: 'forwarded',
+  release: 'released',
 };
 
 /**
@@ -148,13 +150,14 @@ export class TicketsService {
       regionIds: [...actor.regionIds].sort((a, b) => a - b),
       maxFileMb: this.config.get('TICKETS_MAX_FILE_MB'),
       slaWorkingDays: this.config.get('TICKETS_SLA_WORKING_DAYS'),
-      unread: actor.kind === 'executive' ? await this.repo.unreadCount(user.id, [...actor.regionIds]) : 0,
+      callbackSlaWorkingDays: this.config.get('TICKETS_CALLBACK_SLA_WORKING_DAYS'),
+      unread: actor.capabilities.regionAlerts ? await this.repo.unreadCount(user.id, [...actor.regionIds]) : 0,
     };
   }
 
   async unread(user: SessionUser): Promise<number> {
     const actor = await this.presenter.actorFor(user);
-    return actor.kind === 'executive' ? this.repo.unreadCount(user.id, [...actor.regionIds]) : 0;
+    return actor.capabilities.regionAlerts ? this.repo.unreadCount(user.id, [...actor.regionIds]) : 0;
   }
 
   async list(user: SessionUser, query: TicketListQueryParsed): Promise<TicketListResponse> {
@@ -171,12 +174,16 @@ export class TicketsService {
         },
         now,
       );
+    const callbackOverdue = (r: TicketRow) =>
+      r.status === 'callback_pending' &&
+      isCallbackOverdue({ callbackDueAt: r.callbackDueAt ? new Date(r.callbackDueAt) : null, closedAt: null }, now);
 
-    const counts = { all: 0, mine: 0, queue: 0, callback: 0, triage: 0, overdue: 0 };
+    const counts = { all: 0, mine: 0, queue: 0, callback: 0, triage: 0, overdue: 0, callbackOverdue: 0 };
     for (const r of rows) {
       const f = ticketFacts(r);
       for (const v of TICKET_VIEWS) if (inView(actor, f, v)) counts[v]++;
       if (overdue(r)) counts.overdue++;
+      if (callbackOverdue(r)) counts.callbackOverdue++;
     }
     const view: TicketView = query.view;
     let selected = rows.filter((r) => inView(actor, ticketFacts(r), view));
@@ -205,7 +212,7 @@ export class TicketsService {
   async get(user: SessionUser, id: number): Promise<TicketDetail> {
     const actor = await this.presenter.actorFor(user);
     const row = await this.visibleRow(id, actor);
-    if (actor.kind === 'executive' && row.status === 'new') {
+    if (actor.capabilities.regionAlerts && row.status === 'new') {
       await this.repo.markRead(user.id, row.id);
       await this.notifier.pushUnread([actor]);
     }
@@ -354,12 +361,7 @@ export class TicketsService {
   // Regional workflow
   // ---------------------------------------------------------------------------
 
-  async act(
-    user: SessionUser,
-    id: number,
-    action: 'assign' | 'start' | 'resolve' | 'reject' | 'forward',
-    input: ActionInput = {},
-  ): Promise<TicketDetail> {
+  async act(user: SessionUser, id: number, action: ManualAction, input: ActionInput = {}): Promise<TicketDetail> {
     const actor = await this.presenter.actorFor(user);
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException('Ticket not found');
@@ -379,6 +381,8 @@ export class TicketsService {
       if (!target?.isActive) throw new BadRequestException('Choose an active region');
     }
     const updated = await this.persistAction(user, row, action, input);
+    // Back in the region queue it is unread for the region's executives again — but not for the one who released it.
+    if (action === 'release' && actor.capabilities.regionAlerts) await this.repo.markRead(user.id, row.id);
     await this.notifier.changed(row, updated, ACTION_NOTICE[action], {
       userId: user.id,
       label: (await this.me(user)).label,
@@ -390,7 +394,7 @@ export class TicketsService {
   private async persistAction(
     user: SessionUser,
     row: TicketRow,
-    action: 'assign' | 'start' | 'resolve' | 'reject' | 'forward',
+    action: ManualAction,
     input: ActionInput,
   ): Promise<TicketRow> {
     const me = await this.me(user);
@@ -426,6 +430,7 @@ export class TicketsService {
           resolvedByLabel: me.label,
           resolvedByExtension: me.extension,
           resolvedAt: now,
+          callbackDueAt: slaDueAt(now, this.config.get('TICKETS_CALLBACK_SLA_WORKING_DAYS'), this.calendar),
         });
         events.push(this.event(row.id, resolution, me, { fromStatus: row.status, toStatus: resolution, note }));
         events.push(this.event(row.id, 'returned', null, { fromStatus: resolution, toStatus: 'callback_pending' }));
@@ -453,6 +458,19 @@ export class TicketsService {
           }),
         );
         break;
+      case 'release':
+        // Same region, back to its queue: nobody holds it, the SLA keeps running from creation.
+        Object.assign(changes, {
+          status: 'new',
+          assigneeUserId: null,
+          assigneeLabel: null,
+          assigneeExtension: null,
+          assignedAt: null,
+          startedAt: null,
+          regionChangedAt: now,
+        });
+        events.push(this.event(row.id, ACTION_EVENT.release, me, { fromStatus: row.status, toStatus: 'new', note }));
+        break;
     }
 
     const updated = await this.repo.update(row.id, changes, row.version);
@@ -464,6 +482,7 @@ export class TicketsService {
         from: row.status,
         to: updated.status,
         ...(action === 'forward' ? { fromRegionId: row.regionId, toRegionId: updated.regionId } : {}),
+        ...(action === 'release' ? { fromAssigneeUserId: row.assigneeUserId } : {}),
         ...(note ? { note } : {}),
       },
     });
@@ -656,7 +675,7 @@ export class TicketsService {
 }
 
 /** For the decideAction type: the workflow actions a person triggers through this service. */
-export type ManualAction = Extract<TicketAction, 'assign' | 'start' | 'resolve' | 'reject' | 'forward'>;
+export type ManualAction = Extract<TicketAction, 'assign' | 'start' | 'resolve' | 'reject' | 'forward' | 'release'>;
 
 function safeName(name: string): string {
   // oxlint-disable-next-line no-control-regex -- rejecting control characters on purpose

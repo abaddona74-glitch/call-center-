@@ -11,6 +11,7 @@ import {
   nextStatus,
   ticketActions,
   ticketActor,
+  ticketAudience,
 } from './ticket-workflow.js';
 
 const TASHKENT = 1;
@@ -33,6 +34,7 @@ function ticket(over: Partial<TicketFacts> = {}): TicketFacts {
     assigneeUserId: null,
     closedByUserId: null,
     customerPhone: '901234567',
+    callbackUserIds: [],
     ...over,
   };
 }
@@ -47,6 +49,7 @@ describe('state machine', () => {
     expect(nextStatus('rejected', 'return')).toBe('callback_pending');
     expect(nextStatus('callback_pending', 'close')).toBe('closed');
     for (const s of ['new', 'assigned', 'in_progress'] as const) expect(nextStatus(s, 'forward')).toBe('new');
+    for (const s of ['assigned', 'in_progress'] as const) expect(nextStatus(s, 'release')).toBe('new');
   });
 
   it('allows nothing else', () => {
@@ -59,9 +62,11 @@ describe('state machine', () => {
         'new:forward',
         'assigned:start',
         'assigned:forward',
+        'assigned:release',
         'in_progress:resolve',
         'in_progress:reject',
         'in_progress:forward',
+        'in_progress:release',
         'done:return',
         'rejected:return',
         'callback_pending:close',
@@ -71,6 +76,8 @@ describe('state machine', () => {
     expect(nextStatus('new', 'resolve')).toBeNull();
     expect(nextStatus('callback_pending', 'forward')).toBeNull();
     expect(nextStatus('done', 'close')).toBeNull();
+    expect(nextStatus('new', 'release')).toBeNull();
+    expect(nextStatus('done', 'release')).toBeNull();
   });
 });
 
@@ -92,11 +99,48 @@ describe('visibility', () => {
     expect(canViewTicket(op2, ticket({ status: 'closed', closedByUserId: op2.userId }))).toBe(true);
   });
 
+  it('an operator who only called back keeps read-only access after closing; a stranger does not', () => {
+    const closed = ticket({ status: 'closed', creatorUserId: 99, closedByUserId: 98, callbackUserIds: [op2.userId] });
+    expect(canViewTicket(op2, closed)).toBe(true);
+    expect(canViewTicket(op, closed)).toBe(false);
+    expect(canViewTicket(opNoExt, closed)).toBe(false);
+    expect(ticketActions(op2, closed, { hasOpenAttempt: false })).toEqual({
+      assign: false,
+      start: false,
+      resolve: false,
+      reject: false,
+      forward: false,
+      release: false,
+      comment: false,
+      call: false,
+      recordOutcome: false,
+      forceClose: false,
+      delete: false,
+    });
+    // and it is in their "mine" list
+    expect(inView(op2, closed, 'mine')).toBe(true);
+    expect(inView(op, closed, 'mine')).toBe(false);
+  });
+
   it('superuser and observer see everything, observer read-only', () => {
     expect(canViewTicket(superuser, ticket({ regionId: null }))).toBe(true);
     expect(canViewTicket(observer, ticket({ regionId: SAMARQAND }))).toBe(true);
+    expect(canViewTicket(observer, ticket({ regionId: null, status: 'closed', creatorUserId: 99 }))).toBe(true);
     expect(canComment(observer, ticket())).toBe(false);
     expect(decideAction(observer, ticket(), 'assign')).toMatchObject({ ok: false, code: 'forbidden' });
+  });
+
+  it('observer can change nothing, in any status', () => {
+    const statuses = ['new', 'assigned', 'in_progress', 'done', 'rejected', 'callback_pending', 'closed'] as const;
+    for (const status of statuses) {
+      for (const regionId of [TASHKENT, null]) {
+        const t = ticket({ status, regionId, assigneeUserId: observer.userId, callbackUserIds: [observer.userId] });
+        expect(Object.values(ticketActions(observer, t, { hasOpenAttempt: true })).some(Boolean)).toBe(false);
+        for (const a of ['assign', 'start', 'resolve', 'reject', 'forward', 'release', 'return', 'close'] as const) {
+          expect(decideAction(observer, t, a, { note: 'xx', regionId: SAMARQAND }).ok).toBe(false);
+        }
+      }
+    }
   });
 });
 
@@ -173,6 +217,33 @@ describe('executive actions', () => {
     });
   });
 
+  it('release: the executive who holds it, with a note, back to the same queue', () => {
+    const assigned = ticket({ status: 'assigned', assigneeUserId: exec.userId });
+    const working = ticket({ status: 'in_progress', assigneeUserId: exec.userId });
+    expect(decideAction(exec, assigned, 'release', { note: 'Boshqa ijrochi olsin' })).toEqual({
+      ok: true,
+      value: 'new',
+    });
+    expect(decideAction(exec, working, 'release', { note: 'Ta’tilga chiqyapman' })).toEqual({ ok: true, value: 'new' });
+    expect(decideAction(exec, working, 'release')).toMatchObject({ ok: false, code: 'invalid' });
+    expect(decideAction(exec, working, 'release', { note: ' ' })).toMatchObject({ ok: false, code: 'invalid' });
+    // another executive of the region, an executive of another region, an operator
+    expect(decideAction(execOther, working, 'release', { note: 'xx' })).toMatchObject({ ok: false, code: 'forbidden' });
+    expect(decideAction(execSam, working, 'release', { note: 'xx' })).toMatchObject({ ok: false, code: 'not_found' });
+    expect(decideAction(op, working, 'release', { note: 'xx' })).toMatchObject({ ok: false, code: 'forbidden' });
+    // the superuser may (he may do everything)
+    expect(decideAction(superuser, working, 'release', { note: 'xx' })).toEqual({ ok: true, value: 'new' });
+    // nothing to release in the queue or after the region is done
+    expect(decideAction(exec, ticket(), 'release', { note: 'xx' })).toMatchObject({ ok: false, code: 'conflict' });
+    expect(
+      decideAction(exec, ticket({ status: 'callback_pending', assigneeUserId: exec.userId }), 'release', {
+        note: 'xx',
+      }),
+    ).toMatchObject({ ok: false, code: 'conflict' });
+    expect(ticketActions(exec, working, { hasOpenAttempt: false }).release).toBe(true);
+    expect(ticketActions(execOther, working, { hasOpenAttempt: false }).release).toBe(false);
+  });
+
   it('return and close are never done through decideAction', () => {
     expect(decideAction(superuser, ticket({ status: 'done' }), 'return')).toMatchObject({
       ok: false,
@@ -228,5 +299,38 @@ describe('views and unread', () => {
     expect(isUnread(exec, { ...t, status: 'assigned' }, null)).toBe(false);
     expect(isUnread(execSam, t, null)).toBe(false);
     expect(isUnread(superuser, t, null)).toBe(false);
+    expect(isUnread(observer, t, null)).toBe(false);
+  });
+});
+
+describe('WS audience', () => {
+  const actors = [superuser, observer, exec, execOther, execSam, op, op2, opNoExt];
+
+  it('a new ticket: its region, its creator, superuser and observer; unread to the region executives', () => {
+    const a = ticketAudience(actors, null, ticket());
+    expect(a.changed.sort()).toEqual(
+      [superuser.userId, observer.userId, exec.userId, execOther.userId, op.userId].sort(),
+    );
+    expect(a.revoked).toEqual([]);
+    expect(a.unread.map((x) => x.userId).sort()).toEqual([exec.userId, execOther.userId].sort());
+  });
+
+  it('release puts it back to the queue: same audience, unread re-counted for the region (not observer)', () => {
+    const before = ticket({ status: 'in_progress', assigneeUserId: exec.userId });
+    const a = ticketAudience(actors, before, ticket());
+    expect(a.changed).toContain(observer.userId);
+    expect(a.revoked).toEqual([]);
+    expect(a.unread.map((x) => x.userId).sort()).toEqual([exec.userId, execOther.userId].sort());
+  });
+
+  it('closing: operators who called back keep it, the others lose it', () => {
+    const before = ticket({ status: 'callback_pending', creatorUserId: 99, callbackUserIds: [op2.userId] });
+    const after = { ...before, status: 'closed' as const, closedByUserId: op2.userId };
+    const a = ticketAudience(actors, before, after);
+    expect(a.changed.sort()).toEqual(
+      [superuser.userId, observer.userId, exec.userId, execOther.userId, op2.userId].sort(),
+    );
+    expect(a.revoked.sort()).toEqual([op.userId, opNoExt.userId].sort());
+    expect(a.unread).toEqual([]);
   });
 });

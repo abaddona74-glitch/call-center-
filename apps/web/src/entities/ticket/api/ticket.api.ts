@@ -143,6 +143,7 @@ export const ticketActions = {
   reject: (id: number, note: string) => detail(`/tickets/${id}/reject`, { note }),
   forward: (id: number, regionId: number, note?: string) =>
     detail(`/tickets/${id}/forward`, { regionId, ...(note ? { note } : {}) }),
+  release: (id: number, note: string) => detail(`/tickets/${id}/release`, { note }),
   call: (id: number) => detail(`/tickets/${id}/callback/call`),
   outcome: (id: number, outcome: CallbackOutcome, note?: string) =>
     detail(`/tickets/${id}/callback/outcome`, { outcome, ...(note ? { note } : {}) }),

@@ -16,7 +16,10 @@ function shift(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Ticket reports: by region, category, status, executive; overdue share; average time to resolution. */
+/**
+ * Ticket reports: by region, category, status, executive; regional SLA overdue and (separately) callback
+ * overdue; average time to resolution.
+ */
 export function TicketReportsPage() {
   const { t, i18n } = useTranslation('ticketReports');
   const today = tashkentDate();
@@ -87,7 +90,7 @@ export function TicketReportsPage() {
 
       {report.isError && <div className="text-sm text-[#f87171]">{t('error', { message: report.error.message })}</div>}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
         <Kpi label={t('kpi.total')} value={r?.total ?? '…'} color="#38bdf8" icon="clipboard-text" />
         <Kpi label={t('kpi.resolved')} value={r?.resolved ?? '…'} color="#34d399" icon="tick-circle" />
         <Kpi label={t('kpi.closed')} value={r?.closed ?? '…'} color="#94a3b8" icon="call" />
@@ -96,6 +99,12 @@ export function TicketReportsPage() {
           value={r ? `${r.overdue} · ${Math.round(r.overdueShare * 100)}%` : '…'}
           color="#f87171"
           icon="timer"
+        />
+        <Kpi
+          label={t('kpi.callbackOverdue')}
+          value={r ? `${r.callbackOverdue} · ${Math.round(r.callbackOverdueShare * 100)}%` : '…'}
+          color="#fb923c"
+          icon="call"
         />
         <Kpi label={t('kpi.avg')} value={r ? hours(r.avgResolutionHours) : '…'} color="#c084fc" icon="clock" />
       </div>
@@ -168,13 +177,14 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[480px] border-collapse text-[13px]">
+      <table className="w-full min-w-[560px] border-collapse text-[13px]">
         <thead>
           <tr className="text-[11px] tracking-[0.5px] text-[#94a3b8] uppercase">
             <th className="py-2 text-left font-bold">{t('col.name')}</th>
             <th className="py-2 text-right font-bold">{t('col.total')}</th>
             <th className="py-2 text-right font-bold">{t('col.resolved')}</th>
             <th className="py-2 text-right font-bold">{t('col.overdue')}</th>
+            <th className="py-2 text-right font-bold">{t('col.callbackOverdue')}</th>
             <th className="py-2 text-right font-bold">{t('col.avg')}</th>
           </tr>
         </thead>
@@ -196,6 +206,14 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
                 )}
               >
                 {r.overdue}
+              </td>
+              <td
+                className={cn(
+                  'py-2 text-right tabular-nums',
+                  r.callbackOverdue > 0 ? 'font-bold text-[#fb923c]' : 'text-[#94a3b8]',
+                )}
+              >
+                {r.callbackOverdue}
               </td>
               <td className="py-2 text-right text-[#c084fc] tabular-nums">{r.avgResolutionHours ?? '—'}</td>
             </tr>

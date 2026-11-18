@@ -28,6 +28,7 @@ import {
 } from '@/entities/ticket';
 import { CallbackCallButton, CallbackOutcomeModal, ForceCloseModal } from '@/features/tickets/callback-call';
 import { ForwardTicketModal } from '@/features/tickets/forward-ticket';
+import { ReleaseTicketModal } from '@/features/tickets/release-ticket';
 import { ResolveTicketModal } from '@/features/tickets/resolve-ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
@@ -91,10 +92,11 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
   const [viewer, setViewer] = useState<ViewerSource | null>(null);
   const [resolveMode, setResolveMode] = useState<'done' | 'rejected' | null>(null);
   const [forwardOpen, setForwardOpen] = useState(false);
+  const [releaseOpen, setReleaseOpen] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
   const a = ticket.actions;
-  const dialogs = resolveMode !== null || forwardOpen || outcomeOpen || forceOpen || viewer !== null;
+  const dialogs = resolveMode !== null || forwardOpen || releaseOpen || outcomeOpen || forceOpen || viewer !== null;
 
   usePasteTarget(!dialogs && a.comment, (pasted) => setFiles((cur) => acceptFiles(cur, pasted, maxFileMb, t)));
 
@@ -141,6 +143,9 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
           <KdsIdBadge>{ticket.code}</KdsIdBadge>
           <TicketStatusBadge status={ticket.status} className="px-2.5 py-1 text-[11px]" />
           {ticket.overdue && <OverdueBadge label={t('card.overdue')} className="px-2 py-[3px] text-[11px]" />}
+          {ticket.callbackOverdue && (
+            <OverdueBadge label={t('card.callbackOverdue')} className="px-2 py-[3px] text-[11px]" />
+          )}
         </div>
         <KdsCloseButton label={t('box.close')} />
       </KdsModalHeader>
@@ -170,6 +175,11 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
           <Meta label={t('box.metaDue')} color={ticket.overdue ? '#f87171' : undefined}>
             {ticket.dueAt ? dateTime(ticket.dueAt) : t('box.noValue')}
           </Meta>
+          {ticket.callbackDueAt && (
+            <Meta label={t('box.metaCallbackDue')} color={ticket.callbackOverdue ? '#f87171' : undefined}>
+              {dateTime(ticket.callbackDueAt)}
+            </Meta>
+          )}
           {ticket.lastContact && (
             <Meta label={t('box.metaLastContact')} color={ticket.lastContactIsMe ? '#38bdf8' : undefined}>
               {personName(ticket.lastContact)} · {timeAgo(ticket.lastContact.at, t)}
@@ -318,6 +328,12 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               {t('box.forward')}
             </KdsAction>
           )}
+          {a.release && (
+            <KdsAction variant="edit" disabled={busy} onClick={() => setReleaseOpen(true)}>
+              <Icon name="arrow-left" className="size-4" />
+              {t('box.release')}
+            </KdsAction>
+          )}
           {a.call && <CallbackCallButton ticketId={ticket.id} onCalled={() => setOutcomeOpen(true)} />}
           {a.recordOutcome && (
             <KdsAction variant="primary" onClick={() => setOutcomeOpen(true)}>
@@ -363,6 +379,7 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
 
       <ResolveTicketModal ticket={ticket} mode={resolveMode} onClose={() => setResolveMode(null)} />
       <ForwardTicketModal ticket={ticket} open={forwardOpen} onClose={() => setForwardOpen(false)} />
+      <ReleaseTicketModal ticket={ticket} open={releaseOpen} onClose={() => setReleaseOpen(false)} />
       <CallbackOutcomeModal ticketId={ticket.id} open={outcomeOpen} onClose={() => setOutcomeOpen(false)} />
       <ForceCloseModal ticket={ticket} open={forceOpen} onClose={() => setForceOpen(false)} />
       <DocViewer source={viewer} onClose={() => setViewer(null)} />

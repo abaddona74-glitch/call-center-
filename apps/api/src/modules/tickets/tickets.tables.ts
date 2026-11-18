@@ -42,6 +42,10 @@ export interface TicketsTable {
   callbackOutcome: TicketCloseOutcome | null;
   callbackNote: string | null;
   callbackAttempts: Generated<number>;
+  /** Callback SLA: done/rejected + TICKETS_CALLBACK_SLA_WORKING_DAYS working days. */
+  callbackDueAt: Date | null;
+  /** Users who made a callback attempt (they keep read access after the ticket is closed). */
+  callbackUserIds: Generated<number[]>;
   lastContactUserId: number | null;
   lastContactLabel: string | null;
   lastContactExtension: string | null;

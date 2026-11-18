@@ -13,6 +13,8 @@ import {
   ForwardTicketRequestSchema,
   type RejectTicketRequest,
   RejectTicketRequestSchema,
+  type ReleaseTicketRequest,
+  ReleaseTicketRequestSchema,
   type ResolveTicketRequest,
   ResolveTicketRequestSchema,
   type SessionUser,
@@ -185,6 +187,18 @@ export class TicketsController {
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDetail> {
     return this.tickets.act(user, id, 'forward', { regionId: body.regionId, note: body.note });
+  }
+
+  /** The executive who holds the ticket (or the superuser) gives it back to the queue of its region. */
+  @Post(':id/release')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  release(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Body({ schema: ReleaseTicketRequestSchema }) body: ReleaseTicketRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketDetail> {
+    return this.tickets.act(user, id, 'release', { note: body.note });
   }
 
   // --- callback step ---------------------------------------------------------------------------------

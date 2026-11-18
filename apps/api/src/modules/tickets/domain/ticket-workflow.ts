@@ -44,13 +44,18 @@ export interface TicketFacts {
   assigneeUserId: number | null;
   closedByUserId: number | null;
   customerPhone: string | null;
+  /** Users who made a callback attempt on the ticket. */
+  callbackUserIds: readonly number[];
 }
 
-/** Status after an action; anything not listed is not allowed. Forward keeps `new` (in another region). */
+/**
+ * Status after an action; anything not listed is not allowed. Forward keeps `new` (in another region);
+ * release puts a taken ticket back to `new` in the same region.
+ */
 export const TICKET_TRANSITIONS: Readonly<Record<TicketStatus, Partial<Record<TicketAction, TicketStatus>>>> = {
   new: { assign: 'assigned', forward: 'new' },
-  assigned: { start: 'in_progress', forward: 'new' },
-  in_progress: { resolve: 'done', reject: 'rejected', forward: 'new' },
+  assigned: { start: 'in_progress', forward: 'new', release: 'new' },
+  in_progress: { resolve: 'done', reject: 'rejected', forward: 'new', release: 'new' },
   done: { return: 'callback_pending' },
   rejected: { return: 'callback_pending' },
   callback_pending: { close: 'closed' },
@@ -72,9 +77,10 @@ export function inMyRegion(actor: TicketActor, t: Pick<TicketFacts, 'regionId'>)
 
 /**
  * Visibility:
- *  - superuser, observer: everything;
+ *  - superuser, observer: everything (observer read-only: its capabilities allow no action);
  *  - executive: tickets currently in one of their regions;
- *  - operator: tickets they opened, the shared callback queue, tickets they closed.
+ *  - operator: tickets they opened, the shared callback queue, and tickets they called back on or closed
+ *    (after closing these are read-only: card, timeline, recordings — no action applies to `closed`).
  */
 export function canViewTicket(actor: TicketActor, t: TicketFacts): boolean {
   if (actor.capabilities.viewAll) return true;
@@ -82,10 +88,20 @@ export function canViewTicket(actor: TicketActor, t: TicketFacts): boolean {
     case 'executive':
       return inMyRegion(actor, t);
     case 'operator':
-      return t.creatorUserId === actor.userId || t.status === 'callback_pending' || t.closedByUserId === actor.userId;
+      return (
+        t.creatorUserId === actor.userId ||
+        t.status === 'callback_pending' ||
+        calledBack(actor, t) ||
+        t.closedByUserId === actor.userId
+      );
     default:
       return false;
   }
+}
+
+/** The actor made a callback attempt on this ticket. */
+export function calledBack(actor: TicketActor, t: Pick<TicketFacts, 'callbackUserIds'>): boolean {
+  return t.callbackUserIds.includes(actor.userId);
 }
 
 export type Denial = { ok: false; code: 'not_found' | 'forbidden' | 'conflict' | 'invalid'; message: string };
@@ -105,6 +121,7 @@ const ACTION_VERB: Record<TicketAction, string> = {
   resolve: 'marked done',
   reject: 'rejected',
   forward: 'forwarded',
+  release: 'returned to the region queue',
   return: 'returned to operators',
   close: 'closed',
 };
@@ -164,6 +181,14 @@ export function decideAction(
         return deny('invalid', 'Write why the ticket is forwarded');
       return { ok: true, value: to };
     }
+    case 'release':
+      // Only whoever holds the ticket (or the superuser) gives it back; nobody assigns it to someone else.
+      if (!worksHere(actor, t) || !(isAssignee(actor, t) || admin)) {
+        return deny('forbidden', 'Only the executive who took the ticket can return it to the queue');
+      }
+      if (!input.note || input.note.trim().length < 2)
+        return deny('invalid', 'Write why the ticket goes back to the queue');
+      return { ok: true, value: to };
     default:
       return deny('forbidden', 'This step is not done by hand');
   }
@@ -203,6 +228,7 @@ export function ticketActions(actor: TicketActor, t: TicketFacts, opts: { hasOpe
     resolve: ok('resolve'),
     reject: ok('reject', { note: 'xx' }),
     forward: ok('forward', { regionId: someOther, note: 'xx' }),
+    release: ok('release', { note: 'xx' }),
     comment: canComment(actor, t),
     call: canCallBack(actor, t),
     recordOutcome: canCallBack(actor, t) && opts.hasOpenAttempt,
@@ -217,7 +243,8 @@ export function inView(actor: TicketActor, t: TicketFacts, view: TicketView): bo
     case 'all':
       return true;
     case 'mine':
-      if (actor.kind === 'operator') return t.creatorUserId === actor.userId;
+      if (actor.kind === 'operator')
+        return t.creatorUserId === actor.userId || calledBack(actor, t) || t.closedByUserId === actor.userId;
       if (actor.kind === 'executive') return isAssignee(actor, t) && t.status !== 'closed';
       return t.creatorUserId === actor.userId || (isAssignee(actor, t) && t.status !== 'closed');
     case 'queue':
@@ -231,8 +258,42 @@ export function inView(actor: TicketActor, t: TicketFacts, view: TicketView): bo
   }
 }
 
-/** Executive "unread": a `new` ticket of my region that I have not opened since it arrived there. */
+/**
+ * Executive "unread": a `new` ticket of my region that I have not opened since it arrived in the queue
+ * (created, forwarded here, or released back). Only actors with region alerts have an unread state.
+ */
 export function isUnread(actor: TicketActor, t: TicketFacts & { regionChangedAt: Date }, readAt: Date | null): boolean {
-  if (actor.kind !== 'executive' || t.status !== 'new' || !inMyRegion(actor, t)) return false;
+  if (!actor.capabilities.regionAlerts || t.status !== 'new' || !inMyRegion(actor, t)) return false;
   return readAt === null || readAt < t.regionChangedAt;
+}
+
+/** Who gets which WS notice about a change (`before`/`after` null = created/deleted). */
+export interface TicketAudience {
+  /** `tickets.changed`: everyone who sees the ticket after the change. */
+  changed: number[];
+  /** `tickets.revoked`: saw it before, no longer does. */
+  revoked: number[];
+  /** `tickets.unread` re-count: region-alert actors of the regions involved, when the queue changed. */
+  unread: TicketActor[];
+}
+
+export function ticketAudience(
+  actors: readonly TicketActor[],
+  before: TicketFacts | null,
+  after: TicketFacts | null,
+): TicketAudience {
+  const sees = (t: TicketFacts | null) =>
+    new Set(t ? actors.filter((a) => canViewTicket(a, t)).map((a) => a.userId) : []);
+  const was = sees(before);
+  const now = sees(after);
+  const regions = new Set([before?.regionId, after?.regionId].filter((r): r is number => typeof r === 'number'));
+  const queueChanged = before?.status === 'new' || after?.status === 'new' || before?.regionId !== after?.regionId;
+  return {
+    changed: after ? [...now] : [],
+    revoked: [...was].filter((id) => !now.has(id)),
+    unread:
+      regions.size > 0 && queueChanged
+        ? actors.filter((a) => a.capabilities.regionAlerts && [...regions].some((r) => a.regionIds.has(r)))
+        : [],
+  };
 }

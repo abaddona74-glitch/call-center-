@@ -1,5 +1,5 @@
 import { TICKET_STATUSES, type TicketReport, type TicketReportRow, type TicketStatus } from '@cc/shared';
-import { hoursBetween, isOverdue } from './sla.js';
+import { hoursBetween, isCallbackOverdue, isOverdue } from './sla.js';
 
 /** The ticket facts a report needs. */
 export interface ReportTicket {
@@ -12,6 +12,8 @@ export interface ReportTicket {
   createdAt: Date;
   dueAt: Date | null;
   resolvedAt: Date | null;
+  callbackDueAt: Date | null;
+  closedAt: Date | null;
 }
 
 export interface NamedRef {
@@ -23,15 +25,17 @@ interface Acc {
   total: number;
   resolved: number;
   overdue: number;
+  callbackOverdue: number;
   hours: number[];
 }
 
-const empty = (): Acc => ({ total: 0, resolved: 0, overdue: 0, hours: [] });
+const empty = (): Acc => ({ total: 0, resolved: 0, overdue: 0, callbackOverdue: 0, hours: [] });
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
 
 /**
  * Pure aggregation for GET /tickets/reports: by region, category, status and executive; overdue share and
- * average time to resolution (created → done/rejected, calendar hours). `now` decides overdue for open tickets.
+ * average time to resolution (created → done/rejected, calendar hours); "callback overdue" (the callback SLA,
+ * done/rejected → closed) is a separate metric. `now` decides overdue for tickets still open.
  */
 export function buildTicketReport(
   tickets: ReportTicket[],
@@ -48,11 +52,13 @@ export function buildTicketReport(
 
   for (const t of tickets) {
     const over = isOverdue({ status: t.status, dueAt: t.dueAt, resolvedAt: t.resolvedAt }, now);
+    const callbackOver = isCallbackOverdue({ callbackDueAt: t.callbackDueAt, closedAt: t.closedAt }, now);
     const hours = t.resolvedAt ? hoursBetween(t.createdAt, t.resolvedAt) : null;
     const add = (acc: Acc) => {
       acc.total++;
       if (t.resolvedAt) acc.resolved++;
       if (over) acc.overdue++;
+      if (callbackOver) acc.callbackOverdue++;
       if (hours !== null) acc.hours.push(hours);
     };
     add(total);
@@ -78,6 +84,7 @@ export function buildTicketReport(
     total: a.total,
     resolved: a.resolved,
     overdue: a.overdue,
+    callbackOverdue: a.callbackOverdue,
     avgResolutionHours: avg(a.hours),
   });
   const unknown: NamedRef = { nameUz: 'Koʻrsatilmagan', nameRu: 'Не указано' };
@@ -92,6 +99,8 @@ export function buildTicketReport(
     closed,
     overdue: total.overdue,
     overdueShare: total.total ? Math.round((total.overdue / total.total) * 1000) / 1000 : 0,
+    callbackOverdue: total.callbackOverdue,
+    callbackOverdueShare: total.resolved ? Math.round((total.callbackOverdue / total.resolved) * 1000) / 1000 : 0,
     avgResolutionHours: avg(total.hours),
     byStatus: TICKET_STATUSES.map((status) => ({ status, count: byStatus.get(status) ?? 0 })),
     byRegion: sortRows([...byRegion].map(([id, a]) => row(id, (id !== null && names.regions.get(id)) || unknown, a))),

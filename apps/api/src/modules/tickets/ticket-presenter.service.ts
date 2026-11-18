@@ -10,7 +10,7 @@ import type {
 } from '@cc/shared';
 import { ticketActorKind, ticketCode } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
-import { isOverdue } from './domain/sla.js';
+import { isCallbackOverdue, isOverdue } from './domain/sla.js';
 import { ATTEMPT_STALE_MS } from './domain/ticket-callback.js';
 import { type TicketActor, type TicketFacts, isUnread, ticketActions, ticketActor } from './domain/ticket-workflow.js';
 import { TicketDirectoriesRepository } from './ticket-directories.repository.js';
@@ -37,6 +37,7 @@ export function ticketFacts(row: TicketRow): TicketFacts {
     assigneeUserId: row.assigneeUserId,
     closedByUserId: row.closedByUserId,
     customerPhone: row.customerPhone,
+    callbackUserIds: row.callbackUserIds ?? [],
   };
 }
 
@@ -121,7 +122,7 @@ export class TicketPresenter {
     const [r, counts, reads, calls] = await Promise.all([
       refs ?? this.refs(),
       this.repo.countsOf(ids),
-      actor.kind === 'executive' ? this.repo.readsOf(actor.userId, ids) : Promise.resolve(new Map<number, Date>()),
+      actor.capabilities.regionAlerts ? this.repo.readsOf(actor.userId, ids) : Promise.resolve(new Map<number, Date>()),
       actor.capabilities.callback
         ? this.repo.callsOf(rows.filter((x) => x.status === 'callback_pending').map((x) => x.id))
         : Promise.resolve([]),
@@ -182,6 +183,14 @@ export class TicketPresenter {
         },
         extra.now,
       ),
+      callbackDueAt: iso(row.callbackDueAt),
+      callbackOverdue: isCallbackOverdue(
+        {
+          callbackDueAt: row.callbackDueAt ? new Date(row.callbackDueAt) : null,
+          closedAt: row.closedAt ? new Date(row.closedAt) : null,
+        },
+        extra.now,
+      ),
       closedAt: iso(row.closedAt),
       closedBy: person(row.closedByUserId, row.closedByLabel, row.closedByExtension),
       callbackOutcome: row.callbackOutcome,
@@ -208,7 +217,9 @@ export class TicketPresenter {
       this.repo.commentsOf(row.id),
       this.repo.eventsOf(row.id),
       this.repo.callsOf([row.id]),
-      actor.kind === 'executive' ? this.repo.readsOf(actor.userId, [row.id]) : Promise.resolve(new Map<number, Date>()),
+      actor.capabilities.regionAlerts
+        ? this.repo.readsOf(actor.userId, [row.id])
+        : Promise.resolve(new Map<number, Date>()),
     ]);
     const ticket = this.ticket(row, actor, refs, {
       comments: comments.length,

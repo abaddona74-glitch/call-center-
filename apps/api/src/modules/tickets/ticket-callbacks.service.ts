@@ -79,6 +79,7 @@ export class TicketCallbacksService {
       );
       throw err;
     }
+    await this.repo.addCallbackUser(row.id, me.userId);
     await this.audit.record('tickets.callback.call', {
       target: `ticket:${id}`,
       details: { attemptId: attempt.id, extension: me.extension },

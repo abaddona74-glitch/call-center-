@@ -18,6 +18,8 @@ const t = (over: Partial<ReportTicket>): ReportTicket => ({
   createdAt: new Date('2026-11-23T10:00:00Z'),
   dueAt: new Date('2026-11-26T10:00:00Z'),
   resolvedAt: null,
+  callbackDueAt: null,
+  closedAt: null,
   ...over,
 });
 
@@ -75,8 +77,44 @@ describe('buildTicketReport', () => {
     ]);
   });
 
+  it('counts the callback SLA separately from the regional SLA', () => {
+    const resolvedAt = new Date('2026-11-24T10:00:00Z');
+    const callbackDueAt = new Date('2026-11-25T10:00:00Z');
+    const report = buildTicketReport(
+      [
+        // in time for the region, closed after the callback due time
+        t({ status: 'closed', resolvedAt, callbackDueAt, closedAt: new Date('2026-11-25T12:00:00Z') }),
+        // in time for the region, closed in time
+        t({ status: 'closed', resolvedAt, callbackDueAt, closedAt: new Date('2026-11-25T09:00:00Z') }),
+        // still waiting for the callback past its due time
+        t({ status: 'callback_pending', regionId: 11, resolvedAt, callbackDueAt }),
+        // regional SLA missed, callback not due yet
+        t({
+          status: 'callback_pending',
+          regionId: 11,
+          dueAt: new Date('2026-11-25T10:00:00Z'),
+          resolvedAt: new Date('2026-11-29T10:00:00Z'),
+          callbackDueAt: new Date('2026-12-01T10:00:00Z'),
+        }),
+      ],
+      names,
+      { from: '2026-11-01', to: '2026-11-30' },
+      now,
+    );
+    expect(report).toMatchObject({ overdue: 1, callbackOverdue: 2, callbackOverdueShare: 0.5 });
+    expect(report.byRegion.find((r) => r.id === 1)).toMatchObject({ overdue: 0, callbackOverdue: 1 });
+    expect(report.byRegion.find((r) => r.id === 11)).toMatchObject({ overdue: 1, callbackOverdue: 1 });
+  });
+
   it('is empty-safe', () => {
     const r = buildTicketReport([], names, { from: '2026-11-01', to: '2026-11-30' }, now);
-    expect(r).toMatchObject({ total: 0, overdueShare: 0, avgResolutionHours: null, byRegion: [] });
+    expect(r).toMatchObject({
+      total: 0,
+      overdueShare: 0,
+      callbackOverdue: 0,
+      callbackOverdueShare: 0,
+      avgResolutionHours: null,
+      byRegion: [],
+    });
   });
 });
