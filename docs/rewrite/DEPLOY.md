@@ -640,7 +640,8 @@ Issabel (CentOS 7, OpenSSH 7.4) поддерживает `internal-sftp -R`. К�
 ```bash
 useradd --system --no-create-home --home-dir / --shell /sbin/nologin cc_recordings
 install -d -o root -g root -m 755 /srv/sftp /srv/sftp/cc_recordings /srv/sftp/cc_recordings/monitor
-echo '/var/spool/asterisk/monitor /srv/sftp/cc_recordings/monitor none bind,ro 0 0' >> /etc/fstab
+# nofail: если bind-mount не поднимется, АТС всё равно загрузится (без него systemd уходит в emergency mode)
+echo '/var/spool/asterisk/monitor /srv/sftp/cc_recordings/monitor none bind,ro,nofail 0 0' >> /etc/fstab
 mount /srv/sftp/cc_recordings/monitor && mount -o remount,bind,ro /srv/sftp/cc_recordings/monitor
 findmnt /srv/sftp/cc_recordings/monitor            # должно быть ro
 install -d -m 755 /etc/ssh/authorized_keys
@@ -665,9 +666,11 @@ Match User cc_recordings
 
 Если файлы записей не читаются «прочими» (права 640), добавить `cc_recordings` в группу `asterisk` — в chroot он всё равно видит
 только `monitor`. Ключ создаётся на ВМ: `sudo -u deploy ssh-keygen -t ed25519 -N '' -C cc-recordings -f /opt/callcenter/secrets/sftp_recordings_key`
-(каталог 700, файлу ключа 644 — его читает пользователь контейнера; подключение в контейнер — закомментированный блок в
-`compose.override.yml`, включает S5). В `.env`: `SFTP_USER=cc_recordings`, `SFTP_MONITOR_PATH=/monitor`,
-`SFTP_PRIVATE_KEY_PATH=/run/secrets/sftp_recordings_key`. Ключ хоста АТС приложение должно закреплять (S5).
+(каталог 700, файлу ключа 644 — его читает пользователь контейнера). Подключение ключа в контейнер включено в
+`infra/server/compose.override.yml` (deploy.sh ставит этот файл при каждом деплое, правка только на сервере пропадёт);
+без файла ключа api не запустится. В `.env`: `SFTP_HOST=192.168.0.124`, `SFTP_USER=cc_recordings`, `SFTP_MONITOR_PATH=/monitor`,
+`SFTP_PRIVATE_KEY_PATH=/run/secrets/sftp_recordings_key`, `SFTP_HOST_FINGERPRINT` — отпечатки ключей хоста, сверенные
+на самой АТС (`for f in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf $f; done`), через запятую.
 Проверка с ВМ: `sftp -i ... cc_recordings@192.168.0.124` → `ls monitor` работает, `put` — отказ.
 
 ### 11.4 Firewall АТС

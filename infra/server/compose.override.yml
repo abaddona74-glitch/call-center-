@@ -10,13 +10,14 @@ services:
       # database already has migrations it does not know (kysely: "previously executed migration
       # ... is missing"). compose.yml hardcodes "true" for the all-in-one local stack.
       DB_MIGRATE_ON_START: 'false'
-    # Recordings over SFTP (S5): create /opt/callcenter/secrets/sftp_recordings_key (directory 700,
-    # file 644 so the container user can read it), set SFTP_PRIVATE_KEY_PATH=/run/secrets/sftp_recordings_key
-    # in .env, then uncomment both blocks below.
-    # secrets:
-    #   - sftp_recordings_key
+    # Recordings over SFTP (S5, DEPLOY.md 11.3): the key lives in /opt/callcenter/secrets/sftp_recordings_key
+    # (directory 700, file 644 so the container user can read it); .env has
+    # SFTP_PRIVATE_KEY_PATH=/run/secrets/sftp_recordings_key. deploy.sh reinstalls this file on every deploy,
+    # so the mount has to live here, not only on the server. Without the key file the api will not start.
+    secrets:
+      - sftp_recordings_key
   web:
     build: !reset null
-# secrets:
-#   sftp_recordings_key:
-#     file: ./secrets/sftp_recordings_key
+secrets:
+  sftp_recordings_key:
+    file: ./secrets/sftp_recordings_key

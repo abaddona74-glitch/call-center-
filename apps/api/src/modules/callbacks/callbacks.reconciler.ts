@@ -13,12 +13,43 @@ import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import { CallbacksService } from './callbacks.service.js';
 import { deriveMissedSource, handledByLegacy } from './domain/callback-rules.js';
 import { type CallFact, type CdrLeg, callFactsFromCdr, factTime } from './domain/cdr-calls.js';
+import { type CdrWindow, cdrWindow, timeSlices } from './domain/cdr-window.js';
 import type { WorkingCalendar } from '../../common/time/working-calendar.js';
 import { formatBusinessDateTime } from './domain/working-calendar.js';
 
-const MAX_ROWS = 50_000;
+const HOUR_MS = 3_600_000;
 
-/** Reads raw CDR legs for a time window (read-only PBX user). Separate class so tests can replace it. */
+/** The CDR is read in consecutive slices of this length, so no single query returns an unbounded result. */
+export const CDR_SLICE_MS = HOUR_MS;
+/**
+ * Safety cap per slice (~3× the busiest hour seen in production, 18k raw rows on 2026-11-18). A slice that hits
+ * it means the window cannot be read whole: the run applies nothing rather than act on a cut-off window.
+ */
+export const MAX_ROWS_PER_SLICE = 50_000;
+/**
+ * Asterisk writes a CDR row when the call ends, but dates it (`calldate`) when the call started, so rows show up
+ * late by up to the call's length. Each periodic run therefore re-applies calls that started this long before the
+ * previous run's end; calls are idempotent (callback_events (kind, call_id)), so re-applying is harmless.
+ * A call longer than this that the live AMI path also missed is caught by the next startup or a manual sync.
+ */
+export const LATE_CDR_OVERLAP_MS = 2 * HOUR_MS;
+/**
+ * Rows of one call can be dated apart (IVR, queue attempts, a transfer after the answer). Each run reads this much
+ * before the first call it applies, so a call that started earlier is seen to have started earlier and is left
+ * alone instead of being judged by its tail (`startedFrom` in callFactsFromCdr).
+ */
+export const CALL_SPAN_GUARD_MS = HOUR_MS;
+/** Read a minute past now: the PBX clock may run ahead of ours. */
+const CLOCK_SKEW_MS = 60_000;
+
+/** A slice had more rows than MAX_ROWS_PER_SLICE: nothing from the run was applied. */
+export class CdrWindowTruncatedError extends ServiceUnavailableException {
+  constructor(from: string, to: string, cap: number) {
+    super(`CDR slice ${from}..${to} has more than ${cap} rows; nothing was applied`);
+  }
+}
+
+/** Reads raw CDR legs of one time slice (read-only PBX user). Separate class so tests can replace it. */
 @Injectable()
 export class CdrLegsReader {
   private readonly hasLinkedid: boolean;
@@ -35,8 +66,12 @@ export class CdrLegsReader {
     return this.pbx !== null;
   }
 
-  /** `from`/`to` are PBX wall-clock strings (Asia/Tashkent); half-open window. */
-  async read(from: string, to: string): Promise<CdrLeg[]> {
+  /**
+   * At most `limit` legs dated in `[from, to)`, oldest first. `from`/`to` are PBX wall-clock strings
+   * (Asia/Tashkent). Without linkedid the queue members' own ring attempts are left out in SQL: keyed by
+   * uniqueid they never make a fact, and they are about half of all rows (see `isQueueMemberRingAttempt`).
+   */
+  async read(from: string, to: string, limit: number): Promise<CdrLeg[]> {
     if (!this.pbx) throw new ServiceUnavailableException('PBX unavailable');
     const rows = await this.pbx
       .selectFrom('cdr')
@@ -56,23 +91,41 @@ export class CdrLegsReader {
       .select(this.hasLinkedid ? sql<string>`linkedid`.as('linkedid') : sql<string>`uniqueid`.as('linkedid'))
       .where('calldate', '>=', from)
       .where('calldate', '<', to)
+      .$if(!this.hasLinkedid, (qb) =>
+        qb.where((eb) =>
+          eb.not(
+            eb.and([eb('channel', 'like', 'Local/%'), eb('dcontext', '=', 'from-internal'), eb('dstchannel', '=', '')]),
+          ),
+        ),
+      )
       .orderBy('calldate')
-      .limit(MAX_ROWS)
+      .limit(limit)
       .execute();
     return rows.map((r) => ({ ...r, duration: Number(r.duration), billsec: Number(r.billsec) }));
   }
 }
 
 /**
- * Periodic reconciliation from the PBX CDR: replays calls of the last N hours through the same
- * callback rules as the live AMI events. Idempotent (calls are keyed by linkedid), so it is safe to
- * run any time — it only fills what the live path missed (API restart, AMI outage).
- * Calls the imported legacy history already covers are skipped (see `handledByLegacy`).
+ * Reconciliation from the PBX CDR: replays calls through the same callback rules as the live AMI events.
+ * Idempotent (calls are keyed by linkedid / uniqueid), so it only fills what the live path missed (API restart,
+ * AMI outage). Calls the imported legacy history already covers are skipped (see `handledByLegacy`).
+ *
+ *  - startup: the whole `CALLBACKS_RECONCILE_LOOKBACK_HOURS`;
+ *  - every `CALLBACKS_RECONCILE_INTERVAL_SEC`: from the previous successful run's end minus LATE_CDR_OVERLAP_MS,
+ *    never further back than the lookback. A failed or truncated run does not move that point;
+ *  - manual sync (`POST /callbacks/sync`): exactly the given hours; it does not move the periodic window.
+ *
+ * Rows are read in slices and grouped into calls only after the whole window is read, so calls that cross a
+ * slice boundary stay whole. If any slice hits MAX_ROWS_PER_SLICE nothing is applied.
  */
 @Injectable()
 export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(CallbacksReconciler.name);
-  private running: Promise<CallbackSyncResult> | null = null;
+  /** End (`to`) of the last successful periodic run; null until the first one (startup). */
+  private lastEnd: Date | null = null;
+  /** Runs execute one after another; this is the tail of that queue. */
+  private tail: Promise<unknown> = Promise.resolve();
+  private queued = 0;
   private startupTimer: NodeJS.Timeout | null = null;
 
   constructor(
@@ -88,9 +141,12 @@ export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicatio
       this.logger.log('CDR reconciliation of callbacks is off');
       return;
     }
-    const hours = this.config.get('CALLBACKS_RECONCILE_LOOKBACK_HOURS');
     const tick = () =>
-      void this.run(hours).catch((err: unknown) => this.logger.warn(`reconciliation failed: ${String(err)}`));
+      void this.tick().catch((err: unknown) =>
+        this.logger.warn(
+          err instanceof CdrWindowTruncatedError ? err.message : `reconciliation failed: ${String(err)}`,
+        ),
+      );
     this.scheduler.addInterval('callbacks-reconcile', setInterval(tick, seconds * 1000));
     this.startupTimer = setTimeout(tick, 15_000);
   }
@@ -99,22 +155,59 @@ export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicatio
     if (this.startupTimer) clearTimeout(this.startupTimer);
   }
 
-  /** One run at a time; a second caller waits for the running one. */
-  run(hours: number, now = new Date()): Promise<CallbackSyncResult> {
-    this.running ??= this.doRun(hours, now).finally(() => {
-      this.running = null;
+  /**
+   * Periodic run (the first one is the startup run). Skipped (null) while another run is running or waiting:
+   * the window is not moved, so the next tick covers it.
+   */
+  tick(now?: Date): Promise<CallbackSyncResult | null> {
+    if (this.queued > 0) return Promise.resolve(null);
+    return this.exclusive(async () => {
+      const window = cdrWindow({
+        now: now ?? new Date(),
+        lookbackMs: this.config.get('CALLBACKS_RECONCILE_LOOKBACK_HOURS') * HOUR_MS,
+        lastEnd: this.lastEnd,
+        overlapMs: LATE_CDR_OVERLAP_MS,
+        guardMs: CALL_SPAN_GUARD_MS,
+        skewMs: CLOCK_SKEW_MS,
+      });
+      const result = await this.reconcile(window);
+      this.lastEnd = window.to;
+      return result;
     });
-    return this.running;
   }
 
-  private async doRun(hours: number, now: Date): Promise<CallbackSyncResult> {
-    const startedAt = new Date();
-    const from = formatBusinessDateTime(new Date(now.getTime() - hours * 3_600_000), BUSINESS_TIMEZONE);
-    const to = formatBusinessDateTime(new Date(now.getTime() + 60_000), BUSINESS_TIMEZONE);
-    const legs = await this.reader.read(from, to);
-    if (legs.length >= MAX_ROWS) this.logger.warn(`CDR window ${from}..${to} hit the ${MAX_ROWS} row limit`);
+  /** Manual re-check of exactly the last `hours`; waits for a running run instead of reusing its result. */
+  sync(hours: number, now?: Date): Promise<CallbackSyncResult> {
+    return this.exclusive(() =>
+      this.reconcile(
+        cdrWindow({
+          now: now ?? new Date(),
+          lookbackMs: hours * HOUR_MS,
+          lastEnd: null,
+          overlapMs: 0,
+          guardMs: CALL_SPAN_GUARD_MS,
+          skewMs: CLOCK_SKEW_MS,
+        }),
+      ),
+    );
+  }
 
-    const facts = callFactsFromCdr(legs, { timezone: BUSINESS_TIMEZONE });
+  private exclusive<T>(run: () => Promise<T>): Promise<T> {
+    this.queued++;
+    const result = this.tail.then(run).finally(() => {
+      this.queued--;
+    });
+    this.tail = result.catch(() => undefined);
+    return result;
+  }
+
+  private async reconcile(window: CdrWindow): Promise<CallbackSyncResult> {
+    const startedAt = new Date();
+    const legs = await this.readWindow(window);
+    const facts = callFactsFromCdr(legs, { timezone: BUSINESS_TIMEZONE, startedFrom: window.applyFrom });
+    this.logger.debug(
+      `CDR ${formatBusinessDateTime(window.readFrom, BUSINESS_TIMEZONE)}..${formatBusinessDateTime(window.to, BUSINESS_TIMEZONE)}: ${legs.length} rows, ${facts.length} calls`,
+    );
     const calendar = this.callbacks.calendar();
     const { minTalkSeconds } = await this.callbacks.settings();
     const legacyUntil = await this.callbacks.legacyImportedUntil();
@@ -150,6 +243,19 @@ export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicatio
       startedAt: startedAt.toISOString(),
       finishedAt: new Date().toISOString(),
     };
+  }
+
+  /** The whole window, slice by slice; throws CdrWindowTruncatedError (before anything is applied) on a full slice. */
+  private async readWindow(window: CdrWindow): Promise<CdrLeg[]> {
+    const chunks: CdrLeg[][] = [];
+    for (const slice of timeSlices(window.readFrom, window.to, CDR_SLICE_MS)) {
+      const from = formatBusinessDateTime(slice.from, BUSINESS_TIMEZONE);
+      const to = formatBusinessDateTime(slice.to, BUSINESS_TIMEZONE);
+      const rows = await this.reader.read(from, to, MAX_ROWS_PER_SLICE + 1);
+      if (rows.length > MAX_ROWS_PER_SLICE) throw new CdrWindowTruncatedError(from, to, MAX_ROWS_PER_SLICE);
+      chunks.push(rows);
+    }
+    return chunks.flat();
   }
 
   private apply(
