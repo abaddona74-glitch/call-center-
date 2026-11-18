@@ -1,0 +1,3 @@
+# Scripts run with bash on the PBX: keep LF even on Windows checkouts (core.autocrlf).
+* text eol=lf
+*.wav binary

@@ -11728,6 +11728,12 @@ function renderTabAgentOperators(operators) {
                     <span>${t('op_card_avg_talk', "O'rtacha suhbat:")}</span>
                     <span class="op-stat-val">${formatSeconds(op.avgDurationSec || 0)}</span>
                 </div>
+                <div class="op-stat-row" title="${t('op_card_survey_title', "Qo'ng'iroqdan keyin mijozlar 1–5 bosib qo'ygan baho (tanlangan kun)")}">
+                    <span>${t('op_card_survey', 'Mijoz bahosi:')}</span>
+                    ${(op.surveyCount > 0 && typeof op.surveyAvg === 'number')
+                        ? `<span class="op-stat-val" style="font-weight: 800; color: ${op.surveyAvg >= 4.5 ? '#34d399' : (op.surveyAvg >= 3.5 ? '#fbbf24' : '#f87171')};">★ ${op.surveyAvg.toFixed(1)} <span style="font-size: 11px; font-weight: 600; color: var(--text-dim);">(${op.surveyCount} ${t('unit_item', 'ta')})</span></span>`
+                        : `<span class="op-stat-val" style="color: var(--text-dim);">—</span>`}
+                </div>
             </div>
         `;
     }).join('');
