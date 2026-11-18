@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermission } from '@/entities/session';
-import { toolFileUrl, toolsConfigQuery, uzcryptoDownloadUrl, uzcryptoQuery } from '@/entities/tool';
+import { toolsConfigQuery, uzcryptoDownloadUrl, uzcryptoQuery } from '@/entities/tool';
 import { ConverterModal } from '@/features/tools/convert-file';
 import { Icon } from '@/shared/ui/icon';
 import {
@@ -129,24 +129,6 @@ export function ToolsPage() {
       actions: (
         <a className="tl-btn primary" data-default href={GUIDE_TREE_PATH}>
           <span>{t('open')}</span>
-        </a>
-      ),
-    },
-    anydesk: {
-      icon: <Icon name="trash" className="size-6" />,
-      iconBg: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-      pill: { text: t('card.anydesk.pill'), tone: 'red' },
-      actions: (
-        <a
-          className="tl-btn primary"
-          data-tone="red"
-          data-default
-          href={toolFileUrl('clean-anydesk.bat')}
-          download="clean-anydesk.bat"
-          title={t('card.anydesk.downloadTitle')}
-        >
-          <Icon name="import" className="size-3.5" />
-          <span>{t('card.anydesk.download')}</span>
         </a>
       ),
     },

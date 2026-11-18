@@ -10,7 +10,6 @@ export const TOOL_IDS = [
   'ehuquq_cabinet',
   'operator_manual',
   'systems_tree',
-  'anydesk',
   'managers',
   'converter',
   'uzcrypto',
@@ -22,10 +21,10 @@ export type ToolId = (typeof TOOL_IDS)[number];
 
 export type Layout = Record<Zone, ToolId[]>;
 
-/** Legacy markup order (3CX cards and RustDesk are not moved to the new system). */
+/** Legacy markup order (3CX cards, RustDesk and the AnyDesk cleaner are not in the new system). */
 export const DEFAULT_LAYOUT: Layout = {
   admin: ['edo_cabinet', 'ehuquq_cabinet'],
-  primary: ['operator_manual', 'systems_tree', 'anydesk', 'managers', 'converter'],
+  primary: ['operator_manual', 'systems_tree', 'managers', 'converter'],
   secondary: ['uzcrypto', 'telegram', 'ijro_letter', 'uzb2026'],
 };
 

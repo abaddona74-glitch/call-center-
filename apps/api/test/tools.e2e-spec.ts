@@ -91,7 +91,7 @@ afterAll(async () => {
 describe('access', () => {
   it('needs a session', async () => {
     const anon = new Client(e2e);
-    for (const p of ['/tools/config', '/tools/uzcrypto', '/tools/managers', '/tools/files/clean-anydesk.bat']) {
+    for (const p of ['/tools/config', '/tools/uzcrypto', '/tools/managers', '/tools/files/uzb2026-klaviatura.zip']) {
       expect((await anon.get(p)).status, p).toBe(401);
     }
     expect((await convert(anon, Buffer.from('salom'), 'a.txt', 'pdf')).status).toBe(401);
@@ -132,17 +132,15 @@ describe('config, Uzcrypto, downloads, managers', () => {
   });
 
   it('serves only the listed files, as attachments, byte for byte', async () => {
-    const bat = await op.get('/tools/files/clean-anydesk.bat').buffer(true).parse(binary);
-    expect(bat.status).toBe(200);
-    expect(bat.headers['content-disposition']).toContain('attachment; filename="clean-anydesk.bat"');
-    expect(bat.headers['content-type']).toBe('application/octet-stream');
-    expect(Buffer.compare(bat.body as Buffer, readFileSync(path.join(FILES, 'clean-anydesk.bat')))).toBe(0);
-
     const zip = await op.get('/tools/files/uzb2026-klaviatura.zip').buffer(true).parse(binary);
     expect(zip.status).toBe(200);
+    expect(zip.headers['content-disposition']).toContain('attachment; filename="uzb2026-klaviatura.zip"');
+    expect(zip.headers['content-type']).toBe('application/zip');
+    expect(Buffer.compare(zip.body as Buffer, readFileSync(path.join(FILES, 'uzb2026-klaviatura.zip')))).toBe(0);
     expect((zip.body as Buffer).subarray(0, 2).toString()).toBe('PK');
 
     expect((await op.get('/tools/files/RustDesk_Ornatish.bat')).status).toBe(400);
+    expect((await op.get('/tools/files/clean-anydesk.bat')).status).toBe(400); // AnyDesk is no longer used
     expect((await op.get('/tools/files/..%2F..%2Fapp.module.js')).status).toBe(400);
   });
 

@@ -4,8 +4,8 @@ import { ToolsController } from './tools.controller.js';
 import { UzcryptoService, VENDOR_FETCH, fetchVendorText } from './uzcrypto.service.js';
 
 /**
- * Tools section: links config, Uzcrypto version lookup, downloads (AnyDesk cleaner, Uzbek 2026
- * keyboard), the managers directory and the document converter. No database tables.
+ * Tools section: links config, Uzcrypto version lookup, downloads (Uzbek 2026 keyboard), the managers
+ * directory and the document converter. No database tables.
  */
 @Module({
   controllers: [ToolsController],

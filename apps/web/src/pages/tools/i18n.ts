@@ -41,13 +41,6 @@ registerTranslations('tools', {
         pill: 'Daraxt',
         desc: 'Qaysi tizim nima uchun va kim qaysi rolda — interaktiv daraxt: tugunni bosing, rollar ochiladi.',
       },
-      anydesk: {
-        title: 'AnyDesk Tozalash',
-        pill: 'Avto-skript',
-        desc: "AnyDesk'ni to'xtatadi, uning foydalanuvchi ma'lumotlari va kesh papkalarini (%AppData%\\AnyDesk) o'chirib, dasturni qayta ochadi. Administrator (UAC) huquqini so'raydi, logni Ish stoliga saqlaydi.",
-        download: 'Skriptni yuklab olish',
-        downloadTitle: 'Tozalovchi skriptni yuklab olish',
-      },
       managers: {
         title: "Mas'ullar va E-XAT",
         desc: "Toshkent shahri, Vazirliklar, Viloyatlar va E-XAT (Unicon.uz) bo'yicha mas'ul xodimlar, ofis va telefon raqamlari ma'lumotnomasi.",
@@ -120,13 +113,6 @@ registerTranslations('tools', {
         title: 'Дерево систем и ролей',
         pill: 'Дерево',
         desc: 'Какая система для чего и кто в какой роли — интерактивное дерево: нажмите на узел, чтобы раскрыть роли.',
-      },
-      anydesk: {
-        title: 'Очистка AnyDesk',
-        pill: 'Авто-скрипт',
-        desc: 'Останавливает AnyDesk, удаляет его папки пользовательских данных и кеша (%AppData%\\AnyDesk) и запускает заново. Запрашивает права администратора (UAC), лог сохраняет на рабочий стол.',
-        download: 'Скачать скрипт',
-        downloadTitle: 'Скачать скрипт очистки',
       },
       managers: {
         title: 'Ответственные и E-XAT',
