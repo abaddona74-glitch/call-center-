@@ -55,7 +55,9 @@ export function ImpersonationBanner() {
           <IconUser size={16} />
         </span>
         <div>
-          <div className="font-bold text-[#fef3c7] light:text-caution">{t('acting', { by: info.by.username, user: user.username })}</div>
+          <div className="font-bold text-[#fef3c7] light:text-caution">
+            {t('acting', { by: info.by.username, user: user.username })}
+          </div>
           <div className="text-[11.5px] text-caution-soft/80">{t('hint')}</div>
         </div>
       </div>

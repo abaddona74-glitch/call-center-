@@ -13,6 +13,8 @@ export interface CallbackSettingsTable {
   minTalkSeconds: number;
   updatedAt: Generated<Date>;
   updatedByUserId: number | null;
+  /** Calls at or before this moment were handled by the legacy system (set by the legacy import). */
+  legacyImportedUntil: Date | null;
 }
 
 export interface CallbacksTable {
@@ -40,6 +42,8 @@ export interface CallbacksTable {
   resolvedCallId: string | null;
   resolvedExtension: string | null;
   resolvedTalkSeconds: number | null;
+  /** Legacy `pending_callbacks.id` of an imported row (idempotency of the legacy import). */
+  legacyId: number | null;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
 }

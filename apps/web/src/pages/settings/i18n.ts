@@ -12,6 +12,12 @@ registerTranslations('settings', {
       sessions: 'Faol Sessiyalar',
       calendar: 'Ish vaqti',
       audit: 'Audit jurnali',
+      exclude: 'Statistika & Exclude List',
+    },
+    exclude: {
+      title: 'Statistikadan chiqarilgan operatorlar (Exclude List)',
+      description:
+        "Belgilangan operatorlar jonli monitorda, reytingda, operatorlar statistikasida va Excel hisobotida ko'rsatilmaydi. Ularning qo'ng'iroqlari umumiy ko'rsatkichlarda va qo'ng'iroqlar tarixida qoladi.",
     },
     calendar: {
       title: 'Ish vaqti va bayramlar',
@@ -185,6 +191,12 @@ registerTranslations('settings', {
       sessions: 'Активные сеансы',
       calendar: 'Рабочее время',
       audit: 'Журнал аудита',
+      exclude: 'Исключённые операторы',
+    },
+    exclude: {
+      title: 'Операторы, исключённые из статистики',
+      description:
+        'Отмеченные операторы не показываются на живом табло, в рейтинге, в статистике по операторам и в Excel-отчёте. Их звонки остаются в общих показателях и в истории звонков.',
     },
     calendar: {
       title: 'Рабочее время и праздники',

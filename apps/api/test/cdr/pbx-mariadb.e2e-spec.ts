@@ -41,6 +41,22 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
     }
   });
 
+  it('post-call survey: rows when operator_baho exists and is granted, otherwise null — never a 503', async () => {
+    const ratings = await repo.surveyRatings(`${today} 00:00:00`, `${today} 23:59:59`);
+    expect(ratings === null || Array.isArray(ratings)).toBe(true);
+    for (const r of ratings ?? []) expect(r.score).toBeGreaterThanOrEqual(1);
+    const ops = await request(ctx.app.getHttpServer())
+      .get(`/api/stats/operators?from=${today}&to=${today}&scope=all`)
+      .set('Cookie', ctx.cookies.executive)
+      .expect(200);
+    expect(ops.body.surveyAvailable).toBe(ratings !== null);
+    // Ratings reach their calls both with and without the cdr.linkedid column (PBX_CDR_HAS_LINKEDID).
+    if (ratings?.length) {
+      const rated = ops.body.operators.reduce((s: number, r: { surveyCount: number }) => s + r.surveyCount, 0);
+      expect(rated).toBeGreaterThan(0);
+    }
+  });
+
   it('serves history and stats from the seeded PBX', async () => {
     const res = await request(ctx.app.getHttpServer())
       .get(`/api/cdr/calls?pageSize=5`)

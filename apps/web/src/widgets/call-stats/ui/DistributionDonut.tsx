@@ -41,7 +41,14 @@ export function DistributionDonut({ summary }: { summary: StatsSummary | undefin
             role="img"
             aria-label={t('distribution')}
           >
-            <circle cx="21" cy="21" r={R} fill="none" stroke="color-mix(in srgb, var(--tint) 6%, transparent)" strokeWidth="4.8" />
+            <circle
+              cx="21"
+              cy="21"
+              r={R}
+              fill="none"
+              stroke="color-mix(in srgb, var(--tint) 6%, transparent)"
+              strokeWidth="4.8"
+            />
             {slices.map((x, i) => {
               const pct = total ? (x.value / total) * 100 : 0;
               const el = (

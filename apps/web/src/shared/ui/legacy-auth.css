@@ -57,7 +57,11 @@
   overflow: hidden;
   padding: 35px 24px 24px;
   border-right: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
-  background: linear-gradient(155deg, color-mix(in srgb, var(--glass-2) 65%, transparent) 0%, color-mix(in srgb, var(--glass) 90%, transparent) 100%);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--glass-2) 65%, transparent) 0%,
+    color-mix(in srgb, var(--glass) 90%, transparent) 100%
+  );
   user-select: none;
 }
 .lg-stage::before,

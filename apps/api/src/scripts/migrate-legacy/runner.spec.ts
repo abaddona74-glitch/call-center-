@@ -3,7 +3,7 @@ import type { DB } from '../../database/db.js';
 import type { JsonSource, LegacySources } from './legacy-sources.js';
 import { emptyReport, type Mapper, type MapperReport, MapperReportSchema } from './mapper.js';
 import { ALL_MAPPERS } from './mappers/index.js';
-import { countArray, notImplementedMapper } from './mappers/not-implemented.js';
+import { countArray, notImplementedMapper, notMigratedMapper } from './mappers/not-implemented.js';
 import { formatReport } from './report.js';
 import { type BeginUnitOfWork, exitCodeFor, runMappers, selectMappers } from './runner.js';
 
@@ -149,6 +149,31 @@ describe('not-implemented mappers', () => {
     ]);
     expect(exitCodeFor([report])).toBe(0);
   });
+
+  it('a not-migrated mapper says why, counts what is left in legacy and is not a failure', async () => {
+    const dropped = notMigratedMapper(
+      { name: 'dropped', owner: 'stage 2' },
+      { sqliteTables: ['pending_callbacks'], jsonFiles: [{ file: 'tickets.json', count: countArray('tickets') }] },
+      'owner decision — dropped',
+    );
+    const report = await dropped.run({
+      legacy: fakeLegacy({ tables: { pending_callbacks: 3 }, json: { 'tickets.json': { tickets: [{}] } } }),
+      db: {} as Kysely<DB>,
+      dryRun: false,
+      logger,
+    });
+    expect(report).toMatchObject({ status: 'not-migrated', read: 4, inserted: 0, errors: [] });
+    expect(report.notes).toEqual([
+      'not migrated: owner decision — dropped',
+      'pending_callbacks: 3 rows left in legacy',
+      'tickets.json: 1 records left in legacy',
+    ]);
+    expect(exitCodeFor([report])).toBe(0);
+    const text = formatReport([report], { dryRun: false });
+    expect(text).toContain('dropped [owner stage 2] not migrated (owner decision)');
+    expect(text).toContain('read 4 (not migrated)');
+    expect(text).toContain('Summary: 0 ok, 1 not migrated by decision');
+  });
 });
 
 describe('formatReport', () => {
@@ -172,7 +197,7 @@ describe('formatReport', () => {
     expect(text).toContain('skipped  #2 x: unknown role "manager"');
     expect(text).toContain('note     a note');
     expect(text).toContain('tickets [owner S5] NOT IMPLEMENTED');
-    expect(text).toContain('Summary: 1 ok, 1 not implemented, 0 source missing, 0 failed');
+    expect(text).toContain('Summary: 1 ok, 0 not migrated by decision, 1 not implemented, 0 source missing, 0 failed');
     expect(formatReport([report], { dryRun: false })).toContain('read 3 | insert 1 |');
   });
 });

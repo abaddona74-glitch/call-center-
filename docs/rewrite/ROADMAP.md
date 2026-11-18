@@ -18,6 +18,8 @@
 | S7 | Тикеты: оператор → область → перезвон (`TICKETS.md`) | `modules/tickets` (принял от S5), маппер legacy-тикетов | `pages/{tickets,ticket-reports,settings-tickets}`, `widgets/{ticket-box,ticket-callback-queue}`, `features/tickets/*`, `entities/ticket` | 3007 / 5180 | `callcenter_s7` |
 | S8 | Инструменты (этап 2) | `modules/tools` (конвертер, Uzcrypto), статика инструментов | `pages/tools`, `features/tools/*`, `entities/tool` | 3008 / 5181 | `callcenter_s8` |
 | S9 | Руководство для операторов (этап 2) | `modules/guide` (если нужен API; иначе только фронт) | `pages/guide`, `widgets/guide-*`, `entities/guide` | 3009 / 5182 | `callcenter_s9` |
+| S10 | Перенос данных legacy (этап 3) | `scripts/migrate-legacy/**` (кроме нового маппера исключённых операторов) | — | — / — | `callcenter_s10` |
+| S11 | Исключённые операторы (этап 3) | настройка списка, фильтры в `modules/{live,stats,cdr,callbacks}`, маппер `excluded-operators` | раздел в `pages/settings*`, `features/excluded-operators/*` | 3011 / 5184 | `callcenter_s11` |
 
 ### Контракты между сессиями
 - **S3 → S4:** события `call.*` из `apps/api/src/common/events/domain-events.ts`. S3 их публикует из AMI, S4 подписывается (закрытие callback'ов, учёт попыток). S4 пишет свои тесты на синтетических событиях, не дожидаясь S3.

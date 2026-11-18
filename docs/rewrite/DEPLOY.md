@@ -1,13 +1,14 @@
 # Деплой и эксплуатация
 
 Runbook для владельца и тех, кто сопровождает прод. Код и команды — по-английски, пояснения — по-русски.
-**Любой деплой в прод — только после явного одобрения владельца** (environment `production` в GitHub).
+**Деплой автоматический:** каждое изменение ветки `main` после проверок само уходит в прод (решение владельца 18.11.2026,
+без ручного «Approve»). Поэтому граница — то, что попадает в `main`: туда сливает только владелец или по его явному слову.
 
 Файлы:
 
 | Файл                                                     | Назначение                                                                                    |
 | -------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `.github/workflows/deploy.yml`                           | ручной деплой: проверки → сборка образов в GHCR → одобрение → деплой на ВМ                    |
+| `.github/workflows/deploy.yml`                           | деплой при push в `main` (и ручной для повтора/отката): проверки → образы в GHCR → деплой на ВМ                 |
 | `infra/server/bootstrap.sh`                              | разовая подготовка ВМ (root, можно перезапускать)                                             |
 | `infra/server/deploy.sh`                                 | деплой одного релиза на сервере: бэкап → pull → миграции → up → проверка → авто-откат         |
 | `infra/server/backup.sh`, `restore.sh`                   | бэкап `pg_dump` и восстановление (с тестовым режимом)                                         |
@@ -48,11 +49,10 @@ Runbook для владельца и тех, кто сопровождает п�
 ### Как идёт деплой
 
 ```
- Actions → "Deploy" → Run workflow (ref = SHA из main)
+ push в main  (или Actions → "Deploy" → Run workflow: повтор / откат на SHA из main)
    resolve ── SHA полный и входит в main?
    check   ── lint, typecheck, test, build (как CI)              GitHub-hosted runner
    build   ── образы api и web → ghcr.io/nuriddin2468/...:<SHA>   GitHub-hosted runner
-   ── ожидание одобрения (environment production, required reviewers) ──
    deploy  ── self-hosted runner на ВМ ─ одно SSH-соединение ─▶ deploy@127.0.0.1
                 tar infra/ → /opt/callcenter/releases/<SHA>/
                 deploy.sh <SHA>:
@@ -67,7 +67,7 @@ Runbook для владельца и тех, кто сопровождает п�
 2. **Домен** для TLS. Рекомендуется оставить текущий домен legacy (значение `WEBAUTHN_RP_ID` из старого `.env`) — тогда passkeys продолжат работать.
 3. **Kerio**: правило TCP 443 → ВМ:443; убрать веб-админку Kerio с внешнего 443 (см. п. 12).
 4. **IP админов** (`ADMIN_IPS`): адреса рабочих мест в LAN/VPN, с которых разрешён SSH на ВМ.
-5. **Кто одобряет деплой**: GitHub-аккаунты для required reviewers environment `production`.
+5. ~~Кто одобряет деплой~~ — не нужно: деплой автоматический при изменении `main` (решение 18.11.2026).
 6. **Куда копировать бэкапы вне этого сервера** (off-site): S3-совместимое хранилище, другой сервер, NAS — п. 6.
 7. **Окно переключения** (вне рабочих часов Пн–Пт 08:00–21:00) и критерии отката на legacy — п. 10.
 8. **Учётки на АТС** (п. 11): MariaDB `cc_readonly`, пользователь AMI, SFTP-пользователь записей.
@@ -176,7 +176,7 @@ sudo ADMIN_IPS="192.168.0.<ADMIN1>,192.168.0.<ADMIN2>" bash /tmp/infra/server/bo
 Выбран **A**: ноль входящих портов для деплоя, тот же проверенный путь `deploy.sh` по SSH, утёкший ключ CI
 нельзя использовать вне ВМ, не нужна лишняя память. Цена — runner работает на проде, поэтому:
 
-- runner запущен под `gha-runner` без docker/sudo; секреты (SSH-ключ) получает только одобренный job `deploy`;
+- runner запущен под `gha-runner` без docker/sudo; секреты (SSH-ключ) получает только job `deploy` из `main` (environment `production`, Deployment branches: `main`);
 - метку `callcenter-deploy` использует только `deploy.yml`; не добавлять её в другие workflow;
 - репозиторий приватный; в Settings → Actions → General включить обязательное одобрение workflow из форков;
 - одно SSH-соединение на запуск (`ControlMaster`): загрузка файлов и запуск `deploy.sh` идут через него.
@@ -210,7 +210,7 @@ Runner обновляется сам. Статус: GitHub → Settings → Acti
    `ssh-keygen -t ed25519 -N '' -C github-actions-deploy -f ci_deploy` → `ci_deploy.pub` передать в `bootstrap.sh --ci-key`,
    содержимое `ci_deploy` — в секрет `DEPLOY_SSH_KEY`, затем удалить оба файла с машины.
 2. **Settings → Environments → New environment `production`:**
-   - Required reviewers — владелец (и заместитель); включить «Prevent self-review», если одобряющих несколько;
+   - Required reviewers — **не включать** (деплой автоматический, решение 18.11.2026);
    - Deployment branches — «Selected branches»: `main`;
    - Environment secrets (не repository secrets):
 
@@ -287,8 +287,9 @@ nano .env
 ### 3.9 Первый деплой
 
 1. `.env` заполнен, `check-env.sh` без ошибок; runner в статусе Idle; секреты environment заданы.
-2. GitHub → Actions → **Deploy** → Run workflow: ветка `main`, `ref` пустой (или SHA), `skip_build` выключен.
-3. Дождаться `check` и `build`, владелец нажимает **Review deployments → Approve**.
+2. Слить `rewrite/foundation` в `main` (PR) — деплой запустится сам. Если `main` уже содержит нужный коммит:
+   GitHub → Actions → **Deploy** → Run workflow: ветка `main`, `ref` пустой (или SHA), `skip_build` выключен.
+3. Дождаться `check`, `build` и `deploy`.
 4. В логе job `deploy` — `DEPLOY OK`. Открыть `https://<домен>`, войти `superuser` с паролем из `BOOTSTRAP_SUPERUSER_PASSWORD`,
    сменить пароль, удалить строку `BOOTSTRAP_SUPERUSER_PASSWORD` из `.env`.
 5. На ВМ: `sudo -iu deploy /opt/callcenter/bin/deploy.sh --status`, `systemctl list-timers callcenter-backup.timer`,
@@ -296,11 +297,12 @@ nano .env
 
 ## 4. Регулярный деплой
 
-- **Кто:** запустить workflow может любой с правом записи; выкатить — только после одобрения reviewers environment `production`.
+- **Когда:** сам при каждом push в `main`; вручную (Run workflow) — повтор или откат на коммит из `main`. Ручного одобрения нет,
+  поэтому в `main` сливает только владелец или по его явному слову.
 - **Что деплоится:** только коммиты из `main` (job `resolve` это проверяет). Тег образов — полный SHA.
 - **Шаги** (`deploy.yml` → `deploy.sh`):
   1. `resolve`: SHA полный и в `main`. `check`: lint, typecheck, test, build (как `ci.yml`). `build`: образы api и web в GHCR (кэш GHA).
-  2. Одобрение. Затем job `deploy` на runner'е ВМ: одно SSH-соединение к `deploy@127.0.0.1`, файлы `infra/` → `/opt/callcenter/releases/<SHA>/`.
+  2. Job `deploy` на runner'е ВМ: одно SSH-соединение к `deploy@127.0.0.1`, файлы `infra/` → `/opt/callcenter/releases/<SHA>/`.
   3. `deploy.sh <SHA>`: блокировка `flock` (два деплоя одновременно невозможны; ещё и `concurrency` в workflow) →
      `check-env.sh` → бэкап `pg_dump` (`backups/pre-deploy/`, проверяется непустота и читаемость) → `docker pull` обоих образов
      (если образа нет — ничего не меняется) → установка `compose.yml` и `compose.override.yml` из релиза (старые сохраняются для отката) →
@@ -567,6 +569,20 @@ SHOW GRANTS FOR 'cc_readonly'@'<APP_VM_IP>';
 
 Если MariaDB слушает только `127.0.0.1`: в `my.cnf` `bind-address=192.168.0.124` (адрес АТС в LAN) и перезапуск MariaDB в окно
 обслуживания. Модулям S2 при необходимости новых таблиц — отдельный GRANT, не `asteriskcdrdb.*`.
+
+**Опрос после звонка (`operator_baho`).** Строка с `operator_baho` — единственная необязательная. Без неё API работает как раньше:
+`/api/stats/operators` отдаёт `surveyAvailable: false`, столбец «Mijoz bahosi» скрыт, в логе API один раз предупреждение
+`Survey ratings unavailable (ER_TABLEACCESS_DENIED_ERROR)`, ошибок 503 нет (`CdrRepository.surveyRatings`, тесты
+`cdr.repository.spec.ts`, `pbx-mariadb.e2e-spec.ts`). Таблицу создаёт пакет `infra/pbx/operator-survey` (по его README она
+уже создана на АТС 18.11.2026). Пользователь `cc_readonly` на проде создан раньше, поэтому достаточно одной команды под root MariaDB
+на АТС, когда владелец решит показывать столбец:
+
+```sql
+GRANT SELECT ON asteriskcdrdb.operator_baho TO 'cc_readonly'@'<APP_VM_IP>';
+SHOW GRANTS FOR 'cc_readonly'@'<APP_VM_IP>';
+```
+
+API подхватит права без перезапуска (при следующем запросе статистики). Отозвать: `REVOKE SELECT ON asteriskcdrdb.operator_baho FROM 'cc_readonly'@'<APP_VM_IP>';`.
 
 ### 11.2 AMI: пользователь в `/etc/asterisk/manager_custom.conf`
 

@@ -460,6 +460,9 @@ describe('LiveStore — legacy edge cases', () => {
       ['106', 'paused'],
     ]);
     expect(op(store, '106', now)).toMatchObject({ pauseReason: 'Tushlik', ip: '192.168.0.106' });
+    // excluded operators (settings) are left off the board; the store keeps tracking them
+    expect(projectOperators(store, now, new Set(['101', '106'])).map((o) => o.extension)).toEqual(['103']);
+    expect(store.operators.has('101')).toBe(true);
     feed(store, [[200, { event: 'DeviceStateChange', device: 'SIP/106', state: 'UNAVAILABLE' }]]);
     expect(op(store, '106', T0 + 300).presence).toBe('offline');
   });

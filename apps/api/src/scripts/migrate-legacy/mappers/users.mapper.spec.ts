@@ -11,7 +11,9 @@ import { type MapperReport, MapperReportSchema, type MigrationContext } from '..
 import {
   createUsersMapper,
   type ExistingUser,
+  pickUsernameWinners,
   planUsers,
+  type TransformResult,
   transformLegacyUser,
   transformLegacyUserWith,
   type UserValues,
@@ -27,6 +29,7 @@ interface FakeLegacyUser {
   operatorId?: string | null;
   email?: string | null;
   createdAt?: string;
+  updatedAt?: string;
   /** Overrides for broken rows. */
   passwordHash?: string;
   salt?: string;
@@ -44,8 +47,9 @@ function createLegacyDb(users: FakeLegacyUser[]): { file: string; cleanup: () =>
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
   const insert = db.prepare(
-    `INSERT INTO auth_users (username, password_hash, salt, role, operator_id, email, created_at, webauthn_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO auth_users (username, password_hash, salt, role, operator_id, email, created_at, updated_at,
+       webauthn_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
   for (const u of users) {
     const salt = u.salt ?? randomBytes(16).toString('hex');
@@ -57,6 +61,7 @@ function createLegacyDb(users: FakeLegacyUser[]): { file: string; cleanup: () =>
       u.operatorId ?? null,
       u.email ?? null,
       u.createdAt ?? '2026-01-05 09:30:00',
+      u.updatedAt ?? u.createdAt ?? '2026-01-05 09:30:00',
       randomUUID(),
     );
   }
@@ -94,9 +99,16 @@ class InMemoryUsersRepository implements UsersRepository {
 const FAKE_USERS: FakeLegacyUser[] = [
   { username: 'test_admin', password: 'fake-admin-pass', role: 'admin', email: ' Test.Admin@Example.TEST ' },
   { username: 'test_super', password: 'fake-super-pass', role: 'superuser' },
-  { username: 'op101', password: 'fake-op-101', operatorId: '101', email: 'op101@example.test' },
+  {
+    username: 'op101',
+    password: 'fake-op-101',
+    operatorId: '101',
+    email: 'op101@example.test',
+    updatedAt: '2026-03-01 10:00:00',
+  },
   { username: 'op102', password: 'fake-op-102', operatorId: ' 102 ', email: '' },
-  { username: 'OP101', password: 'fake-op-dup', operatorId: '111' }, // clashes with op101 case-insensitively
+  // clashes with op101 case-insensitively; a higher id, but op101 was changed later, so op101 is migrated
+  { username: 'OP101', password: 'fake-op-dup', operatorId: '111', updatedAt: '2026-02-01 10:00:00' },
   { username: 'broken_hash', passwordHash: 'abc123', operatorId: '103' },
   { username: 'bad_salt', salt: 'not-a-hex-salt', operatorId: '105' },
   { username: 'mgr_unknown', role: 'manager' },
@@ -220,19 +232,73 @@ describe('users mapper', () => {
   });
 
   describe('planUsers', () => {
-    it('skips case-insensitive username clashes and drops duplicate emails (oldest legacy id wins)', () => {
+    it('on a case-insensitive username clash migrates the account changed later; duplicate emails go to the oldest id', () => {
       const plan = planUsers(rows().map(transformLegacyUser), []);
       expect(plan.skipped).toEqual(
         expect.arrayContaining([
-          { key: '#5 OP101', reason: 'username clashes case-insensitively with legacy user #3 op101' },
+          {
+            key: '#5 OP101',
+            reason:
+              'username clashes case-insensitively with legacy user #3 op101, which is migrated instead (the most recently changed account wins)',
+          },
         ]),
       );
+      expect(plan.inserts.find((i) => i.values.username.toLowerCase() === 'op101')?.values.extension).toBe('101');
+      // the skipped duplicate's own warnings are not reported
+      expect(plan.warnings.filter((w) => w.key === '#5 OP101')).toEqual([]);
       const op104 = plan.inserts.find((i) => i.values.username === 'op104');
       expect(op104?.values.email).toBeNull();
       expect(plan.warnings).toContainEqual({
         key: '#10 op104',
         reason: 'email already belongs to legacy user #3 op101; imported without email',
       });
+    });
+
+    it('breaks username ties by updated_at, then created_at, then the higher legacy id', () => {
+      const user = (legacyId: number, username: string, updatedAt?: string, createdAt?: string): TransformResult => ({
+        ok: true,
+        key: `#${legacyId} ${username}`,
+        legacyId,
+        warnings: [],
+        values: {
+          username,
+          passwordHash: 'x',
+          role: 'operator',
+          extension: null,
+          email: null,
+          ...(updatedAt ? { updatedAt: new Date(updatedAt) } : {}),
+          ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+        },
+      });
+      const winner = (results: TransformResult[]) => pickUsernameWinners(results).get('dup')?.legacyId;
+
+      // updated_at decides, whatever the ids
+      expect(winner([user(1, 'dup', '2026-11-12T10:00:00Z'), user(2, 'Dup', '2026-10-19T10:00:00Z')])).toBe(1);
+      // equal updated_at → created_at
+      expect(
+        winner([
+          user(1, 'dup', '2026-11-12T10:00:00Z', '2026-10-01T00:00:00Z'),
+          user(2, 'DUP', '2026-11-12T10:00:00Z', '2026-09-01T00:00:00Z'),
+        ]),
+      ).toBe(1);
+      // a missing updated_at counts as the oldest
+      expect(winner([user(1, 'dup', '2026-01-01T00:00:00Z'), user(2, 'Dup')])).toBe(1);
+      // everything equal → the higher id
+      expect(winner([user(1, 'dup', '2026-11-12T10:00:00Z'), user(2, 'Dup', '2026-11-12T10:00:00Z')])).toBe(2);
+      // an unmigratable newer row does not hide a valid older one
+      expect(
+        winner([user(1, 'dup', '2026-01-01T00:00:00Z'), { ok: false, key: '#2 Dup', legacyId: 2, reason: 'bad hash' }]),
+      ).toBe(1);
+
+      const plan = planUsers([user(1, 'dup', '2026-10-19T10:00:00Z'), user(2, 'Dup', '2026-11-12T10:00:00Z')], []);
+      expect(plan.inserts.map((i) => i.key)).toEqual(['#2 Dup']);
+      expect(plan.skipped).toEqual([
+        {
+          key: '#1 dup',
+          reason:
+            'username clashes case-insensitively with legacy user #2 Dup, which is migrated instead (the most recently changed account wins)',
+        },
+      ]);
     });
 
     it('leaves users that already exist untouched and says which fields differ', () => {

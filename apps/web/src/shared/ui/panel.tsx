@@ -3,9 +3,7 @@ import { cn } from '@/shared/lib/cn';
 
 /** Legacy `.glass-panel`: --bg-card var(--muted) (our `muted` token), 1px border, 16px radius, 22px padding. */
 export function Panel({ className, ...props }: React.ComponentProps<'section'>) {
-  return (
-    <section className={cn('min-w-0 rounded-2xl border border-tint/8 bg-muted p-[22px]', className)} {...props} />
-  );
+  return <section className={cn('min-w-0 rounded-2xl border border-tint/8 bg-muted p-[22px]', className)} {...props} />;
 }
 
 /** Legacy `.panel-header`. */

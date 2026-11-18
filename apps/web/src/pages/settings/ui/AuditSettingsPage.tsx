@@ -81,10 +81,7 @@ export function AuditSettingsPage() {
       col.accessor('details', {
         header: () => t('audit.colDetails'),
         cell: ({ getValue }) => (
-          <span
-            className="block max-w-[320px] truncate font-mono text-[11px] text-mute"
-            title={details(getValue())}
-          >
+          <span className="block max-w-[320px] truncate font-mono text-[11px] text-mute" title={details(getValue())}>
             {details(getValue())}
           </span>
         ),

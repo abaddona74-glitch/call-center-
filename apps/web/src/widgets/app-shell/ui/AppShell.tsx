@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
 import { ImpersonationBanner } from '@/features/auth/impersonation';
 import { LogoutButton } from '@/features/auth/logout';
+import { useExcludedOperatorsSync } from '@/features/excluded-operators/edit';
 import { useRealtimeStatus } from '@/shared/api';
 import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
@@ -18,6 +19,7 @@ export function AppShell() {
   const { t, i18n } = useTranslation();
   const user = useSessionUser();
   const status = useRealtimeStatus();
+  useExcludedOperatorsSync();
   const items = NAV_ITEMS.filter(
     (item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)),
   );

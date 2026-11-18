@@ -56,6 +56,16 @@ export class CallbacksRepository {
       .execute();
   }
 
+  /** Calls at or before this moment were handled by the legacy system (see the legacy import). */
+  async legacyImportedUntil(): Promise<Date | null> {
+    const row = await this.txHost.tx
+      .selectFrom('callbackSettings')
+      .select('legacyImportedUntil')
+      .where('id', '=', 1)
+      .executeTakeFirst();
+    return row?.legacyImportedUntil ?? null;
+  }
+
   // ------------------------------------------------------------ engine reads/writes
 
   async eventExists(kind: CallbackEventsTable['kind'], callId: string): Promise<boolean> {

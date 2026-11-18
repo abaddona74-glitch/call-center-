@@ -3,6 +3,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
 import type { AssembledCall } from '../../pbx/calls/call-assembler.js';
 import { AuditService } from '../audit/audit.service.js';
+import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
 import { operatorStats } from '../stats/domain/metrics.js';
 import { buildExcelReport } from './domain/excel-report.js';
 
@@ -11,6 +12,7 @@ export class ExportService {
   constructor(
     private readonly calls: PbxCallsService,
     private readonly audit: AuditService,
+    private readonly excluded: ExcludedOperatorsService,
   ) {}
 
   async excel(q: ExportExcelQuery): Promise<{ buffer: Buffer; fileName: string }> {
@@ -24,6 +26,8 @@ export class ExportService {
       names,
       groupOf: (ext: string) => this.calls.groupOf(ext),
       group: q.group,
+      // Legacy exportService skipped excluded operators: no column, not in the day totals.
+      excluded: this.excluded.extensions(),
     };
 
     const byDate = new Map<string, AssembledCall[]>();

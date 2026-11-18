@@ -22,11 +22,35 @@ export function countArray(key?: string) {
  * Replace it with a real implementation (same `Mapper` interface, see users.mapper.ts).
  */
 export function notImplementedMapper(meta: { name: string; owner: string }, sources: StubSources): Mapper {
+  return countingMapper(
+    meta,
+    sources,
+    'not-implemented',
+    `not implemented — owned by ${meta.owner}; nothing is migrated`,
+    'waiting',
+  );
+}
+
+/**
+ * Legacy data that is deliberately not carried over (`reason` names the decision). Nothing is migrated;
+ * the report counts the legacy records so the dry-run shows what is left behind.
+ */
+export function notMigratedMapper(meta: { name: string; owner: string }, sources: StubSources, reason: string): Mapper {
+  return countingMapper(meta, sources, 'not-migrated', `not migrated: ${reason}`, 'left in legacy');
+}
+
+function countingMapper(
+  meta: { name: string; owner: string },
+  sources: StubSources,
+  status: 'not-implemented' | 'not-migrated',
+  headline: string,
+  verb: string,
+): Mapper {
   return {
     ...meta,
     async run(ctx): Promise<MapperReport> {
-      const report = emptyReport(meta, 'not-implemented');
-      report.notes.push(`not implemented — owned by ${meta.owner}; nothing is migrated`);
+      const report = emptyReport(meta, status);
+      report.notes.push(headline);
 
       for (const table of sources.sqliteTables ?? []) {
         if (!ctx.legacy.sqlite) report.notes.push(`${table}: --sqlite not given`);
@@ -34,7 +58,7 @@ export function notImplementedMapper(meta: { name: string; owner: string }, sour
         else {
           const n = ctx.legacy.sqlite.count(table);
           report.read += n;
-          report.notes.push(`${table}: ${n} rows waiting`);
+          report.notes.push(`${table}: ${n} rows ${verb}`);
         }
       }
 
@@ -47,7 +71,7 @@ export function notImplementedMapper(meta: { name: string; owner: string }, sour
         } else {
           const n = count(src.data);
           report.read += n;
-          report.notes.push(`${file}: ${n} records waiting`);
+          report.notes.push(`${file}: ${n} records ${verb}`);
         }
       }
       return report;

@@ -18,6 +18,7 @@ import { ActionsModule } from './modules/actions/actions.module.js';
 import { AmiModule } from './modules/ami/ami.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { WorkingCalendarModule } from './modules/working-calendar/working-calendar.module.js';
+import { ExcludedOperatorsModule } from './modules/excluded-operators/excluded-operators.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
 import { CallbacksModule } from './modules/callbacks/callbacks.module.js';
@@ -110,6 +111,7 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     PbxDbModule,
     AuditModule,
     WorkingCalendarModule,
+    ExcludedOperatorsModule,
     AuthModule,
     RealtimeModule,
     HealthModule,

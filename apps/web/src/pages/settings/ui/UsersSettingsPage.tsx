@@ -61,9 +61,7 @@ export function UsersSettingsPage() {
           const u = row.original;
           return (
             <div className="flex items-center gap-2">
-              <span
-                className={u.isActive ? 'font-semibold text-ink' : 'font-semibold text-dim line-through'}
-              >
+              <span className={u.isActive ? 'font-semibold text-ink' : 'font-semibold text-dim line-through'}>
                 {u.username}
               </span>
               {u.id === me.id && (
@@ -82,11 +80,7 @@ export function UsersSettingsPage() {
       col.accessor('extension', {
         header: () => t('users.colExtension'),
         cell: ({ getValue }) =>
-          getValue() ? (
-            <b className="text-ink">{getValue()}</b>
-          ) : (
-            <span className="text-dim">{t('users.none')}</span>
-          ),
+          getValue() ? <b className="text-ink">{getValue()}</b> : <span className="text-dim">{t('users.none')}</span>,
       }),
       col.accessor('groupName', {
         header: () => t('users.colGroup'),

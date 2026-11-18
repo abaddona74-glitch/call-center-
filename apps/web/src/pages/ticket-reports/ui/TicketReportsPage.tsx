@@ -199,12 +199,7 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
               </td>
               <td className="py-2 text-right font-bold text-ink tabular-nums">{r.total}</td>
               <td className="py-2 text-right text-positive tabular-nums">{r.resolved}</td>
-              <td
-                className={cn(
-                  'py-2 text-right tabular-nums',
-                  r.overdue > 0 ? 'font-bold text-danger' : 'text-mute',
-                )}
-              >
+              <td className={cn('py-2 text-right tabular-nums', r.overdue > 0 ? 'font-bold text-danger' : 'text-mute')}>
                 {r.overdue}
               </td>
               <td

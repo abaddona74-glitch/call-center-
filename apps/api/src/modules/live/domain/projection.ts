@@ -28,9 +28,15 @@ export const isPrivileged = (v: Viewer) => telephonyAccess(v).seeAll;
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-export function projectOperators(store: LiveStore, now: number): LiveOperator[] {
+/** `hidden`: excluded operators (settings) — left off the board, as legacy getOperatorList did. */
+export function projectOperators(
+  store: LiveStore,
+  now: number,
+  hidden: ReadonlySet<string> = new Set(),
+): LiveOperator[] {
   const list: LiveOperator[] = [];
   for (const op of store.operators.values()) {
+    if (hidden.has(op.ext)) continue;
     const { presence, channel, call } = store.presenceOf(op, now);
     let current: LiveOperator['call'] = null;
     if (call && (presence === 'talking' || presence === 'ringing')) {

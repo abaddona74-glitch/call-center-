@@ -51,7 +51,7 @@ export function RulesTab() {
         <table className="manual-table manual-table--dont">
           <thead>
             <tr>
-              <th className="w-[45%] text-danger">❌ Noto'g'ri (Man etiladi)</th>
+              <th className="w-[45%] text-danger-soft">❌ Noto'g'ri (Man etiladi)</th>
               <th className="text-[#86efac] light:text-positive">✅ To'g'ri (Tavsiya etiladi)</th>
             </tr>
           </thead>
@@ -200,7 +200,7 @@ export function ScheduleTab() {
           • Qo'ng'iroq kelganda uni qizil tugma (<b>Reject / Deny</b>) orqali rad etib o'chirib qo'yish.
           <br />• Telefonni beparvo qoldirib ketish yoki sababsiz "DND" (Do Not Disturb) rejimiga qo'yish.
           <br />
-          <span className="font-semibold text-danger">
+          <span className="font-semibold text-danger-soft">
             ℹ️ Barcha rad etishlar va tanaffus vaqtlari markaziy tizimda soniyasigacha avtomatik qayd etiladi.
           </span>
         </p>

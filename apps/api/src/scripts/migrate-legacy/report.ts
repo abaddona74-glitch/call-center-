@@ -3,6 +3,7 @@ import type { MapperReport, RowIssue } from './mapper.js';
 const STATUS_LABEL: Record<MapperReport['status'], string> = {
   ok: 'ok',
   'not-implemented': 'NOT IMPLEMENTED',
+  'not-migrated': 'not migrated (owner decision)',
   'source-missing': 'SOURCE MISSING',
   failed: 'FAILED',
 };
@@ -22,7 +23,7 @@ export function formatReport(reports: readonly MapperReport[], opts: { dryRun: b
 
   for (const r of reports) {
     lines.push('', `${r.name} [owner ${r.owner}] ${STATUS_LABEL[r.status]}`);
-    if (r.status === 'not-implemented' || r.status === 'source-missing') {
+    if (r.status === 'not-implemented' || r.status === 'not-migrated' || r.status === 'source-missing') {
       lines.push(`    read ${r.read} (not migrated)`);
     } else {
       const would = opts.dryRun ? 'would ' : '';
@@ -38,8 +39,8 @@ export function formatReport(reports: readonly MapperReport[], opts: { dryRun: b
   const count = (s: MapperReport['status']) => reports.filter((r) => r.status === s).length;
   lines.push(
     '',
-    `Summary: ${count('ok')} ok, ${count('not-implemented')} not implemented, ` +
-      `${count('source-missing')} source missing, ${count('failed')} failed`,
+    `Summary: ${count('ok')} ok, ${count('not-migrated')} not migrated by decision, ` +
+      `${count('not-implemented')} not implemented, ${count('source-missing')} source missing, ${count('failed')} failed`,
   );
   return lines.join('\n');
 }

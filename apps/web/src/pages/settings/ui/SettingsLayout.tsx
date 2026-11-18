@@ -10,6 +10,7 @@ import { SETTINGS_TABS } from '../model/tabs';
 
 const ICONS: Record<string, ReactNode> = {
   security: <Icon name="timer" />,
+  exclude: <Icon name="document-text" />,
   users: <IconUser size={16} />,
   groups: <IconPeople size={16} />,
   sessions: <IconKey size={16} />,
