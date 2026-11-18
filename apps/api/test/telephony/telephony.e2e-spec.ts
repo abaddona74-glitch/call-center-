@@ -339,6 +339,19 @@ describe('websocket', () => {
   });
 });
 
+describe('presence', () => {
+  it('lists connected users for supervisors; operators are refused', async () => {
+    const ws = new WebSocket(`${baseUrl.replace('http', 'ws')}/ws`, { headers: { cookie: cookies.op101 } });
+    await new Promise((resolve) => ws.once('message', resolve));
+    const res = await as('admin').get('/api/presence/online').expect(200);
+    expect(res.body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ username: 'op101', role: 'operator', extension: '101' })]),
+    );
+    await as('op101').get('/api/presence/online').expect(403);
+    ws.close();
+  });
+});
+
 describe('AMI connection loss', () => {
   it('actions answer 503 while disconnected and the client reconnects', async () => {
     ami.dropClients();

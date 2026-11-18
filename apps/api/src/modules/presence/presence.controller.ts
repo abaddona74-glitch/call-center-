@@ -1,4 +1,4 @@
-import { type OnlineUser, OnlineUsersSchema, type SessionUser, telephonyAccess } from '@cc/shared';
+import { type OnlineUser, OnlineUserSchema, type SessionUser, telephonyAccess } from '@cc/shared';
 import { Controller, ForbiddenException, Get, SerializeOptions } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/auth.decorators.js';
@@ -11,7 +11,7 @@ export class PresenceController {
   /** Users connected right now (not operators). Updates: WS `presence.online`. */
   @Get('online')
   @SkipThrottle()
-  @SerializeOptions({ schema: OnlineUsersSchema })
+  @SerializeOptions({ schema: OnlineUserSchema }) // arrays are validated item by item
   online(@CurrentUser() user: SessionUser): OnlineUser[] {
     if (!telephonyAccess(user).seeAll) throw new ForbiddenException('Insufficient permissions');
     return this.presence.online();
