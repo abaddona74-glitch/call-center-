@@ -13,7 +13,8 @@
     "history": "История звонков",
     "statistics": "Статистика",
     "ticketReports": "Отчёт по тикетам",
-    "ticketSettings": "Настройки тикетов"
+    "ticketSettings": "Настройки тикетов",
+    "guide": "Руководство"
   },
   "auth": {
     "username": "Логин",
