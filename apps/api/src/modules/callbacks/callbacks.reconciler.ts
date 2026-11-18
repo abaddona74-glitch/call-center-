@@ -10,8 +10,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { AppConfig } from '../../config/app-config.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import { CallbacksService } from './callbacks.service.js';
-import { deriveMissedSource } from './domain/callback-rules.js';
-import { type CallFact, type CdrLeg, callFactsFromCdr } from './domain/cdr-calls.js';
+import { deriveMissedSource, handledByLegacy } from './domain/callback-rules.js';
+import { type CallFact, type CdrLeg, callFactsFromCdr, factTime } from './domain/cdr-calls.js';
 import type { WorkingCalendar } from '../../common/time/working-calendar.js';
 import { formatBusinessDateTime } from './domain/working-calendar.js';
 
@@ -58,6 +58,7 @@ export class CdrLegsReader {
  * Periodic reconciliation from the PBX CDR: replays calls of the last N hours through the same
  * callback rules as the live AMI events. Idempotent (calls are keyed by linkedid), so it is safe to
  * run any time — it only fills what the live path missed (API restart, AMI outage).
+ * Calls the imported legacy history already covers are skipped (see `handledByLegacy`).
  */
 @Injectable()
 export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -107,10 +108,15 @@ export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicatio
     const facts = callFactsFromCdr(legs, { timezone: BUSINESS_TIMEZONE });
     const calendar = this.callbacks.calendar();
     const { minTalkSeconds } = await this.callbacks.settings();
+    const legacyUntil = await this.callbacks.legacyImportedUntil();
     const result = { created: 0, appended: 0, resolved: 0, failedAttempts: 0, skipped: 0 };
     const changed: number[] = [];
 
     for (const fact of facts) {
+      if (handledByLegacy(factTime(fact), legacyUntil)) {
+        result.skipped++;
+        continue;
+      }
       const { outcome, callbackId } = await this.callbacks.applyQuietly(() =>
         this.apply(fact, calendar, minTalkSeconds),
       );

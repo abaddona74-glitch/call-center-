@@ -1,15 +1,12 @@
-import { countArray, notImplementedMapper } from './not-implemented.js';
+import { countArray, notMigratedMapper } from './not-implemented.js';
 
 /**
- * Legacy `viewer/data/rustdesk_devices.json` → remote desktop devices table (stage 2, RustDesk list).
- * Copy the file into `--data-dir` as `rustdesk_devices.json`.
- *
- * TODO(stage 2):
- * - `[{ ext: string|null, ip: string|null, hostname, installed: bool, updatedAt: ISO }]`, deduplicated by ext,
- *   else by ip → `operator_ext`, `ip inet`, `hostname`, `installed`, `updated_at timestamptz`.
- * - Idempotency: insert-if-absent by ext (or ip when ext is null).
+ * Legacy `viewer/data/rustdesk_devices.json` (copy it into `--data-dir` as `rustdesk_devices.json`).
+ * Not migrated — owner decision 2026-11-18 (docs/rewrite/DECISIONS.md, "Перенос данных legacy"):
+ * the RustDesk PC list is dropped. The count stays in the report.
  */
-export const remoteDesktopDevicesMapper = notImplementedMapper(
+export const remoteDesktopDevicesMapper = notMigratedMapper(
   { name: 'remote-desktop-devices', owner: 'stage 2' },
   { jsonFiles: [{ file: 'rustdesk_devices.json', count: countArray() }] },
+  'owner decision 2026-11-18 — the RustDesk PC list is dropped',
 );

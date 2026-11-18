@@ -8,6 +8,7 @@ import {
   decideMissed,
   decideOutboundFailure,
   deriveMissedSource,
+  handledByLegacy,
   mergeSources,
 } from './callback-rules.js';
 import { WorkingCalendar } from '../../../common/time/working-calendar.js';
@@ -183,6 +184,16 @@ describe('decideOutboundFailure', () => {
   it('ignores earlier calls to the number and numbers without an open callback (legacy B20)', () => {
     expect(decideOutboundFailure(t('2026-11-17T09:00:00'), open())).toBe('ignore');
     expect(decideOutboundFailure(t('2026-11-17T11:00:00'), null)).toBe('ignore');
+  });
+});
+
+describe('handledByLegacy', () => {
+  it('skips calls at or before the end of the imported legacy history, never when nothing was imported', () => {
+    const until = t('2026-11-18T16:05:00');
+    expect(handledByLegacy(t('2026-11-18T16:04:59'), until)).toBe(true);
+    expect(handledByLegacy(t('2026-11-18T16:05:00'), until)).toBe(true);
+    expect(handledByLegacy(t('2026-11-18T16:05:01'), until)).toBe(false);
+    expect(handledByLegacy(t('2026-11-18T16:04:59'), null)).toBe(false);
   });
 });
 

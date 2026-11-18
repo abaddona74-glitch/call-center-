@@ -77,6 +77,11 @@ export class CallbacksService {
     return this.settingsCache;
   }
 
+  /** Calls at or before this moment were handled by the legacy system; null when nothing was imported. */
+  legacyImportedUntil(): Promise<Date | null> {
+    return this.repo.legacyImportedUntil();
+  }
+
   /** The shared working calendar (stats, callbacks and ticket deadlines use the same one). */
   calendar(): WorkingCalendar {
     return this.workingCalendar.get();

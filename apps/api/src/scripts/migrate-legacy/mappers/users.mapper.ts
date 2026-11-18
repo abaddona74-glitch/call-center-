@@ -233,20 +233,56 @@ function differingFields(values: UserValues, existing: ExistingUser): string[] {
   return fields;
 }
 
+/** The legacy row migrated for one case-insensitive username. */
+export interface UsernameWinner {
+  legacyId: number;
+  key: string;
+}
+
+type OkUser = Extract<TransformResult, { ok: true }>;
+
+/** > 0 when `a` is the more recent legacy row (an unknown time counts as the oldest). */
+function compareRecency(a: OkUser, b: OkUser): number {
+  const t = (d: Date | undefined) => d?.getTime() ?? Number.NEGATIVE_INFINITY;
+  const byTime = (x: Date | undefined, y: Date | undefined) => (t(x) === t(y) ? 0 : t(x) > t(y) ? 1 : -1);
+  return (
+    byTime(a.values.updatedAt, b.values.updatedAt) ||
+    byTime(a.values.createdAt, b.values.createdAt) ||
+    a.legacyId - b.legacyId
+  );
+}
+
+/**
+ * Pure: for every case-insensitive username, the legacy row that is migrated (owner decision 2026-11-18):
+ * the latest `updated_at`, then the latest `created_at`, then the highest legacy id. Only rows that can be
+ * migrated take part, so a broken newer row does not hide a valid older one. Keys are lower-cased usernames.
+ */
+export function pickUsernameWinners(results: readonly TransformResult[]): Map<string, UsernameWinner> {
+  const best = new Map<string, OkUser>();
+  for (const r of results) {
+    if (!r.ok) continue;
+    const lower = r.values.username.toLowerCase();
+    const current = best.get(lower);
+    if (!current || compareRecency(r, current) > 0) best.set(lower, r);
+  }
+  return new Map([...best].map(([lower, r]) => [lower, { legacyId: r.legacyId, key: r.key }]));
+}
+
 /**
  * Pure: decides insert / unchanged / skip for every row, given what the new database already has.
- * Rows are processed in legacy id order, so on a case-insensitive username clash or a duplicate
- * email the oldest legacy account wins.
+ * On a case-insensitive username clash the row chosen by `pickUsernameWinners` is migrated and the
+ * others are skipped. Rows are processed in legacy id order, so for a duplicate email the oldest
+ * legacy account keeps it.
  */
 export function planUsers(results: readonly TransformResult[], existing: readonly ExistingUser[]): UsersPlan {
   const plan: UsersPlan = { inserts: [], unchanged: 0, skipped: [], warnings: [] };
+  const winners = pickUsernameWinners(results);
   const existingByUsername = new Map(existing.map((u) => [u.username.toLowerCase(), u]));
   /** lower(email) → who holds it (an existing user, or a legacy row planned for insert). */
   const emailOwners = new Map<string, { label: string; userId: number | null }>();
   for (const u of existing) {
     if (u.email) emailOwners.set(u.email.toLowerCase(), { label: `users.id ${u.id} (${u.username})`, userId: u.id });
   }
-  const seenUsernames = new Map<string, string>();
   const handleOwners = new Map(
     existing.map((u) => [u.webauthnUserId.toLowerCase(), `users.id ${u.id} (${u.username})`]),
   );
@@ -258,15 +294,16 @@ export function planUsers(results: readonly TransformResult[], existing: readonl
       plan.skipped.push({ key: r.key, reason: r.reason });
       continue;
     }
-    for (const w of r.warnings) plan.warnings.push({ key: r.key, reason: w });
-
     const lower = r.values.username.toLowerCase();
-    const clash = seenUsernames.get(lower);
-    if (clash) {
-      plan.skipped.push({ key: r.key, reason: `username clashes case-insensitively with legacy user ${clash}` });
+    const winner = winners.get(lower);
+    if (winner && winner.legacyId !== r.legacyId) {
+      plan.skipped.push({
+        key: r.key,
+        reason: `username clashes case-insensitively with legacy user ${winner.key}, which is migrated instead (the most recently changed account wins)`,
+      });
       continue;
     }
-    seenUsernames.set(lower, r.key);
+    for (const w of r.warnings) plan.warnings.push({ key: r.key, reason: w });
 
     const current = existingByUsername.get(lower);
     if (current) {

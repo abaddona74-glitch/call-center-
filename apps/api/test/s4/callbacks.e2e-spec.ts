@@ -551,4 +551,38 @@ describe('CDR reconciliation (calls missed while the API was down)', () => {
     await http().post('/api/callbacks/sync').set('Authorization', ctx.users.admin.auth).send({ hours: 6 }).expect(200);
     expect((await byPhone('933338899'))[0].missedCount).toBe(1);
   });
+
+  it('skips calls the imported legacy history already covers (legacy rows have no linkedid)', async () => {
+    const leg = (linkedid: string, minutesAgo: number) => ({
+      calldate: ago(minutesAgo),
+      src: '933331212',
+      dst: '200',
+      dcontext: 'ext-queues',
+      channel: 'SIP/712020159-0030',
+      dstchannel: '',
+      lastdata: '',
+      disposition: 'NO ANSWER',
+      duration: 10,
+      billsec: 0,
+      uniqueid: linkedid,
+      linkedid,
+    });
+    // legacy counted the call 50 minutes ago; its history ends 40 minutes ago
+    ctx.cdr.legs.push(leg('c6', 50), leg('c7', 20));
+    const setUntil = (until: Date | null) =>
+      ctx.db.query('update callback_settings set legacy_imported_until = $1 where id = 1', [until]);
+    await setUntil(new Date(Date.now() - 40 * 60_000));
+    try {
+      await http()
+        .post('/api/callbacks/sync')
+        .set('Authorization', ctx.users.admin.auth)
+        .send({ hours: 6 })
+        .expect(200);
+      const [cb] = await byPhone('933331212');
+      expect(cb).toMatchObject({ status: 'pending', missedCount: 1 });
+      expect(new Date(cb.firstMissedAt).getTime()).toBeGreaterThan(Date.now() - 40 * 60_000);
+    } finally {
+      await setUntil(null);
+    }
+  });
 });

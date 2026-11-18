@@ -17,6 +17,7 @@ import {
   type TargetUser,
   transformLegacyPasskey,
 } from './passkeys.mapper.js';
+import { pickUsernameWinners, transformLegacyUser } from './users.mapper.js';
 
 const SCHEMA = readFileSync(path.join(import.meta.dirname, '..', '__fixtures__', 'legacy-schema.sql'), 'utf8');
 
@@ -41,6 +42,8 @@ const USERS = {
   op205: randomUUID(),
   boss: randomUUID(),
   gone: randomUUID(),
+  /** Differs from op101 only by case and was changed earlier, so the users mapper keeps op101. */
+  Op101: randomUUID(),
 };
 
 interface LegacyPasskey {
@@ -63,6 +66,7 @@ const PK = {
   orphan: credId(),
   mismatched: credId(),
   broken: credId(),
+  dupe: credId(),
 };
 
 const PASSKEYS: LegacyPasskey[] = [
@@ -81,6 +85,7 @@ const PASSKEYS: LegacyPasskey[] = [
   { id: PK.orphan, user: 'gone' },
   { id: PK.mismatched, user: 'op101', handle: randomUUID() },
   { id: PK.broken, user: 'op205', publicKey: new Uint8Array([1, 2, 3]) },
+  { id: PK.dupe, user: 'Op101', name: 'Old account key' },
 ];
 
 function createLegacyDb(): { file: string; cleanup: () => void } {
@@ -116,6 +121,8 @@ function createLegacyDb(): { file: string; cleanup: () => void } {
       p.lastUsedAt ?? null,
     );
   }
+  db.prepare(`UPDATE auth_users SET updated_at = '2026-11-12 10:00:00' WHERE username = 'op101'`).run();
+  db.prepare(`UPDATE auth_users SET updated_at = '2026-10-19 10:00:00' WHERE username = 'Op101'`).run();
   // the owner of the orphan passkey disappears without the cascade (as on old legacy databases)
   db.exec('PRAGMA foreign_keys = OFF');
   db.prepare('DELETE FROM auth_users WHERE username = ?').run('gone');
@@ -224,7 +231,22 @@ describe('passkeys mapper', () => {
         ].sort(),
       );
       expect(plan.handleUpdates).toEqual(new Map([[1, USERS.boss]]));
-      expect(plan.skipped).toHaveLength(3);
+      expect(plan.skipped).toHaveLength(4);
+    });
+
+    it('skips the passkey of a legacy account that lost a case-insensitive username clash', () => {
+      const winners = pickUsernameWinners(
+        legacy.sqlite!.all('SELECT * FROM auth_users ORDER BY id').map(transformLegacyUser),
+      );
+      expect(winners.get('op101')?.key).toBe('#1 op101');
+      const plan = planPasskeys(rows().map(transformLegacyPasskey), targetUsers(), [], winners);
+      expect(plan.inserts.map((i) => i.values.id)).not.toContain(PK.dupe);
+      expect(plan.skipped).toContainEqual({
+        key: expect.stringContaining('Op101'),
+        reason:
+          'owner legacy user #5 is not migrated (its username clashes with legacy user #1 op101, which is kept); ' +
+          'the user registers this passkey again',
+      });
     });
 
     it('never changes the handle of a user who already has passkeys in the new system', () => {
@@ -245,7 +267,8 @@ describe('passkeys mapper', () => {
       const repo = new InMemoryPasskeysRepository(targetUsers());
       const report = await createPasskeysMapper(() => repo).run(ctx(true));
       expect(MapperReportSchema.parse(report)).toEqual(report);
-      expect(report).toMatchObject({ name: 'passkeys', owner: 'S1', status: 'ok', read: 6, inserted: 3, updated: 1 });
+      expect(report).toMatchObject({ name: 'passkeys', owner: 'S1', status: 'ok', read: 7, inserted: 3, updated: 1 });
+      expect(report.skipped.find((s) => s.key.includes('Op101'))?.reason).toContain('registers this passkey again');
       expect(repo.passkeys).toHaveLength(0);
       expect(JSON.stringify(report)).not.toContain(USERS.op101); // handles are never printed
     });
