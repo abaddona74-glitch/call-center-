@@ -27,9 +27,14 @@ pnpm --filter @cc/api migrate:legacy --sqlite /path/callcenter.db --only users
 At least one of `--sqlite` and `--data-dir` is required. The target comes only from `DATABASE_URL`, never
 from a flag, so credentials stay out of shell history and `ps`.
 
-**Exit codes:** `0` means every mapper either succeeded or is a stub. `1` means a mapper failed (its
-transaction was rolled back) or Postgres was unreachable. `2` means bad arguments or a bad `DATABASE_URL`.
-Skips, warnings and "not implemented" stubs do not affect the exit code, so read the report.
+**Exit codes:** `0` means every mapper succeeded, is "not migrated" by decision, or is a stub. `1` means a mapper
+failed (its transaction was rolled back) or Postgres was unreachable. `2` means bad arguments or a bad
+`DATABASE_URL`. Skips, warnings and "not migrated" mappers do not affect the exit code, so read the report.
+
+The tickets mapper copies attachment files to `TICKETS_UPLOAD_DIR` (default `.data/ticket-uploads`, relative to
+the current folder). For a trial run on a production copy point it at a temporary folder outside the repository.
+The callbacks mapper skips the call centre's own numbers from `PBX_SERVICE_NUMBERS` (default
+`2020159,712020159`).
 
 ### Preparing the sources
 
@@ -38,15 +43,17 @@ Skips, warnings and "not implemented" stubs do not affect the exit code, so read
   of a WAL database needs a writable folder for `-shm`.
 - **JSON:** copy these files flat into one folder (names must stay the same):
 
-  | File                        | Legacy location            | Mapper                 |
-  | --------------------------- | -------------------------- | ---------------------- |
-  | `tickets.json`              | `viewer/data/tickets.json` | tickets                |
+  | File                        | Legacy location                                         | Mapper                                                                      |
+  | --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+  | `tickets.json`              | `viewer/data/tickets.json`                              | tickets                                                                     |
   | `ticket-uploads/` (folder)  | `viewer/public/uploads/tickets/*` (copy the files flat) | tickets (attachments; images/PDF/DOCX only, copied to `TICKETS_UPLOAD_DIR`) |
-  | `stt_custom_rules.json`     | `data/`                    | transcripts            |
-  | `queue-sync-settings.json`  | `data/`                    | settings               |
-  | `system_settings.json`      | repo root (not `data/`)    | settings               |
-  | `telegram_subscribers.json` | `data/`                    | telegram-subscribers   |
-  | `rustdesk_devices.json`     | `viewer/data/`             | remote-desktop-devices |
+  | `stt_custom_rules.json`     | `data/`                                                 | transcripts (counted, not migrated)                                         |
+  | `queue-sync-settings.json`  | `data/`                                                 | settings (counted, not migrated)                                            |
+  | `system_settings.json`      | repo root (not `data/`)                                 | settings (counted, not migrated)                                            |
+  | `telegram_subscribers.json` | `data/`                                                 | telegram-subscribers (counted, not migrated)                                |
+  | `rustdesk_devices.json`     | `viewer/data/`                                          | remote-desktop-devices (counted, not migrated)                              |
+
+  The not-migrated files are optional: they only make the report show what is left behind.
 
 ## Report
 
@@ -59,6 +66,11 @@ Rows are identified as `#<legacy id> <username>`. Password hashes and email addr
 - **error:** something failed. The runner rolls back that mapper's transaction (it is all-or-nothing), the
   other mappers still run, and the exit code is 1.
 - **unchanged:** the row already exists in the target. A re-run shows earlier inserts here.
+- **not migrated (owner decision):** the mapper deliberately migrates nothing (decision of 2026-11-18, see
+  `docs/rewrite/DECISIONS.md`); it counts the legacy rows left behind. Not a failure.
+
+Personal data stays out of the report: callbacks and contacts are keyed by the legacy id / rowid, never by
+phone or name.
 
 A real run that inserted or updated rows writes one `audit_log` entry, `migration.legacy.<mapper>`, with the
 counts, in the same transaction.
@@ -67,6 +79,11 @@ counts, in the same transaction.
 
 **Users: insert if absent, by username, case-insensitive (`lower(username)`, the same as the
 `users_username_lower_uq` index). An existing user is never modified.**
+
+When legacy has several usernames that differ only by case, the one changed last is migrated: the latest
+`updated_at`, then the latest `created_at`, then the highest legacy id (owner decision 2026-11-18). Only rows that
+can be migrated compete. The others are skipped, and the skip names the kept row. Their passkeys are skipped
+too (the user registers the key again).
 
 - Nothing that already exists in `users` is touched: password, role, extension, email and `is_active` all
   stay as they are. A password changed in the new system can therefore never be overwritten by a re-run. The
@@ -83,17 +100,17 @@ Stubs should follow the same pattern. Their TODOs name the natural key for each 
 
 ## users mapper (`auth_users` → `users`)
 
-| Legacy                     | New             | Rule                                                                                                                                                                                                                                                            |
-| -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `username`                 | `username`      | trimmed. An empty username is skipped. One that only differs by case from an older legacy row is skipped (new unique index). One outside `UsernameSchema` is kept, with a warning.                                                                              |
-| `password_hash` + `salt`   | `password_hash` | `fromLegacy(salt, hash)` produces `scrypt$16384$8$1$<salt>$<hash>`. The hash must be 128 hex chars and the salt 32 hex chars, otherwise the row is skipped. The salt is kept byte-for-byte (it is used as text).                                                |
-| `role`                     | `role`          | trimmed and lower-cased; legacy `admin` becomes `superuser` (owner decision 2026-11-17, with a warning). Then it must be `operator`, `observer`, `executive` or `superuser` (`RoleSchema`). Anything else is skipped. |
-| `operator_id`              | `extension`     | trimmed, `''` becomes null. A value that is not 2–6 digits (`ExtensionSchema`) becomes null, with a warning. An operator without an extension gets a warning.                                                                                                   |
-| `email`                    | `email`         | trimmed and lower-cased, `''` becomes null. Anything legacy's own regex would reject becomes null, with a warning. A duplicate (case-insensitive, either against existing users or against an older legacy row) becomes null, with a warning naming the holder. |
-| `created_at`, `updated_at` | same            | `'YYYY-MM-DD HH:MM:SS'` is read as Asia/Tashkent wall-clock time (luxon). An unparsable value falls back to the DB default `now()`.                                                                                                                             |
-| `webauthn_user_id`         | `webauthn_user_id` | copied verbatim (lower-cased UUID text): it is the passkey user handle. Missing → a new UUID (no passkeys to keep). Not a UUID, or already held by another user → a new UUID, with a warning (that user's passkeys are then skipped). |
-| `operator_id` ≥ 200        | `group_id`      | operators with extension ≥ 200 go to the operator group "Zangiota" (legacy "200 group" restrictions). Others get no group (no restrictions).                                                                                                                   |
-| —                          | `is_active`     | DB default `true`.                                                                                                                                                                                                                                              |
+| Legacy                     | New                | Rule                                                                                                                                                                                                                                                            |
+| -------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `username`                 | `username`         | trimmed. An empty username is skipped. Of rows that differ only by case, the one changed last is migrated and the others are skipped (new unique index; see the idempotency rule). One outside `UsernameSchema` is kept, with a warning.                        |
+| `password_hash` + `salt`   | `password_hash`    | `fromLegacy(salt, hash)` produces `scrypt$16384$8$1$<salt>$<hash>`. The hash must be 128 hex chars and the salt 32 hex chars, otherwise the row is skipped. The salt is kept byte-for-byte (it is used as text).                                                |
+| `role`                     | `role`             | trimmed and lower-cased; legacy `admin` becomes `superuser` (owner decision 2026-11-17, with a warning). Then it must be `operator`, `observer`, `executive` or `superuser` (`RoleSchema`). Anything else is skipped.                                           |
+| `operator_id`              | `extension`        | trimmed, `''` becomes null. A value that is not 2–6 digits (`ExtensionSchema`) becomes null, with a warning. An operator without an extension gets a warning.                                                                                                   |
+| `email`                    | `email`            | trimmed and lower-cased, `''` becomes null. Anything legacy's own regex would reject becomes null, with a warning. A duplicate (case-insensitive, either against existing users or against an older legacy row) becomes null, with a warning naming the holder. |
+| `created_at`, `updated_at` | same               | `'YYYY-MM-DD HH:MM:SS'` is read as Asia/Tashkent wall-clock time (luxon). An unparsable value falls back to the DB default `now()`.                                                                                                                             |
+| `webauthn_user_id`         | `webauthn_user_id` | copied verbatim (lower-cased UUID text): it is the passkey user handle. Missing → a new UUID (no passkeys to keep). Not a UUID, or already held by another user → a new UUID, with a warning (that user's passkeys are then skipped).                           |
+| `operator_id` ≥ 200        | `group_id`         | operators with extension ≥ 200 go to the operator group "Zangiota" (legacy "200 group" restrictions). Others get no group (no restrictions).                                                                                                                    |
+| —                          | `is_active`        | DB default `true`.                                                                                                                                                                                                                                              |
 
 Accounts `operator200`…`operator209` (created by legacy `scripts/create_200.js` with one shared password)
 are imported with `must_change_password = true` (owner decision): they can only change the password after
@@ -114,7 +131,8 @@ stay the same, and the deployment keeps the legacy `WEBAUTHN_RP_ID` / `WEBAUTHN_
 `backed_up`, `transports` (JSON → `text[]`, unknown values dropped), `device_name` → `name` (≤ 60 chars),
 `created_at`/`last_used_at` (Tashkent local time). The owner is resolved by legacy username (case-insensitive).
 
-- **Skipped** (with the reason): owner missing in legacy or not migrated; the passkey's `webauthn_user_id`
+- **Skipped** (with the reason): owner missing in legacy or not migrated; the owner lost a case-insensitive
+  username clash (another legacy row with that username was migrated); the passkey's `webauthn_user_id`
   differs from its owner's (legacy refused such logins too); the public key is not a COSE key; the credential
   id already belongs to another user.
 - **Handle adoption:** if the target user already existed with a different handle (e.g. the bootstrap
@@ -126,21 +144,23 @@ stay the same, and the deployment keeps the legacy `WEBAUTHN_RP_ID` / `WEBAUTHN_
 
 ## Mappers
 
-| Mapper                   | Owner              | Legacy source                                                         | Status                                    |
-| ------------------------ | ------------------ | --------------------------------------------------------------------- | ----------------------------------------- |
-| `users`                  | S1                 | `auth_users`                                                          | implemented (S6)                          |
-| `passkeys`               | S1                 | `auth_passkeys`                                                       | implemented (S1)                          |
-| `settings`               | S1                 | `system_settings`, `queue-sync-settings.json`, `system_settings.json` | stub                                      |
-| `contacts`               | S4                 | `client_contacts`                                                     | stub                                      |
-| `callbacks`              | S4                 | `pending_callbacks` (all statuses)                                    | stub                                      |
-| `blacklist`              | S4                 | `blacklist` (ext 114 only)                                            | stub                                      |
-| `transcripts`            | stage 2 (STT) / S5 | `call_transcriptions`, `stt_learned_rules`, `stt_custom_rules.json`   | stub                                      |
+| Mapper                   | Owner              | Legacy source                                                         | Status                                      |
+| ------------------------ | ------------------ | --------------------------------------------------------------------- | ------------------------------------------- |
+| `users`                  | S1                 | `auth_users`                                                          | implemented (S6; duplicate rule S10)        |
+| `passkeys`               | S1                 | `auth_passkeys`                                                       | implemented (S1)                            |
+| `settings`               | S1                 | `system_settings`, `queue-sync-settings.json`, `system_settings.json` | implemented (S10): lockout only, see below  |
+| `contacts`               | S4                 | `client_contacts`                                                     | implemented (S10)                           |
+| `callbacks`              | S4                 | `pending_callbacks` (all statuses)                                    | implemented (S10)                           |
+| `blacklist`              | S4                 | `blacklist` (ext 114 only)                                            | implemented (S10)                           |
+| `transcripts`            | stage 2 (STT) / S5 | `call_transcriptions`, `stt_learned_rules`, `stt_custom_rules.json`   | not migrated (owner decision 2026-11-18)    |
 | `tickets`                | S7 (was S5)        | `tickets.json` (+ upload files)                                       | implemented — new workflow model, see below |
-| `telegram-subscribers`   | stage 2            | `telegram_subscribers.json`                                           | stub                                      |
-| `remote-desktop-devices` | stage 2            | `rustdesk_devices.json`                                               | stub                                      |
+| `telegram-subscribers`   | stage 2            | `telegram_subscribers.json`                                           | not migrated (owner decision 2026-11-18)    |
+| `remote-desktop-devices` | stage 2            | `rustdesk_devices.json`                                               | not migrated (owner decision 2026-11-18)    |
 
-A stub migrates nothing. It reports how many legacy rows or records are waiting and which sources are
-missing. Its TODO comment summarises the mapping notes from data.md.
+`system_settings.excluded_operators` is migrated by its own `excluded-operators` mapper (S11), not by `settings`.
+
+A "not migrated" mapper (`notMigratedMapper`) migrates nothing by decision and counts what is left in legacy. A
+stub (`notImplementedMapper`, none left) does the same but is labelled NOT IMPLEMENTED.
 
 **Not migrated on purpose** (data.md §5.2 "Drop"): `calls`, `operator_daily_stats`,
 `operator_reject_events`, `operator_missed_events` (check their prod row counts first), `call_topic_analytics`
@@ -157,16 +177,93 @@ tab of /tickets. Status: pending → new, in_progress → in_progress, completed
 kept, nothing goes to the callback queue). No SLA due date (never counted as overdue). Urgency becomes a
 `[Shoshilinch]` prefix of the description; the addressed operator is dropped with a warning.
 
-### Implementing a stub
+### contacts (`client_contacts` → `contacts`)
 
-1. Replace `notImplementedMapper(...)` in `mappers/<name>.mapper.ts` with a `Mapper` (see `users.mapper.ts`):
+| Legacy                          | New                            | Rule                                                                                                                                                                                                                  |
+| ------------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `phone`                         | `phone` (PK)                   | `normalizeUzPhone`. Rejected → skipped (the reason gives the digit count, not the number). Two rows that normalise to one phone (`998901234567` / `901234567`): the one changed later is migrated, the other skipped. |
+| `name`, `organization`, `notes` | `name`, `organization`, `note` | trimmed, control characters removed, cut to 120 / 200 / 1000 chars (warning). A contact with no name, organization or Telegram is kept, with a warning.                                                               |
+| `language`                      | `language`                     | lower-cased; `uz` / `ru` / `en` kept, `''` → null, anything else → `other` (warning).                                                                                                                                 |
+| `telegram_user_id`              | `telegram`                     | a numeric id or `@username` (a bare username gets the `@`); `''` → null; anything else dropped (warning).                                                                                                             |
+| `created_at`, `updated_at`      | same                           | Tashkent wall-clock time.                                                                                                                                                                                             |
+
+Insert if absent by normalised phone. An existing contact is never modified; a warning lists the fields that
+differ from legacy.
+
+### callbacks (`pending_callbacks` → `callbacks` + `callback_events`)
+
+All statuses (owner decision 2026-11-18): open stays open, resolved and dismissed keep who, when and how.
+
+| Legacy                                                                                     | New                                                                                                                                      | Rule                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                                                                       | `legacy_id`                                                                                                                              | unique; the idempotency key.                                                                                                                                                                                                                                                                                           |
+| `phone`                                                                                    | `phone`                                                                                                                                  | `normalizeUzPhone`; unusable numbers and `PBX_SERVICE_NUMBERS` (legacy deleted them at startup) are skipped.                                                                                                                                                                                                           |
+| `status`                                                                                   | `status`                                                                                                                                 | `pending` / `resolved` / `dismissed` as is.                                                                                                                                                                                                                                                                            |
+| `source`                                                                                   | `source`, `sources`                                                                                                                      | `abandoned` → abandoned, `ivr_non_working` → after_hours (legacy hid these from every list; open ones become visible).                                                                                                                                                                                                 |
+| `call_time`                                                                                | `last_missed_at`                                                                                                                         | Tashkent wall-clock time.                                                                                                                                                                                                                                                                                              |
+| `created_at` / `call_time`                                                                 | `first_missed_at`                                                                                                                        | the earlier of the two (legacy kept no first-call time).                                                                                                                                                                                                                                                               |
+| `attempts_count`                                                                           | `missed_count`                                                                                                                           | ≥ 1.                                                                                                                                                                                                                                                                                                                   |
+| `outbound_attempts`, `last_outbound_time`, `last_outbound_cause`, `last_outbound_operator` | `outbound_attempts`, `last_outbound_at`, `last_outbound_cause`, `last_outbound_extension`                                                | causes: `Mijoz band` → busy, `Javob bermadi` → no_answer, `Rad etildi` → rejected, `Aloqa doirasidan tashqarida` → unavailable. The extension comes from `Name (101)` / `Operator 101` / `101`; names are not kept. For resolved rows legacy overwrote the operator with the resolver, so the extension is left empty. |
+| `dismissed_at`                                                                             | `closed_at`                                                                                                                              | set for both closed statuses.                                                                                                                                                                                                                                                                                          |
+| resolved: `dismissed_by` tag, `resolution_type`                                            | `close_method = conversation`, `resolved_extension`, `closed_by_label = "ext 101"` (or `system`), `closed_by_user_id`, `resolution_type` | the extension from the tag (`operator_101_inbound`, `3cx_answered_101`, …) or from `last_outbound_operator`; the type as stored, else derived from the tag like legacy did.                                                                                                                                            |
+| dismissed: `dismissed_by`                                                                  | `close_method = manual`, `closed_by_label`, `closed_by_user_id`                                                                          | the username (also `viewer:<name>`), `admin` (legacy's default) stays a label.                                                                                                                                                                                                                                         |
+| `caller_name`, `notes`, `today_attempts`                                                   | —                                                                                                                                        | never written / recomputed from events.                                                                                                                                                                                                                                                                                |
+
+- **Users** are found like the tickets mapper does: an extension → the user with that extension (active first,
+  then the oldest account); a username → that user, case-insensitive. Unknown → label only (a note counts them).
+- **Timeline:** a `missed` event at `last_missed_at`, an `outbound_failed` event at `last_outbound_time` when
+  there were failed attempts, and the `resolved` / `dismissed` event at `closed_at`. `call_id` stays null.
+- **One open callback per phone:** legacy open rows that normalise to one phone are merged into the one with the
+  latest call (counts summed); a legacy open row whose phone already has an open callback in the new system is
+  skipped.
+- **Idempotency:** insert if absent by `legacy_id`; an imported callback is never modified.
+
+**Living with the CDR reconciliation (`callbacks.reconciler.ts`).** The reconciler replays the last
+`CALLBACKS_RECONCILE_LOOKBACK_HOURS` (48 h) of CDR and de-duplicates calls by Asterisk linkedid
+(`callback_events (kind, call_id)`). Legacy rows have no linkedid or uniqueid — only the time of the latest missed
+call per row — so a replayed call cannot be matched to a legacy row by id, and the first runs after cutover would
+count calls legacy already counted again (`missed_count`, `outbound_attempts`, timeline). Decision: the mapper
+writes `callback_settings.legacy_imported_until` = the latest timestamp in `pending_callbacks` (`call_time`,
+`dismissed_at`, `created_at`, `updated_at`, `last_outbound_time`; future times ignored; only ever moved forward;
+counted as one "update"), and the reconciler skips every call whose time (start of a missed call / attempt, end
+of a conversation) is at or before it (`handledByLegacy`). Calls after it go through the normal rules (append,
+resolve, "don't resurrect" by `closed_at`). Live AMI events are not affected: they only happen after the new
+system starts. Cutover: stop legacy after its last CDR sync, take the SQLite copy, import, then start the API.
+A call legacy had not recorded yet but that is older than its last write is not recreated (rare; legacy itself
+would have picked it up on its next sync).
+
+### settings
+
+- `system_settings.auth_lockout_threshold` / `auth_lockout_duration_min` → `auth_settings` key `lockout`
+  (`LockoutSettingsSchema`): `maxAttempts` / `lockoutMinutes`, read like legacy (threshold clamped 3–10, default 5;
+  duration ≥ 1, default 60; the new maximum is 1440). `ipMaxAttempts` keeps the new default (legacy had no IP
+  limit). Insert if absent; a policy already set in the new system is never overwritten (warning if it differs).
+- `excluded_operators` → the `excluded-operators` mapper (S11).
+- Other keys → skipped as unknown.
+- `queue-sync-settings.json` → **not migrated**: no counterpart. Legacy replaced Asterisk's queue `callsTaken` on
+  the operator cards with a CDR-based count plus manual offsets ("DB sync"); the new system shows `callsTaken`
+  as Asterisk reports it and has no such mode or manual adjustment.
+- `system_settings.json` (Proxmox VM auto-recovery) → **not migrated**: the watchdog is removed.
+
+### blacklist (`blacklist` → `blocked_numbers`)
+
+The legacy table is the personal block list of extension 114 (AstDB `blacklist_114`): rows become
+`scope = operator, extension = 114`, `number` via `normalizeUzPhone`, `variants` recomputed (`astdbKeys`), `note`
+(≤ 200 chars), times as SQLite UTC, `sync_state = pending` (the API writes them to AstDB through AMI; legacy already
+did, so it is a no-op). Insert if absent by (number, scope, extension). Production had 0 rows on 2026-11-18.
+
+### Implementing a mapper
+
+1. Write a `Mapper` in `mappers/<name>.mapper.ts` (see `users.mapper.ts`) and add it to `mappers/index.ts`:
    a pure `transform` (legacy row → values, or a skip reason), a pure `plan` (given what the target already
    has: insert / update / unchanged / skip), and a small repository (Kysely, or an in-memory fake in specs).
 2. When `ctx.dryRun` is set, only plan and fill in the counts. The transaction is read-only anyway.
 3. Never throw for a bad row. Skip it with a reason. Throw (or add to `errors`) only when the whole mapper
    must be rolled back.
 4. Write a spec like `users.mapper.spec.ts`. It builds a temporary SQLite from
-   `__fixtures__/legacy-schema.sql` and needs no Postgres.
+   `__fixtures__/legacy-schema.sql` with synthetic rows and needs no Postgres. SQL that depends on constraints
+   (partial unique indexes, checks) belongs in an e2e spec like `mappers/legacy-data.mapper.e2e-spec.ts`
+   (`pnpm --filter @cc/api test:e2e`, `E2E_DATABASE_URL` pointing at a `…_test` database).
 
 ## Tests and fixture
 

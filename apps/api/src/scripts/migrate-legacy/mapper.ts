@@ -21,7 +21,8 @@ export interface MigrationContext {
   logger: MigrationLogger;
 }
 
-export const MAPPER_STATUSES = ['ok', 'not-implemented', 'source-missing', 'failed'] as const;
+/** `not-migrated`: deliberately not carried over (an owner decision); the report still counts the legacy data. */
+export const MAPPER_STATUSES = ['ok', 'not-implemented', 'not-migrated', 'source-missing', 'failed'] as const;
 export type MapperStatus = (typeof MAPPER_STATUSES)[number];
 
 /** `key` identifies the legacy row (e.g. `#7 op101`); never put secrets or emails into it. */

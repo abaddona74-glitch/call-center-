@@ -1,15 +1,12 @@
-import { countArray, notImplementedMapper } from './not-implemented.js';
+import { countArray, notMigratedMapper } from './not-implemented.js';
 
 /**
- * Legacy `data/telegram_subscribers.json` → telegram subscribers table (stage 2, Telegram notifications).
- *
- * TODO(stage 2):
- * - `[{ chatId: string, username, firstName, lastName, subscribedAt: ISO }]` → `chat_id bigint PK`, names,
- *   `subscribed_at timestamptz` (ISO with Z, cast directly).
- * - ROADMAP: Telegram notifications get a chat whitelist — decide whether all subscribers are carried over.
- * - Idempotency: insert-if-absent by chat id.
+ * Legacy `data/telegram_subscribers.json`. Not migrated — owner decision 2026-11-18
+ * (docs/rewrite/DECISIONS.md, "Перенос данных legacy"): subscribers are not carried over.
+ * The count stays in the report.
  */
-export const telegramSubscribersMapper = notImplementedMapper(
+export const telegramSubscribersMapper = notMigratedMapper(
   { name: 'telegram-subscribers', owner: 'stage 2' },
   { jsonFiles: [{ file: 'telegram_subscribers.json', count: countArray() }] },
+  'owner decision 2026-11-18 — Telegram subscribers are not carried over',
 );

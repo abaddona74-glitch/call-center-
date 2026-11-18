@@ -125,6 +125,17 @@ export function resolutionTypeFor(direction: 'inbound' | 'outbound'): CallbackRe
   return direction === 'outbound' ? 'operator_outbound' : 'client_inbound';
 }
 
+// ---------------------------------------------------------------- legacy import
+
+/**
+ * Legacy callbacks are imported without Asterisk linkedids, so a replayed CDR call cannot be matched to
+ * them by id. Calls at or before the end of the imported legacy history were already handled by legacy
+ * (counted, called back, closed): replaying them would count them twice.
+ */
+export function handledByLegacy(at: Date, legacyImportedUntil: Date | null): boolean {
+  return legacyImportedUntil !== null && at.getTime() <= legacyImportedUntil.getTime();
+}
+
 // ---------------------------------------------------------------- outbound attempts
 
 /** An operator's failed call back attempt counts only if made after the citizen's first missed call (B20). */

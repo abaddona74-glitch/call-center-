@@ -5,6 +5,7 @@ import type { DB } from '../../../database/db.js';
 import type { SqliteRow } from '../legacy-sources.js';
 import { emptyReport, type Mapper, type RowIssue } from '../mapper.js';
 import { parseLegacyLocalTime } from '../time.js';
+import { pickUsernameWinners, transformLegacyUser, type UsernameWinner } from './users.mapper.js';
 
 /**
  * Legacy `auth_passkeys` → `passkeys` (docs/rewrite/legacy/data.md §1.1.14, §1.4, §5.1).
@@ -21,6 +22,10 @@ import { parseLegacyLocalTime } from '../time.js';
  * handle (e.g. the bootstrap superuser was created before the import) and has no passkeys yet, it adopts
  * the legacy handle (reported as a warning); otherwise the passkey is skipped with the reason.
  * Legacy passkey sessions are not migrated (users sign in again).
+ *
+ * When legacy has several usernames that differ only by case, the users mapper migrates one of them
+ * (`pickUsernameWinners`); passkeys of the others are skipped (owner decision 2026-11-18: the user
+ * registers the key again).
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -63,7 +68,16 @@ export interface PasskeyValues {
 }
 
 export type PasskeyTransformResult =
-  | { ok: true; key: string; username: string; handle: string; values: PasskeyValues; warnings: string[] }
+  | {
+      ok: true;
+      key: string;
+      username: string;
+      /** Legacy auth_users.id of the owner. */
+      ownerLegacyId: number;
+      handle: string;
+      values: PasskeyValues;
+      warnings: string[];
+    }
   | { ok: false; key: string; reason: string };
 
 export interface TargetUser {
@@ -216,14 +230,19 @@ export function transformLegacyPasskey(raw: SqliteRow): PasskeyTransformResult {
   if (row.last_used_at?.trim() && !values.lastUsedAt)
     warnings.push('last_used_at is not a recognised timestamp; dropped');
 
-  return { ok: true, key, username: row.owner_username.trim(), handle, values, warnings };
+  return { ok: true, key, username: row.owner_username.trim(), ownerLegacyId: row.user_id, handle, values, warnings };
 }
 
-/** Pure: decides insert / adopt handle / unchanged / skip for every legacy passkey. */
+/**
+ * Pure: decides insert / adopt handle / unchanged / skip for every legacy passkey.
+ * `winners` (lower-cased legacy username → the legacy row the users mapper migrated) skips passkeys of
+ * legacy accounts that lost a case-insensitive username clash.
+ */
 export function planPasskeys(
   results: readonly PasskeyTransformResult[],
   users: readonly TargetUser[],
   existing: readonly TargetPasskey[],
+  winners: ReadonlyMap<string, UsernameWinner> = new Map(),
 ): PasskeysPlan {
   const plan: PasskeysPlan = { inserts: [], handleUpdates: new Map(), unchanged: 0, skipped: [], warnings: [] };
   const usersByName = new Map(users.map((u) => [u.username.toLowerCase(), u]));
@@ -235,6 +254,16 @@ export function planPasskeys(
   for (const r of results) {
     if (!r.ok) {
       plan.skipped.push({ key: r.key, reason: r.reason });
+      continue;
+    }
+    const winner = winners.get(r.username.toLowerCase());
+    if (winner && winner.legacyId !== r.ownerLegacyId) {
+      plan.skipped.push({
+        key: r.key,
+        reason:
+          `owner legacy user #${r.ownerLegacyId} is not migrated (its username clashes with legacy user ${winner.key}, ` +
+          'which is kept); the user registers this passkey again',
+      });
       continue;
     }
     const user = usersByName.get(r.username.toLowerCase());
@@ -311,7 +340,13 @@ export function createPasskeysMapper(
       report.read = rows.length;
 
       const repo = repositoryFor(ctx.db);
-      const plan = planPasskeys(rows.map(transformLegacyPasskey), await repo.listUsers(), await repo.listPasskeys());
+      const winners = pickUsernameWinners(sqlite.all('SELECT * FROM auth_users ORDER BY id').map(transformLegacyUser));
+      const plan = planPasskeys(
+        rows.map(transformLegacyPasskey),
+        await repo.listUsers(),
+        await repo.listPasskeys(),
+        winners,
+      );
       report.skipped = plan.skipped;
       report.warnings = plan.warnings;
       report.unchanged = plan.unchanged;

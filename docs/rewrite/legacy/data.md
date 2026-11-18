@@ -840,6 +840,9 @@ Suggested AMI replacements, so the new stack needs no SSH root:
 
 ## 5. PostgreSQL mapping
 
+> This is the original plan. What is actually migrated (and what is not, per the owner's decisions of
+> 2026-11-18 in `docs/rewrite/DECISIONS.md`) is described in `apps/api/src/scripts/migrate-legacy/README.md`.
+
 ### 5.1 Table mapping
 
 | Legacy | New table | Key changes | Action |
