@@ -185,6 +185,46 @@ class AmiService {
         }
     }
 
+    /**
+     * Operatorning hozirgi jonli suhbati (ticket ochishda mijoz raqami va ovoz ID sini avtomatik biriktirish uchun).
+     * callId = Asterisk linkedid / uniqueid (CDR dagi uniqueid bilan mos keladi, ovoz yozuvini shu ID bo'yicha topish mumkin).
+     */
+    getOperatorActiveCall(operatorId) {
+        const opId = String(operatorId || '').trim();
+        if (!opId) return null;
+
+        const isRealNumber = (num) => {
+            const digits = String(num || '').replace(/\D/g, '');
+            return digits.length >= 7 && !digits.endsWith('2020159');
+        };
+
+        for (const conv of this.activeConversations.values()) {
+            if (String(conv.operatorExten || '') !== opId) continue;
+            if (conv.stateType && conv.stateType !== 'talking') continue;
+            if (!isRealNumber(conv.callerId)) continue;
+            return {
+                callId: conv.callId || '',
+                callerId: conv.callerId,
+                startTime: conv.startTime || null,
+                direction: conv.direction || 'inbound',
+                source: 'ami'
+            };
+        }
+
+        const agentCall = this.agentActiveCalls.get(opId);
+        if (agentCall && agentCall.eventType === 'ANSWERED' && isRealNumber(agentCall.callerId)) {
+            return {
+                callId: '',
+                callerId: agentCall.callerId,
+                startTime: new Date(agentCall.timestamp),
+                direction: 'inbound',
+                source: '3cx'
+            };
+        }
+
+        return null;
+    }
+
     getMatchablePhone9(phone) {
         if (!phone) return null;
         const digits = String(phone).replace(/\D/g, '');
@@ -1184,6 +1224,7 @@ class AmiService {
                 stateType: 'talking',
                 direction: 'inbound',
                 channel: evt.channel,
+                callId: evt.linkedid || evt.uniqueid || '',
                 startTime: now,
                 duration: '00:00:00'
             });
@@ -1635,7 +1676,9 @@ class AmiService {
                 startTime: finalStartTime,
                 answeredTime: finalAnsweredTime,
                 dialedPhone: trackedDialedPhone,
-                operator: possibleOp || (existing && existing.operator) || null
+                operator: possibleOp || (existing && existing.operator) || null,
+                uniqueid: evt.uniqueid || (existing && existing.uniqueid) || '',
+                linkedid: evt.linkedid || (existing && existing.linkedid) || ''
             });
 
             if (possibleOp) {
@@ -1720,7 +1763,9 @@ class AmiService {
                 dialedPhone: isOutbound ? exten : null,
                 startTime: now,
                 answeredTime: null,
-                operator: opId || null
+                operator: opId || null,
+                uniqueid: evt.uniqueid || '',
+                linkedid: evt.linkedid || ''
             });
 
             this.recalculateConversations();
@@ -2261,6 +2306,14 @@ class AmiService {
                 convStartTime = new Date(Date.now() - durSec * 1000);
             }
 
+            // Qo'ng'iroq ID (CDR uniqueid bilan mos): linkedid, bo'lmasa kiruvchida mijoz kanali, chiquvchida operator kanali uniqueid si
+            const callId = (opData.chan && opData.chan.linkedid)
+                || (pairedChan && pairedChan.chan.linkedid)
+                || (isOutbound
+                    ? ((opData.chan && opData.chan.uniqueid) || (pairedChan && pairedChan.chan.uniqueid))
+                    : ((pairedChan && pairedChan.chan.uniqueid) || (opData.chan && opData.chan.uniqueid)))
+                || '';
+
             talkingConversations.push({
                 key: `TALK_${opId}`,
                 callerId: callerNum,
@@ -2270,6 +2323,7 @@ class AmiService {
                 stateType: stateType,
                 direction: isOutbound ? 'outbound' : 'inbound',
                 channel: channelToUse,
+                callId: callId,
                 startTime: convStartTime,
                 duration: duration
             });

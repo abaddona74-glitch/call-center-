@@ -1,0 +1,31 @@
+{
+  "autoRecoverVms": true,
+  "updatedAt": "2026-10-19T16:17:53.403Z",
+  "lastRecovery": {
+    "startTime": "2026-10-19T16:13:34.886Z",
+    "endTime": "2026-10-19T16:17:53.403Z",
+    "durationSec": 259,
+    "status": "success",
+    "trigger": "auto",
+    "stoppedVms": [
+      "Kerio Control (101)",
+      "Issabel PBX (200)"
+    ],
+    "output": "[9:13:34 PM] ⚡ Proxmox LVM tiklash va VMlarni ishga tushirish (Avtomatik (Svet kelganda)) boshlandi...\n[1/5] LVM data_tdata faolsizlantirilmoqda...\n  Device pve-data_tdata (253:3) is used by another device.\n[2/5] LVM data_tmeta faolsizlantirilmoqda...\n  Device pve-data_tmeta (253:2) is used by another device.\n[3/5] LVM pve/data faollashtirilmoqda...\n[4/5] VM 101 (Kerio Control) ishga tushirilmoqda...\n[5/5] VM 200 (Issabel PBX) ishga tushirilmoqda...\n\n[9:17:53 PM] ✅ Jarayon muvaffaqiyatli yakunlandi.",
+    "error": null,
+    "vms": [
+      {
+        "id": 101,
+        "name": "Kerio Control",
+        "desc": "Tarmoq / Firewall / Gateway",
+        "status": "running"
+      },
+      {
+        "id": 200,
+        "name": "Issabel PBX",
+        "desc": "Asterisk Telefon Stansiyasi",
+        "status": "running"
+      }
+    ]
+  }
+}

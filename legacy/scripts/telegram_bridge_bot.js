@@ -16,8 +16,8 @@ const SERVER_USER = process.env.DEPLOY_USER || 'root';
 const SERVER_PASS = process.env.DEPLOY_PASS || process.env.SSH_PASSWORD || '';
 
 const IS_ON_SERVER = fs.existsSync('/opt/call-center/scratch');
-const LOCAL_INBOX_PATH = path.join(__dirname, '..', 'scratch', 'ui_inbox.json');
-const SERVER_INBOX_PATH = '/opt/call-center/scratch/ui_inbox.json';
+const LOCAL_INBOX_PATH = path.join(__dirname, '..', 'scratch', 'ui_inbox_v2.json');
+const SERVER_INBOX_PATH = '/opt/call-center/scratch/ui_inbox_v2.json';
 
 let lastUpdateId = 0;
 

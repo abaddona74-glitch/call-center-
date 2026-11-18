@@ -223,8 +223,21 @@ function checkOperatorPermission(ticket, operatorId) {
     }
 }
 
+// Matnli maydonni tozalash (bo'sh bo'lsa null, uzunligi cheklanadi)
+function cleanText(value, maxLen = 200) {
+    if (value === undefined || value === null) return null;
+    const s = String(value).replace(/\s+/g, ' ').trim();
+    return s ? s.slice(0, maxLen) : null;
+}
+
+// Asterisk qo'ng'iroq ID (CDR uniqueid / linkedid), masalan: 1731850000.12345
+function cleanCallId(value) {
+    const s = String(value || '').trim();
+    return /^[\d.]{5,32}$/.test(s) ? s : null;
+}
+
 // 1. Yangi ticket yaratish
-function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName }) {
+function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title, comment, files, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName, callId, callTime, callDirection }) {
     if (!comment && (!files || files.length === 0)) {
         throw new Error("Izoh yoki rasm kiritilishi shart");
     }
@@ -239,15 +252,8 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         }
     }
 
-    // Yaratuvchi: Faqat Zangiota (200+) operatorlari bo'lishi shart!
-    let cleanCreatorId = String(creatorId || '200').trim();
-    const creatorNum = parseInt(cleanCreatorId, 10);
-    if (!isNaN(creatorNum) && creatorNum >= 100 && creatorNum < 200) {
-        throw new Error("Asosiy (100+) operatorlari ticket yarata olmaydi! Ticket yaratuvchi faqat Zangiota (200+) operatori bo'lishi kerak. 100+ operatorlari faqat qabul qiluvchi hisoblanadi.");
-    }
-    if (isNaN(creatorNum) || creatorNum < 200) {
-        cleanCreatorId = '200';
-    }
+    // Yaratuvchi: istalgan operator (100+ / 200+ bo'linishi olib tashlangan)
+    const cleanCreatorId = String(creatorId || '200').trim();
     let cleanCreatorName = String(creatorName || `Operator ${cleanCreatorId}`).trim();
 
     const cleanTargetId = targetOperatorId ? String(targetOperatorId).trim() : 'all';
@@ -259,6 +265,14 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
         creatorName: cleanCreatorName,
         creatorIp: creatorIp || '127.0.0.1',
         customerPhone: customerPhone ? String(customerPhone).trim() : null,
+        // Operator kiritadigan mijoz ma'lumotlari
+        city: cleanText(city, 80),
+        organization: cleanText(organization, 200),
+        customerName: cleanText(customerName, 120),
+        // Avtomatik: operator hisobiga bog'langan qo'ng'iroq (Asterisk ovoz ID)
+        callId: cleanCallId(callId),
+        callTime: cleanText(callTime, 40),
+        callDirection: callDirection === 'outbound' ? 'outbound' : (callId ? 'inbound' : null),
         title: title ? String(title).trim() : (comment ? comment.substring(0, 40) + '...' : 'Yangi ticket'),
         comment: String(comment || '').trim(),
         files: savedFiles,
@@ -280,7 +294,7 @@ function createTicket({ creatorId, creatorName, creatorIp, customerPhone, title,
 }
 
 // 1b. Ticketni tahrirlash (Faqat yaratgan shaxs yoki mas'ul)
-function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName }) {
+function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, isUrgent, targetOperatorId, targetOperatorName, city, organization, customerName }) {
     const t = getTicketById(ticketId);
     if (!t) throw new Error("Ticket topilmadi");
 
@@ -299,6 +313,9 @@ function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, 
     if (customerPhone !== undefined) {
         t.customerPhone = customerPhone ? String(customerPhone).trim() : null;
     }
+    if (city !== undefined) t.city = cleanText(city, 80);
+    if (organization !== undefined) t.organization = cleanText(organization, 200);
+    if (customerName !== undefined) t.customerName = cleanText(customerName, 120);
     if (isUrgent !== undefined) {
         t.isUrgent = Boolean(isUrgent);
     }
@@ -312,38 +329,24 @@ function updateTicket(ticketId, { editorId, editorName, customerPhone, comment, 
     return t;
 }
 
+// Ticket operatorga tegishlimi: o'zi yaratgan yoki aynan unga biriktirilgan
+function isTicketMine(t, operatorId) {
+    const op = String(operatorId || '').trim();
+    if (!op || !t) return false;
+    return String(t.creatorId || '').trim() === op || String(t.targetOperatorId || '').trim() === op;
+}
+
 // 2. Barcha ticketlarni olish
 function getTickets(filter = 'all', operatorId = null) {
     const cleanOp = String(operatorId || '').trim();
-    const opNum = parseInt(cleanOp, 10);
-    const is200Op = !isNaN(opNum) && opNum >= 200;
-    const is100Op = !isNaN(opNum) && opNum >= 100 && opNum < 200;
 
-    let baseTickets = tickets;
-
-    if (is200Op) {
-        // 200+ (Zangiota / Creator) operatorlar faqat o'zi yoki boshqa 200+ lar yaratgan ticketlarni ko'radi
-        baseTickets = tickets.filter(t => {
-            const cNum = parseInt(t.creatorId, 10);
-            return String(t.creatorId).trim() === cleanOp || (!isNaN(cNum) && cNum >= 200);
-        });
-    } else if (is100Op) {
-        // 100+ (Asosiy / Receiver) operatorlar esa faqat o'ziga yoki barchaga yo'naltirilgan ticketlarni ko'radi
-        baseTickets = tickets.filter(t => {
-            const targetClean = String(t.targetOperatorId || 'all').trim();
-            return targetClean === 'all' || targetClean === cleanOp;
-        });
-    }
+    // 100+ / 200+ bo'linishi olib tashlangan: barcha operatorlar barcha ticketlarni ko'radi
+    const baseTickets = tickets;
 
     if (filter === 'mine') {
         if (cleanOp) {
-            if (is200Op) {
-                // 200-lik operator uchun "mine" - bu o'zi yaratgan ticketlar!
-                return baseTickets.filter(t => String(t.creatorId).trim() === cleanOp);
-            } else {
-                // 100-lik operator uchun "mine" - bu o'ziga biriktirilgan ticketlar!
-                return baseTickets.filter(t => String(t.targetOperatorId).trim() === cleanOp);
-            }
+            // "Meniki" = o'zi yaratgan yoki o'ziga biriktirilgan ticketlar
+            return baseTickets.filter(t => isTicketMine(t, cleanOp));
         }
         return baseTickets;
     }
@@ -554,6 +557,7 @@ module.exports = {
     createTicket,
     updateTicket,
     getTickets,
+    isTicketMine,
     getTicketById,
     acceptTicket,
     completeTicket,

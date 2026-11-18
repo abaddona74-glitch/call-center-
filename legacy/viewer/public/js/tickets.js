@@ -388,8 +388,9 @@
             }
         }
 
-        // Floating button badge (Bright Red notification pill)
+        // Yangi + jarayondagi ticketlar soni (inline blokdagi "Ticketlar" tugmasi; eski suzib turuvchi tugma olib tashlangan)
         const floatBadges = [
+            document.getElementById('inlineTicketListBadge'),
             document.getElementById('ticketFloatingBadge'),
             document.getElementById('ticketFloatBadge')
         ];
@@ -458,10 +459,7 @@
 
     function renderTicketCards(container, list, isMini = false) {
         if (!list || list.length === 0) {
-            const isCreator = isCreatorUser();
-            const emptyHint = isCreator 
-                ? "Yangi ticket ochish uchun yuqoridagi \"Yangi Ticket Ochish\" tugmasini bosing"
-                : "Zangiota (200+) dan yangi vazifalar kelganda bu yerda ko'rinadi";
+            const emptyHint = "Yangi ticket ochish uchun \"Murojaat / Vazifa Ochish\" blokidan yoki \"Yangi Ticket Ochish\" tugmasidan foydalaning";
             container.innerHTML = `
                 <div style="text-align: center; color: #64748b; padding: 40px 20px; font-size: 13px;">
                     ${ICONS.clipboard}
@@ -487,7 +485,7 @@
                 ? (isAssignedToMe
                     ? `<span class="tk-target-badge for-me" title="Sizga biriktirilgan vazifa">${ICONS.target} Menga (${escapeHtml(t.targetOperatorName || t.targetOperatorId)})</span>`
                     : `<span class="tk-target-badge specific" title="Mas'ul operator: ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}">${ICONS.target} ${escapeHtml(t.targetOperatorName || t.targetOperatorId)}</span>`)
-                : `<span class="tk-target-badge all" title="Barcha operatorlarga (Asosiy 100+)">${ICONS.people} Barchaga</span>`;
+                : `<span class="tk-target-badge all" title="Barcha operatorlarga">${ICONS.people} Barchaga</span>`;
 
             const assignedText = t.acceptedBy ? `Qabul qildi: ${t.acceptedBy.name}` :
                 (t.status === 'completed' ? `Bajarildi: ${t.completedBy?.name || ''}` :
@@ -507,6 +505,12 @@
                         ${ICONS.user}
                         <span>${escapeHtml(t.creatorName)}</span>
                     </div>
+                    ${(t.customerName || t.organization) ? `
+                        <div class="tk-mini-customer" title="${escapeHtml([t.customerName, t.organization, t.city].filter(Boolean).join(' · '))}">
+                            ${CUSTOMER_ICONS.building}
+                            <span>${escapeHtml([t.customerName, t.organization].filter(Boolean).join(' · '))}</span>
+                        </div>
+                    ` : ''}
                     <div class="tk-mini-snippet">
                         ${escapeHtml(t.comment || t.title)}
                     </div>
@@ -651,6 +655,30 @@
         }
         if (elCustomer) {
             elCustomer.textContent = t.customerPhone || 'Mavjud emas';
+        }
+
+        // Mijoz ma'lumotlari (operator kiritgan) va qo'ng'iroq ovoz ID si (avtomatik)
+        const setMeta = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val || '—';
+        };
+        setMeta('boxCustomerName', t.customerName);
+        setMeta('boxOrganization', t.organization);
+        setMeta('boxCity', t.city);
+        const elCallId = document.getElementById('boxCallId');
+        if (elCallId) {
+            if (t.callId) {
+                const clock = formatCallClock(t.callTime);
+                elCallId.textContent = clock ? `${t.callId} · ${clock}` : t.callId;
+                elCallId.title = "Nusxa olish uchun bosing (ovoz yozuvini shu ID bo'yicha topish mumkin)";
+                elCallId.classList.add('copyable');
+                elCallId.onclick = () => copyCallId(t.callId, elCallId);
+            } else {
+                elCallId.textContent = '—';
+                elCallId.title = '';
+                elCallId.classList.remove('copyable');
+                elCallId.onclick = null;
+            }
         }
 
         const elTarget = document.getElementById('boxTargetOperator');
@@ -898,46 +926,12 @@
     }
 
     // =========================================================================
-    // TICKET CREATION & PERMISSIONS (YARATUVCHI: 200+ ZANGIOTA, QABUL: 100+ ASOSIY)
+    // TICKET CREATION & PERMISSIONS
+    // 100+ (Asosiy) / 200+ (Zangiota) bo'linishi olib tashlangan: istalgan operator ticket yarata oladi
+    // va qabul qila oladi. Qabul qilish / bajarish faqat "Mas'ul (Kimga)" biriktiruviga qarab cheklanadi.
     // =========================================================================
     function isCreatorUser() {
-        const rawId = state.myOperatorId 
-            || localStorage.getItem('viewer_my_operator_id') 
-            || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id))
-            || (window.currentViewerUser && (window.currentViewerUser.operatorId || window.currentViewerUser.operator_id));
-        const opNum = parseInt(rawId, 10);
-
-        const uname = String((state.currentUser && state.currentUser.username) || (window.currentViewerUser && window.currentViewerUser.username) || '').toLowerCase().trim();
-
-        // QAT'IY QOIDA: 100-199 (Asosiy) operatorlari (shu jumladan Maxmudbek / 114) FAQAT QABUL QILUVCHI!
-        // Ular aslo ticket yarata olmaydi va "Yangi Ticket Ochish" tugmasini ko'rmaydi.
-        if (uname === 'maxmudbek' || (!isNaN(opNum) && opNum >= 100 && opNum < 200)) {
-            return false;
-        }
-
-        // Faqat Zangiota (200+) operatorlari ticket yaratuvchi bo'la oladi!
-        if (!isNaN(opNum) && opNum >= 200) {
-            return true;
-        }
-
-        // Username tekshiruvi (operator200, 201, zangiota...)
-        const unameMatch = uname.match(/\d+/);
-        if (unameMatch) {
-            const uNum = parseInt(unameMatch[0], 10);
-            if (uNum >= 200) return true;
-            if (uNum >= 100 && uNum < 200) return false;
-        }
-        if (uname.includes('zangiota')) return true;
-
-        // Tizim superuser (root) faqat birorta 100+ operatoriga bog'lanmagan bo'lsa
-        const role = state.myUserRole 
-            || (state.currentUser && state.currentUser.role) 
-            || (window.currentViewerUser && window.currentViewerUser.role);
-        if (role === 'superuser' && uname === 'superuser') {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     function updateCreateButtonVisibility() {
@@ -957,26 +951,23 @@
             fullBtn.classList.toggle('hidden', !canCreate);
             fullBtn.style.setProperty('display', canCreate ? 'inline-flex' : 'none', 'important');
         }
+        // Inline "Murojaat / Vazifa Ochish" bloki (asosiy viewer sahifasida)
+        const inlinePanel = getInlineCreatePanel();
+        if (inlinePanel) {
+            inlinePanel.style.setProperty('display', canCreate ? 'block' : 'none', 'important');
+        }
 
-        // 200+ (Creator) lar uchun "🎯 Menga" o'rniga "✍️ Men yaratgan", 100+ lar uchun "🎯 Menga"
-        const sbMineLabel = document.getElementById('sbTabMineLabel');
-        if (sbMineLabel) {
-            sbMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
-            sbMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
-        }
-        const pageMineLabel = document.getElementById('pageTabMineLabel');
-        if (pageMineLabel) {
-            pageMineLabel.textContent = canCreate ? '✍️ Men yaratgan' : '🎯 Menga';
-            pageMineLabel.parentElement?.setAttribute('title', canCreate ? 'Siz yaratgan ticketlar' : 'Sizga biriktirilgan vazifalar');
-        }
+        // "Meniki" = o'zim yaratgan yoki menga biriktirilgan ticketlar (serverdagi hisob bilan bir xil)
+        ['sbTabMineLabel', 'pageTabMineLabel'].forEach(id => {
+            const label = document.getElementById(id);
+            if (label) {
+                label.textContent = '👤 Meniki';
+                label.parentElement?.setAttribute('title', 'Siz yaratgan yoki sizga biriktirilgan ticketlar');
+            }
+        });
     }
 
     function openCreateModal() {
-        if (!isCreatorUser()) {
-            alert("Siz 100+ (Asosiy) operatorsiz. Ticketlarni faqat Zangiota (200+) operatorlari yaratadi, 100+ operatorlari esa faqat qabul qiluvchi hisoblanadi!");
-            return;
-        }
-
         // Setup fixed creator info (avtomatik joriy hisob biriktiriladi - fixed, dropdown emas)
         const rawId = String(state.myOperatorId || localStorage.getItem('viewer_my_operator_id') || (state.currentUser && (state.currentUser.operatorId || state.currentUser.operator_id)) || '200').trim();
         let myOpName = String(state.myOperatorName || (state.currentUser && (state.currentUser.operatorName || state.currentUser.username)) || '').trim();
@@ -1005,6 +996,14 @@
             }
         });
 
+        // Asosiy viewer sahifasida forma modal emas, inline blok: qoralama saqlanib qoladi, faqat ochiladi
+        if (getInlineCreatePanel()) {
+            closeSidebar();
+            setInlineCreateExpanded(true, { focus: true, scroll: true });
+            refreshCallContext();
+            return;
+        }
+
         state.attachedFiles = [];
         renderAttachedFilesPreview('newTicketPreviewStrip', state.attachedFiles);
 
@@ -1015,32 +1014,571 @@
         if (modal) {
             modal.classList.remove('modal-closing');
             modal.classList.add('active');
-            setTimeout(() => {
-                const commentInput = document.getElementById('newTicketComment');
-                if (commentInput) commentInput.focus();
-            }, 100);
+            refreshCallContext();
+            setTimeout(focusFirstCreateField, 100);
         }
     }
 
-    function closeCreateModal() {
-        const modal = document.getElementById('createTicketModal');
-        const cleanup = () => {
-            state.attachedFiles = [];
-            const urgentInput = document.getElementById('newTicketUrgent');
-            if (urgentInput) urgentInput.checked = false;
-            const commentInput = document.getElementById('newTicketComment');
-            if (commentInput) commentInput.value = '';
-            const phoneInput = document.getElementById('newTicketCustomerPhone');
-            if (phoneInput) phoneInput.value = '';
-            const fileInput = document.getElementById('newTicketFileInput');
-            if (fileInput) fileInput.value = '';
-            renderAttachedFilesPreview('newTicketPreviewStrip', []);
-        };
-        if (modal) {
-            smoothCloseTicketModal(modal, cleanup);
-        } else {
-            cleanup();
+    // Birinchi to'ldirilmagan majburiy maydonga (shahar → tashkilot → FISH), bo'lmasa izohga fokus
+    function focusFirstCreateField() {
+        const els = getCustomerFieldEls('new');
+        const v = getCustomerFieldValues('new');
+        let target = document.getElementById('newTicketComment');
+        if (v) {
+            if (!v.city) target = els.city;
+            else if (!v.organization) target = (els.org.value === ORG_OTHER_VALUE ? els.orgOther : els.org);
+            else if (!v.customerName) target = els.name;
         }
+        if (target) target.focus({ preventScroll: true });
+    }
+
+    function closeCreateModal() {
+        // Inline blok yopilganda qoralama o'chirilmaydi (keyin davom ettirish mumkin)
+        if (getInlineCreatePanel()) {
+            setInlineCreateExpanded(false);
+            return;
+        }
+        const modal = document.getElementById('createTicketModal');
+        if (modal) {
+            smoothCloseTicketModal(modal, resetCreateForm);
+        } else {
+            resetCreateForm();
+        }
+    }
+
+    // Yangi ticket formasini to'liq tozalash (izoh, telefon, shoshilinch, fayllar)
+    function resetCreateForm() {
+        state.attachedFiles = [];
+        const urgentInput = document.getElementById('newTicketUrgent');
+        if (urgentInput) urgentInput.checked = false;
+        const commentInput = document.getElementById('newTicketComment');
+        if (commentInput) commentInput.value = '';
+        const phoneInput = document.getElementById('newTicketCustomerPhone');
+        if (phoneInput) phoneInput.value = '';
+        const fileInput = document.getElementById('newTicketFileInput');
+        if (fileInput) fileInput.value = '';
+        renderAttachedFilesPreview('newTicketPreviewStrip', []);
+        // Shahar / tashkilot / FISH va biriktirilgan qo'ng'iroq
+        const customerEls = getCustomerFieldEls('new');
+        if (customerEls.city) {
+            fillCitySelect('new', '');
+            fillOrgSelect('new', '', '');
+        }
+        if (customerEls.name) customerEls.name.value = '';
+        resetCallContextState();
+        updateInlineDraftIndicator();
+    }
+
+    // =========================================================================
+    // INLINE "MUROJAAT / VAZIFA OCHISH" BLOKI (ochiladigan / yopiladigan)
+    // =========================================================================
+    const INLINE_CREATE_EXPANDED_KEY = 'viewer_inline_ticket_expanded';
+
+    function getInlineCreatePanel() {
+        return document.getElementById('inlineTicketCreatePanel');
+    }
+
+    function isInlineCreateExpanded() {
+        const panel = getInlineCreatePanel();
+        return !!(panel && panel.classList.contains('expanded'));
+    }
+
+    function setInlineCreateExpanded(expand, opts = {}) {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        const isOpen = !!expand;
+        panel.classList.toggle('expanded', isOpen);
+        const toggleBtn = document.getElementById('inlineTicketToggle');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        try { localStorage.setItem(INLINE_CREATE_EXPANDED_KEY, isOpen ? '1' : '0'); } catch (e) { /* ignore */ }
+        updateInlineDraftIndicator();
+
+        if (isOpen && opts.focus) {
+            setTimeout(() => {
+                if (opts.scroll) {
+                    const rect = panel.getBoundingClientRect();
+                    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                focusFirstCreateField();
+            }, 300);
+        }
+    }
+
+    function toggleInlineCreate(force) {
+        const next = (typeof force === 'boolean') ? force : !isInlineCreateExpanded();
+        if (next) {
+            openCreateModal();
+        } else {
+            setInlineCreateExpanded(false);
+        }
+    }
+
+    // Yopiq holatda yozilgan, lekin yuborilmagan ma'lumot bo'lsa sarlavhada "Qoralama" belgisini ko'rsatish
+    function updateInlineDraftIndicator() {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        const comment = document.getElementById('newTicketComment');
+        const phone = document.getElementById('newTicketCustomerPhone');
+        const phoneVal = phone ? phone.value.trim() : '';
+        const customer = getCustomerFieldValues('new');
+        // Qo'ng'iroqdan / kontakt bazasidan avtomatik qo'yilgan qiymatlar qoralama hisoblanmaydi
+        const hasCustomerDraft = !!(customer && (customer.city || customer.organization || (customer.customerName && customer.customerName !== callCtxAutoName)));
+        const hasDraft = !!((comment && comment.value.trim()) || (phoneVal && phoneVal !== callCtxAutoPhone) || state.attachedFiles.length > 0 || hasCustomerDraft);
+        panel.classList.toggle('has-draft', hasDraft);
+    }
+
+    function initInlineCreatePanel() {
+        const panel = getInlineCreatePanel();
+        if (!panel) return;
+        panel.addEventListener('input', updateInlineDraftIndicator);
+
+        let wasExpanded = false;
+        try { wasExpanded = localStorage.getItem(INLINE_CREATE_EXPANDED_KEY) === '1'; } catch (e) { /* ignore */ }
+        if (wasExpanded) {
+            setInlineCreateExpanded(true);
+            refreshCallContext();
+        }
+    }
+
+    // =========================================================================
+    // MIJOZ MA'LUMOTLARI: Shahar / Tashkilot nomi / FISH
+    // Ro'yxat /data/organizations.json dan olinadi: { cities: [{ name, organizations: [] }] }
+    // Maydonlar [data-tk-fields="new|edit"] konteynerlariga chiziladi (index.html va tickets.html uchun bitta kod).
+    // =========================================================================
+    const ORG_DATA_URL = '/data/organizations.json';
+    const ORG_OTHER_VALUE = '__other__';
+    const CUSTOMER_ICONS = {
+        location: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 13.43C13.72 13.43 15.12 12.03 15.12 10.31C15.12 8.59 13.72 7.19 12 7.19C10.28 7.19 8.88 8.59 8.88 10.31C8.88 12.03 10.28 13.43 12 13.43Z"/><path d="M3.62 8.49C5.59 -0.17 18.42 -0.16 20.38 8.5C21.53 13.58 18.37 17.88 15.6 20.54C13.59 22.48 10.41 22.48 8.39 20.54C5.63 17.88 2.47 13.57 3.62 8.49Z"/></svg>`,
+        building: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M2 22H22"/><path d="M17 2H7C4 2 3 3.79 3 6V22H21V6C21 3.79 20 2 17 2Z"/><path d="M10 16.5H14V22H10V16.5Z"/><path d="M7 7H10"/><path d="M14 7H17"/><path d="M7 11.5H10"/><path d="M14 11.5H17"/></svg>`,
+        user: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M12 12C14.76 12 17 9.76 17 7C17 4.24 14.76 2 12 2C9.24 2 7 4.24 7 7C7 9.76 9.24 12 12 12Z"/><path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22"/></svg>`,
+        phone: `<svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07"/></svg>`,
+        refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>`,
+        unlink: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M18 6L6 18"/><path d="M6 6L18 18"/></svg>`
+    };
+
+    let orgDataPromise = null;
+    let orgCities = []; // [{ name, organizations: [] }]
+
+    function loadOrgData() {
+        if (!orgDataPromise) {
+            orgDataPromise = fetch(ORG_DATA_URL, { cache: 'no-cache' })
+                .then(r => (r.ok ? r.json() : { cities: [] }))
+                .then(json => {
+                    const list = Array.isArray(json) ? json : (json && Array.isArray(json.cities) ? json.cities : []);
+                    orgCities = list
+                        .filter(c => c && c.name)
+                        .map(c => ({
+                            name: String(c.name).trim(),
+                            organizations: Array.isArray(c.organizations)
+                                ? c.organizations.map(o => String(o).trim()).filter(Boolean)
+                                : []
+                        }));
+                    return orgCities;
+                })
+                .catch(err => {
+                    console.warn('organizations.json yuklanmadi:', err.message);
+                    orgDataPromise = null; // keyingi ochilishda qayta urinadi
+                    return orgCities;
+                });
+        }
+        return orgDataPromise;
+    }
+
+    function getCustomerFieldEls(prefix) {
+        return {
+            city: document.getElementById(`${prefix}TicketCity`),
+            org: document.getElementById(`${prefix}TicketOrg`),
+            orgOther: document.getElementById(`${prefix}TicketOrgOther`),
+            name: document.getElementById(`${prefix}TicketCustomerName`)
+        };
+    }
+
+    function renderCustomerFields(container) {
+        const prefix = container.getAttribute('data-tk-fields');
+        const star = prefix === 'new' ? ' *' : '';
+        container.innerHTML = `
+            <div class="tk-form-group">
+                <label class="tk-form-label" for="${prefix}TicketCity">${CUSTOMER_ICONS.location}<span>Shahar / viloyat${star}</span></label>
+                <select id="${prefix}TicketCity" class="tk-form-select">
+                    <option value="">Yuklanmoqda...</option>
+                </select>
+            </div>
+            <div class="tk-form-group">
+                <label class="tk-form-label" for="${prefix}TicketOrg">${CUSTOMER_ICONS.building}<span>Tashkilot nomi${star}</span></label>
+                <select id="${prefix}TicketOrg" class="tk-form-select" disabled>
+                    <option value="">Avval shaharni tanlang</option>
+                </select>
+                <input type="text" id="${prefix}TicketOrgOther" class="tk-form-input tk-org-other" placeholder="Tashkilot nomini yozing" maxlength="200" autocomplete="off" hidden>
+            </div>
+            <div class="tk-form-group">
+                <label class="tk-form-label" for="${prefix}TicketCustomerName">${CUSTOMER_ICONS.user}<span>Mijoz FISH${star}</span></label>
+                <input type="text" id="${prefix}TicketCustomerName" class="tk-form-input" placeholder="Familiya Ism Sharif" maxlength="120" autocomplete="off">
+            </div>
+        `;
+
+        const els = getCustomerFieldEls(prefix);
+        els.city.addEventListener('change', () => {
+            fillOrgSelect(prefix, els.city.value, '');
+            updateInlineDraftIndicator();
+        });
+        els.org.addEventListener('change', () => {
+            toggleOrgOther(prefix);
+            if (els.org.value === ORG_OTHER_VALUE) els.orgOther.focus();
+            updateInlineDraftIndicator();
+        });
+    }
+
+    function fillCitySelect(prefix, selectedCity) {
+        const { city } = getCustomerFieldEls(prefix);
+        if (!city) return;
+        const opts = ['<option value="">Tanlang...</option>']
+            .concat(orgCities.map(c => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`));
+        // Ro'yxatdan olib tashlangan eski qiymat (tahrirlashda) yo'qolib qolmasligi uchun
+        if (selectedCity && !orgCities.some(c => c.name === selectedCity)) {
+            opts.push(`<option value="${escapeHtml(selectedCity)}">${escapeHtml(selectedCity)}</option>`);
+        }
+        city.innerHTML = opts.join('');
+        city.value = selectedCity || '';
+    }
+
+    function fillOrgSelect(prefix, cityName, selectedOrg) {
+        const { org } = getCustomerFieldEls(prefix);
+        if (!org) return;
+        if (!cityName) {
+            org.innerHTML = '<option value="">Avval shaharni tanlang</option>';
+            org.disabled = true;
+            toggleOrgOther(prefix, '');
+            return;
+        }
+        const cityEntry = orgCities.find(c => c.name === cityName);
+        const orgs = cityEntry ? cityEntry.organizations : [];
+        org.innerHTML = [`<option value="">${orgs.length ? 'Tanlang...' : "Ro'yxat bo'sh — «Boshqa» ni tanlang"}</option>`]
+            .concat(orgs.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`))
+            .concat([`<option value="${ORG_OTHER_VALUE}">Boshqa (ro'yxatda yo'q)…</option>`])
+            .join('');
+        org.disabled = false;
+
+        if (selectedOrg && orgs.includes(selectedOrg)) {
+            org.value = selectedOrg;
+            toggleOrgOther(prefix, '');
+        } else if (selectedOrg) {
+            org.value = ORG_OTHER_VALUE;
+            toggleOrgOther(prefix, selectedOrg);
+        } else {
+            org.value = '';
+            toggleOrgOther(prefix, '');
+        }
+    }
+
+    // "Boshqa" tanlanganda qo'lda yozish maydonini ko'rsatish
+    function toggleOrgOther(prefix, value) {
+        const { org, orgOther } = getCustomerFieldEls(prefix);
+        if (!org || !orgOther) return;
+        const isOther = org.value === ORG_OTHER_VALUE;
+        orgOther.hidden = !isOther;
+        if (value !== undefined) {
+            orgOther.value = value;
+        } else if (!isOther) {
+            orgOther.value = '';
+        }
+    }
+
+    function getCustomerFieldValues(prefix) {
+        const els = getCustomerFieldEls(prefix);
+        if (!els.city) return null;
+        let organization = '';
+        if (els.org) {
+            organization = els.org.value === ORG_OTHER_VALUE
+                ? (els.orgOther ? els.orgOther.value.trim() : '')
+                : els.org.value.trim();
+        }
+        return {
+            city: els.city.value.trim(),
+            organization,
+            customerName: els.name ? els.name.value.trim() : ''
+        };
+    }
+
+    // Xato matnini qaytaradi (va maydonga fokus beradi) yoki hammasi to'g'ri bo'lsa null
+    function validateCustomerFields(prefix) {
+        const els = getCustomerFieldEls(prefix);
+        const v = getCustomerFieldValues(prefix);
+        if (!v) return null;
+        if (!v.city) {
+            els.city.focus();
+            return 'Shahar / viloyatni tanlang';
+        }
+        if (!v.organization) {
+            (els.org.value === ORG_OTHER_VALUE ? els.orgOther : els.org).focus();
+            return 'Tashkilot nomini tanlang yoki «Boshqa» orqali yozing';
+        }
+        if (!v.customerName) {
+            els.name.focus();
+            return 'Mijoz FISH ini kiriting';
+        }
+        return null;
+    }
+
+    async function setCustomerFieldValues(prefix, { city, organization, customerName } = {}) {
+        await loadOrgData();
+        const els = getCustomerFieldEls(prefix);
+        if (!els.city) return;
+        fillCitySelect(prefix, city || '');
+        fillOrgSelect(prefix, city || '', organization || '');
+        if (els.name) els.name.value = customerName || '';
+    }
+
+    function findOrgInData(orgName) {
+        const target = String(orgName || '').trim().toLowerCase();
+        if (!target) return null;
+        for (const c of orgCities) {
+            const hit = c.organizations.find(o => o.toLowerCase() === target);
+            if (hit) return { city: c.name, organization: hit };
+        }
+        return null;
+    }
+
+    function initCustomerFields() {
+        const containers = Array.from(document.querySelectorAll('[data-tk-fields]'));
+        if (containers.length === 0) return;
+        containers.forEach(renderCustomerFields);
+        loadOrgData().then(() => {
+            containers.forEach(c => {
+                const prefix = c.getAttribute('data-tk-fields');
+                const { city } = getCustomerFieldEls(prefix);
+                const current = city ? city.value : '';
+                fillCitySelect(prefix, current);
+                fillOrgSelect(prefix, current, '');
+            });
+        });
+    }
+
+    // =========================================================================
+    // QO'NG'IROQ KONTEKSTI: mijoz raqami + ovoz ID (Asterisk uniqueid)
+    // Operator raqami serverda sessiyadan olinadi: /api/tickets/call-context
+    // =========================================================================
+    let callCtx = null;              // serverdan kelgan oxirgi javob
+    let callCtxDetached = false;     // operator qo'ng'iroqni ticketdan ajratgan
+    let callCtxAutoPhone = '';       // avtomatik qo'yilgan telefon (qo'lda o'zgartirilganini bilish uchun)
+    let callCtxAutoName = '';        // kontakt bazasidan avtomatik qo'yilgan FISH
+    let callCtxRequestSeq = 0;
+
+    function formatPhoneDisplay(raw) {
+        const d = String(raw || '').replace(/\D/g, '');
+        if (d.length === 12 && d.startsWith('998')) {
+            return `+998 ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10)}`;
+        }
+        if (d.length === 9) {
+            return `+998 ${d.slice(0, 2)} ${d.slice(2, 5)} ${d.slice(5, 7)} ${d.slice(7)}`;
+        }
+        return String(raw || '').trim();
+    }
+
+    function parseCallTime(t) {
+        if (!t) return null;
+        const s = String(t);
+        const d = new Date(s.includes('T') ? s : s.replace(' ', 'T'));
+        return isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatCallClock(t) {
+        const d = parseCallTime(t);
+        if (!d) return '';
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function renderCallStrip(stateName, ctx) {
+        const strip = document.getElementById('newTicketCallStrip');
+        if (!strip) return;
+        strip.setAttribute('data-state', stateName);
+
+        const refreshBtn = `<button type="button" class="tk-call-strip-btn" onclick="window.TicketsApp.refreshCallContext()" title="Qo'ng'iroq ma'lumotini yangilash">${CUSTOMER_ICONS.refresh}</button>`;
+        const call = ctx && ctx.call;
+        let info = '';
+        let actions = refreshBtn;
+
+        if (stateName === 'loading') {
+            info = `<span class="tk-call-muted">Qo'ng'iroq ma'lumoti olinmoqda...</span>`;
+            actions = '';
+        } else if ((stateName === 'active' || stateName === 'ended') && call) {
+            const callDate = parseCallTime(call.time);
+            const pill = stateName === 'active'
+                ? `<span class="tk-call-pill live">Suhbatda</span>`
+                : `<span class="tk-call-pill">So'nggi qo'ng'iroq${callDate ? ` · ${formatCallClock(call.time)} (${formatTimeAgo(callDate.getTime())})` : ''}</span>`;
+            const dir = call.direction === 'outbound' ? 'Chiquvchi' : 'Kiruvchi';
+            const idHtml = call.callId
+                ? `<span class="tk-call-id" title="Asterisk qo'ng'iroq ID. Ovoz yozuvini shu ID bo'yicha topish mumkin">Ovoz ID: <code>${escapeHtml(call.callId)}</code></span>`
+                : `<span class="tk-call-muted" title="3CX agent qo'ng'irog'i yoki ID hali aniqlanmagan">Ovoz ID aniqlanmadi</span>`;
+            info = `${pill}<strong class="tk-call-phone">${escapeHtml(formatPhoneDisplay(call.callerId))}</strong><span class="tk-call-muted">${dir}</span>${idHtml}`;
+            actions = refreshBtn + `<button type="button" class="tk-call-strip-btn" onclick="window.TicketsApp.detachCallContext()" title="Bu qo'ng'iroqni ticketga biriktirmaslik">${CUSTOMER_ICONS.unlink}</button>`;
+        } else if (stateName === 'detached') {
+            info = `<span class="tk-call-muted">Qo'ng'iroq ticketga biriktirilmaydi.</span>`;
+            actions = `<button type="button" class="tk-call-strip-link" onclick="window.TicketsApp.refreshCallContext(true)">Qayta biriktirish</button>`;
+        } else if (stateName === 'no_operator') {
+            info = `<span class="tk-call-muted">Hisobingizga operator raqami biriktirilmagan — mijoz raqamini qo'lda kiriting.</span>`;
+        } else if (stateName === 'error') {
+            info = `<span class="tk-call-muted">Qo'ng'iroq ma'lumotini olib bo'lmadi — raqamni qo'lda kiriting yoki yangilang.</span>`;
+        } else if (stateName === 'idle') {
+            info = `<span class="tk-call-muted">Mijoz raqami va ovoz ID qo'ng'iroqdan avtomatik olinadi.</span>`;
+        } else {
+            info = `<span class="tk-call-muted">Bugun sizda javob berilgan qo'ng'iroq topilmadi — mijoz raqamini qo'lda kiriting.</span>`;
+        }
+
+        strip.innerHTML = `
+            <span class="tk-call-strip-icon">${CUSTOMER_ICONS.phone}</span>
+            <div class="tk-call-strip-info">${info}</div>
+            <div class="tk-call-strip-actions">${actions}</div>
+        `;
+    }
+
+    function setHiddenCallFields(call) {
+        const setVal = (id, v) => {
+            const el = document.getElementById(id);
+            if (el) el.value = v || '';
+        };
+        setVal('newTicketCallId', call ? call.callId : '');
+        setVal('newTicketCallTime', call ? call.time : '');
+        setVal('newTicketCallDirection', call ? call.direction : '');
+    }
+
+    function updatePhoneAutoBadge() {
+        const input = document.getElementById('newTicketCustomerPhone');
+        const badge = document.getElementById('newTicketPhoneAutoBadge');
+        if (!input || !badge) return;
+        badge.classList.toggle('show', Boolean(callCtxAutoPhone) && input.value.trim() === callCtxAutoPhone);
+    }
+
+    // Telefon maydoni bo'sh yoki avvalgi avtomatik qiymatda bo'lsa yangilanadi (operator qo'lda yozganini buzmaydi)
+    function setAutoPhone(phone) {
+        const input = document.getElementById('newTicketCustomerPhone');
+        if (!input) return;
+        const current = input.value.trim();
+        if (phone) {
+            const formatted = formatPhoneDisplay(phone);
+            if (!current || current === callCtxAutoPhone) {
+                input.value = formatted;
+                callCtxAutoPhone = formatted;
+            }
+        } else {
+            if (current && current === callCtxAutoPhone) input.value = '';
+            callCtxAutoPhone = '';
+        }
+        updatePhoneAutoBadge();
+    }
+
+    // Mijoz kontakt bazasida bo'lsa: FISH va (ro'yxatda bo'lsa) tashkilotni bo'sh maydonlarga qo'yish
+    function applyContactPrefill(contact) {
+        if (!contact) return;
+        const els = getCustomerFieldEls('new');
+        if (els.name && !els.name.value.trim() && contact.name) {
+            els.name.value = contact.name;
+            callCtxAutoName = contact.name;
+        }
+        if (contact.organization && els.city && !els.city.value) {
+            loadOrgData().then(() => {
+                const hit = findOrgInData(contact.organization);
+                if (hit && !els.city.value) {
+                    fillCitySelect('new', hit.city);
+                    fillOrgSelect('new', hit.city, hit.organization);
+                }
+            });
+        }
+    }
+
+    function applyCallContext(json) {
+        callCtx = json;
+        if (callCtxDetached) {
+            renderCallStrip('detached');
+            return;
+        }
+        const st = json && json.state;
+        if ((st === 'active' || st === 'ended') && json.call) {
+            renderCallStrip(st, json);
+            setHiddenCallFields(json.call);
+            setAutoPhone(json.call.callerId);
+            applyContactPrefill(json.contact);
+        } else {
+            renderCallStrip(st === 'no_operator' ? 'no_operator' : 'none', json);
+            setHiddenCallFields(null);
+            setAutoPhone('');
+        }
+        updateInlineDraftIndicator();
+    }
+
+    async function refreshCallContext(reattach) {
+        if (!document.getElementById('newTicketCallStrip')) return;
+        if (reattach === true) callCtxDetached = false;
+        if (callCtxDetached) {
+            renderCallStrip('detached');
+            return;
+        }
+        const seq = ++callCtxRequestSeq;
+        renderCallStrip('loading');
+        try {
+            const resp = await fetch('/api/tickets/call-context', { cache: 'no-store' });
+            const json = await resp.json().catch(() => null);
+            if (seq !== callCtxRequestSeq) return;
+            if (!resp.ok || !json || json.success === false) {
+                throw new Error((json && json.error) || `HTTP ${resp.status}`);
+            }
+            applyCallContext(json);
+        } catch (err) {
+            if (seq !== callCtxRequestSeq) return;
+            console.warn("Qo'ng'iroq konteksti olinmadi:", err.message);
+            callCtx = null;
+            setHiddenCallFields(null);
+            renderCallStrip('error');
+        }
+    }
+
+    function detachCallContext() {
+        callCtxDetached = true;
+        setHiddenCallFields(null);
+        setAutoPhone('');
+        renderCallStrip('detached');
+        updateInlineDraftIndicator();
+    }
+
+    function resetCallContextState() {
+        callCtx = null;
+        callCtxDetached = false;
+        callCtxAutoPhone = '';
+        callCtxAutoName = '';
+        callCtxRequestSeq++;
+        setHiddenCallFields(null);
+        updatePhoneAutoBadge();
+        renderCallStrip('idle');
+    }
+
+    function copyCallId(callId, el) {
+        const markCopied = () => {
+            if (!el) return;
+            el.classList.add('copied');
+            setTimeout(() => el.classList.remove('copied'), 1200);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(callId).then(markCopied).catch(() => {});
+            return;
+        }
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = callId;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            markCopied();
+        } catch (e) { /* ignore */ }
+    }
+
+    function initCallContext() {
+        const phoneInput = document.getElementById('newTicketCustomerPhone');
+        if (phoneInput) phoneInput.addEventListener('input', updatePhoneAutoBadge);
+        if (document.getElementById('newTicketCallStrip')) renderCallStrip('idle');
     }
 
     function renderAttachedFilesPreview(containerId, filesArray) {
@@ -1085,6 +1623,8 @@
                 </div>
             `;
         }).join('');
+
+        if (containerId === 'newTicketPreviewStrip') updateInlineDraftIndicator();
     }
 
     function previewAttachedFileAtIndex(containerId, idx) {
@@ -1116,10 +1656,23 @@
         const operatorVal = opInput ? opInput.value.trim() : 'Operator';
         const phoneVal = phoneInput ? phoneInput.value.trim() : '';
 
+        // Shahar / tashkilot / FISH majburiy (maydonlar sahifada bo'lsa)
+        const customerError = validateCustomerFields('new');
+        if (customerError) {
+            alert(customerError);
+            return;
+        }
+        const customer = getCustomerFieldValues('new') || {};
+
         if (!commentVal && state.attachedFiles.length === 0) {
             alert("Iltimos, izoh yozing yoki rasm/screenshot biriktiring!");
             return;
         }
+
+        // Avtomatik biriktirilgan qo'ng'iroq (operator ajratmagan bo'lsa)
+        const callIdVal = (document.getElementById('newTicketCallId') || {}).value || '';
+        const callTimeVal = (document.getElementById('newTicketCallTime') || {}).value || '';
+        const callDirectionVal = (document.getElementById('newTicketCallDirection') || {}).value || '';
 
         if (btnSubmit) {
             btnSubmit.disabled = true;
@@ -1135,8 +1688,11 @@
             let targetOperatorName = 'Barcha operatorlar';
             if (targetSelect) {
                 targetOperatorId = targetSelect.value || 'all';
-                const selectedOpt = targetSelect.options[targetSelect.selectedIndex];
-                targetOperatorName = selectedOpt ? (selectedOpt.getAttribute('data-name') || selectedOpt.text) : 'Barcha operatorlar';
+                // Maydon <select> bo'lsa nomini variantdan olamiz; yashirin <input> da .options yo'q
+                const selectedOpt = targetSelect.options ? targetSelect.options[targetSelect.selectedIndex] : null;
+                if (selectedOpt) {
+                    targetOperatorName = selectedOpt.getAttribute('data-name') || selectedOpt.text;
+                }
             }
 
             // Yaratuvchi: Qat'iy joriy avtorizatsiyadan o'tgan akkountga bog'lanadi (fixed)
@@ -1154,15 +1710,18 @@
                 files: state.attachedFiles,
                 isUrgent: isUrgent,
                 targetOperatorId: targetOperatorId,
-                targetOperatorName: targetOperatorName
+                targetOperatorName: targetOperatorName,
+                city: customer.city || '',
+                organization: customer.organization || '',
+                customerName: customer.customerName || '',
+                callId: callIdVal,
+                callTime: callTimeVal,
+                callDirection: callDirectionVal
             });
 
+            resetCreateForm();
             closeCreateModal();
-            if (commentInput) commentInput.value = '';
-            if (phoneInput) phoneInput.value = '';
-            if (urgentInput) urgentInput.checked = false;
-            if (targetSelect) targetSelect.value = 'all';
-            state.attachedFiles = [];
+            if (targetSelect && targetSelect.tagName === 'SELECT') targetSelect.value = 'all';
         } catch (err) {
             alert('Xatolik: ' + err.message);
         } finally {
@@ -1195,6 +1754,11 @@
         if (targetSelect) {
             targetSelect.value = ticket.targetOperatorId || 'all';
         }
+        setCustomerFieldValues('edit', {
+            city: ticket.city || '',
+            organization: ticket.organization || '',
+            customerName: ticket.customerName || ''
+        });
 
         const modal = document.getElementById('editTicketModal');
         if (modal) {
@@ -1242,15 +1806,24 @@
             btnSubmit.innerHTML = `Saqlanmoqda...`;
         }
 
+        // Shahar / tashkilot / FISH (eski ticketlarda bo'sh bo'lishi mumkin, shuning uchun tahrirda majburiy emas)
+        const editCustomer = getCustomerFieldValues('edit');
+
         try {
             const updated = await updateTicketApi(ticketId, {
                 editorId: state.myOperatorId || '101',
                 editorName: state.myOperatorName || 'Operator',
                 customerPhone: phoneInput ? phoneInput.value.trim() : '',
                 comment: commentVal,
-                isUrgent: urgentInput ? urgentInput.checked : false,
+                // "Shoshilinch" tugmasi formadan olib tashlangan: maydon yo'q bo'lsa mavjud holat o'zgartirilmaydi
+                ...(urgentInput ? { isUrgent: urgentInput.checked } : {}),
                 targetOperatorId,
-                targetOperatorName
+                targetOperatorName,
+                ...(editCustomer ? {
+                    city: editCustomer.city,
+                    organization: editCustomer.organization,
+                    customerName: editCustomer.customerName
+                } : {})
             });
 
             closeEditModal();
@@ -1535,7 +2108,10 @@
                         renderAttachedFilesPreview('replyTicketPreviewStrip', state.replyAttachedFiles);
                     } else {
                         // Aks holda Yangi Ticket ochish oynasiga
-                        if (!document.getElementById('createTicketModal')?.classList.contains('active')) {
+                        const createFormOpen = getInlineCreatePanel()
+                            ? isInlineCreateExpanded()
+                            : document.getElementById('createTicketModal')?.classList.contains('active');
+                        if (!createFormOpen) {
                             openCreateModal();
                         }
                         state.attachedFiles.push(parsed);
@@ -2343,6 +2919,9 @@
     function init() {
         initTicketsProfileIdentity();
         updateCreateButtonVisibility();
+        initCustomerFields();
+        initCallContext();
+        initInlineCreatePanel();
         loadTickets();
         setupGlobalClipboardPaste();
 
@@ -2388,7 +2967,8 @@
                 closeDocViewer();
                 closeLightbox();
                 closeTicketBox();
-                closeCreateModal();
+                // Inline blok Esc bilan yopilmaydi (masalan, fayl ko'rish oynasini yopganda forma yig'ilib ketmasin)
+                if (!getInlineCreatePanel()) closeCreateModal();
                 closeSidebar();
                 closeImpersonateModal();
             }
@@ -2501,6 +3081,10 @@ window.TicketsApp = {
     init,
     openCreateModal,
     closeCreateModal,
+    resetCreateForm,
+    toggleInlineCreate,
+    refreshCallContext,
+    detachCallContext,
     openEditModal,
     closeEditModal,
     handleEditSubmit,

@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css?v=25.4">
-    <link rel="stylesheet" href="/css/tickets.css?v=2.7">
+    <link rel="stylesheet" href="/css/tickets.css?v=3.2">
     <style>
         /* Masofaviy Boshqaruv (RustDesk) PC tugmasi */
         .btn-pc-remote {
@@ -1218,6 +1218,98 @@
             </div>
         </div>
 
+        <!-- YANGI TICKET OCHISH: ochiladigan / yopiladigan inline blok (barcha operatorlar uchun) -->
+        <section class="tk-inline-panel" id="inlineTicketCreatePanel" style="display: none;">
+            <div class="tk-inline-head">
+            <button type="button" class="tk-inline-head-toggle" id="inlineTicketToggle" aria-expanded="false" aria-controls="inlineTicketBody" onclick="window.TicketsApp && window.TicketsApp.toggleInlineCreate()">
+                <span class="tk-inline-head-left">
+                    <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 13.75C9.5 14.72 10.28 15.5 11.25 15.5H12.75C13.72 15.5 14.5 14.72 14.5 13.75V10.25C14.5 9.28 13.72 8.5 12.75 8.5H11.25C10.28 8.5 9.5 9.28 9.5 10.25V13.75Z"/><path d="M2.5 10.5C2.5 7.5 4.5 5.5 7.5 5.5H16.5C19.5 5.5 21.5 7.5 21.5 10.5V11C20.67 11 20 11.67 20 12.5C20 13.33 20.67 14 21.5 14V14.5C21.5 17.5 19.5 19.5 16.5 19.5H7.5C4.5 19.5 2.5 17.5 2.5 14.5V14C3.33 14 4 13.33 4 12.5C4 11.67 3.33 11 2.5 11V10.5Z"/></svg>
+                    <span class="tk-inline-title">Murojaat / Vazifa Ochish</span>
+                    <span class="tk-box-id">YANGI TICKET</span>
+                    <span class="tk-inline-draft" title="Yozilgan, lekin hali yuborilmagan ticket bor">Qoralama</span>
+                </span>
+                <span class="tk-inline-hint"><span class="tk-kbd">Ctrl</span> + <span class="tk-kbd">V</span> screenshot qo'shadi</span>
+            </button>
+                <div class="tk-inline-head-right">
+                    <!-- Ticketlar ro'yxati (avvalgi suzib turuvchi tugma o'rniga) -->
+                    <button type="button" class="tk-inline-list-btn" id="inlineTicketListBtn" onclick="window.TicketsApp && window.TicketsApp.toggleSidebar(true)" title="Barcha ticketlar va vazifalar ro'yxati">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6H21"/><path d="M8 12H21"/><path d="M8 18H21"/><path d="M3 6H3.01"/><path d="M3 12H3.01"/><path d="M3 18H3.01"/></svg>
+                        <span>Ticketlar</span>
+                        <span class="tk-inline-list-badge" id="inlineTicketListBadge" style="display: none;" title="Yangi va jarayondagi ticketlar">0</span>
+                    </button>
+                    <button type="button" class="tk-inline-chevron" tabindex="-1" aria-hidden="true" onclick="window.TicketsApp && window.TicketsApp.toggleInlineCreate()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="tk-inline-body" id="inlineTicketBody">
+                <div class="tk-inline-body-inner">
+                    <form class="tk-inline-form" onsubmit="window.TicketsApp.handleCreateSubmit(event)">
+                        <!-- Avtomatik biriktirilgan operator maydonlari -->
+                        <input type="hidden" id="newTicketOperator" value="200" />
+                        <input type="hidden" id="newTicketTargetOperator" value="all" />
+                        <!-- Avtomatik: operator hisobiga bog'langan qo'ng'iroq (Asterisk ovoz ID) -->
+                        <input type="hidden" id="newTicketCallId" value="" />
+                        <input type="hidden" id="newTicketCallTime" value="" />
+                        <input type="hidden" id="newTicketCallDirection" value="" />
+
+                        <!-- Qo'ng'iroq ma'lumoti (mijoz raqami + ovoz ID) — tickets.js chizadi -->
+                        <div class="tk-call-strip" id="newTicketCallStrip" data-state="idle"></div>
+
+                        <!-- Shahar / Tashkilot nomi / FISH — tickets.js organizations.json asosida chizadi -->
+                        <div class="tk-customer-fields" data-tk-fields="new"></div>
+
+                        <div class="tk-inline-grid">
+                            <div class="tk-inline-col">
+                                <div class="tk-form-group">
+                                    <label class="tk-form-label" for="newTicketCustomerPhone">
+                                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07"/></svg>
+                                        <span>Mijoz telefon raqami</span>
+                                        <span class="tk-auto-badge" id="newTicketPhoneAutoBadge" title="Qo'ng'iroqdan avtomatik olindi">AVTO</span>
+                                    </label>
+                                    <input type="text" id="newTicketCustomerPhone" class="tk-form-input" placeholder="+998 90 123 45 67" autocomplete="off">
+                                </div>
+
+                                <div class="tk-form-group">
+                                    <label class="tk-form-label" for="newTicketComment">
+                                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
+                                        <span>Izoh (Muammo yoki topshiriq tafsilotlari) *</span>
+                                    </label>
+                                    <textarea id="newTicketComment" class="tk-form-textarea" placeholder="Muammo haqida batafsil yozing..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Drag & Drop Zone -->
+                            <div class="tk-inline-col">
+                                <div class="tk-form-group tk-inline-files">
+                                    <label class="tk-form-label">
+                                        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                        <span>Fayl biriktirish (Rasm, PDF, Word .doc / .docx)</span>
+                                    </label>
+                                    <div class="tk-dropzone" id="newTicketDropzone" role="button" tabindex="0" onclick="document.getElementById('newTicketFileInput').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                                        <svg class="tk-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V11L7 13"/><path d="M9 11L11 13"/><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/></svg>
+                                        <span class="tk-dropzone-text">Faylni bu yerga tashlang yoki tanlang</span>
+                                        <span class="tk-dropzone-hint">yoki clipboarddan: <span class="tk-kbd">Ctrl</span> + <span class="tk-kbd">V</span></span>
+                                        <input type="file" id="newTicketFileInput" accept="image/*,.pdf,.doc,.docx" multiple style="display: none;">
+                                    </div>
+                                    <div class="tk-preview-strip" id="newTicketPreviewStrip"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tk-inline-actions">
+                            <span class="tk-inline-note">* Shahar, tashkilot va FISH majburiy; izoh yoki fayl ham kerak</span>
+                            <button type="button" class="tk-action-btn delete" onclick="window.TicketsApp.resetCreateForm()">Tozalash</button>
+                            <button type="submit" id="btnSubmitNewTicket" class="tk-action-btn complete" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
+                                Yaratish va yuborish
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <div class="operators-panel">
             <div class="panel-heading">
                 <div class="panel-title-left">
@@ -2297,12 +2389,6 @@
         </div>
     </div>
 
-    <!-- Ticket Sidebar Toggle Button (Floating) -->
-    <button type="button" class="ticket-sidebar-toggle-btn" id="ticketSidebarToggleBtn" onclick="window.TicketsApp && window.TicketsApp.toggleSidebar()" title="Ticketlar & Oshxona KDS doskasi">
-        <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:26px;height:26px;"><path d="M9.5 13.75C9.5 14.72 10.28 15.5 11.25 15.5H12.75C13.72 15.5 14.5 14.72 14.5 13.75V10.25C14.5 9.28 13.72 8.5 12.75 8.5H11.25C10.28 8.5 9.5 9.28 9.5 10.25V13.75Z"/><path d="M2.5 10.5C2.5 7.5 4.5 5.5 7.5 5.5H16.5C19.5 5.5 21.5 7.5 21.5 10.5V11C20.67 11 20 11.67 20 12.5C20 13.33 20.67 14 21.5 14V14.5C21.5 17.5 19.5 19.5 16.5 19.5H7.5C4.5 19.5 2.5 17.5 2.5 14.5V14C3.33 14 4 13.33 4 12.5C4 11.67 3.33 11 2.5 11V10.5Z"/></svg>
-        <span class="ticket-floating-red-badge" id="ticketFloatingBadge" style="display: none;">0</span>
-    </button>
-
     <!-- Floating Toast Container for Tickets -->
     <div id="ticketToastContainer"></div>
 
@@ -2331,7 +2417,7 @@
             </div>
         </div>
 
-        <!-- Sidebar Create Button (Faqat Zangiota 200+ yoki superuser uchun ko'rinadi) -->
+        <!-- Sidebar Create Button (barcha operatorlar uchun) -->
         <div class="tk-sb-top-cta" id="sidebarCreateTicketWrapper" style="display: none;">
             <button type="button" class="tk-create-btn" style="width: 100%; justify-content: center;" onclick="window.TicketsApp && window.TicketsApp.openCreateModal()">
                 <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2346,7 +2432,7 @@
                 <span class="tk-tab-badge" id="sbStatTotal">0</span>
             </button>
             <button type="button" class="tk-tab-btn" data-filter="mine" onclick="window.TicketsApp && window.TicketsApp.setFilter('mine', this)">
-                <span>🎯 Menga</span>
+                <span id="sbTabMineLabel">👤 Meniki</span>
                 <span class="tk-tab-badge" id="sbStatMine">0</span>
             </button>
             <button type="button" class="tk-tab-btn" data-filter="pending" onclick="window.TicketsApp && window.TicketsApp.setFilter('pending', this)">
@@ -2372,91 +2458,10 @@
             <div class="tk-empty-box">
                 <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:#64748b;margin:0 auto 8px auto;"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                 <div style="font-weight: 700; color: #94a3b8; font-size: 13px;">Ticketlar yo'q</div>
-                <div style="font-size: 11.5px; color: #64748b;" id="sbEmptyHint">Zangiota (200+) operatorlaridan yangi vazifalar kelganda bu yerda ko'rinadi</div>
+                <div style="font-size: 11.5px; color: #64748b;" id="sbEmptyHint">Yangi vazifalar kelganda bu yerda ko'rinadi</div>
             </div>
         </div>
     </aside>
-
-    <!-- ==================================================================== -->
-    <!-- MODAL 1: YANGI TICKET OCHISH MODALI                                 -->
-    <!-- ==================================================================== -->
-    <div class="tk-modal-overlay" id="createTicketModal" onclick="if(event.target === this) window.TicketsApp && window.TicketsApp.closeCreateModal()">
-        <div class="tk-box-modal" style="width: 620px;">
-            <div class="tk-box-header">
-                <div class="tk-box-header-info">
-                    <span class="tk-box-id">YANGI TICKET</span>
-                    <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #ffffff;">Murojaat / Vazifa Ochish</h3>
-                </div>
-                <button type="button" class="tk-btn-icon" onclick="window.TicketsApp.closeCreateModal()" title="Yopish">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-            </div>
-
-            <form onsubmit="window.TicketsApp.handleCreateSubmit(event)" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
-                <div class="tk-box-body">
-                    <!-- Avtomatik biriktirilgan operator maydonlari -->
-                    <input type="hidden" id="newTicketOperator" value="200" />
-                    <input type="hidden" id="newTicketTargetOperator" value="all" />
-
-                    <div class="tk-form-group">
-                        <label class="tk-form-label" for="newTicketCustomerPhone">
-                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21.97 18.33C21.97 18.69 21.89 19.06 21.72 19.42C21.55 19.78 21.33 20.12 21.04 20.44C20.55 20.98 20.01 21.37 19.4 21.62C18.8 21.87 18.15 22 17.45 22C16.43 22 15.34 21.76 14.19 21.27C13.04 20.78 11.89 20.12 10.75 19.28C9.6 18.44 8.51 17.48 7.47 16.41C6.44 15.34 5.51 14.22 4.7 13.04C3.9 11.87 3.26 10.7 2.78 9.53C2.31 8.36 2.07 7.26 2.07 6.22C2.07 5.54 2.2 4.89 2.44 4.29C2.69 3.69 3.06 3.14 3.57 2.64C4.22 2 4.95 1.68 5.76 1.68C6.07 1.68 6.38 1.75 6.66 1.89C6.95 2.03 7.21 2.23 7.42 2.51L9.46 5.39C9.66 5.66 9.8 5.91 9.9 6.14C10 6.36 10.05 6.57 10.05 6.76C10.05 7 9.97 7.24 9.82 7.48C9.67 7.72 9.45 7.97 9.17 8.24L8.45 8.98C8.34 9.09 8.29 9.22 8.29 9.38C8.29 9.46 8.31 9.54 8.34 9.62C8.38 9.7 8.42 9.77 8.45 9.83C8.82 10.5 9.32 11.23 9.95 12.02C10.58 12.81 11.27 13.58 12.02 14.33C12.77 15.08 13.54 15.77 14.33 16.4C15.12 17.03 15.85 17.53 16.52 17.9C16.58 17.93 16.65 17.97 16.73 18.01C16.81 18.04 16.89 18.06 16.98 18.06C17.15 18.06 17.29 18 17.41 17.88L18.12 17.18C18.4 16.89 18.66 16.67 18.9 16.52C19.15 16.36 19.39 16.28 19.63 16.28C19.82 16.28 20.03 16.33 20.26 16.43C20.49 16.53 20.74 16.68 21.02 16.88L21.94 17.54C22.23 17.75 22.44 17.99 22.56 18.26C22.67 18.53 22.73 18.8 22.73 19.07" stroke="currentColor" stroke-width="1.5" stroke-miterlimit="10"/></svg>
-                            <span>Mijoz telefon raqami (ixtiyoriy)</span>
-                        </label>
-                        <input type="text" id="newTicketCustomerPhone" class="tk-form-input" placeholder="+998 90 123 45 67">
-                    </div>
-
-                    <!-- Shoshilinch (Urgent Priority) Slider Toggle -->
-                    <div class="tk-urgent-toggle-row">
-                        <div class="tk-urgent-info">
-                            <label class="tk-urgent-label" for="newTicketUrgent">
-                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:#f59e0b;"><path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/></svg>
-                                <span>Shoshilinch (Tezkor vazifa)</span>
-                            </label>
-                            <span class="tk-urgent-desc">Barcha operatorlarga tezkor ovozli ogohlantirish yuboriladi</span>
-                        </div>
-                        <label class="tk-switch" title="Shoshilinch vazifa deb belgilash">
-                            <input type="checkbox" id="newTicketUrgent">
-                            <span class="tk-slider"></span>
-                        </label>
-                    </div>
-
-                    <div class="tk-form-group">
-                        <label class="tk-form-label" for="newTicketComment">
-                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M8.5 19H8C4 19 2 18 2 13V8C2 4 4 2 8 2H16C20 2 22 4 22 8V13C22 17 20 18 16 18H15.5C15.19 18 14.89 18.15 14.7 18.4L13.2 20.4C12.54 21.28 11.46 21.28 10.8 20.4L9.3 18.4C9.11 18.15 8.81 18 8.5 18"/></svg>
-                            <span>Izoh (Muammo yoki topshiriq tafsilotlari) *</span>
-                        </label>
-                        <textarea id="newTicketComment" class="tk-form-textarea" placeholder="Muammo haqida batafsil yozing..."></textarea>
-                    </div>
-
-                    <!-- Drag & Drop Zone -->
-                    <div class="tk-form-group">
-                        <label class="tk-form-label">
-                            <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <span>Fayl biriktirish (Rasm, PDF, Word .doc / .docx)</span>
-                        </label>
-                        <div class="tk-dropzone" id="newTicketDropzone" onclick="document.getElementById('newTicketFileInput').click()">
-                            <svg class="tk-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17V11L7 13"/><path d="M9 11L11 13"/><path d="M22 10V15C22 20 20 22 15 22H9C4 22 2 20 2 15V9C2 4 4 2 9 2H14"/><path d="M22 10H18C15 10 14 9 14 6V2L22 10Z"/></svg>
-                            <span class="tk-dropzone-text">Faylni (Rasm, PDF, Word .docx) bu yerga tashlang yoki tanlang</span>
-                            <span class="tk-dropzone-hint">yoki clipboarddan to'g'ridan-to'g'ri tashlang:</span>
-                            <div class="tk-dropzone-keys">
-                                <span class="tk-kbd">Ctrl</span> + <span class="tk-kbd">V</span>
-                            </div>
-                            <input type="file" id="newTicketFileInput" accept="image/*,.pdf,.doc,.docx" multiple style="display: none;">
-                        </div>
-                        <div class="tk-preview-strip" id="newTicketPreviewStrip"></div>
-                    </div>
-                </div>
-
-                <div class="tk-box-actions">
-                    <button type="button" class="tk-action-btn delete" onclick="window.TicketsApp.closeCreateModal()">Bekor qilish</button>
-                    <button type="submit" id="btnSubmitNewTicket" class="tk-action-btn complete" style="background: linear-gradient(135deg, #2563eb, #1d4ed8);">
-                        Yaratish va yuborish
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- ==================================================================== -->
     <!-- MODAL 1B: TICKETNI TAHRIRLASH MODALI                                -->
@@ -2479,10 +2484,10 @@
                     <div class="tk-form-group">
                         <label class="tk-form-label" for="editTicketTargetOperator">
                             <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                            <span>Qaysi operatorga (Mas'ul shaxs — Asosiy 100+)</span>
+                            <span>Qaysi operatorga (Mas'ul shaxs)</span>
                         </label>
                         <select id="editTicketTargetOperator" class="tk-form-select">
-                            <option value="all">Barcha operatorlar (Umumiy — Asosiy 100+)</option>
+                            <option value="all">Barcha operatorlar (Umumiy)</option>
                             <option value="101" data-name="Oybek">101 - Oybek</option>
                             <option value="103" data-name="Feruza">103 - Feruza</option>
                             <option value="106" data-name="Gulchehra">106 - Gulchehra</option>
@@ -2490,8 +2495,17 @@
                             <option value="114" data-name="Maxmudbek">114 - Maxmudbek</option>
                             <option value="119" data-name="Muattar">119 - Muattar</option>
                             <option value="120" data-name="Navruzoy">120 - Navruzoy</option>
+                            <option value="200" data-name="Operator 200">200 - Operator 200</option>
+                            <option value="203" data-name="Operator 203">203 - Operator 203</option>
+                            <option value="204" data-name="Operator 204">204 - Operator 204</option>
+                            <option value="205" data-name="Operator 205">205 - Operator 205</option>
+                            <option value="206" data-name="Operator 206">206 - Operator 206</option>
+                            <option value="208" data-name="Operator 208">208 - Operator 208</option>
+                            <option value="209" data-name="Operator 209">209 - Operator 209</option>
                         </select>
                     </div>
+
+                    <div class="tk-customer-fields" data-tk-fields="edit"></div>
 
                     <div class="tk-form-group">
                         <label class="tk-form-label" for="editTicketCustomerPhone">
@@ -2499,21 +2513,6 @@
                             <span>Mijoz telefon raqami</span>
                         </label>
                         <input type="text" id="editTicketCustomerPhone" class="tk-form-input" placeholder="+998 90 123 45 67">
-                    </div>
-
-                    <!-- Shoshilinch (Urgent Priority) Slider Toggle -->
-                    <div class="tk-urgent-toggle-row">
-                        <div class="tk-urgent-info">
-                            <label class="tk-urgent-label" for="editTicketUrgent">
-                                <svg class="isax" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;color:#f59e0b;"><path d="M9.32 21.68C8.98 21.68 8.65 21.51 8.46 21.21C8.13 20.69 8.28 20 8.8 19.67L14.77 15.89H10.13C9.44 15.89 8.88 15.33 8.88 14.64C8.88 14.28 9.04 13.94 9.32 13.72L15.2 9.07L9.54 4.33C9.07 3.94 9.01 3.24 9.4 2.77C9.79 2.3 10.49 2.24 10.96 2.63L18.25 8.74C18.63 9.06 18.78 9.58 18.62 10.05C18.46 10.52 18.03 10.84 17.53 10.84H12.82L15.65 12.63C16.14 12.94 16.32 13.59 16.05 14.11L10.05 21.32C9.87 21.56 9.6 21.68 9.32 21.68Z"/></svg>
-                                <span>Shoshilinch (Tezkor vazifa)</span>
-                            </label>
-                            <span class="tk-urgent-desc">Barcha operatorlarga tezkor ovozli ogohlantirish yuboriladi</span>
-                        </div>
-                        <label class="tk-switch" title="Shoshilinch vazifa deb belgilash">
-                            <input type="checkbox" id="editTicketUrgent">
-                            <span class="tk-slider"></span>
-                        </label>
                     </div>
 
                     <div class="tk-form-group">
@@ -2640,6 +2639,22 @@
                     <div class="tk-meta-item">
                         <span class="tk-meta-label">Mijoz raqami</span>
                         <span class="tk-meta-val" id="boxCustomerPhone">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Mijoz (FISH)</span>
+                        <span class="tk-meta-val" id="boxCustomerName">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Tashkilot</span>
+                        <span class="tk-meta-val" id="boxOrganization">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Shahar / viloyat</span>
+                        <span class="tk-meta-val" id="boxCity">--</span>
+                    </div>
+                    <div class="tk-meta-item">
+                        <span class="tk-meta-label">Ovoz ID (qo'ng'iroq)</span>
+                        <span class="tk-meta-val tk-call-id-val" id="boxCallId">--</span>
                     </div>
                     <div class="tk-meta-item">
                         <span class="tk-meta-label">Mas'ul (Kimga)</span>
@@ -3358,7 +3373,7 @@
     <script src="/js/blacklist.js?v=1.0" defer></script>
     <!-- Tickets Module -->
     <script src="/vendor/mammoth.browser.min.js"></script>
-    <script src="/js/tickets.js?v=2.7" defer></script>
+    <script src="/js/tickets.js?v=3.2" defer></script>
     <!-- Viewer Pure Operator Logic -->
     <script src="/js/viewer.js?v=1794836369348" defer></script>
     <!-- Visual AI Inspector (v0 / Lovable Click-to-Prompt) -->
