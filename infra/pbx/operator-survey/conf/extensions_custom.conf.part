@@ -1,13 +1,18 @@
-
 ; ==== OPERATOR-BAHO BOSHI ====
-; Mijoz navbatda operator bilan gaplashgan va operator go'shakni BIRINCHI qo'ygan bo'lsa,
-; ext-queues dagi ${VQ_DEST} orqali shu yerga keladi (globals_custom.conf: VQ_CONTINUE=c, VQ_DEST).
-; Mijoz o'zi birinchi go'shakni qo'ysa — so'rovnoma bo'lmaydi.
+; Post-call operator survey (call-center repo: infra/pbx/operator-survey). Managed by install.sh / rollback.sh.
+; globals_custom.conf sets VQ_CONTINUE=c and VQ_DEST=operator-baho^s^1, so IssabelPBX's ext-queues sends EVERY
+; caller who leaves the queue here. VQ_DEST replaces the queue's own failover destination, therefore:
+;   QUEUESTATUS=CONTINUE (the operator hung up first)        -> the survey;
+;   anything else (TIMEOUT, JOINEMPTY, LEAVEEMPTY, FULL ...)  -> BAHO_FAILOVER, the queue's failover as before.
+; A caller who hangs up first never gets here.
 [operator-baho]
-exten => s,1,NoOp(Operator bahosi: status=${QUEUESTATUS} member=${MEMBERINTERFACE} uid=${UNIQUEID})
- same => n,GotoIf($["${QUEUESTATUS}" != "CONTINUE"]?end)
- ; So'rovnoma qismi CDR'ga alohida qator bo'lib tushmasin (suhbat qatori o'zgarmaydi)
- same => n,Set(CDR_PROP(disable)=1)
+exten => s,1,NoOp(Operator survey: status=${QUEUESTATUS} member=${MEMBERINTERFACE} uid=${UNIQUEID})
+ same => n,GotoIf($["${QUEUESTATUS}" = "CONTINUE"]?survey)
+ same => n,NoOp(Operator survey: no conversation, queue failover ${BAHO_FAILOVER})
+ same => n,GotoIf($["${BAHO_FAILOVER}" = ""]?end)
+ same => n,Goto(${CUT(BAHO_FAILOVER,^,1)},${CUT(BAHO_FAILOVER,^,2)},${CUT(BAHO_FAILOVER,^,3)})
+ ; The survey must not become a CDR row of its own (the conversation's row is already closed and stays as is).
+ same => n(survey),Set(CDR_PROP(disable)=1)
  same => n,Set(BAHO_TRY=0)
  same => n(ask),Set(BAHO_TRY=$[${BAHO_TRY} + 1])
  same => n,Read(BAHO,custom/baho-savol,1,,1,7)

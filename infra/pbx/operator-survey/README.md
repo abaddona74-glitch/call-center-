@@ -1,116 +1,127 @@
-# Operator baholash (1–5) — Issabel
+# Опрос после звонка (оценка оператора 1–5) — пакет для Issabel
 
-> PBX-side package for the post-call operator survey (Issabel dialplan, AGI, sounds, table).
-> Run by the owner on the PBX console, never by the app (AGENTS.md). Both apps only read
-> `asteriskcdrdb.operator_baho`: the legacy dashboard via `issabelDbService.fetchSurveyStats()`
-> (`legacy/services/issabelDbService.js`, operator cards "Mijoz bahosi"); the new system via
-> `GET /api/stats/operators` (docs/rewrite/METRICS.md §3, DEPLOY.md §11.1).
+Пакет для АТС: диалплан, AGI, звуки, таблица, скрипты установки/отката/проверки. **Ставит и снимает его только владелец
+на консоли АТС под root.** Приложение и ИИ-сессии к АТС не подключаются и ничего на ней не запускают (`AGENTS.md`).
+Обе системы только читают `asteriskcdrdb.operator_baho`: старая — `issabelDbService.fetchSurveyStats()` (карточки операторов
+«Mijoz bahosi»), новая — `GET /api/stats/operators` (`docs/rewrite/METRICS.md` §3; права — `docs/rewrite/DEPLOY.md` §11.1).
 
-## Hozirgi holat (18.11.2026)
+## Что сейчас на АТС (со слов автора пакета, не проверено)
 
-- 14:08 — `install.sh` bilan o'rnatildi; backup: `/root/backup_baho_20261118_140834.tar.gz`.
-- 14:27 — serverda oldindan bor `[sub-evaluate]` so'rovnomasi (12:32 da qo'shilgan; butun
-  `tanlash.wav` ni qo'yib, bahoni `CDR(userfield)` ga yozardi va qo'lda tahrirlangan
-  `extensions_additional.conf` dagi `gotocontinue` qatoriga ulangan edi) `redirect_sub_evaluate.sh` bilan
-  `Goto(operator-baho,s,1)` ga almashtirildi; nusxa: `/etc/asterisk/extensions_custom.conf.bak_142719`.
-  Endi `gotocontinue` qatori bo'lsa ham, Apply Config'dan keyin yo'qolsa ham — qo'ng'iroq `[operator-baho]` ga boradi.
-- 14:28 — test qo'ng'iroq: operator 111 → baho 4 jadvalga yozildi (operator to'g'ri aniqlandi),
-  CDR'da ortiqcha qator yo'q, suhbat yozuvi joyida.
+18.11.2026 пакет установлен на живую АТС в первой версии:
+- 12:32 — до пакета в `extensions_custom.conf` добавлен контекст `[sub-evaluate]` (проигрывал `tanlash.wav`, писал оценку в
+  `CDR(userfield)`), и он подключён строкой `gotocontinue`, **вписанной руками в автогенерируемый `extensions_additional.conf`**
+  (её сотрёт первое же «Apply Config» в веб-интерфейсе Issabel);
+- 14:08 — `install.sh`, резервная копия `/root/backup_baho_20261118_140834.tar.gz`;
+- 14:27 — `redirect_sub_evaluate.sh`: `[sub-evaluate]` перенаправлен в `[operator-baho]`, старые строки закомментированы
+  (`;OLD`), копия `/etc/asterisk/extensions_custom.conf.bak_142719`;
+- 14:28 — проверочный звонок: оператор 111, оценка 4 записана, лишней строки в CDR нет, запись разговора на месте.
 
-## Qanday ishlaydi
+### Чем опасна установленная версия (исправлено в этом пакете)
 
-Mijoz → IVR (`ivr-4`) → navbat `2020159` → operator javob beradi → suhbat →
-**operator go'shakni qo'yadi** → mijoz `baho-savol` ni eshitadi → 1..5 dan birini bosadi →
-`baho-rahmat` → baho `asteriskcdrdb.operator_baho` jadvaliga yoziladi.
+`globals_custom.conf` задаёт **глобальные** `VQ_CONTINUE=c` и `VQ_DEST=operator-baho^s^1`. IssabelPBX в `ext-queues` после
+`Queue()` уходит в `VQ_DEST` **вместо failover-назначения очереди** — для любого исхода, не только «оператор положил трубку».
+В версии 18.11 `[operator-baho]` при любом `QUEUESTATUS`, кроме `CONTINUE`, кладёт трубку. Значит, сейчас:
+- клиент, не дождавшийся оператора (таймаут очереди), или звонок при пустой очереди (все на паузе / не в сети)
+  **сбрасывается**, а не идёт в failover очереди, настроенный в Issabel (Queues → 2020159 → Fail Over Destination);
+- если на АТС есть другие очереди, это касается и их, и опрос включается в них тоже.
 
-- Mijoz o'zi birinchi go'shakni qo'ysa — so'rovnoma bo'lmaydi (u allaqachon chiqib ketgan).
-- Operator qo'ng'iroqni boshqa raqamga transfer qilsa — so'rovnoma bo'lmaydi.
-- 7 soniyada bosmasa yoki 1–5 dan boshqa tugma bossa — yana bir marta so'raydi, keyin tugatadi.
+Если failover очереди 2020159 и так «положить трубку», поведение для клиента не изменилось; если там IVR, голосовая почта или
+другая очередь — звонки теряются с 14:08 18.11. Насколько это касается АТС, покажет `status.sh` (ниже).
 
-Texnik jihatdan: IssabelPBX yaratgan `ext-queues` da `QOPTIONS` ga `${VQ_CONTINUE}` qo'shiladi va
-navbatdan keyin `${VQ_DEST}` ga o'tiladi. Biz bu ikkalasini `globals_custom.conf` da beramiz
-(`c` = operator go'shakni qo'ysa mijoz dialplanda davom etadi). IssabelPBX GUI va
-avto-generatsiya qilinadigan fayllarga tegilmaydi.
+## Как работает (эта версия)
 
-## Baho qayerda saqlanadi: CDR emas, alohida jadval
+Клиент → IVR (`ivr-4`) → очередь `2020159` → разговор → **оператор кладёт трубку** → `baho-savol` → клиент нажимает 1–5 →
+`baho-rahmat` → AGI пишет оценку в `asteriskcdrdb.operator_baho`.
 
-`asteriskcdrdb.operator_baho` — CDR bilan bitta bazada, `uniqueid` orqali bog'lanadi.
+- Клиент положил трубку первым — опроса нет. Оператор перевёл звонок вслепую — опроса нет.
+- Нет нажатия за 7 с или не 1–5 — один повтор, потом конец.
+- **Не было разговора** (таймаут, пустая очередь и т. п.) — звонок уходит в `BAHO_FAILOVER`: это failover очереди 2020159,
+  `install.sh` берёт его из `extensions_additional.conf` и пишет в `globals_custom.conf`. Для клиента — как до опроса.
+- `install.sh` отказывается ставить, если на АТС больше одной очереди: глобальные `VQ_*` включили бы опрос во всех очередях
+  и подменили бы их failover на failover очереди 2020159. Для нескольких очередей нужна отдельная доработка.
+- Часть с опросом не пишется в CDR (`CDR_PROP(disable)=1`): строка разговора к этому моменту уже закрыта и не меняется.
 
-CDR'ning o'ziga yozmaslik sababi:
-1. Operator go'shakni qo'yganda suhbatning CDR qatori **yopilib bo'lgan** bo'ladi. Asterisk so'rovnoma
-   qismi uchun yangi CDR qatori ochadi — `CDR(userfield)` ga yozilgan baho suhbat qatoriga emas,
-   shu yangi "bo'sh" qatorga tushadi.
-2. Bu qo'shimcha qatorlar Issabel hisobotlarida va dashboard'da (`issabelDbService.js` dagi
-   `channel LIKE 'SIP/712020159%'` sharti) ortiqcha qo'ng'iroq bo'lib ko'rinadi. Shuning uchun so'rovnoma
-   qismida `CDR_PROP(disable)=1` qilinadi — CDR'ga hech narsa qo'shilmaydi.
-3. `cdr` jadvalini Issabel o'zi boshqaradi; unga ustun qo'shish yangilanishda muammo beradi.
-   Alohida jadvalda: 1 qo'ng'iroq = 1 baho (`UNIQUE uniqueid`), operator bo'yicha indeks, tez hisobot.
+Оценка хранится не в `cdr`, а в отдельной таблице `asteriskcdrdb.operator_baho` (одна оценка на звонок, `UNIQUE uniqueid`):
+`CDR(userfield)` после разговора попал бы в новую «пустую» строку CDR, а свои столбцы в `cdr` ломают обновления Issabel.
 
-## Fayllar
+## Файлы
 
-| Fayl | Serverda qayerga |
+| Файл | Куда на АТС |
 |---|---|
-| `sounds/baho-savol.wav` (5.7 s, "...birini bosing.") | `/var/lib/asterisk/sounds/custom/` |
-| `sounds/baho-rahmat.wav` (2.0 s, "Bahoyingiz uchun rahmat!") | `/var/lib/asterisk/sounds/custom/` |
-| `agi-bin/operator_baho.php` | `/var/lib/asterisk/agi-bin/` |
-| `operator_baho.sql` | `asteriskcdrdb.operator_baho` jadvali |
-| `conf/extensions_custom.conf.part` | `/etc/asterisk/extensions_custom.conf` oxiriga |
-| `conf/globals_custom.conf.part` | `/etc/asterisk/globals_custom.conf` oxiriga (yoqish tugmasi) |
-| `conf/queues_post_custom.conf.part` | `/etc/asterisk/queues_post_custom.conf` oxiriga (`setinterfacevar=yes`) |
-| `backup.sh`, `install.sh`, `rollback.sh`, `lib.sh` | skriptlar |
-| `verify.sh` | test qo'ng'iroqdan keyin tekshiruv (faqat o'qiydi): oxirgi baholar, CDR qatorlari, yozuv fayli |
-| `redirect_sub_evaluate.sh` | eski `[sub-evaluate]` ni `[operator-baho]` ga yo'naltirish (bir martalik, bajarilgan) |
+| `sounds/baho-savol.wav` (5,7 с), `sounds/baho-rahmat.wav` (2,0 с) — 8 кГц, моно, 16 бит | `/var/lib/asterisk/sounds/custom/` |
+| `agi-bin/operator_baho.php` (PHP 5.4+) | `/var/lib/asterisk/agi-bin/` |
+| `operator_baho.sql` | таблица `asteriskcdrdb.operator_baho` |
+| `conf/extensions_custom.conf.part` | блок `[operator-baho]` в `/etc/asterisk/extensions_custom.conf` |
+| `conf/globals_custom.conf.part` | блок `VQ_CONTINUE`, `VQ_DEST`, `BAHO_FAILOVER` в `/etc/asterisk/globals_custom.conf` (включает опрос) |
+| `conf/queues_post_custom.conf.part` | `setinterfacevar=yes` для очереди в `/etc/asterisk/queues_post_custom.conf` |
+| `status.sh` | только чтение: очереди, их failover, что установлено, ручные правки, права `cc_readonly` |
+| `install.sh` | установка и обновление (заменяет только свои блоки между `OPERATOR-BAHO BOSHI/OXIRI`) |
+| `backup.sh` | полная резервная копия перед установкой (вызывается из `install.sh`) |
+| `verify.sh` | только чтение: последние оценки, строки CDR, запись разговора, звонки, закончившиеся в `operator-baho` |
+| `rollback.sh` | выключить опрос (убирает свои блоки, оценки остаются) |
+| `redirect_sub_evaluate.sh` | одноразовый, **выполнен 18.11, повторно не запускать** |
+| `lib.sh`, `lib-conf.sh` | общие функции |
+| `test/` | тесты пакета (запускаются у разработчика в Docker, не на АТС) |
 
-`tanlash.mp3` → 8 kHz, mono, 16-bit PCM WAV (Asterisk formati) qilingan va 5.70 s dagi pauzadan
-ikkiga bo'lingan. **O'rnatishdan oldin ikkala wav'ni eshitib ko'ring.**
+## Что сделать на АТС (владельцу, по порядку)
 
-## O'rnatish
+1. **Решить**, оставляем ли опрос. Если нет — сразу шаг «Откат» ниже.
+2. Скопировать пакет на АТС (как обычно, через Kerio):
+   `scp -r infra/pbx/operator-survey issabel:/root/operator_baho`
+3. `bash /root/operator_baho/status.sh` и посмотреть:
+   - очередей ровно одна (`2020159`), иначе остановиться и написать разработчику;
+   - «определённый failover» совпадает с Queues → 2020159 → Fail Over Destination в веб-интерфейсе;
+   - есть ли ручные правки в `extensions_additional.conf` (`gotocontinue`, `sub-evaluate`).
+4. `bash /root/operator_baho/install.sh` — сделает резервную копию и **обновит** блоки 18.11 (в выводе `updated`).
+   Если failover не определился, скрипт остановится и покажет строки; тогда
+   `BAHO_FAILOVER='контекст^экстеншн^приоритет' bash install.sh`.
+5. Проверочные звонки с мобильного на номер колл-центра:
+   1. оператор отвечает и **кладёт трубку первым** → звучит вопрос → нажать `4` → «rahmat»;
+   2. клиент кладёт трубку первым → опроса нет;
+   3. **все операторы на паузе** (или дождаться таймаута очереди) → звонок идёт туда же, куда шёл до опроса (failover),
+      а не сбрасывается — это главная проверка исправления;
+   4. оператор переводит звонок другому: при слепом переводе опроса нет; при сопровождаемом (по логике Asterisk) опрос
+      будет, когда трубку положит второй оператор, и новая система засчитает оценку ему — это стоит проверить звонком.
+6. `bash /root/operator_baho/verify.sh` — оценка записана, лишних строк в CDR нет, запись разговора на месте, нет звонков,
+   закончившихся в `operator-baho`.
+7. Ручная правка `gotocontinue` в `extensions_additional.conf`, если `status.sh` её показал: в спокойное время нажать
+   «Apply Config» в веб-интерфейсе Issabel (он перегенерирует файл; перед этим убедиться, что в интерфейсе нет чужих
+   неприменённых изменений), затем снова `status.sh`. После этого `[sub-evaluate]` никем не используется, его можно удалить
+   из `extensions_custom.conf` руками (копия уже есть в резервной копии).
+8. Чтобы оценки появились в новой системе — GRANT для `cc_readonly` из `docs/rewrite/DEPLOY.md` §11.1.
 
-Windows'dan (parol 2 marta so'raladi: avval kerio, keyin issabel):
+## Откат
 
-```
-scp -r infra\pbx\operator-survey issabel:/root/operator_baho
-ssh issabel "bash /root/operator_baho/install.sh"
-```
+- Выключить опрос (оценки, звуки и AGI остаются): `bash /root/operator_baho/rollback.sh`. Очереди снова уходят в свой
+  failover, при «оператор положил трубку» звонок просто заканчивается.
+- Остаётся `[sub-evaluate]` с переходом в несуществующий после отката `[operator-baho]`: если ручная строка `gotocontinue`
+  ещё в `extensions_additional.conf`, звонок после разговора просто завершится. Убрать её — шаг 7 выше.
+- Полный возврат любой версии конфигов: `/root/backup_baho_<время>.tar.gz` → `etc_asterisk/*_custom.conf` в `/etc/asterisk/`,
+  затем `asterisk -rx "dialplan reload"`. Архив содержит пароли SIP из базы `asterisk` — не выносить с АТС.
 
-`install.sh` tartibi: tekshiruv → **to'liq backup** (`/root/backup_baho_<vaqt>.tar.gz`; xato bo'lsa
-to'xtaydi) → ovozlar → AGI → jadval → `*_custom.conf` → `dialplan reload` + `module reload app_queue.so`.
-So'rovnoma eng oxirgi qadamda (`globals_custom.conf`) yoqiladi.
-
-## Test
-
-1. Mobil telefondan call-center raqamiga qo'ng'iroq qiling → operator javob bersin → **operator** go'shakni qo'ysin.
-2. Ovoz eshitiladi → masalan `4` ni bosing → "rahmat".
-3. Serverda tekshiring:
-
-```sql
--- baho yozildimi
-SELECT * FROM asteriskcdrdb.operator_baho ORDER BY id DESC LIMIT 5;
-
--- MUHIM: suhbatning CDR qatori va yozuvi (recordingfile) joyidami, ortiqcha qator yo'qmi
-SELECT calldate, dcontext, dst, dstchannel, disposition, billsec, recordingfile
-FROM asteriskcdrdb.cdr WHERE uniqueid = '<yuqoridagi uniqueid>' ORDER BY calldate;
-```
-
-Agar `operator_ext` bo'sh bo'lsa: `tail /var/log/asterisk/operator_baho.log` va
-`grep include /etc/asterisk/queues.conf` ni menga yuboring.
-
-## Hisobot
+## Отчёт по оценкам (SQL на АТС)
 
 ```sql
 SELECT b.operator_ext, b.operator_name,
-       COUNT(*) AS baholar, ROUND(AVG(b.baho), 2) AS ortacha,
-       SUM(b.baho = 5) AS besh, SUM(b.baho <= 2) AS past
+       COUNT(*) AS ratings, ROUND(AVG(b.baho), 2) AS avg,
+       SUM(b.baho = 5) AS fives, SUM(b.baho <= 2) AS low
 FROM asteriskcdrdb.operator_baho b
 WHERE b.rated_at >= CURDATE() - INTERVAL 30 DAY
-  AND LENGTH(b.src) >= 7                       -- ichki test qo'ng'iroqlarsiz
+  AND LENGTH(b.src) >= 7                       -- без внутренних тестовых звонков
 GROUP BY b.operator_ext, b.operator_name
-ORDER BY ortacha DESC;
+ORDER BY avg DESC;
 ```
 
-## O'chirish / qaytarish
+## Тесты пакета (у разработчика, в Docker; к АТС не подключаются)
 
-- Tez o'chirish (baholar saqlanib qoladi): `bash /root/operator_baho/rollback.sh` — navbatdagi `c`
-  ham o'chadi, shuning uchun eski `[sub-evaluate]` ham ishlamaydi (so'rovnoma umuman bo'lmaydi).
-- To'liq qaytarish: `/root/backup_baho_<vaqt>.tar.gz` ichidagi `etc_asterisk/` dan kerakli
-  `*_custom.conf` fayllarni `/etc/asterisk/` ga qaytarib, `asterisk -rx "dialplan reload"`.
+```bash
+# функции разбора конфигов на фикстурах (GNU bash/sed, как на CentOS)
+docker run --rm -v "$PWD/infra/pbx/operator-survey:/s:ro" debian:trixie-slim bash /s/test/conf-test.sh
+# install.sh / повтор / обновление версии 18.11 / отказ при 2 очередях / rollback.sh — в одноразовом контейнере с заглушками
+docker run --rm -v "$PWD/infra/pbx/operator-survey:/src:ro" debian:trixie-slim bash /src/test/install-sandbox.sh
+# AGI по протоколу Asterisk против MariaDB с таблицей (своя копия dev-АТС, не общая и не прод)
+TEST_DB_PORT=33061 TEST_USER=baho_writer TEST_PASS=... bash infra/pbx/operator-survey/test/agi-test.sh
+```
+
+Фикстура `test/fixtures/extensions_additional.conf` повторяет формат FreePBX 2.11 по памяти; реальный формат на АТС
+показывает `status.sh`, и `install.sh` остановится, если строка failover выглядит иначе.

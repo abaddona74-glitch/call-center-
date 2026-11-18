@@ -1,6 +1,5 @@
-
 ; ==== OPERATOR-BAHO BOSHI ====
-; Javob bergan operatorni mijoz kanalida MEMBERINTERFACE/MEMBERNAME sifatida saqlash
-[2020159](+)
+; Post-call operator survey: keep the answering member on the caller's channel as MEMBERINTERFACE/MEMBERNAME.
+[@BAHO_QUEUE@](+)
 setinterfacevar=yes
 ; ==== OPERATOR-BAHO OXIRI ====

@@ -1,4 +1,6 @@
 #!/bin/bash
+# ONE-OFF, ALREADY RUN on the PBX on 18.11.2026 at 14:27 (README.md, "Что сейчас на АТС"). Do not run again:
+# kept only as the record of what was changed by hand. The SELECTs at the end are that day's debug queries.
 # Eski [sub-evaluate] -> [operator-baho]. Faqat extensions_custom.conf (nusxa bilan); asl qatorlar ;OLD bo'ladi.
 set -euo pipefail
 F=/etc/asterisk/extensions_custom.conf
