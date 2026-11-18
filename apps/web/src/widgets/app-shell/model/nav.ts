@@ -15,6 +15,7 @@ import {
   Ticket,
   UserRound,
   Users,
+  Wrench,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -65,5 +66,6 @@ export const NAV_ITEMS: NavItem[] = [
     icon: MapPinned,
     permission: 'tickets.directories.manage',
   },
+  { to: '/tools', label: 'nav.tools', icon: Wrench, permission: 'tools.view' },
   { to: '/profile', label: 'nav.profile', icon: UserRound },
 ];

@@ -265,6 +265,7 @@ nano .env
 | `PBX_DB_*`                     | `cc_readonly` (п. 11)                                                                    |
 | `AMI_*`                        | пользователь AMI `cc_monitor`; `AMI_ASTDB_*` — `cc_astdb` для чёрного списка (п. 11.2)   |
 | `SFTP_*`                       | позже (S5): `SFTP_MONITOR_PATH=/monitor` при chroot                                      |
+| `TOOLS_*`                      | раздел «Инструменты», п. 14: ссылка Telegram Form, проверка Uzcrypto, лимиты конвертера   |
 
 `check-env.sh` запускается и перед каждым деплоем: с ошибками деплой не начнётся. Он же предупреждает о ключах, которые
 появились в новом `.env.example`, но отсутствуют в `.env`. Новые переменные приложения (WebAuthn, почта, Telegram и т.д.)
@@ -711,3 +712,46 @@ df -h /opt/callcenter; docker system df
 
 Файлы на сервере: `.deploy-state` (CURRENT_TAG, PREVIOUS_TAG), `.deploy-history` (время, результат, тег, предыдущий),
 `.rollback/` (compose-файлы прошлого релиза на время деплоя), `releases/<SHA>/` (последние 10), `logs/{deploy,backup,restore}.log`.
+
+## 14. Раздел «Инструменты» (S8)
+
+Страница `/tools`: ссылки на кабинеты, Uzcrypto, очиститель AnyDesk, справочник ответственных, клавиатура 2026,
+универсальный конвертер. Своих таблиц в БД нет.
+
+**Конвертер без внешних программ.** Legacy запускал Python (`converter.py`: pdf2docx, PyMuPDF, reportlab, Pillow).
+В новой системе нет ни Python, ни LibreOffice, ни shell:
+
+| Что | Где | Чем |
+| --- | --- | --- |
+| JPG / PNG / WEBP → JPG / PNG / WEBP / PDF | браузер | canvas; PDF из картинки собирается без библиотек |
+| PDF → PNG / JPG (200 dpi, несколько страниц → ZIP), PDF → TXT / DOCX (текстовый слой) | браузер | pdf.js (`pdfjs-dist`, грузится только при открытии конвертера) |
+| DOCX → PDF / TXT, DOC → DOCX / PDF / TXT, TXT → PDF / DOCX | сервер | `mammoth`, `pdfmake` (шрифт Roboto), `word-extractor`, `jszip` — чистый JavaScript |
+
+Сервер не разбирает PDF вообще (у pdf.js были уязвимости с выполнением кода). Каждая серверная конвертация идёт в
+отдельном `worker_thread` без переменных окружения, с лимитом памяти (`TOOLS_CONVERT_MEMORY_MB`, 512) и таймаутом
+(`TOOLS_CONVERT_TIMEOUT_SEC`, 60 с), поток уничтожается после ответа. Одновременно — `TOOLS_CONVERT_CONCURRENCY`
+(2), остальным 503. Лимит 10 запросов в минуту с одного IP, файл ≤ 35 МБ, проверка сигнатуры (DOCX = ZIP,
+DOC = OLE, TXT без NUL-байтов и не PDF). Файл не пишется на диск: multer держит его в памяти, результат уходит
+в ответ. Имя файла в логи не попадает (там бывают ФИО граждан).
+
+**Влияние на образ `api`.** Новые prod-зависимости ≈ **33 МБ** в `node_modules` (pdfmake + pdfkit + fontkit ≈ 28 МБ,
+вместе с браузерными сборками и source map; word-extractor, jszip, htmlparser2 — < 1 МБ, частично уже были). Нативных
+модулей и системных пакетов нет, `Dockerfile` не менялся. Для сравнения: Python-стек legacy (python3 + pdf2docx
+с opencv/numpy + PyMuPDF + reportlab + Pillow) дал бы +350–450 МБ, LibreOffice — +400–700 МБ. Файлы для скачивания
+(`clean-anydesk.bat`, `uzb2026-klaviatura.zip`) — 268 КБ, лежат в `dist/modules/tools/files` (копирует `nest build`).
+Проверено в собранном образе (`node:26-alpine`, 18.11.2026): `/app/node_modules` — 190 МБ; DOCX на 3000 абзацев
+(≈ 60 страниц) → PDF за 0,8 с, пик памяти процесса ≈ +170 МБ; предел одной конвертации — лимит воркера.
+
+**Сеть.** Версия Uzcrypto берётся с `https://edo.ijro.uz/` (только этот хост, TLS проверяется, кеш 1 час, при
+ошибке — последняя известная или встроенная 2.2.4.24). Контейнеру `api` нужен исходящий HTTPS на `edo.ijro.uz`;
+если он закрыт, поставить `TOOLS_UZCRYPTO_LOOKUP=false` — карточка покажет встроенную версию, кнопка «Yuklab olish»
+всё равно ведёт на сайт поставщика (`302`). Остальные ссылки (кабинеты EDO / E-Huquqshunos, генератор писем Ijro,
+Telegram Form) открывает браузер пользователя.
+
+**Caddy (CSP).** «Shu yerda ochish» для генератора писем Ijro показывает внешний сайт во фрейме, поэтому в CSP
+добавлен `frame-src https://xat-tayyorlash.vercel.app`. Кабинеты EDO и E-Huquqshunos сами запрещают показ во фрейме
+(`X-Frame-Options`), у них только «Ochish» в новой вкладке. pdf.js работает без `wasm-unsafe-eval` (wasm выключен).
+
+**Telegram Form.** Прокси `/telegram-form` из legacy не переносится: адрес отдельного приложения задаётся в
+`TOOLS_TELEGRAM_FORM_URL`; пусто — карточка показывает «Sozlanmagan».
+

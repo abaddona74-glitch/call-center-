@@ -1,0 +1,426 @@
+/* Ported from legacy/viewer/public/tools/uzb2026.html (<style>). */
+.uk-root {
+  --uk-card: rgba(15, 23, 42, 0.85);
+  --uk-border: rgba(59, 130, 246, 0.25);
+  --uk-border-hi: rgba(56, 189, 248, 0.5);
+  --uk-text: #f8fafc;
+  --uk-muted: #94a3b8;
+  --uk-dim: #64748b;
+  --uk-blue: #38bdf8;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-width: 0;
+  color: var(--uk-text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.uk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  background: var(--uk-card);
+  border: 1px solid var(--uk-border);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.uk-header-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.uk-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284c7, #6366f1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+  flex-shrink: 0;
+}
+.uk-header-title h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #fff;
+}
+.uk-header-title p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--uk-muted);
+}
+.uk-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #fff;
+  text-decoration: none;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 13.5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.uk-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+}
+
+/* "Muhim qoida" banner */
+.uk-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+.uk-alert > svg {
+  color: var(--uk-blue);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.uk-alert-text {
+  margin: 0;
+  font-size: 13.5px;
+  color: #e2e8f0;
+}
+.uk-alert-text strong {
+  color: var(--uk-blue);
+}
+
+.uk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+/* The widget also lives in a modal: switch on its own width, not the viewport's. */
+@container uk (max-width: 900px) {
+  .uk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.uk-root {
+  container: uk / inline-size;
+}
+
+/* Cards */
+.uk-card {
+  min-width: 0;
+  background: var(--uk-card);
+  border: 1px solid var(--uk-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+}
+.uk-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.uk-card-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+.uk-card-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  white-space: nowrap;
+}
+.uk-card-badge.blue {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+/* Cheat sheet */
+.uk-keys {
+  display: grid;
+  /* legacy 200px; 240px keeps "O'ng Alt + Shift + S → Ş" inside its tile in narrow containers (same 2 columns at full width) */
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.uk-key-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+}
+.uk-key-item:hover {
+  border-color: var(--uk-border-hi);
+  background: rgba(30, 41, 59, 0.9);
+  transform: translateY(-1px);
+}
+.uk-combo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.uk-kbd {
+  display: inline-block;
+  padding: 3px 8px;
+  background: #1e293b;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-bottom: 2px solid rgba(56, 189, 248, 0.6);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-family: monospace;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.uk-arrow {
+  color: var(--uk-dim);
+  font-weight: 700;
+  font-size: 12px;
+}
+.uk-result {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(56, 189, 248, 0.15);
+  padding: 2px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  min-width: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  line-height: 1.6;
+}
+.uk-result:hover {
+  background: var(--uk-blue);
+  color: #0b1120;
+  transform: scale(1.08);
+}
+
+/* Playground */
+.uk-playground {
+  margin-top: 20px;
+}
+.uk-playground-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.uk-playground-label {
+  font-weight: 700;
+  color: #fff;
+  font-size: 13px;
+}
+.uk-count {
+  font-size: 12px;
+  color: var(--uk-dim);
+  white-space: nowrap;
+}
+.uk-textarea {
+  display: block;
+  width: 100%;
+  height: 140px;
+  background: #0f172a;
+  border: 1px solid var(--uk-border);
+  border-radius: 12px;
+  padding: 14px;
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.uk-textarea::placeholder {
+  color: var(--uk-dim);
+}
+.uk-textarea:focus {
+  border-color: var(--uk-blue);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+.uk-playground-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.uk-quick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.uk-quick-label {
+  font-size: 12px;
+  color: var(--uk-muted);
+  margin-right: 4px;
+}
+.uk-quick-btn {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uk-quick-btn:hover {
+  background: var(--uk-blue);
+  color: #0b1120;
+  border-color: var(--uk-blue);
+}
+.uk-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--uk-text);
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.uk-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+/* Install guide */
+.uk-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.uk-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 16px;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+.uk-step-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+.uk-step h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.uk-step p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--uk-muted);
+}
+.uk-step code {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--uk-blue);
+  font-family: monospace;
+  font-size: 12px;
+}
+
+/* "Nega aynan O'ng Alt?" note */
+.uk-why {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+}
+.uk-why-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  color: #f59e0b;
+  font-size: 13px;
+}
+.uk-why p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+.uk-why code {
+  font-family: monospace;
+}
+
+.uk-download:active,
+.uk-quick-btn:active,
+.uk-copy-btn:active {
+  transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .uk-root * {
+    transition: none !important;
+  }
+}

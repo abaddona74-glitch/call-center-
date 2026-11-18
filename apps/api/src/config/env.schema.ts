@@ -142,7 +142,10 @@ export const EnvSchema = z.object({
   /** Operator phone channel technology: "SIP" (chan_sip, Issabel default) or "PJSIP". */
   AMI_CHANNEL_TECH: z.enum(['SIP', 'PJSIP']).default('SIP'),
   /** Dialplan context for click-to-call and transfers. */
-  AMI_DIAL_CONTEXT: z.string().regex(/^[A-Za-z0-9_-]+$/).default('from-internal'),
+  AMI_DIAL_CONTEXT: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .default('from-internal'),
   /** Queue member interface used for pause/unpause; {ext} is replaced. */
   AMI_QUEUE_MEMBER_INTERFACE: z
     .string()
@@ -221,6 +224,18 @@ export const EnvSchema = z.object({
   CALLBACKS_RECONCILE_LOOKBACK_HOURS: z.coerce.number().int().min(1).max(744).default(48),
   /** Extensions with a personal AstDB block list `blacklist_<ext>` read by the PBX dialplan (legacy: 114). */
   BLACKLIST_OPERATOR_EXTENSIONS: csvWithDefault('114').pipe(z.array(z.string().regex(/^\d{2,6}$/))),
+
+  // --- Tools (docs: packages/shared/src/tools.ts) ---
+  /** Telegram Form dashboard link on the tools page (a separate app). Unset = the card says "not configured". */
+  TOOLS_TELEGRAM_FORM_URL: z.url({ protocol: /^https?$/ }).optional(),
+  /** Read the latest Uzcrypto version from edo.ijro.uz (cached 1 h). false = always the built-in version. */
+  TOOLS_UZCRYPTO_LOOKUP: z.stringbool().default(true),
+  /** Converter: one conversion is killed after this many seconds. */
+  TOOLS_CONVERT_TIMEOUT_SEC: z.coerce.number().int().min(5).max(300).default(60),
+  /** Converter: conversions running at the same time (each in its own worker thread); more → 503. */
+  TOOLS_CONVERT_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(2),
+  /** Converter: heap limit of one conversion worker, MB. */
+  TOOLS_CONVERT_MEMORY_MB: z.coerce.number().int().min(128).max(2048).default(512),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
