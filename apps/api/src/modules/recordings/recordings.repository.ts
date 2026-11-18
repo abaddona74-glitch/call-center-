@@ -1,26 +1,29 @@
 import { normalizeUzPhone } from '@cc/shared';
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { type Kysely, sql } from 'kysely';
+import { AppConfig } from '../../config/app-config.js';
 import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import type { PbxDB } from '../../pbx/pbx-db.types.js';
 import type { CdrRecordingRow } from './domain/cdr-recording.js';
 
-const COLUMNS = [
-  'calldate',
-  'uniqueid',
-  'linkedid',
-  'src',
-  'dst',
-  'cnum',
-  'channel',
-  'dstchannel',
-  'recordingfile',
-] as const;
+const COLUMNS = ['calldate', 'uniqueid', 'src', 'dst', 'cnum', 'channel', 'dstchannel', 'recordingfile'] as const;
 
 /** Read-only CDR lookups for recordings (parameterized SELECTs only). */
 @Injectable()
 export class RecordingsRepository {
-  constructor(@InjectPbxDb() private readonly pbx: PbxDb) {}
+  private readonly hasLinkedid: boolean;
+
+  constructor(
+    @InjectPbxDb() private readonly pbx: PbxDb,
+    config: AppConfig,
+  ) {
+    // Some Issabel PBXs have no cdr.linkedid column (PBX_CDR_HAS_LINKEDID=false): a call is its uniqueid.
+    this.hasLinkedid = config.get('PBX_CDR_HAS_LINKEDID');
+  }
+
+  private get linkedid() {
+    return this.hasLinkedid ? sql<string>`linkedid` : sql<string>`uniqueid`;
+  }
 
   private db(): Kysely<PbxDB> {
     if (!this.pbx) throw new ServiceUnavailableException('PBX unavailable');
@@ -32,7 +35,12 @@ export class RecordingsRepository {
     const rows = await this.db()
       .selectFrom('cdr')
       .select(COLUMNS)
-      .where((eb) => eb.or([eb('uniqueid', '=', uniqueid), eb('linkedid', '=', uniqueid)]))
+      .select(this.linkedid.as('linkedid'))
+      .where((eb) =>
+        this.hasLinkedid
+          ? eb.or([eb('uniqueid', '=', uniqueid), eb('linkedid', '=', uniqueid)])
+          : eb('uniqueid', '=', uniqueid),
+      )
       .orderBy('calldate')
       .limit(100)
       .execute();
@@ -44,13 +52,18 @@ export class RecordingsRepository {
    * `search` is an exact operator extension or an exact client number (after normalizeUzPhone).
    * Returns at most `limit` rows; callers pass limit+1 to detect "too many".
    */
-  async recordedCallsInRange(from: string, to: string, search: string | undefined, limit: number): Promise<CdrRecordingRow[]> {
+  async recordedCallsInRange(
+    from: string,
+    to: string,
+    search: string | undefined,
+    limit: number,
+  ): Promise<CdrRecordingRow[]> {
     let q = this.db()
       .selectFrom('cdr')
       .select([
         'uniqueid',
         sql<string>`MIN(calldate)`.as('calldate'),
-        sql<string>`MAX(linkedid)`.as('linkedid'),
+        sql<string>`MAX(${this.linkedid})`.as('linkedid'),
         sql<string>`MAX(src)`.as('src'),
         sql<string>`MAX(dst)`.as('dst'),
         sql<string>`MAX(cnum)`.as('cnum'),
@@ -81,17 +94,22 @@ export class RecordingsRepository {
       } else {
         const phone = normalizeUzPhone(term);
         if (!phone) return [];
-        const variants = phone.length === 9 ? [phone, `998${phone}`, `+998${phone}`, `8${phone}`, `0${phone}`] : [phone];
+        const variants =
+          phone.length === 9 ? [phone, `998${phone}`, `+998${phone}`, `8${phone}`, `0${phone}`] : [phone];
         q = q.where((eb) => eb.or([eb('src', 'in', variants), eb('dst', 'in', variants)]));
       }
     }
 
-    const rows = await q.groupBy('uniqueid').orderBy(sql`MIN(calldate)`).limit(limit).execute();
+    const rows = await q
+      .groupBy('uniqueid')
+      .orderBy(sql`MIN(calldate)`)
+      .limit(limit)
+      .execute();
     return rows.map(toRow);
   }
 }
 
-function toRow(r: Partial<Record<(typeof COLUMNS)[number], unknown>>): CdrRecordingRow {
+function toRow(r: Partial<Record<(typeof COLUMNS)[number] | 'linkedid', unknown>>): CdrRecordingRow {
   return {
     calldate: String(r.calldate ?? ''),
     uniqueid: String(r.uniqueid ?? ''),

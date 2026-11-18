@@ -1,5 +1,12 @@
 # SITE_ADDRESS: ":80" behind another TLS proxy (e.g. Kerio), or a domain like
 # "uniconsoft.ddns.net" to let Caddy obtain a Let's Encrypt certificate itself.
+{
+	# Browsers send no SNI when the address is an IP (https://192.168.0.30), and behind Docker's NAT Caddy
+	# sees the container's address, not that IP, so it cannot pick the certificate and the TLS handshake
+	# fails. Fall back to the site's own certificate. Harmless for a domain or ":80".
+	default_sni {$SITE_ADDRESS:localhost}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
