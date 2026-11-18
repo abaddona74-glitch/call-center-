@@ -6,10 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { businessToday, calendarLabels, callHistoryQuery, type RangePresetId, rangePresets } from '@/entities/call';
 import { useSessionUser } from '@/entities/session';
 import { isHttpError } from '@/shared/api';
+import { useZipExport } from '@/features/recordings/zip-export';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';
 import { ModalButton } from '@/shared/ui/modal';
 import { toDmy } from '@/shared/ui/range-calendar';
 import { Icon } from '@/shared/ui/icon';
+import { LegacyIcon } from '@/shared/ui/legacy-icon';
 import { NativeSelect } from '@/shared/ui/native-select';
 import { Pagination } from '@/shared/ui/pagination';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
@@ -32,6 +34,8 @@ export function HistoryPage() {
   const [rangeOpen, setRangeOpen] = useState(false);
   const { t: tc } = useTranslation('call');
   const user = useSessionUser();
+  const canListen = canAccessCdr(user, 'calls.recordings');
+  const zip = useZipExport();
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const today = businessToday();
@@ -208,7 +212,7 @@ export function HistoryPage() {
           columnVisibility={columns}
           onColumnVisibilityChange={setColumns}
           onOpenDetails={setSelected}
-          canListen={canAccessCdr(user, 'calls.recordings')}
+          canListen={canListen}
           placeholder={placeholder}
         />
         {data && data.total > 0 && (
@@ -221,7 +225,7 @@ export function HistoryPage() {
         )}
       </Panel>
 
-      <CallDetailsDialog call={selected} onClose={() => setSelected(null)} />
+      <CallDetailsDialog call={selected} onClose={() => setSelected(null)} canListen={canListen} />
 
       <DateRangeModal
         open={rangeOpen}
@@ -245,7 +249,18 @@ export function HistoryPage() {
         {(r, valid) => (
           <>
             <ModalButton onClick={() => setRangeOpen(false)}>{t('cancel')}</ModalButton>
-            {/* TODO(S5 recordings): "Ovozlarni yuklab olish (.zip)" for the chosen range belongs to the recordings module. */}
+            {canListen && (
+              <ModalButton
+                tone="green"
+                disabled={!valid || zip.isPending}
+                onClick={() => {
+                  zip.mutate({ source: 'range', from: r.from, to: r.to, zipName: `recordings_${r.from}_${r.to}.zip` });
+                  setRangeOpen(false);
+                }}
+              >
+                <LegacyIcon name="document-download" className="size-4" /> {t('zipRange')}
+              </ModalButton>
+            )}
             <ModalButton
               tone="blueOutline"
               disabled={!valid}

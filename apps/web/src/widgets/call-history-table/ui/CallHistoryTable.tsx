@@ -1,9 +1,10 @@
 import type { CallListItem } from '@cc/shared';
+import { CallRecordingButton } from '@/features/recordings/play-call';
 import { CreateTicketButton } from '@/features/tickets/create-ticket';
 import { columnVisibilityFeature, createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CallDirectionBadge, CallStatusBadge, DirectionMark, formatDuration } from '@/entities/call';
+import { CallDirectionBadge, CallStatusBadge, DirectionMark, formatDuration, formatPhone } from '@/entities/call';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
@@ -21,6 +22,11 @@ const ALIGN: Record<string, string> = {
 };
 
 /** Legacy `.recent-calls-table` row tint + 3px left accent (miss / lost / xfer). */
+/** Player title for a call's recording: the client's number (or the call id when hidden) and when. */
+export function recordingLabel(c: CallListItem): string {
+  return `${formatPhone(c.clientNumber ?? c.clientNumberRaw) || c.id} · ${c.date} ${c.time}`;
+}
+
 function rowTone(c: CallListItem): string {
   if (c.transferred) return 'xfer';
   if (c.status === 'busy' || c.status === 'no_answer' || c.status === 'failed') return 'miss';
@@ -219,12 +225,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
               <CreateTicketButton callId={c.id} variant="table" />
               {c.hasRecording ? (
                 <>
-                  {canListen && (
-                    // TODO(S5 recordings): play `c.recordingFile` via the recordings module / open it in Audio Explorer.
-                    <TableButton primary disabled title={t('listenSoon')}>
-                      <Icon name="play" className="size-3" /> {t('listen')}
-                    </TableButton>
-                  )}
+                  {canListen && <CallRecordingButton uniqueid={c.id} label={recordingLabel(c)} />}
                   <TableButton onClick={() => onOpenDetails(c)}>
                     <Icon name="search-normal" className="size-3" /> {t('detail')}
                   </TableButton>
