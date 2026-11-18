@@ -135,7 +135,7 @@ stay the same, and the deployment keeps the legacy `WEBAUTHN_RP_ID` / `WEBAUTHN_
 | `callbacks`              | S4                 | `pending_callbacks` (all statuses)                                    | stub                                      |
 | `blacklist`              | S4                 | `blacklist` (ext 114 only)                                            | stub                                      |
 | `transcripts`            | stage 2 (STT) / S5 | `call_transcriptions`, `stt_learned_rules`, `stt_custom_rules.json`   | stub                                      |
-| `tickets`                | S5                 | `tickets.json` (+ upload files)                                       | stub                                      |
+| `tickets`                | S7 (was S5)        | `tickets.json` (+ upload files)                                       | implemented — new workflow model, see below |
 | `telegram-subscribers`   | stage 2            | `telegram_subscribers.json`                                           | stub                                      |
 | `remote-desktop-devices` | stage 2            | `rustdesk_devices.json`                                               | stub                                      |
 
@@ -147,6 +147,15 @@ missing. Its TODO comment summarises the mapping notes from data.md.
 (synthetic), `auth_sessions` (users log in again), `auth_lockouts`, `auth_password_resets` and
 `auth_email_verifications`; `agent_3cx_call_logs` (the 3CX desktop agent is dropped, see
 `docs/rewrite/DECISIONS.md`).
+
+### Tickets (S7)
+
+Legacy tickets have no region and no category. Set `LEGACY_TICKETS_DEFAULT_REGION=<region code>` (e.g.
+`toshkent-shahri`, codes in `GET /api/tickets/directories`) to put every imported ticket into that region;
+leave it empty to import them without a region — the superuser routes open ones from the "Hududsiz" (triage)
+tab of /tickets. Status: pending → new, in_progress → in_progress, completed/rejected → closed (resolution
+kept, nothing goes to the callback queue). No SLA due date (never counted as overdue). Urgency becomes a
+`[Shoshilinch]` prefix of the description; the addressed operator is dropped with a warning.
 
 ### Implementing a stub
 

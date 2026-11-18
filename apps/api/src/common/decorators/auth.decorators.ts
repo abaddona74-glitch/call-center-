@@ -1,8 +1,7 @@
 import { type ExecutionContext, SetMetadata, createParamDecorator } from '@nestjs/common';
-import type { GroupFlag, Permission, RoleLevel, SessionUser } from '@cc/shared';
+import type { GroupFlag, Permission, SessionUser } from '@cc/shared';
 
 export const IS_PUBLIC_KEY = 'auth:isPublic';
-export const ROLES_KEY = 'auth:roles';
 export const PERMISSION_KEY = 'auth:permission';
 export const ALLOW_PASSWORD_CHANGE_PENDING_KEY = 'auth:allowPasswordChangePending';
 export const DENY_IMPERSONATION_KEY = 'auth:denyImpersonation';
@@ -16,12 +15,6 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
  * operator groups can switch some off. A group flag name (`'canSeeContacts'`) is accepted as an alias.
  */
 export const RequirePermission = (permission: Permission | GroupFlag) => SetMetadata(PERMISSION_KEY, permission);
-
-/**
- * @deprecated Compatibility for code written before permissions: minimum role level.
- * `@Roles('admin')` = executive or superuser. New code: `@RequirePermission(...)`.
- */
-export const Roles = (minimum: RoleLevel) => SetMetadata(ROLES_KEY, minimum);
 
 /**
  * Reachable while the user still has to change the password (forced change): /auth/me,

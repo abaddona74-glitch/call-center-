@@ -1,10 +1,11 @@
-import type { ServerEvents, TicketParty } from '@cc/shared';
-import { useQueryClient } from '@tanstack/react-query';
+import type { ServerEvents, TicketChangeAction } from '@cc/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { ticketKeys } from '@/entities/ticket';
+import { ticketContextQuery, ticketKeys, ticketUnreadQuery } from '@/entities/ticket';
 import { useRealtimeEvent } from '@/shared/api';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
@@ -88,13 +89,10 @@ function useAudioUnlock(): void {
 /** `.tk-sound-toggle-btn` */
 export function SoundToggle() {
   const { t } = useTranslation('ticket');
-  const enabled = useSyncExternalStore(
-    (l) => {
-      soundListeners.add(l);
-      return () => soundListeners.delete(l);
-    },
-    readSound,
-  );
+  const enabled = useSyncExternalStore((l) => {
+    soundListeners.add(l);
+    return () => soundListeners.delete(l);
+  }, readSound);
   return (
     <button
       type="button"
@@ -151,8 +149,13 @@ function startTitleFlash(text: string): void {
 // ---------------------------------------------------------------------------
 type Changed = ServerEvents['tickets.changed'];
 
-function showTicketToast(e: Changed, forMe: boolean, t: TFunction<'ticket'>, onOpen: (id: number) => void): void {
-  const badge = forMe ? (e.isUrgent ? t('toast.forMeUrgent') : t('toast.forMe')) : e.isUrgent ? t('toast.urgent') : t('toast.newTicket');
+function showTicketToast(e: Changed, t: TFunction<'ticket'>, onOpen: (id: number) => void): void {
+  const badge =
+    e.action === 'forwarded'
+      ? t('toast.forwarded')
+      : e.action === 'released'
+        ? t('toast.released')
+        : t('toast.newInRegion');
   toast.custom(
     (id) => (
       <div
@@ -169,25 +172,11 @@ function showTicketToast(e: Changed, forMe: boolean, t: TFunction<'ticket'>, onO
             onOpen(e.id);
           }
         }}
-        className={cn(
-          'flex w-[380px] max-w-[calc(100vw-48px)] cursor-pointer flex-col gap-2 rounded-[14px] border bg-[rgba(15,23,42,0.94)] px-4 py-3.5 text-left backdrop-blur-[16px]',
-          e.isUrgent
-            ? 'animate-[tkUrgentGlow_2s_ease-in-out_infinite] border-[rgba(245,158,11,0.6)] shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_24px_rgba(245,158,11,0.3)]'
-            : forMe
-              ? 'border-[rgba(14,165,233,0.7)] shadow-[0_16px_40px_rgba(0,0,0,0.7),0_0_24px_rgba(14,165,233,0.35)]'
-              : 'border-[rgba(56,189,248,0.35)] shadow-[0_16px_36px_rgba(0,0,0,0.6),0_0_20px_rgba(56,189,248,0.18)]',
-        )}
+        className="flex w-[380px] max-w-[calc(100vw-48px)] cursor-pointer flex-col gap-2 rounded-[14px] border border-[rgba(56,189,248,0.35)] bg-[rgba(15,23,42,0.94)] px-4 py-3.5 text-left shadow-[0_16px_36px_rgba(0,0,0,0.6),0_0_20px_rgba(56,189,248,0.18)] backdrop-blur-[16px]"
       >
         <div className="flex items-center justify-between gap-2">
-          <span
-            className={cn(
-              'inline-flex items-center gap-[5px] rounded-md border px-2 py-[3px] text-[11px] font-bold tracking-[0.5px] uppercase',
-              e.isUrgent
-                ? 'border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.2)] text-[#fbbf24]'
-                : 'border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] text-[#38bdf8]',
-            )}
-          >
-            {e.isUrgent ? <Icon name="flash" className="size-3" /> : !forMe && <Icon name="clipboard-text" className="size-3" />}
+          <span className="inline-flex items-center gap-[5px] rounded-md border border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] px-2 py-[3px] text-[11px] font-bold tracking-[0.5px] text-[#38bdf8] uppercase">
+            <Icon name="clipboard-text" className="size-3" />
             {badge}
           </span>
           <button
@@ -202,16 +191,11 @@ function showTicketToast(e: Changed, forMe: boolean, t: TFunction<'ticket'>, onO
             ×
           </button>
         </div>
-        <div className="flex gap-1.5 text-[13px] font-bold text-white">
+        <div className="flex items-center justify-between gap-1.5 text-[13px] font-bold text-white">
           <span>#{e.code}</span>
-          <span className="text-[11px] font-normal text-[#94a3b8]">{t('toast.from', { name: e.actor.label })}</span>
+          <span className="text-[11px] font-normal text-[#94a3b8]">{e.actor.label}</span>
         </div>
-        <div className="line-clamp-2 max-h-[52px] text-xs leading-[1.45] text-[#cbd5e1]">{e.preview || t('toast.defaultBody')}</div>
-        <div className="mt-1 flex items-center justify-between border-t border-white/8 pt-2 text-[11px] text-[#94a3b8]">
-          <span>
-            {t('toast.to')}
-            <b className="text-[#38bdf8]">{e.targetLabel ?? t('toast.toAll')}</b>
-          </span>
+        <div className="mt-1 flex items-center justify-end border-t border-white/8 pt-2 text-[11px] text-[#94a3b8]">
           <span className="inline-flex items-center gap-1 rounded-md bg-[linear-gradient(135deg,#2563eb,#1d4ed8)] px-2.5 py-1 text-[11px] font-semibold text-white hover:brightness-115">
             {t('toast.open')}
             <LegacyIcon name="export-3" className="size-3" />
@@ -219,71 +203,37 @@ function showTicketToast(e: Changed, forMe: boolean, t: TFunction<'ticket'>, onO
         </div>
       </div>
     ),
-    { duration: e.isUrgent ? 18_000 : 9_000 },
+    { duration: 12_000 },
   );
 }
 
+/** A ticket lands in a region queue: opened there, forwarded there, or released back by its executive. */
+const ARRIVALS: ReadonlySet<TicketChangeAction> = new Set<TicketChangeAction>(['created', 'forwarded', 'released']);
+
 /**
- * Live board: refreshes lists/details on ticket events and, for new tickets addressed to
- * this user (receivers) or any new ticket (admins), plays the chime, shows the toast and
- * flashes the title when the tab is in the background. Own actions never notify.
+ * Keeps ticket lists/details fresh from WS events on the tickets screens and tracks tickets that just
+ * arrived (highlighted until opened). Sound/toasts are played once, globally, by `TicketAlerts`.
  */
 export function useTicketLive({
-  meId,
-  party,
   openTicketId,
-  onOpen,
-  onDeleted,
+  onRevoked,
 }: {
-  meId: number;
-  party: TicketParty;
   openTicketId: number | null;
-  onOpen: (id: number) => void;
-  onDeleted: (id: number) => void;
+  onRevoked: (id: number) => void;
 }): { arrived: Set<number>; clearArrived: (id: number) => void } {
-  const { t } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const [arrived, setArrived] = useState<Set<number>>(new Set());
-  useAudioUnlock();
-
-  useEffect(() => {
-    const stop = () => stopTitleFlash();
-    window.addEventListener('focus', stop);
-    window.addEventListener('click', stop);
-    return () => {
-      window.removeEventListener('focus', stop);
-      window.removeEventListener('click', stop);
-      stopTitleFlash();
-    };
-  }, []);
 
   useRealtimeEvent('tickets.changed', (e) => {
     void queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
     void queryClient.invalidateQueries({ queryKey: ticketKeys.detail(e.id) });
-    if (e.actor.userId === meId) return;
-    if (e.action === 'created') {
-      const forMe = e.targetUserId === meId;
-      const notify = party === 'admin' || (party === 'receiver' && (e.targetUserId === null || forMe));
-      if (!notify) return;
-      setArrived((s) => new Set(s).add(e.id));
-      playChime(e.isUrgent);
-      showTicketToast(e, forMe, t, onOpen);
-      if (document.hidden || !document.hasFocus()) {
-        startTitleFlash(forMe ? t('toast.flashForMe') : e.isUrgent ? t('toast.flashUrgent') : t('toast.flashNew'));
-      }
-    } else if (e.action === 'commented' && e.id === openTicketId) {
-      playChime(false);
-    }
+    if (ARRIVALS.has(e.action) && e.id !== openTicketId) setArrived((s) => new Set(s).add(e.id));
   });
 
-  useRealtimeEvent('tickets.deleted', (e) => {
+  useRealtimeEvent('tickets.revoked', (e) => {
     void queryClient.invalidateQueries({ queryKey: ticketKeys.lists });
     queryClient.removeQueries({ queryKey: ticketKeys.detail(e.id) });
-    onDeleted(e.id);
-  });
-
-  useRealtimeEvent('tickets.purged', () => {
-    void queryClient.invalidateQueries({ queryKey: ticketKeys.all });
+    onRevoked(e.id);
   });
 
   const clearArrived = useCallback((id: number) => {
@@ -296,4 +246,55 @@ export function useTicketLive({
   }, []);
 
   return { arrived, clearArrived };
+}
+
+/**
+ * Header element (one line in the app shell): for executives (`regionAlerts`), the unread counter of new
+ * tickets in their regions + chime, toast and title flash when a ticket arrives or is released back to the
+ * queue — on every page. Nothing for other roles (the superuser and observers see every region).
+ */
+export function TicketAlerts({ meId }: { meId: number }) {
+  const { t } = useTranslation('ticket');
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const ctx = useQuery(ticketContextQuery);
+  const alerts = Boolean(ctx.data?.capabilities.regionAlerts);
+  const unread = useQuery({ ...ticketUnreadQuery, enabled: alerts });
+  useAudioUnlock();
+
+  useEffect(() => {
+    const stop = () => stopTitleFlash();
+    window.addEventListener('focus', stop);
+    return () => {
+      window.removeEventListener('focus', stop);
+      stopTitleFlash();
+    };
+  }, []);
+
+  useRealtimeEvent('tickets.unread', (e) => queryClient.setQueryData(ticketKeys.unread, { count: e.count }));
+  useRealtimeEvent('tickets.changed', (e) => {
+    if (!alerts || e.actor.userId === meId || e.status !== 'new' || !ARRIVALS.has(e.action)) return;
+    playChime(false);
+    showTicketToast(e, t, (id) => void navigate({ to: '/tickets', search: { view: 'queue', open: id } }));
+    if (document.hidden || !document.hasFocus()) startTitleFlash(t('toast.flash'));
+  });
+
+  if (!alerts) return null;
+  const count = unread.data?.count ?? ctx.data?.unread ?? 0;
+  return (
+    <button
+      type="button"
+      title={t('unreadTitle')}
+      onClick={() => void navigate({ to: '/tickets', search: { view: 'queue' } })}
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors',
+        count > 0
+          ? 'animate-[tkNewGlow_2.2s_ease-in-out_infinite] border-[rgba(56,189,248,0.55)] bg-[rgba(56,189,248,0.18)] text-[#38bdf8]'
+          : 'border-white/10 bg-white/5 text-muted-foreground',
+      )}
+    >
+      <Icon name="clipboard-text" className="size-3.5" />
+      {t('unread', { n: count })}
+    </button>
+  );
 }

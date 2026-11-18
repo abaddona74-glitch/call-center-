@@ -1,6 +1,20 @@
 {
   "app": { "title": "Call Center" },
-  "nav": { "dashboard": "Главная", "settings": "Настройки", "profile": "Профиль", "explorer": "Аудио записи", "tickets": "Тикеты", "clients": "Клиенты", "blacklist": "Чёрный список", "callbackSettings": "Рабочее время", "operators": "Операторы", "history": "История звонков", "statistics": "Статистика" },
+  "nav": {
+    "dashboard": "Главная",
+    "settings": "Настройки",
+    "profile": "Профиль",
+    "explorer": "Аудио записи",
+    "tickets": "Тикеты",
+    "clients": "Клиенты",
+    "blacklist": "Чёрный список",
+    "callbackSettings": "Рабочее время",
+    "operators": "Операторы",
+    "history": "История звонков",
+    "statistics": "Статистика",
+    "ticketReports": "Отчёт по тикетам",
+    "ticketSettings": "Настройки тикетов"
+  },
   "auth": {
     "username": "Логин",
     "password": "Пароль",

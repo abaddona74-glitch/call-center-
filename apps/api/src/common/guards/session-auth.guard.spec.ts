@@ -6,7 +6,6 @@ import {
   DENY_IMPERSONATION_KEY,
   IS_PUBLIC_KEY,
   PERMISSION_KEY,
-  ROLES_KEY,
 } from '../decorators/auth.decorators.js';
 import { PASSWORD_CHANGE_REQUIRED, SessionAuthGuard } from './session-auth.guard.js';
 
@@ -64,12 +63,6 @@ describe('SessionAuthGuard', () => {
     // objects without `permissions` fall back to the role's set
     const bare: SessionUser = { id: 1, username: 'x', role: 'operator', extension: '101', email: null };
     await expect(run(bare, { [PERMISSION_KEY]: 'contacts.view' })).resolves.toBe(true);
-  });
-
-  it('keeps @Roles working as a compatibility layer (admin = executive level)', async () => {
-    await expect(run(operator(), { [ROLES_KEY]: 'admin' })).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(run(operator({ role: 'executive' }), { [ROLES_KEY]: 'admin' })).resolves.toBe(true);
-    await expect(run(operator({ role: 'observer' }), { [ROLES_KEY]: 'admin' })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('blocks everything but the allowed endpoints until a forced password change is done', async () => {

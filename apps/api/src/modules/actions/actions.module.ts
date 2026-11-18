@@ -8,5 +8,6 @@ import { ActionsService } from './actions.service.js';
   imports: [LiveModule],
   controllers: [ActionsController],
   providers: [ActionsService],
+  exports: [ActionsService],
 })
 export class ActionsModule {}

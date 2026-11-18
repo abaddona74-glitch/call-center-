@@ -1,4 +1,4 @@
-import { type GroupFlag, type Permission, type RoleLevel, hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { type GroupFlag, type Permission, hasPermission } from '@cc/shared';
 import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
@@ -10,7 +10,6 @@ import {
   DENY_IMPERSONATION_KEY,
   IS_PUBLIC_KEY,
   PERMISSION_KEY,
-  ROLES_KEY,
 } from '../decorators/auth.decorators.js';
 import { extractSessionToken } from '../http/cookies.js';
 
@@ -56,10 +55,6 @@ export class SessionAuthGuard implements CanActivate {
       throw new ForbiddenException('Not allowed while acting as another user');
     }
 
-    const minimum = this.reflector.getAllAndOverride<RoleLevel | undefined>(ROLES_KEY, targets);
-    if (minimum && !hasRoleAtLeast(user.role, minimum)) {
-      throw new ForbiddenException('Insufficient permissions');
-    }
     const permission = this.reflector.getAllAndOverride<Permission | GroupFlag | undefined>(PERMISSION_KEY, targets);
     if (permission && !hasPermission(user, permission)) {
       throw new ForbiddenException('Insufficient permissions');

@@ -16,6 +16,8 @@ registerTranslations('settings', {
     calendar: {
       title: 'Ish vaqti va bayramlar',
       description: "Statistika, qayta bog'lanish va tiketlar muddati uchun yagona kalendar. O'zgarishlar darhol kuchga kiradi.",
+      callbacksTitle: "Qayta bog'lanish",
+      callbacksDescription: "Mijoz bilan qancha gaplashilganda qayta bog'lanish avtomatik yopiladi.",
     },
     common: {
       save: 'Saqlash',
@@ -187,6 +189,8 @@ registerTranslations('settings', {
     calendar: {
       title: 'Рабочее время и праздники',
       description: 'Один календарь для статистики, перезвонов и сроков тикетов. Изменения действуют сразу.',
+      callbacksTitle: 'Перезвоны',
+      callbacksDescription: 'Сколько нужно поговорить с клиентом, чтобы перезвон закрылся автоматически.',
     },
     common: {
       save: 'Сохранить',

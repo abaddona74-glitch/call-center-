@@ -9,19 +9,6 @@ export const ROLES = ['operator', 'observer', 'executive', 'superuser'] as const
 export const RoleSchema = z.enum(ROLES);
 export type Role = z.infer<typeof RoleSchema>;
 
-/**
- * @deprecated Compatibility layer for code written before permissions: a minimum "level" for
- * `@Roles()`, `hasRoleAtLeast`, `minRole`. `'admin'` (old name) = executive level.
- * New code: `@RequirePermission(...)` / `hasPermission(...)`.
- */
-export type RoleLevel = Role | 'admin';
-const LEVEL: Record<RoleLevel, number> = { operator: 0, observer: 1, executive: 2, admin: 2, superuser: 3 };
-
-/** @deprecated see RoleLevel. */
-export function hasRoleAtLeast(role: Role, minimum: RoleLevel): boolean {
-  return (LEVEL[role] ?? -1) >= LEVEL[minimum];
-}
-
 export const UsernameSchema = z
   .string()
   .trim()

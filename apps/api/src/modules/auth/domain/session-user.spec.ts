@@ -1,4 +1,4 @@
-import { PERMISSIONS, ROLE_PERMISSIONS, can, hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { PERMISSIONS, ROLE_PERMISSIONS, can, hasPermission } from '@cc/shared';
 import { buildSessionUser, parseGroupFlags } from './session-user.js';
 
 const base = { id: 1, username: 'u', extension: '205', email: null };
@@ -49,14 +49,6 @@ describe('role permissions', () => {
     expect(can(exec, 'tickets.directories.manage')).toBe(false);
     // the session's own list wins over the role map
     expect(can({ role: 'operator', permissions: ['monitor.view'] }, 'tickets.create')).toBe(false);
-  });
-
-  it('keeps the old minimum-level checks working (admin = executive level)', () => {
-    expect(hasRoleAtLeast('executive', 'admin')).toBe(true);
-    expect(hasRoleAtLeast('superuser', 'admin')).toBe(true);
-    expect(hasRoleAtLeast('observer', 'admin')).toBe(false);
-    expect(hasRoleAtLeast('operator', 'operator')).toBe(true);
-    expect(hasRoleAtLeast('operator', 'observer')).toBe(false);
   });
 });
 

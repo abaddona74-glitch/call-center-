@@ -1,4 +1,4 @@
-import { hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { hasPermission } from '@cc/shared';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
@@ -9,6 +9,7 @@ import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/badge';
 import { OnlineUsers } from '@/features/presence/online-users';
+import { TicketAlerts } from '@/features/tickets/notifications';
 import { NAV_ITEMS } from '../model/nav';
 
 export function AppShell() {
@@ -16,9 +17,7 @@ export function AppShell() {
   const user = useSessionUser();
   const status = useRealtimeStatus();
   const items = NAV_ITEMS.filter(
-    (item) =>
-      (!item.minRole || hasRoleAtLeast(user.role, item.minRole)) &&
-      (!item.permission || [item.permission].flat().some((p) => hasPermission(user, p))),
+    (item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)),
   );
 
   return (
@@ -44,6 +43,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-end gap-3 border-b px-6">
           <OnlineUsers />
+          <TicketAlerts meId={user.id} />
           <Badge
             variant="outline"
             className={cn(status === 'open' ? 'text-success' : 'text-warning')}

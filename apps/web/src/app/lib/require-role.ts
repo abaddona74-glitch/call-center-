@@ -1,4 +1,4 @@
-import { type Permission, type RoleLevel, type SessionUser, hasPermission, hasRoleAtLeast } from '@cc/shared';
+import { type Permission, type SessionUser, hasPermission } from '@cc/shared';
 import { redirect } from '@tanstack/react-router';
 
 /**
@@ -7,9 +7,4 @@ import { redirect } from '@tanstack/react-router';
  */
 export function requirePermission(user: SessionUser, ...anyOf: Permission[]): void {
   if (!anyOf.some((p) => hasPermission(user, p))) throw redirect({ to: '/' });
-}
-
-/** @deprecated minimum role level ('admin' = executive). Use `requirePermission`. */
-export function requireRole(user: SessionUser, minimum: RoleLevel): void {
-  if (!hasRoleAtLeast(user.role, minimum)) throw redirect({ to: '/' });
 }

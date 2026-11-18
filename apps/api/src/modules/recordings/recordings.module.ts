@@ -16,5 +16,6 @@ import { ZipJobsService } from './zip-jobs.service.js';
     SftpRecordingStorage,
     { provide: RECORDING_STORAGE, useExisting: SftpRecordingStorage },
   ],
+  exports: [RecordingsService],
 })
 export class RecordingsModule {}

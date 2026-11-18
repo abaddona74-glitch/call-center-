@@ -1,4 +1,4 @@
-import type { TicketStatus } from '@cc/shared';
+import type { TicketRef, TicketStatus } from '@cc/shared';
 import type { TFunction } from 'i18next';
 
 /** Legacy `formatTimeAgo`: seconds/minutes/hours ago, then "DD.MM HH:mm". */
@@ -11,7 +11,13 @@ export function timeAgo(iso: string | null, t: TFunction<'ticket'>, now = Date.n
   if (m < 60) return t('ago.minutes', { n: m });
   const h = Math.floor(m / 60);
   if (h < 24) return t('ago.hours', { n: h });
-  const d = new Date(ts);
+  return dateTime(iso);
+}
+
+/** "DD.MM HH:mm" in the browser's zone (operators work in Tashkent). */
+export function dateTime(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
@@ -23,10 +29,21 @@ export function fileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-/** Status colors of the legacy board (pending / in_progress / completed / rejected). */
+/** Card stripe per status (legacy board colors: sky = new, amber = in work, green = done, red = rejected). */
 export const STATUS_STRIPE: Record<TicketStatus, string> = {
-  open: '#38bdf8',
-  accepted: '#f59e0b',
-  completed: '#10b981',
+  new: '#38bdf8',
+  assigned: '#a78bfa',
+  in_progress: '#f59e0b',
+  done: '#10b981',
   rejected: '#ef4444',
+  callback_pending: '#2dd4bf',
+  closed: '#64748b',
 };
+
+/** Directory name in the UI language. */
+export function refName(ref: { nameUz: string; nameRu: string } | null | undefined, lang: string): string {
+  if (!ref) return '';
+  return lang.startsWith('ru') ? ref.nameRu : ref.nameUz;
+}
+
+export type { TicketRef };

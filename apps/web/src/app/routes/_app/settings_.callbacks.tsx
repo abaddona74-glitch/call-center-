@@ -1,10 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { callbackSettingsQuery } from '@/entities/callback';
-import { CallbackSettingsPage } from '@/pages/settings-callbacks';
-import { requirePermission } from '../../lib/require-role';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
+/** Old address: the callbacks threshold moved to Settings → Ish vaqti together with the working calendar. */
 export const Route = createFileRoute('/_app/settings_/callbacks')({
-  beforeLoad: ({ context }) => requirePermission(context.user, 'settings.manage'),
-  loader: ({ context }) => context.queryClient.ensureQueryData(callbackSettingsQuery),
-  component: CallbackSettingsPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/calendar' });
+  },
 });

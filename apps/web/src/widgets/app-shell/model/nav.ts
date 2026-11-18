@@ -1,13 +1,15 @@
-import type { Permission, RoleLevel } from '@cc/shared';
+import type { Permission } from '@cc/shared';
 import { CDR_ACCESS } from '@cc/shared';
 import {
   AudioLines,
   CalendarClock,
+  ClipboardList,
   ChartColumn,
   Headset,
   History,
   LayoutDashboard,
   type LucideIcon,
+  MapPinned,
   Settings,
   ShieldBan,
   Ticket,
@@ -20,10 +22,8 @@ export interface NavItem {
   /** i18n key */
   label: string;
   icon: LucideIcon;
-  /** The item shows when the user has any of these permissions (preferred). */
+  /** The item shows when the user has any of these permissions. */
   permission?: Permission | Permission[];
-  /** @deprecated minimum role level ('admin' = executive); use `permission`. */
-  minRole?: RoleLevel;
 }
 
 /**
@@ -40,6 +40,13 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Ticket,
     permission: ['tickets.create', 'tickets.callback', 'tickets.process', 'tickets.viewAll'],
   },
+  // Ticket reports: whoever sees tickets beyond their own (ticket-access.ts `reports`)
+  {
+    to: '/tickets/reports',
+    label: 'nav.ticketReports',
+    icon: ClipboardList,
+    permission: ['tickets.process', 'tickets.viewAll'],
+  },
   { to: '/clients', label: 'nav.clients', icon: Users, permission: 'contacts.view' },
   { to: '/operators', label: 'nav.operators', icon: Headset, permission: 'monitor.view' },
   { to: '/history', label: 'nav.history', icon: History, permission: CDR_ACCESS['history.page'] },
@@ -48,9 +55,15 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/settings',
     label: 'nav.settings',
     icon: Settings,
-    permission: ['users.manage', 'sessions.manage', 'security.manage', 'audit.view'],
+    permission: ['users.manage', 'sessions.manage', 'security.manage', 'settings.manage', 'audit.view'],
   },
   { to: '/settings/blacklist', label: 'nav.blacklist', icon: ShieldBan, permission: 'blacklist.manage' },
-  { to: '/settings/callbacks', label: 'nav.callbackSettings', icon: CalendarClock, permission: 'settings.manage' },
+  { to: '/settings/calendar', label: 'nav.callbackSettings', icon: CalendarClock, permission: 'settings.manage' },
+  {
+    to: '/settings/tickets',
+    label: 'nav.ticketSettings',
+    icon: MapPinned,
+    permission: 'tickets.directories.manage',
+  },
   { to: '/profile', label: 'nav.profile', icon: UserRound },
 ];

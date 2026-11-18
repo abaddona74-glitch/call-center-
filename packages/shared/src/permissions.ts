@@ -37,6 +37,8 @@ export const PERMISSIONS = [
   'tickets.viewAll',
   /** Regions, cities/districts, categories, executive ↔ region assignments. */
   'tickets.directories.manage',
+  /** Close a ticket without a confirmed call (with a reason), delete, triage tickets without a region. */
+  'tickets.administer',
   /** Tools section (converter, links, installers). */
   'tools.use',
   'remoteDesktop.use',
@@ -79,6 +81,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'tickets.callback',
     'tickets.viewAll',
     'tickets.directories.manage',
+    'tickets.administer',
   ),
   observer: [
     'monitor.view',

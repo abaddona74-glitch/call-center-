@@ -3,15 +3,27 @@ import { pipeline } from 'node:stream/promises';
 import {
   type AddTicketCommentFieldsParsed,
   AddTicketCommentFieldsSchema,
+  type CallbackOutcomeRequest,
+  CallbackOutcomeRequestSchema,
   type CreateTicketFieldsParsed,
   CreateTicketFieldsSchema,
+  type ForceCloseTicketRequest,
+  ForceCloseTicketRequestSchema,
+  type ForwardTicketRequest,
+  ForwardTicketRequestSchema,
   type RejectTicketRequest,
   RejectTicketRequestSchema,
+  type ReleaseTicketRequest,
+  ReleaseTicketRequestSchema,
+  type ResolveTicketRequest,
+  ResolveTicketRequestSchema,
   type SessionUser,
   TICKET_MAX_FILES_PER_UPLOAD,
   TicketAttachmentIdSchema,
-  type TicketCleanupResponse,
-  TicketCleanupResponseSchema,
+  type TicketCallPrefill,
+  TicketCallPrefillQuerySchema,
+  TicketCallPrefillSchema,
+  TicketCallRowIdSchema,
   type TicketContext,
   TicketContextSchema,
   type TicketDetail,
@@ -19,12 +31,16 @@ import {
   type TicketDocPreview,
   TicketDocPreviewSchema,
   TicketIdSchema,
-  type TicketListQuery,
+  type TicketListQueryParsed,
   TicketListQuerySchema,
   type TicketListResponse,
   TicketListResponseSchema,
-  type UpdateTicketRequest,
-  UpdateTicketRequestSchema,
+  type TicketReport,
+  type TicketReportQuery,
+  TicketReportQuerySchema,
+  TicketReportSchema,
+  type TicketUnread,
+  TicketUnreadSchema,
 } from '@cc/shared';
 import {
   Body,
@@ -33,9 +49,9 @@ import {
   Get,
   HttpCode,
   Param,
-  Patch,
   Post,
   Query,
+  Req,
   Res,
   SerializeOptions,
   UploadedFiles,
@@ -43,18 +59,29 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
+import { z } from 'zod';
 import { CurrentUser } from '../../common/decorators/auth.decorators.js';
 import { contentDisposition } from '../../common/http/content-disposition.js';
+import { TicketCallbacksService } from './ticket-callbacks.service.js';
+import { TicketRecordingsService } from './ticket-recordings.service.js';
+import { TicketReportsService } from './ticket-reports.service.js';
 import { type IncomingFile, TicketsService } from './tickets.service.js';
 
+const DownloadQuerySchema = z.object({ download: z.enum(['0', '1']).optional() });
+
 /**
- * Tickets for every role (operators included); what each user may see/do is decided in the service
- * from the session user. Uploads are multipart/form-data (`files`), limits from MulterModule config.
+ * Tickets for every role; what each user may see/do is decided in the services from the session user
+ * (domain/ticket-workflow.ts). Uploads are multipart/form-data (`files`), limits from MulterModule config.
  */
 @Controller('tickets')
 export class TicketsController {
-  constructor(private readonly tickets: TicketsService) {}
+  constructor(
+    private readonly tickets: TicketsService,
+    private readonly callbacks: TicketCallbacksService,
+    private readonly recordings: TicketRecordingsService,
+    private readonly reports: TicketReportsService,
+  ) {}
 
   @Get('context')
   @SerializeOptions({ schema: TicketContextSchema })
@@ -62,17 +89,37 @@ export class TicketsController {
     return this.tickets.context(user);
   }
 
-  @Get()
-  @SerializeOptions({ schema: TicketListResponseSchema })
-  list(@Query({ schema: TicketListQuerySchema }) query: TicketListQuery, @CurrentUser() user: SessionUser): Promise<TicketListResponse> {
-    return this.tickets.list(user, query.filter);
+  @Get('unread')
+  @SerializeOptions({ schema: TicketUnreadSchema })
+  async unread(@CurrentUser() user: SessionUser): Promise<TicketUnread> {
+    return { count: await this.tickets.unread(user) };
   }
 
-  @Post('cleanup')
-  @HttpCode(200)
-  @SerializeOptions({ schema: TicketCleanupResponseSchema })
-  async cleanup(@CurrentUser() user: SessionUser): Promise<TicketCleanupResponse> {
-    return { removed: await this.tickets.cleanup(user) };
+  @Get('call-prefill')
+  @SerializeOptions({ schema: TicketCallPrefillSchema })
+  callPrefill(
+    @Query({ schema: TicketCallPrefillQuerySchema }) q: { callId: string },
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketCallPrefill> {
+    return this.tickets.callPrefill(user, q.callId);
+  }
+
+  @Get('reports')
+  @SerializeOptions({ schema: TicketReportSchema })
+  report(
+    @Query({ schema: TicketReportQuerySchema }) q: TicketReportQuery,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketReport> {
+    return this.reports.report(user, q);
+  }
+
+  @Get()
+  @SerializeOptions({ schema: TicketListResponseSchema })
+  list(
+    @Query({ schema: TicketListQuerySchema }) query: TicketListQueryParsed,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketListResponse> {
+    return this.tickets.list(user, query);
   }
 
   @Get(':id')
@@ -93,28 +140,31 @@ export class TicketsController {
     return this.tickets.create(user, fields, files ?? []);
   }
 
-  @Patch(':id')
+  // --- regional workflow ---------------------------------------------------------------------------
+
+  @Post(':id/assign')
+  @HttpCode(200)
   @SerializeOptions({ schema: TicketDetailSchema })
-  update(
+  assign(@Param('id', { schema: TicketIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<TicketDetail> {
+    return this.tickets.act(user, id, 'assign');
+  }
+
+  @Post(':id/start')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  start(@Param('id', { schema: TicketIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<TicketDetail> {
+    return this.tickets.act(user, id, 'start');
+  }
+
+  @Post(':id/resolve')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  resolve(
     @Param('id', { schema: TicketIdSchema }) id: number,
-    @Body({ schema: UpdateTicketRequestSchema }) body: UpdateTicketRequest,
+    @Body({ schema: ResolveTicketRequestSchema }) body: ResolveTicketRequest,
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDetail> {
-    return this.tickets.update(user, id, body);
-  }
-
-  @Post(':id/accept')
-  @HttpCode(200)
-  @SerializeOptions({ schema: TicketDetailSchema })
-  accept(@Param('id', { schema: TicketIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<TicketDetail> {
-    return this.tickets.transition(user, id, 'accept');
-  }
-
-  @Post(':id/complete')
-  @HttpCode(200)
-  @SerializeOptions({ schema: TicketDetailSchema })
-  complete(@Param('id', { schema: TicketIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<TicketDetail> {
-    return this.tickets.transition(user, id, 'complete');
+    return this.tickets.act(user, id, 'resolve', { note: body.note });
   }
 
   @Post(':id/reject')
@@ -125,8 +175,65 @@ export class TicketsController {
     @Body({ schema: RejectTicketRequestSchema }) body: RejectTicketRequest,
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDetail> {
-    return this.tickets.transition(user, id, 'reject', body.reason);
+    return this.tickets.act(user, id, 'reject', { note: body.note });
   }
+
+  @Post(':id/forward')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  forward(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Body({ schema: ForwardTicketRequestSchema }) body: ForwardTicketRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketDetail> {
+    return this.tickets.act(user, id, 'forward', { regionId: body.regionId, note: body.note });
+  }
+
+  /** The executive who holds the ticket (or the superuser) gives it back to the queue of its region. */
+  @Post(':id/release')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  release(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Body({ schema: ReleaseTicketRequestSchema }) body: ReleaseTicketRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketDetail> {
+    return this.tickets.act(user, id, 'release', { note: body.note });
+  }
+
+  // --- callback step ---------------------------------------------------------------------------------
+
+  @Post(':id/callback/call')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @SerializeOptions({ schema: TicketDetailSchema })
+  call(@Param('id', { schema: TicketIdSchema }) id: number, @CurrentUser() user: SessionUser): Promise<TicketDetail> {
+    return this.callbacks.call(user, id);
+  }
+
+  @Post(':id/callback/outcome')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  outcome(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Body({ schema: CallbackOutcomeRequestSchema }) body: CallbackOutcomeRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketDetail> {
+    return this.callbacks.recordOutcome(user, id, body.outcome, body.note);
+  }
+
+  @Post(':id/close')
+  @HttpCode(200)
+  @SerializeOptions({ schema: TicketDetailSchema })
+  forceClose(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Body({ schema: ForceCloseTicketRequestSchema }) body: ForceCloseTicketRequest,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketDetail> {
+    return this.callbacks.forceClose(user, id, body.note);
+  }
+
+  // --- chat, files, recordings -----------------------------------------------------------------------
 
   @Post(':id/comments')
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
@@ -174,5 +281,22 @@ export class TicketsController {
     @CurrentUser() user: SessionUser,
   ): Promise<TicketDocPreview> {
     return this.tickets.docPreview(user, id, attachmentId);
+  }
+
+  /** Recording of the ticket's call or a callback call (HTTP Range), only for users who see the ticket. */
+  @Get(':id/calls/:callRowId/recording')
+  async recording(
+    @Param('id', { schema: TicketIdSchema }) id: number,
+    @Param('callRowId', { schema: TicketCallRowIdSchema }) callRowId: number,
+    @Query({ schema: DownloadQuerySchema }) q: { download?: '0' | '1' },
+    @CurrentUser() user: SessionUser,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const prepared = await this.recordings.stream(user, id, callRowId, req.headers.range, q.download === '1');
+    res.status(prepared.status);
+    for (const [k, v] of Object.entries(prepared.headers)) res.setHeader(k, v);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    await pipeline(prepared.stream, res).catch(() => undefined);
   }
 }

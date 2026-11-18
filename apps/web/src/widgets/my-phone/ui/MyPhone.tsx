@@ -4,6 +4,7 @@ import { PRESENCE_COLOR } from '@/entities/operator';
 import { useSessionUser } from '@/entities/session';
 import { LiveTimer, liveSnapshotQuery } from '@/entities/telephony';
 import { ClickToCallForm } from '@/features/telephony/click-to-call';
+import { CreateTicketButton } from '@/features/tickets/create-ticket';
 import { PauseOperatorButton } from '@/features/telephony/pause-operator';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
@@ -47,6 +48,7 @@ export function MyPhone() {
         </div>
       </div>
       {me && <PauseOperatorButton paused={me.paused} />}
+      {me?.call?.state === 'talking' && <CreateTicketButton callId={me.call.callId} />}
       <ClickToCallForm className="ml-auto" />
     </section>
   );
