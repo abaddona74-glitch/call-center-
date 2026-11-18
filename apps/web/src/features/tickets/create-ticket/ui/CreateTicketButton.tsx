@@ -35,7 +35,7 @@ export function CreateTicketButton({
         className={cn(
           variant === 'pill'
             ? 'inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(16,185,129,0.4)] bg-[linear-gradient(135deg,#10b981_0%,#059669_100%)] px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.3)] transition-transform hover:-translate-y-px active:scale-[0.96]'
-            : 'inline-flex items-center gap-1 rounded-md border border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.12)] px-2 py-1 text-[11px] font-semibold text-[#34d399] hover:bg-[rgba(16,185,129,0.22)]',
+            : 'inline-flex items-center gap-1 rounded-md border border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.12)] px-2 py-1 text-[11px] font-semibold text-positive hover:bg-[rgba(16,185,129,0.22)]',
           className,
         )}
       >

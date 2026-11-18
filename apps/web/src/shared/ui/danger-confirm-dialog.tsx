@@ -34,12 +34,12 @@ export function DangerConfirmDialog({
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-[400px] gap-0 rounded-2xl border-destructive/35 bg-[linear-gradient(145deg,#1e293b,#0f172a)] p-[22px] text-center shadow-[0_20px_40px_rgba(0,0,0,0.6),0_0_25px_rgba(239,68,68,0.15)] sm:max-w-[400px]"
+        className="max-w-[400px] gap-0 rounded-2xl border-destructive/35 bg-[linear-gradient(145deg,var(--glass-2),var(--sidebar))] p-[22px] text-center shadow-[0_20px_40px_color-mix(in_srgb,var(--shadow-color)_60%,transparent),0_0_25px_rgba(239,68,68,0.15)] sm:max-w-[400px]"
       >
         <div className="mx-auto mb-3.5 flex size-[50px] items-center justify-center rounded-full border border-destructive/30 bg-destructive/15 text-destructive">
           <Icon name="trash" className="size-6" />
         </div>
-        <DialogTitle className="mb-2 text-base font-bold text-white">{title}</DialogTitle>
+        <DialogTitle className="mb-2 text-base font-bold text-ink">{title}</DialogTitle>
         <DialogDescription className="mb-5 text-[13px] leading-normal text-muted-foreground">
           {message}
         </DialogDescription>
@@ -49,7 +49,7 @@ export function DangerConfirmDialog({
             type="button"
             disabled={busy}
             onClick={() => onOpenChange(false)}
-            className="flex-1 rounded-[10px] border border-white/15 bg-white/[0.08] px-4 py-2.5 text-[13px] font-semibold text-slate-300 transition-all duration-150 hover:bg-white/15"
+            className="flex-1 rounded-[10px] border border-tint/15 bg-tint/[0.08] px-4 py-2.5 text-[13px] font-semibold text-ink-2 transition-all duration-150 hover:bg-tint/15"
           >
             {cancelText}
           </button>
@@ -58,7 +58,7 @@ export function DangerConfirmDialog({
             disabled={busy || okDisabled}
             onClick={onConfirm}
             className={cn(
-              'flex-1 rounded-[10px] border border-red-400 bg-[linear-gradient(135deg,#ef4444,#dc2626)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_4px_12px_rgba(239,68,68,0.35)] transition-all duration-150',
+              'flex-1 rounded-[10px] border border-danger bg-[linear-gradient(135deg,#ef4444,#dc2626)] px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_4px_12px_rgba(239,68,68,0.35)] transition-all duration-150',
               'hover:-translate-y-px hover:shadow-[0_6px_16px_rgba(239,68,68,0.45)] disabled:pointer-events-none disabled:opacity-50',
             )}
           >

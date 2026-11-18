@@ -20,7 +20,7 @@ function surveyTone(avg: number): string {
 }
 
 /**
- * Per-operator distribution: legacy grouped bar chart (Qabul qilingan #10b981, Chiquvchi #38bdf8,
+ * Per-operator distribution: legacy grouped bar chart (Qabul qilingan #10b981, Chiquvchi var(--info),
  * O'tkazib yuborilgan #f59e0b) + the table with the same columns as the Excel summary sheet,
  * plus the clients' post-call rating when the PBX survey is installed (`surveyAvailable`).
  */
@@ -72,7 +72,7 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
             <CartesianGrid {...GRID} />
             <XAxis dataKey="label" {...AXIS} interval={0} tick={{ ...AXIS.tick, fontSize: 11 }} />
             <YAxis allowDecimals={false} {...AXIS} />
-            <Tooltip {...TOOLTIP} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+            <Tooltip {...TOOLTIP} cursor={{ fill: 'color-mix(in srgb, var(--tint) 4%, transparent)' }} />
             <Bar dataKey="accepted" name={t('series.accepted')} fill="var(--chart-2)" radius={6} />
             <Bar dataKey="outbound" name={t('series.outbound')} fill="var(--chart-4)" radius={6} />
             <Bar dataKey="missed" name={t('series.missed')} fill="var(--chart-5)" radius={6} />
@@ -111,7 +111,7 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
                     {r.transferredIn} / {r.transferredOut}
                   </td>
                   <td className={DT.td}>
-                    <span className="font-semibold text-chart-4">{r.outbound}</span>
+                    <span className="font-semibold text-shade-chart-4">{r.outbound}</span>
                     <span className="ml-1 text-[11px] text-muted-foreground">
                       ({r.outboundAttempts} {t('attemptsShort')})
                     </span>

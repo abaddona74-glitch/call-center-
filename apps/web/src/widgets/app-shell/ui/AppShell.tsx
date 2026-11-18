@@ -10,6 +10,7 @@ import { cn } from '@/shared/lib/cn';
 import { Badge } from '@/shared/ui/badge';
 import { OnlineUsers } from '@/features/presence/online-users';
 import { TicketAlerts } from '@/features/tickets/notifications';
+import { ThemeSwitch } from '@/features/theme-switch';
 import { NAV_ITEMS } from '../model/nav';
 
 export function AppShell() {
@@ -51,6 +52,7 @@ export function AppShell() {
           >
             {t(`realtime.${status}`)}
           </Badge>
+          <ThemeSwitch />
           <select
             className="rounded-md border bg-transparent px-2 py-1 text-sm"
             value={i18n.language}

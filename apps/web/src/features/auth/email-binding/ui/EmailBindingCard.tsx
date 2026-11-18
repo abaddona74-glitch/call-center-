@@ -198,8 +198,8 @@ export function EmailBindingCard() {
     <SettingsCard>
       <SettingsCardHeader icon={<IconSms size={20} />} title={t('title')} description={t('description')} />
 
-      <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(56,189,248,0.25)] bg-[rgba(56,189,248,0.08)] px-3.5 py-3 text-xs leading-relaxed text-[#cbd5e1]">
-        <IconInfoCircle size={18} className="mt-px shrink-0 text-[#38bdf8]" />
+      <div className="mb-4 flex items-start gap-2.5 rounded-[10px] border border-[rgba(56,189,248,0.25)] bg-[rgba(56,189,248,0.08)] px-3.5 py-3 text-xs leading-relaxed text-ink-2">
+        <IconInfoCircle size={18} className="mt-px shrink-0 text-info" />
         <span>{t('hint')}</span>
       </div>
 
@@ -211,14 +211,14 @@ export function EmailBindingCard() {
             if (code.length === 6) verify.mutate();
           }}
         >
-          <p className="text-xs text-[#cbd5e1]">
+          <p className="text-xs text-ink-2">
             {status.step === 'verify_current'
               ? t('codeToCurrent', { to: status.sentTo })
               : t('codeToNew', { to: status.sentTo })}
           </p>
           <FieldLabel htmlFor="email-code">
             {t('codeLabel')}
-            <span className={left > 0 ? 'text-[#93c5fd]' : 'text-[#fca5a5]'}>
+            <span className={left > 0 ? 'text-link-soft' : 'text-danger-soft'}>
               {t('validFor', { time: mmss(left) })}
             </span>
           </FieldLabel>
@@ -244,12 +244,12 @@ export function EmailBindingCard() {
           <div className="flex flex-col gap-1.5">
             <FieldLabel htmlFor="email-password">
               {t('password')}
-              <span className="text-[11px] font-semibold text-[#f59e0b]">🔒 {t('securityCheck')}</span>
+              <span className="text-[11px] font-semibold text-shade-[#f59e0b]">🔒 {t('securityCheck')}</span>
             </FieldLabel>
             <div className="relative">
               <IconLock
                 size={17}
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim"
               />
               <SettingsInput
                 id="email-password"
@@ -274,7 +274,7 @@ export function EmailBindingCard() {
                       type="button"
                       disabled={start.isPending}
                       onClick={() => begin('unbind')}
-                      className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.15)] px-[7px] py-0.5 text-[11px] font-semibold text-[#f87171] hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
+                      className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.15)] px-[7px] py-0.5 text-[11px] font-semibold text-danger hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
                     >
                       {t('unbind')}
                     </button>
@@ -287,7 +287,7 @@ export function EmailBindingCard() {
             <div className="relative">
               <IconSms
                 size={17}
-                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[#64748b]"
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-dim"
               />
               <SettingsInput
                 id="email-new"
@@ -300,7 +300,7 @@ export function EmailBindingCard() {
               />
             </div>
             {emailValue && (
-              <p className={emailOk ? 'text-[11.5px] text-[#38bdf8]' : 'text-[11.5px] text-[#f87171]'}>
+              <p className={emailOk ? 'text-[11.5px] text-info' : 'text-[11.5px] text-danger'}>
                 {emailOk ? (isGmail ? t('formatOk') : t('formatOkGmailHint')) : t('invalidEmail')}
               </p>
             )}

@@ -10,7 +10,7 @@ export function AmiStatusPill({ status, className }: { status: AmiStatus | undef
   return (
     <div
       className={cn(
-        'flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium',
+        'flex items-center justify-center gap-2 rounded-full border border-tint/10 bg-tint/5 px-3 py-1.5 text-[11px] font-medium',
         className,
       )}
       title={status?.lastError ?? undefined}

@@ -76,14 +76,14 @@ export function Dropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
         onFiles([...e.dataTransfer.files]);
       }}
       className={cn(
-        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[rgba(56,189,248,0.35)] bg-[rgba(30,41,59,0.35)] px-4 py-[22px] text-center transition-all duration-[220ms] hover:-translate-y-px hover:border-[#38bdf8] hover:bg-[rgba(56,189,248,0.08)]',
-        over && '-translate-y-px border-[#38bdf8] bg-[rgba(56,189,248,0.08)]',
+        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[rgba(56,189,248,0.35)] bg-glass-2/35 px-4 py-[22px] text-center transition-all duration-[220ms] hover:-translate-y-px hover:border-info hover:bg-[rgba(56,189,248,0.08)]',
+        over && '-translate-y-px border-info bg-[rgba(56,189,248,0.08)]',
       )}
     >
-      <LegacyIcon name="document-upload" className="size-9 text-[#38bdf8]" />
-      <span className="text-[13px] font-semibold text-[#f1f5f9]">{t('form.drop')}</span>
-      <span className="text-[11.5px] text-[#94a3b8]">{t('form.dropHint')}</span>
-      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-[#f1f5f9]">
+      <LegacyIcon name="document-upload" className="size-9 text-info" />
+      <span className="text-[13px] font-semibold text-ink">{t('form.drop')}</span>
+      <span className="text-[11.5px] text-mute">{t('form.dropHint')}</span>
+      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-ink">
         <Kbd>Ctrl</Kbd>+<Kbd>V</Kbd>
       </span>
       <input
@@ -103,7 +103,7 @@ export function Dropzone({ onFiles }: { onFiles: (files: File[]) => void }) {
 
 export function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="rounded border border-white/20 bg-white/12 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#38bdf8]">
+    <kbd className="rounded border border-tint/20 bg-tint/12 px-1.5 py-0.5 font-mono text-[11px] font-bold text-info">
       {children}
     </kbd>
   );
@@ -118,7 +118,7 @@ export function AttachButton({ onFiles }: { onFiles: (files: File[]) => void }) 
       <button
         type="button"
         onClick={() => input.current?.click()}
-        className="inline-flex items-center gap-[5px] rounded-lg border border-white/12 bg-white/7 px-3 py-1.5 text-[11.5px] font-semibold text-[#cbd5e1] hover:text-white"
+        className="inline-flex items-center gap-[5px] rounded-lg border border-tint/12 bg-tint/7 px-3 py-1.5 text-[11.5px] font-semibold text-ink-2 hover:text-ink"
       >
         <LegacyIcon name="gallery" className="size-[13px]" />
         {t('box.attach')}
@@ -149,7 +149,7 @@ export function PreviewStrip({ files, onRemove, onOpen }: { files: File[]; onRem
       {files.map((f, i) => {
         const kind = localKind(f);
         return (
-          <div key={`${f.name}-${i}`} className="relative size-[72px] overflow-hidden rounded-lg border border-white/15 bg-black">
+          <div key={`${f.name}-${i}`} className="relative size-[72px] overflow-hidden rounded-lg border border-tint/15 bg-black">
             <button type="button" title={t('form.preview')} onClick={() => onOpen(f)} className="size-full">
               {kind === 'image' && urls[i] ? (
                 <img src={urls[i] as string} alt={f.name} className="size-full object-cover" />
@@ -158,13 +158,13 @@ export function PreviewStrip({ files, onRemove, onOpen }: { files: File[]; onRem
                   className={cn(
                     'flex size-full flex-col items-center justify-center p-1 text-center',
                     kind === 'pdf'
-                      ? 'border border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.15)] text-[#f87171]'
-                      : 'border border-[rgba(59,130,246,0.35)] bg-[rgba(37,99,235,0.15)] text-[#60a5fa]',
+                      ? 'border border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.15)] text-danger'
+                      : 'border border-[rgba(59,130,246,0.35)] bg-[rgba(37,99,235,0.15)] text-link',
                   )}
                 >
                   <LegacyIcon name={kind === 'pdf' ? 'file-pdf' : 'file-word'} className="size-[18px]" />
                   <span className="mt-0.5 text-[10px] font-extrabold uppercase">{kind === 'pdf' ? 'PDF' : 'DOCX'}</span>
-                  <span className="mt-px max-w-[60px] truncate text-[9px] text-[#94a3b8]">{f.name}</span>
+                  <span className="mt-px max-w-[60px] truncate text-[9px] text-mute">{f.name}</span>
                 </span>
               )}
             </button>

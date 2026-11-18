@@ -25,9 +25,9 @@ export function ColumnsMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/8 bg-sidebar/75 px-[11px] text-xs font-semibold text-foreground transition-all hover:border-chart-4/40"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-tint/8 bg-sidebar/75 px-[11px] text-xs font-semibold text-foreground transition-all hover:border-chart-4/40"
         >
-          <Icon name="chart" className="size-3.5 text-chart-4" />
+          <Icon name="chart" className="size-3.5 text-shade-chart-4" />
           {t('columns')}
         </button>
       </DropdownMenuTrigger>
@@ -36,7 +36,7 @@ export function ColumnsMenu({
           {t('columnsTitle')}
           <button
             type="button"
-            className="text-[11px] font-semibold text-chart-4 normal-case"
+            className="text-[11px] font-semibold text-shade-chart-4 normal-case"
             onClick={() => onChange({})}
           >
             {t('columnsAll')}

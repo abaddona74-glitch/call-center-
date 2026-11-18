@@ -110,7 +110,7 @@ export function OperatorCard({
       </div>
       <div className="bar" title={t('card.barTitle', { answered, outbound, missed })}>
         <i style={{ flex: answered || 1, background: 'var(--op-ok)' }} />
-        {outbound > 0 && <i style={{ flex: outbound, background: '#38bdf8' }} />}
+        {outbound > 0 && <i style={{ flex: outbound, background: 'var(--info)' }} />}
         {missed > 0 && <i style={{ flex: missed, background: 'var(--op-wait)' }} />}
       </div>
       <dl className="stats">
@@ -125,12 +125,12 @@ export function OperatorCard({
         <div title={t('card.transferTitle', { in: transfersIn, out: transfersOut })}>
           <dt>{t('card.transfer')}</dt>
           <dd className="inline-flex items-center gap-1">
-            <span className="inline-flex items-center gap-0.5 text-[#34d6a0]">
+            <span className="inline-flex items-center gap-0.5 text-positive">
               <Icon name="arrow-down" className="size-2.5" />
               {transfersIn}
             </span>
-            <span className="font-light text-white/25">|</span>
-            <span className="inline-flex items-center gap-0.5 text-[#38bdf8]">
+            <span className="font-light text-ink/25">|</span>
+            <span className="inline-flex items-center gap-0.5 text-info">
               <Icon name="arrow-up" className="size-2.5" />
               {transfersOut}
             </span>

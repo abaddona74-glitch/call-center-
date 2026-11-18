@@ -35,7 +35,7 @@ import '../i18n';
 const route = getRouteApi('/_app/statistics');
 const PRESETS: RangePresetId[] = ['today', 'week', 'month', 'prevMonth'];
 const inputCls =
-  'h-9 rounded-lg border border-white/8 bg-sidebar/75 px-3 text-[13px] font-semibold text-foreground [color-scheme:dark] outline-none focus:border-primary';
+  'h-9 rounded-lg border border-tint/8 bg-sidebar/75 px-3 text-[13px] font-semibold text-foreground outline-none focus:border-primary';
 
 /** Historical call-center statistics from the PBX CDR (KPI cards, dynamics, distribution, operators, top clients). */
 export function StatisticsPage() {
@@ -64,9 +64,9 @@ export function StatisticsPage() {
       <Panel className="relative z-10">
         <div className="mb-4 flex items-center gap-3">
           <span className="flex size-9 items-center justify-center rounded-[10px] border border-chart-4/40 bg-chart-4/12">
-            <Icon name="chart" className="size-[18px] text-chart-4" />
+            <Icon name="chart" className="size-[18px] text-shade-chart-4" />
           </span>
-          <h2 className="text-[22px] font-bold text-white">{t('title')}</h2>
+          <h2 className="text-[22px] font-bold text-ink">{t('title')}</h2>
         </div>
         <p className="mb-4 text-sm text-foreground/85">
           {t('description')}{' '}
@@ -126,7 +126,7 @@ export function StatisticsPage() {
             <button
               type="button"
               onClick={() => setRangeOpen(true)}
-              className="inline-flex h-9 items-center gap-[7px] rounded-lg border border-chart-6/40 bg-chart-6/15 px-3.5 text-[13px] font-semibold text-chart-4 hover:bg-chart-6/25"
+              className="inline-flex h-9 items-center gap-[7px] rounded-lg border border-chart-6/40 bg-chart-6/15 px-3.5 text-[13px] font-semibold text-shade-chart-4 hover:bg-chart-6/25"
             >
               <Icon name="calendar" className="size-4" /> {`${toDmy(q.from)} — ${toDmy(q.to)}`}
             </button>
@@ -152,7 +152,7 @@ export function StatisticsPage() {
           <button
             type="button"
             onClick={refresh}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-chart-4/45 bg-chart-4/10 px-3.5 text-[13px] font-semibold text-chart-4 transition-colors hover:bg-chart-4/20"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-chart-4/45 bg-chart-4/10 px-3.5 text-[13px] font-semibold text-shade-chart-4 transition-colors hover:bg-chart-4/20"
           >
             <Icon name="refresh" className={anyFetching ? 'size-4 animate-spin' : 'size-4'} /> {t('refresh')}
           </button>

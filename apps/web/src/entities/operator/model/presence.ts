@@ -13,7 +13,7 @@ export const PRESENCE_CLASS: Record<OperatorPresence, 'wait' | 'ring' | 'talk' |
 export const PRESENCE_COLOR: Record<OperatorPresence, string> = {
   idle: '#ffb547',
   ringing: '#ec4899',
-  talking: '#3ea6ff',
+  talking: 'var(--live)',
   paused: '#f59e0b',
   offline: '#ef4444',
 };

@@ -7,6 +7,7 @@ import { onlineUsersQuery } from '../api/online.api';
 import { useOnlineUsersSync, usePresencePing } from '../model/use-presence';
 import '../i18n';
 
+// Avatar fills with dark initials: bright in both themes, so raw legacy colors rather than theme tokens.
 const COLORS = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#60a5fa', '#f87171', '#2dd4bf'];
 const colorOf = (id: number) => COLORS[id % COLORS.length];
 
@@ -35,7 +36,7 @@ export function OnlineUsers() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-[#cbd5e1] hover:bg-white/10"
+          className="inline-flex items-center gap-2 rounded-full border border-tint/10 bg-tint/5 px-3 py-1 text-xs font-semibold text-ink-2 hover:bg-tint/10"
           aria-label={t('title')}
         >
           <span className="relative inline-flex size-2">
@@ -45,8 +46,8 @@ export function OnlineUsers() {
           {t('count', { n: list.length })}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 border-white/10 bg-[#0f172a]/95 p-0 backdrop-blur-md">
-        <div className="border-b border-white/8 px-4 py-3 text-sm font-semibold">{t('title')}</div>
+      <DropdownMenuContent align="end" className="w-80 border-tint/10 bg-sidebar/95 p-0 backdrop-blur-md">
+        <div className="border-b border-tint/8 px-4 py-3 text-sm font-semibold">{t('title')}</div>
         <ul className="max-h-[60vh] overflow-y-auto py-1">
           {list.map((u: OnlineUser) => (
             <li key={u.userId} className="flex items-center gap-3 px-4 py-2">
@@ -60,7 +61,7 @@ export function OnlineUsers() {
                 <span className="block truncate text-sm font-semibold">
                   {u.username}
                   {u.userId === user.id && (
-                    <span className="ml-1.5 rounded bg-white/10 px-1.5 text-[10px] text-[#cbd5e1]">{t('me')}</span>
+                    <span className="ml-1.5 rounded bg-tint/10 px-1.5 text-[10px] text-ink-2">{t('me')}</span>
                   )}
                 </span>
                 <span className="block truncate text-[11px] text-muted-foreground">
@@ -70,7 +71,7 @@ export function OnlineUsers() {
                 </span>
               </span>
               <span
-                className={u.visible ? 'text-[11px] font-semibold text-[#34d399]' : 'text-[11px] text-muted-foreground'}
+                className={u.visible ? 'text-[11px] font-semibold text-positive' : 'text-[11px] text-muted-foreground'}
               >
                 {t(u.visible ? 'active' : 'away')}
               </span>

@@ -23,8 +23,8 @@ export function LiveMonitor({ children, onCollapse }: { children: ReactNode; onC
     }),
   });
   return (
-    <aside className="flex max-h-[calc(100svh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#0f172a] shadow-[-8px_0_24px_rgba(0,0,0,0.4)] xl:sticky xl:top-20">
-      <div className="flex items-center justify-between border-b border-white/8 px-5 py-[18px]">
+    <aside className="flex max-h-[calc(100svh-6.5rem)] flex-col overflow-hidden rounded-2xl border border-tint/8 bg-sidebar shadow-[-8px_0_24px_color-mix(in_srgb,var(--shadow-color)_40%,transparent)] xl:sticky xl:top-20">
+      <div className="flex items-center justify-between border-b border-tint/8 px-5 py-[18px]">
         <h2 className="flex items-center gap-2 text-[15px] font-bold">
           <span className="inline-block size-[7px] rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />
           {t('title')}
@@ -35,22 +35,22 @@ export function LiveMonitor({ children, onCollapse }: { children: ReactNode; onC
             onClick={onCollapse}
             title={t('collapse')}
             aria-label={t('collapse')}
-            className="grid size-7 place-items-center rounded-lg border border-white/10 bg-white/5 text-[#cbd5e1] hover:bg-white/10"
+            className="grid size-7 place-items-center rounded-lg border border-tint/10 bg-tint/5 text-ink-2 hover:bg-tint/10"
           >
             <Icon name="arrow-right" className="size-4" />
           </button>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-3.5 [scrollbar-width:thin]">{children}</div>
-      <div className="flex flex-col gap-2 border-t border-white/8 bg-[#0f172a]/85 px-4 py-3">
+      <div className="flex flex-col gap-2 border-t border-tint/8 bg-sidebar/85 px-4 py-3">
         <AmiStatusPill status={data?.ami} />
         <div
-          className="flex items-center gap-2 rounded-lg border border-[#6366f1]/35 bg-[#6366f1]/12 px-3 py-[7px] text-[11px] font-semibold text-[#a5b4fc]"
+          className="flex items-center gap-2 rounded-lg border border-[#6366f1]/35 bg-[#6366f1]/12 px-3 py-[7px] text-[11px] font-semibold text-brand-pale"
           title={t('queueInfoTitle')}
         >
           <Icon name="chart" className="size-3.5" />
           <span>Queue Info</span>
-          <span className="ml-auto truncate text-[11.5px] font-bold tracking-[0.8px] text-[#e2e8f0]">
+          <span className="ml-auto truncate text-[11.5px] font-bold tracking-[0.8px] text-foreground">
             {data?.taken.length ? data.taken.join(' · ') : '—'}
           </span>
         </div>
@@ -67,7 +67,7 @@ export function LiveMonitorReopen({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       title={t('expand')}
-      className="fixed top-1/2 right-0 z-40 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-xl border border-r-0 border-white/10 bg-[#0f172a] px-2 py-3 text-[11px] font-semibold text-[#cbd5e1] shadow-[-4px_0_16px_rgba(0,0,0,0.4)] hover:text-white"
+      className="fixed top-1/2 right-0 z-40 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-xl border border-r-0 border-tint/10 bg-sidebar px-2 py-3 text-[11px] font-semibold text-ink-2 shadow-[-4px_0_16px_color-mix(in_srgb,var(--shadow-color)_40%,transparent)] hover:text-ink"
     >
       <Icon name="arrow-left" className="size-4" />
       <span className="inline-block size-[7px] rounded-full bg-[#10b981] shadow-[0_0_8px_#10b981]" />

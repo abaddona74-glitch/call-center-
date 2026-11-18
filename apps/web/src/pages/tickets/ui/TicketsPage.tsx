@@ -18,6 +18,7 @@ import { CreateTicketModal } from '@/features/tickets/create-ticket';
 import { SoundToggle, stopTitleFlash, useTicketLive } from '@/features/tickets/notifications';
 import { TicketBox } from '@/widgets/ticket-box';
 import { cn } from '@/shared/lib/cn';
+import { accentText } from '@/shared/lib/theme';
 import { Icon } from '@/shared/ui/icon';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
@@ -38,11 +39,11 @@ function viewsFor(ctx: TicketContext | undefined): TicketView[] {
 }
 
 const VIEW_COLOR: Record<TicketView, string> = {
-  all: '#e2e8f0',
-  mine: '#38bdf8',
-  queue: '#38bdf8',
-  callback: '#5eead4',
-  triage: '#fbbf24',
+  all: 'var(--foreground)',
+  mine: 'var(--info)',
+  queue: 'var(--info)',
+  callback: accentText('#5eead4'),
+  triage: 'var(--caution)',
 };
 
 /**
@@ -132,17 +133,17 @@ export function TicketsPage({
 
   return (
     <div className="mx-auto w-full max-w-[1750px]">
-      <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-[rgba(15,23,42,0.9)] px-7 py-3.5 backdrop-blur-[14px]">
+      <header className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-glass/90 px-7 py-3.5 backdrop-blur-[14px]">
         <div>
-          <h1 className="m-0 text-lg font-bold text-white">{t('title')}</h1>
-          {c && <p className="m-0 text-xs text-[#94a3b8]">{t(`subtitle.${c.kind}`)}</p>}
+          <h1 className="m-0 text-lg font-bold text-ink">{t('title')}</h1>
+          {c && <p className="m-0 text-xs text-mute">{t(`subtitle.${c.kind}`)}</p>}
         </div>
         <div className="flex items-center gap-3">
           <SoundToggle />
           {c?.capabilities.reports && (
             <Link
               to="/tickets/reports"
-              className="inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] px-3.5 py-[9px] text-[13px] font-bold text-[#38bdf8] hover:bg-[rgba(56,189,248,0.28)] hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] px-3.5 py-[9px] text-[13px] font-bold text-info hover:bg-[rgba(56,189,248,0.28)] hover:text-ink"
             >
               <Icon name="chart" className="size-4" />
               {t('reports')}
@@ -171,7 +172,7 @@ export function TicketsPage({
         <>
           {c?.kind === 'executive' && c.regionIds.length === 0 && <Notice tone="warn">{t('noRegions')}</Notice>}
 
-          <div className="mb-[22px] flex flex-col gap-4 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-[rgba(15,23,42,0.7)] px-6 py-[18px] shadow-[0_10px_30px_rgba(0,0,0,0.4)] backdrop-blur-[12px]">
+          <div className="mb-[22px] flex flex-col gap-4 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-glass/70 px-6 py-[18px] shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-color)_40%,transparent)] backdrop-blur-[12px]">
             <div className="flex flex-wrap items-center gap-2" role="tablist">
               {views.map((v) => {
                 const active = view === v;
@@ -184,15 +185,15 @@ export function TicketsPage({
                     aria-selected={active}
                     onClick={() => onSearch({ view: v })}
                     className={cn(
-                      'inline-flex items-center gap-[7px] rounded-[10px] border border-white/8 bg-[rgba(30,41,59,0.6)] px-4 py-2 text-[13px] font-semibold text-[#94a3b8] transition-all duration-200 hover:bg-white/10 hover:text-white',
-                      active && 'border-[#38bdf8] bg-[linear-gradient(135deg,#0284c7_0%,#0369a1_100%)] text-white',
+                      'inline-flex items-center gap-[7px] rounded-[10px] border border-tint/8 bg-glass-2/60 px-4 py-2 text-[13px] font-semibold text-mute transition-all duration-200 hover:bg-tint/10 hover:text-ink',
+                      active && 'border-info bg-[linear-gradient(135deg,#0284c7_0%,#0369a1_100%)] text-white',
                     )}
                   >
                     <span style={!active ? { color: VIEW_COLOR[v] } : undefined}>{viewLabel(v)}</span>
                     <span
                       className={cn(
                         'rounded-[10px] px-[7px] py-px text-[11px] font-extrabold',
-                        active ? 'bg-white text-[#0369a1]' : 'bg-white/12',
+                        active ? 'bg-white text-[#0369a1]' : 'bg-tint/12',
                       )}
                     >
                       {n}
@@ -220,13 +221,13 @@ export function TicketsPage({
                 className={cn(
                   'ml-auto inline-flex items-center gap-[7px] rounded-[10px] border px-4 py-2 text-[13px] font-semibold transition-all duration-200',
                   overdue
-                    ? 'border-[rgba(239,68,68,0.6)] bg-[rgba(239,68,68,0.2)] text-[#fca5a5]'
-                    : 'border-white/8 bg-[rgba(30,41,59,0.6)] text-[#f87171] hover:bg-white/10',
+                    ? 'border-[rgba(239,68,68,0.6)] bg-[rgba(239,68,68,0.2)] text-danger-soft'
+                    : 'border-tint/8 bg-glass-2/60 text-danger hover:bg-tint/10',
                 )}
               >
                 <Icon name="timer" className="size-4" />
                 {t('filter.overdue')}
-                <span className="rounded-[10px] bg-white/12 px-[7px] py-px text-[11px] font-extrabold">
+                <span className="rounded-[10px] bg-tint/12 px-[7px] py-px text-[11px] font-extrabold">
                   {counts?.overdue ?? 0}
                 </span>
               </button>
@@ -284,15 +285,15 @@ export function TicketsPage({
               Array.from({ length: 6 }, (_, i) => (
                 <div
                   key={i}
-                  className="h-[170px] animate-pulse rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-[rgba(15,23,42,0.85)]"
+                  className="h-[170px] animate-pulse rounded-[14px] border border-[rgba(59,130,246,0.22)] bg-glass/85"
                 />
               ))
             ) : list.isError ? (
-              <div className="col-span-full py-10 text-center text-[13px] text-[#f87171]">
+              <div className="col-span-full py-10 text-center text-[13px] text-danger">
                 {t('error', { message: list.error.message })}
               </div>
             ) : list.data.items.length === 0 ? (
-              <div className="col-span-full px-5 py-10 text-center text-[13px] text-[#64748b]">
+              <div className="col-span-full px-5 py-10 text-center text-[13px] text-dim">
                 <Icon name="clipboard-text" className="mx-auto size-4" />
                 <div className="mt-2 font-semibold">{t('empty')}</div>
                 {c && <div className="mt-1 text-[11.5px] text-[#475569]">{t(`emptyHint.${c.kind}`)}</div>}
@@ -314,7 +315,7 @@ export function TicketsPage({
                           <button
                             type="button"
                             onClick={() => setOutcomeFor(ticket.id)}
-                            className="text-xs font-semibold text-[#c084fc] hover:underline"
+                            className="text-xs font-semibold text-violet hover:underline"
                           >
                             {t('box.outcome')}
                           </button>
@@ -352,8 +353,8 @@ function Notice({ children, tone }: { children: React.ReactNode; tone?: 'warn' }
       className={cn(
         'mb-5 rounded-xl border px-6 py-4 text-center text-sm',
         tone === 'warn'
-          ? 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.1)] text-[#fbbf24]'
-          : 'border-white/8 bg-[rgba(15,23,42,0.7)] py-10 text-[#94a3b8]',
+          ? 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.1)] text-caution'
+          : 'border-tint/8 bg-glass/70 py-10 text-mute',
       )}
     >
       {children}
@@ -371,7 +372,7 @@ function LiveClock() {
   }, []);
   const p = (n: number) => String(n).padStart(2, '0');
   return (
-    <div title={t('clock')} className="text-[17px] font-semibold text-white tabular-nums">
+    <div title={t('clock')} className="text-[17px] font-semibold text-ink tabular-nums">
       {p(now.getHours())}:{p(now.getMinutes())}:{p(now.getSeconds())}
     </div>
   );

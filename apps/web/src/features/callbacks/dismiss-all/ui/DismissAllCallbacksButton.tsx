@@ -30,7 +30,7 @@ export function DismissAllCallbacksButton({ count, date }: { count: number; date
         type="button"
         title={t('tooltip')}
         onClick={() => setOpen(true)}
-        className="inline-flex size-[26px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-destructive transition-all duration-150 hover:border-white/25 hover:bg-white/10"
+        className="inline-flex size-[26px] items-center justify-center rounded-lg border border-tint/10 bg-tint/[0.04] text-destructive transition-all duration-150 hover:border-tint/25 hover:bg-tint/10"
       >
         <Icon name="trash" className="size-3" />
       </button>
@@ -52,7 +52,7 @@ export function DismissAllCallbacksButton({ count, date }: { count: number; date
           rows={2}
           autoFocus
           placeholder={t('reasonPlaceholder')}
-          className="mb-4 w-full resize-none rounded-lg border border-white/15 bg-sidebar/80 px-3 py-2 text-left text-[13px] text-white outline-none placeholder:text-muted-foreground focus:border-destructive"
+          className="mb-4 w-full resize-none rounded-lg border border-tint/15 bg-sidebar/80 px-3 py-2 text-left text-[13px] text-ink outline-none placeholder:text-muted-foreground focus:border-destructive"
         />
       </DangerConfirmDialog>
     </>

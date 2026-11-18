@@ -16,7 +16,7 @@ const PRESETS: RangePresetId[] = ['today', 'week', 'month', 'prevMonth'];
 const GROUP_ICON: Record<string, string> = { all: 'global', main: 'user', secondary: 'user' };
 const GROUP_TONE: Record<string, string> = {
   all: 'bg-chart-2/15 border-chart-2/40 text-success',
-  main: 'bg-chart-6/15 border-chart-6/40 text-chart-6',
+  main: 'bg-chart-6/15 border-chart-6/40 text-shade-chart-6',
   secondary: 'bg-chart-3/15 border-chart-3/40 text-outbound',
 };
 
@@ -114,13 +114,13 @@ export function ExportExcelButton({ from, to, scope }: { from: string; to: strin
           subtitle={t('choiceSubtitle', { from: toDmy(range.from), to: toDmy(range.to) })}
         />
         <div className="flex flex-col gap-3.5">
-          <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
-            <Icon name="global" className="size-6 shrink-0 text-chart-4" />
+          <div className="flex items-center gap-3 rounded-xl border border-tint/10 bg-tint/[0.03] px-3.5 py-3">
+            <Icon name="global" className="size-6 shrink-0 text-shade-chart-4" />
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold text-white">{t('lang')}</div>
+              <div className="text-[13px] font-bold text-ink">{t('lang')}</div>
               <div className="text-[11px] text-foreground/80">{t(`langHint.${lang}`)}</div>
             </div>
-            <div className="flex gap-1 rounded-[10px] border border-white/10 bg-black/25 p-1" role="radiogroup">
+            <div className="flex gap-1 rounded-[10px] border border-tint/10 bg-well/25 p-1" role="radiogroup">
               {(['uz', 'ru'] as const).map((l) => (
                 <button
                   key={l}
@@ -146,7 +146,7 @@ export function ExportExcelButton({ from, to, scope }: { from: string; to: strin
               type="button"
               disabled={download.isPending}
               onClick={() => download.mutate(o.id)}
-              className="group flex items-center gap-3.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3.5 text-left transition-all hover:border-chart-4/45 hover:bg-white/[0.06] disabled:opacity-60"
+              className="group flex items-center gap-3.5 rounded-xl border border-tint/10 bg-tint/[0.03] px-4 py-3.5 text-left transition-all hover:border-chart-4/45 hover:bg-tint/[0.06] disabled:opacity-60"
             >
               <span
                 className={cn(
@@ -157,7 +157,7 @@ export function ExportExcelButton({ from, to, scope }: { from: string; to: strin
                 <Icon name={GROUP_ICON[o.id] ?? 'user'} className="size-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-[15px] font-bold text-white">
+                <span className="flex items-center gap-2 text-[15px] font-bold text-ink">
                   {o.title}
                   <span
                     className={cn(
@@ -180,7 +180,7 @@ export function ExportExcelButton({ from, to, scope }: { from: string; to: strin
               )}
             </button>
           ))}
-          <div className="-mx-6 mt-1 flex justify-between border-t border-white/8 px-6 pt-4">
+          <div className="-mx-6 mt-1 flex justify-between border-t border-tint/8 px-6 pt-4">
             <ModalButton onClick={() => setStep('range')}>
               <Icon name="arrow-left" className="size-3.5" /> {t('back')}
             </ModalButton>

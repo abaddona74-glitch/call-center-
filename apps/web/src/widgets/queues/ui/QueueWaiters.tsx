@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { LiveTimer, carrierOf, displayPhone, liveSnapshotQuery } from '@/entities/telephony';
 import { Icon } from '@/shared/ui/icon';
+import { accentText } from '@/shared/lib/theme';
 import '../i18n';
 import './queues.css';
 
@@ -36,7 +37,7 @@ export function QueueWaiters() {
                   <Icon name="call-incoming" className="qp-ic" />
                   <span className="qp-num">{displayPhone(w.phone, tt('hidden'))}</span>
                   {carrier && (
-                    <span className="qp-carrier" style={{ color: carrier.color }}>
+                    <span className="qp-carrier" style={{ color: accentText(carrier.color) }}>
                       <Icon name="simcard" className="size-[9px]" />
                       {carrier.name}
                     </span>
@@ -46,7 +47,7 @@ export function QueueWaiters() {
               <div className="qp-right">
                 <span className="qp-pos">{t('position', { n: w.position })}</span>
                 <span className="qp-wait" title={t('waitTitle')}>
-                  <Icon name="timer" className="size-2.5 text-[#38bdf8]" />
+                  <Icon name="timer" className="size-2.5 text-info" />
                   <LiveTimer since={w.joinedAt} />
                 </span>
               </div>

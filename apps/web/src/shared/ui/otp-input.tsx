@@ -19,7 +19,7 @@ export function OtpInput({
       value={value}
       onChange={(e) => onValueChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
       className={cn(
-        'w-full rounded-[14px] border-2 border-[rgba(59,130,246,0.4)] bg-[rgba(15,23,42,0.95)] p-4 text-center font-mono text-[28px] font-extrabold tracking-[12px] text-[#60a5fa] transition-all outline-none focus:border-[#3b82f6] focus:bg-[#0f172a] focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)]',
+        'w-full rounded-[14px] border-2 border-[rgba(59,130,246,0.4)] bg-glass/95 p-4 text-center font-mono text-[28px] font-extrabold tracking-[12px] text-link transition-all outline-none focus:border-[#3b82f6] focus:bg-sidebar focus:shadow-[0_0_0_3px_rgba(59,130,246,0.3)]',
         className,
       )}
       {...props}
