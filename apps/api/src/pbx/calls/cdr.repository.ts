@@ -3,6 +3,7 @@ import { type Kysely, sql } from 'kysely';
 import { AppConfig } from '../../config/app-config.js';
 import { InjectPbxDb, type PbxDb } from '../pbx-db.module.js';
 import type { PbxDB } from '../pbx-db.types.js';
+import { notQueueMemberRingAttempt } from './cdr-filters.js';
 import type { CdrRow } from './cdr-row.js';
 import type { SurveyRating } from './survey-rating.js';
 
@@ -74,6 +75,24 @@ export class CdrRepository {
       this.selectRows(db).where('calldate', '>=', fromWall).where('calldate', '<', toWall).limit(MAX_ROWS).execute(),
     );
     if (rows.length >= MAX_ROWS) this.logger.warn(`rowsBetween(${fromWall}, ${toWall}) hit the ${MAX_ROWS} row cap`);
+    return rows.map(toCdrRow);
+  }
+
+  /**
+   * One slice of a bounded read: at most `limit` rows with `fromWall <= calldate < toWall`, oldest first. Without
+   * linkedid the queue members' own ring attempts are left out in SQL (`notQueueMemberRingAttempt`): they never form a
+   * call, and they are about half of all rows.
+   */
+  async rowsSlice(fromWall: string, toWall: string, limit: number): Promise<CdrRow[]> {
+    const rows = await this.run('rowsSlice', (db) =>
+      this.selectRows(db)
+        .where('calldate', '>=', fromWall)
+        .where('calldate', '<', toWall)
+        .$if(!this.hasLinkedid, (qb) => qb.where(notQueueMemberRingAttempt))
+        .orderBy('calldate')
+        .limit(limit)
+        .execute(),
+    );
     return rows.map(toCdrRow);
   }
 

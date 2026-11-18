@@ -75,7 +75,10 @@ export const LiveOperatorSchema = z.object({
       lastCallAt: z.string().nullable(),
     })
     .nullable(),
-  /** Live counters since the start of the Tashkent day (or API start). */
+  /**
+   * Today (Tashkent day): from the CDR for calls that started before `counters.seededThrough`, live (AMI) after it;
+   * live only since `counters.since` when there was no CDR seed. Hangup sides are live-only.
+   */
   today: OperatorTodaySchema,
 });
 export type LiveOperator = z.infer<typeof LiveOperatorSchema>;
@@ -129,11 +132,18 @@ export type LiveQueue = z.infer<typeof LiveQueueSchema>;
  *  outbound         — outbound calls placed; outboundAnswered — of them answered by the callee
  *  operatorMissed   — operator rings that were not picked up / rejected
  *  *Hangups         — who ended answered calls (AgentComplete reason / HangupRequest / bridge leave)
- * They cover only the time the API was connected to AMI today (`since`); history comes from CDR.
+ *
+ * Calls that started before the API began counting live are seeded from the PBX CDR with the statistics page's
+ * definitions (docs/rewrite/METRICS.md): then `seededThrough` is set and `since` is the start of the day. Who hung
+ * up is unknown in the CDR, so seeded answered calls count as `unknownHangups`. Without a seed (PBX DB down) the
+ * counters cover only calls since `since`.
  */
 export const LiveCountersSchema = z.object({
   date: IsoDateSchema,
+  /** Calls that started from this moment are counted (start of the day when seeded). */
   since: z.string(),
+  /** Calls that started before this moment come from the CDR, later ones from AMI; null = AMI only. */
+  seededThrough: z.string().nullable(),
   inbound: z.number().int(),
   answered: z.number().int(),
   abandoned: z.number().int(),

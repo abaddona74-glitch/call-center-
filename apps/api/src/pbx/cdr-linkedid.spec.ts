@@ -7,6 +7,7 @@ import { CallbacksReconciler, CdrLegsReader } from '../modules/callbacks/callbac
 import type { CallbacksService } from '../modules/callbacks/callbacks.service.js';
 import { ContactsRepository } from '../modules/contacts/contacts.repository.js';
 import { RecordingsRepository } from '../modules/recordings/recordings.repository.js';
+import { CdrRepository } from './calls/cdr.repository.js';
 import type { PbxDB } from './pbx-db.types.js';
 
 /**
@@ -108,5 +109,30 @@ describe('CDR reader of the callbacks reconciliation', () => {
     await new CdrLegsReader(on.db, config(true)).read('2026-11-18 10:00:00', '2026-11-18 11:00:00', 100);
     expect(on.sql[0]).not.toMatch(/`channel` like|`dstchannel` =/);
     expect(on.params[0]).toEqual(['2026-11-18 10:00:00', '2026-11-18 11:00:00', 100]);
+  });
+});
+
+describe('CDR slice reader of the live counters seed (CdrRepository.rowsSlice)', () => {
+  const MEMBER_ATTEMPTS = 'not (`channel` like ? and `dcontext` = ? and `dstchannel` = ?)';
+  const read = async (hasLinkedid: boolean) => {
+    const q = pbx();
+    await new CdrRepository(q.db, config(hasLinkedid)).rowsSlice('2026-11-18 10:00:00', '2026-11-18 11:00:00', 50_001);
+    return q;
+  };
+
+  it('without linkedid: never names the column and leaves out member ring attempts', async () => {
+    const { sql, params } = await read(false);
+    expect(sql).toHaveLength(1);
+    expect(sql[0].replace(/as `linkedid`/gi, '')).not.toMatch(/linkedid/i);
+    expect(sql[0]).toContain(MEMBER_ATTEMPTS);
+    expect(sql[0]).toMatch(/order by `calldate` limit \?$/);
+    expect(params[0]).toEqual(['2026-11-18 10:00:00', '2026-11-18 11:00:00', 'Local/%', 'from-internal', '', 50_001]);
+  });
+
+  it('with linkedid: reads it and keeps the member legs (they belong to the caller’s call)', async () => {
+    const { sql, params } = await read(true);
+    expect(sql[0]).toMatch(/linkedid/);
+    expect(sql[0]).not.toMatch(/`channel` like|`dstchannel` =/);
+    expect(params[0]).toEqual(['2026-11-18 10:00:00', '2026-11-18 11:00:00', 50_001]);
   });
 });

@@ -8,6 +8,7 @@ import {
   maskPhone,
   telephonyAccess,
 } from '@cc/shared';
+import { withSeed } from './cdr-seed.js';
 import type { LiveStore } from './live-store.js';
 
 /**
@@ -35,6 +36,7 @@ export function projectOperators(
   hidden: ReadonlySet<string> = new Set(),
 ): LiveOperator[] {
   const list: LiveOperator[] = [];
+  const seeded = store.todaySeed?.operators;
   for (const op of store.operators.values()) {
     if (hidden.has(op.ext)) continue;
     const { presence, channel, call } = store.presenceOf(op, now);
@@ -65,7 +67,7 @@ export function projectOperators(
       queue: op.queue
         ? { callsTaken: op.queue.callsTaken, lastCallAt: op.queue.lastCallAt ? iso(op.queue.lastCallAt) : null }
         : null,
-      today: { ...op.today },
+      today: withSeed(op.today, seeded?.get(op.ext)),
     });
   }
   return list.sort((a, b) => Number(a.extension) - Number(b.extension) || a.extension.localeCompare(b.extension));
@@ -113,24 +115,30 @@ export function projectQueues(store: LiveStore): LiveQueue[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Live counters plus the CDR seed of the day (calls before live counting began), when there is one. */
 export function projectCounters(store: LiveStore): LiveCounters {
   const c = store.counters;
+  const seed = store.todaySeed;
+  const s = seed?.counters;
+  const inbound = c.inbound + (s?.inbound ?? 0);
+  const answered = c.answered + (s?.answered ?? 0);
   return {
     date: c.date,
-    since: iso(c.since),
-    inbound: c.inbound,
-    answered: c.answered,
-    abandoned: c.abandoned,
-    ivrOnly: c.ivrOnly,
-    unanswered: c.unanswered,
-    answerRate: c.inbound ? Math.round((c.answered * 100) / c.inbound) : 0,
-    outbound: c.outbound,
-    outboundAnswered: c.outboundAnswered,
-    operatorMissed: c.operatorMissed,
-    talkSeconds: c.talkSeconds,
+    since: iso(seed ? seed.from : c.since),
+    seededThrough: seed ? iso(seed.through) : null,
+    inbound,
+    answered,
+    abandoned: c.abandoned + (s?.abandoned ?? 0),
+    ivrOnly: c.ivrOnly + (s?.ivrOnly ?? 0),
+    unanswered: c.unanswered + (s?.unanswered ?? 0),
+    answerRate: inbound ? Math.round((answered * 100) / inbound) : 0,
+    outbound: c.outbound + (s?.outbound ?? 0),
+    outboundAnswered: c.outboundAnswered + (s?.outboundAnswered ?? 0),
+    operatorMissed: c.operatorMissed + (s?.operatorMissed ?? 0),
+    talkSeconds: c.talkSeconds + (s?.talkSeconds ?? 0),
     clientHangups: c.clientHangups,
     operatorHangups: c.operatorHangups,
-    unknownHangups: c.unknownHangups,
+    unknownHangups: c.unknownHangups + (s?.unknownHangups ?? 0),
   };
 }
 

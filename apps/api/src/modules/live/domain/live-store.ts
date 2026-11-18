@@ -21,9 +21,12 @@ import {
   phoneFromDialString,
   phoneOf,
 } from './channel.js';
+import { type CounterSeed, callIdEpochMs, startedBefore } from './cdr-seed.js';
 
 /**
- * In-memory live telephony state, built only from AMI events (Asterisk 13+ names).
+ * In-memory live telephony state, built only from AMI events (Asterisk 13+ names). Today's counters for calls that
+ * started before live counting began (`countFrom`) come from the CDR (`applySeed`, see cdr-seed.ts); the projection
+ * adds the two.
  *
  * Pure: no Nest, no I/O, no clock — every input carries `now` (epoch ms). Feed it with
  * `apply(event, now)` and the list-action results (`applyPeers`, `applyQueueStatus`,
@@ -82,8 +85,10 @@ export interface CallRec {
   phone: string | null;
   callerName: string | null;
   startedAt: number;
-  /** Tashkent day the call is counted in; null = not counted (discovered by resync). */
+  /** Tashkent day the call is counted in; null = not counted (discovered by resync, or on the CDR side). */
   countedDay: string | null;
+  /** Started before live counting began (`countFrom`): counted from the CDR once it ends, never live. */
+  seedSide: boolean;
   /** Citizen leg (inbound: the trunk channel; outbound: the dialed trunk channel). */
   partyUniqueid: string | null;
   /** Operator who placed an outbound/internal call. */
@@ -180,7 +185,15 @@ export class LiveStore {
   readonly operators = new Map<string, OperatorRec>();
   readonly queues = new Map<string, QueueRec>();
   counters: CountersRec;
+  /**
+   * Live counting started here (epoch ms, whole second; null = not started): calls that started earlier are on the
+   * CDR side (`seedSide`). Set once, at the first AMI connection (`startCounting`).
+   */
+  countFrom: number | null = null;
 
+  private seed: CounterSeed | null = null;
+  /** CDR-side calls that ended since the last drain: their CDR rows are written now. */
+  private seedSideEnded: Array<{ callId: string; startedAt: number }> = [];
   private events: LiveDomainEvent[] = [];
   private changed = new Set<LiveSection>();
   /** ext -> expected click-to-call target (set by the actions module before Originate). */
@@ -225,6 +238,58 @@ export class LiveStore {
     return out;
   }
 
+  /**
+   * Start counting live at `boundary` (epoch ms, a whole second): today's live counters restart from zero, and calls
+   * that started before it — in progress now, or seen later through their events — are left to the CDR seed.
+   */
+  startCounting(boundary: number, now: number): void {
+    this.countFrom = boundary;
+    this.seed = null;
+    this.counters = { ...this.emptyCounters(now), since: boundary };
+    for (const op of this.operators.values()) op.today = emptyToday();
+    for (const call of this.calls.values()) {
+      if (startedBefore(boundary, call.id, call.startedAt)) {
+        call.seedSide = true;
+        call.countedDay = null;
+      }
+    }
+    this.changed.add('counters');
+    this.changed.add('operators');
+  }
+
+  /**
+   * No CDR seed after all (PBX database down): from now on every call seen live is counted again, as before
+   * `startCounting` — whatever the PBX clock says. Calls already left to the CDR stay uncounted (they began before
+   * `counters.since`).
+   */
+  liveOnly(): void {
+    this.countFrom = null;
+    this.seed = null;
+    this.seedSideEnded = [];
+    this.changed.add('counters');
+  }
+
+  /** CDR counts of today's calls before `countFrom`; ignored (false) when the seed is for another day. */
+  applySeed(seed: CounterSeed): boolean {
+    if (seed.date !== this.counters.date) return false;
+    this.seed = seed;
+    this.changed.add('counters');
+    this.changed.add('operators');
+    return true;
+  }
+
+  /** The CDR seed of the current day, if any. */
+  get todaySeed(): CounterSeed | null {
+    return this.seed?.date === this.counters.date ? this.seed : null;
+  }
+
+  /** CDR-side calls that ended since the last call (id + start, for reading their CDR rows). */
+  drainSeedSideEnded(): Array<{ callId: string; startedAt: number }> {
+    const out = this.seedSideEnded;
+    this.seedSideEnded = [];
+    return out;
+  }
+
   /** Operator directory (asterisk.users): creates operators and sets display names. */
   setDirectory(entries: Iterable<{ extension: string; name: string }>, now: number): void {
     for (const { extension, name } of entries) {
@@ -255,7 +320,7 @@ export class LiveStore {
     const call = ch ? this.calls.get(ch.callId) : undefined;
     if (!ch || !call) return;
     ch.transferring = true;
-    if (call.talkingExt && !call.transferred) this.countTransferOut(call.talkingExt);
+    if (call.talkingExt && !call.transferred) this.countTransferOut(call, call.talkingExt);
     call.transferred = true;
     for (const uid of call.channels) {
       const c = this.channels.get(uid);
@@ -668,7 +733,7 @@ export class LiveStore {
     if (!call) return;
     const reason = (e.reason ?? '').toLowerCase();
     if (reason === 'transfer') {
-      if (!call.transferred && ext) this.countTransferOut(ext);
+      if (!call.transferred && ext) this.countTransferOut(call, ext);
       call.transferred = true;
       for (const u of call.channels) {
         const c = this.channels.get(u);
@@ -742,7 +807,7 @@ export class LiveStore {
     transferer.transferring = true;
     const call = this.calls.get(e.transfereelinkedid) ?? this.calls.get(transferer.callId);
     if (call) {
-      if (transferer.ext && !call.transferred) this.countTransferOut(transferer.ext);
+      if (transferer.ext && !call.transferred) this.countTransferOut(call, transferer.ext);
       call.transferred = true;
       if (call.partyExit?.uniqueid === transferer.uniqueid) call.partyExit = null;
     }
@@ -756,7 +821,7 @@ export class LiveStore {
     const transferee = this.channels.get(e.transfereeuniqueid);
     const call = transferee ? this.calls.get(transferee.callId) : orig ? this.calls.get(orig.callId) : undefined;
     if (!call) return;
-    if (orig?.ext && !call.transferred) this.countTransferOut(orig.ext);
+    if (orig?.ext && !call.transferred) this.countTransferOut(call, orig.ext);
     call.transferred = true;
     if (
       call.partyExit &&
@@ -804,7 +869,10 @@ export class LiveStore {
 
     let call = this.calls.get(callId);
     if (!call) {
-      call = this.newCall(callId, opts.createdAt, opts.partial ? null : this.counters.date);
+      // A call that began before live counting did is counted from the CDR, even if this is a live event of it.
+      const seedSide = this.countFrom !== null && startedBefore(this.countFrom, callId, opts.createdAt);
+      call = this.newCall(callId, opts.createdAt, opts.partial || seedSide ? null : this.counters.date);
+      call.seedSide = seedSide;
       this.classifyNewCall(call, ch, e, now);
     } else if (ch.kind === 'external' && !call.partyUniqueid && (call.originExt || !call.directionKnown)) {
       // A trunk leg joined an operator-originated call: it is an outbound call.
@@ -827,6 +895,7 @@ export class LiveStore {
       callerName: null,
       startedAt,
       countedDay,
+      seedSide: false,
       partyUniqueid: null,
       originExt: null,
       queue: null,
@@ -970,7 +1039,8 @@ export class LiveStore {
     this.emit(CallEvents.Abandoned, { ...this.base(call, now), queue, waitSeconds: Math.max(0, waitSeconds) });
   }
 
-  private countTransferOut(ext: string): void {
+  private countTransferOut(call: CallRec, ext: string): void {
+    if (call.countedDay !== this.counters.date) return; // not counted live (resync / CDR side)
     const op = this.operators.get(ext);
     if (op) op.today.transfersOut++;
     this.changed.add('operators');
@@ -978,6 +1048,8 @@ export class LiveStore {
 
   private endCall(call: CallRec, now: number): void {
     this.calls.delete(call.id);
+    if (call.seedSide)
+      this.seedSideEnded.push({ callId: call.id, startedAt: callIdEpochMs(call.id) ?? call.startedAt });
     for (const q of this.queues.values()) {
       for (const [uid, w] of q.waiting) if (w.callId === call.id) q.waiting.delete(uid);
     }
@@ -1241,7 +1313,9 @@ export class LiveStore {
   private rollover(now: number): void {
     const day = this.dayOf(now);
     if (day === this.counters.date) return;
+    // Live counting already runs, so the new day is counted live from its start; the old day's CDR seed goes.
     this.counters = this.emptyCounters(now);
+    this.seed = null;
     for (const op of this.operators.values()) op.today = emptyToday();
     for (const [ext, exp] of this.expectedOriginates)
       if (now - exp.at > ORIGINATE_EXPECT_MS) this.expectedOriginates.delete(ext);

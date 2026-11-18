@@ -2,8 +2,10 @@ import type { CallListItem } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { CallDirectionBadge, CallStatusBadge, callDetailsQuery, formatDuration, formatPhone } from '@/entities/call';
+import { CallRecordingButton } from '@/features/recordings/play-call';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
+import { recordingLabel } from './CallHistoryTable';
 import '../i18n';
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -16,7 +18,16 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 /** Call drill-down: facts + raw CDR legs (legacy call detail modal). */
-export function CallDetailsDialog({ call, onClose }: { call: CallListItem | null; onClose: () => void }) {
+export function CallDetailsDialog({
+  call,
+  onClose,
+  canListen = false,
+}: {
+  call: CallListItem | null;
+  onClose: () => void;
+  /** May play the recording (`calls.recordings`). */
+  canListen?: boolean;
+}) {
   const { t } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
   const details = useQuery({ ...callDetailsQuery(call?.id ?? ''), enabled: Boolean(call) });
@@ -62,9 +73,17 @@ export function CallDetailsDialog({ call, onClose }: { call: CallListItem | null
                     ))
                   : '—'}
               </Fact>
-              {/* TODO(S5 recordings): link to the recording player once the recordings module exists. */}
               <Fact label={t('details.recording')}>
-                <span className="font-mono text-xs break-all">{c.recordingFile ?? (c.hasRecording ? '✓' : '—')}</span>
+                {c.hasRecording && canListen ? (
+                  <div className="flex flex-col items-start gap-1.5">
+                    <CallRecordingButton uniqueid={c.id} label={recordingLabel(c)} />
+                    {c.recordingFile && (
+                      <span className="font-mono text-[11px] break-all text-muted-foreground">{c.recordingFile}</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="font-mono text-xs break-all">{c.recordingFile ?? (c.hasRecording ? '✓' : '—')}</span>
+                )}
               </Fact>
             </div>
 

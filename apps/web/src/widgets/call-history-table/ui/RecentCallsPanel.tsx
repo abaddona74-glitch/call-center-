@@ -35,6 +35,7 @@ const noop = () => {};
 export function RecentCallsPanel() {
   const { t } = useTranslation('recentCalls');
   const user = useSessionUser();
+  const canListen = canAccessCdr(user, 'calls.recordings');
   const [segment, setSegment] = useState<Segment>('all');
   const [term, setTerm] = useState('');
   const [search, setSearch] = useState('');
@@ -104,7 +105,7 @@ export function RecentCallsPanel() {
         columnVisibility={COLUMNS}
         onColumnVisibilityChange={noop}
         onOpenDetails={setSelected}
-        canListen={canAccessCdr(user, 'calls.recordings')}
+        canListen={canListen}
         placeholder={placeholder}
       />
       {data && data.total > 0 && (
@@ -115,7 +116,7 @@ export function RecentCallsPanel() {
           summary={t('total', { total: data.total })}
         />
       )}
-      <CallDetailsDialog call={selected} onClose={() => setSelected(null)} />
+      <CallDetailsDialog call={selected} onClose={() => setSelected(null)} canListen={canListen} />
     </Panel>
   );
 }

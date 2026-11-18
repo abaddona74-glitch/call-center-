@@ -21,6 +21,8 @@ registerTranslations('liveCounters', {
     talkingNow: 'Hozir suhbatda',
     missedHint: "Operator ko'tarmagan / rad etgan",
     since: 'Jonli hisob {{time}} dan beri (AMI). Kunlik hisobot — CDR statistikasida.',
+    seeded:
+      "Butun kun: {{time}} gacha — ATS CDR bo'yicha (statistikadagidek), keyin — jonli hisob (AMI). «Mijoz tugatdi / Operator» — faqat {{time}} dan beri.",
   },
   ru: {
     title: 'Показатели за сегодня',
@@ -42,5 +44,7 @@ registerTranslations('liveCounters', {
     talkingNow: 'Сейчас в разговоре',
     missedHint: 'Оператор не ответил / отклонил',
     since: 'Живой подсчёт с {{time}} (AMI). Отчёт за день — в статистике CDR.',
+    seeded:
+      'За весь день: до {{time}} — по CDR АТС (как в статистике), дальше — живой подсчёт (AMI). «Завершил клиент / Оператор» — только с {{time}}.',
   },
 });
