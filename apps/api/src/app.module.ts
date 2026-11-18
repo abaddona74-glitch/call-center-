@@ -33,6 +33,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { RecordingsModule } from './modules/recordings/recordings.module.js';
 import { StatsModule } from './modules/stats/stats.module.js';
 import { TicketsModule } from './modules/tickets/tickets.module.js';
+import { ToolsModule } from './modules/tools/tools.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PbxDbModule } from './pbx/pbx-db.module.js';
 
@@ -101,6 +102,7 @@ import { PbxDbModule } from './pbx/pbx-db.module.js';
     CdrModule,
     StatsModule,
     ExportModule,
+    ToolsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -39,7 +39,9 @@ export const PERMISSIONS = [
   'tickets.directories.manage',
   /** Close a ticket without a confirmed call (with a reason), delete, triage tickets without a region. */
   'tickets.administer',
-  /** Tools section (converter, links, installers). */
+  /** Tools page: links, installers, the managers directory, Uzcrypto (docs: tools.ts). */
+  'tools.view',
+  /** Extra tools legacy hid from the "200" group: the file converter and the Ijro letter generator. */
   'tools.use',
   'remoteDesktop.use',
   /** "Help" ring to other operators. */
@@ -91,6 +93,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'callbacks.view',
     'contacts.view',
     'tickets.viewAll',
+    'tools.view',
   ],
   operator: [
     'monitor.view',
@@ -99,6 +102,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'contacts.manage',
     'tickets.create',
     'tickets.callback',
+    'tools.view',
     'tools.use',
     'remoteDesktop.use',
     'help.request',
