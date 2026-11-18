@@ -1,6 +1,7 @@
 #!/bin/bash
-# Read-only report of the survey on this PBX: queues and their failover, what is installed, leftovers of the
-# 18.11 manual setup. Changes nothing. Run as root on the PBX and send the output to the developer.
+# Read-only report of the survey on this PBX: queues and their failover / continue destination, what is installed,
+# the cc_readonly grants (password hashes masked). Changes nothing. Run as root on the PBX; the output is safe to send
+# to the developer.
 set -uo pipefail
 cd "$(dirname "$0")"
 . ./lib.sh
@@ -16,14 +17,19 @@ echo "== ext-queues: строки про VQ_*/QDEST/Queue() очереди $BAHO
 grep -nE "^exten => $BAHO_QUEUE,.*(VQ_|QDEST|Queue\()" "$EXT_ADD" || echo "(не найдено)"
 echo "  определённый failover: $(detect_failover "$EXT_ADD" "$BAHO_QUEUE" || true)"
 
-echo "== Ручные правки в автогенерируемом extensions_additional.conf (теряются при Apply Config)"
+echo "== Настройки очередей в базе Issabel (asterisk.queues_config): failover (dest) и continue destination"
+mysql --defaults-extra-file="$ADMIN_CNF" asterisk -t -e "SELECT extension, dest AS failover, destcontinue AS continue_dest FROM queues_config" \
+  2>&1 || true
+echo "  пустой failover = после очереди положить трубку: BAHO_FAILOVER='app-blackhole^hangup^1'"
+
+echo "== ext-queues: переходы в опрос (gotocontinue = continue destination очереди из базы, переживает Apply Config)"
 grep -nE "gotocontinue|sub-evaluate|operator-baho" "$EXT_ADD" || echo "(нет)"
 
 echo "== Наши блоки в *_custom.conf (строк)"
 for f in extensions_custom.conf globals_custom.conf queues_post_custom.conf; do
   echo "  $f: $(block_lines "$AST/$f")"
 done
-echo "== Старый [sub-evaluate] в extensions_custom.conf"
+echo "== [sub-evaluate] в extensions_custom.conf (на него указывает continue destination очереди — не удалять)"
 sed -n '/^\[sub-evaluate\]/,/^\[/p' "$AST/extensions_custom.conf" 2>/dev/null | head -20 || true
 
 echo "== Глобальные переменные в работе"
@@ -37,4 +43,5 @@ mysql --defaults-extra-file="$ADMIN_CNF" asteriskcdrdb -t -e \
   2>&1 || true
 echo "== Права cc_readonly (новая система)"
 mysql --defaults-extra-file="$ADMIN_CNF" -N -e "SELECT CONCAT(user,'@',host) FROM mysql.user WHERE user='cc_readonly'" 2>/dev/null \
-  | while read -r u; do mysql --defaults-extra-file="$ADMIN_CNF" -N -e "SHOW GRANTS FOR '${u%@*}'@'${u#*@}'"; done || true
+  | while read -r u; do mysql --defaults-extra-file="$ADMIN_CNF" -N -e "SHOW GRANTS FOR '${u%@*}'@'${u#*@}'"; done \
+  | mask_secrets || true

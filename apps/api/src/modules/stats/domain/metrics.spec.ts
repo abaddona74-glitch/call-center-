@@ -244,6 +244,44 @@ describe('surveyByOperator', () => {
     ).toEqual(new Map());
   });
 
+  it('PBX CDR without a linkedid column (PBX_CDR_HAS_LINKEDID=false, the production PBX): matched by the caller uniqueid', () => {
+    // CdrRepository then returns uniqueid as linkedid; the AGI stores the caller channel's uniqueid, and
+    // CHANNEL(linkedid) of an inbound call is that same uniqueid (the trunk channel is the oldest one).
+    const noLinkedid = (rows: ReturnType<typeof inbound>) => rows.map((r) => ({ ...r, linkedid: r.uniqueid }));
+    const a = inbound({
+      at: '2026-11-17 09:10:00',
+      caller: '998901111111',
+      outcome: 'answered',
+      answeredBy: '101',
+      talk: 100,
+    });
+    const f = inbound({
+      at: '2026-11-17 11:30:00',
+      caller: 'anonymous',
+      outcome: 'answered',
+      answeredBy: '103',
+      talk: 45,
+    });
+    const flat = calls(noLinkedid(a), noLinkedid(f));
+    const callerA = a[0].uniqueid;
+    const callerF = f[0].uniqueid;
+    expect(flat.map((c) => c.id)).toEqual(expect.arrayContaining([callerA, callerF]));
+    const got = surveyByOperator(
+      [
+        { linkedid: callerA, uniqueid: callerA, operatorExt: '101', score: 5 },
+        { linkedid: '', uniqueid: callerF, operatorExt: '', score: 2 }, // operator from the call
+      ],
+      flat,
+      'working',
+    );
+    expect(got).toEqual(
+      new Map([
+        ['101', { count: 1, sum: 5 }],
+        ['103', { count: 1, sum: 2 }],
+      ]),
+    );
+  });
+
   it('an excluded operator keeps no row even with ratings; the others keep theirs', () => {
     const survey = surveyByOperator(ratings, day, 'all');
     const rows = operatorStats(day, { scope: 'all', names, groupOf, survey, excluded: new Set(['101']) });

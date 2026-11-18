@@ -43,4 +43,12 @@ eq "remove_block: back to the original content (+1 separator line)" \
   "$(diff <(cat "$FX/extensions_custom.conf"; echo) "$W/ext.conf" && echo same)" "same"
 eq "remove_block: absent" "$(remove_block "$W/ext.conf")" "absent"
 
+eq "mask_secrets: MariaDB 5.5 password hash" \
+  "$(echo "GRANT USAGE ON *.* TO 'cc_readonly'@'192.168.0.30' IDENTIFIED BY PASSWORD '*DFB0B1844EEA8BF5A8100D91D4C39FA104461446'" | mask_secrets)" \
+  "GRANT USAGE ON *.* TO 'cc_readonly'@'192.168.0.30' IDENTIFIED BY PASSWORD '***'"
+eq "mask_secrets: auth plugin string" "$(echo "IDENTIFIED VIA mysql_native_password USING '*ABC'" | mask_secrets)" \
+  "IDENTIFIED VIA mysql_native_password USING '***'"
+eq "mask_secrets: table grants untouched" "$(echo "GRANT SELECT ON \`asteriskcdrdb\`.\`cdr\` TO 'cc_readonly'@'h'" | mask_secrets)" \
+  "GRANT SELECT ON \`asteriskcdrdb\`.\`cdr\` TO 'cc_readonly'@'h'"
+
 exit $fail

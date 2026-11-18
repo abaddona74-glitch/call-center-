@@ -15,11 +15,16 @@ LAST=$(q -N -e "SELECT uniqueid FROM operator_baho ORDER BY id DESC LIMIT 1")
 if [ -z "$LAST" ]; then echo "Оценок пока нет."; exit 0; fi
 case "$LAST" in *[!0-9.]*) echo "Неожиданный uniqueid: $LAST"; exit 1 ;; esac
 
+# This PBX's cdr table has no linkedid column (Issabel's default schema); use it only where it exists.
+HAS_LINKEDID=$(q -N -e "SELECT COUNT(*) FROM information_schema.COLUMNS
+                        WHERE TABLE_SCHEMA = 'asteriskcdrdb' AND TABLE_NAME = 'cdr' AND COLUMN_NAME = 'linkedid'")
+if [ "$HAS_LINKEDID" = 1 ]; then CALL="(uniqueid = '$LAST' OR linkedid = '$LAST')"; else CALL="uniqueid = '$LAST'"; fi
+
 echo
 echo "== CDR звонка $LAST (строки опроса быть не должно)"
 q -t -e "SELECT calldate, src, dst, dcontext, LEFT(dstchannel, 32) AS dstchannel, disposition, billsec, recordingfile
-         FROM cdr WHERE uniqueid = '$LAST' OR linkedid = '$LAST' ORDER BY calldate"
-EXTRA=$(q -N -e "SELECT COUNT(*) FROM cdr WHERE (uniqueid = '$LAST' OR linkedid = '$LAST') AND dcontext = 'operator-baho'")
+         FROM cdr WHERE $CALL ORDER BY calldate"
+EXTRA=$(q -N -e "SELECT COUNT(*) FROM cdr WHERE $CALL AND dcontext = 'operator-baho'")
 [ "$EXTRA" = 0 ] || echo "ВНИМАНИЕ: в CDR есть строки опроса (dcontext=operator-baho): $EXTRA"
 
 REC=$(q -N -e "SELECT recordingfile FROM cdr WHERE uniqueid = '$LAST' AND recordingfile <> '' LIMIT 1")

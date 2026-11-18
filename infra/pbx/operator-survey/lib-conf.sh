@@ -64,3 +64,9 @@ remove_block() {
   rm -f "$tmp"
   echo removed
 }
+
+# Mask password hashes / auth strings in SHOW GRANTS output (stdin → stdout):
+#   IDENTIFIED BY PASSWORD '*AB12…'  ->  IDENTIFIED BY PASSWORD '***'   (also IDENTIFIED VIA … USING '…')
+mask_secrets() {
+  sed -E "s/(PASSWORD|USING|BY) +'[^']*'/\1 '***'/g"
+}

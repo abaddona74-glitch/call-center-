@@ -50,6 +50,11 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
       .set('Cookie', ctx.cookies.executive)
       .expect(200);
     expect(ops.body.surveyAvailable).toBe(ratings !== null);
+    // Ratings reach their calls both with and without the cdr.linkedid column (PBX_CDR_HAS_LINKEDID).
+    if (ratings?.length) {
+      const rated = ops.body.operators.reduce((s: number, r: { surveyCount: number }) => s + r.surveyCount, 0);
+      expect(rated).toBeGreaterThan(0);
+    }
   });
 
   it('serves history and stats from the seeded PBX', async () => {
