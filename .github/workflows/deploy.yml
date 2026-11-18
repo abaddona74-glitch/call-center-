@@ -1,11 +1,14 @@
 name: Deploy
 
-# Production deploy. Manual only. The `deploy` job uses the `production` environment, which must have
-# required reviewers (Settings -> Environments -> production): nothing reaches the server without
-# the owner's approval. Checks and image builds run on GitHub-hosted runners; the deploy job runs on
-# a self-hosted runner inside the LAN (on the app VM), so the VM needs no SSH port open to the
-# Internet. Runbook: docs/rewrite/DEPLOY.md
+# Production deploy. Runs by itself on every push to main (owner decision 18.11.2026: no manual
+# approval) — so whatever is merged into main goes to production after the checks pass. A manual run
+# redeploys a commit of main or rolls back to an earlier one (`skip_build`). The `deploy` job uses the
+# `production` environment only for its secrets (no required reviewers). Checks and image builds run
+# on GitHub-hosted runners; the deploy job runs on a self-hosted runner inside the LAN (on the app VM),
+# so the VM needs no SSH port open to the Internet. Runbook: docs/rewrite/DEPLOY.md
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       ref:
@@ -21,7 +24,8 @@ on:
 
 permissions: {}
 
-# One deploy at a time; a queued run waits instead of cancelling the one in progress.
+# One deploy at a time; a queued run waits instead of cancelling the one in progress. Pushes that land
+# while a deploy runs leave one pending run (GitHub keeps the newest), so main's latest commit wins.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
