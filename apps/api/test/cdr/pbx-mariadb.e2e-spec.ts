@@ -3,9 +3,13 @@
  * MariaDB, runs as the read-only user, and that the seeded history assembles into calls.
  * Skipped when PBX_DB_HOST is not set. Seed: `pnpm dev:pbx:seed`.
  */
+import { BUSINESS_TIMEZONE } from '@cc/shared';
 import request from 'supertest';
 import { todayInZone } from '../../src/common/time/business-time.js';
+import { SEED_DAY_GUARD_MS, SEED_MAX_ROWS_PER_SLICE, SEED_SLICE_MS } from '../../src/modules/live/counter-seeder.js';
+import { addCallsToSeed, dayStartMs, emptySeed } from '../../src/modules/live/domain/cdr-seed.js';
 import { CdrRepository } from '../../src/pbx/calls/cdr.repository.js';
+import { PbxCallsService } from '../../src/pbx/calls/pbx-calls.service.js';
 import { createE2eApp, type E2eContext, prepareEnv } from './e2e-app.js';
 
 await prepareEnv();
@@ -55,6 +59,35 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
       const rated = ops.body.operators.reduce((s: number, r: { surveyCount: number }) => s + r.surveyCount, 0);
       expect(rated).toBeGreaterThan(0);
     }
+  });
+
+  it('the live counters seed reads today in capped slices and agrees with the statistics summary', async () => {
+    const day = 86_400_000;
+    const from = dayStartMs(today, BUSINESS_TIMEZONE);
+    const read = await ctx.app
+      .get(PbxCallsService)
+      .callsFromSlices(from - SEED_DAY_GUARD_MS, from + day + SEED_DAY_GUARD_MS, {
+        sliceMs: SEED_SLICE_MS,
+        maxRowsPerSlice: SEED_MAX_ROWS_PER_SLICE,
+      });
+    expect(read.queries).toBe(28);
+    // boundary at the end of the day: every call of today is on the CDR side
+    const { seed } = addCallsToSeed(emptySeed(today, from, from + day), read.calls);
+    const summary = await request(ctx.app.getHttpServer())
+      .get(`/api/stats/summary?from=${today}&to=${today}&scope=all`)
+      .set('Cookie', ctx.cookies.executive)
+      .expect(200);
+    const s = summary.body;
+    expect(seed.counters).toMatchObject({
+      inbound: s.inbound.offered,
+      answered: s.inbound.answered,
+      abandoned: s.inbound.abandoned,
+      ivrOnly: s.inbound.ivr,
+      unanswered: s.inbound.offered - s.inbound.answered,
+      outbound: s.outbound.attempts,
+      outboundAnswered: s.outbound.connected,
+      talkSeconds: s.talk.totalSec,
+    });
   });
 
   it('serves history and stats from the seeded PBX', async () => {

@@ -13,6 +13,8 @@ import { AppConfig } from '../../config/app-config.js';
 import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { AmiService } from '../ami/ami.service.js';
+import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
+import { CounterSeeder } from './counter-seeder.js';
 import { LiveStore, type LiveSection } from './domain/live-store.js';
 import {
   type Viewer,
@@ -34,11 +36,13 @@ const TICK_MS = 15_000;
 /**
  * Runtime around the pure LiveStore: feeds it AMI events and periodic resyncs, publishes
  * domain events (`CallEvents.*`) and pushes role-filtered snapshots over WebSocket.
+ * Today's counters for the calls before the first AMI connection are seeded from the CDR (CounterSeeder).
  */
 @Injectable()
 export class LiveService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(LiveService.name);
   readonly store: LiveStore;
+  private readonly seeder: CounterSeeder;
   private readonly dirty = new Set<LiveSection>();
   private publishTimer: NodeJS.Timeout | null = null;
   private timers: NodeJS.Timeout[] = [];
@@ -53,11 +57,13 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly repo: LiveRepository,
     private readonly config: AppConfig,
     private readonly excluded: ExcludedOperatorsService,
+    pbxCalls: PbxCallsService,
   ) {
     this.store = new LiveStore(
       { operatorExtension: new RegExp(config.get('LIVE_OPERATOR_EXTENSION_PATTERN')), timezone: BUSINESS_TIMEZONE },
       Date.now(),
     );
+    this.seeder = new CounterSeeder(this.store, pbxCalls, BUSINESS_TIMEZONE, this.logger, () => this.flush());
   }
 
   onApplicationBootstrap(): void {
@@ -68,7 +74,12 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
       }),
       this.ami.onStatus((status) => {
         this.realtime.broadcast('telephony.ami', status);
-        if (status.state === 'connected') void this.resync(true);
+        if (status.state !== 'connected') return;
+        // First connection: count live from now; the calls before it come from the CDR once the
+        // resync has shown which of them are still in progress.
+        const first = this.seeder.begin();
+        if (first) this.flush();
+        void this.resync(true).then(() => (first ? this.seeder.seed() : undefined));
       }),
     );
     void this.loadDirectory();
@@ -84,6 +95,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   onApplicationShutdown(): void {
+    this.seeder.stop();
     for (const u of this.unsubscribe) u();
     for (const t of this.timers) clearInterval(t);
     if (this.publishTimer) clearTimeout(this.publishTimer);
@@ -133,6 +145,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
 
   /** Emit domain events and schedule a coalesced WS publish. */
   private flush(): void {
+    this.seeder.ended(this.store.drainSeedSideEnded());
     for (const e of this.store.drainEvents()) {
       try {
         this.events.emit(e.name, e.payload);
