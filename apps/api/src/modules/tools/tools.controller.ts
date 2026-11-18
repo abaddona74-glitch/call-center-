@@ -43,8 +43,6 @@ import { UzcryptoService } from './uzcrypto.service.js';
 /** Files offered for download, shipped with the API (nest-cli copies them into dist). */
 const FILES_DIR = path.join(import.meta.dirname, 'files');
 const FILE_TYPES: Record<ToolFileName, string> = {
-  // octet-stream: the browser saves the script instead of showing or running it
-  'clean-anydesk.bat': 'application/octet-stream',
   'uzb2026-klaviatura.zip': 'application/zip',
 };
 

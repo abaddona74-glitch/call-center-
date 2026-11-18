@@ -733,7 +733,7 @@ df -h /opt/callcenter; docker system df
 
 ## 14. Раздел «Инструменты» (S8)
 
-Страница `/tools`: ссылки на кабинеты, Uzcrypto, очиститель AnyDesk, справочник ответственных, клавиатура 2026,
+Страница `/tools`: ссылки на кабинеты, Uzcrypto, справочник ответственных, клавиатура 2026,
 универсальный конвертер. Своих таблиц в БД нет.
 
 **Конвертер без внешних программ.** Legacy запускал Python (`converter.py`: pdf2docx, PyMuPDF, reportlab, Pillow).
@@ -755,8 +755,8 @@ DOC = OLE, TXT без NUL-байтов и не PDF). Файл не пишетс�
 **Влияние на образ `api`.** Новые prod-зависимости ≈ **33 МБ** в `node_modules` (pdfmake + pdfkit + fontkit ≈ 28 МБ,
 вместе с браузерными сборками и source map; word-extractor, jszip, htmlparser2 — < 1 МБ, частично уже были). Нативных
 модулей и системных пакетов нет, `Dockerfile` не менялся. Для сравнения: Python-стек legacy (python3 + pdf2docx
-с opencv/numpy + PyMuPDF + reportlab + Pillow) дал бы +350–450 МБ, LibreOffice — +400–700 МБ. Файлы для скачивания
-(`clean-anydesk.bat`, `uzb2026-klaviatura.zip`) — 268 КБ, лежат в `dist/modules/tools/files` (копирует `nest build`).
+с opencv/numpy + PyMuPDF + reportlab + Pillow) дал бы +350–450 МБ, LibreOffice — +400–700 МБ. Файл для скачивания
+(`uzb2026-klaviatura.zip`) — 254 КБ, лежит в `dist/modules/tools/files` (копирует `nest build`).
 Проверено в собранном образе (`node:26-alpine`, 18.11.2026): `/app/node_modules` — 190 МБ; DOCX на 3000 абзацев
 (≈ 60 страниц) → PDF за 0,8 с, пик памяти процесса ≈ +170 МБ; предел одной конвертации — лимит воркера.
 

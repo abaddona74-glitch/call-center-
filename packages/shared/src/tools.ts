@@ -99,7 +99,7 @@ export const UzcryptoDownloadQuerySchema = z.object({
 export type UzcryptoDownloadQuery = z.infer<typeof UzcryptoDownloadQuerySchema>;
 
 /** Files the API serves for download (`GET /api/tools/files/:name`). */
-export const TOOL_FILES = ['clean-anydesk.bat', 'uzb2026-klaviatura.zip'] as const;
+export const TOOL_FILES = ['uzb2026-klaviatura.zip'] as const;
 export const ToolFileNameSchema = z.enum(TOOL_FILES);
 export type ToolFileName = z.infer<typeof ToolFileNameSchema>;
 

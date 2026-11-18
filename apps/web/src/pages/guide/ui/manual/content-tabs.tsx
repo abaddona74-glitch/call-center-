@@ -228,12 +228,6 @@ export function TroubleshootTab() {
           <code className="manual-code">{SIP_PORT}</code>.
         </p>
       </div>
-      <div className="manual-step">
-        <strong className="text-ink">3. Masofaviy yordam (AnyDesk):</strong>
-        <p>
-          Agar AnyDesk qotib qolsa, panelimizdagi <b>AnyDesk Tozalash</b> vositasini yuklab olib ishga tushiring.
-        </p>
-      </div>
     </div>
   );
 }
