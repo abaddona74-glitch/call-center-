@@ -9,7 +9,6 @@ import {
   StatsSummarySchema,
   type TopClientsQuery,
   TopClientsResponseSchema,
-  WorkingCalendarSchema,
 } from '@cc/shared';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
@@ -26,7 +25,6 @@ export const callKeys = {
   series: (q: StatsQuery) => ['calls', 'stats', 'series', q] as const,
   operators: (q: OperatorStatsQuery) => ['calls', 'stats', 'operators', q] as const,
   topClients: (q: TopClientsQuery) => ['calls', 'stats', 'top-clients', q] as const,
-  calendar: ['calls', 'stats', 'calendar'] as const,
 };
 
 /** Call history page (PBX CDR). Previous page stays on screen while the next one loads. */
@@ -71,9 +69,3 @@ export const topClientsQuery = (q: TopClientsQuery) =>
     queryFn: ({ signal }) => api('/stats/top-clients', { query: q, schema: TopClientsResponseSchema, signal }),
     placeholderData: keepPreviousData,
   });
-
-export const workingCalendarQuery = queryOptions({
-  queryKey: callKeys.calendar,
-  queryFn: ({ signal }) => api('/stats/calendar', { schema: WorkingCalendarSchema, signal }),
-  staleTime: Infinity,
-});

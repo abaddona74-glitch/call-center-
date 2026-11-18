@@ -5,7 +5,8 @@ import type {
   CallbackStatus,
   OutboundFailureCause,
 } from '@cc/shared';
-import { type WorkingCalendar, businessDate, isWorkingTime } from './working-calendar.js';
+import type { WorkingCalendar } from '../../../common/time/working-calendar.js';
+import { businessDate } from './working-calendar.js';
 
 /**
  * Callback business rules (pure). Both the live AMI events and the CDR reconciliation go through
@@ -44,7 +45,7 @@ export function deriveMissedSource({
   ivrAfterHours,
   calendar,
 }: MissedSourceInput): CallbackSource {
-  if (ivrAfterHours || !isWorkingTime(startedAt, calendar)) return 'after_hours';
+  if (ivrAfterHours || !calendar.isWorkingInstant(startedAt)) return 'after_hours';
   return operatorRang ? 'operator_missed' : 'abandoned';
 }
 

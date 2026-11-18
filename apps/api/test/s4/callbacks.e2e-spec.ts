@@ -398,40 +398,47 @@ describe('manual actions and permissions', () => {
 });
 
 describe('settings', () => {
-  it('only admins read or change the working calendar', async () => {
+  it('callbacks keep only their own threshold; admins read or change it', async () => {
     await http().get('/api/callbacks/settings').set('Authorization', ctx.users.op101.auth).expect(403);
     const res = await http().get('/api/callbacks/settings').set('Authorization', ctx.users.admin.auth).expect(200);
-    expect(res.body).toEqual({
-      workDays: [1, 2, 3, 4, 5],
-      workStart: '08:00',
-      workEnd: '21:00',
-      holidays: [],
-      minTalkSeconds: 10,
-    });
-  });
-
-  it('validates and audits changes, and the new calendar applies to the next calls', async () => {
+    expect(res.body).toEqual({ minTalkSeconds: 10 });
     const put = (body: object, auth = ctx.users.admin.auth) =>
       http().put('/api/callbacks/settings').set('Authorization', auth).send(body);
-    const next = {
-      workDays: [1, 2, 3, 4, 5, 6],
-      workStart: '09:00',
-      workEnd: '18:00',
-      holidays: ['2026-12-08'],
-      minTalkSeconds: 20,
-    };
-    await put(next, ctx.users.op101.auth).expect(403);
-    await put({ ...next, workStart: '18:00', workEnd: '09:00' }).expect(400);
-    await put({ ...next, workDays: [1, 1] }).expect(400);
-    await put({ ...next, minTalkSeconds: 0 }).expect(400);
-    const res = await put(next).expect(200);
-    expect(res.body).toEqual(next);
+    await put({ minTalkSeconds: 20 }, ctx.users.op101.auth).expect(403);
+    await put({ minTalkSeconds: 0 }).expect(400);
+    expect((await put({ minTalkSeconds: 20 }).expect(200)).body).toEqual({ minTalkSeconds: 20 });
     const [audit] = await auditRows(ctx.db, 'callbacks.settings');
-    expect(audit.details.after).toEqual(next);
+    expect(audit.details.after).toEqual({ minTalkSeconds: 20 });
+  });
 
+  it('the shared working calendar: everyone reads it, settings.manage changes it (validated, audited)', async () => {
+    const res = await http().get('/api/working-calendar').set('Authorization', ctx.users.op101.auth).expect(200);
+    expect(res.body).toEqual({
+      timezone: 'Asia/Tashkent',
+      days: [1, 2, 3, 4, 5],
+      start: '08:00',
+      end: '21:00',
+      holidays: [],
+    });
+    const put = (body: object, auth = ctx.users.admin.auth) =>
+      http().put('/api/working-calendar').set('Authorization', auth).send(body);
+    // Saturday shift, a one-off date and a yearly holiday ("MM-DD")
+    const next = { days: [1, 2, 3, 4, 5, 6], start: '09:00', end: '18:00', holidays: ['2026-12-31', '12-08'] };
+    await put(next, ctx.users.op101.auth).expect(403);
+    await put({ ...next, start: '18:00', end: '09:00' }).expect(400);
+    await put({ ...next, days: [1, 1] }).expect(400);
+    await put({ ...next, holidays: ['31.12'] }).expect(400);
+    const saved = await put(next).expect(200);
+    expect(saved.body).toEqual({ timezone: 'Asia/Tashkent', ...next, holidays: ['12-08', '2026-12-31'] });
+    const [audit] = await auditRows(ctx.db, 'workingCalendar.update');
+    expect(audit.details.after).toEqual(next);
+    expect(audit.details.before).toMatchObject({ days: [1, 2, 3, 4, 5], start: '08:00', end: '21:00' });
+  });
+
+  it('callbacks apply the new calendar and threshold to the next calls', async () => {
     await abandon('S1', '904445566', '2026-11-28T10:00:00', 0); // Saturday is a working day now
     expect((await byPhone('904445566'))[0].source).toBe('abandoned');
-    await abandon('S2', '904445577', '2026-12-08T10:00:00', 0); // holiday
+    await abandon('S2', '904445577', '2026-12-08T10:00:00', 0); // yearly holiday
     expect((await byPhone('904445577'))[0].source).toBe('after_hours');
     await ended('S3', '904445566', '2026-11-28T10:30:00', { answered: true, talkSeconds: 15, extension: '101' }); // < 20 s now
     expect((await byPhone('904445566'))[0].status).toBe('pending');

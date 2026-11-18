@@ -38,26 +38,16 @@ export class CallbacksRepository {
   async getSettings(): Promise<CallbackSettings> {
     const row = await this.txHost.tx
       .selectFrom('callbackSettings')
-      .select(['workDays', 'workStart', 'workEnd', 'holidays', 'minTalkSeconds'])
+      .select(['minTalkSeconds'])
       .where('id', '=', 1)
       .executeTakeFirstOrThrow();
-    return {
-      workDays: row.workDays.map(Number),
-      workStart: row.workStart,
-      workEnd: row.workEnd,
-      holidays: [...row.holidays].sort(),
-      minTalkSeconds: row.minTalkSeconds,
-    };
+    return { minTalkSeconds: row.minTalkSeconds };
   }
 
   async saveSettings(s: CallbackSettings, userId: number | null): Promise<void> {
     await this.txHost.tx
       .updateTable('callbackSettings')
       .set({
-        workDays: sql<number[]>`${sql.val(s.workDays)}::smallint[]`,
-        workStart: s.workStart,
-        workEnd: s.workEnd,
-        holidays: sql<string[]>`${sql.val([...s.holidays].sort())}::text[]`,
         minTalkSeconds: s.minTalkSeconds,
         updatedAt: sql<Date>`now()`,
         updatedByUserId: userId,

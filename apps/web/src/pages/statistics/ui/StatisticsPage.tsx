@@ -11,8 +11,8 @@ import {
   statsSeriesQuery,
   statsSummaryQuery,
   topClientsQuery,
-  workingCalendarQuery,
 } from '@/entities/call';
+import { workingCalendarQuery } from '@/entities/working-calendar';
 import { ExportExcelButton } from '@/features/export-excel';
 import { isHttpError } from '@/shared/api';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';

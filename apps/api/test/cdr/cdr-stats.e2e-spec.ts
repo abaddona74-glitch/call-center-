@@ -63,7 +63,7 @@ describe('access by role', () => {
     expect(list.body.items.every((c: { recordingFile: string | null }) => c.recordingFile === null)).toBe(true);
     expect(list.body.items.some((c: { hasRecording: boolean }) => c.hasRecording)).toBe(true);
     await get('/api/stats/operators?from=2026-11-16&to=2026-11-17', 'operator').expect(200);
-    await get('/api/stats/calendar', 'operator').expect(200);
+    await get('/api/working-calendar', 'operator').expect(200);
   });
 
   it('operators: no summary, series, top clients or export (legacy: S-staff only)', async () => {
@@ -112,6 +112,21 @@ describe('GET /api/cdr/calls', () => {
     ]);
     expect((await q('status=missed&scope=working')).body.total).toBe(3);
     expect((await q('operator=103')).body.total).toBe(3); // outbound, answered+transferred, internal
+  });
+
+  it('a holiday set in the shared working calendar applies at once (cached days are recomputed)', async () => {
+    const q = () => get('/api/cdr/calls?from=2026-11-16&to=2026-11-17&scope=working').expect(200);
+    const put = (holidays: string[]) =>
+      request(ctx.app.getHttpServer())
+        .put('/api/working-calendar')
+        .set('Cookie', ctx.cookies.superuser)
+        .send({ days: [1, 2, 3, 4, 5], start: '08:00', end: '21:00', holidays });
+    const before = (await q()).body.total;
+    expect(before).toBeGreaterThan(0);
+    await put(['11-16', '2026-11-17']).expect(200); // yearly + one-off
+    expect((await q()).body.total).toBe(0);
+    await put([]).expect(200);
+    expect((await q()).body.total).toBe(before);
   });
 
   it('smart search: phone in any format, extension, operator name', async () => {

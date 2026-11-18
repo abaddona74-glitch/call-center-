@@ -10,7 +10,12 @@ registerTranslations('settings', {
       users: 'Foydalanuvchilar (RBAC)',
       groups: 'Operator guruhlari',
       sessions: 'Faol Sessiyalar',
+      calendar: 'Ish vaqti',
       audit: 'Audit jurnali',
+    },
+    calendar: {
+      title: 'Ish vaqti va bayramlar',
+      description: "Statistika, qayta bog'lanish va tiketlar muddati uchun yagona kalendar. O'zgarishlar darhol kuchga kiradi.",
     },
     common: {
       save: 'Saqlash',
@@ -176,7 +181,12 @@ registerTranslations('settings', {
       users: 'Пользователи (RBAC)',
       groups: 'Группы операторов',
       sessions: 'Активные сеансы',
+      calendar: 'Рабочее время',
       audit: 'Журнал аудита',
+    },
+    calendar: {
+      title: 'Рабочее время и праздники',
+      description: 'Один календарь для статистики, перезвонов и сроков тикетов. Изменения действуют сразу.',
     },
     common: {
       save: 'Сохранить',

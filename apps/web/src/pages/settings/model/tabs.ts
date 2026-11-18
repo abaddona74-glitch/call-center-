@@ -1,7 +1,12 @@
 import { type Permission, type SessionUser, hasPermission } from '@cc/shared';
 
 export type SettingsPath =
-  '/settings/security' | '/settings/users' | '/settings/groups' | '/settings/sessions' | '/settings/audit';
+  | '/settings/security'
+  | '/settings/users'
+  | '/settings/groups'
+  | '/settings/sessions'
+  | '/settings/calendar'
+  | '/settings/audit';
 
 /** Settings tabs and the permission each needs (legacy order: security first). */
 export const SETTINGS_TABS: { to: SettingsPath; key: string; permission: Permission }[] = [
@@ -9,6 +14,7 @@ export const SETTINGS_TABS: { to: SettingsPath; key: string; permission: Permiss
   { to: '/settings/users', key: 'users', permission: 'users.manage' },
   { to: '/settings/groups', key: 'groups', permission: 'users.manage' },
   { to: '/settings/sessions', key: 'sessions', permission: 'sessions.manage' },
+  { to: '/settings/calendar', key: 'calendar', permission: 'settings.manage' },
   { to: '/settings/audit', key: 'audit', permission: 'audit.view' },
 ];
 

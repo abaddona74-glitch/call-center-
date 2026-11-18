@@ -153,17 +153,6 @@ export const TopClientsResponseSchema = z.object({
 });
 export type TopClientsResponse = z.infer<typeof TopClientsResponseSchema>;
 
-/** Working calendar as configured on the server (for UI hints). */
-export const WorkingCalendarSchema = z.object({
-  timezone: z.string(),
-  days: z.array(int),
-  start: z.string(),
-  end: z.string(),
-  /** "MM-DD" (every year) or "YYYY-MM-DD". */
-  holidays: z.array(z.string()),
-});
-export type WorkingCalendarInfo = z.infer<typeof WorkingCalendarSchema>;
-
 // --- Excel export ---
 
 export const EXPORT_LANGUAGES = ['uz', 'ru'] as const;

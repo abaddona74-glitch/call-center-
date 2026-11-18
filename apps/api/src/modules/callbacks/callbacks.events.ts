@@ -54,7 +54,7 @@ export class CallbacksEventsListener {
       const source = deriveMissedSource({
         startedAt,
         operatorRang: known?.operatorRang ?? false,
-        calendar: await this.callbacks.calendar(),
+        calendar: this.callbacks.calendar(),
       });
       await this.callbacks.recordMissed({ callId: e.callId, phone, at: startedAt, source });
     });
@@ -97,7 +97,7 @@ export class CallbacksEventsListener {
       const source = deriveMissedSource({
         startedAt,
         operatorRang: known?.operatorRang ?? false,
-        calendar: await this.callbacks.calendar(),
+        calendar: this.callbacks.calendar(),
       });
       await this.callbacks.recordMissed({ callId: e.callId, phone, at: startedAt, source });
     });

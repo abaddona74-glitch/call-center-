@@ -10,15 +10,9 @@ import {
   deriveMissedSource,
   mergeSources,
 } from './callback-rules.js';
-import type { WorkingCalendar } from './working-calendar.js';
+import { WorkingCalendar } from '../../../common/time/working-calendar.js';
 
-const cal: WorkingCalendar = {
-  timezone: 'Asia/Tashkent',
-  workDays: [1, 2, 3, 4, 5],
-  workStart: '08:00',
-  workEnd: '21:00',
-  holidays: ['2026-12-08'],
-};
+const cal = new WorkingCalendar({ days: [1, 2, 3, 4, 5], start: '08:00', end: '21:00', holidays: ['2026-12-08'] });
 const t = (local: string) => new Date(`${local}+05:00`);
 
 const open = (over: Partial<CallbackState> = {}): CallbackState => ({

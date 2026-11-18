@@ -1,5 +1,5 @@
-import { BUSINESS_TIMEZONE, type WorkingCalendarInfo } from '@cc/shared';
-import { isoWeekday, parseWall } from './business-time.js';
+import { BUSINESS_TIMEZONE, type WorkingCalendarInfo, type WorkingCalendarInput } from '@cc/shared';
+import { epochToWall, isoWeekday, parseWall } from './business-time.js';
 
 export interface WorkingCalendarConfig {
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
@@ -19,9 +19,9 @@ function minutes(hhmm: string): number {
 }
 
 /**
- * The one working-time rule (docs/rewrite/ROADMAP.md: Mon–Fri 08:00–21:00 Asia/Tashkent, configurable).
+ * The one working-time rule (owner decisions 2026-11-17/18: Mon–Fri 08:00–21:00 Asia/Tashkent plus holidays,
+ * one calendar for statistics, callbacks and ticket deadlines, edited in the UI — WorkingCalendarService).
  * Half-open interval [start, end) so 21:00:00 is already after hours (fixes legacy B3).
- * Holidays (owner decision 2026-11-17: a configurable list) are non-working days.
  */
 export class WorkingCalendar {
   readonly timezone: string;
@@ -39,15 +39,8 @@ export class WorkingCalendar {
     if (this.endSec <= this.startSec) throw new Error('Working hours: end must be after start');
   }
 
-  static fromEnv(
-    get: (key: 'WORKING_DAYS' | 'WORKING_HOURS_START' | 'WORKING_HOURS_END' | 'WORKING_HOLIDAYS') => unknown,
-  ): WorkingCalendar {
-    return new WorkingCalendar({
-      days: get('WORKING_DAYS') as number[],
-      start: get('WORKING_HOURS_START') as string,
-      end: get('WORKING_HOURS_END') as string,
-      holidays: (get('WORKING_HOLIDAYS') as string[] | undefined) ?? [],
-    });
+  static fromInput(input: WorkingCalendarInput): WorkingCalendar {
+    return new WorkingCalendar({ days: input.days, start: input.start, end: input.end, holidays: input.holidays });
   }
 
   isHoliday(date: string): boolean {
@@ -68,6 +61,11 @@ export class WorkingCalendar {
   isWorkingWall(wall: string): boolean {
     const w = parseWall(wall, this.timezone);
     return this.isWorkingAt(w.date, w.secondOfDay);
+  }
+
+  /** An instant (callbacks: when a call started). */
+  isWorkingInstant(at: Date): boolean {
+    return this.isWorkingWall(epochToWall(at.getTime(), this.timezone));
   }
 
   /** Hours of the day that overlap working time, e.g. 8..20 for 08:00–21:00 (hourly charts). */

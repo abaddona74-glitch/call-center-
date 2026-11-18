@@ -6,7 +6,6 @@ import type {
   StatsSummary,
   TopClientsQuery,
   TopClientsResponse,
-  WorkingCalendarInfo,
 } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { datesBetween, wallToIso } from '../../common/time/business-time.js';
@@ -20,10 +19,6 @@ export class StatsService {
   private async load(q: { from: string; to: string }) {
     this.calls.assertRange(q.from, q.to, this.calls.maxStatsDays);
     return this.calls.callsForRange(q.from, q.to);
-  }
-
-  calendar(): WorkingCalendarInfo {
-    return this.calls.calendar.info();
   }
 
   async summary(q: StatsQuery): Promise<StatsSummary> {

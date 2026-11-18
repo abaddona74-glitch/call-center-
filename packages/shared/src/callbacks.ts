@@ -213,39 +213,14 @@ export const CallbackSyncResultSchema = z.object({
 });
 export type CallbackSyncResult = z.infer<typeof CallbackSyncResultSchema>;
 
-const HhMmSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:mm');
-
-/** Working calendar and resolution threshold (Asia/Tashkent). Admin-editable, audited. */
-export const CallbackSettingsSchema = z
-  .object({
-    /** ISO weekdays: 1 = Monday … 7 = Sunday. */
-    workDays: z
-      .array(z.number().int().min(1).max(7))
-      .max(7)
-      .refine((d) => new Set(d).size === d.length, 'Duplicate weekday'),
-    workStart: HhMmSchema,
-    workEnd: HhMmSchema,
-    /** Non-working dates (public holidays). */
-    holidays: z
-      .array(
-        IsoDateSchema.refine((d) => {
-          const t = new Date(`${d}T00:00:00Z`);
-          return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d);
-        }, 'Not a real calendar date'),
-      )
-      .max(400)
-      .refine((d) => new Set(d).size === d.length, 'Duplicate holiday'),
-    /** A conversation shorter than this does not resolve a callback. */
-    minTalkSeconds: z.number().int().min(1).max(600),
-  })
-  .refine((s) => s.workStart < s.workEnd, { message: 'workStart must be before workEnd', path: ['workEnd'] });
+/** Callbacks-only settings (the working calendar is the shared one, see working-calendar.ts). Audited. */
+export const CallbackSettingsSchema = z.object({
+  /** A conversation shorter than this does not resolve a callback. */
+  minTalkSeconds: z.number().int().min(1).max(600),
+});
 export type CallbackSettings = z.infer<typeof CallbackSettingsSchema>;
 
 export const DEFAULT_CALLBACK_SETTINGS: CallbackSettings = {
-  workDays: [1, 2, 3, 4, 5],
-  workStart: '08:00',
-  workEnd: '21:00',
-  holidays: [],
   minTalkSeconds: 10,
 };
 

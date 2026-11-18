@@ -10,10 +10,6 @@ import type { Generated, Selectable } from 'kysely';
 
 export interface CallbackSettingsTable {
   id: Generated<number>;
-  workDays: number[];
-  workStart: string;
-  workEnd: string;
-  holidays: string[];
   minTalkSeconds: number;
   updatedAt: Generated<Date>;
   updatedByUserId: number | null;

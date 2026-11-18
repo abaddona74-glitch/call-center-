@@ -7,7 +7,6 @@ export {
   statsSeriesQuery,
   statsSummaryQuery,
   topClientsQuery,
-  workingCalendarQuery,
 } from './api/call.queries';
 export { formatDuration, formatHoursMinutes, formatNumber, formatPhone } from './lib/format';
 export { calendarLabels } from './lib/calendar-labels';

@@ -12,7 +12,8 @@ import { InjectPbxDb, type PbxDb } from '../../pbx/pbx-db.module.js';
 import { CallbacksService } from './callbacks.service.js';
 import { deriveMissedSource } from './domain/callback-rules.js';
 import { type CallFact, type CdrLeg, callFactsFromCdr } from './domain/cdr-calls.js';
-import { type WorkingCalendar, formatBusinessDateTime } from './domain/working-calendar.js';
+import type { WorkingCalendar } from '../../common/time/working-calendar.js';
+import { formatBusinessDateTime } from './domain/working-calendar.js';
 
 const MAX_ROWS = 50_000;
 
@@ -104,7 +105,7 @@ export class CallbacksReconciler implements OnApplicationBootstrap, OnApplicatio
     if (legs.length >= MAX_ROWS) this.logger.warn(`CDR window ${from}..${to} hit the ${MAX_ROWS} row limit`);
 
     const facts = callFactsFromCdr(legs, { timezone: BUSINESS_TIMEZONE });
-    const calendar = await this.callbacks.calendar();
+    const calendar = this.callbacks.calendar();
     const { minTalkSeconds } = await this.callbacks.settings();
     const result = { created: 0, appended: 0, resolved: 0, failedAttempts: 0, skipped: 0 };
     const changed: number[] = [];

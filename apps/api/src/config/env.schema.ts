@@ -105,33 +105,6 @@ export const EnvSchema = z.object({
   CDR_HISTORY_MAX_DAYS: z.coerce.number().int().min(1).max(366).default(93),
   STATS_MAX_DAYS: z.coerce.number().int().min(1).max(1100).default(366),
 
-  // --- Working calendar (Asia/Tashkent). Half-open: START <= t < END ---
-  /** ISO weekdays, 1 = Monday … 7 = Sunday. */
-  WORKING_DAYS: csvOf('1,2,3,4,5').pipe(
-    z
-      .array(
-        z
-          .string()
-          .regex(/^[1-7]$/)
-          .transform(Number),
-      )
-      .min(1),
-  ),
-  WORKING_HOURS_START: z
-    .string()
-    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-    .default('08:00'),
-  WORKING_HOURS_END: z
-    .string()
-    .regex(/^([01]\d|2[0-4]):[0-5]\d$/)
-    .default('21:00'),
-  /**
-   * Holidays (non-working days), comma-separated: "MM-DD" repeats every year, "YYYY-MM-DD" is one date
-   * (movable holidays). Filled by the owner; until a settings screen exists it lives in the environment.
-   */
-  WORKING_HOLIDAYS: csvOf('').pipe(
-    z.array(z.string().regex(/^(\d{4}-)?(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Use MM-DD or YYYY-MM-DD')),
-  ),
   /** Operator groups by extension range until the groups model exists, e.g. "main:100-199;secondary:200-299". */
   OPERATOR_GROUPS: z
     .string()

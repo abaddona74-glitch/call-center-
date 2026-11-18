@@ -14,8 +14,6 @@ import {
   TopClientsQuerySchema,
   type TopClientsResponse,
   TopClientsResponseSchema,
-  type WorkingCalendarInfo,
-  WorkingCalendarSchema,
 } from '@cc/shared';
 import { Controller, Get, Query, SerializeOptions } from '@nestjs/common';
 import { RequirePermission } from '../../common/decorators/auth.decorators.js';
@@ -28,12 +26,6 @@ import { StatsService } from './stats.service.js';
 @Controller('stats')
 export class StatsController {
   constructor(private readonly stats: StatsService) {}
-
-  @Get('calendar')
-  @SerializeOptions({ schema: WorkingCalendarSchema })
-  calendar(): WorkingCalendarInfo {
-    return this.stats.calendar();
-  }
 
   @Get('summary')
   @RequirePermission(CDR_ACCESS['stats.read'])

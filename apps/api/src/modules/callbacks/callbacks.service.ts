@@ -17,7 +17,9 @@ import { AuditService } from '../audit/audit.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { type DayWindow, CallbacksRepository } from './callbacks.repository.js';
 import { decideConversation, decideMissed, decideOutboundFailure } from './domain/callback-rules.js';
-import { type WorkingCalendar, businessDate, dayBounds } from './domain/working-calendar.js';
+import type { WorkingCalendar } from '../../common/time/working-calendar.js';
+import { WorkingCalendarService } from '../working-calendar/working-calendar.service.js';
+import { businessDate, dayBounds } from './domain/working-calendar.js';
 
 export interface MissedCallInput {
   /** Asterisk linkedid; null when unknown (then the call cannot be de-duplicated). */
@@ -65,6 +67,7 @@ export class CallbacksService {
     private readonly repo: CallbacksRepository,
     private readonly audit: AuditService,
     private readonly realtime: RealtimeService,
+    private readonly workingCalendar: WorkingCalendarService,
   ) {}
 
   // ------------------------------------------------------------ settings
@@ -74,15 +77,9 @@ export class CallbacksService {
     return this.settingsCache;
   }
 
-  async calendar(): Promise<WorkingCalendar> {
-    const s = await this.settings();
-    return {
-      timezone: BUSINESS_TIMEZONE,
-      workDays: s.workDays,
-      workStart: s.workStart,
-      workEnd: s.workEnd,
-      holidays: s.holidays,
-    };
+  /** The shared working calendar (stats, callbacks and ticket deadlines use the same one). */
+  calendar(): WorkingCalendar {
+    return this.workingCalendar.get();
   }
 
   @Transactional()

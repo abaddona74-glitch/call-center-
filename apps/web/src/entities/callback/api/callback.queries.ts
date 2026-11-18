@@ -16,7 +16,7 @@ export const callbackKeys = {
   settings: ['callbacks', 'settings'] as const,
 };
 
-/** Working calendar + resolution threshold (admin). */
+/** Callbacks threshold (admin). */
 export const callbackSettingsQuery = queryOptions({
   queryKey: callbackKeys.settings,
   queryFn: ({ signal }) => api('/callbacks/settings', { schema: CallbackSettingsSchema, signal }),

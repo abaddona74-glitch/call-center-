@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { LRUCache } from 'lru-cache';
 import { addDays, daysInRange, datesBetween, epochToWall, todayInZone } from '../../common/time/business-time.js';
 import type { WorkingCalendar } from '../../common/time/working-calendar.js';
@@ -7,7 +8,8 @@ import { type AssembledCall, assembleCalls } from './call-assembler.js';
 import type { CdrRow } from './cdr-row.js';
 import { CdrRepository } from './cdr.repository.js';
 import type { PbxDialplan } from './dialplan.js';
-import { calendarFromConfig, dialplanFromConfig, groupOf, type OperatorGroup } from './pbx-calls.config.js';
+import { WORKING_CALENDAR_CHANGED, WorkingCalendarService } from '../../modules/working-calendar/working-calendar.service.js';
+import { dialplanFromConfig, groupOf, type OperatorGroup } from './pbx-calls.config.js';
 
 /** Legs of a call that started before midnight are still read up to this long after it. */
 const DAY_OVERLAP_SEC = 2 * 3600;
@@ -22,7 +24,6 @@ const DIRECTORY_TTL_MS = 60_000;
 @Injectable()
 export class PbxCallsService {
   readonly dialplan: PbxDialplan;
-  readonly calendar: WorkingCalendar;
   readonly groups: OperatorGroup[];
   readonly maxHistoryDays: number;
   readonly maxStatsDays: number;
@@ -33,13 +34,24 @@ export class PbxCallsService {
 
   constructor(
     private readonly repo: CdrRepository,
+    private readonly workingCalendar: WorkingCalendarService,
     config: AppConfig,
   ) {
     this.dialplan = dialplanFromConfig(config);
-    this.calendar = calendarFromConfig(config);
     this.groups = config.get('OPERATOR_GROUPS');
     this.maxHistoryDays = config.get('CDR_HISTORY_MAX_DAYS');
     this.maxStatsDays = config.get('STATS_MAX_DAYS');
+  }
+
+  /** The shared working calendar (changes apply at once, see onCalendarChanged). */
+  get calendar(): WorkingCalendar {
+    return this.workingCalendar.get();
+  }
+
+  /** Cached days carry "in working hours" flags computed with the old calendar. */
+  @OnEvent(WORKING_CALENDAR_CHANGED)
+  onCalendarChanged(): void {
+    this.cache.clear();
   }
 
   today(): string {
