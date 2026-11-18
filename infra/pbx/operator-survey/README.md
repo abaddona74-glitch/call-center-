@@ -1,8 +1,10 @@
 # Operator baholash (1–5) — Issabel
 
 > PBX-side package for the post-call operator survey (Issabel dialplan, AGI, sounds, table).
-> Run by the owner on the PBX console, never by the app (AGENTS.md). The app only reads
-> `asteriskcdrdb.operator_baho` (docs/rewrite/METRICS.md §3, DEPLOY.md §11.1).
+> Run by the owner on the PBX console, never by the app (AGENTS.md). Both apps only read
+> `asteriskcdrdb.operator_baho`: the legacy dashboard via `issabelDbService.fetchSurveyStats()`
+> (`legacy/services/issabelDbService.js`, operator cards "Mijoz bahosi"); the new system via
+> `GET /api/stats/operators` (docs/rewrite/METRICS.md §3, DEPLOY.md §11.1).
 
 ## Hozirgi holat (18.11.2026)
 

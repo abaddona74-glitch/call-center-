@@ -3721,10 +3721,31 @@ function getAgentOperatorStatsList(targetDate = null) {
             totalDurationSec: stats.totalDurationSec || 0,
             avgDurationSec: stats.avgDurationSec || 0,
             // Jami = qabul + chiquvchi + rad + transfer oxirida hal qilgan (+1)
-            totalCalls: ans + out + (stats.missed || 0) + transResolved
+            totalCalls: ans + out + (stats.missed || 0) + transResolved,
+            ...surveyFields(op.id, (!targetDate || targetDate === issabelDbService.getTodayDate()) ? surveyToday : null)
         };
     });
 }
+
+// Mijoz bahosi (Issabel so'rovnomasi, asteriskcdrdb.operator_baho). Bugungisi har 25 soniyada yangilanadi;
+// o'zgarsa /operators sahifasiga darhol yuboriladi.
+var surveyToday = new Map();
+function surveyFields(opId, surveyMap) {
+    const s = surveyMap && surveyMap.get ? surveyMap.get(String(opId)) : null;
+    return { surveyCount: s ? s.count : 0, surveyAvg: s ? s.avg : null };
+}
+async function refreshSurveyToday() {
+    try {
+        const next = await issabelDbService.fetchSurveyStats();
+        const changed = JSON.stringify([...next]) !== JSON.stringify([...surveyToday]);
+        surveyToday = next;
+        if (changed) amiService.broadcast('agent_operators_update', getAgentOperatorStatsList());
+    } catch (e) {
+        // fetchSurveyStats o'zi xatoni ushlaydi; bu yerga kelmasligi kerak
+    }
+}
+setTimeout(refreshSurveyToday, 15000);
+setInterval(refreshSurveyToday, 25000);
 
 // Agent online/offline o'zgarganda /operators sahifasiga real-vaqtda broadcast qilish
 amiService.onAgentStateChange = () => {
@@ -3746,6 +3767,7 @@ app.get('/api/agent/operator-stats', async (req, res) => {
     if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && dateStr !== todayStr) {
         try {
             const histStats = await issabelDbService.fetchOperatorStats(dateStr);
+            const surveyMap = await issabelDbService.fetchSurveyStats(dateStr);
             const agentStatsMap = dbService.getTodayAgentOperatorStats(dateStr);
             const histMap = new Map(histStats.map(o => [String(o.id), o]));
             const allOps = amiService.getOperatorList();
@@ -3792,7 +3814,8 @@ app.get('/api/agent/operator-stats', async (req, res) => {
                     missed: missed,
                     totalDurationSec: totDur,
                     avgDurationSec: avgDur,
-                    totalCalls: ans + out + missed + xResolved
+                    totalCalls: ans + out + missed + xResolved,
+                    ...surveyFields(op.id, surveyMap)
                 };
             });
             return res.json(result);
