@@ -53,11 +53,18 @@ import { TicketCallLookup } from './ticket-call-lookup.service.js';
 import { TicketDirectoriesRepository } from './ticket-directories.repository.js';
 import { TicketFilesStore } from './ticket-files.store.js';
 import { TicketNotifier } from './ticket-notifier.service.js';
+import { TicketOrganizationsRepository } from './ticket-organizations.repository.js';
 import { TicketPresenter, ticketFacts } from './ticket-presenter.service.js';
 import { TicketsRepository } from './tickets.repository.js';
 import type { TicketAttachmentRow, TicketEventsTable, TicketRow, TicketsTable } from './tickets.tables.js';
 
 /** What multer hands over (memory storage). */
+interface TicketOrganizationFields {
+  organizationId: number | null;
+  organizationName: string;
+  organizationTin: string | null;
+}
+
 export interface IncomingFile {
   originalname: string;
   size: number;
@@ -122,6 +129,7 @@ export class TicketsService {
   constructor(
     private readonly repo: TicketsRepository,
     private readonly dirs: TicketDirectoriesRepository,
+    private readonly organizations: TicketOrganizationsRepository,
     private readonly presenter: TicketPresenter,
     private readonly notifier: TicketNotifier,
     private readonly calls: TicketCallLookup,
@@ -267,6 +275,7 @@ export class TicketsService {
       if (!city?.isActive || city.regionId !== region.id)
         throw new BadRequestException('The city/district does not belong to the region');
     }
+    const organization = await this.organizationFor(fields);
 
     const call = fields.callId ? await this.calls.resolve(actor, user, fields.callId) : null;
     const phone = call ? call.phone : normalizeUzPhone(fields.phone ?? '');
@@ -278,7 +287,7 @@ export class TicketsService {
     const stored = await this.storeFiles(prepared);
     let row: TicketRow;
     try {
-      row = await this.persistCreate(user, { ...fields, cityId }, phone, call, stored);
+      row = await this.persistCreate(user, { ...fields, cityId, ...organization }, phone, call, stored);
     } catch (err) {
       await this.files.remove(stored.map((f) => f.key));
       throw err;
@@ -287,10 +296,25 @@ export class TicketsService {
     return this.presenter.detail(row, actor);
   }
 
+  /**
+   * The citizen's organization (required): a registry row that is still active, or a name typed by hand
+   * when the registry does not have it. The ticket keeps a snapshot of the name and INN.
+   */
+  private async organizationFor(fields: CreateTicketFieldsParsed): Promise<TicketOrganizationFields> {
+    if (fields.organizationId) {
+      const org = await this.organizations.findActive(fields.organizationId);
+      if (!org) throw new BadRequestException('Choose an organization from the list');
+      return { organizationId: org.id, organizationName: org.name, organizationTin: org.tin };
+    }
+    const name = fields.organizationName?.replace(/\s+/g, ' ').trim() ?? '';
+    if (name.length < 2) throw new BadRequestException("Choose the citizen's organization or type its name");
+    return { organizationId: null, organizationName: name, organizationTin: null };
+  }
+
   @Transactional()
   private async persistCreate(
     user: SessionUser,
-    fields: CreateTicketFieldsParsed & { cityId: number | null },
+    fields: CreateTicketFieldsParsed & { cityId: number | null } & TicketOrganizationFields,
     phone: string,
     call: Awaited<ReturnType<TicketCallLookup['resolve']>> | null,
     stored: StoredFile[],
@@ -302,6 +326,9 @@ export class TicketsService {
       description: fields.description,
       customerPhone: phone,
       customerName: fields.customerName?.trim() || null,
+      organizationId: fields.organizationId,
+      organizationName: fields.organizationName,
+      organizationTin: fields.organizationTin,
       regionId: fields.regionId,
       cityId: fields.cityId,
       categoryId: fields.categoryId,

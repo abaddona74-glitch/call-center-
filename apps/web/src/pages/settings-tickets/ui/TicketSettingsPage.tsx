@@ -1,16 +1,25 @@
-import type { TicketCategory, TicketCity, TicketRegion } from '@cc/shared';
+import {
+  TICKET_ORGANIZATION_IMPORT_MAX_MB,
+  type TicketCategory,
+  type TicketCity,
+  type TicketOrganizationImportResult,
+  type TicketRegion,
+} from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   KdsAction,
   KdsInput,
+  dateTime,
+  importTicketOrganizations,
   refName,
   ticketDirectories,
   ticketDirectoriesQuery,
   ticketExecutivesQuery,
   ticketKeys,
+  ticketOrganizationsSummaryQuery,
 } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
@@ -78,8 +87,68 @@ export function TicketSettingsPage() {
           <p className="mb-3 text-xs text-slate-400">{t('executivesHint')}</p>
           <ExecutiveRegions regions={regions} />
         </Card>
+        <OrganizationsCard />
       </div>
     </div>
+  );
+}
+
+/** The organization registry the ticket form searches: import of the registry's .xlsx export. */
+function OrganizationsCard() {
+  const { t } = useTranslation('ticketSettings');
+  const queryClient = useQueryClient();
+  const summary = useQuery(ticketOrganizationsSummaryQuery);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [result, setResult] = useState<TicketOrganizationImportResult | null>(null);
+  const upload = useMutation({
+    mutationFn: importTicketOrganizations,
+    onSuccess: async (res) => {
+      setResult(res);
+      toast.success(t('organizationsResult', res));
+      await queryClient.invalidateQueries({ queryKey: ['tickets', 'organizations'] });
+    },
+    onError: (err) => toast.error(t('error', { message: err.message })),
+    onSettled: () => {
+      if (fileRef.current) fileRef.current.value = '';
+    },
+  });
+  const s = summary.data;
+
+  return (
+    <Card
+      title={t('organizations')}
+      extra={s ? t('organizationsCount', { n: s.active.toLocaleString('ru-RU') }) : undefined}
+    >
+      <p className="mb-3 text-xs text-slate-400">{t('organizationsHint')}</p>
+      <p className="mb-3 text-[13px] text-slate-300">
+        {s?.importedAt ? t('organizationsImportedAt', { date: dateTime(s.importedAt) }) : t('organizationsEmpty')}
+      </p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          if (file.size > TICKET_ORGANIZATION_IMPORT_MAX_MB * 1024 * 1024) {
+            toast.error(t('organizationsTooBig', { mb: TICKET_ORGANIZATION_IMPORT_MAX_MB }));
+            e.target.value = '';
+            return;
+          }
+          upload.mutate(file);
+        }}
+      />
+      <KdsAction variant="edit" disabled={upload.isPending} onClick={() => fileRef.current?.click()}>
+        <Icon name="import" className="size-4" />
+        {upload.isPending ? t('organizationsImporting') : t('organizationsPick')}
+      </KdsAction>
+      {result && (
+        <p className="mt-3 rounded-[10px] border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.08)] px-3 py-2 text-xs text-[#6ee7b7]">
+          {t('organizationsResult', result)}
+        </p>
+      )}
+    </Card>
   );
 }
 

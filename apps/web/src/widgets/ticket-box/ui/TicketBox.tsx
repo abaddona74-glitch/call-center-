@@ -158,6 +158,20 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
             {ticket.customerPhone ? formatUzPhone(ticket.customerPhone) : t('box.noValue')}
           </Meta>
           <Meta label={t('box.metaName')}>{ticket.customerName || t('box.noValue')}</Meta>
+          <Meta label={t('box.metaOrganization')}>
+            {ticket.organization ? (
+              <>
+                {ticket.organization.name}
+                {ticket.organization.tin && (
+                  <span className="block text-[11.5px] font-semibold text-[#94a3b8]">
+                    {t('form.organizationTin', { tin: ticket.organization.tin })}
+                  </span>
+                )}
+              </>
+            ) : (
+              t('box.noValue')
+            )}
+          </Meta>
           <Meta label={t('box.metaRegion')} color={ticket.region ? '#c084fc' : '#94a3b8'}>
             {ticket.region ? refName(ticket.region, lang) : t('card.noRegion')}
           </Meta>

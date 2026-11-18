@@ -162,6 +162,10 @@ export class TicketPresenter {
       description: row.description,
       customerPhone: row.customerPhone,
       customerName: row.customerName,
+      organization:
+        row.organizationName !== null
+          ? { id: row.organizationId, name: row.organizationName, tin: row.organizationTin }
+          : null,
       region: row.regionId !== null ? (refs.regions.get(row.regionId) ?? null) : null,
       city: row.cityId !== null ? (refs.cities.get(row.cityId) ?? null) : null,
       category: row.categoryId !== null ? (refs.categories.get(row.categoryId) ?? null) : null,

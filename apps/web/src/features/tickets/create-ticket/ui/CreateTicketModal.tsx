@@ -1,5 +1,6 @@
-import { formatUzPhone } from '@cc/shared';
+import { type TicketOrganizationRef, formatUzPhone } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Building2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -32,12 +33,13 @@ import {
   KdsModalHeader,
 } from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
+import { OrganizationPicker } from './OrganizationPicker';
 
 /** Stable default: a fresh `[]` per render would re-run the "load initial files" effect forever. */
 const NO_FILES: File[] = [];
 
 /**
- * New ticket: region + city/district + category + description + attachments. With `callId` (a call in
+ * New ticket: region + city/district + organization + category + description + attachments. With `callId` (a call in
  * progress, or a call picked in the history) the number comes from the call on the server; the form only
  * shows it. Ctrl+V adds screenshots while open.
  */
@@ -65,6 +67,7 @@ export function CreateTicketModal({
   const [name, setName] = useState('');
   const [regionId, setRegionId] = useState('');
   const [cityId, setCityId] = useState('');
+  const [organization, setOrganization] = useState<TicketOrganizationRef | null>(null);
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -91,6 +94,7 @@ export function CreateTicketModal({
     setName('');
     setRegionId('');
     setCityId('');
+    setOrganization(null);
     setCategoryId('');
     setDescription('');
     setFiles([]);
@@ -102,6 +106,8 @@ export function CreateTicketModal({
         callId: callId ?? undefined,
         phone: callId ? undefined : phone.trim(),
         customerName: name.trim() || undefined,
+        organizationId: organization?.id ?? '',
+        organizationName: organization && organization.id === null ? organization.name : undefined,
         regionId: Number(regionId),
         cityId: cityId ? Number(cityId) : '',
         categoryId: Number(categoryId),
@@ -139,7 +145,13 @@ export function CreateTicketModal({
         className="flex flex-1 flex-col overflow-hidden"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!regionId || !categoryId || description.trim().length < 3 || (!callId && !phone.trim())) {
+          if (
+            !regionId ||
+            !organization ||
+            !categoryId ||
+            description.trim().length < 3 ||
+            (!callId && !phone.trim())
+          ) {
             toast.warning(t('form.required'));
             return;
           }
@@ -240,6 +252,18 @@ export function CreateTicketModal({
               </KdsSelect>
             </KdsField>
           </div>
+          <KdsField
+            label={t('form.organization')}
+            icon={<Building2 className="size-3.5" />}
+            htmlFor="kds-new-organization"
+          >
+            <OrganizationPicker
+              id="kds-new-organization"
+              regionId={regionId ? Number(regionId) : null}
+              value={organization}
+              onChange={setOrganization}
+            />
+          </KdsField>
           <KdsField
             label={t('form.category')}
             icon={<Icon name="folder" className="size-3.5" />}

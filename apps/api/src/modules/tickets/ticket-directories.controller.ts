@@ -23,17 +23,46 @@ import {
   TicketDirectoriesSchema,
   type TicketExecutive,
   TicketExecutiveSchema,
+  TICKET_ORGANIZATION_IMPORT_MAX_MB,
+  type TicketOrganizationImportResult,
+  TicketOrganizationImportResultSchema,
+  type TicketOrganizationSearchResult,
+  TicketOrganizationSearchResultSchema,
+  TicketOrganizationSearchQuerySchema,
+  type TicketOrganizationSummary,
+  TicketOrganizationSummarySchema,
   type TicketRegion,
   TicketRegionSchema,
 } from '@cc/shared';
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put, SerializeOptions } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  SerializeOptions,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/auth.decorators.js';
 import { TicketDirectoriesService } from './ticket-directories.service.js';
+import { TicketOrganizationsService } from './ticket-organizations.service.js';
+import type { IncomingFile } from './tickets.service.js';
 
 /** Ticket directories: read by every ticket user, edited by the superuser (checked in the service). */
 @Controller('tickets/directories')
 export class TicketDirectoriesController {
-  constructor(private readonly dirs: TicketDirectoriesService) {}
+  constructor(
+    private readonly dirs: TicketDirectoriesService,
+    private readonly orgs: TicketOrganizationsService,
+  ) {}
 
   @Get()
   @SerializeOptions({ schema: TicketDirectoriesSchema })
@@ -121,6 +150,41 @@ export class TicketDirectoriesController {
     @CurrentUser() user: SessionUser,
   ): Promise<void> {
     return this.dirs.deleteCategory(user, id);
+  }
+
+  // --- organizations (registry) -----------------------------------------------------------------
+
+  /** Ticket form: organizations by name words or INN; the ticket's region ranks first. */
+  @Get('organizations')
+  @SerializeOptions({ schema: TicketOrganizationSearchResultSchema })
+  searchOrganizations(
+    @Query({ schema: TicketOrganizationSearchQuerySchema }) query: { q: string; regionId?: number },
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketOrganizationSearchResult> {
+    return this.orgs.search(user, query.q, query.regionId ?? null);
+  }
+
+  @Get('organizations/summary')
+  @SerializeOptions({ schema: TicketOrganizationSummarySchema })
+  organizationsSummary(@CurrentUser() user: SessionUser): Promise<TicketOrganizationSummary> {
+    return this.orgs.summary(user);
+  }
+
+  /** Superuser: the registry export (.xlsx, field `file`) replaces the list. */
+  @Post('organizations/import')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: TICKET_ORGANIZATION_IMPORT_MAX_MB * 1024 * 1024, files: 1, fields: 0, parts: 1 },
+    }),
+  )
+  @SerializeOptions({ schema: TicketOrganizationImportResultSchema })
+  importOrganizations(
+    @UploadedFile() file: IncomingFile | undefined,
+    @CurrentUser() user: SessionUser,
+  ): Promise<TicketOrganizationImportResult> {
+    return this.orgs.import(user, file);
   }
 
   @Get('executives')

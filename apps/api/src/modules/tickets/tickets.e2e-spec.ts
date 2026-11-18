@@ -5,6 +5,7 @@ import type { LiveCall, Ticket, TicketDetail } from '@cc/shared';
 import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import ExcelJS from 'exceljs';
 import request from 'supertest';
 import { type MockInstance, afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HTML_XSS, PDF_MIN, PNG_1PX, docx, paragraph } from '../../../test/fixtures/files.js';
@@ -58,8 +59,34 @@ describe('tickets workflow (e2e)', () => {
     regionId: tashkent,
     categoryId: category,
     phone: '+998 90 123 45 67',
+    organizationName: 'Raqamli texnologiyalar vazirligi',
     description: 'ERI kaliti ishlamayapti',
   });
+
+  const place = (latn: string) => JSON.stringify({ id: 'r', name_uz: '', name_uz_latn: latn, name_ru: '' });
+
+  /** The registry export as the owner gave it (header + rows), built with ExcelJS. */
+  async function registryXlsx(rows: Array<Record<string, string>>): Promise<Buffer> {
+    const header = ['id', 'created_at', 'tin', 'region_json', 'district_json', 'name_uz', 'name_uz_latn', 'name_ru'];
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Result 1');
+    ws.addRow(header);
+    for (const r of rows) ws.addRow(header.map((h) => r[h] ?? ''));
+    wb.addWorksheet('Query').addRow(['select …']);
+    return Buffer.from(await wb.xlsx.writeBuffer());
+  }
+
+  const importOrgs = (user: TestUser, file: Buffer, name = 'orgs.xlsx') =>
+    http()
+      .post('/api/tickets/directories/organizations/import')
+      .set('Authorization', user.auth)
+      .attach('file', file, name);
+
+  const searchOrgs = (user: TestUser, q: string, regionId?: number) =>
+    http()
+      .get('/api/tickets/directories/organizations')
+      .query(regionId ? { q, regionId } : { q })
+      .set('Authorization', user.auth);
 
   async function newTicket(user = op, over: Record<string, string | number> = {}): Promise<TicketDetail> {
     const res = await create(user, { ...base(), ...over });
@@ -120,6 +147,7 @@ describe('tickets workflow (e2e)', () => {
     t = await createS5TestApp();
     // 90001/90002 belong to the legacy tickets mapper e2e (same database).
     await t.db.deleteFrom('tickets').where('id', 'not in', [90001, 90002]).execute();
+    await t.db.deleteFrom('ticketOrganizations').execute();
     await t.db.deleteFrom('ticketExecutiveRegions').execute();
     const regions = await t.db.selectFrom('ticketRegions').select(['id', 'code']).execute();
     tashkent = regions.find((r) => r.code === 'toshkent-shahri')!.id;
@@ -298,6 +326,127 @@ describe('tickets workflow (e2e)', () => {
         slaWorkingDays: 3,
       });
       expect(ctx.body.regionIds).toEqual(expect.arrayContaining([tashkent, andijon]));
+    });
+  });
+
+  // -------------------------------------------------------------------------------------------------
+  describe('organizations (registry import, search, ticket field)', () => {
+    const BANK = {
+      id: 'org-bank',
+      tin: '200836354',
+      region_json: place('Fargʻona viloyati'),
+      district_json: JSON.stringify({ name_uz_latn: 'Qoʻqon shahri' }),
+      name_uz: '"Ўзмиллийбанк" АЖ Қўқон банк хизматлари маркази',
+      name_uz_latn: '“O’zmilliybank” AJ Qoʻqon bank xizmatlari markazi',
+    };
+    const SCHOOL_SAM = {
+      id: 'org-school-sam',
+      tin: '203385510',
+      region_json: place('Samarqand viloyati'),
+      name_uz_latn: 'Urgut tuman 34-sonli maktab',
+    };
+    const SCHOOL_TSH = {
+      id: 'org-school-tsh',
+      tin: '203385511',
+      region_json: place('Toshkent shahri'),
+      name_uz_latn: 'Yunusobod 34-sonli maktab',
+    };
+    const MINISTRY = { id: 'org-min', tin: '201122334', name_uz: 'Адлия вазирлиги', name_uz_latn: 'Adliya vazirligi' };
+
+    it('superuser imports the registry .xlsx: counts, regions mapped, duplicates and nameless rows skipped, audited', async () => {
+      await importOrgs(op, await registryXlsx([BANK])).expect(403);
+      const res = await importOrgs(
+        superuser,
+        await registryXlsx([BANK, SCHOOL_SAM, SCHOOL_TSH, MINISTRY, { ...BANK }, { id: 'nameless', tin: '1' }]),
+      ).expect(200);
+      expect(res.body).toEqual({ rows: 6, added: 4, updated: 0, deactivated: 0, skipped: 2, withoutRegion: 1 });
+      const summary = await get(superuser, '/api/tickets/directories/organizations/summary').expect(200);
+      expect(summary.body).toMatchObject({ active: 4, total: 4, importedAt: expect.any(String) });
+      await get(op, '/api/tickets/directories/organizations/summary').expect(403);
+      const audit = await t.db
+        .selectFrom('auditLog')
+        .select(['details'])
+        .where('action', '=', 'tickets.organizations.import')
+        .orderBy('id', 'desc')
+        .executeTakeFirstOrThrow();
+      expect(audit.details).toMatchObject({ fileName: 'orgs.xlsx', added: 4, skipped: 2 });
+    });
+
+    it('rejects files that are not the registry', async () => {
+      await importOrgs(superuser, PNG_1PX, 'orgs.xlsx').expect(400);
+      const wrong = new ExcelJS.Workbook();
+      wrong.addWorksheet('x').addRow(['phone', 'name']);
+      wrong.getWorksheet('x')!.addRow(['901234567', 'Vali']);
+      const res = await importOrgs(superuser, Buffer.from(await wrong.xlsx.writeBuffer())).expect(400);
+      expect(res.body.message).toMatch(/registry/);
+      await http()
+        .post('/api/tickets/directories/organizations/import')
+        .set('Authorization', superuser.auth)
+        .expect(400);
+    });
+
+    it('anyone with ticket access searches by words (any apostrophe, Cyrillic) or INN; the ticket region ranks first', async () => {
+      const bank = await searchOrgs(op, "o'zmilliybank qo‘qon").expect(200);
+      expect(bank.body.items).toEqual([
+        expect.objectContaining({
+          name: BANK.name_uz_latn,
+          tin: '200836354',
+          district: 'Qoʻqon shahri',
+          regionId: expect.any(Number),
+        }),
+      ]);
+      expect((await searchOrgs(op, 'Ўзмиллийбанк')).body.items).toHaveLength(1);
+      expect((await searchOrgs(exec, '2008363')).body.items.map((o: { tin: string }) => o.tin)).toEqual(['200836354']);
+      const sam = await searchOrgs(op, '34-sonli maktab', samarqand).expect(200);
+      expect(sam.body.items.map((o: { name: string }) => o.name)).toEqual([
+        SCHOOL_SAM.name_uz_latn,
+        SCHOOL_TSH.name_uz_latn,
+      ]);
+      const tsh = await searchOrgs(op, '34-sonli maktab', tashkent).expect(200);
+      expect(tsh.body.items[0].name).toBe(SCHOOL_TSH.name_uz_latn);
+      await searchOrgs(op, 'a').expect(400);
+    });
+
+    it('a ticket names its organization: from the registry (snapshot) or typed by hand; one of them is required', async () => {
+      const [bank] = (await searchOrgs(op, 'milliybank')).body.items as Array<{ id: number }>;
+      const fromList = await create(op, { ...base(), organizationName: '', organizationId: bank!.id }).expect(201);
+      expect(fromList.body.organization).toEqual({ id: bank!.id, name: BANK.name_uz_latn, tin: '200836354' });
+
+      const typed = await create(op, { ...base(), organizationName: '  Yangi   MChJ ' }).expect(201);
+      expect(typed.body.organization).toEqual({ id: null, name: 'Yangi MChJ', tin: null });
+
+      const { organizationName: _, ...noOrg } = base();
+      expect((await create(op, noOrg).expect(400)).body.message).toMatch(/organization/);
+      await create(op, { ...base(), organizationName: 'x' }).expect(400);
+      await create(op, { ...base(), organizationId: 999_999 }).expect(400);
+
+      // The ticket list finds tickets by organization name and INN.
+      const byName = await get(superuser, '/api/tickets?q=milliybank').expect(200);
+      expect(byName.body.items.map((x: Ticket) => x.id)).toContain(fromList.body.id);
+      const byTin = await get(superuser, '/api/tickets?q=2008363').expect(200);
+      expect(byTin.body.items.map((x: Ticket) => x.id)).toContain(fromList.body.id);
+    });
+
+    it('a new import deactivates organizations it no longer has; tickets keep their snapshot', async () => {
+      const [bank] = (await searchOrgs(op, 'milliybank')).body.items as Array<{ id: number }>;
+      const tk = await newTicket(op, { organizationName: '', organizationId: bank!.id });
+      const res = await importOrgs(
+        superuser,
+        await registryXlsx([
+          SCHOOL_SAM,
+          SCHOOL_TSH,
+          { ...MINISTRY, name_uz_latn: 'Oʻzbekiston Respublikasi Adliya vazirligi' },
+        ]),
+      ).expect(200);
+      expect(res.body).toMatchObject({ rows: 3, added: 0, updated: 3, deactivated: 1 });
+      expect((await searchOrgs(op, 'milliybank')).body.items).toEqual([]);
+      expect((await searchOrgs(op, 'respublikasi adliya')).body.items).toHaveLength(1);
+      await create(op, { ...base(), organizationName: '', organizationId: bank!.id }).expect(400);
+      const still = await get(op, `/api/tickets/${tk.id}`).expect(200);
+      expect(still.body.organization).toEqual({ id: bank!.id, name: BANK.name_uz_latn, tin: '200836354' });
+      // Back in a later file → offered again.
+      await importOrgs(superuser, await registryXlsx([BANK, SCHOOL_SAM, SCHOOL_TSH, MINISTRY])).expect(200);
+      expect((await searchOrgs(op, 'milliybank')).body.items).toHaveLength(1);
     });
   });
 

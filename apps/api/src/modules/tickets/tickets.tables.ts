@@ -16,6 +16,11 @@ export interface TicketsTable {
   description: Generated<string>;
   customerPhone: string | null;
   customerName: string | null;
+  /** Registry row (null = typed by hand or a migrated legacy ticket). */
+  organizationId: number | null;
+  /** Snapshot when the ticket was opened. */
+  organizationName: string | null;
+  organizationTin: string | null;
   regionId: number | null;
   cityId: number | null;
   categoryId: number | null;
@@ -157,6 +162,21 @@ export interface TicketCategoriesTable {
   updatedAt: Generated<Date>;
 }
 
+export interface TicketOrganizationsTable {
+  id: Generated<number>;
+  /** Registry id; the import upserts by it. */
+  externalId: string;
+  tin: string | null;
+  name: string;
+  searchText: string;
+  regionId: number | null;
+  district: string | null;
+  isActive: Generated<boolean>;
+  importedAt: Generated<Date>;
+  createdAt: Generated<Date>;
+  updatedAt: Generated<Date>;
+}
+
 export interface TicketExecutiveRegionsTable {
   userId: number;
   regionId: number;
@@ -171,6 +191,7 @@ export type TicketCallRow = Selectable<TicketCallsTable>;
 export type TicketRegionRow = Selectable<TicketRegionsTable>;
 export type TicketCityRow = Selectable<TicketCitiesTable>;
 export type TicketCategoryRow = Selectable<TicketCategoriesTable>;
+export type TicketOrganizationRow = Selectable<TicketOrganizationsTable>;
 
 declare module '../../database/db.js' {
   interface DB {
@@ -183,6 +204,7 @@ declare module '../../database/db.js' {
     ticketRegions: TicketRegionsTable;
     ticketCities: TicketCitiesTable;
     ticketCategories: TicketCategoriesTable;
+    ticketOrganizations: TicketOrganizationsTable;
     ticketExecutiveRegions: TicketExecutiveRegionsTable;
   }
 }

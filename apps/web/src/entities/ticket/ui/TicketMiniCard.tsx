@@ -90,6 +90,11 @@ export function TicketMiniCard({
           </span>
         )}
       </div>
+      {ticket.organization && (
+        <div className="truncate text-[11.5px] font-semibold text-[#cbd5e1]" title={ticket.organization.name}>
+          {ticket.organization.name}
+        </div>
+      )}
       {ticket.category && (
         <div className="text-[11px] font-semibold text-[#94a3b8]">{refName(ticket.category, i18n.language)}</div>
       )}
