@@ -6,6 +6,7 @@ import { authOptionsQuery, sessionKeys } from '@/entities/session';
 import { ForgotPasswordDialog } from '@/features/auth/forgot-password';
 import { type LoginFieldFocus, LoginForm } from '@/features/auth/login-form';
 import { PasskeyLoginButton } from '@/features/auth/passkey-login';
+import { ThemeSwitch } from '@/features/theme-switch';
 import { cn } from '@/shared/lib/cn';
 import { IconCall, IconShieldTick } from '@/shared/ui/inline-icons';
 import { registerTranslations } from '@/shared/i18n';
@@ -64,6 +65,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
   return (
     <div className="lg-page">
       <div className="lg-grid" />
+      <ThemeSwitch className="absolute top-4 right-4 z-10 bg-glass/60 backdrop-blur" />
       <div className="lg-card">
         <CharactersStage mode={mode} mood={mood} caption={t('stage')} />
 

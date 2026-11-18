@@ -4,30 +4,63 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Design tokens (shadcn/ui). Dark theme is the default, like the legacy dashboard. */
+/*
+ * Design tokens, two themes switched by a class on <html> (shared/lib/theme + public/theme-init.js):
+ *   .dark — the legacy dashboard palette (legacy/public/css/style.css :root), the default; keep values exact.
+ *   :root — the light theme (no .dark). Legacy had no app-wide light theme; the base is its only light palette,
+ *           the studio player (style.css L5388): white panels, #f2f5fb, #d9e1f0 lines, #12203b ink.
+ * Components use tokens only (bg-card, text-mute, border-tint/8 …), never raw hex, so both themes work.
+ */
 :root {
+  color-scheme: light;
   --radius: 12px; /* legacy --radius-md */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --success: oklch(0.696 0.17 162.48);
-  --warning: oklch(0.769 0.188 70.08);
-  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
+  --background: #eef2f8;
+  --foreground: #12203b;
+  --card: #ffffff;
+  --card-foreground: #12203b;
+  --popover: #ffffff;
+  --popover-foreground: #12203b;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef8;
+  --secondary-foreground: #12203b;
+  --muted: #f2f5fb;
+  --muted-foreground: #62708f;
+  --accent: #e6ecf7;
+  --accent-foreground: #12203b;
+  --destructive: #dc2626;
+  --border: #d9e1f0;
+  --input: #cfd8ea;
+  --ring: rgba(99, 102, 241, 0.45);
+  --sidebar: #ffffff;
+  /* call-state colors */
+  --success: #0d8a7a;
+  --warning: #b45309;
+  --outbound: #6d5ce8;
+  --live: #1478e0;
+  /* legacy text tiers: --text-main, slate-300, --text-muted, --text-dim */
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --mute: #5b6b85;
+  --dim: #7c8aa3;
+  /* overlays: legacy draws hairlines/hovers as white at low alpha (tint) and glass panels as
+     slate-900/800 at high alpha (glass, glass-2); in light they become slate hairlines and white glass */
+  --tint: #0f172a;
+  --glass: #ffffff;
+  --glass-2: #ffffff;
+  /* operator cards (legacy --op-panel / --op-panel2) */
+  --panel: #ffffff;
+  --panel-2: #f2f5fb;
+  /* legacy accent text (Tailwind v3 400-shades on dark) -> 600/700-shades readable on white */
+  --info: #0284c7;
+  --danger: #dc2626;
+  --caution: #b45309;
+  --positive: #047857;
+  --link: #2563eb;
+  --violet: #9333ea;
+  --brand-soft: #4f46e5;
+  --shadow-color: rgba(15, 23, 42, 0.12);
+  /* chart / KPI accent palette (legacy Chart.js + KPI cards), the same in both themes */
   --chart-1: #6366f1;
   --chart-2: #10b981;
   --chart-3: #a855f7;
@@ -40,6 +73,7 @@
 
 /* Legacy dashboard palette (legacy/public/css/style.css :root) — the UI must look the same. */
 .dark {
+  color-scheme: dark;
   --background: #0f1624;
   --foreground: #e8edf5;
   --card: #17212f;
@@ -59,20 +93,27 @@
   --input: #26344a;
   --ring: rgba(99, 102, 241, 0.45);
   --sidebar: #0f172a;
-  /* call-state colors */
   --success: #2cc4ae;
   --warning: #f2b035;
   --outbound: #9a8fff;
   --live: #3ea6ff;
-  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
-  --chart-1: #6366f1;
-  --chart-2: #10b981;
-  --chart-3: #a855f7;
-  --chart-4: #38bdf8;
-  --chart-5: #f59e0b;
-  --chart-6: #3b82f6;
-  --chart-7: #06b6d4;
-  --chart-8: #ef4444;
+  --ink: #f8fafc;
+  --ink-2: #cbd5e1;
+  --mute: #94a3b8;
+  --dim: #64748b;
+  --tint: #ffffff;
+  --glass: #0f172a;
+  --glass-2: #1e293b;
+  --panel: #121a2e;
+  --panel-2: #18223a;
+  --info: #38bdf8;
+  --danger: #f87171;
+  --caution: #fbbf24;
+  --positive: #34d399;
+  --link: #60a5fa;
+  --violet: #c084fc;
+  --brand-soft: #818cf8;
+  --shadow-color: rgba(0, 0, 0, 0.4);
 }
 
 @theme inline {
@@ -103,6 +144,22 @@
   --color-outbound: var(--outbound);
   --color-live: var(--live);
   --color-sidebar: var(--sidebar);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-mute: var(--mute);
+  --color-dim: var(--dim);
+  --color-tint: var(--tint);
+  --color-glass: var(--glass);
+  --color-glass-2: var(--glass-2);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+  --color-caution: var(--caution);
+  --color-positive: var(--positive);
+  --color-link: var(--link);
+  --color-violet: var(--violet);
+  --color-brand-soft: var(--brand-soft);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -113,6 +170,19 @@
   --color-chart-8: var(--chart-8);
   --font-sans: "Golos Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Switching themes recolors everything at once (shared/lib/theme adds this class for two frames). */
+.theme-switching,
+.theme-switching * {
+  transition: none !important;
+}
+
+/* Light theme: thin slate scrollbars with no track, like the dark ones. */
+.light,
+.light * {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(15 23 42 / 0.22) transparent;
 }
 
 @layer base {
