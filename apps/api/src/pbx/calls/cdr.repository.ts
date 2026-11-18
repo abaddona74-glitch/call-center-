@@ -157,8 +157,17 @@ export class CdrRepository {
   }
 }
 
-/** MariaDB errors that mean "the survey is not installed / not granted to us" rather than a broken PBX. */
-const SURVEY_ABSENT_CODES = new Set(['ER_NO_SUCH_TABLE', 'ER_TABLEACCESS_DENIED_ERROR', 'ER_DBACCESS_DENIED_ERROR']);
+/**
+ * MariaDB errors that mean "the survey is not installed / not granted to us / a different table layout"
+ * rather than a broken PBX (prod `cc_readonly` has no GRANT on the table until DEPLOY.md §11.1 is applied).
+ */
+const SURVEY_ABSENT_CODES = new Set([
+  'ER_NO_SUCH_TABLE',
+  'ER_TABLEACCESS_DENIED_ERROR',
+  'ER_COLUMNACCESS_DENIED_ERROR',
+  'ER_DBACCESS_DENIED_ERROR',
+  'ER_BAD_FIELD_ERROR',
+]);
 
 function toCdrRow(r: Record<string, unknown>): CdrRow {
   const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));

@@ -570,6 +570,20 @@ SHOW GRANTS FOR 'cc_readonly'@'<APP_VM_IP>';
 Если MariaDB слушает только `127.0.0.1`: в `my.cnf` `bind-address=192.168.0.124` (адрес АТС в LAN) и перезапуск MariaDB в окно
 обслуживания. Модулям S2 при необходимости новых таблиц — отдельный GRANT, не `asteriskcdrdb.*`.
 
+**Опрос после звонка (`operator_baho`).** Строка с `operator_baho` — единственная необязательная. Без неё API работает как раньше:
+`/api/stats/operators` отдаёт `surveyAvailable: false`, столбец «Mijoz bahosi» скрыт, в логе API один раз предупреждение
+`Survey ratings unavailable (ER_TABLEACCESS_DENIED_ERROR)`, ошибок 503 нет (`CdrRepository.surveyRatings`, тесты
+`cdr.repository.spec.ts`, `pbx-mariadb.e2e-spec.ts`). Таблицу создаёт пакет `infra/pbx/operator-survey` (по его README она
+уже создана на АТС 18.11.2026). Пользователь `cc_readonly` на проде создан раньше, поэтому достаточно одной команды под root MariaDB
+на АТС, когда владелец решит показывать столбец:
+
+```sql
+GRANT SELECT ON asteriskcdrdb.operator_baho TO 'cc_readonly'@'<APP_VM_IP>';
+SHOW GRANTS FOR 'cc_readonly'@'<APP_VM_IP>';
+```
+
+API подхватит права без перезапуска (при следующем запросе статистики). Отозвать: `REVOKE SELECT ON asteriskcdrdb.operator_baho FROM 'cc_readonly'@'<APP_VM_IP>';`.
+
 ### 11.2 AMI: пользователь в `/etc/asterisk/manager_custom.conf`
 
 На Issabel/FreePBX `manager.conf` перегенерируется, свои пользователи — в `manager_custom.conf`. Действия AMI проверяются

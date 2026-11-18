@@ -106,9 +106,11 @@ export interface SurveyTotals {
 }
 
 /**
- * Post-call survey ratings per operator. A rating counts only for a call in `allCalls` that is in scope
- * (matched by linkedid, else uniqueid), at most once per call; ratings of calls outside the range/scope and
- * scores other than 1–5 are ignored. The operator is the one the PBX recorded, else the call's final operator.
+ * Post-call survey ratings per operator. A rating counts only for an inbound call in `allCalls` that is in scope
+ * (matched by linkedid, else uniqueid), at most once per call; ratings of calls outside the range/scope, of
+ * internal test calls and scores other than 1–5 are ignored. The rated operator is the one who talked last:
+ * the call's final operator after an answered transfer (the PBX only knows the queue member who took the call),
+ * otherwise the queue member the PBX recorded, else the final operator.
  */
 export function surveyByOperator(
   ratings: readonly SurveyRating[],
@@ -116,14 +118,15 @@ export function surveyByOperator(
   scope: CallScope,
 ): Map<string, SurveyTotals> {
   const byId = new Map<string, AssembledCall>();
-  for (const c of allCalls) if (inScope(c, scope)) byId.set(c.id, c);
+  for (const c of allCalls) if (c.direction === 'inbound' && inScope(c, scope)) byId.set(c.id, c);
   const rated = new Set<string>();
   const out = new Map<string, SurveyTotals>();
   for (const r of ratings) {
     if (!Number.isInteger(r.score) || r.score < 1 || r.score > 5) continue;
     const call = byId.get(r.linkedid) ?? byId.get(r.uniqueid);
     if (!call || rated.has(call.id)) continue;
-    const ext = r.operatorExt || call.finalOperator;
+    const transferred = answeredHops(call).length > 0;
+    const ext = transferred ? call.finalOperator : r.operatorExt || call.finalOperator;
     if (!ext) continue;
     rated.add(call.id);
     const t = out.get(ext) ?? { count: 0, sum: 0 };

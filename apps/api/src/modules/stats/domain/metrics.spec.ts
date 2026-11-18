@@ -210,6 +210,47 @@ describe('surveyByOperator', () => {
     expect(surveyByOperator(ratings, day, 'all').get('101')).toEqual({ count: 2, sum: 9 });
   });
 
+  it('after a transfer the rating goes to the operator who talked last, not the queue member', () => {
+    const D = at('2026-11-17 10:30:00'); // 101 → 103
+    const E = at('2026-11-17 11:00:00'); // 106 → 103 → 111
+    const got = surveyByOperator(
+      [
+        { linkedid: D, uniqueid: D, operatorExt: '101', score: 2 },
+        { linkedid: E, uniqueid: E, operatorExt: '106', score: 5 },
+      ],
+      day,
+      'working',
+    );
+    expect(got).toEqual(
+      new Map([
+        ['103', { count: 1, sum: 2 }],
+        ['111', { count: 1, sum: 5 }],
+      ]),
+    );
+  });
+
+  it('ignores ratings of outbound and internal calls (operators testing the survey)', () => {
+    const G = day.find((c) => c.direction === 'outbound' && c.status === 'answered')?.id ?? '';
+    const I = day.find((c) => c.direction === 'internal')?.id ?? '';
+    expect(
+      surveyByOperator(
+        [
+          { linkedid: G, uniqueid: G, operatorExt: '101', score: 5 },
+          { linkedid: I, uniqueid: I, operatorExt: '103', score: 1 },
+        ],
+        day,
+        'all',
+      ),
+    ).toEqual(new Map());
+  });
+
+  it('an excluded operator keeps no row even with ratings; the others keep theirs', () => {
+    const survey = surveyByOperator(ratings, day, 'all');
+    const rows = operatorStats(day, { scope: 'all', names, groupOf, survey, excluded: new Set(['101']) });
+    expect(rows.find((r) => r.ext === '101')).toBeUndefined();
+    expect(rows.find((r) => r.ext === '103')).toMatchObject({ surveyCount: 1, surveyAvg: 3 });
+  });
+
   it('feeds surveyCount / surveyAvg of the operator table', () => {
     const survey = surveyByOperator(ratings, day, 'all');
     const rows = operatorStats(day, { scope: 'all', names, groupOf, knownExtensions: ['120'], survey });
