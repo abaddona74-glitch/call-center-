@@ -21,7 +21,7 @@ export function TopClientsTable({
     <Panel>
       <PanelHeader>
         <PanelTitle>
-          <Icon name="user" className="size-[18px] text-chart-4" />
+          <Icon name="user" className="size-[18px] text-shade-chart-4" />
           {t('topClients')}
         </PanelTitle>
       </PanelHeader>
@@ -51,7 +51,7 @@ export function TopClientsTable({
                     {onOpenNumber ? (
                       <button
                         type="button"
-                        className="hover:text-chart-4 hover:underline"
+                        className="hover:text-shade-chart-4 hover:underline"
                         onClick={() => onOpenNumber(r.number)}
                       >
                         {formatPhone(r.number)}

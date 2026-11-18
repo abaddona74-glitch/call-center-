@@ -31,13 +31,13 @@ export function fileSize(bytes: number): string {
 
 /** Card stripe per status (legacy board colors: sky = new, amber = in work, green = done, red = rejected). */
 export const STATUS_STRIPE: Record<TicketStatus, string> = {
-  new: '#38bdf8',
-  assigned: '#a78bfa',
+  new: 'var(--info)',
+  assigned: 'var(--lilac)',
   in_progress: '#f59e0b',
   done: '#10b981',
   rejected: '#ef4444',
   callback_pending: '#2dd4bf',
-  closed: '#64748b',
+  closed: 'var(--dim)',
 };
 
 /** Directory name in the UI language. */

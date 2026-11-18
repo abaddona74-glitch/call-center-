@@ -8,7 +8,8 @@ import { useSyncExternalStore } from 'react';
 export const THEMES = ['dark', 'light'] as const;
 export type Theme = (typeof THEMES)[number];
 
-const STORAGE_KEY = 'cc.theme';
+/** localStorage key, also read by public/theme-init.js before the first paint. */
+export const THEME_STORAGE_KEY = 'cc.theme';
 const listeners = new Set<() => void>();
 
 function readTheme(): Theme {
@@ -28,7 +29,7 @@ function applyTheme(theme: Theme): void {
 export function setTheme(theme: Theme): void {
   applyTheme(theme);
   try {
-    localStorage.setItem(STORAGE_KEY, theme);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     /* storage unavailable: the choice lasts until reload */
   }
@@ -38,7 +39,7 @@ function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   // Another tab changed the theme: follow it.
   const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) applyTheme(e.newValue === 'light' ? 'light' : 'dark');
+    if (e.key === THEME_STORAGE_KEY) applyTheme(e.newValue === 'light' ? 'light' : 'dark');
   };
   window.addEventListener('storage', onStorage);
   return () => {
@@ -50,4 +51,12 @@ function subscribe(listener: () => void): () => void {
 /** Current theme; re-renders when it changes (here or in another tab). */
 export function useTheme(): Theme {
   return useSyncExternalStore(subscribe, readTheme, () => 'dark');
+}
+
+/**
+ * A mid-tone accent color (status, carrier …) for *text*: as is in the dark theme, darkened toward ink in the
+ * light one so it stays readable on white (see --shade in app/styles/index.css). Backgrounds keep the raw color.
+ */
+export function accentText(color: string): string {
+  return `color-mix(in oklab, ${color}, var(--ink) var(--shade))`;
 }

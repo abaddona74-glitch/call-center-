@@ -38,7 +38,7 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
 
   return (
     <Dialog open={user !== null} onOpenChange={(open) => !open && close()}>
-      <DialogContent className="gap-0 rounded-2xl border-[rgba(56,189,248,0.3)] bg-[#0f172a] p-0 text-[#f8fafc] shadow-[0_25px_60px_rgba(0,0,0,0.7)] sm:max-w-[440px] [&>button]:top-[34px] [&>button]:right-[28px] [&>button]:rounded-md [&>button]:border [&>button]:border-white/10 [&>button]:bg-white/5 [&>button]:p-1">
+      <DialogContent className="gap-0 rounded-2xl border-[rgba(56,189,248,0.3)] bg-sidebar p-0 text-ink shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_70%,transparent)] sm:max-w-[440px] [&>button]:top-[34px] [&>button]:right-[28px] [&>button]:rounded-md [&>button]:border [&>button]:border-tint/10 [&>button]:bg-tint/5 [&>button]:p-1">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -46,21 +46,21 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
             mutation.mutate();
           }}
         >
-          <div className="mx-5 flex items-center gap-2.5 border-b border-white/8 px-5 pt-10 pb-4">
-            <span className="flex size-9 items-center justify-center rounded-[10px] border border-[rgba(59,130,246,0.35)] bg-[rgba(59,130,246,0.15)] text-[#60a5fa]">
+          <div className="mx-5 flex items-center gap-2.5 border-b border-tint/8 px-5 pt-10 pb-4">
+            <span className="flex size-9 items-center justify-center rounded-[10px] border border-[rgba(59,130,246,0.35)] bg-[rgba(59,130,246,0.15)] text-link">
               <IconLock size={18} />
             </span>
             <div>
-              <DialogTitle className="text-[15px] font-bold text-white">{t('users.resetTitle')}</DialogTitle>
-              <DialogDescription className="text-[11.5px] text-[#94a3b8]">
-                {t('users.resetFor')}: <b className="text-[#38bdf8]">{user?.username}</b>
+              <DialogTitle className="text-[15px] font-bold text-ink">{t('users.resetTitle')}</DialogTitle>
+              <DialogDescription className="text-[11.5px] text-mute">
+                {t('users.resetFor')}: <b className="text-info">{user?.username}</b>
               </DialogDescription>
             </div>
           </div>
 
           <div className="flex flex-col gap-3.5 px-[42px] pt-6 pb-5">
             <label className="flex flex-col gap-2" htmlFor="reset-password">
-              <span className="text-[12.5px] font-semibold text-[#e2e8f0]">{t('users.newPassword')}:</span>
+              <span className="text-[12.5px] font-semibold text-foreground">{t('users.newPassword')}:</span>
               <SettingsInput
                 id="reset-password"
                 type="password"
@@ -79,8 +79,8 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
                 onChange={(e) => setRevokePasskeys(e.target.checked)}
               />
               <span>
-                <span className="block text-[12.5px] font-semibold text-[#f1f5f9]">{t('users.revokePasskeys')}</span>
-                <span className="block text-[11.5px] leading-snug text-[#94a3b8]">{t('users.revokePasskeysHint')}</span>
+                <span className="block text-[12.5px] font-semibold text-ink">{t('users.revokePasskeys')}</span>
+                <span className="block text-[11.5px] leading-snug text-mute">{t('users.revokePasskeysHint')}</span>
               </span>
             </label>
             <label className="flex cursor-pointer items-start gap-2.5 px-1">
@@ -90,7 +90,7 @@ export function ResetPasswordDialog({ user, onClose }: { user: User | null; onCl
                 checked={mustChange}
                 onChange={(e) => setMustChange(e.target.checked)}
               />
-              <span className="text-[12.5px] text-[#e2e8f0]">{t('users.mustChange')}</span>
+              <span className="text-[12.5px] text-foreground">{t('users.mustChange')}</span>
             </label>
             <FieldError>{error}</FieldError>
             <div className="mt-6 flex justify-end gap-2">

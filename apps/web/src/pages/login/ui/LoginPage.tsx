@@ -94,7 +94,7 @@ export function LoginPage({ onLoggedIn }: { onLoggedIn: () => void }) {
           />
 
           <div className="lg-footer">
-            <IconShieldTick size={13} className="text-[#38bdf8]" />
+            <IconShieldTick size={13} className="text-info" />
             <span>{t('footer')}</span>
           </div>
         </div>

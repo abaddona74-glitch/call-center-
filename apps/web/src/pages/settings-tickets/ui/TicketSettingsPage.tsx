@@ -26,11 +26,11 @@ export function TicketSettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5">
       <div>
-        <h1 className="m-0 inline-flex items-center gap-2 text-lg font-bold text-white">
+        <h1 className="m-0 inline-flex items-center gap-2 text-lg font-bold text-ink">
           <Icon name="setting-4" className="size-5" />
           {t('title')}
         </h1>
-        <p className="m-0 mt-1 text-xs text-slate-400">{t('subtitle')}</p>
+        <p className="m-0 mt-1 text-xs text-mute">{t('subtitle')}</p>
       </div>
       <div className="grid gap-5 xl:grid-cols-2">
         <Card title={t('regions')} extra={t('regionsCount', { n: regions.length })}>
@@ -42,7 +42,7 @@ export function TicketSettingsPage() {
                 row={r}
                 selected={r.id === regionId}
                 onSelect={() => setRegionId(r.id)}
-                extra={<span className="font-mono text-[11px] text-slate-500">{r.code}</span>}
+                extra={<span className="font-mono text-[11px] text-dim">{r.code}</span>}
                 count={r.cities.length}
                 kind="region"
               />
@@ -55,7 +55,7 @@ export function TicketSettingsPage() {
               <CityForm regionId={region.id} />
               <ul className="mt-3 flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-1">
                 {region.cities.length === 0 && (
-                  <li className="py-3 text-center text-xs text-slate-500">{t('empty')}</li>
+                  <li className="py-3 text-center text-xs text-dim">{t('empty')}</li>
                 )}
                 {region.cities.map((c) => (
                   <DirectoryRow key={c.id} row={c} kind="city" />
@@ -63,7 +63,7 @@ export function TicketSettingsPage() {
               </ul>
             </>
           ) : (
-            <p className="py-6 text-center text-sm text-slate-400">{t('pickRegion')}</p>
+            <p className="py-6 text-center text-sm text-mute">{t('pickRegion')}</p>
           )}
         </Card>
         <Card title={t('categories')}>
@@ -75,7 +75,7 @@ export function TicketSettingsPage() {
           </ul>
         </Card>
         <Card title={t('executives')}>
-          <p className="mb-3 text-xs text-slate-400">{t('executivesHint')}</p>
+          <p className="mb-3 text-xs text-mute">{t('executivesHint')}</p>
           <ExecutiveRegions regions={regions} />
         </Card>
       </div>
@@ -85,10 +85,10 @@ export function TicketSettingsPage() {
 
 function Card({ title, extra, children }: { title: string; extra?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-muted p-[22px]">
+    <section className="rounded-2xl border border-tint/[0.08] bg-muted p-[22px]">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="m-0 text-[15px] font-semibold text-white">{title}</h2>
-        {extra && <span className="text-xs text-slate-400">{extra}</span>}
+        <h2 className="m-0 text-[15px] font-semibold text-ink">{title}</h2>
+        {extra && <span className="text-xs text-mute">{extra}</span>}
       </div>
       {children}
     </section>
@@ -266,7 +266,7 @@ function DirectoryRow({
 
   if (editing) {
     return (
-      <li className="rounded-xl border border-[rgba(56,189,248,0.35)] bg-[rgba(15,23,42,0.6)] p-2">
+      <li className="rounded-xl border border-[rgba(56,189,248,0.35)] bg-glass/60 p-2">
         <form
           className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]"
           onSubmit={(e: FormEvent) => (e.preventDefault(), update.mutate({ nameUz: uz.trim(), nameRu: ru.trim() }))}
@@ -290,7 +290,7 @@ function DirectoryRow({
   return (
     <li
       className={cn(
-        'flex items-center gap-2 rounded-xl border border-white/6 bg-[rgba(15,23,42,0.5)] px-3 py-2 text-[13px]',
+        'flex items-center gap-2 rounded-xl border border-tint/6 bg-glass/50 px-3 py-2 text-[13px]',
         selected && 'border-[rgba(56,189,248,0.55)] bg-[rgba(56,189,248,0.1)]',
         !row.isActive && 'opacity-55',
       )}
@@ -301,21 +301,21 @@ function DirectoryRow({
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
       >
-        <span className="truncate font-semibold text-white">{refName(row, i18n.language)}</span>
-        <span className="truncate text-xs text-slate-500">
+        <span className="truncate font-semibold text-ink">{refName(row, i18n.language)}</span>
+        <span className="truncate text-xs text-dim">
           {i18n.language.startsWith('ru') ? row.nameUz : row.nameRu}
         </span>
         {extra}
         {count !== undefined && count > 0 && (
-          <span className="rounded-md bg-white/8 px-1.5 text-[11px] text-slate-300">{count}</span>
+          <span className="rounded-md bg-tint/8 px-1.5 text-[11px] text-ink-2">{count}</span>
         )}
       </button>
-      {!row.isActive && <span className="text-[11px] font-semibold text-[#fbbf24]">{t('inactive')}</span>}
+      {!row.isActive && <span className="text-[11px] font-semibold text-caution">{t('inactive')}</span>}
       <button
         type="button"
         title={t('rename')}
         onClick={() => setEditing(true)}
-        className="rounded p-1 text-slate-400 hover:text-[#38bdf8]"
+        className="rounded p-1 text-mute hover:text-info"
       >
         <Icon name="edit" className="size-3.5" />
       </button>
@@ -325,7 +325,7 @@ function DirectoryRow({
         onClick={() => update.mutate({ isActive: !row.isActive })}
         className={cn(
           'rounded px-1.5 py-0.5 text-[11px] font-semibold',
-          row.isActive ? 'text-slate-400 hover:text-[#fbbf24]' : 'text-[#34d399] hover:text-white',
+          row.isActive ? 'text-mute hover:text-caution' : 'text-positive hover:text-ink',
         )}
       >
         {row.isActive ? t('deactivate') : t('activate')}
@@ -336,7 +336,7 @@ function DirectoryRow({
         onClick={() => {
           if (window.confirm(t('deleteConfirm', { name: refName(row, i18n.language) }))) remove.mutate(undefined);
         }}
-        className="rounded p-1 text-slate-500 hover:text-[#f87171]"
+        className="rounded p-1 text-dim hover:text-danger"
       >
         <Icon name="trash" className="size-3.5" />
       </button>
@@ -352,16 +352,16 @@ function ExecutiveRegions({ regions }: { regions: Array<TicketRegion & { cities:
     () => toast.success(t('saved')),
   );
   if (execs.data && execs.data.length === 0)
-    return <p className="py-4 text-center text-sm text-slate-400">{t('noExecutives')}</p>;
+    return <p className="py-4 text-center text-sm text-mute">{t('noExecutives')}</p>;
   return (
     <ul className="flex flex-col gap-3">
       {(execs.data ?? []).map((e) => (
-        <li key={e.userId} className="rounded-xl border border-white/6 bg-[rgba(15,23,42,0.5)] p-3">
-          <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-white">
-            <Icon name="user" className="size-4 text-[#c084fc]" />
+        <li key={e.userId} className="rounded-xl border border-tint/6 bg-glass/50 p-3">
+          <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <Icon name="user" className="size-4 text-violet" />
             {e.name ?? e.username}
-            {e.extension && <span className="text-xs text-slate-500">({e.extension})</span>}
-            <span className="ml-auto text-xs text-slate-400">{t('regionsCount', { n: e.regionIds.length })}</span>
+            {e.extension && <span className="text-xs text-dim">({e.extension})</span>}
+            <span className="ml-auto text-xs text-mute">{t('regionsCount', { n: e.regionIds.length })}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {regions
@@ -383,8 +383,8 @@ function ExecutiveRegions({ regions }: { regions: Array<TicketRegion & { cities:
                     className={cn(
                       'rounded-[20px] border px-3 py-1 text-[11.5px] font-semibold transition-all duration-150',
                       on
-                        ? 'border-[rgba(139,92,246,0.55)] bg-[rgba(139,92,246,0.22)] text-[#e9d5ff]'
-                        : 'border-white/10 bg-white/5 text-slate-400 hover:border-[rgba(139,92,246,0.4)] hover:text-white',
+                        ? 'border-[rgba(139,92,246,0.55)] bg-[rgba(139,92,246,0.22)] text-[#e9d5ff] light:text-violet'
+                        : 'border-tint/10 bg-tint/5 text-mute hover:border-[rgba(139,92,246,0.4)] hover:text-ink',
                     )}
                   >
                     {refName(r, i18n.language)}

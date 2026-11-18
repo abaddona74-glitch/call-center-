@@ -3,6 +3,8 @@
 @import "./fonts.css";
 
 @custom-variant dark (&:is(.dark *));
+/* For the few legacy colors that need a different shade on white: text-[#fef3c7] light:text-caution */
+@custom-variant light (&:is(:root:not(.dark) *));
 
 /*
  * Design tokens, two themes switched by a class on <html> (shared/lib/theme + public/theme-init.js):
@@ -42,12 +44,14 @@
   --ink: #0f172a;
   --ink-2: #334155;
   --mute: #5b6b85;
-  --dim: #7c8aa3;
+  --dim: #738199;
   /* overlays: legacy draws hairlines/hovers as white at low alpha (tint) and glass panels as
      slate-900/800 at high alpha (glass, glass-2); in light they become slate hairlines and white glass */
   --tint: #0f172a;
   --glass: #ffffff;
   --glass-2: #ffffff;
+  /* recessed wells (legacy black at 20-40% alpha): a faint slate inset on white */
+  --well: rgb(15 23 42 / 0.22);
   /* operator cards (legacy --op-panel / --op-panel2) */
   --panel: #ffffff;
   --panel-2: #f2f5fb;
@@ -59,7 +63,18 @@
   --link: #2563eb;
   --violet: #9333ea;
   --brand-soft: #4f46e5;
-  --shadow-color: rgba(15, 23, 42, 0.12);
+  /* paler legacy accents (300-shades on dark) */
+  --danger-soft: #b91c1c;
+  --caution-soft: #a16207;
+  --link-soft: #1d4ed8;
+  --brand-pale: #4338ca;
+  --lilac: #7c3aed;
+  --lilac-soft: #6d28d9;
+  /* the black of drop shadows: legacy uses #000 at 40-80% alpha, too heavy under white panels */
+  --shadow-color: rgb(15 23 42 / 0.3);
+  /* mid-tone accent text (#f59e0b, #ef4444, carrier/status colors) is too light on white: in light it is
+     mixed this much toward ink (text-shade-[…] utility, accentText() in shared/lib/theme) */
+  --shade: 40%;
   /* chart / KPI accent palette (legacy Chart.js + KPI cards), the same in both themes */
   --chart-1: #6366f1;
   --chart-2: #10b981;
@@ -104,6 +119,7 @@
   --tint: #ffffff;
   --glass: #0f172a;
   --glass-2: #1e293b;
+  --well: #000000;
   --panel: #121a2e;
   --panel-2: #18223a;
   --info: #38bdf8;
@@ -113,7 +129,14 @@
   --link: #60a5fa;
   --violet: #c084fc;
   --brand-soft: #818cf8;
-  --shadow-color: rgba(0, 0, 0, 0.4);
+  --danger-soft: #fca5a5;
+  --caution-soft: #fcd34d;
+  --link-soft: #93c5fd;
+  --brand-pale: #a5b4fc;
+  --lilac: #a78bfa;
+  --lilac-soft: #c4b5fd;
+  --shadow-color: #000000;
+  --shade: 0%;
 }
 
 @theme inline {
@@ -151,6 +174,7 @@
   --color-tint: var(--tint);
   --color-glass: var(--glass);
   --color-glass-2: var(--glass-2);
+  --color-well: var(--well);
   --color-panel: var(--panel);
   --color-panel-2: var(--panel-2);
   --color-info: var(--info);
@@ -160,6 +184,12 @@
   --color-link: var(--link);
   --color-violet: var(--violet);
   --color-brand-soft: var(--brand-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-caution-soft: var(--caution-soft);
+  --color-link-soft: var(--link-soft);
+  --color-brand-pale: var(--brand-pale);
+  --color-lilac: var(--lilac);
+  --color-lilac-soft: var(--lilac-soft);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -170,6 +200,11 @@
   --color-chart-8: var(--chart-8);
   --font-sans: "Golos Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Accent-colored text that stays readable in both themes: text-shade-[#f59e0b], text-shade-chart-5. */
+@utility text-shade-* {
+  color: color-mix(in oklab, --value(--color-*, [color]), var(--ink) var(--shade));
 }
 
 /* Switching themes recolors everything at once (shared/lib/theme adds this class for two frames). */

@@ -15,7 +15,7 @@ export function KdsField({
 }) {
   return (
     <div className="mb-3.5 flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-xs font-bold text-[#cbd5e1]">
+      <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-xs font-bold text-ink-2">
         {icon}
         <span>{label}</span>
       </label>
@@ -25,7 +25,7 @@ export function KdsField({
 }
 
 const inputBase =
-  'w-full rounded-[10px] border border-white/12 bg-[rgba(15,23,42,0.7)] px-3.5 py-2.5 text-[13.5px] text-white transition-all duration-200 outline-none placeholder:text-[#64748b] focus:border-[rgba(56,189,248,0.6)] focus:bg-[rgba(15,23,42,0.95)] focus:shadow-[0_0_0_3px_rgba(56,189,248,0.2)] disabled:opacity-60';
+  'w-full rounded-[10px] border border-tint/12 bg-glass/70 px-3.5 py-2.5 text-[13.5px] text-ink transition-all duration-200 outline-none placeholder:text-dim focus:border-[rgba(56,189,248,0.6)] focus:bg-glass/95 focus:shadow-[0_0_0_3px_rgba(56,189,248,0.2)] disabled:opacity-60';
 
 export function KdsInput({ className, ...props }: ComponentProps<'input'>) {
   return <input {...props} className={cn(inputBase, className)} />;
@@ -41,7 +41,7 @@ export function KdsSelect({ className, children, ...props }: ComponentProps<'sel
       {...props}
       className={cn(
         inputBase,
-        'bg-[rgba(15,23,42,0.85)] focus:bg-[rgba(15,23,42,0.98)] [&_option]:bg-[#0f172a] [&_option]:text-[#f1f5f9]',
+        'bg-glass/85 focus:bg-glass/98 [&_option]:bg-sidebar [&_option]:text-ink',
         className,
       )}
     >
@@ -61,8 +61,8 @@ const ACTION: Record<ActionVariant, string> = {
     'bg-[linear-gradient(135deg,#2563eb,#1d4ed8)] text-white shadow-[0_4px_14px_rgba(37,99,235,0.35)] hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(37,99,235,0.5)]',
   reject:
     'bg-[linear-gradient(135deg,#ef4444,#dc2626)] text-white shadow-[0_4px_14px_rgba(239,68,68,0.35)] hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(239,68,68,0.5)]',
-  delete: 'border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]',
-  edit: 'border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] text-[#38bdf8] hover:bg-[rgba(56,189,248,0.28)] hover:text-white hover:shadow-[0_4px_14px_rgba(56,189,248,0.3)]',
+  delete: 'border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] text-danger hover:bg-[rgba(239,68,68,0.25)]',
+  edit: 'border-[rgba(56,189,248,0.4)] bg-[rgba(56,189,248,0.15)] text-info hover:bg-[rgba(56,189,248,0.28)] hover:text-ink hover:shadow-[0_4px_14px_rgba(56,189,248,0.3)]',
 };
 
 /** `.tk-action-btn.{variant}` */

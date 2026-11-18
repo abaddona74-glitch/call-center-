@@ -8,8 +8,8 @@ import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 
 const field =
-  'rounded-lg border border-white/15 bg-sidebar/80 px-3 py-2 text-[13px] text-white outline-none focus:border-primary/60 [color-scheme:dark]';
-const label = 'mb-1.5 block text-[12.5px] font-semibold text-slate-400';
+  'rounded-lg border border-tint/15 bg-sidebar/80 px-3 py-2 text-[13px] text-ink outline-none focus:border-primary/60';
+const label = 'mb-1.5 block text-[12.5px] font-semibold text-mute';
 
 /**
  * The minimum talk time that closes a callback automatically. Saved on the server (audited); applies to
@@ -55,10 +55,10 @@ export function CallbackSettingsForm({ initial }: { initial: CallbackSettings })
           onChange={(e) => setValue({ ...value, minTalkSeconds: Number(e.target.value) })}
         />
       </label>
-      <p className="-mt-3 text-[11.5px] text-slate-500">{t('minTalkHint')}</p>
+      <p className="-mt-3 text-[11.5px] text-dim">{t('minTalkHint')}</p>
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-red-400">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-danger">
           {error}
         </div>
       )}

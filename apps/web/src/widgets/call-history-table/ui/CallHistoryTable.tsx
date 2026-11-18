@@ -41,7 +41,7 @@ export function TableButton({ primary, className, ...props }: React.ComponentPro
     <button
       type="button"
       className={cn(
-        'inline-flex items-center gap-[5px] whitespace-nowrap rounded-lg border border-border px-[11px] py-[5px] text-xs leading-[1.4] font-medium text-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-white disabled:pointer-events-none disabled:opacity-40',
+        'inline-flex items-center gap-[5px] whitespace-nowrap rounded-lg border border-border px-[11px] py-[5px] text-xs leading-[1.4] font-medium text-foreground transition-all hover:border-primary hover:bg-primary/10 hover:text-ink disabled:pointer-events-none disabled:opacity-40',
         primary && 'border-primary bg-primary font-semibold text-white hover:bg-primary hover:brightness-110',
         className,
       )}
@@ -124,7 +124,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           cell: ({ row: { original: c } }) =>
             showDate ? (
               <div>
-                <div className="text-[11px] font-bold tracking-[0.3px] text-chart-6">{c.date}</div>
+                <div className="text-[11px] font-bold tracking-[0.3px] text-shade-chart-6">{c.date}</div>
                 <div className="font-mono text-[11px] text-muted-foreground">{c.time}</div>
               </div>
             ) : (
@@ -139,7 +139,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           cell: ({ row: { original: c } }) => (
             <div className="flex items-center gap-2">
               <DirectionMark call={c} />
-              <span className="text-sm font-semibold tracking-[0.2px] text-white">
+              <span className="text-sm font-semibold tracking-[0.2px] text-ink">
                 {c.clientNumber
                   ? c.clientNumber
                   : c.hiddenNumber && c.direction !== 'internal'
@@ -262,7 +262,7 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
   const table = useCallHistoryTable(props);
   const visibleCount = table.getVisibleLeafColumns().length;
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-white/8">
+    <div className="w-full overflow-x-auto rounded-xl border border-tint/8">
       <table className="w-full min-w-[760px] border-collapse text-[13px]">
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -271,7 +271,7 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
                 <th
                   key={header.id}
                   className={cn(
-                    'border-b border-white/8 bg-secondary/70 px-3.5 py-3 text-[11px] font-bold tracking-[0.6px] whitespace-nowrap text-muted-foreground uppercase select-none',
+                    'border-b border-tint/8 bg-secondary/70 px-3.5 py-3 text-[11px] font-bold tracking-[0.6px] whitespace-nowrap text-muted-foreground uppercase select-none',
                     ALIGN[header.column.id] ?? 'text-center',
                   )}
                 >
@@ -293,13 +293,13 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
               <tr
                 key={row.id}
                 onDoubleClick={() => props.onOpenDetails(row.original)}
-                className={cn('transition-colors [&>td]:hover:bg-white/[0.035]', ROW_TONES[rowTone(row.original)])}
+                className={cn('transition-colors [&>td]:hover:bg-tint/[0.035]', ROW_TONES[rowTone(row.original)])}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
                     className={cn(
-                      'border-b border-white/5 px-3.5 py-[14px] whitespace-nowrap tabular-nums text-foreground',
+                      'border-b border-tint/5 px-3.5 py-[14px] whitespace-nowrap tabular-nums text-foreground',
                       ALIGN[cell.column.id] ?? 'text-center',
                     )}
                   >

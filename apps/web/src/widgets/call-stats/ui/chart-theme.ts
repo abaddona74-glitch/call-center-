@@ -5,18 +5,18 @@ export const AXIS = {
   tickLine: false,
 } as const;
 
-export const GRID = { stroke: 'rgba(255,255,255,0.05)', vertical: true } as const;
+export const GRID = { stroke: 'color-mix(in srgb, var(--tint) 5%, transparent)', vertical: true } as const;
 
 export const TOOLTIP = {
   contentStyle: {
-    background: 'rgba(15, 23, 42, 0.95)',
+    background: 'color-mix(in srgb, var(--glass) 95%, transparent)',
     border: '1px solid rgba(59, 130, 246, 0.4)',
     borderRadius: 8,
     padding: 10,
-    color: '#e2e8f0',
+    color: 'var(--foreground)',
     fontSize: 12,
   },
-  labelStyle: { color: '#ffffff', fontWeight: 700, marginBottom: 4 },
+  labelStyle: { color: 'var(--ink)', fontWeight: 700, marginBottom: 4 },
   itemStyle: { padding: 0 },
-  cursor: { stroke: 'rgba(148,163,184,0.25)' },
+  cursor: { stroke: 'color-mix(in srgb, var(--mute) 25%, transparent)' },
 } as const;

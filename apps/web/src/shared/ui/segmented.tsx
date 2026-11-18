@@ -26,7 +26,7 @@ export function Segmented<T extends string>({
   return (
     <div
       role="radiogroup"
-      className={cn('inline-flex gap-0.5 rounded-lg border border-white/8 bg-sidebar/60 p-0.5', className)}
+      className={cn('inline-flex gap-0.5 rounded-lg border border-tint/8 bg-sidebar/60 p-0.5', className)}
     >
       {options.map((o) => (
         <button
@@ -39,7 +39,7 @@ export function Segmented<T extends string>({
           className={cn(
             'rounded-md border border-transparent font-medium text-muted-foreground transition-all hover:text-foreground',
             size === 'xs' ? 'px-2.5 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs',
-            o.value === value && cn('border-white/14 font-semibold text-white', ACTIVE[tone]),
+            o.value === value && cn('border-tint/14 font-semibold text-ink', ACTIVE[tone]),
           )}
         >
           {o.label}

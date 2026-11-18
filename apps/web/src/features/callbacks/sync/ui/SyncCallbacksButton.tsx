@@ -29,7 +29,7 @@ export function SyncCallbacksButton() {
         setTimeout(() => setSpin(false), 300);
         mutation.mutate();
       }}
-      className="inline-flex size-[26px] items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-300 transition-all duration-150 hover:border-white/25 hover:bg-white/10 hover:text-white disabled:opacity-60"
+      className="inline-flex size-[26px] items-center justify-center rounded-lg border border-tint/10 bg-tint/[0.04] text-ink-2 transition-all duration-150 hover:border-tint/25 hover:bg-tint/10 hover:text-ink disabled:opacity-60"
     >
       <Icon
         name="refresh"

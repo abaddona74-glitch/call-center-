@@ -9,8 +9,8 @@ import { Icon } from '@/shared/ui/icon';
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
 const field =
-  'rounded-lg border border-white/15 bg-sidebar/80 px-3 py-2 text-[13px] text-white outline-none focus:border-primary/60 [color-scheme:dark]';
-const label = 'mb-1.5 block text-[12.5px] font-semibold text-slate-400';
+  'rounded-lg border border-tint/15 bg-sidebar/80 px-3 py-2 text-[13px] text-ink outline-none focus:border-primary/60';
+const label = 'mb-1.5 block text-[12.5px] font-semibold text-mute';
 
 /** "MM-DD" (yearly) sorts before "YYYY-MM-DD"; inside each kind by date. */
 const sortHolidays = (list: string[]) =>
@@ -86,9 +86,9 @@ export function WorkingCalendarForm({ initial }: { initial: WorkingCalendarInfo 
               aria-pressed={value.days.includes(d)}
               onClick={() => toggleDay(d)}
               className={cn(
-                'min-w-[52px] rounded-[20px] border border-white/[0.12] bg-white/5 px-3 py-[5px] text-xs font-medium text-slate-500 transition-all hover:text-white',
+                'min-w-[52px] rounded-[20px] border border-tint/[0.12] bg-tint/5 px-3 py-[5px] text-xs font-medium text-dim transition-all hover:text-ink',
                 value.days.includes(d) &&
-                  'border-primary/55 bg-[linear-gradient(135deg,rgba(99,102,241,0.3),rgba(79,70,229,0.2))] font-semibold text-indigo-300',
+                  'border-primary/55 bg-[linear-gradient(135deg,rgba(99,102,241,0.3),rgba(79,70,229,0.2))] font-semibold text-brand-pale',
               )}
             >
               {t(`day.${d}`)}
@@ -117,7 +117,7 @@ export function WorkingCalendarForm({ initial }: { initial: WorkingCalendarInfo 
           />
         </label>
       </div>
-      <p className="-mt-3 text-[11.5px] text-slate-500">{t('hoursHint')}</p>
+      <p className="-mt-3 text-[11.5px] text-dim">{t('hoursHint')}</p>
 
       <div>
         <span className={label}>{t('holidays')}</span>
@@ -129,7 +129,7 @@ export function WorkingCalendarForm({ initial }: { initial: WorkingCalendarInfo 
             value={newHoliday}
             onChange={(e) => setNewHoliday(e.target.value)}
           />
-          <label className="inline-flex items-center gap-1.5 text-xs text-slate-300">
+          <label className="inline-flex items-center gap-1.5 text-xs text-ink-2">
             <input type="checkbox" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />
             {t('yearly')}
           </label>
@@ -137,23 +137,23 @@ export function WorkingCalendarForm({ initial }: { initial: WorkingCalendarInfo 
             type="button"
             onClick={addHoliday}
             disabled={!holidayToAdd}
-            className="rounded-lg border border-white/15 bg-white/[0.08] px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-white/15 disabled:opacity-50"
+            className="rounded-lg border border-tint/15 bg-tint/[0.08] px-3.5 py-2 text-xs font-semibold text-ink-2 hover:bg-tint/15 disabled:opacity-50"
           >
             {t('add')}
           </button>
         </div>
-        <p className="mb-2.5 text-[11.5px] text-slate-500">{t('holidaysHint')}</p>
+        <p className="mb-2.5 text-[11.5px] text-dim">{t('holidaysHint')}</p>
         {value.holidays.length === 0 ? (
-          <p className="text-xs text-slate-500">{t('noHolidays')}</p>
+          <p className="text-xs text-dim">{t('noHolidays')}</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {value.holidays.map((h) => (
               <span
                 key={h}
-                className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/35 bg-amber-500/15 py-1 pr-1 pl-2.5 text-xs font-semibold text-amber-400"
+                className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/35 bg-amber-500/15 py-1 pr-1 pl-2.5 text-xs font-semibold text-caution"
               >
                 {showHoliday(h)}
-                {h.length === 5 && <span className="font-normal text-amber-400/70">· {t('everyYear')}</span>}
+                {h.length === 5 && <span className="font-normal text-caution/70">· {t('everyYear')}</span>}
                 <button
                   type="button"
                   aria-label={t('remove')}
@@ -169,7 +169,7 @@ export function WorkingCalendarForm({ initial }: { initial: WorkingCalendarInfo 
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-red-400">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-danger">
           {error}
         </div>
       )}

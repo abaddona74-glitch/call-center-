@@ -5,13 +5,13 @@ import { Icon } from '@/shared/ui/icon';
 import './ticket.css';
 
 const STATUS_BADGE: Record<TicketStatus, string> = {
-  new: 'border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] text-[#38bdf8]',
-  assigned: 'border-[rgba(167,139,250,0.35)] bg-[rgba(139,92,246,0.18)] text-[#c4b5fd]',
-  in_progress: 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.18)] text-[#fbbf24]',
-  done: 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.18)] text-[#34d399]',
-  rejected: 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.18)] text-[#f87171]',
-  callback_pending: 'border-[rgba(45,212,191,0.35)] bg-[rgba(20,184,166,0.18)] text-[#5eead4]',
-  closed: 'border-[rgba(148,163,184,0.3)] bg-[rgba(148,163,184,0.14)] text-[#94a3b8]',
+  new: 'border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] text-info',
+  assigned: 'border-[rgba(167,139,250,0.35)] bg-[rgba(139,92,246,0.18)] text-lilac-soft',
+  in_progress: 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.18)] text-caution',
+  done: 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.18)] text-positive',
+  rejected: 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.18)] text-danger',
+  callback_pending: 'border-[rgba(45,212,191,0.35)] bg-[rgba(20,184,166,0.18)] text-shade-[#5eead4]',
+  closed: 'border-mute/30 bg-mute/14 text-mute',
 };
 
 /** `.tk-status-badge.{status}` */
@@ -35,7 +35,7 @@ export function OverdueBadge({ label, className }: { label: string; className?: 
   return (
     <span
       className={cn(
-        'inline-flex animate-[tkUrgentPulse_1.8s_ease-in-out_infinite] items-center gap-1 rounded-md border border-[rgba(239,68,68,0.6)] bg-[linear-gradient(135deg,rgba(239,68,68,0.25),rgba(249,115,22,0.25))] px-[7px] py-0.5 text-[10px] font-extrabold whitespace-nowrap text-[#fca5a5]',
+        'inline-flex animate-[tkUrgentPulse_1.8s_ease-in-out_infinite] items-center gap-1 rounded-md border border-[rgba(239,68,68,0.6)] bg-[linear-gradient(135deg,rgba(239,68,68,0.25),rgba(249,115,22,0.25))] px-[7px] py-0.5 text-[10px] font-extrabold whitespace-nowrap text-danger-soft',
         className,
       )}
     >
@@ -53,8 +53,8 @@ export function RegionBadge({ label, muted, title }: { label: string; muted?: bo
       className={cn(
         'inline-flex max-w-[200px] items-center gap-1 truncate rounded-md border px-[7px] py-0.5 text-[10.5px] font-bold',
         muted
-          ? 'border-[rgba(148,163,184,0.22)] bg-[rgba(148,163,184,0.12)] text-[#94a3b8]'
-          : 'border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.16)] text-[#c084fc]',
+          ? 'border-mute/22 bg-mute/12 text-mute'
+          : 'border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.16)] text-violet',
       )}
     >
       <Icon name="location" className="size-3 shrink-0" />

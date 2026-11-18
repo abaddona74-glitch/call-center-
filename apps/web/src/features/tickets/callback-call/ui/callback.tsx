@@ -55,10 +55,10 @@ export function CallbackCallButton({
 }
 
 const OUTCOME_TONE: Record<CallbackOutcome, string> = {
-  informed: 'border-[rgba(16,185,129,0.5)] bg-[rgba(16,185,129,0.18)] text-[#34d399]',
-  unresolved: 'border-[rgba(245,158,11,0.5)] bg-[rgba(245,158,11,0.16)] text-[#fbbf24]',
-  other: 'border-[rgba(56,189,248,0.5)] bg-[rgba(56,189,248,0.16)] text-[#38bdf8]',
-  not_reached: 'border-[rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.16)] text-[#f87171]',
+  informed: 'border-[rgba(16,185,129,0.5)] bg-[rgba(16,185,129,0.18)] text-positive',
+  unresolved: 'border-[rgba(245,158,11,0.5)] bg-[rgba(245,158,11,0.16)] text-caution',
+  other: 'border-[rgba(56,189,248,0.5)] bg-[rgba(56,189,248,0.16)] text-info',
+  not_reached: 'border-[rgba(239,68,68,0.5)] bg-[rgba(239,68,68,0.16)] text-danger',
 };
 
 /**
@@ -126,15 +126,15 @@ export function CallbackOutcomeModal({
         <KdsModalHeader>
           <div className="flex items-center gap-3">
             <KdsIdBadge>{ticket?.code ?? '…'}</KdsIdBadge>
-            <h3 className="m-0 text-base font-bold text-white">{t('callback.outcomeTitle')}</h3>
+            <h3 className="m-0 text-base font-bold text-ink">{t('callback.outcomeTitle')}</h3>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
         <KdsModalBody className="gap-3.5 px-5 py-[18px]">
           {ticket && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/7 bg-[rgba(30,41,59,0.5)] px-4 py-3">
-              <span className="inline-flex items-center gap-2 text-[14px] font-bold text-white">
-                <Icon name="call" className="size-4 text-[#38bdf8]" />
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-tint/7 bg-glass-2/50 px-4 py-3">
+              <span className="inline-flex items-center gap-2 text-[14px] font-bold text-ink">
+                <Icon name="call" className="size-4 text-info" />
                 {ticket.customerPhone ? formatUzPhone(ticket.customerPhone) : '—'}
               </span>
               {attempt?.attemptStatus && (
@@ -142,10 +142,10 @@ export function CallbackOutcomeModal({
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold',
                     attempt.attemptStatus === 'connected'
-                      ? 'border-[rgba(16,185,129,0.4)] bg-[rgba(16,185,129,0.15)] text-[#34d399]'
+                      ? 'border-[rgba(16,185,129,0.4)] bg-[rgba(16,185,129,0.15)] text-positive'
                       : attempt.attemptStatus === 'not_connected' || attempt.attemptStatus === 'failed'
-                        ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.15)] text-[#f87171]'
-                        : 'animate-pulse border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.15)] text-[#fbbf24]',
+                        ? 'border-[rgba(239,68,68,0.4)] bg-[rgba(239,68,68,0.15)] text-danger'
+                        : 'animate-pulse border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.15)] text-caution',
                   )}
                 >
                   {t(`attempt.${attempt.attemptStatus}`)}
@@ -154,7 +154,7 @@ export function CallbackOutcomeModal({
               )}
             </div>
           )}
-          <p className="text-[12.5px] leading-[1.45] text-[#94a3b8]">{t('callback.outcomeHint')}</p>
+          <p className="text-[12.5px] leading-[1.45] text-mute">{t('callback.outcomeHint')}</p>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('callback.outcomeTitle')}>
             {CALLBACK_OUTCOMES.map((o) => (
               <button
@@ -164,9 +164,9 @@ export function CallbackOutcomeModal({
                 aria-checked={outcome === o}
                 onClick={() => setOutcome(o)}
                 className={cn(
-                  'rounded-[10px] border border-white/12 bg-white/5 px-3 py-2.5 text-left text-[12.5px] font-semibold text-[#cbd5e1] transition-all duration-150 hover:bg-white/10',
+                  'rounded-[10px] border border-tint/12 bg-tint/5 px-3 py-2.5 text-left text-[12.5px] font-semibold text-ink-2 transition-all duration-150 hover:bg-tint/10',
                   outcome === o && OUTCOME_TONE[o],
-                  outcome === o && 'shadow-[0_0_0_2px_rgba(255,255,255,0.08)]',
+                  outcome === o && 'shadow-[0_0_0_2px_color-mix(in_srgb,var(--tint)_8%,transparent)]',
                 )}
               >
                 {t(`outcome.${o}`)}
@@ -245,7 +245,7 @@ export function ForceCloseModal({
         <KdsModalHeader>
           <div className="flex items-center gap-3">
             <KdsIdBadge>{ticket.code}</KdsIdBadge>
-            <h3 className="m-0 text-base font-bold text-white">{t('callback.forceTitle')}</h3>
+            <h3 className="m-0 text-base font-bold text-ink">{t('callback.forceTitle')}</h3>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
