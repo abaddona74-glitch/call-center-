@@ -31,13 +31,13 @@ export function TicketReportsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-[rgba(15,23,42,0.9)] px-7 py-3.5">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[rgba(59,130,246,0.25)] bg-glass/90 px-7 py-3.5">
         <div>
-          <h1 className="m-0 inline-flex items-center gap-2 text-lg font-bold text-white">
+          <h1 className="m-0 inline-flex items-center gap-2 text-lg font-bold text-ink">
             <Icon name="chart" className="size-5" />
             {t('title')}
           </h1>
-          <p className="m-0 text-xs text-[#94a3b8]">{t('subtitle')}</p>
+          <p className="m-0 text-xs text-mute">{t('subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((p) => {
@@ -53,25 +53,25 @@ export function TicketReportsPage() {
                 className={cn(
                   'rounded-[10px] border px-3 py-1.5 text-xs font-semibold transition-colors',
                   active
-                    ? 'border-[#38bdf8] bg-[rgba(56,189,248,0.2)] text-white'
-                    : 'border-white/10 bg-white/5 text-[#94a3b8] hover:text-white',
+                    ? 'border-info bg-[rgba(56,189,248,0.2)] text-ink'
+                    : 'border-tint/10 bg-tint/5 text-mute hover:text-ink',
                 )}
               >
                 {t(`preset.${p}`)}
               </button>
             );
           })}
-          <label className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
+          <label className="flex items-center gap-1.5 text-xs text-mute">
             {t('from')}
             <input
               type="date"
               value={from}
               max={to}
               onChange={(e) => e.target.value && setFrom(e.target.value)}
-              className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]"
+              className="rounded-lg border border-tint/12 bg-glass/70 px-2 py-1 text-ink"
             />
           </label>
-          <label className="flex items-center gap-1.5 text-xs text-[#94a3b8]">
+          <label className="flex items-center gap-1.5 text-xs text-mute">
             {t('to')}
             <input
               type="date"
@@ -79,25 +79,25 @@ export function TicketReportsPage() {
               min={from}
               max={today}
               onChange={(e) => e.target.value && setTo(e.target.value)}
-              className="rounded-lg border border-white/12 bg-[rgba(15,23,42,0.7)] px-2 py-1 text-white [color-scheme:dark]"
+              className="rounded-lg border border-tint/12 bg-glass/70 px-2 py-1 text-ink"
             />
           </label>
-          <Link to="/tickets" className="text-xs font-semibold text-[#38bdf8] hover:underline">
+          <Link to="/tickets" className="text-xs font-semibold text-info hover:underline">
             ← {t('back')}
           </Link>
         </div>
       </header>
 
-      {report.isError && <div className="text-sm text-[#f87171]">{t('error', { message: report.error.message })}</div>}
+      {report.isError && <div className="text-sm text-danger">{t('error', { message: report.error.message })}</div>}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <Kpi label={t('kpi.total')} value={r?.total ?? '…'} color="#38bdf8" icon="clipboard-text" />
-        <Kpi label={t('kpi.resolved')} value={r?.resolved ?? '…'} color="#34d399" icon="tick-circle" />
-        <Kpi label={t('kpi.closed')} value={r?.closed ?? '…'} color="#94a3b8" icon="call" />
+        <Kpi label={t('kpi.total')} value={r?.total ?? '…'} color="var(--info)" icon="clipboard-text" />
+        <Kpi label={t('kpi.resolved')} value={r?.resolved ?? '…'} color="var(--positive)" icon="tick-circle" />
+        <Kpi label={t('kpi.closed')} value={r?.closed ?? '…'} color="var(--mute)" icon="call" />
         <Kpi
           label={t('kpi.overdue')}
           value={r ? `${r.overdue} · ${Math.round(r.overdueShare * 100)}%` : '…'}
-          color="#f87171"
+          color="var(--danger)"
           icon="timer"
         />
         <Kpi
@@ -106,11 +106,11 @@ export function TicketReportsPage() {
           color="#fb923c"
           icon="call"
         />
-        <Kpi label={t('kpi.avg')} value={r ? hours(r.avgResolutionHours) : '…'} color="#c084fc" icon="clock" />
+        <Kpi label={t('kpi.avg')} value={r ? hours(r.avgResolutionHours) : '…'} color="var(--violet)" icon="clock" />
       </div>
 
       {r && r.total === 0 ? (
-        <div className="rounded-2xl border border-white/8 bg-muted py-10 text-center text-sm text-[#94a3b8]">
+        <div className="rounded-2xl border border-tint/8 bg-muted py-10 text-center text-sm text-mute">
           {t('empty')}
         </div>
       ) : (
@@ -126,7 +126,7 @@ export function TicketReportsPage() {
               {(r?.byStatus ?? []).map((s) => (
                 <div key={s.status} className="grid grid-cols-[150px_1fr_48px] items-center gap-3 text-[13px]">
                   <TicketStatusBadge status={s.status} className="justify-self-start" />
-                  <div className="h-2.5 overflow-hidden rounded-full bg-white/6">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-tint/6">
                     <div
                       className="h-full rounded-full"
                       style={{
@@ -135,7 +135,7 @@ export function TicketReportsPage() {
                       }}
                     />
                   </div>
-                  <span className="text-right font-bold text-white tabular-nums">{s.count}</span>
+                  <span className="text-right font-bold text-ink tabular-nums">{s.count}</span>
                 </div>
               ))}
             </div>
@@ -151,13 +151,13 @@ export function TicketReportsPage() {
 
 function Kpi({ label, value, color, icon }: { label: string; value: ReactNode; color: string; icon: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-muted px-5 py-4">
-      <span className="grid size-10 place-items-center rounded-xl border border-white/10 bg-white/5" style={{ color }}>
+    <div className="flex items-center gap-3 rounded-2xl border border-tint/[0.08] bg-muted px-5 py-4">
+      <span className="grid size-10 place-items-center rounded-xl border border-tint/10 bg-tint/5" style={{ color }}>
         <Icon name={icon} className="size-5" />
       </span>
       <div className="min-w-0">
-        <div className="text-[11px] font-semibold tracking-[0.4px] text-[#94a3b8] uppercase">{label}</div>
-        <div className="text-xl font-bold text-white tabular-nums">{value}</div>
+        <div className="text-[11px] font-semibold tracking-[0.4px] text-mute uppercase">{label}</div>
+        <div className="text-xl font-bold text-ink tabular-nums">{value}</div>
       </div>
     </div>
   );
@@ -165,8 +165,8 @@ function Kpi({ label, value, color, icon }: { label: string; value: ReactNode; c
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-muted p-5">
-      <h2 className="m-0 mb-3 text-[15px] font-semibold text-white">{title}</h2>
+    <section className="rounded-2xl border border-tint/[0.08] bg-muted p-5">
+      <h2 className="m-0 mb-3 text-[15px] font-semibold text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -179,7 +179,7 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
     <div className="overflow-x-auto">
       <table className="w-full min-w-[560px] border-collapse text-[13px]">
         <thead>
-          <tr className="text-[11px] tracking-[0.5px] text-[#94a3b8] uppercase">
+          <tr className="text-[11px] tracking-[0.5px] text-mute uppercase">
             <th className="py-2 text-left font-bold">{t('col.name')}</th>
             <th className="py-2 text-right font-bold">{t('col.total')}</th>
             <th className="py-2 text-right font-bold">{t('col.resolved')}</th>
@@ -190,32 +190,27 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={`${r.id ?? 'none'}-${r.nameUz}`} className="border-t border-white/5">
+            <tr key={`${r.id ?? 'none'}-${r.nameUz}`} className="border-t border-tint/5">
               <td className="py-2 pr-3">
-                <div className="font-semibold text-white">{refName(r, lang)}</div>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/6">
-                  <div className="h-full rounded-full bg-[#38bdf8]" style={{ width: `${(r.total / max) * 100}%` }} />
+                <div className="font-semibold text-ink">{refName(r, lang)}</div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-tint/6">
+                  <div className="h-full rounded-full bg-info" style={{ width: `${(r.total / max) * 100}%` }} />
                 </div>
               </td>
-              <td className="py-2 text-right font-bold text-white tabular-nums">{r.total}</td>
-              <td className="py-2 text-right text-[#34d399] tabular-nums">{r.resolved}</td>
-              <td
-                className={cn(
-                  'py-2 text-right tabular-nums',
-                  r.overdue > 0 ? 'font-bold text-[#f87171]' : 'text-[#94a3b8]',
-                )}
-              >
+              <td className="py-2 text-right font-bold text-ink tabular-nums">{r.total}</td>
+              <td className="py-2 text-right text-positive tabular-nums">{r.resolved}</td>
+              <td className={cn('py-2 text-right tabular-nums', r.overdue > 0 ? 'font-bold text-danger' : 'text-mute')}>
                 {r.overdue}
               </td>
               <td
                 className={cn(
                   'py-2 text-right tabular-nums',
-                  r.callbackOverdue > 0 ? 'font-bold text-[#fb923c]' : 'text-[#94a3b8]',
+                  r.callbackOverdue > 0 ? 'font-bold text-shade-[#fb923c]' : 'text-mute',
                 )}
               >
                 {r.callbackOverdue}
               </td>
-              <td className="py-2 text-right text-[#c084fc] tabular-nums">{r.avgResolutionHours ?? '—'}</td>
+              <td className="py-2 text-right text-violet tabular-nums">{r.avgResolutionHours ?? '—'}</td>
             </tr>
           ))}
         </tbody>

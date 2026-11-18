@@ -26,10 +26,10 @@ export function ConfirmDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-white/12 bg-[linear-gradient(160deg,#1e293b_0%,#0f172a_100%)] sm:max-w-md">
+      <DialogContent className="border-tint/12 bg-[linear-gradient(160deg,var(--glass-2)_0%,var(--sidebar)_100%)] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-[#f8fafc]">{title}</DialogTitle>
-          {description && <DialogDescription className="text-[#94a3b8]">{description}</DialogDescription>}
+          <DialogTitle className="text-ink">{title}</DialogTitle>
+          {description && <DialogDescription className="text-mute">{description}</DialogDescription>}
         </DialogHeader>
         <DialogFooter>
           <SettingsButton tone="ghost" onClick={() => onOpenChange(false)}>

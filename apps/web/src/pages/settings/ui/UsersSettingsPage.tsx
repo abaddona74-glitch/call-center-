@@ -61,13 +61,11 @@ export function UsersSettingsPage() {
           const u = row.original;
           return (
             <div className="flex items-center gap-2">
-              <span
-                className={u.isActive ? 'font-semibold text-[#f1f5f9]' : 'font-semibold text-[#64748b] line-through'}
-              >
+              <span className={u.isActive ? 'font-semibold text-ink' : 'font-semibold text-dim line-through'}>
                 {u.username}
               </span>
               {u.id === me.id && (
-                <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>
+                <span className="text-[11.5px] font-semibold text-positive">({t('sessions.current')})</span>
               )}
               {!u.isActive && <Pill tone="red">{t('users.inactive')}</Pill>}
               {u.mustChangePassword && <Pill tone="amber">{t('users.passwordPending')}</Pill>}
@@ -82,35 +80,31 @@ export function UsersSettingsPage() {
       col.accessor('extension', {
         header: () => t('users.colExtension'),
         cell: ({ getValue }) =>
-          getValue() ? (
-            <b className="text-[#f1f5f9]">{getValue()}</b>
-          ) : (
-            <span className="text-[#64748b]">{t('users.none')}</span>
-          ),
+          getValue() ? <b className="text-ink">{getValue()}</b> : <span className="text-dim">{t('users.none')}</span>,
       }),
       col.accessor('groupName', {
         header: () => t('users.colGroup'),
         cell: ({ row }) =>
           row.original.role !== 'operator' ? (
-            <span className="text-[#64748b]">—</span>
+            <span className="text-dim">—</span>
           ) : row.original.groupName ? (
             <Pill tone="purple">{row.original.groupName}</Pill>
           ) : (
-            <span className="text-[#64748b]">{tu('noGroup')}</span>
+            <span className="text-dim">{tu('noGroup')}</span>
           ),
       }),
       col.accessor('email', {
         header: () => t('users.colEmail'),
         cell: ({ getValue }) =>
           getValue() ? (
-            <span className="text-[#38bdf8]">{getValue()}</span>
+            <span className="text-info">{getValue()}</span>
           ) : (
-            <span className="text-[#64748b]">{t('users.notSet')}</span>
+            <span className="text-dim">{t('users.notSet')}</span>
           ),
       }),
       col.accessor('createdAt', {
         header: () => t('users.colCreated'),
-        cell: ({ getValue }) => <span className="text-xs text-[#94a3b8]">{formatDate(getValue())}</span>,
+        cell: ({ getValue }) => <span className="text-xs text-mute">{formatDate(getValue())}</span>,
       }),
       col.display({
         id: 'actions',
@@ -125,7 +119,7 @@ export function UsersSettingsPage() {
                   type="button"
                   title={t('users.loginAsHint')}
                   disabled={impersonate.isPending}
-                  className="cursor-pointer rounded-md border border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.15)] px-2 py-1 text-[11px] text-[#fbbf24] hover:bg-[rgba(245,158,11,0.25)] disabled:opacity-50"
+                  className="cursor-pointer rounded-md border border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.15)] px-2 py-1 text-[11px] text-caution hover:bg-[rgba(245,158,11,0.25)] disabled:opacity-50"
                   onClick={() => impersonate.mutate(u)}
                 >
                   {t('users.loginAs')}
@@ -138,14 +132,14 @@ export function UsersSettingsPage() {
                   </SettingsButton>
                   <button
                     type="button"
-                    className="cursor-pointer rounded-md border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] px-2 py-1 text-[11px] text-[#60a5fa] hover:bg-[rgba(59,130,246,0.25)]"
+                    className="cursor-pointer rounded-md border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] px-2 py-1 text-[11px] text-link hover:bg-[rgba(59,130,246,0.25)]"
                     onClick={() => setResetting(u)}
                   >
                     {t('users.passwordBtn')}
                   </button>
                   <button
                     type="button"
-                    className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)]"
+                    className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-danger hover:bg-[rgba(239,68,68,0.25)]"
                     onClick={() => setRemoving(u)}
                   >
                     {t('common.delete')}
@@ -177,7 +171,7 @@ export function UsersSettingsPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label={t('common.search')}
               />
-              <label className="flex items-center gap-2 text-xs text-[#94a3b8]">
+              <label className="flex items-center gap-2 text-xs text-mute">
                 <Switch checked={onlyActive} onCheckedChange={setOnlyActive} />
                 {t('users.onlyActive')}
               </label>

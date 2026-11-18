@@ -4,6 +4,7 @@
  */
 import type { CallScope, DailyPoint, HourlyPoint, OperatorStatsRow, StatsSummary, TopClientRow } from '@cc/shared';
 import type { AssembledCall } from '../../../pbx/calls/call-assembler.js';
+import type { SurveyRating } from '../../../pbx/calls/survey-rating.js';
 
 /** Percent with one decimal; 0 when there is nothing to divide by. */
 export function percent(part: number, whole: number): number {
@@ -99,6 +100,43 @@ export function summarize(
   };
 }
 
+export interface SurveyTotals {
+  count: number;
+  sum: number;
+}
+
+/**
+ * Post-call survey ratings per operator. A rating counts only for an inbound call in `allCalls` that is in scope
+ * (matched by linkedid, else uniqueid), at most once per call; ratings of calls outside the range/scope, of
+ * internal test calls and scores other than 1–5 are ignored. The rated operator is the one who talked last:
+ * the call's final operator after an answered transfer (the PBX only knows the queue member who took the call),
+ * otherwise the queue member the PBX recorded, else the final operator.
+ */
+export function surveyByOperator(
+  ratings: readonly SurveyRating[],
+  allCalls: readonly AssembledCall[],
+  scope: CallScope,
+): Map<string, SurveyTotals> {
+  const byId = new Map<string, AssembledCall>();
+  for (const c of allCalls) if (c.direction === 'inbound' && inScope(c, scope)) byId.set(c.id, c);
+  const rated = new Set<string>();
+  const out = new Map<string, SurveyTotals>();
+  for (const r of ratings) {
+    if (!Number.isInteger(r.score) || r.score < 1 || r.score > 5) continue;
+    const call = byId.get(r.linkedid) ?? byId.get(r.uniqueid);
+    if (!call || rated.has(call.id)) continue;
+    const transferred = answeredHops(call).length > 0;
+    const ext = transferred ? call.finalOperator : r.operatorExt || call.finalOperator;
+    if (!ext) continue;
+    rated.add(call.id);
+    const t = out.get(ext) ?? { count: 0, sum: 0 };
+    t.count++;
+    t.sum += r.score;
+    out.set(ext, t);
+  }
+  return out;
+}
+
 interface OperatorAcc {
   answered: number;
   transferredIn: number;
@@ -126,6 +164,8 @@ export function operatorStats(
     group?: string;
     /** Excluded operators (settings): no row of their own; their calls still count in the totals. */
     excluded?: ReadonlySet<string>;
+    /** surveyByOperator() result; absent when the PBX has no survey. */
+    survey?: ReadonlyMap<string, SurveyTotals>;
   },
 ): OperatorStatsRow[] {
   const acc = new Map<string, OperatorAcc>();
@@ -147,6 +187,7 @@ export function operatorStats(
     return a;
   };
   for (const ext of opts.knownExtensions ?? []) get(ext);
+  for (const ext of opts.survey?.keys() ?? []) get(ext);
 
   for (const c of allCalls) {
     if (!inScope(c, opts.scope) || c.direction === 'internal') continue;
@@ -175,6 +216,7 @@ export function operatorStats(
     .filter(([ext]) => !opts.excluded?.has(ext))
     .map(([ext, a]) => {
       const total = a.answered + a.transferredIn + a.outbound;
+      const s = opts.survey?.get(ext);
       return {
         ext,
         name: opts.names.get(ext) ?? null,
@@ -188,6 +230,8 @@ export function operatorStats(
         total,
         talkSec: a.talkSec,
         avgTalkSec: a.talkedCalls ? Math.round(a.talkSec / a.talkedCalls) : 0,
+        surveyCount: s?.count ?? 0,
+        surveyAvg: s?.count ? Math.round((s.sum / s.count) * 100) / 100 : null,
       };
     })
     .filter((r) => !opts.group || opts.group === 'all' || r.group === opts.group)

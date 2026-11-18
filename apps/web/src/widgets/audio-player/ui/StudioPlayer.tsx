@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WAVEFORM_BARS, audioPlayer, formatBytes, formatDuration, makeWaveform, useAudioPlayer } from '@/entities/recording';
 import { cn } from '@/shared/lib/cn';
+import { useTheme } from '@/shared/lib/theme';
 import { Icon } from '@/shared/ui/icon';
 import { LegacyIcon, PlayGlyph } from '@/shared/ui/legacy-icon';
 import './studio-player.css';
@@ -69,7 +70,7 @@ export const StudioPlayer = forwardRef<HTMLElement>(function StudioPlayer(_, ref
             onClick={() => audioPlayer.toggleMute()}
           >
             {s.volume === 0 ? (
-              <LegacyIcon name="speaker-off" strokeWidth={1.8} className="text-[#ef4444]" />
+              <LegacyIcon name="speaker-off" strokeWidth={1.8} className="text-shade-[#ef4444]" />
             ) : (
               <LegacyIcon name="speaker-on" strokeWidth={1.8} />
             )}
@@ -139,6 +140,7 @@ function Waveform({ seed, duration, currentTime, playing }: { seed: string; dura
   const wave = useMemo(() => makeWaveform(seed), [seed]);
   const total = Math.max(1, duration);
   const [, force] = useState(0);
+  useTheme(); // the canvas reads its colors from CSS variables: redraw when the theme changes
 
   const draw = () => {
     const canvas = canvasRef.current;
@@ -289,17 +291,17 @@ export function SkipToast() {
     <div
       aria-live="polite"
       className={cn(
-        'pointer-events-none fixed bottom-[34px] left-1/2 z-[999999] flex items-center gap-2 rounded-3xl border border-[rgba(56,189,248,0.45)] bg-[rgba(15,23,42,0.94)] px-5 py-2 text-[13px] font-bold text-[#f8fafc] backdrop-blur-[10px] transition-all duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
-        'shadow-[0_12px_30px_-5px_rgba(0,0,0,0.6),0_0_18px_rgba(56,189,248,0.25)]',
+        'pointer-events-none fixed bottom-[34px] left-1/2 z-[999999] flex items-center gap-2 rounded-3xl border border-[rgba(56,189,248,0.45)] bg-glass/94 px-5 py-2 text-[13px] font-bold text-ink backdrop-blur-[10px] transition-all duration-[180ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+        'shadow-[0_12px_30px_-5px_color-mix(in_srgb,var(--shadow-color)_60%,transparent),0_0_18px_rgba(56,189,248,0.25)]',
         visible ? '-translate-x-1/2 translate-y-0 opacity-100' : '-translate-x-1/2 translate-y-[15px] opacity-0',
       )}
     >
-      <LegacyIcon name={fwd ? 'rotate-cw' : 'rotate-ccw'} strokeWidth={2.2} className={cn('size-4', fwd ? 'text-[#38bdf8]' : 'text-[#a855f7]')} />
-      <span className={fwd ? 'text-[#38bdf8]' : 'text-[#c084fc]'}>
+      <LegacyIcon name={fwd ? 'rotate-cw' : 'rotate-ccw'} strokeWidth={2.2} className={cn('size-4', fwd ? 'text-info' : 'text-shade-[#a855f7]')} />
+      <span className={fwd ? 'text-info' : 'text-violet'}>
         {fwd ? '+' : '-'}
         {Math.abs(skip.delta)}s
       </span>
-      <span className="text-[11px] font-medium text-[#94a3b8]">({formatDuration(skip.position)})</span>
+      <span className="text-[11px] font-medium text-mute">({formatDuration(skip.position)})</span>
     </div>
   );
 }

@@ -36,13 +36,13 @@ export function TicketCallbackQueue() {
 
   const items = list.data?.items ?? [];
   return (
-    <section className="rounded-2xl border border-white/8 bg-[#131d31] px-5 py-4" aria-label={t('callback.queueTitle')}>
+    <section className="rounded-2xl border border-tint/8 bg-muted px-5 py-4" aria-label={t('callback.queueTitle')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="m-0 flex items-center gap-2 text-[15px] font-bold text-white">
-            <Icon name="call" className="size-4 text-[#2dd4bf]" />
+          <h2 className="m-0 flex items-center gap-2 text-[15px] font-bold text-ink">
+            <Icon name="call" className="size-4 text-shade-[#2dd4bf]" />
             {t('callback.queueTitle')}
-            <span className="rounded-[10px] bg-[rgba(45,212,191,0.18)] px-[7px] py-px text-[11px] font-extrabold text-[#5eead4]">
+            <span className="rounded-[10px] bg-[rgba(45,212,191,0.18)] px-[7px] py-px text-[11px] font-extrabold text-shade-[#5eead4]">
               {list.data?.counts.callback ?? 0}
             </span>
             {(list.data?.counts.callbackOverdue ?? 0) > 0 && (
@@ -51,11 +51,7 @@ export function TicketCallbackQueue() {
           </h2>
           <p className="m-0 mt-0.5 text-xs text-muted-foreground">{t('callback.queueHint')}</p>
         </div>
-        <Link
-          to="/tickets"
-          search={{ view: 'callback' }}
-          className="text-xs font-semibold text-[#38bdf8] hover:underline"
-        >
+        <Link to="/tickets" search={{ view: 'callback' }} className="text-xs font-semibold text-info hover:underline">
           {t('callback.openAll')} →
         </Link>
       </div>
@@ -69,36 +65,31 @@ export function TicketCallbackQueue() {
             <li
               key={tk.id}
               className={cn(
-                'flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-white/6 bg-[rgba(15,23,42,0.6)] px-3.5 py-2.5',
+                'flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-tint/6 bg-glass/60 px-3.5 py-2.5',
                 tk.lastContactIsMe && 'border-[rgba(56,189,248,0.45)] bg-[rgba(14,165,233,0.08)]',
                 tk.callbackOverdue &&
-                  'border-[rgba(239,68,68,0.5)] bg-[linear-gradient(135deg,rgba(239,68,68,0.1),rgba(15,23,42,0.6))]',
+                  'border-[rgba(239,68,68,0.5)] bg-[linear-gradient(135deg,rgba(239,68,68,0.1),color-mix(in_srgb,var(--glass)_60%,transparent))]',
               )}
             >
               <Link
                 to="/tickets"
                 search={{ view: 'callback', open: tk.id }}
-                className="font-mono text-[12px] font-extrabold text-[#38bdf8] hover:underline"
+                className="font-mono text-[12px] font-extrabold text-info hover:underline"
               >
                 {tk.code}
               </Link>
-              <span className="text-[13px] font-bold text-white">
+              <span className="text-[13px] font-bold text-ink">
                 {tk.customerPhone ? formatUzPhone(tk.customerPhone) : '—'}
               </span>
               {tk.region && <RegionBadge label={refName(tk.region, i18n.language)} />}
               {tk.resolution && (
                 <span
-                  className={cn(
-                    'text-[11px] font-bold',
-                    tk.resolution === 'done' ? 'text-[#34d399]' : 'text-[#f87171]',
-                  )}
+                  className={cn('text-[11px] font-bold', tk.resolution === 'done' ? 'text-positive' : 'text-danger')}
                 >
                   {t(`resolution.${tk.resolution}`)}
                 </span>
               )}
-              <span
-                className={cn('text-[11px]', tk.lastContactIsMe ? 'font-bold text-[#38bdf8]' : 'text-muted-foreground')}
-              >
+              <span className={cn('text-[11px]', tk.lastContactIsMe ? 'font-bold text-info' : 'text-muted-foreground')}>
                 {tk.lastContactIsMe
                   ? `★ ${t('callback.yourCitizen')}`
                   : tk.lastContact
@@ -117,14 +108,14 @@ export function TicketCallbackQueue() {
                 )
               )}
               {tk.callbackAttempts > 0 && (
-                <span className="text-[11px] text-[#fbbf24]">{t('card.attempts', { n: tk.callbackAttempts })}</span>
+                <span className="text-[11px] text-caution">{t('card.attempts', { n: tk.callbackAttempts })}</span>
               )}
               <span className="ml-auto flex items-center gap-2">
                 {tk.actions.recordOutcome && (
                   <button
                     type="button"
                     onClick={() => setOutcomeFor(tk.id)}
-                    className="text-[11.5px] font-semibold text-[#c084fc] hover:underline"
+                    className="text-[11.5px] font-semibold text-violet hover:underline"
                   >
                     {t('box.outcome')}
                   </button>

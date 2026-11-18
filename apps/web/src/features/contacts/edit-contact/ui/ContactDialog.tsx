@@ -39,28 +39,25 @@ function toInput(v: FormValues): ContactInput {
 }
 
 const inputClass =
-  'w-full rounded-lg border border-white/15 bg-sidebar/80 px-3.5 py-2.5 text-[13.5px] text-white outline-none transition-all duration-200 placeholder:text-slate-500 focus:border-primary/60 aria-invalid:border-destructive';
+  'w-full rounded-lg border border-tint/15 bg-sidebar/80 px-3.5 py-2.5 text-[13.5px] text-ink outline-none transition-all duration-200 placeholder:text-dim focus:border-primary/60 aria-invalid:border-destructive';
 
 function FieldLabel({ icon, children, hint }: { icon: ReactNode; children: ReactNode; hint?: string }) {
   return (
     <label
-      className={cn(
-        'mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-500',
-        hint && 'justify-between',
-      )}
+      className={cn('mb-1.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-dim', hint && 'justify-between')}
     >
       <span className="flex items-center gap-1.5">
         {icon}
         {children}
       </span>
-      {hint && <span className="text-[11px] font-normal text-slate-400">{hint}</span>}
+      {hint && <span className="text-[11px] font-normal text-mute">{hint}</span>}
     </label>
   );
 }
 
 function FieldError({ errors }: { errors: unknown[] }) {
   const msg = errors.find((e): e is string => typeof e === 'string');
-  return msg ? <p className="mt-1 text-[11.5px] text-red-400">{msg}</p> : null;
+  return msg ? <p className="mt-1 text-[11.5px] text-danger">{msg}</p> : null;
 }
 
 /**
@@ -160,24 +157,24 @@ export function ContactDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           showCloseButton={false}
-          className="max-h-[96vh] w-[520px] max-w-[95vw] gap-0 overflow-y-auto rounded-2xl border-primary/40 bg-sidebar p-[22px] shadow-[0_24px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(99,102,241,0.15)] sm:max-w-[520px]"
+          className="max-h-[96vh] w-[520px] max-w-[95vw] gap-0 overflow-y-auto rounded-2xl border-primary/40 bg-sidebar p-[22px] shadow-[0_24px_60px_color-mix(in_srgb,var(--shadow-color)_85%,transparent),0_0_30px_rgba(99,102,241,0.15)] sm:max-w-[520px]"
         >
-          <div className="flex items-center justify-between border-b border-white/[0.08] px-6 py-[18px]">
+          <div className="flex items-center justify-between border-b border-tint/[0.08] px-6 py-[18px]">
             <div className="flex items-center gap-3">
-              <div className="flex size-[38px] items-center justify-center rounded-[10px] border border-primary/40 bg-primary/20 text-indigo-400">
+              <div className="flex size-[38px] items-center justify-center rounded-[10px] border border-primary/40 bg-primary/20 text-brand-soft">
                 <Icon name="user" className="size-5" />
               </div>
               <div>
-                <DialogTitle className="text-base font-bold text-white">
+                <DialogTitle className="text-base font-bold text-ink">
                   {contact ? t('editTitle') : t('addTitle')}
                 </DialogTitle>
-                <DialogDescription className="mt-[3px] text-[11.5px] text-slate-400">{t('subtitle')}</DialogDescription>
+                <DialogDescription className="mt-[3px] text-[11.5px] text-mute">{t('subtitle')}</DialogDescription>
               </div>
             </div>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="flex size-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white"
+              className="flex size-8 items-center justify-center rounded-lg border border-tint/10 bg-tint/5 text-mute hover:text-ink"
               aria-label={t('cancel')}
             >
               <Icon name="close" className="size-4" />
@@ -194,8 +191,8 @@ export function ContactDialog({
             <form.Field name="phone">
               {(field) => (
                 <div className="mb-4">
-                  <FieldLabel icon={<Icon name="call" className="size-3.5 text-sky-400" />}>
-                    {t('phone')} <span className="text-red-400">*</span>
+                  <FieldLabel icon={<Icon name="call" className="size-3.5 text-info" />}>
+                    {t('phone')} <span className="text-danger">*</span>
                   </FieldLabel>
                   <input
                     className={cn(inputClass, 'font-mono tracking-[0.5px]')}
@@ -212,7 +209,7 @@ export function ContactDialog({
             <form.Field name="name">
               {(field) => (
                 <div className="mb-4">
-                  <FieldLabel icon={<Icon name="user" className="size-3.5 text-violet-400" />} hint={t('optional')}>
+                  <FieldLabel icon={<Icon name="user" className="size-3.5 text-violet" />} hint={t('optional')}>
                     {t('name')}
                   </FieldLabel>
                   <input
@@ -230,7 +227,7 @@ export function ContactDialog({
             <form.Field name="organization">
               {(field) => (
                 <div className="mb-4">
-                  <FieldLabel icon={<Icon name="location" className="size-3.5 text-emerald-400" />} hint={t('orgHint')}>
+                  <FieldLabel icon={<Icon name="location" className="size-3.5 text-positive" />} hint={t('orgHint')}>
                     {t('organization')}
                   </FieldLabel>
                   <input
@@ -246,9 +243,9 @@ export function ContactDialog({
 
             <form.Field name="telegram">
               {(field) => (
-                <div className="mb-[18px] rounded-xl border border-sky-400/20 bg-sky-500/5 px-4 py-3.5">
+                <div className="mb-[18px] rounded-xl border border-info/20 bg-sky-500/5 px-4 py-3.5">
                   <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-[13px] font-bold text-sky-400">
+                    <span className="flex items-center gap-1.5 text-[13px] font-bold text-info">
                       <Send className="size-4" /> {t('tg.title')}
                     </span>
                     <div className="flex gap-1.5">
@@ -256,7 +253,7 @@ export function ContactDialog({
                         type="button"
                         title={t('tg.byPhoneTitle')}
                         onClick={() => openTelegram(true)}
-                        className={cn(tgBtn, 'border-emerald-500/40 bg-emerald-500/15 text-emerald-400')}
+                        className={cn(tgBtn, 'border-emerald-500/40 bg-emerald-500/15 text-positive')}
                       >
                         <Icon name="call" className="size-3" /> {t('tg.byPhone')}
                       </button>
@@ -264,7 +261,7 @@ export function ContactDialog({
                         type="button"
                         title={t('tg.openTitle')}
                         onClick={() => openTelegram(false)}
-                        className={cn(tgBtn, 'border-sky-400/45 bg-sky-400/20 text-sky-400')}
+                        className={cn(tgBtn, 'border-info/45 bg-info/20 text-info')}
                       >
                         {t('tg.open')} ↗
                       </button>
@@ -272,22 +269,22 @@ export function ContactDialog({
                         type="button"
                         title={t('tg.copyTitle')}
                         onClick={() => void copyTelegram()}
-                        className={cn(tgBtn, 'gap-1 border-white/15 bg-white/[0.06] px-2 font-normal text-slate-400')}
+                        className={cn(tgBtn, 'gap-1 border-tint/15 bg-tint/[0.06] px-2 font-normal text-mute')}
                       >
                         <Copy className="size-3" />
                       </button>
                     </div>
                   </div>
                   <input
-                    className={cn(inputClass, 'border-sky-400/30 bg-sidebar/85 font-semibold text-sky-400')}
+                    className={cn(inputClass, 'border-info/30 bg-sidebar/85 font-semibold text-info')}
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
                     placeholder={t('tg.placeholder')}
                     aria-invalid={field.state.meta.errors.length > 0}
                   />
                   <FieldError errors={field.state.meta.errors} />
-                  <p className="mt-2 text-[11px] leading-[1.45] text-slate-400">
-                    <span className="font-semibold text-sky-400">💡 {t('tg.noteTitle')}</span> {t('tg.note')}
+                  <p className="mt-2 text-[11px] leading-[1.45] text-mute">
+                    <span className="font-semibold text-info">💡 {t('tg.noteTitle')}</span> {t('tg.note')}
                   </p>
                 </div>
               )}
@@ -296,7 +293,7 @@ export function ContactDialog({
             <form.Field name="language">
               {(field) => (
                 <div className="mb-4">
-                  <FieldLabel icon={<Icon name="global" className="size-3.5 text-blue-400" />} hint={t('langHint')}>
+                  <FieldLabel icon={<Icon name="global" className="size-3.5 text-link" />} hint={t('langHint')}>
                     {t('language')}
                   </FieldLabel>
                   <select
@@ -317,7 +314,7 @@ export function ContactDialog({
             <form.Field name="note">
               {(field) => (
                 <div className="mb-[18px]">
-                  <FieldLabel icon={<FileText className="size-3.5 text-amber-400" />}>{t('note')}</FieldLabel>
+                  <FieldLabel icon={<FileText className="size-3.5 text-caution" />}>{t('note')}</FieldLabel>
                   <textarea
                     rows={2}
                     className={cn(inputClass, 'min-h-[60px] resize-y text-[13px]')}
@@ -331,7 +328,7 @@ export function ContactDialog({
             </form.Field>
 
             {serverError && (
-              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-red-400">
+              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/15 px-3.5 py-2.5 text-[12.5px] text-danger">
                 {serverError}
               </div>
             )}
@@ -342,7 +339,7 @@ export function ContactDialog({
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/15 px-4 py-[9px] text-[12.5px] font-semibold text-red-400 hover:bg-red-500/25"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/15 px-4 py-[9px] text-[12.5px] font-semibold text-danger hover:bg-red-500/25"
                   >
                     <Icon name="trash" className="size-3.5" /> {t('delete')}
                   </button>
@@ -352,7 +349,7 @@ export function ContactDialog({
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="rounded-lg border border-white/15 bg-white/[0.08] px-[18px] py-[9px] text-[13px] font-medium text-slate-300 hover:bg-white/15"
+                  className="rounded-lg border border-tint/15 bg-tint/[0.08] px-[18px] py-[9px] text-[13px] font-medium text-ink-2 hover:bg-tint/15"
                 >
                   {t('cancel')}
                 </button>

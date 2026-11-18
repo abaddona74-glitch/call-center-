@@ -164,7 +164,7 @@ export function ChangePasswordCard() {
         </div>
         <form.Field name="revokePasskeys">
           {(field) => (
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-[#cbd5e1]">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-ink-2">
               <input
                 type="checkbox"
                 className="size-4 accent-[#3b82f6]"

@@ -168,7 +168,7 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
 
         <form.Field name="mustChangePassword">
           {(field) => (
-            <label className="flex cursor-pointer items-center gap-3 text-[13px] text-[#cbd5e1]">
+            <label className="flex cursor-pointer items-center gap-3 text-[13px] text-ink-2">
               <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
               {t('users.mustChange')}
             </label>

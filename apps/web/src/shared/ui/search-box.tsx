@@ -18,7 +18,7 @@ export function SearchBox({
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          'h-8 w-full rounded-lg border border-white/8 bg-black/30 py-2 pr-3.5 pl-[34px] text-[13px] text-white outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary',
+          'h-8 w-full rounded-lg border border-tint/8 bg-well/30 py-2 pr-3.5 pl-[34px] text-[13px] text-ink outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary',
           inputClassName,
         )}
         {...props}

@@ -14,6 +14,8 @@ const row = (ext: string, p: Partial<OperatorStatsRow>): OperatorStatsRow => ({
   total: 0,
   talkSec: 0,
   avgTalkSec: 0,
+  surveyCount: 0,
+  surveyAvg: null,
   ...p,
 });
 

@@ -4,9 +4,9 @@ import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 
 const STYLE: Record<RecordingKind, string> = {
-  empty: 'bg-[rgba(239,68,68,0.15)] text-[#f87171]',
-  robot: 'bg-[rgba(245,158,11,0.15)] text-[#fbbf24]',
-  talk: 'bg-[rgba(16,185,129,0.15)] text-[#34d399]',
+  empty: 'bg-[rgba(239,68,68,0.15)] text-danger',
+  robot: 'bg-[rgba(245,158,11,0.15)] text-caution',
+  talk: 'bg-[rgba(16,185,129,0.15)] text-positive',
 };
 
 /** Legacy explorer type badge (`.badge-danger` / `.badge-warning` / `.badge-success`). */
@@ -26,7 +26,7 @@ export function RecordingKindBadge({ kind }: { kind: RecordingKind }) {
 /** `.badge` pill used in the explorer table (`badge-info` by default). */
 export function InfoPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(6,182,212,0.15)] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-[#38bdf8]">
+    <span className="inline-flex items-center gap-1 rounded-full bg-[rgba(6,182,212,0.15)] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-info">
       {children}
     </span>
   );

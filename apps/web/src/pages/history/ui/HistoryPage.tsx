@@ -74,7 +74,7 @@ export function HistoryPage() {
   if (query.isPending) {
     placeholder = (
       <div className="flex flex-col items-center gap-3 py-6">
-        <div className="size-8 animate-spin rounded-full border-2 border-white/10 border-t-chart-4" />
+        <div className="size-8 animate-spin rounded-full border-2 border-tint/10 border-t-chart-4" />
         <div className="text-sm font-semibold tracking-[0.3px] text-muted-foreground">{t('callHistory:loading')}</div>
       </div>
     );
@@ -94,7 +94,7 @@ export function HistoryPage() {
           <button
             type="button"
             onClick={() => set({ allDays: true, from: undefined, to: undefined })}
-            className="inline-flex items-center gap-1.5 rounded-md border border-chart-6/40 bg-chart-6/15 px-[18px] py-[7px] text-xs font-semibold text-chart-6"
+            className="inline-flex items-center gap-1.5 rounded-md border border-chart-6/40 bg-chart-6/15 px-[18px] py-[7px] text-xs font-semibold text-shade-chart-6"
           >
             ♾️ {t('searchAllDays')}
           </button>
@@ -116,7 +116,7 @@ export function HistoryPage() {
             <button
               type="button"
               onClick={() => setRangeOpen(true)}
-              className="inline-flex h-8 items-center gap-[7px] rounded-lg border border-chart-6/40 bg-chart-6/15 px-3.5 text-xs font-semibold text-chart-4 transition-all hover:bg-chart-6/25"
+              className="inline-flex h-8 items-center gap-[7px] rounded-lg border border-chart-6/40 bg-chart-6/15 px-3.5 text-xs font-semibold text-shade-chart-4 transition-all hover:bg-chart-6/25"
             >
               <Icon name="calendar" className="size-[15px]" />
               {search.allDays && search.search
@@ -164,13 +164,13 @@ export function HistoryPage() {
               }
             >
               <option value="all">{t('allDirections')}</option>
-              <option value="inbound" className="text-chart-4">
+              <option value="inbound" className="text-shade-chart-4">
                 {tc('direction.inbound')}
               </option>
-              <option value="outbound" className="text-chart-3">
+              <option value="outbound" className="text-shade-chart-3">
                 {tc('direction.outbound')}
               </option>
-              <option value="transfer" className="text-chart-4">
+              <option value="transfer" className="text-shade-chart-4">
                 {tc('direction.transfer')}
               </option>
               <option value="internal">{tc('direction.internal')}</option>

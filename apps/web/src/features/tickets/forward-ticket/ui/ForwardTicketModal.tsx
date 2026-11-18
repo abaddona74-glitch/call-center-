@@ -71,12 +71,12 @@ export function ForwardTicketModal({
         <KdsModalHeader>
           <div className="flex items-center gap-3">
             <KdsIdBadge>{ticket.code}</KdsIdBadge>
-            <h3 className="m-0 text-base font-bold text-white">{t('forward.title')}</h3>
+            <h3 className="m-0 text-base font-bold text-ink">{t('forward.title')}</h3>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
         <KdsModalBody className="gap-1 px-5 py-[18px]">
-          {triage && <p className="mb-3 text-[13px] text-[#cbd5e1]">{t('forward.triageHint')}</p>}
+          {triage && <p className="mb-3 text-[13px] text-ink-2">{t('forward.triageHint')}</p>}
           <KdsField
             label={t('forward.region')}
             icon={<Icon name="location" className="size-3.5" />}

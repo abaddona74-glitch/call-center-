@@ -36,16 +36,16 @@ export interface DataTableProps<T extends RowData> {
 
 const LOOK = {
   boxed: {
-    wrap: 'rounded-xl border border-white/8 bg-[rgba(15,23,42,0.5)]',
+    wrap: 'rounded-xl border border-tint/8 bg-glass/50',
     table: 'text-xs',
-    th: 'border-b border-white/8 bg-[rgba(30,41,59,0.7)] px-3.5 py-2.5 text-[11px] font-semibold tracking-[0.5px] uppercase',
-    td: 'border-b border-white/[0.04] px-3.5 py-2.5',
+    th: 'border-b border-tint/8 bg-glass-2/70 px-3.5 py-2.5 text-[11px] font-semibold tracking-[0.5px] uppercase',
+    td: 'border-b border-tint/[0.04] px-3.5 py-2.5',
   },
   plain: {
     wrap: '',
     table: 'text-[13px]',
-    th: 'border-b border-white/8 px-2.5 py-2 text-xs font-semibold',
-    td: 'border-b border-white/5 px-2.5 py-2.5',
+    th: 'border-b border-tint/8 px-2.5 py-2 text-xs font-semibold',
+    td: 'border-b border-tint/5 px-2.5 py-2.5',
   },
 } as const;
 
@@ -75,7 +75,7 @@ export function DataTable<T extends RowData>({
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
               {group.headers.map((header) => (
-                <th key={header.id} className={cn('whitespace-nowrap text-[#94a3b8] last:text-right', look.th)}>
+                <th key={header.id} className={cn('whitespace-nowrap text-mute last:text-right', look.th)}>
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </th>
               ))}
@@ -84,9 +84,9 @@ export function DataTable<T extends RowData>({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id} className={cn('transition-colors hover:bg-white/[0.03]', rowClassName?.(row.original))}>
+            <tr key={row.id} className={cn('transition-colors hover:bg-tint/[0.03]', rowClassName?.(row.original))}>
               {row.getAllCells().map((cell) => (
-                <td key={cell.id} className={cn('align-middle text-[#cbd5e1] last:text-right', look.td)}>
+                <td key={cell.id} className={cn('align-middle text-ink-2 last:text-right', look.td)}>
                   <table.FlexRender cell={cell} />
                 </td>
               ))}
@@ -94,7 +94,7 @@ export function DataTable<T extends RowData>({
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-6 text-center text-xs text-[#94a3b8]">
+              <td colSpan={columns.length} className="px-4 py-6 text-center text-xs text-mute">
                 {loading ? '…' : empty}
               </td>
             </tr>

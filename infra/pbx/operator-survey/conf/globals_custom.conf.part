@@ -1,0 +1,11 @@
+; ==== OPERATOR-BAHO BOSHI ====
+; Post-call operator survey (call-center repo: infra/pbx/operator-survey). Managed by install.sh / rollback.sh.
+; ext-queues adds VQ_CONTINUE to the Queue() options ("c": the caller stays in the dialplan when the operator
+; hangs up) and goes to VQ_DEST after Queue() returns, INSTEAD of the queue's failover. These are globals, so they
+; apply to every queue: install.sh refuses to install while the PBX has more than one queue.
+; BAHO_FAILOVER is the failover destination of queue @BAHO_QUEUE@ (context^exten^priority) that [operator-baho]
+; sends a caller to when there was no conversation. Turn the survey off: rollback.sh.
+VQ_CONTINUE = c
+VQ_DEST = operator-baho^s^1
+BAHO_FAILOVER = @BAHO_FAILOVER@
+; ==== OPERATOR-BAHO OXIRI ====

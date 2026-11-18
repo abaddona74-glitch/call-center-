@@ -322,7 +322,7 @@ export function ToolsPage() {
             >
               {ids.length === 0 && (
                 <div className="tl-empty">
-                  <div className="mb-2 flex justify-center text-slate-500">
+                  <div className="mb-2 flex justify-center text-dim">
                     <BoxAddIcon />
                   </div>
                   <div>{t(`empty.${zone}`)}</div>

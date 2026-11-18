@@ -36,7 +36,7 @@ export function KdsModal({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
           className={cn(
-            'fixed inset-0 z-[1100] bg-[rgba(3,7,18,0.8)] backdrop-blur-[12px]',
+            'fixed inset-0 z-[1100] bg-[rgba(3,7,18,0.8)] backdrop-blur-[12px] light:bg-[rgba(3,7,18,0.4)]',
             'data-[state=open]:animate-[kdsBackdropIn_280ms_cubic-bezier(0.23,1,0.32,1)_forwards]',
             'data-[state=closed]:animate-[kdsBackdropOut_200ms_cubic-bezier(0.2,0,0,1)_forwards]',
             overlayClassName,
@@ -52,8 +52,8 @@ export function KdsModal({
             }}
             style={width ? { width } : undefined}
             className={cn(
-              'pointer-events-auto flex max-h-[90vh] max-w-[95vw] flex-col overflow-hidden rounded-[18px] border border-[rgba(59,130,246,0.35)] bg-[#0f172a] text-[#f8fafc] outline-none',
-              'shadow-[0_25px_60px_rgba(0,0,0,0.8),0_0_30px_rgba(56,189,248,0.15)]',
+              'pointer-events-auto flex max-h-[90vh] max-w-[95vw] flex-col overflow-hidden rounded-[18px] border border-[rgba(59,130,246,0.35)] bg-sidebar text-ink outline-none',
+              'shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_80%,transparent),0_0_30px_rgba(56,189,248,0.15)]',
               'data-[state=open]:animate-[kdsPanelIn_280ms_cubic-bezier(0.23,1,0.32,1)_forwards]',
               'data-[state=closed]:animate-[kdsPanelOut_200ms_cubic-bezier(0.2,0,0,1)_forwards]',
               className,
@@ -74,7 +74,7 @@ export function KdsModalHeader({ children, className }: { children: ReactNode; c
   return (
     <div
       className={cn(
-        'flex items-center justify-between border-b border-white/8 bg-[rgba(15,23,42,0.95)] px-6 py-[18px]',
+        'flex items-center justify-between border-b border-tint/8 bg-glass/95 px-6 py-[18px]',
         className,
       )}
     >
@@ -93,7 +93,7 @@ export function KdsModalActions({ children, className }: { children: ReactNode; 
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 border-t border-white/8 bg-[rgba(15,23,42,0.95)] px-6 py-4',
+        'flex items-center justify-between gap-3 border-t border-tint/8 bg-glass/95 px-6 py-4',
         className,
       )}
     >
@@ -107,7 +107,7 @@ export function KdsIdBadge({ children, className }: { children: ReactNode; class
   return (
     <span
       className={cn(
-        'rounded-md border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.15)] px-2 py-[3px] font-mono text-sm font-extrabold text-[#38bdf8]',
+        'rounded-md border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.15)] px-2 py-[3px] font-mono text-sm font-extrabold text-info',
         className,
       )}
     >
@@ -125,7 +125,7 @@ export function KdsCloseButton({ label, onClick }: { label: string; onClick?: ()
         title={label}
         aria-label={label}
         onClick={onClick}
-        className="inline-flex size-8 items-center justify-center rounded-lg border border-white/12 bg-white/7 text-[#94a3b8] transition hover:-translate-y-px hover:border-[rgba(56,189,248,0.45)] hover:bg-white/15 hover:text-white active:scale-[0.96]"
+        className="inline-flex size-8 items-center justify-center rounded-lg border border-tint/12 bg-tint/7 text-mute transition hover:-translate-y-px hover:border-[rgba(56,189,248,0.45)] hover:bg-tint/15 hover:text-ink active:scale-[0.96]"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4">
           <line x1="18" y1="6" x2="6" y2="18" />

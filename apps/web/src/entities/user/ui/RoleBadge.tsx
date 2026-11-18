@@ -4,10 +4,10 @@ import { cn } from '@/shared/lib/cn';
 
 /** Production legacy users table: superuser purple, operator cyan; the new roles blue and amber. */
 const TONE: Record<Role, string> = {
-  superuser: 'bg-[rgba(168,85,247,0.2)] text-[#c084fc]',
-  executive: 'bg-[rgba(59,130,246,0.2)] text-[#60a5fa]',
-  observer: 'bg-[rgba(245,158,11,0.18)] text-[#fbbf24]',
-  operator: 'bg-[rgba(56,189,248,0.2)] text-[#38bdf8]',
+  superuser: 'bg-[rgba(168,85,247,0.2)] text-violet',
+  executive: 'bg-[rgba(59,130,246,0.2)] text-link',
+  observer: 'bg-[rgba(245,158,11,0.18)] text-caution',
+  operator: 'bg-[rgba(56,189,248,0.2)] text-info',
 };
 
 export function RoleBadge({ role }: { role: Role }) {

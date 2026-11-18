@@ -111,8 +111,8 @@ export function SoundToggle() {
       className={cn(
         'inline-flex size-[30px] items-center justify-center rounded-lg border p-0 transition-all duration-200',
         enabled
-          ? 'border-white/12 bg-white/6 text-[#94a3b8] hover:border-[rgba(56,189,248,0.3)] hover:bg-[rgba(56,189,248,0.12)] hover:text-[#38bdf8]'
-          : 'border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.12)] text-[#ef4444]',
+          ? 'border-tint/12 bg-tint/6 text-mute hover:border-[rgba(56,189,248,0.3)] hover:bg-[rgba(56,189,248,0.12)] hover:text-info'
+          : 'border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.12)] text-shade-[#ef4444]',
       )}
     >
       <LegacyIcon name={enabled ? 'volume-high' : 'volume-cross'} />
@@ -172,10 +172,10 @@ function showTicketToast(e: Changed, t: TFunction<'ticket'>, onOpen: (id: number
             onOpen(e.id);
           }
         }}
-        className="flex w-[380px] max-w-[calc(100vw-48px)] cursor-pointer flex-col gap-2 rounded-[14px] border border-[rgba(56,189,248,0.35)] bg-[rgba(15,23,42,0.94)] px-4 py-3.5 text-left shadow-[0_16px_36px_rgba(0,0,0,0.6),0_0_20px_rgba(56,189,248,0.18)] backdrop-blur-[16px]"
+        className="flex w-[380px] max-w-[calc(100vw-48px)] cursor-pointer flex-col gap-2 rounded-[14px] border border-[rgba(56,189,248,0.35)] bg-glass/94 px-4 py-3.5 text-left shadow-[0_16px_36px_color-mix(in_srgb,var(--shadow-color)_60%,transparent),0_0_20px_rgba(56,189,248,0.18)] backdrop-blur-[16px]"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-[5px] rounded-md border border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] px-2 py-[3px] text-[11px] font-bold tracking-[0.5px] text-[#38bdf8] uppercase">
+          <span className="inline-flex items-center gap-[5px] rounded-md border border-[rgba(56,189,248,0.35)] bg-[rgba(56,189,248,0.18)] px-2 py-[3px] text-[11px] font-bold tracking-[0.5px] text-info uppercase">
             <Icon name="clipboard-text" className="size-3" />
             {badge}
           </span>
@@ -186,16 +186,16 @@ function showTicketToast(e: Changed, t: TFunction<'ticket'>, onOpen: (id: number
               ev.stopPropagation();
               toast.dismiss(id);
             }}
-            className="rounded p-0.5 text-[#94a3b8] transition-colors hover:text-white"
+            className="rounded p-0.5 text-mute transition-colors hover:text-ink"
           >
             ×
           </button>
         </div>
-        <div className="flex items-center justify-between gap-1.5 text-[13px] font-bold text-white">
+        <div className="flex items-center justify-between gap-1.5 text-[13px] font-bold text-ink">
           <span>#{e.code}</span>
-          <span className="text-[11px] font-normal text-[#94a3b8]">{e.actor.label}</span>
+          <span className="text-[11px] font-normal text-mute">{e.actor.label}</span>
         </div>
-        <div className="mt-1 flex items-center justify-end border-t border-white/8 pt-2 text-[11px] text-[#94a3b8]">
+        <div className="mt-1 flex items-center justify-end border-t border-tint/8 pt-2 text-[11px] text-mute">
           <span className="inline-flex items-center gap-1 rounded-md bg-[linear-gradient(135deg,#2563eb,#1d4ed8)] px-2.5 py-1 text-[11px] font-semibold text-white hover:brightness-115">
             {t('toast.open')}
             <LegacyIcon name="export-3" className="size-3" />
@@ -289,8 +289,8 @@ export function TicketAlerts({ meId }: { meId: number }) {
       className={cn(
         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors',
         count > 0
-          ? 'animate-[tkNewGlow_2.2s_ease-in-out_infinite] border-[rgba(56,189,248,0.55)] bg-[rgba(56,189,248,0.18)] text-[#38bdf8]'
-          : 'border-white/10 bg-white/5 text-muted-foreground',
+          ? 'animate-[tkNewGlow_2.2s_ease-in-out_infinite] border-[rgba(56,189,248,0.55)] bg-[rgba(56,189,248,0.18)] text-info'
+          : 'border-tint/10 bg-tint/5 text-muted-foreground',
       )}
     >
       <Icon name="clipboard-text" className="size-3.5" />

@@ -18,7 +18,7 @@ import { Switch } from '@/shared/ui/switch';
 import { userErrorText } from '../model/errors';
 
 const dialogClass =
-  'border-white/12 bg-[linear-gradient(160deg,#1e293b_0%,#0f172a_100%)] text-[#f8fafc] shadow-[0_25px_60px_rgba(0,0,0,0.65)] sm:max-w-xl';
+  'border-tint/12 bg-[linear-gradient(160deg,var(--glass-2)_0%,var(--sidebar)_100%)] text-ink shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_65%,transparent)] sm:max-w-xl';
 
 /** Create (user = null) or edit a user. Only roles the current admin may grant are offered. */
 export function UserDialog({
@@ -137,7 +137,7 @@ function UserForm({
     >
       <DialogHeader>
         <DialogTitle>{t('users.dialogEdit')}</DialogTitle>
-        <DialogDescription className="text-[#94a3b8]">{t('users.dialogText')}</DialogDescription>
+        <DialogDescription className="text-mute">{t('users.dialogText')}</DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-3.5 sm:grid-cols-2">
@@ -262,7 +262,7 @@ function UserForm({
       {user && (
         <form.Field name="isActive">
           {(field) => (
-            <label className="flex cursor-pointer items-center gap-3 text-[13px] text-[#cbd5e1]">
+            <label className="flex cursor-pointer items-center gap-3 text-[13px] text-ink-2">
               <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
               {t('users.active')}
             </label>
@@ -271,7 +271,7 @@ function UserForm({
       )}
       <form.Field name="mustChangePassword">
         {(field) => (
-          <label className="flex cursor-pointer items-center gap-3 text-[13px] text-[#cbd5e1]">
+          <label className="flex cursor-pointer items-center gap-3 text-[13px] text-ink-2">
             <Switch checked={field.state.value} onCheckedChange={(v) => field.handleChange(v)} />
             {t('users.mustChange')}
           </label>

@@ -3,31 +3,84 @@
 @import "./fonts.css";
 
 @custom-variant dark (&:is(.dark *));
+/* For the few legacy colors that need a different shade on white: text-[#fef3c7] light:text-caution */
+@custom-variant light (&:is(:root:not(.dark) *));
 
-/* Design tokens (shadcn/ui). Dark theme is the default, like the legacy dashboard. */
+/*
+ * Design tokens, two themes switched by a class on <html> (shared/lib/theme + public/theme-init.js):
+ *   .dark — the legacy dashboard palette (legacy/public/css/style.css :root), the default; keep values exact.
+ *   :root — the light theme (no .dark). Legacy had no app-wide light theme; the base is its only light palette,
+ *           the studio player (style.css L5388): white panels, #f2f5fb, #d9e1f0 lines, #12203b ink.
+ * Components use tokens only (bg-card, text-mute, border-tint/8 …), never raw hex, so both themes work.
+ */
 :root {
+  color-scheme: light;
   --radius: 12px; /* legacy --radius-md */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --success: oklch(0.696 0.17 162.48);
-  --warning: oklch(0.769 0.188 70.08);
-  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
+  /* Width of the full-height right panel ("Jonli Monitor", legacy --sidebar-width). */
+  --right-dock-width: 385px;
+  --scrollbar-thumb: rgb(15 23 42 / 0.22);
+  --background: #eef2f8;
+  --foreground: #12203b;
+  --card: #ffffff;
+  --card-foreground: #12203b;
+  --popover: #ffffff;
+  --popover-foreground: #12203b;
+  --primary: #6366f1;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef8;
+  --secondary-foreground: #12203b;
+  --muted: #f2f5fb;
+  --muted-foreground: #62708f;
+  --accent: #e6ecf7;
+  --accent-foreground: #12203b;
+  --destructive: #dc2626;
+  --border: #d9e1f0;
+  --input: #cfd8ea;
+  --ring: rgba(99, 102, 241, 0.45);
+  --sidebar: #ffffff;
+  /* call-state colors */
+  --success: #0d8a7a;
+  --warning: #b45309;
+  --outbound: #6d5ce8;
+  --live: #1478e0;
+  /* legacy text tiers: --text-main, slate-300, --text-muted, --text-dim */
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --mute: #5b6b85;
+  --dim: #738199;
+  /* overlays: legacy draws hairlines/hovers as white at low alpha (tint) and glass panels as
+     slate-900/800 at high alpha (glass, glass-2); in light they become slate hairlines and white glass */
+  --tint: #0f172a;
+  --glass: #ffffff;
+  --glass-2: #ffffff;
+  /* recessed wells (legacy black at 20-40% alpha): a faint slate inset on white */
+  --well: rgb(15 23 42 / 0.22);
+  /* operator cards (legacy --op-panel / --op-panel2) */
+  --panel: #ffffff;
+  --panel-2: #f2f5fb;
+  /* legacy accent text (Tailwind v3 400-shades on dark) -> 600/700-shades readable on white */
+  --info: #0284c7;
+  --danger: #dc2626;
+  --caution: #b45309;
+  --positive: #047857;
+  --link: #2563eb;
+  --violet: #9333ea;
+  --brand-soft: #4f46e5;
+  /* paler legacy accents (300-shades on dark) */
+  --danger-soft: #b91c1c;
+  --caution-soft: #a16207;
+  --link-soft: #1d4ed8;
+  --brand-pale: #4338ca;
+  --lilac: #7c3aed;
+  --lilac-soft: #6d28d9;
+  /* the black of drop shadows: legacy uses #000 at 40-80% alpha, too heavy under white panels */
+  --shadow-color: rgb(15 23 42 / 0.3);
+  /* mid-tone accent text (#f59e0b, #ef4444, carrier/status colors) is too light on white: in light it is
+     mixed this much toward ink (text-shade-[…] utility, accentText() in shared/lib/theme) */
+  --shade: 40%;
+  /* very pale accents (100-300 shades, e.g. #bae6fd) need a stronger mix to read on white */
+  --shade-strong: 62%;
+  /* chart / KPI accent palette (legacy Chart.js + KPI cards), the same in both themes */
   --chart-1: #6366f1;
   --chart-2: #10b981;
   --chart-3: #a855f7;
@@ -40,6 +93,7 @@
 
 /* Legacy dashboard palette (legacy/public/css/style.css :root) — the UI must look the same. */
 .dark {
+  color-scheme: dark;
   --background: #0f1624;
   --foreground: #e8edf5;
   --card: #17212f;
@@ -59,20 +113,37 @@
   --input: #26344a;
   --ring: rgba(99, 102, 241, 0.45);
   --sidebar: #0f172a;
-  /* call-state colors */
   --success: #2cc4ae;
   --warning: #f2b035;
   --outbound: #9a8fff;
   --live: #3ea6ff;
-  /* chart / KPI accent palette (legacy Chart.js + KPI cards) */
-  --chart-1: #6366f1;
-  --chart-2: #10b981;
-  --chart-3: #a855f7;
-  --chart-4: #38bdf8;
-  --chart-5: #f59e0b;
-  --chart-6: #3b82f6;
-  --chart-7: #06b6d4;
-  --chart-8: #ef4444;
+  --ink: #f8fafc;
+  --ink-2: #cbd5e1;
+  --mute: #94a3b8;
+  --dim: #64748b;
+  --tint: #ffffff;
+  --glass: #0f172a;
+  --glass-2: #1e293b;
+  --well: #000000;
+  --panel: #121a2e;
+  --panel-2: #18223a;
+  --info: #38bdf8;
+  --danger: #f87171;
+  --caution: #fbbf24;
+  --positive: #34d399;
+  --link: #60a5fa;
+  --violet: #c084fc;
+  --brand-soft: #818cf8;
+  --danger-soft: #fca5a5;
+  --caution-soft: #fcd34d;
+  --link-soft: #93c5fd;
+  --brand-pale: #a5b4fc;
+  --lilac: #a78bfa;
+  --lilac-soft: #c4b5fd;
+  --shadow-color: #000000;
+  --shade: 0%;
+  --shade-strong: 0%;
+  --scrollbar-thumb: rgb(255 255 255 / 0.2);
 }
 
 @theme inline {
@@ -103,6 +174,29 @@
   --color-outbound: var(--outbound);
   --color-live: var(--live);
   --color-sidebar: var(--sidebar);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-mute: var(--mute);
+  --color-dim: var(--dim);
+  --color-tint: var(--tint);
+  --color-glass: var(--glass);
+  --color-glass-2: var(--glass-2);
+  --color-well: var(--well);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-info: var(--info);
+  --color-danger: var(--danger);
+  --color-caution: var(--caution);
+  --color-positive: var(--positive);
+  --color-link: var(--link);
+  --color-violet: var(--violet);
+  --color-brand-soft: var(--brand-soft);
+  --color-danger-soft: var(--danger-soft);
+  --color-caution-soft: var(--caution-soft);
+  --color-link-soft: var(--link-soft);
+  --color-brand-pale: var(--brand-pale);
+  --color-lilac: var(--lilac);
+  --color-lilac-soft: var(--lilac-soft);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -115,11 +209,37 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* Accent-colored text that stays readable in both themes: text-shade-[#f59e0b], text-shade-chart-5. */
+@utility text-shade-* {
+  color: color-mix(in oklab, --value(--color-*, [color]), var(--ink) var(--shade));
+}
+
+/* Switching themes recolors everything at once (shared/lib/theme adds this class for two frames). */
+.theme-switching,
+.theme-switching * {
+  transition: none !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  /* Thin scrollbars with no track behind the thumb, both themes (legacy style.css global
+     scrollbars; the native light track looked like a white strip on the dark theme).
+     The thumb is hidden while nothing scrolls and shows only while its element is being
+     scrolled ([data-scrolling], set by shared/lib/auto-hide-scrollbars), in the theme's
+     --scrollbar-thumb color. The gutter keeps its width either way, so content never shifts
+     when the thumb appears. Utilities such as [scrollbar-width:none] still override this. */
+  :root,
+  :root * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  :root[data-scrolling],
+  :root [data-scrolling] {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 }

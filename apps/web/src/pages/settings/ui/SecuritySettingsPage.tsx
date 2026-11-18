@@ -51,12 +51,12 @@ function RangeField({
     <div className="flex flex-col gap-1.5">
       <FieldLabel htmlFor={id}>
         {label}
-        <span className="rounded-md bg-[rgba(59,130,246,0.2)] px-2 py-0.5 text-[11px] font-bold text-[#60a5fa]">
+        <span className="rounded-md bg-[rgba(59,130,246,0.2)] px-2 py-0.5 text-[11px] font-bold text-link">
           {badge}
         </span>
       </FieldLabel>
       <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-semibold text-[#64748b]">{min}</span>
+        <span className="text-[11px] font-semibold text-dim">{min}</span>
         <input
           id={id}
           type="range"
@@ -68,7 +68,7 @@ function RangeField({
           onChange={(e) => onChange(Number(e.target.value))}
           className="h-1.5 flex-1 cursor-pointer accent-[#3b82f6] disabled:cursor-not-allowed"
         />
-        <span className="text-[11px] font-semibold text-[#64748b]">{max}</span>
+        <span className="text-[11px] font-semibold text-dim">{max}</span>
       </div>
       <FieldHint>{hint}</FieldHint>
     </div>
@@ -205,9 +205,7 @@ export function SecuritySettingsPage() {
             ))}
           </div>
         ) : (
-          <div className="py-[18px] text-center text-[12.5px] text-[#94a3b8]">
-            {isLoading ? '…' : t('security.empty')}
-          </div>
+          <div className="py-[18px] text-center text-[12.5px] text-mute">{isLoading ? '…' : t('security.empty')}</div>
         )}
       </SettingsCard>
     </div>
@@ -222,17 +220,17 @@ function LockoutRow({ entry, pending, onUnlock }: { entry: LockoutEntry; pending
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-[rgba(239,68,68,0.25)] bg-[rgba(239,68,68,0.08)] px-3.5 py-2.5">
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className="rounded bg-[rgba(239,68,68,0.2)] px-[7px] py-0.5 text-[11px] font-semibold text-[#f87171]">
+        <span className="rounded bg-[rgba(239,68,68,0.2)] px-[7px] py-0.5 text-[11px] font-semibold text-danger">
           {t(`security.kind.${entry.kind}`)}
         </span>
-        <span className="text-[13px] font-semibold text-[#f1f5f9]">{title}</span>
-        <span className="text-xs text-[#94a3b8]">({t('security.remaining', { minutes })})</span>
+        <span className="text-[13px] font-semibold text-ink">{title}</span>
+        <span className="text-xs text-mute">({t('security.remaining', { minutes })})</span>
       </div>
       <button
         type="button"
         disabled={pending}
         onClick={onUnlock}
-        className="cursor-pointer rounded-md border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.15)] px-2.5 py-1 text-[11px] text-[#38bdf8] hover:bg-[rgba(56,189,248,0.25)] disabled:opacity-50"
+        className="cursor-pointer rounded-md border border-[rgba(56,189,248,0.3)] bg-[rgba(56,189,248,0.15)] px-2.5 py-1 text-[11px] text-info hover:bg-[rgba(56,189,248,0.25)] disabled:opacity-50"
       >
         {t('security.unlock')}
       </button>

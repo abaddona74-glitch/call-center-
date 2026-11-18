@@ -4,6 +4,7 @@ import { AppConfig } from '../../config/app-config.js';
 import { InjectPbxDb, type PbxDb } from '../pbx-db.module.js';
 import type { PbxDB } from '../pbx-db.types.js';
 import type { CdrRow } from './cdr-row.js';
+import type { SurveyRating } from './survey-rating.js';
 
 /** Hard cap per query so one bad request can never pull the whole CDR table into memory. */
 const MAX_ROWS = 200_000;
@@ -16,6 +17,8 @@ const MAX_ROWS = 200_000;
 export class CdrRepository {
   private readonly logger = new Logger(CdrRepository.name);
   private readonly hasLinkedid: boolean;
+  /** Log "survey table missing" once, not on every stats refresh. */
+  private surveyMissingLogged = false;
 
   constructor(
     @InjectPbxDb() private readonly pbx: PbxDb,
@@ -118,7 +121,53 @@ export class CdrRepository {
   async operatorNames(): Promise<{ extension: string; name: string | null }[]> {
     return this.run('operatorNames', (db) => db.selectFrom('asterisk.users').select(['extension', 'name']).execute());
   }
+
+  /**
+   * Post-call survey answers with `fromWall <= rated_at < toWall` (asteriskcdrdb.operator_baho).
+   * The survey is optional: `null` (not 503) when the table is missing, not granted or unreadable,
+   * so it can never take the CDR statistics down with it.
+   */
+  async surveyRatings(fromWall: string, toWall: string): Promise<SurveyRating[] | null> {
+    const db = this.db();
+    try {
+      const rows = await db
+        .selectFrom('operator_baho')
+        .select(['uniqueid', 'linkedid', 'operator_ext', 'baho'])
+        .where('rated_at', '>=', fromWall)
+        .where('rated_at', '<', toWall)
+        .limit(MAX_ROWS)
+        .execute();
+      this.surveyMissingLogged = false;
+      return rows.map((r) => ({
+        uniqueid: String(r.uniqueid ?? ''),
+        linkedid: String(r.linkedid ?? ''),
+        operatorExt: String(r.operator_ext ?? '').trim(),
+        score: Number(r.baho),
+      }));
+    } catch (err) {
+      const code = (err as { code?: unknown } | null)?.code;
+      if (SURVEY_ABSENT_CODES.has(String(code))) {
+        if (!this.surveyMissingLogged) this.logger.warn(`Survey ratings unavailable (${String(code)}); column hidden`);
+        this.surveyMissingLogged = true;
+      } else {
+        this.logger.error(`PBX query "surveyRatings" failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return null;
+    }
+  }
 }
+
+/**
+ * MariaDB errors that mean "the survey is not installed / not granted to us / a different table layout"
+ * rather than a broken PBX (prod `cc_readonly` has no GRANT on the table until DEPLOY.md §11.1 is applied).
+ */
+const SURVEY_ABSENT_CODES = new Set([
+  'ER_NO_SUCH_TABLE',
+  'ER_TABLEACCESS_DENIED_ERROR',
+  'ER_COLUMNACCESS_DENIED_ERROR',
+  'ER_DBACCESS_DENIED_ERROR',
+  'ER_BAD_FIELD_ERROR',
+]);
 
 function toCdrRow(r: Record<string, unknown>): CdrRow {
   const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));

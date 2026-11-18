@@ -173,16 +173,14 @@ export function PasskeysCard() {
       <SettingsCardHeader icon={<IconFingerprint size={20} />} title={t('title')} description={t('description')} />
 
       <ul className="mb-4 flex flex-col gap-2">
-        {!isLoading && passkeys?.length === 0 && (
-          <li className="py-3 text-center text-xs text-[#94a3b8]">{t('empty')}</li>
-        )}
+        {!isLoading && passkeys?.length === 0 && <li className="py-3 text-center text-xs text-mute">{t('empty')}</li>}
         {passkeys?.map((pk) => (
           <li
             key={pk.id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/5 bg-[rgba(30,41,59,0.5)] px-3 py-2.5 transition-colors hover:border-white/10 hover:bg-[rgba(30,41,59,0.8)]"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tint/5 bg-glass-2/50 px-3 py-2.5 transition-colors hover:border-tint/10 hover:bg-glass-2/80"
           >
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(56,189,248,0.15)] text-[#38bdf8]">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[rgba(56,189,248,0.15)] text-info">
                 <IconFingerprint size={16} />
               </div>
               {editing?.id === pk.id ? (
@@ -199,11 +197,11 @@ export function PasskeysCard() {
                 />
               ) : (
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 truncate text-[13px] font-semibold text-[#e2e8f0]">
+                  <div className="flex items-center gap-2 truncate text-[13px] font-semibold text-foreground">
                     {pk.name}
                     {pk.backedUp && <Pill tone="blue">{t('synced')}</Pill>}
                   </div>
-                  <div className="text-[11px] text-[#94a3b8]">
+                  <div className="text-[11px] text-mute">
                     {t('created')}: {formatDateTime(pk.createdAt)} · {t('lastUsed')}:{' '}
                     {pk.lastUsedAt ? formatDateTime(pk.lastUsedAt) : t('never')}
                   </div>

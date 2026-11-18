@@ -1,8 +1,8 @@
 /* Legacy .queue-panel / .queue-caller-pill (legacy/public/css/style.css). */
 .qp {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(15, 23, 42, 0.7));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), color-mix(in srgb, var(--glass) 70%, transparent));
   border: 1px solid rgba(99, 102, 241, 0.4);
-  border-top: 2px solid #818cf8;
+  border-top: 2px solid var(--brand-soft);
   border-radius: 12px;
   padding: 12px;
   box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08);
@@ -13,13 +13,13 @@
   align-items: center;
   font-size: 12px;
   font-weight: 700;
-  color: #818cf8;
+  color: var(--brand-soft);
   margin-bottom: 8px;
   text-transform: uppercase;
 }
 .qp-badge {
   background: rgba(99, 102, 241, 0.2);
-  color: #a5b4fc;
+  color: var(--brand-pale);
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 11px;
@@ -58,12 +58,12 @@
 .qp-ic {
   width: 12px;
   height: 12px;
-  color: #a5b4fc;
+  color: var(--brand-pale);
 }
 .qp-num {
   font-size: 13px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
@@ -101,11 +101,11 @@
   align-items: center;
   gap: 3px;
   font-size: 11px;
-  color: #cbd5e1;
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 .qp-empty {
-  color: #64748b;
+  color: var(--dim);
   font-size: 11px;
   text-align: center;
   padding: 4px;
@@ -115,6 +115,14 @@
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(148, 163, 184, 0.18);
-  color: #cbd5e1;
+  background: color-mix(in srgb, var(--mute) 18%, transparent);
+  color: var(--ink-2);
+}
+
+/* Light theme: legacy indigo-100 text is for the dark panel only. */
+:root:not(.dark) .qp-item {
+  color: var(--foreground);
+}
+:root:not(.dark) .qp-pos {
+  color: var(--brand-pale);
 }

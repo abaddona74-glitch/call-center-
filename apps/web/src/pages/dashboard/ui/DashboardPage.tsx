@@ -1,7 +1,6 @@
 import { CDR_ACCESS } from '@cc/shared';
 import { usePermission } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
-import { cn } from '@/shared/lib/cn';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { ActiveCalls } from '@/widgets/active-calls';
 import { RecentCallsPanel } from '@/widgets/call-history-table';
@@ -26,7 +25,7 @@ export function DashboardPage() {
   const canSeeCallbacks = usePermission('callbacks.view');
   const canSeeRecent = usePermission(CDR_ACCESS['history.page']);
   return (
-    <div className={cn('grid items-start gap-6', open && 'xl:grid-cols-[minmax(0,1fr)_385px]')}>
+    <div className="grid items-start gap-6">
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
         <TicketCallbackQueue />

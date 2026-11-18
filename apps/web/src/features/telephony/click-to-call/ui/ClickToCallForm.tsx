@@ -37,7 +37,7 @@ export function ClickToCallForm({
     if (to.trim()) mutation.mutate();
   };
   const field =
-    'h-9 rounded-lg border border-white/10 bg-[#0f172a]/75 px-3 text-sm text-foreground outline-none focus:border-[#6366f1]/60';
+    'h-9 rounded-lg border border-tint/10 bg-sidebar/75 px-3 text-sm text-foreground outline-none focus:border-[#6366f1]/60';
 
   return (
     <form onSubmit={submit} className={cn('flex flex-wrap items-center gap-2', className)} aria-label={t('call.title')}>
@@ -71,7 +71,7 @@ export function ClickToCallForm({
       <button
         type="submit"
         disabled={mutation.isPending || !to.trim()}
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#34d399]/40 bg-[#34d399]/12 px-3 text-sm font-semibold text-[#34d399] transition-[filter] hover:brightness-125 disabled:opacity-50"
+        className="inline-flex h-9 items-center gap-2 rounded-lg border border-positive/40 bg-positive/12 px-3 text-sm font-semibold text-positive transition-[filter] hover:brightness-125 disabled:opacity-50"
       >
         <Icon name="call" className="size-4" />
         {t('call.button')}

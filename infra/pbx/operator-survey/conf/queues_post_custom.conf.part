@@ -1,0 +1,5 @@
+; ==== OPERATOR-BAHO BOSHI ====
+; Post-call operator survey: keep the answering member on the caller's channel as MEMBERINTERFACE/MEMBERNAME.
+[@BAHO_QUEUE@](+)
+setinterfacevar=yes
+; ==== OPERATOR-BAHO OXIRI ====

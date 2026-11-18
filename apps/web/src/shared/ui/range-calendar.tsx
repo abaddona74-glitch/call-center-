@@ -73,9 +73,9 @@ export function RangeCalendar({
     setView((v) => ({ y: v.y + Math.floor((v.m + delta) / 12), m: (((v.m + delta) % 12) + 12) % 12 }));
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+    <div className="rounded-xl border border-tint/10 bg-tint/[0.02] p-3.5">
       <div className="mb-2.5 flex items-center justify-between">
-        <div className="text-sm font-bold text-white">
+        <div className="text-sm font-bold text-ink">
           {monthNames[view.m]} {view.y}
         </div>
         <div className="flex gap-1">
@@ -85,7 +85,7 @@ export function RangeCalendar({
               type="button"
               onClick={() => shift(d)}
               aria-label={d < 0 ? 'Previous month' : 'Next month'}
-              className="flex size-[26px] items-center justify-center rounded-md border border-white/15 bg-white/5 text-white hover:bg-white/10"
+              className="flex size-[26px] items-center justify-center rounded-md border border-tint/15 bg-tint/5 text-ink hover:bg-tint/10"
             >
               <Icon name={d < 0 ? 'arrow-left' : 'arrow-right'} className="size-3" />
             </button>
@@ -99,7 +99,7 @@ export function RangeCalendar({
             className={cn(
               'pb-1 text-[11px] font-semibold text-muted-foreground',
               i === 5 && 'text-destructive',
-              i === 6 && 'text-chart-6',
+              i === 6 && 'text-shade-chart-6',
             )}
           >
             {w}
@@ -124,9 +124,9 @@ export function RangeCalendar({
                 }
               }}
               className={cn(
-                'mx-px h-[26px] rounded-[3px] text-xs font-semibold text-white transition-colors hover:bg-white/10 disabled:pointer-events-none disabled:opacity-30',
+                'mx-px h-[26px] rounded-[3px] text-xs font-semibold text-ink transition-colors hover:bg-tint/10 disabled:pointer-events-none disabled:opacity-30',
                 c.outside && 'text-muted-foreground/55',
-                inRange && 'bg-chart-6/30 text-chart-4',
+                inRange && 'bg-chart-6/30 text-shade-chart-4',
                 isToday && 'bg-chart-2 text-white',
                 isStart && 'bg-chart-6 text-white',
               )}

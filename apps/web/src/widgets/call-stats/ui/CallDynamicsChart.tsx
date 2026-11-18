@@ -75,7 +75,11 @@ export function CallDynamicsChart({ hourly, daily }: { hourly: HourlyPoint[]; da
               <CartesianGrid {...GRID} />
               <XAxis dataKey="label" {...AXIS} />
               <YAxis allowDecimals={false} {...AXIS} />
-              <Tooltip {...TOOLTIP} formatter={fmt} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
+              <Tooltip
+                {...TOOLTIP}
+                formatter={fmt}
+                cursor={{ fill: 'color-mix(in srgb, var(--tint) 4%, transparent)' }}
+              />
               {series.map((s) => (
                 <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color} radius={[6, 6, 0, 0]} />
               ))}

@@ -8,6 +8,7 @@ import { HangupCallButton } from '@/features/telephony/hangup-call';
 import { TransferCallButton } from '@/features/telephony/transfer-call';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { accentText } from '@/shared/lib/theme';
 import { useLeaving } from '../model/use-leaving';
 import '../i18n';
 import './active-calls.css';
@@ -77,13 +78,13 @@ export function ActiveCalls() {
                 </span>
                 <span className="cc-tags">
                   {carrier && (
-                    <span className="cc-tag" style={{ color: carrier.color }} title={carrier.name}>
+                    <span className="cc-tag" style={{ color: accentText(carrier.color) }} title={carrier.name}>
                       <Icon name="simcard" className="size-[11px]" />
                       {carrier.name}
                     </span>
                   )}
                   <span className="cc-tag time">
-                    <Icon name="timer" className="size-[11px] text-[#60a5fa]" />
+                    <Icon name="timer" className="size-[11px] text-link" />
                     <LiveTimer since={talking ? (call.answeredAt ?? call.stateSince) : call.stateSince} />
                   </span>
                 </span>

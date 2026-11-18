@@ -65,15 +65,15 @@ export function ReleaseTicketModal({
       >
         <KdsModalHeader className="border-b-[rgba(245,158,11,0.25)]">
           <div className="flex items-center gap-3">
-            <KdsIdBadge className="border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.16)] text-[#fbbf24]">
+            <KdsIdBadge className="border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.16)] text-caution">
               {ticket.code}
             </KdsIdBadge>
-            <h3 className="m-0 text-base font-bold text-white">{t('release.title')}</h3>
+            <h3 className="m-0 text-base font-bold text-ink">{t('release.title')}</h3>
           </div>
           <KdsCloseButton label={t('box.close')} />
         </KdsModalHeader>
         <KdsModalBody className="gap-3.5 px-5 py-[18px]">
-          <p className="text-[13px] leading-[1.45] text-[#cbd5e1]">{t('release.hint')}</p>
+          <p className="text-[13px] leading-[1.45] text-ink-2">{t('release.hint')}</p>
           <KdsField
             label={t('release.note')}
             icon={<LegacyIcon name="message" className="size-3.5" />}

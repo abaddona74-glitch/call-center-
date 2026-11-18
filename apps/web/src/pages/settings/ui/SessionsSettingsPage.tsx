@@ -32,25 +32,25 @@ export function SessionsSettingsPage() {
         header: () => t('sessions.colUser'),
         cell: ({ row }) => (
           <div>
-            <div className="flex items-center gap-1.5 font-semibold text-[#f1f5f9]">
+            <div className="flex items-center gap-1.5 font-semibold text-ink">
               {row.original.username}
               {row.original.viaPasskey && <Pill tone="blue">{t('sessions.passkey')}</Pill>}
               {row.original.impersonatedBy && (
                 <Pill tone="amber">{t('sessions.impersonatedBy', { name: row.original.impersonatedBy })}</Pill>
               )}
             </div>
-            <div className="text-[11px] text-[#94a3b8]">{tu(`role.${row.original.role}`)}</div>
+            <div className="text-[11px] text-mute">{tu(`role.${row.original.role}`)}</div>
           </div>
         ),
       }),
       col.accessor('ip', {
         header: () => t('sessions.colIp'),
-        cell: ({ getValue }) => <span className="font-mono text-[#a5b4fc]">{getValue() ?? '-'}</span>,
+        cell: ({ getValue }) => <span className="font-mono text-brand-pale">{getValue() ?? '-'}</span>,
       }),
       col.accessor('id', {
         header: () => t('sessions.colId'),
         cell: ({ getValue }) => (
-          <span className="font-mono text-[11.5px] text-[#94a3b8]" title={t('sessions.idHint')}>
+          <span className="font-mono text-[11.5px] text-mute" title={t('sessions.idHint')}>
             {getValue().slice(0, 8)}…{getValue().slice(-6)}
           </span>
         ),
@@ -58,27 +58,27 @@ export function SessionsSettingsPage() {
       col.accessor('userAgent', {
         header: () => t('sessions.colDevice'),
         cell: ({ getValue }) => (
-          <span className="block max-w-[180px] truncate text-[11.5px] text-[#cbd5e1]" title={getValue() ?? ''}>
+          <span className="block max-w-[180px] truncate text-[11.5px] text-ink-2" title={getValue() ?? ''}>
             {getValue() ?? '-'}
           </span>
         ),
       }),
       col.accessor('createdAt', {
         header: () => t('sessions.colCreated'),
-        cell: ({ getValue }) => <span className="text-xs text-[#94a3b8]">{formatDateTime(getValue())}</span>,
+        cell: ({ getValue }) => <span className="text-xs text-mute">{formatDateTime(getValue())}</span>,
       }),
       col.display({
         id: 'actions',
         header: () => t('sessions.colActions'),
         cell: ({ row }) =>
           row.original.isCurrent ? (
-            <span className="text-[11.5px] font-semibold text-[#34d399]">({t('sessions.current')})</span>
+            <span className="text-[11.5px] font-semibold text-positive">({t('sessions.current')})</span>
           ) : (
             row.original.canRevoke && (
               <button
                 type="button"
                 disabled={revoke.isPending}
-                className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-[#f87171] hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
+                className="cursor-pointer rounded-md border border-[rgba(239,68,68,0.3)] bg-[rgba(239,68,68,0.15)] px-2 py-1 text-[11px] text-danger hover:bg-[rgba(239,68,68,0.25)] disabled:opacity-50"
                 onClick={() => revoke.mutate(row.original.id)}
               >
                 {t('sessions.revoke')}

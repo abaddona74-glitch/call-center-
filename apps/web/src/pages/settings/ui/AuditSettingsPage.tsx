@@ -67,7 +67,7 @@ export function AuditSettingsPage() {
       }),
       col.accessor('actorLabel', {
         header: () => t('audit.colActor'),
-        cell: ({ getValue }) => <span className="font-semibold text-[#e2e8f0]">{getValue()}</span>,
+        cell: ({ getValue }) => <span className="font-semibold text-foreground">{getValue()}</span>,
       }),
       col.accessor('action', {
         header: () => t('audit.colAction'),
@@ -76,15 +76,12 @@ export function AuditSettingsPage() {
       col.accessor('target', { header: () => t('audit.colTarget'), cell: ({ getValue }) => getValue() ?? '—' }),
       col.accessor('ip', {
         header: () => t('audit.colIp'),
-        cell: ({ getValue }) => <span className="font-mono text-[11px] text-[#38bdf8]">{getValue() ?? '—'}</span>,
+        cell: ({ getValue }) => <span className="font-mono text-[11px] text-info">{getValue() ?? '—'}</span>,
       }),
       col.accessor('details', {
         header: () => t('audit.colDetails'),
         cell: ({ getValue }) => (
-          <span
-            className="block max-w-[320px] truncate font-mono text-[11px] text-[#94a3b8]"
-            title={details(getValue())}
-          >
+          <span className="block max-w-[320px] truncate font-mono text-[11px] text-mute" title={details(getValue())}>
             {details(getValue())}
           </span>
         ),
@@ -145,7 +142,7 @@ export function AuditSettingsPage() {
             type="date"
             value={from}
             onChange={(e) => filter(setFrom)(e.target.value)}
-            className="[color-scheme:dark]"
+            className=""
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -155,7 +152,7 @@ export function AuditSettingsPage() {
             type="date"
             value={to}
             onChange={(e) => filter(setTo)(e.target.value)}
-            className="[color-scheme:dark]"
+            className=""
           />
         </div>
         <SettingsButton
@@ -181,7 +178,7 @@ export function AuditSettingsPage() {
         empty={t('audit.empty')}
       />
 
-      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#94a3b8]">
+      <div className="mt-3 flex items-center justify-between gap-3 text-xs text-mute">
         <span>{t('audit.total', { count: data?.total ?? 0 })}</span>
         <div className="flex items-center gap-2">
           <SettingsButton size="sm" tone="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

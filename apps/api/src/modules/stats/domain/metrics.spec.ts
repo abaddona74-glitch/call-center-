@@ -1,6 +1,15 @@
 import { wallToIso } from '../../../common/time/business-time.js';
 import { calls, inbound, internal, outbound, TEST_CALENDAR } from '../../../pbx/calls/testing/cdr-fixtures.js';
-import { dailySeries, hourlySeries, lostClients, operatorStats, percent, summarize, topClients } from './metrics.js';
+import {
+  dailySeries,
+  hourlySeries,
+  lostClients,
+  operatorStats,
+  percent,
+  summarize,
+  surveyByOperator,
+  topClients,
+} from './metrics.js';
 
 /**
  * A small fixture day (Tue 2026-11-17) + one Saturday call and one evening call:
@@ -167,6 +176,127 @@ describe('operatorStats', () => {
     expect(summarize(day, { ...range, scope: 'working' }).inbound.answered).toBe(
       rows.reduce((s, r) => s + r.answered + r.transferredIn, 0),
     );
+  });
+});
+
+describe('surveyByOperator', () => {
+  const at = (start: string) => {
+    const c = day.find((x) => x.start === start);
+    if (!c) throw new Error(`no fixture call at ${start}`);
+    return c.id;
+  };
+  const A = at('2026-11-17 09:10:00'); // answered by 101
+  const F = at('2026-11-17 11:30:00'); // answered by 103
+  const K = at('2026-11-14 10:00:00'); // Saturday, answered by 101
+  const ratings = [
+    { linkedid: A, uniqueid: A, operatorExt: '101', score: 5 },
+    { linkedid: A, uniqueid: A, operatorExt: '101', score: 1 }, // a second answer for the same call: ignored
+    { linkedid: '', uniqueid: F, operatorExt: '', score: 3 }, // matched by uniqueid, operator from the call
+    { linkedid: K, uniqueid: K, operatorExt: '101', score: 4 },
+    { linkedid: 'nope', uniqueid: 'nope', operatorExt: '101', score: 1 }, // call outside the range
+    { linkedid: F, uniqueid: F, operatorExt: '103', score: 7 }, // not a 1–5 answer
+  ];
+
+  it('counts each in-scope call once, falls back to the final operator', () => {
+    expect(surveyByOperator(ratings, day, 'working')).toEqual(
+      new Map([
+        ['101', { count: 1, sum: 5 }],
+        ['103', { count: 1, sum: 3 }],
+      ]),
+    );
+  });
+
+  it('all scope includes the Saturday call', () => {
+    expect(surveyByOperator(ratings, day, 'all').get('101')).toEqual({ count: 2, sum: 9 });
+  });
+
+  it('after a transfer the rating goes to the operator who talked last, not the queue member', () => {
+    const D = at('2026-11-17 10:30:00'); // 101 → 103
+    const E = at('2026-11-17 11:00:00'); // 106 → 103 → 111
+    const got = surveyByOperator(
+      [
+        { linkedid: D, uniqueid: D, operatorExt: '101', score: 2 },
+        { linkedid: E, uniqueid: E, operatorExt: '106', score: 5 },
+      ],
+      day,
+      'working',
+    );
+    expect(got).toEqual(
+      new Map([
+        ['103', { count: 1, sum: 2 }],
+        ['111', { count: 1, sum: 5 }],
+      ]),
+    );
+  });
+
+  it('ignores ratings of outbound and internal calls (operators testing the survey)', () => {
+    const G = day.find((c) => c.direction === 'outbound' && c.status === 'answered')?.id ?? '';
+    const I = day.find((c) => c.direction === 'internal')?.id ?? '';
+    expect(
+      surveyByOperator(
+        [
+          { linkedid: G, uniqueid: G, operatorExt: '101', score: 5 },
+          { linkedid: I, uniqueid: I, operatorExt: '103', score: 1 },
+        ],
+        day,
+        'all',
+      ),
+    ).toEqual(new Map());
+  });
+
+  it('PBX CDR without a linkedid column (PBX_CDR_HAS_LINKEDID=false, the production PBX): matched by the caller uniqueid', () => {
+    // CdrRepository then returns uniqueid as linkedid; the AGI stores the caller channel's uniqueid, and
+    // CHANNEL(linkedid) of an inbound call is that same uniqueid (the trunk channel is the oldest one).
+    const noLinkedid = (rows: ReturnType<typeof inbound>) => rows.map((r) => ({ ...r, linkedid: r.uniqueid }));
+    const a = inbound({
+      at: '2026-11-17 09:10:00',
+      caller: '998901111111',
+      outcome: 'answered',
+      answeredBy: '101',
+      talk: 100,
+    });
+    const f = inbound({
+      at: '2026-11-17 11:30:00',
+      caller: 'anonymous',
+      outcome: 'answered',
+      answeredBy: '103',
+      talk: 45,
+    });
+    const flat = calls(noLinkedid(a), noLinkedid(f));
+    const callerA = a[0].uniqueid;
+    const callerF = f[0].uniqueid;
+    expect(flat.map((c) => c.id)).toEqual(expect.arrayContaining([callerA, callerF]));
+    const got = surveyByOperator(
+      [
+        { linkedid: callerA, uniqueid: callerA, operatorExt: '101', score: 5 },
+        { linkedid: '', uniqueid: callerF, operatorExt: '', score: 2 }, // operator from the call
+      ],
+      flat,
+      'working',
+    );
+    expect(got).toEqual(
+      new Map([
+        ['101', { count: 1, sum: 5 }],
+        ['103', { count: 1, sum: 2 }],
+      ]),
+    );
+  });
+
+  it('an excluded operator keeps no row even with ratings; the others keep theirs', () => {
+    const survey = surveyByOperator(ratings, day, 'all');
+    const rows = operatorStats(day, { scope: 'all', names, groupOf, survey, excluded: new Set(['101']) });
+    expect(rows.find((r) => r.ext === '101')).toBeUndefined();
+    expect(rows.find((r) => r.ext === '103')).toMatchObject({ surveyCount: 1, surveyAvg: 3 });
+  });
+
+  it('feeds surveyCount / surveyAvg of the operator table', () => {
+    const survey = surveyByOperator(ratings, day, 'all');
+    const rows = operatorStats(day, { scope: 'all', names, groupOf, knownExtensions: ['120'], survey });
+    const by = Object.fromEntries(rows.map((r) => [r.ext, r]));
+    expect(by['101']).toMatchObject({ surveyCount: 2, surveyAvg: 4.5 });
+    expect(by['103']).toMatchObject({ surveyCount: 1, surveyAvg: 3 });
+    expect(by['120']).toMatchObject({ surveyCount: 0, surveyAvg: null });
+    expect(operatorStats(day, { scope: 'all', names, groupOf })[0]).toMatchObject({ surveyCount: 0, surveyAvg: null });
   });
 });
 

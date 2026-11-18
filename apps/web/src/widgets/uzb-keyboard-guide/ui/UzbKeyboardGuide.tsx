@@ -143,7 +143,7 @@ export function UzbKeyboardGuide() {
                 height="20"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#38bdf8"
+                stroke="var(--info)"
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"

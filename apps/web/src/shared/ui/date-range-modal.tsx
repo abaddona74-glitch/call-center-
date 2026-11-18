@@ -43,7 +43,7 @@ function DmyInput({
             if (p && (!max || p <= max)) onChange(p);
           }}
           className={cn(
-            'h-10 w-full rounded-lg border border-chart-6/45 bg-sidebar px-3 pr-9 text-[15px] font-bold text-white outline-none focus:border-chart-6',
+            'h-10 w-full rounded-lg border border-chart-6/45 bg-sidebar px-3 pr-9 text-[15px] font-bold text-ink outline-none focus:border-chart-6',
             invalid && 'border-destructive',
           )}
         />
@@ -110,7 +110,7 @@ export function DateRangeModal({
                 type="button"
                 onClick={() => setRange({ from: p.from, to: p.to })}
                 className={cn(
-                  'rounded-md border border-white/12 bg-white/5 px-3 py-[5px] text-xs font-semibold text-white transition-colors hover:bg-white/10',
+                  'rounded-md border border-tint/12 bg-tint/5 px-3 py-[5px] text-xs font-semibold text-ink transition-colors hover:bg-tint/10',
                   p.from === range.from && p.to === range.to && 'border-chart-6/60 bg-chart-6/20',
                 )}
               >

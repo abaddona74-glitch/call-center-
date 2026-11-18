@@ -41,7 +41,14 @@ export function DistributionDonut({ summary }: { summary: StatsSummary | undefin
             role="img"
             aria-label={t('distribution')}
           >
-            <circle cx="21" cy="21" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4.8" />
+            <circle
+              cx="21"
+              cy="21"
+              r={R}
+              fill="none"
+              stroke="color-mix(in srgb, var(--tint) 6%, transparent)"
+              strokeWidth="4.8"
+            />
             {slices.map((x, i) => {
               const pct = total ? (x.value / total) * 100 : 0;
               const el = (
@@ -64,7 +71,7 @@ export function DistributionDonut({ summary }: { summary: StatsSummary | undefin
               offset -= pct;
               return el;
             })}
-            <text x="21" y="21.5" fontSize="7.5" fontWeight="700" textAnchor="middle" fill="#f8fafc">
+            <text x="21" y="21.5" fontSize="7.5" fontWeight="700" textAnchor="middle" fill="var(--ink)">
               {n(total)}
             </text>
             <text x="21" y="26.2" fontSize="2.7" fontWeight="500" textAnchor="middle" fill="var(--muted-foreground)">
@@ -79,8 +86,8 @@ export function DistributionDonut({ summary }: { summary: StatsSummary | undefin
                 onMouseLeave={() => setFocus(null)}
                 className={cn(
                   'flex items-center gap-2 py-[4.5px] text-[12.5px]',
-                  i > 0 && 'border-t border-white/8',
-                  focus === i && 'text-white',
+                  i > 0 && 'border-t border-tint/8',
+                  focus === i && 'text-ink',
                 )}
               >
                 <i className="size-2.5 shrink-0 rounded-[3px]" style={{ background: x.color }} />
@@ -88,7 +95,7 @@ export function DistributionDonut({ summary }: { summary: StatsSummary | undefin
                 <span className="w-[50px] text-right text-muted-foreground tabular-nums">
                   {total ? ((x.value / total) * 100).toFixed(1) : '0.0'}%
                 </span>
-                <b className="w-10 text-right text-white tabular-nums">{n(x.value)}</b>
+                <b className="w-10 text-right text-ink tabular-nums">{n(x.value)}</b>
               </li>
             ))}
           </ul>

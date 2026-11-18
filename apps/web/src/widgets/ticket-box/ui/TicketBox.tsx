@@ -67,7 +67,7 @@ export function TicketBox({
       {ticket ? (
         <BoxContent key={ticket.id} ticket={ticket} maxFileMb={maxFileMb} onClose={onClose} />
       ) : (
-        <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-sm text-[#94a3b8]">
+        <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 text-sm text-mute">
           {query.isError ? (
             <>
               <span>{t('box.notFound')}</span>
@@ -76,7 +76,7 @@ export function TicketBox({
               </KdsAction>
             </>
           ) : (
-            <span className="size-10 animate-[tkSpin_0.8s_linear_infinite] rounded-full border-[3px] border-[rgba(56,189,248,0.2)] border-t-[#38bdf8]" />
+            <span className="size-10 animate-[tkSpin_0.8s_linear_infinite] rounded-full border-[3px] border-[rgba(56,189,248,0.2)] border-t-info" />
           )}
         </div>
       )}
@@ -153,8 +153,8 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
       <KdsModalBody>
         {ticket.resolution && <ResolutionBanner ticket={ticket} />}
 
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 rounded-xl border border-white/7 bg-[rgba(30,41,59,0.5)] px-4 py-3">
-          <Meta label={t('box.metaPhone')} color="#38bdf8">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3 rounded-xl border border-tint/7 bg-glass-2/50 px-4 py-3">
+          <Meta label={t('box.metaPhone')} color="var(--info)">
             {ticket.customerPhone ? formatUzPhone(ticket.customerPhone) : t('box.noValue')}
           </Meta>
           <Meta label={t('box.metaName')}>{ticket.customerName || t('box.noValue')}</Meta>
@@ -163,7 +163,7 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               <>
                 {ticket.organization.name}
                 {ticket.organization.tin && (
-                  <span className="block text-[11.5px] font-semibold text-[#94a3b8]">
+                  <span className="block text-[11.5px] font-semibold text-mute">
                     {t('form.organizationTin', { tin: ticket.organization.tin })}
                   </span>
                 )}
@@ -172,7 +172,7 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               t('box.noValue')
             )}
           </Meta>
-          <Meta label={t('box.metaRegion')} color={ticket.region ? '#c084fc' : '#94a3b8'}>
+          <Meta label={t('box.metaRegion')} color={ticket.region ? 'var(--violet)' : 'var(--mute)'}>
             {ticket.region ? refName(ticket.region, lang) : t('card.noRegion')}
           </Meta>
           <Meta label={t('box.metaCity')}>{ticket.city ? refName(ticket.city, lang) : t('box.noValue')}</Meta>
@@ -183,26 +183,26 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
           <Meta label={t('box.metaCreated')}>
             <span title={dateTime(ticket.createdAt)}>{timeAgo(ticket.createdAt, t)}</span>
           </Meta>
-          <Meta label={t('box.metaAssignee')} color={ticket.assignee ? '#c084fc' : '#94a3b8'}>
+          <Meta label={t('box.metaAssignee')} color={ticket.assignee ? 'var(--violet)' : 'var(--mute)'}>
             {ticket.assignee ? personName(ticket.assignee) : t('box.noAssignee')}
           </Meta>
-          <Meta label={t('box.metaDue')} color={ticket.overdue ? '#f87171' : undefined}>
+          <Meta label={t('box.metaDue')} color={ticket.overdue ? 'var(--danger)' : undefined}>
             {ticket.dueAt ? dateTime(ticket.dueAt) : t('box.noValue')}
           </Meta>
           {ticket.callbackDueAt && (
-            <Meta label={t('box.metaCallbackDue')} color={ticket.callbackOverdue ? '#f87171' : undefined}>
+            <Meta label={t('box.metaCallbackDue')} color={ticket.callbackOverdue ? 'var(--danger)' : undefined}>
               {dateTime(ticket.callbackDueAt)}
             </Meta>
           )}
           {ticket.lastContact && (
-            <Meta label={t('box.metaLastContact')} color={ticket.lastContactIsMe ? '#38bdf8' : undefined}>
+            <Meta label={t('box.metaLastContact')} color={ticket.lastContactIsMe ? 'var(--info)' : undefined}>
               {personName(ticket.lastContact)} · {timeAgo(ticket.lastContact.at, t)}
             </Meta>
           )}
         </div>
 
         <Section title={t('box.description')}>
-          <div className="rounded-xl border border-white/8 bg-[rgba(15,23,42,0.6)] px-[18px] py-4 text-[13.5px] leading-[1.6] break-words whitespace-pre-wrap text-[#e2e8f0]">
+          <div className="rounded-xl border border-tint/8 bg-glass/60 px-[18px] py-4 text-[13.5px] leading-[1.6] break-words whitespace-pre-wrap text-foreground">
             {ticket.description || t('box.noDescription')}
           </div>
         </Section>
@@ -224,40 +224,40 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
         )}
 
         <Section title={t('box.timeline')} icon={<Icon name="clock" className="size-3.5" />}>
-          <ol className="relative ml-1.5 flex flex-col gap-2.5 border-l border-white/10 pl-4">
+          <ol className="relative ml-1.5 flex flex-col gap-2.5 border-l border-tint/10 pl-4">
             {ticket.events.map((e) => (
               <TimelineItem key={e.id} event={e} />
             ))}
           </ol>
         </Section>
 
-        <div className="mt-2.5 border-t border-white/8 pt-3.5">
-          <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-bold text-[#94a3b8]">
+        <div className="mt-2.5 border-t border-tint/8 pt-3.5">
+          <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-bold text-mute">
             <LegacyIcon name="message" className="size-3.5" />
             {t('box.chat')}
           </div>
           <div className="flex flex-col gap-2.5">
             {ticket.comments.length === 0 ? (
-              <div className="text-xs text-[#64748b] italic">{t('box.noReplies')}</div>
+              <div className="text-xs text-dim italic">{t('box.noReplies')}</div>
             ) : (
               ticket.comments.map((c) => (
                 <div
                   key={c.id}
                   className={cn(
-                    'rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5',
+                    'rounded-[10px] border border-tint/6 bg-glass-2/40 px-3.5 py-2.5',
                     c.isSystem && 'border-l-[3px] border-l-[#ef4444] bg-[rgba(239,68,68,0.08)]',
                   )}
                 >
                   <div className="mb-1 flex justify-between text-[11.5px]">
-                    <span className={cn('font-bold', c.isSystem ? 'text-[#f87171]' : 'text-[#38bdf8]')}>
+                    <span className={cn('font-bold', c.isSystem ? 'text-danger' : 'text-info')}>
                       {personName(c.author)}
                     </span>
-                    <span className="text-[#64748b]" title={dateTime(c.createdAt)}>
+                    <span className="text-dim" title={dateTime(c.createdAt)}>
                       {timeAgo(c.createdAt, t)}
                     </span>
                   </div>
                   {c.body && (
-                    <div className="text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap text-[#e2e8f0]">
+                    <div className="text-[12.5px] leading-[1.5] break-words whitespace-pre-wrap text-foreground">
                       {c.body}
                     </div>
                   )}
@@ -283,7 +283,7 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
                   <AttachButton onFiles={(added) => setFiles((cur) => acceptFiles(cur, added, maxFileMb, t))} />
-                  <span className="text-[11px] text-[#64748b]">{t('box.orPaste')}</span>
+                  <span className="text-[11px] text-dim">{t('box.orPaste')}</span>
                 </div>
                 <KdsAction
                   variant="accept"
@@ -356,13 +356,13 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
             </KdsAction>
           )}
           {workingByOther && ticket.assignee && (
-            <span className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-3 py-1.5 text-xs font-semibold text-[#f59e0b]">
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-3 py-1.5 text-xs font-semibold text-shade-[#f59e0b]">
               <LegacyIcon name="lock" className="size-3.5" />
               {t('box.lockedBy', { name: personName(ticket.assignee) })}
             </span>
           )}
           {ticket.status === 'closed' && (
-            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#94a3b8]">
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-mute">
               <Icon name="tick-circle" className="size-4" />
               {t('status.closed')}
               {ticket.callbackOutcome && ` · ${t(`outcome.${ticket.callbackOutcome}`)}`}
@@ -409,26 +409,26 @@ function ResolutionBanner({ ticket }: { ticket: TicketDetail }) {
       className={cn(
         'flex flex-col gap-1.5 rounded-[10px] border-[1.5px] border-l-4 px-3.5 py-3',
         done
-          ? 'border-[rgba(16,185,129,0.38)] border-l-[#10b981] bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(15,23,42,0.85))]'
-          : 'border-[rgba(239,68,68,0.38)] border-l-[#ef4444] bg-[linear-gradient(135deg,rgba(239,68,68,0.14),rgba(15,23,42,0.85))]',
+          ? 'border-[rgba(16,185,129,0.38)] border-l-[#10b981] bg-[linear-gradient(135deg,rgba(16,185,129,0.14),color-mix(in_srgb,var(--glass)_85%,transparent))]'
+          : 'border-[rgba(239,68,68,0.38)] border-l-[#ef4444] bg-[linear-gradient(135deg,rgba(239,68,68,0.14),color-mix(in_srgb,var(--glass)_85%,transparent))]',
       )}
     >
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
             'inline-flex items-center gap-1.5 text-[13px] font-bold',
-            done ? 'text-[#34d399]' : 'text-[#f87171]',
+            done ? 'text-positive' : 'text-danger',
           )}
         >
           <Icon name={done ? 'tick-circle' : 'close-circle'} className="size-4" />
           {t('box.metaResolution')}: {t(`resolution.${ticket.resolution as 'done' | 'rejected'}`)}
         </span>
-        <span className="text-[11px] text-[#94a3b8]">
+        <span className="text-[11px] text-mute">
           {personName(ticket.resolvedBy)} · {timeAgo(ticket.resolvedAt, t)}
         </span>
       </div>
       {ticket.resolutionNote && (
-        <div className="rounded-[7px] border border-white/8 bg-black/28 px-3 py-2 text-[12.5px] leading-[1.45] font-medium break-words whitespace-pre-wrap text-[#e2e8f0]">
+        <div className="rounded-[7px] border border-tint/8 bg-well/28 px-3 py-2 text-[12.5px] leading-[1.45] font-medium break-words whitespace-pre-wrap text-foreground">
           {ticket.resolutionNote}
         </div>
       )}
@@ -440,34 +440,29 @@ function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
   const { t } = useTranslation('ticket');
   const tone =
     call.attemptStatus === 'connected'
-      ? 'text-[#34d399]'
+      ? 'text-positive'
       : call.attemptStatus === 'not_connected' || call.attemptStatus === 'failed'
-        ? 'text-[#f87171]'
-        : 'text-[#fbbf24]';
+        ? 'text-danger'
+        : 'text-caution';
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-white/6 bg-[rgba(30,41,59,0.4)] px-3.5 py-2.5 text-[12.5px]">
-      <span className="inline-flex items-center gap-1.5 font-bold text-[#e2e8f0]">
-        <Icon name={call.kind === 'origin' ? 'call-incoming' : 'call'} className="size-3.5 text-[#38bdf8]" />
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[10px] border border-tint/6 bg-glass-2/40 px-3.5 py-2.5 text-[12.5px]">
+      <span className="inline-flex items-center gap-1.5 font-bold text-foreground">
+        <Icon name={call.kind === 'origin' ? 'call-incoming' : 'call'} className="size-3.5 text-info" />
         {call.kind === 'origin' ? t('box.callOrigin') : t('box.callBack')}
       </span>
-      <span className="text-[#94a3b8]">{dateTime(call.startedAt)}</span>
-      {call.operator && <span className="text-[#cbd5e1]">{personName(call.operator)}</span>}
+      <span className="text-mute">{dateTime(call.startedAt)}</span>
+      {call.operator && <span className="text-ink-2">{personName(call.operator)}</span>}
       {call.talkSeconds !== null && call.talkSeconds > 0 && (
-        <span className="text-[#94a3b8]">{t('box.talk', { n: call.talkSeconds })}</span>
+        <span className="text-mute">{t('box.talk', { n: call.talkSeconds })}</span>
       )}
       {call.attemptStatus && <span className={cn('font-semibold', tone)}>{t(`attempt.${call.attemptStatus}`)}</span>}
-      {call.outcome && <span className="font-semibold text-[#c084fc]">{t(`outcome.${call.outcome}`)}</span>}
+      {call.outcome && <span className="font-semibold text-violet">{t(`outcome.${call.outcome}`)}</span>}
       <span className="ml-auto">
         {call.recording.status === 'found' ? (
           // oxlint-disable-next-line jsx-a11y/media-has-caption -- phone recordings have no captions
-          <audio
-            controls
-            preload="none"
-            src={recordingUrl(ticketId, call.id)}
-            className="h-8 w-[260px] [color-scheme:dark]"
-          />
+          <audio controls preload="none" src={recordingUrl(ticketId, call.id)} className="h-8 w-[260px]" />
         ) : (
-          <span className="text-[11.5px] text-[#64748b]">{t(`box.recording.${call.recording.status}`)}</span>
+          <span className="text-[11.5px] text-dim">{t(`box.recording.${call.recording.status}`)}</span>
         )}
       </span>
     </div>
@@ -485,15 +480,13 @@ function TimelineItem({ event }: { event: TicketEvent }) {
       : t(`event.${event.kind}`);
   return (
     <li className="relative">
-      <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-[#0f172a] bg-[#38bdf8]" />
+      <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full border-2 border-sidebar bg-info" />
       <div className="flex flex-wrap items-baseline gap-x-2 text-[12.5px]">
-        <span className="font-bold text-[#e2e8f0]">{label}</span>
-        <span className="text-[#94a3b8]">{event.actor ? personName(event.actor) : t('box.system')}</span>
-        <span className="text-[11px] text-[#64748b]">{dateTime(event.createdAt)}</span>
+        <span className="font-bold text-foreground">{label}</span>
+        <span className="text-mute">{event.actor ? personName(event.actor) : t('box.system')}</span>
+        <span className="text-[11px] text-dim">{dateTime(event.createdAt)}</span>
       </div>
-      {event.note && (
-        <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-[#cbd5e1]">{event.note}</div>
-      )}
+      {event.note && <div className="mt-0.5 text-[12px] break-words whitespace-pre-wrap text-ink-2">{event.note}</div>}
     </li>
   );
 }
@@ -501,7 +494,7 @@ function TimelineItem({ event }: { event: TicketEvent }) {
 function Section({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-[#94a3b8]">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-mute">
         {icon}
         {title}
       </div>
@@ -513,8 +506,8 @@ function Section({ title, icon, children }: { title: string; icon?: ReactNode; c
 function Meta({ label, color, children }: { label: string; color?: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-[3px]">
-      <span className="text-[11px] font-semibold tracking-[0.5px] text-[#64748b] uppercase">{label}</span>
-      <span className="text-[13px] font-bold break-words text-[#f1f5f9]" style={color ? { color } : undefined}>
+      <span className="text-[11px] font-semibold tracking-[0.5px] text-dim uppercase">{label}</span>
+      <span className="text-[13px] font-bold break-words text-ink" style={color ? { color } : undefined}>
         {children}
       </span>
     </div>

@@ -11,7 +11,7 @@
   justify-content: center;
   overflow-x: hidden;
   padding: 20px;
-  color: #f8fafc;
+  color: var(--ink);
   background-color: #0a0e17;
   background-image:
     radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
@@ -24,8 +24,8 @@
   z-index: 1;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--tint) 2%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--tint) 2%, transparent) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -38,10 +38,10 @@
   overflow: hidden;
   border: 1px solid rgba(59, 130, 246, 0.22);
   border-radius: 26px;
-  background: rgba(15, 23, 42, 0.75);
+  background: color-mix(in srgb, var(--glass) 75%, transparent);
   backdrop-filter: blur(24px);
   box-shadow:
-    0 25px 60px -12px rgba(0, 0, 0, 0.65),
+    0 25px 60px -12px color-mix(in srgb, var(--shadow-color) 65%, transparent),
     0 0 45px rgba(59, 130, 246, 0.18);
   animation: lg-fade-in 0.4s ease-out;
 }
@@ -56,8 +56,12 @@
   justify-content: flex-end;
   overflow: hidden;
   padding: 35px 24px 24px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(155deg, rgba(30, 41, 59, 0.65) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border-right: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--glass-2) 65%, transparent) 0%,
+    color-mix(in srgb, var(--glass) 90%, transparent) 100%
+  );
   user-select: none;
 }
 .lg-stage::before,
@@ -86,7 +90,7 @@
   width: 100%;
   max-width: 370px;
   height: auto;
-  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 15px 30px color-mix(in srgb, var(--shadow-color) 45%, transparent));
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lg-stage-caption {
@@ -96,15 +100,15 @@
   margin-top: 14px;
   font-size: 11.5px;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--mute);
 }
 .lg-stage-caption i {
   display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 8px #34d399;
+  background: var(--positive);
+  box-shadow: 0 0 8px var(--positive);
 }
 
 .lg-char {
@@ -259,7 +263,7 @@
   margin: 0 auto 16px;
   border: 1px solid rgba(59, 130, 246, 0.45);
   border-radius: 16px;
-  color: #60a5fa;
+  color: var(--link);
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.35));
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }
@@ -268,12 +272,12 @@
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.4px;
-  color: #fff;
+  color: var(--ink);
 }
 .lg-subtitle {
   font-size: 13px;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--mute);
 }
 
 .lg-alert {
@@ -286,13 +290,13 @@
   border-radius: 10px;
   font-size: 12.5px;
   line-height: 1.45;
-  color: #f87171;
+  color: var(--danger);
   background: rgba(239, 68, 68, 0.15);
   animation: lg-fade-in 0.2s ease-out;
 }
 .lg-alert.is-success {
   border-color: rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  color: var(--positive);
   background: rgba(16, 185, 129, 0.12);
 }
 
@@ -305,7 +309,7 @@
   margin-bottom: 8px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 .lg-input-wrap {
   position: relative;
@@ -321,29 +325,29 @@
   height: 18px;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--dim);
   pointer-events: none;
   transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lg-input-wrap:focus-within .lg-input-icon {
-  color: #38bdf8;
+  color: var(--info);
 }
 .lg-input {
   position: relative;
   z-index: 1;
   width: 100%;
   padding: 15px 42px 13px 44px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid color-mix(in srgb, var(--mute) 22%, transparent);
   border-radius: 12px;
   outline: none;
   font-size: 14px;
-  color: #fff;
-  background: rgba(15, 23, 42, 0.85);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--glass) 85%, transparent);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .lg-input:focus {
   border-color: rgba(56, 189, 248, 0.6);
-  background: rgba(15, 23, 42, 0.98);
+  background: color-mix(in srgb, var(--glass) 98%, transparent);
   box-shadow:
     0 0 0 3px rgba(56, 189, 248, 0.2),
     0 0 20px rgba(56, 189, 248, 0.15);
@@ -356,7 +360,7 @@
   padding: 0 5px;
   border-radius: 4px;
   font-size: 13.5px;
-  color: #94a3b8;
+  color: var(--mute);
   pointer-events: none;
   transform: translateY(-50%);
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
@@ -367,9 +371,9 @@
   border: 1px solid rgba(56, 189, 248, 0.3);
   font-size: 11px;
   font-weight: 700;
-  color: #38bdf8;
-  background: #0f172a;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  color: var(--info);
+  background: var(--sidebar);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 40%, transparent);
   transform: translateY(0);
 }
 .lg-zigzag {
@@ -407,13 +411,13 @@
   padding: 4px;
   border: none;
   border-radius: 6px;
-  color: #64748b;
+  color: var(--dim);
   background: transparent;
   cursor: pointer;
   transition: color 0.15s;
 }
 .lg-toggle-pw:hover {
-  color: #cbd5e1;
+  color: var(--ink-2);
 }
 
 .lg-forgot-row {
@@ -427,13 +431,13 @@
   border: none;
   font-size: 12.5px;
   font-weight: 500;
-  color: #60a5fa;
+  color: var(--link);
   background: none;
   cursor: pointer;
   transition: color 0.2s;
 }
 .lg-link:hover {
-  color: #93c5fd;
+  color: var(--link-soft);
   text-decoration: underline;
 }
 .lg-link-btn {
@@ -445,13 +449,13 @@
   border-radius: 8px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #60a5fa;
+  color: var(--link);
   background: transparent;
   cursor: pointer;
   transition: all 0.15s;
 }
 .lg-link-btn:hover {
-  color: #93c5fd;
+  color: var(--link-soft);
   background: rgba(59, 130, 246, 0.1);
 }
 .lg-link-btn:disabled {
@@ -474,7 +478,7 @@
   font-weight: 700;
   color: #fff;
   background: linear-gradient(135deg, #1e293b, #334155);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--shadow-color) 35%, transparent);
   cursor: pointer;
   transition:
     width 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275),
@@ -484,7 +488,7 @@
     box-shadow 0.2s ease;
 }
 .lg-submit.is-ready {
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #38bdf8, #3b82f6);
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, var(--info), #3b82f6);
   background-size: 300% 100%;
   box-shadow: 0 4px 20px rgba(59, 130, 246, 0.45);
   animation: lg-flow-fill 4s linear infinite;
@@ -566,14 +570,14 @@
   flex: 1;
   height: 1px;
   content: '';
-  background: rgba(148, 163, 184, 0.25);
+  background: color-mix(in srgb, var(--mute) 25%, transparent);
 }
 .lg-divider span {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--mute);
 }
 
 .lg-passkey-btn {
@@ -587,7 +591,7 @@
   border-radius: 12px;
   font-size: 14px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--info);
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(59, 130, 246, 0.25));
   box-shadow: 0 4px 18px rgba(56, 189, 248, 0.2);
   cursor: pointer;
@@ -606,7 +610,7 @@
   margin-top: 6px;
   font-size: 12px;
   text-align: center;
-  color: #f87171;
+  color: var(--danger);
 }
 
 .lg-footer {
@@ -616,7 +620,7 @@
   gap: 5px;
   margin-top: 24px;
   font-size: 11.5px;
-  color: #64748b;
+  color: var(--dim);
 }
 
 /* ---- recovery modal ---- */
@@ -627,10 +631,10 @@
   padding: 32px 28px;
   border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 20px;
-  color: #f8fafc;
-  background: rgba(15, 23, 42, 0.95);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--glass) 95%, transparent);
   box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.8),
+    0 25px 60px color-mix(in srgb, var(--shadow-color) 80%, transparent),
     0 0 35px rgba(59, 130, 246, 0.15);
 }
 .lg-modal-header {
@@ -646,33 +650,33 @@
   margin: 0 auto 14px;
   border: 1px solid rgba(59, 130, 246, 0.35);
   border-radius: 14px;
-  color: #60a5fa;
+  color: var(--link);
   background: rgba(59, 130, 246, 0.15);
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
 }
 .lg-modal-badge.is-green {
   border-color: rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  color: var(--positive);
   background: rgba(16, 185, 129, 0.15);
 }
 .lg-modal-badge.is-indigo {
   border-color: rgba(99, 102, 241, 0.4);
-  color: #818cf8;
+  color: var(--brand-soft);
   background: rgba(99, 102, 241, 0.15);
 }
 .lg-modal-title {
   margin-bottom: 6px;
   font-size: 19px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
 }
 .lg-modal-subtitle {
   font-size: 13px;
   line-height: 1.45;
-  color: #94a3b8;
+  color: var(--mute);
 }
 .lg-modal-subtitle strong {
-  color: #60a5fa;
+  color: var(--link);
 }
 
 .lg-countdown {
@@ -686,12 +690,12 @@
   border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 20px;
   font-size: 12.5px;
-  color: #93c5fd;
+  color: var(--link-soft);
   background: rgba(59, 130, 246, 0.12);
 }
 .lg-countdown.is-expired {
   border-color: rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+  color: var(--danger-soft);
   background: rgba(239, 68, 68, 0.15);
 }
 .lg-warning {
@@ -711,7 +715,7 @@
   margin-top: 6px;
   font-size: 11.5px;
   line-height: 1.4;
-  color: #94a3b8;
+  color: var(--mute);
 }
 
 @keyframes lg-fade-in {
@@ -844,12 +848,12 @@
     flex-direction: column;
     max-width: 410px;
     border-radius: 20px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 15px 35px color-mix(in srgb, var(--shadow-color) 60%, transparent);
   }
   .lg-stage {
     padding: 10px 14px 4px;
     border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   }
   .lg-stage-svg {
     width: 150px;
@@ -871,4 +875,22 @@
   .lg-submit.is-ready {
     animation: none !important;
   }
+}
+
+/* Light theme (no .dark on <html>): legacy only had the dark login; same layout on a light backdrop. */
+:root:not(.dark) .lg-page {
+  background-color: var(--background);
+}
+:root:not(.dark) .lg-card {
+  border-color: rgba(59, 130, 246, 0.18);
+  box-shadow:
+    0 25px 60px -12px rgba(15, 23, 42, 0.18),
+    0 0 45px rgba(59, 130, 246, 0.1);
+}
+:root:not(.dark) .lg-float-label,
+:root:not(.dark) .lg-input:not(:placeholder-shown) ~ .lg-float-label {
+  box-shadow: none;
+}
+:root:not(.dark) .lg-warning {
+  color: var(--caution);
 }

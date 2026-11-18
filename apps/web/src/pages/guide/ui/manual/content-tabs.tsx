@@ -13,7 +13,7 @@ export function RulesTab() {
       <div className="manual-card manual-card--accent">
         <h4 className="manual-h4 is-accent">1. Qo'ng'iroqni qabul qilish (Birinchi 3 soniya)</h4>
         <div className="manual-quote">
-          <strong className="text-white">🗣️ Rasmiy salomlashish shabloni:</strong>
+          <strong className="text-ink">🗣️ Rasmiy salomlashish shabloni:</strong>
           <br />
           <span className="manual-say">
             "Assalomu alaykum! Call Center xizmati, operator [Ismingiz] sizni eshitmoqda. Qanday yordam bera olaman?"
@@ -51,8 +51,8 @@ export function RulesTab() {
         <table className="manual-table manual-table--dont">
           <thead>
             <tr>
-              <th className="w-[45%] text-[#fca5a5]">❌ Noto'g'ri (Man etiladi)</th>
-              <th className="text-[#86efac]">✅ To'g'ri (Tavsiya etiladi)</th>
+              <th className="w-[45%] text-danger-soft">❌ Noto'g'ri (Man etiladi)</th>
+              <th className="text-[#86efac] light:text-positive">✅ To'g'ri (Tavsiya etiladi)</th>
             </tr>
           </thead>
           <tbody>
@@ -93,7 +93,7 @@ export function TransferTab() {
         <h4 className="manual-h4 is-accent">🔄 Qo'ng'iroqni boshqa mutaxassisga yo'naltirish (Transfer)</h4>
         <div className="manual-grid-2">
           <div className="manual-box manual-box--success">
-            <strong className="manual-box-title text-[#34d399]">1. Attended Transfer (Asosiy / Tavsiya):</strong>
+            <strong className="manual-box-title text-positive">1. Attended Transfer (Asosiy / Tavsiya):</strong>
             <ol className="manual-box-list">
               <li>
                 3CX dasturida <b>Transfer</b> tugmasini bosing.
@@ -106,7 +106,7 @@ export function TransferTab() {
             </ol>
           </div>
           <div className="manual-box manual-box--accent">
-            <strong className="manual-box-title text-[#38bdf8]">2. Blind Transfer (Tezkor o'tkazish):</strong>
+            <strong className="manual-box-title text-info">2. Blind Transfer (Tezkor o'tkazish):</strong>
             <p className="manual-box-text">
               Agar qo'ng'iroqni to'g'ridan-to'g'ri navbatga yoki mas'ulga suhbatsiz o'tkazish zarur bo'lsa,{' '}
               <b>Blind Transfer</b> tugmasini bosib, ichki raqamni terishingiz kifoya.
@@ -150,7 +150,7 @@ export function TelegramTab() {
         rasmiylashtirish shart.
       </p>
       <div className="manual-box manual-box--telegram">
-        <strong className="manual-box-title text-[#38bdf8]">Bosqichma-bosqich tartib:</strong>
+        <strong className="manual-box-title text-info">Bosqichma-bosqich tartib:</strong>
         <ol className="manual-box-list manual-box-list--13">
           <li>
             Asosiy sahifadagi <b>Telegram Form Dashboard</b> kartasidagi «🖥️ Shu yerda ochish» tugmasini bosing.
@@ -200,7 +200,7 @@ export function ScheduleTab() {
           • Qo'ng'iroq kelganda uni qizil tugma (<b>Reject / Deny</b>) orqali rad etib o'chirib qo'yish.
           <br />• Telefonni beparvo qoldirib ketish yoki sababsiz "DND" (Do Not Disturb) rejimiga qo'yish.
           <br />
-          <span className="font-semibold text-[#fca5a5]">
+          <span className="font-semibold text-danger-soft">
             ℹ️ Barcha rad etishlar va tanaffus vaqtlari markaziy tizimda soniyasigacha avtomatik qayd etiladi.
           </span>
         </p>
@@ -215,21 +215,21 @@ export function TroubleshootTab() {
     <div className="manual-card manual-card--accent">
       <h4 className="manual-h4 is-accent">🛠️ Texnik nosozliklarda nima qilish kerak?</h4>
       <div className="manual-step">
-        <strong className="text-white">1. Ovoz eshitilmasa yoki mikrofon ishlamasa:</strong>
+        <strong className="text-ink">1. Ovoz eshitilmasa yoki mikrofon ishlamasa:</strong>
         <p>
           3CX Softphone dasturida <b>Settings (⚙️)</b> ➔ <b>Audio Options</b> bo'limiga kiring. Microphone va Speaker
           bandlarida kompyuteringizga ulangan asosiy garnitura (Headset) tanlanganini tekshiring.
         </p>
       </div>
       <div className="manual-step">
-        <strong className="text-white">2. 3CX "Not Connected" yoki uzilib qolsa:</strong>
+        <strong className="text-ink">2. 3CX "Not Connected" yoki uzilib qolsa:</strong>
         <p>
           Tarmoq kabeli ulanganini tekshiring. PBX server IP: <code className="manual-code">{PBX_HOST}</code>, Port:{' '}
           <code className="manual-code">{SIP_PORT}</code>.
         </p>
       </div>
       <div className="manual-step">
-        <strong className="text-white">3. Masofaviy yordam (AnyDesk):</strong>
+        <strong className="text-ink">3. Masofaviy yordam (AnyDesk):</strong>
         <p>
           Agar AnyDesk qotib qolsa, panelimizdagi <b>AnyDesk Tozalash</b> vositasini yuklab olib ishga tushiring.
         </p>

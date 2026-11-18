@@ -58,17 +58,14 @@ export function GroupsSettingsPage() {
       />
       <div className="grid gap-3 md:grid-cols-2">
         {groups?.map((g) => (
-          <div
-            key={g.id}
-            className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-[rgba(30,41,59,0.5)] p-4"
-          >
+          <div key={g.id} className="flex flex-col gap-3 rounded-xl border border-tint/[0.07] bg-glass-2/50 p-4">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-2 text-sm font-bold text-[#f1f5f9]">
+                <div className="flex items-center gap-2 text-sm font-bold text-ink">
                   {g.name}
                   <Pill tone="gray">{t('groups.members', { count: g.memberCount })}</Pill>
                 </div>
-                {g.description && <p className="mt-0.5 text-xs text-[#94a3b8]">{g.description}</p>}
+                {g.description && <p className="mt-0.5 text-xs text-mute">{g.description}</p>}
               </div>
               <div className="flex gap-1">
                 <SettingsButton size="sm" tone="ghost" title={t('common.edit')} onClick={() => setEditing(g)}>
@@ -82,7 +79,7 @@ export function GroupsSettingsPage() {
             <ul className="flex flex-col gap-1.5">
               {GROUP_FLAGS.map((flag) => (
                 <li key={flag} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-[#cbd5e1]">{tu(`permission.${flag}`)}</span>
+                  <span className="text-ink-2">{tu(`permission.${flag}`)}</span>
                   {g.permissions[flag] ? (
                     <Pill tone="green">{t('common.yes')}</Pill>
                   ) : (
@@ -113,7 +110,7 @@ export function GroupsSettingsPage() {
 function GroupDialog({ group, onClose }: { group: OperatorGroup | 'new' | null; onClose: () => void }) {
   return (
     <Dialog open={group !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="border-white/12 bg-[linear-gradient(160deg,#1e293b_0%,#0f172a_100%)] text-[#f8fafc] sm:max-w-lg">
+      <DialogContent className="border-tint/12 bg-[linear-gradient(160deg,var(--glass-2)_0%,var(--sidebar)_100%)] text-ink sm:max-w-lg">
         {group !== null && <GroupForm group={group === 'new' ? null : group} onDone={onClose} />}
       </DialogContent>
     </Dialog>
@@ -158,7 +155,7 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
     >
       <DialogHeader>
         <DialogTitle>{group ? t('groups.dialogEdit') : t('groups.dialogCreate')}</DialogTitle>
-        <DialogDescription className="text-[#94a3b8]">{t('groups.description')}</DialogDescription>
+        <DialogDescription className="text-mute">{t('groups.description')}</DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <FieldLabel htmlFor="g-name">{t('groups.name')}</FieldLabel>
@@ -175,11 +172,11 @@ function GroupForm({ group, onDone }: { group: OperatorGroup | null; onDone: () 
       </div>
       <div className="flex flex-col gap-1">
         <FieldLabel>{t('groups.permissions')}</FieldLabel>
-        <div className="flex flex-col gap-1 rounded-[10px] border border-white/[0.07] bg-[rgba(15,23,42,0.4)] p-1.5">
+        <div className="flex flex-col gap-1 rounded-[10px] border border-tint/[0.07] bg-glass/40 p-1.5">
           {GROUP_FLAGS.map((flag) => (
             <label
               key={flag}
-              className="flex cursor-pointer items-center justify-between rounded-lg border border-white/5 bg-[rgba(30,41,59,0.5)] px-3 py-2 text-[13px] text-[#e2e8f0] hover:bg-[rgba(30,41,59,0.8)]"
+              className="flex cursor-pointer items-center justify-between rounded-lg border border-tint/5 bg-glass-2/50 px-3 py-2 text-[13px] text-foreground hover:bg-glass-2/80"
             >
               {tu(`permission.${flag}`)}
               <Switch

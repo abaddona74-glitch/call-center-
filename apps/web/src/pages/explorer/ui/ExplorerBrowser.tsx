@@ -107,16 +107,16 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/8 bg-[rgba(15,23,42,0.6)] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-tint/8 bg-glass/60 px-4 py-3">
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="inline-flex items-center gap-[3px] rounded-lg border border-white/8 bg-[rgba(30,41,59,0.7)] px-[5px] py-[3px]">
+          <div className="inline-flex items-center gap-[3px] rounded-lg border border-tint/8 bg-glass-2/70 px-[5px] py-[3px]">
             <NavButton icon="chevron-left" title={t('back')} disabled={!nav.canBack} onClick={() => { setSearch(''); nav.back(); }} />
             <NavButton icon="chevron-right" title={t('forward')} disabled={!nav.canForward} onClick={() => { setSearch(''); nav.forward(); }} />
             <NavButton icon="chevron-up" title={t('up')} disabled={!nav.path} onClick={up} />
-            <div className="mx-0.5 h-[18px] w-px bg-white/10" />
+            <div className="mx-0.5 h-[18px] w-px bg-tint/10" />
             <NavButton icon="rotate-cw" title={t('refresh')} small onClick={() => void tree.refetch()} />
           </div>
-          <nav className="flex items-center gap-2 overflow-x-auto text-[13px] text-[#94a3b8]" aria-label="breadcrumb">
+          <nav className="flex items-center gap-2 overflow-x-auto text-[13px] text-mute" aria-label="breadcrumb">
             <Crumb active={parts.length === 0} onClick={() => navigate('')}>
               <Icon name="folder" className="size-[15px]" />
               {t('root')}
@@ -144,21 +144,21 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
                   zipName: `recordings_${nav.path.replaceAll('/', '-') || 'monitor'}.zip`,
                 })
               }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/8 px-3 py-1.5 text-xs text-white transition hover:border-[#6366f1] hover:bg-[#6366f1] hover:shadow-[0_2px_8px_rgba(99,102,241,0.4)] disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-tint/8 bg-tint/8 px-3 py-1.5 text-xs text-ink transition hover:border-[#6366f1] hover:bg-[#6366f1] hover:shadow-[0_2px_8px_rgba(99,102,241,0.4)] disabled:cursor-wait disabled:opacity-60"
             >
               <LegacyIcon name="document-download" className="size-3.5" />
               {t('zip')}
             </button>
           )}
           <div className="relative min-w-[240px]">
-            <span className="pointer-events-none absolute top-1/2 left-2.5 inline-flex -translate-y-1/2 text-[#64748b]">
+            <span className="pointer-events-none absolute top-1/2 left-2.5 inline-flex -translate-y-1/2 text-dim">
               <LegacyIcon name="search" strokeWidth={2.5} className="size-[15px]" />
             </span>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('search')}
-              className="w-full rounded-lg border border-white/8 bg-black/30 py-2 pr-3.5 pl-[34px] text-[13px] text-white outline-none transition-colors focus:border-[#6366f1]"
+              className="w-full rounded-lg border border-tint/8 bg-well/30 py-2 pr-3.5 pl-[34px] text-[13px] text-ink outline-none transition-colors focus:border-[#6366f1]"
             />
           </div>
         </div>
@@ -167,11 +167,11 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
       {/* Body */}
       {tree.isPending ? (
         <div className="flex flex-col items-center justify-center gap-4 px-5 py-[60px]">
-          <span className="inline-block size-11 animate-spin rounded-full border-[3.5px] border-[rgba(56,189,248,0.2)] border-t-[#38bdf8] shadow-[0_0_18px_rgba(56,189,248,0.3)]" />
-          <span className="text-sm font-semibold tracking-[0.3px] text-[#94a3b8]">{t('loading')}</span>
+          <span className="inline-block size-11 animate-spin rounded-full border-[3.5px] border-[rgba(56,189,248,0.2)] border-t-info shadow-[0_0_18px_rgba(56,189,248,0.3)]" />
+          <span className="text-sm font-semibold tracking-[0.3px] text-mute">{t('loading')}</span>
         </div>
       ) : tree.isError ? (
-        <div className="rounded-xl border border-white/8 px-5 py-5 text-center text-sm text-[#ef4444]">
+        <div className="rounded-xl border border-tint/8 px-5 py-5 text-center text-sm text-shade-[#ef4444]">
           {isHttpError(tree.error, 503) ? t('unavailable') : t('error', { message: tree.error.message })}
         </div>
       ) : (
@@ -184,7 +184,7 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
             </div>
           )}
           {allFiles.length > 0 && (
-            <div className="w-full overflow-x-auto rounded-xl border border-white/8">
+            <div className="w-full overflow-x-auto rounded-xl border border-tint/8">
               <table className="w-full border-collapse text-center text-[13px]">
                 <thead>
                   <tr>
@@ -192,7 +192,7 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
                       <th
                         key={c}
                         className={cn(
-                          'border-b border-white/8 bg-[rgba(30,41,59,0.85)] px-3.5 py-3 align-middle text-[11px] font-bold tracking-[0.6px] whitespace-nowrap text-[#94a3b8] uppercase',
+                          'border-b border-tint/8 bg-glass-2/85 px-3.5 py-3 align-middle text-[11px] font-bold tracking-[0.6px] whitespace-nowrap text-mute uppercase',
                           c === 'name' && 'text-left',
                         )}
                       >
@@ -204,7 +204,7 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
                 <tbody>
                   {files.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-[#94a3b8]">
+                      <td colSpan={6} className="p-6 text-center text-mute">
                         {t('searchEmpty')}
                       </td>
                     </tr>
@@ -216,7 +216,7 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
             </div>
           )}
           {dirs.length === 0 && allFiles.length === 0 && (
-            <div className="py-10 text-center text-[13px] text-[#64748b]">{q ? t('searchEmpty') : t('emptyFolder')}</div>
+            <div className="py-10 text-center text-[13px] text-dim">{q ? t('searchEmpty') : t('emptyFolder')}</div>
           )}
         </>
       )}
@@ -244,7 +244,7 @@ function NavButton({
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex size-[30px] items-center justify-center rounded-md text-[#f8fafc] transition-all duration-200 hover:scale-105 hover:bg-white/12 hover:text-white active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-25"
+      className="inline-flex size-[30px] items-center justify-center rounded-md text-ink transition-all duration-200 hover:scale-105 hover:bg-tint/12 hover:text-ink active:scale-95 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-25"
     >
       <LegacyIcon name={icon} strokeWidth={2.5} className={small ? 'size-3.5' : 'size-4'} />
     </button>
@@ -257,8 +257,8 @@ function Crumb({ active, onClick, children }: { active: boolean; onClick: () => 
       type="button"
       onClick={onClick}
       className={cn(
-        'flex items-center gap-1 rounded-lg px-2 py-1 whitespace-nowrap transition-all duration-200 hover:bg-white/10 hover:text-white',
-        active && 'font-semibold text-[#6366f1]',
+        'flex items-center gap-1 rounded-lg px-2 py-1 whitespace-nowrap transition-all duration-200 hover:bg-tint/10 hover:text-ink',
+        active && 'font-semibold text-shade-[#6366f1]',
       )}
     >
       {children}
@@ -289,16 +289,16 @@ function FolderCard({
       type="button"
       title={tooltip}
       onClick={onOpen}
-      className="group flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-white/8 bg-white/3 px-3 py-4 text-center transition-all duration-[250ms] hover:-translate-y-[3px] hover:border-[#6366f1] hover:bg-[rgba(99,102,241,0.1)]"
+      className="group flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-tint/8 bg-tint/3 px-3 py-4 text-center transition-all duration-[250ms] hover:-translate-y-[3px] hover:border-[#6366f1] hover:bg-[rgba(99,102,241,0.1)]"
     >
-      <Icon name="folder" className="size-[41px] text-[#f59e0b]" />
-      <div className="text-[13px] font-semibold break-words text-[#f8fafc]">{meta.display}</div>
-      {meta.subtitle && <div className="-mt-0.5 text-[11px] font-normal text-[#94a3b8]">{meta.subtitle}</div>}
+      <Icon name="folder" className="size-[41px] text-shade-[#f59e0b]" />
+      <div className="text-[13px] font-semibold break-words text-ink">{meta.display}</div>
+      {meta.subtitle && <div className="-mt-0.5 text-[11px] font-normal text-mute">{meta.subtitle}</div>}
       {dir.modifiedAt && (
         <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
           <span
             title={t('lastRecord', { time: formatFullDateTime(dir.modifiedAt) })}
-            className="inline-flex items-center gap-1 rounded-md border border-[rgba(167,139,250,0.28)] bg-[rgba(167,139,250,0.12)] px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.2px] whitespace-nowrap text-[#a78bfa] transition-all duration-200 group-hover:border-[rgba(167,139,250,0.55)] group-hover:bg-[rgba(167,139,250,0.22)] group-hover:text-[#c4b5fd] group-hover:shadow-[0_0_10px_rgba(167,139,250,0.2)]"
+            className="inline-flex items-center gap-1 rounded-md border border-[rgba(167,139,250,0.28)] bg-[rgba(167,139,250,0.12)] px-1.5 py-0.5 font-mono text-[10px] font-medium tracking-[0.2px] whitespace-nowrap text-lilac transition-all duration-200 group-hover:border-[rgba(167,139,250,0.55)] group-hover:bg-[rgba(167,139,250,0.22)] group-hover:text-violet group-hover:shadow-[0_0_10px_rgba(167,139,250,0.2)]"
           >
             <Icon name="timer" className="size-2.5" />
             {formatExplorerDateTime(dir.modifiedAt, lang)}
@@ -313,31 +313,31 @@ function FileRow({ file, lang, onPlay }: { file: RecordingFile; lang: string; on
   const { t } = useTranslation('recording');
   const empty = file.kind === 'empty';
   const actionBtn =
-    'inline-flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/8 px-3 py-1.5 text-xs text-white no-underline transition-[transform,background-color,border-color,box-shadow] duration-[140ms] hover:border-[#6366f1] hover:bg-[#6366f1] hover:shadow-[0_2px_8px_rgba(99,102,241,0.4)]';
+    'inline-flex items-center gap-1.5 rounded-lg border border-tint/8 bg-tint/8 px-3 py-1.5 text-xs text-ink no-underline transition-[transform,background-color,border-color,box-shadow] duration-[140ms] hover:border-[#6366f1] hover:bg-[#6366f1] hover:shadow-[0_2px_8px_rgba(99,102,241,0.4)]';
   return (
-    <tr className="border-l-[3px] border-transparent transition-[background,filter] duration-150 hover:bg-white/4 hover:brightness-115">
-      <td className="border-b border-white/5 px-3.5 py-[11px] text-left align-middle whitespace-nowrap">
+    <tr className="border-l-[3px] border-transparent transition-[background,filter] duration-150 hover:bg-tint/4 hover:brightness-115">
+      <td className="border-b border-tint/5 px-3.5 py-[11px] text-left align-middle whitespace-nowrap">
         <div className="flex items-center gap-2">
-          <Icon name="headphone" className="size-3.5 text-[#06b6d4]" />
+          <Icon name="headphone" className="size-3.5 text-shade-[#06b6d4]" />
           <span className="font-mono font-medium">{file.name}</span>
         </div>
       </td>
-      <td className="border-b border-white/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
+      <td className="border-b border-tint/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
         <RecordingKindBadge kind={file.kind} />
       </td>
-      <td className="border-b border-white/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
+      <td className="border-b border-tint/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
         <InfoPill>{formatSize(file.size)}</InfoPill>
       </td>
-      <td className="border-b border-white/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
-        <span className={cn('inline-flex items-center gap-[3px] font-mono text-[13px] font-semibold', empty ? 'text-[#94a3b8]' : 'text-[#38bdf8]')}>
+      <td className="border-b border-tint/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
+        <span className={cn('inline-flex items-center gap-[3px] font-mono text-[13px] font-semibold', empty ? 'text-mute' : 'text-info')}>
           <Icon name="timer" className="size-3" />
           {empty ? t('durationEmpty') : formatDuration(file.durationSec)}
         </span>
       </td>
-      <td className="border-b border-white/5 px-3.5 py-[11px] align-middle whitespace-nowrap text-xs" title={formatFullDateTime(file.modifiedAt)}>
-        <div className="font-medium text-[#e2e8f0]">{formatExplorerDateTime(file.modifiedAt, lang)}</div>
+      <td className="border-b border-tint/5 px-3.5 py-[11px] align-middle whitespace-nowrap text-xs" title={formatFullDateTime(file.modifiedAt)}>
+        <div className="font-medium text-foreground">{formatExplorerDateTime(file.modifiedAt, lang)}</div>
       </td>
-      <td className="border-b border-white/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
+      <td className="border-b border-tint/5 px-3.5 py-[11px] align-middle whitespace-nowrap">
         <div className="flex items-center justify-center gap-1">
           {empty ? (
             <button type="button" title={t('emptyHint')} onClick={onPlay} className={cn(actionBtn, 'cursor-not-allowed opacity-50')}>
