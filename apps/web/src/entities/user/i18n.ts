@@ -3,7 +3,7 @@ import { registerTranslations } from '@/shared/i18n';
 /** Words about users shared by every screen: roles and operator-group restriction flags. */
 registerTranslations('user', {
   uz: {
-    role: { operator: 'Operator', observer: 'Kuzatuvchi', executive: 'Mas’ul', superuser: 'Superuser' },
+    role: { operator: 'Operator', observer: 'Kuzatuvchi', executive: 'Mas’ul texnik xodim', superuser: 'Superuser' },
     permission: {
       canSeeContacts: 'Mijozlar ma’lumotini ko‘rish',
       canEditContacts: 'Mijozlarni tahrirlash',
@@ -15,7 +15,12 @@ registerTranslations('user', {
     noGroup: 'Guruhsiz',
   },
   ru: {
-    role: { operator: 'Оператор', observer: 'Наблюдатель', executive: 'Ответственный', superuser: 'Суперпользователь' },
+    role: {
+      operator: 'Оператор',
+      observer: 'Наблюдатель',
+      executive: 'Ответственный технический сотрудник',
+      superuser: 'Суперпользователь',
+    },
     permission: {
       canSeeContacts: 'Видеть данные клиентов',
       canEditContacts: 'Редактировать клиентов',
