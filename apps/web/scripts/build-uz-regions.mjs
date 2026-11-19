@@ -6,6 +6,7 @@
  *   curl -L -o ne_10m_admin_1.geojson \
  *     https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson
  *   node apps/web/scripts/build-uz-regions.mjs ne_10m_admin_1.geojson > apps/web/src/widgets/region-map/model/uz-regions.json
+ *   npx prettier --write apps/web/src/widgets/region-map/model/uz-regions.json
  *
  * What it does: takes the 14 first-level units of Uzbekistan, simplifies the borders (Douglas–Peucker) so that a
  * border shared by two regions is simplified once and stays shared (no gaps or overlaps), projects them
