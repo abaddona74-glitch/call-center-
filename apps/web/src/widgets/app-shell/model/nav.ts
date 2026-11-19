@@ -10,6 +10,7 @@ import {
   History,
   LayoutDashboard,
   type LucideIcon,
+  Map as MapIcon,
   MapPinned,
   Settings,
   ShieldBan,
@@ -35,6 +36,8 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'monitor.view' },
+  // Overview dashboard: observers' only page, the superuser too (owner, 19.11.2026)
+  { to: '/overview', label: 'nav.overview', icon: MapIcon, permission: 'overview.view' },
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },
   {
     to: '/tickets',
@@ -69,6 +72,6 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { to: '/tools', label: 'nav.tools', icon: Wrench, permission: 'tools.view' },
   { to: '/profile', label: 'nav.profile', icon: UserRound },
-  // Operator guide: static content for every signed-in user (no permission, see routes/_app/guide)
-  { to: '/guide', label: 'nav.guide', icon: BookOpen },
+  // Operator guide: static content for call-center staff (observers see only the overview dashboard)
+  { to: '/guide', label: 'nav.guide', icon: BookOpen, permission: 'monitor.view' },
 ];

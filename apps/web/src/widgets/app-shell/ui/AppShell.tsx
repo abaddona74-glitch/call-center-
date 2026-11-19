@@ -29,7 +29,7 @@ export function AppShell() {
       {/* Pinned to the viewport: the page scrolls, the sidebar stays put. A menu taller than
           the screen scrolls inside the nav instead. z-30: above page content (animating
           operator cards, z-10 sticky headers), below overlays (z-40 dock/banner, z-50 dialogs). */}
-      <aside className="sticky top-0 z-30 flex h-svh w-60 shrink-0 flex-col self-start border-r bg-card">
+      <aside className="sticky top-0 z-30 hidden h-svh w-60 shrink-0 flex-col self-start border-r bg-card md:flex">
         <div className="px-5 py-4 text-lg font-semibold">{t('app.title')}</div>
         <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-3">
           {items.map(({ to, label, icon: Icon }) => (
@@ -50,7 +50,9 @@ export function AppShell() {
       {/* A docked right panel ([data-right-dock], e.g. "Jonli Monitor") is fixed to the viewport
           edge from xl up; reserve its width so the header and the page stop where it starts. */}
       <div className="flex min-w-0 flex-1 flex-col xl:has-[[data-right-dock]]:pr-(--right-dock-width)">
-        <header className="flex h-14 items-center justify-end gap-3 border-b px-6">
+        <header className="flex h-14 items-center justify-end gap-2 border-b px-3 sm:gap-3 md:px-6">
+          {/* Phones: no sidebar, the title goes to the header and the menu below it. */}
+          <div className="mr-auto truncate font-semibold md:hidden">{t('app.title')}</div>
           <OnlineUsers />
           <TicketAlerts meId={user.id} />
           <Badge
@@ -73,13 +75,27 @@ export function AppShell() {
               </option>
             ))}
           </NativeSelect>
-          <span className="text-sm">
+          <span className="hidden text-sm sm:inline">
             {user.username} <span className="text-muted-foreground">· {t(`roles.${user.role}`)}</span>
           </span>
           <LogoutButton />
         </header>
+        <nav className="flex gap-1 overflow-x-auto border-b px-2 py-1.5 md:hidden">
+          {items.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              activeOptions={{ exact: to === '/' }}
+              className="flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm whitespace-nowrap text-muted-foreground hover:bg-accent hover:text-foreground"
+              activeProps={{ className: 'bg-accent text-foreground' }}
+            >
+              <Icon className="size-4" />
+              {t(label)}
+            </Link>
+          ))}
+        </nav>
         <ImpersonationBanner />
-        <main className="flex-1 p-6">
+        <main className="min-w-0 flex-1 p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

@@ -17,6 +17,7 @@ import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
+import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
@@ -77,6 +78,11 @@ const AppHistoryRoute = AppHistoryRouteImport.update({
 const AppOperatorsRoute = AppOperatorsRouteImport.update({
   id: '/operators',
   path: '/operators',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppOverviewRoute = AppOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProfileRoute = AppProfileRouteImport.update({
@@ -198,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
+  '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/statistics': typeof AppStatisticsRoute
@@ -228,6 +235,7 @@ export interface FileRoutesByTo {
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
+  '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/operators': typeof AppOperatorsRoute
+  '/_app/overview': typeof AppOverviewRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/statistics': typeof AppStatisticsRoute
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/history'
     | '/operators'
+    | '/overview'
     | '/profile'
     | '/settings'
     | '/statistics'
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/history'
     | '/operators'
+    | '/overview'
     | '/profile'
     | '/statistics'
     | '/tickets'
@@ -355,6 +366,7 @@ export interface FileRouteTypes {
     | '/_app/explorer'
     | '/_app/history'
     | '/_app/operators'
+    | '/_app/overview'
     | '/_app/profile'
     | '/_app/settings'
     | '/_app/statistics'
@@ -442,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/operators'
       fullPath: '/operators'
       preLoaderRoute: typeof AppOperatorsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/overview': {
+      id: '/_app/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof AppOverviewRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/profile': {
@@ -632,6 +651,7 @@ interface AppRouteChildren {
   AppExplorerRoute: typeof AppExplorerRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppOperatorsRoute: typeof AppOperatorsRoute
+  AppOverviewRoute: typeof AppOverviewRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppStatisticsRoute: typeof AppStatisticsRoute
@@ -654,6 +674,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppExplorerRoute: AppExplorerRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppOperatorsRoute: AppOperatorsRoute,
+  AppOverviewRoute: AppOverviewRoute,
   AppProfileRoute: AppProfileRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppStatisticsRoute: AppStatisticsRoute,
