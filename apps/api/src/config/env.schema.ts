@@ -243,13 +243,19 @@ export type Env = z.infer<typeof EnvSchema>;
 export function validateEnv(raw: Record<string, unknown>): Env {
   // `KEY=` in an env file means "not set": defaults apply and optional values stay undefined
   // (otherwise e.g. an empty BOOTSTRAP_SUPERUSER_PASSWORD fails min(12) and the API won't start).
-  const cleaned = Object.fromEntries(
-    Object.entries(raw).filter(([, value]) => !(typeof value === 'string' && value.trim() === '')),
-  );
+  const isBlank = (value: unknown) => typeof value === 'string' && value.trim() === '';
+  const cleaned = Object.fromEntries(Object.entries(raw).filter(([, value]) => !isBlank(value)));
   const result = EnvSchema.safeParse(cleaned);
   if (!result.success) {
     const details = result.error.issues.map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
+  }
+  const env: Record<string, unknown> = result.data;
+  // A blank optional variable must stay in the result as an explicit `undefined`: ConfigService#get
+  // only treats it as removed then. A missing key makes it fall back to process.env, which still
+  // holds the raw "" (e.g. TOOLS_TELEGRAM_FORM_URL= made GET /api/tools/config fail with 500).
+  for (const [key, value] of Object.entries(raw)) {
+    if (isBlank(value) && key in EnvSchema.shape && !(key in env)) env[key] = undefined;
   }
   return result.data;
 }
