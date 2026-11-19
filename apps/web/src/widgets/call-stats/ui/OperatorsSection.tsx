@@ -116,7 +116,15 @@ export function OperatorsSection({ data }: { data: OperatorStatsResponse | undef
                       ({r.outboundAttempts} {t('attemptsShort')})
                     </span>
                   </td>
-                  <td className={cn(DT.td, r.missed > 0 ? 'text-warning' : 'text-muted-foreground')}>{r.missed}</td>
+                  <td
+                    className={cn(DT.td, r.missed > 0 ? 'text-warning' : 'text-muted-foreground')}
+                    title={t('missedTitle', { noAnswer: r.missedNoAnswer, rejected: r.missedRejected })}
+                  >
+                    <span className="font-semibold">{r.missed}</span>
+                    <span className="ml-1 text-[11px] text-muted-foreground">
+                      ({r.missedNoAnswer} / {r.missedRejected})
+                    </span>
+                  </td>
                   <td className={cn(DT.td, 'text-[15px] font-bold')}>{r.total}</td>
                   <td className={cn(DT.td, 'font-mono')}>{formatDuration(r.talkSec)}</td>
                   <td className={cn(DT.td, 'font-mono text-muted-foreground')}>{formatDuration(r.avgTalkSec)}</td>

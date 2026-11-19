@@ -1,7 +1,8 @@
 /**
  * Excel report with the same sheets, columns and styling as legacy exportService ("cal stat" template):
  *  1. matrix "calls per operator per day" (left) + "talk time per operator per day" (right), day-off rows, totals;
- *  2. per-operator summary table (Operator ID, name, answered, outbound, missed, transfer in/out, total, talk, avg).
+ *  2. per-operator summary table (Operator ID, name, answered, outbound, missed with its split into "no answer" and
+ *     "rejected", transfer in/out, total, talk, avg).
  * Fix vs legacy: sheet 2 covers the exported period (legacy always printed *today*, whatever period was chosen).
  * Numbers come from stats/domain operatorStats (same definitions as the statistics page).
  */
@@ -422,6 +423,8 @@ function addSummarySheet(workbook: ExcelJS.Workbook, input: ReportInput): void {
     { header: ru ? 'Принято' : 'Qabul qilingan', key: 'answered', width: 16 },
     { header: ru ? 'Исходящие' : 'Chiquvchi', key: 'outbound', width: 16 },
     { header: ru ? 'Пропущено' : "O'tkazib yuborilgan", key: 'missed', width: 18 },
+    { header: ru ? 'Не взял' : "Ko'tarmagan", key: 'missedNoAnswer', width: 14 },
+    { header: ru ? 'Отклонил' : 'Rad etgan', key: 'missedRejected', width: 14 },
     { header: ru ? 'Перевод (Вх / Исх)' : 'Transfer (Kir / Chiq)', key: 'transfer', width: 20 },
     { header: ru ? 'Всего звонков' : "Jami qo'ng'iroqlar", key: 'total', width: 18 },
     { header: ru ? 'Общая длительность' : 'Jami suhbat vaqti', key: 'duration', width: 20 },
@@ -443,6 +446,8 @@ function addSummarySheet(workbook: ExcelJS.Workbook, input: ReportInput): void {
       answered: s?.answered ?? 0,
       outbound: s?.outbound ?? 0,
       missed: s?.missed ?? 0,
+      missedNoAnswer: s?.missedNoAnswer ?? 0,
+      missedRejected: s?.missedRejected ?? 0,
       transfer: `${s?.transferredIn ?? 0} / ${s?.transferredOut ?? 0}`,
       total: s?.total ?? 0,
       duration: formatHms(s?.talkSec ?? 0),

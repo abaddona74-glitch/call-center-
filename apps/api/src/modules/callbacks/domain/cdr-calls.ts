@@ -1,4 +1,5 @@
 import { type OutboundFailureCause, normalizeUzPhone } from '@cc/shared';
+import { missReasonOfRow } from '../../../pbx/calls/dialplan.js';
 import { causeFromDisposition } from './callback-rules.js';
 import { parseBusinessDateTime } from './working-calendar.js';
 
@@ -13,6 +14,8 @@ import { parseBusinessDateTime } from './working-calendar.js';
  *    or IVR number, never an operator; a trunk peer named with a phone number is never an operator either;
  *  - inbound call: started by an external number (not from `from-internal`);
  *  - answered inbound: some operator leg is ANSWERED with billsec > 0 (IVR/queue answers do not count, B18);
+ *  - an operator rang: some operator leg actually rang the phone — answered, NO ANSWER, or BUSY after ≥ 1 s
+ *    (`missReasonOfRow`); offline phones (CONGESTION) and phones busy at once are not a ring;
  *  - outbound call: an operator's own channel dialed an external number from `from-internal`.
  */
 
@@ -105,6 +108,11 @@ export function originatorOfLeg(leg: Pick<CdrLeg, 'channel'>): string | null {
   return CHANNEL_EXT.exec(leg.channel)?.[1] ?? null;
 }
 
+/** The operator's phone actually rang on this leg (see `missReasonOfRow`). */
+function rang(leg: CdrLeg): boolean {
+  return leg.disposition.toUpperCase() === 'ANSWERED' || missReasonOfRow(leg) !== null;
+}
+
 function isAnswered(leg: CdrLeg): boolean {
   return leg.disposition.toUpperCase() === 'ANSWERED' && leg.billsec > 0;
 }
@@ -192,7 +200,7 @@ export function callFactsFromCdr(legs: readonly CdrLeg[], opts: CdrCallsOptions)
         callId,
         phone,
         startedAt,
-        operatorRang: operatorLegs.length > 0,
+        operatorRang: operatorLegs.some(rang),
         ivrAfterHours: callLegs.some((l) => marker.test(l.lastdata)),
       });
     }

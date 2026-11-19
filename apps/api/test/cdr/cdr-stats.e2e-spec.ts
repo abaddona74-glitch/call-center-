@@ -207,6 +207,8 @@ describe('stats', () => {
       answered: 1,
       transferredIn: 1,
       missed: 1,
+      missedNoAnswer: 1,
+      missedRejected: 0,
       outboundAttempts: 1,
       outbound: 0,
     });

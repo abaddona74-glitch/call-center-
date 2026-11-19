@@ -1,4 +1,4 @@
-import type { OperatorPresence, OperatorToday } from '@cc/shared';
+import type { MissReason, OperatorPresence, OperatorToday } from '@cc/shared';
 import { DateTime } from 'luxon';
 import {
   type CallAbandonedEvent,
@@ -22,6 +22,7 @@ import {
   phoneOf,
 } from './channel.js';
 import { type CounterSeed, callIdEpochMs, startedBefore } from './cdr-seed.js';
+import { missReasonOfDial } from './missed-ring.js';
 
 /**
  * In-memory live telephony state, built only from AMI events (Asterisk 13+ names). Today's counters for calls that
@@ -114,8 +115,10 @@ export interface CallRec {
   partyExit: { uniqueid: string; party: 'client' | 'operator' } | null;
   staffHangup: boolean;
   outboundDialStatus: string | null;
-  /** ext -> time a miss was recorded (dedupes DialEnd + AgentRingNoAnswer of one ring). */
-  missed: Map<string, number>;
+  /** ext -> the operator's current ring attempt: when it began and how its dial ended (null = still ringing). */
+  rings: Map<string, { since: number; status: string | null }>;
+  /** ext -> why the operator missed this call (once per call; `rejected` wins over `no_answer`). */
+  missed: Map<string, MissReason>;
   channels: Set<string>;
   lastState: string;
   stateSince: number;
@@ -157,13 +160,14 @@ export interface CountersRec {
   outbound: number;
   outboundAnswered: number;
   operatorMissed: number;
+  operatorMissedNoAnswer: number;
+  operatorMissedRejected: number;
   talkSeconds: number;
   clientHangups: number;
   operatorHangups: number;
   unknownHangups: number;
 }
 
-const MISS_DEDUPE_MS = 5_000;
 const STALE_RING_MS = 120_000;
 const ORIGINATE_EXPECT_MS = 60_000;
 
@@ -172,6 +176,8 @@ const emptyToday = (): OperatorToday => ({
   outbound: 0,
   outboundAttempts: 0,
   missed: 0,
+  missedNoAnswer: 0,
+  missedRejected: 0,
   transfersIn: 0,
   transfersOut: 0,
   talkSeconds: 0,
@@ -528,6 +534,7 @@ export class LiveStore {
 
     if (dest.ext && call.direction !== 'outbound' && call.talkingExt !== dest.ext) {
       if (!call.ringing.has(dest.ext)) call.ringing.set(dest.ext, now);
+      this.startRing(call, dest.ext, now);
       call.everRang = true;
       if (!call.directionKnown && !caller && call.originExt === null) {
         // Originate rings the operator's own phone first (no caller channel).
@@ -562,16 +569,12 @@ export class LiveStore {
       return;
     }
     call.ringing.delete(ext);
-    if (dest.kind === 'operator' && call.direction === 'inbound') {
-      const reason =
-        status === 'NOANSWER'
-          ? 'no_answer'
-          : status === 'BUSY'
-            ? 'rejected'
-            : status === 'CHANUNAVAIL' || status === 'CONGESTION'
-              ? 'unavailable'
-              : null;
-      // CANCEL = the caller left or the queue stopped ringing this member (AgentRingNoAnswer covers queue timeouts).
+    // Both dials of a queue ring (caller → Local member leg, Local → the phone) end with the same status; the
+    // caller-side one is what the CDR writes as the member leg's disposition. Judged by the CDR's rule.
+    const ring = call.rings.get(ext);
+    if (ring) ring.status = status;
+    if (call.direction === 'inbound') {
+      const reason = missReasonOfDial(status, now - (ring?.since ?? dest.createdAt));
       if (reason) this.recordMissed(call, ext, reason, now);
     }
     this.changed.add('calls');
@@ -689,6 +692,7 @@ export class LiveStore {
     const call = this.callOfChannel(e);
     if (!ext || !call || call.talkingExt === ext) return;
     if (!call.ringing.has(ext)) call.ringing.set(ext, now);
+    this.startRing(call, ext, now);
     call.everRang = true;
     this.ensureOperator(ext, now);
     this.changed.add('calls');
@@ -700,20 +704,12 @@ export class LiveStore {
     const call = this.callOfChannel(e);
     if (!ext || !call) return;
     call.ringing.delete(ext);
-    // Reason from the member's own dial result if it is already known (rejected phones answer BUSY).
-    const status = [...call.channels]
-      .map((u) => this.channels.get(u))
-      .find((c) => c?.ext === ext && c.kind === 'operator' && c.dialStatus)?.dialStatus;
-    const ringMs = toInt(e.ringtime);
-    const reason =
-      status === 'BUSY'
-        ? ringMs < 1000
-          ? 'busy'
-          : 'rejected'
-        : status === 'CHANUNAVAIL' || status === 'CONGESTION'
-          ? 'unavailable'
-          : 'no_answer';
-    this.recordMissed(call, ext, reason, now);
+    // The queue also raises this for a busy or offline member: their DialEnd (BUSY / CONGESTION / CHANUNAVAIL) has
+    // decided it already — a rejected ring or no miss at all. Otherwise the member let it ring out (its DialEnd says
+    // CANCEL / NOANSWER, before or after this event). RingTime is whole seconds of the clock, so it is not used.
+    const status = call.rings.get(ext)?.status;
+    if (status && status !== 'NOANSWER' && status !== 'CANCEL') return;
+    if (call.direction === 'inbound') this.recordMissed(call, ext, 'no_answer', now);
     this.changed.add('calls');
     this.changed.add('operators');
   }
@@ -915,6 +911,7 @@ export class LiveStore {
       partyExit: null,
       staffHangup: false,
       outboundDialStatus: null,
+      rings: new Map(),
       missed: new Map(),
       channels: new Set(),
       lastState: '',
@@ -994,6 +991,12 @@ export class LiveStore {
     if (call.handledExts.includes(ext)) return;
     call.handledExts.push(ext);
     const counted = call.countedDay === this.counters.date;
+    // Rang before and talked now: an operator who talked on a call never missed it (as in the CDR).
+    const missed = call.missed.get(ext);
+    if (missed) {
+      call.missed.delete(ext);
+      if (counted) this.countMiss(ext, missed, -1);
+    }
     if (call.answeredAt === null) {
       call.answeredAt = now;
       if (call.direction === 'inbound' && counted) this.counters.answered++;
@@ -1020,17 +1023,43 @@ export class LiveStore {
     }
   }
 
-  private recordMissed(call: CallRec, ext: string, reason: CallOperatorMissedEvent['reason'], now: number): void {
-    const last = call.missed.get(ext);
-    if (last !== undefined && now - last < MISS_DEDUPE_MS) return;
-    call.missed.set(ext, now);
-    const op = this.ensureOperator(ext, now);
+  /** A new ring attempt of `ext` on this call, unless one is still ringing (each queue ring has two dials). */
+  private startRing(call: CallRec, ext: string, now: number): void {
+    const ring = call.rings.get(ext);
+    if (!ring || ring.status !== null) call.rings.set(ext, { since: now, status: null });
+  }
+
+  /**
+   * The operator's phone rang and they did not take the call: counted once per call and operator, `rejected` over
+   * `no_answer` (a later rejected ring re-labels the miss), never for an operator who already talked on the call.
+   */
+  private recordMissed(call: CallRec, ext: string, reason: MissReason, now: number): void {
+    if (call.handledExts.includes(ext)) return;
+    const prev = call.missed.get(ext);
+    if (prev === reason || prev === 'rejected') return;
+    call.missed.set(ext, reason);
+    this.ensureOperator(ext, now);
     if (call.countedDay === this.counters.date) {
-      this.counters.operatorMissed++;
-      if (op) op.today.missed++;
-      this.changed.add('counters');
+      if (prev) this.countMiss(ext, prev, -1);
+      this.countMiss(ext, reason, 1);
     }
-    this.emit(CallEvents.OperatorMissed, { ...this.base(call, now), extension: ext, reason });
+    if (!prev) this.emit(CallEvents.OperatorMissed, { ...this.base(call, now), extension: ext, reason });
+  }
+
+  private countMiss(ext: string, reason: MissReason, delta: 1 | -1): void {
+    const c = this.counters;
+    const t = this.operators.get(ext)?.today;
+    c.operatorMissed += delta;
+    if (t) t.missed += delta;
+    if (reason === 'rejected') {
+      c.operatorMissedRejected += delta;
+      if (t) t.missedRejected += delta;
+    } else {
+      c.operatorMissedNoAnswer += delta;
+      if (t) t.missedNoAnswer += delta;
+    }
+    this.changed.add('counters');
+    this.changed.add('operators');
   }
 
   private emitAbandoned(call: CallRec, queue: string, waitSeconds: number, now: number): void {
@@ -1302,6 +1331,8 @@ export class LiveStore {
       outbound: 0,
       outboundAnswered: 0,
       operatorMissed: 0,
+      operatorMissedNoAnswer: 0,
+      operatorMissedRejected: 0,
       talkSeconds: 0,
       clientHangups: 0,
       operatorHangups: 0,
