@@ -1,10 +1,11 @@
-import type { CallListItem } from '@cc/shared';
+import type { CallAnalysisStatusResponse, CallListItem } from '@cc/shared';
 import { CallRecordingButton } from '@/features/recordings/play-call';
 import { CreateTicketButton } from '@/features/tickets/create-ticket';
 import { columnVisibilityFeature, createColumnHelper, tableFeatures, useTable } from '@tanstack/react-table';
 import { type ReactNode, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CallDirectionBadge, CallStatusBadge, DirectionMark, formatDuration, formatPhone } from '@/entities/call';
+import { ScorePill } from '@/entities/call-analysis';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
@@ -89,6 +90,8 @@ export interface CallHistoryTableProps {
   onColumnVisibilityChange: (v: ColumnVisibility | ((prev: ColumnVisibility) => ColumnVisibility)) => void;
   onOpenDetails: (call: CallListItem) => void;
   canListen: boolean;
+  /** AI analysis status of the shown calls by call id (`analysis.call`); the score shows next to «Detal». */
+  analysis?: ReadonlyMap<string, CallAnalysisStatusResponse['items'][number]>;
   /** Rendered instead of rows (loading / empty / error). */
   placeholder?: ReactNode;
 }
@@ -112,7 +115,7 @@ export const TOGGLEABLE_COLUMNS = HISTORY_COLUMNS.filter((c) => c !== 'num' && c
 function useCallHistoryTable(props: CallHistoryTableProps) {
   const { t, i18n } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
-  const { firstRowNumber, showDate, onOpenDetails, canListen } = props;
+  const { firstRowNumber, showDate, onOpenDetails, canListen, analysis } = props;
 
   const columns = useMemo(
     () =>
@@ -220,33 +223,47 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
         helper.display({
           id: 'action',
           header: () => t('col.action'),
-          cell: ({ row: { original: c } }) => (
-            <div className="flex items-center justify-end gap-1.5">
-              <CreateTicketButton callId={c.id} variant="table" />
-              {c.hasRecording ? (
-                <>
-                  {canListen && <CallRecordingButton uniqueid={c.id} label={recordingLabel(c)} />}
-                  <TableButton onClick={() => onOpenDetails(c)}>
-                    <Icon name="search-normal" className="size-3" /> {t('detail')}
-                  </TableButton>
-                </>
-              ) : (
-                <>
-                  <TableButton disabled title={t('noAudioTitle')}>
-                    <Icon name="close-circle" className="size-3" /> {t('noAudio')}
-                  </TableButton>
-                  <TableButton onClick={() => onOpenDetails(c)} aria-label={t('detail')}>
-                    <Icon name="search-normal" className="size-3" />
-                  </TableButton>
-                </>
-              )}
-            </div>
-          ),
+          cell: ({ row: { original: c } }) => {
+            const ai = analysis?.get(c.id);
+            return (
+              <div className="flex items-center justify-end gap-1.5">
+                {ai && ai.overall !== null && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenDetails(c)}
+                    title={t('aiScore', { n: ai.overall, flags: ai.redFlags })}
+                    className="inline-flex items-center gap-1 rounded-full"
+                  >
+                    <ScorePill value={ai.overall} max={10} className="px-2 py-0.5" />
+                    {ai.redFlags > 0 && <span className="text-[11px] text-destructive">⚑{ai.redFlags}</span>}
+                  </button>
+                )}
+                <CreateTicketButton callId={c.id} variant="table" />
+                {c.hasRecording ? (
+                  <>
+                    {canListen && <CallRecordingButton uniqueid={c.id} label={recordingLabel(c)} />}
+                    <TableButton onClick={() => onOpenDetails(c)}>
+                      <Icon name="search-normal" className="size-3" /> {t('detail')}
+                    </TableButton>
+                  </>
+                ) : (
+                  <>
+                    <TableButton disabled title={t('noAudioTitle')}>
+                      <Icon name="close-circle" className="size-3" /> {t('noAudio')}
+                    </TableButton>
+                    <TableButton onClick={() => onOpenDetails(c)} aria-label={t('detail')}>
+                      <Icon name="search-normal" className="size-3" />
+                    </TableButton>
+                  </>
+                )}
+              </div>
+            );
+          },
         }),
       ]),
     // i18n.language: re-render headers on language switch
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [t, tc, i18n.language, firstRowNumber, showDate, onOpenDetails, canListen],
+    [t, tc, i18n.language, firstRowNumber, showDate, onOpenDetails, canListen, analysis],
   );
 
   return useTable({

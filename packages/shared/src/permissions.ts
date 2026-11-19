@@ -18,6 +18,8 @@ export const PERMISSIONS = [
   'reports.view',
   /** Listen to / download recordings and transcripts. */
   'recordings.listen',
+  /** AI call analysis: the queue, backfill and retries (docs/rewrite/CALL-ANALYSIS.md). */
+  'analysis.manage',
   'callbacks.view',
   /** Close / dismiss callbacks manually. */
   'callbacks.manage',
@@ -84,6 +86,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'tickets.viewAll',
     'tickets.directories.manage',
     'tickets.administer',
+    'analysis.manage',
   ),
   observer: [
     'monitor.view',

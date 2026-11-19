@@ -21,6 +21,12 @@ export const CDR_ACCESS = {
   'stats.operators': 'monitor.view',
   /** GET /api/export/excel */
   'reports.export': 'reports.view',
+  /** One call's AI transcript and analysis: the same right as playing its recording. */
+  'analysis.call': 'recordings.listen',
+  /** AI analysis aggregates across operators (the "Tahlil" page): the same right as the statistics page. */
+  'analysis.stats': 'reports.view',
+  /** AI analysis queue, backfill and retries. */
+  'analysis.manage': 'analysis.manage',
 } as const satisfies Record<string, Permission>;
 
 export type CdrCapability = keyof typeof CDR_ACCESS;

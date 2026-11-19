@@ -12,6 +12,7 @@ import {
   type LucideIcon,
   MapPinned,
   Settings,
+  Sparkles,
   ShieldBan,
   Ticket,
   UserRound,
@@ -53,6 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/operators', label: 'nav.operators', icon: Headset, permission: 'monitor.view' },
   { to: '/history', label: 'nav.history', icon: History, permission: CDR_ACCESS['history.page'] },
   { to: '/statistics', label: 'nav.statistics', icon: ChartColumn, permission: CDR_ACCESS['stats.read'] },
+  { to: '/analysis', label: 'nav.analysis', icon: Sparkles, permission: CDR_ACCESS['analysis.stats'] },
   {
     to: '/settings',
     label: 'nav.settings',
