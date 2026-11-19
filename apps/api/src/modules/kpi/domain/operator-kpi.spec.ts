@@ -7,7 +7,7 @@ import {
   type OperatorKpiInput,
   type OperatorTicketFact,
   qualityByOperator,
-  talkSince,
+  talkWhileOnline,
   ticketsByOperator,
 } from './operator-kpi.js';
 
@@ -125,18 +125,35 @@ describe('buildOperatorKpi — calls', () => {
 });
 
 describe('talk share', () => {
-  it('talk since the presence log started / online time, one decimal, capped at 100', () => {
-    const since = tk('2026-11-17T10:00:00').getTime();
-    const talk = talkSince(day, 'working', since);
-    // 101: only the 10:30 call (60 s; the 09:10 one is before the log, the 21:30 one after hours).
+  it('talk while online in the log / online time, one decimal, capped at 100', () => {
+    const iv = (extension: string, state: 'online' | 'paused' | 'offline', from: string, to: string | null) => ({
+      extension,
+      state,
+      pauseReason: null,
+      startedAt: tk(`2026-11-17T${from}`),
+      endedAt: to ? tk(`2026-11-17T${to}`) : null,
+    });
+    const talk = talkWhileOnline(
+      day,
+      'working',
+      [
+        iv('101', 'offline', '00:00:00', '10:00:00'),
+        iv('101', 'online', '10:00:00', null),
+        iv('103', 'paused', '09:00:00', '11:00:00'),
+        iv('103', 'offline', '11:00:00', null),
+      ],
+      tk('2026-11-17T23:00:00').getTime(),
+    );
+    // 101: only the 10:30 call (the 09:10 one was before 101 was online, the 21:30 one is after hours).
     expect(talk.get('101')).toBe(60);
-    expect(talk.get('103')).toBe(40 + 80);
+    // 103: the 10:30 transfer (paused counts as online), not the 12:00 outbound (offline then).
+    expect(talk.get('103')).toBe(40);
     const rows = buildOperatorKpi(
       base({
         talkForShare: talk,
         presence: new Map([
           ['101', { onlineSec: 1800, pauseSec: 0, pauses: [] }],
-          ['103', { onlineSec: 60, pauseSec: 0, pauses: [] }],
+          ['103', { onlineSec: 30, pauseSec: 0, pauses: [] }],
         ]),
       }),
     );

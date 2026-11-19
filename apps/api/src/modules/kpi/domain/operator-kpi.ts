@@ -1,6 +1,6 @@
 import type { CallAnalysisStats, CallScope, KpiOperatorQuality, KpiOperatorRow, KpiOperatorTickets } from '@cc/shared';
 import type { AssembledCall } from '../../../pbx/calls/call-assembler.js';
-import type { PresenceTotals } from '../../operator-presence/domain/presence-summary.js';
+import type { PresenceIntervalFact, PresenceTotals } from '../../operator-presence/domain/presence-summary.js';
 import { inScope, operatorStats, type SurveyTotals } from '../../stats/domain/metrics.js';
 
 /**
@@ -82,14 +82,31 @@ export function qualityByOperator(operators: CallAnalysisStats['operators']): Ma
 }
 
 /**
- * Talk seconds per operator for the calls that started at or after `since` (in scope, not internal) — the same sum as
- * `operatorStats().talkSec`, limited to the time the presence log covers so the talk share compares like with like.
+ * Talk seconds per operator for the calls (in scope, not internal) that started while that operator was online or
+ * paused in the presence log — the same sum as `operatorStats().talkSec`, limited to the time the log saw the operator,
+ * so the talk share compares like with like (no talk from before the log started or from unknown time).
  */
-export function talkSince(calls: readonly AssembledCall[], scope: CallScope, since: number): Map<string, number> {
+export function talkWhileOnline(
+  calls: readonly AssembledCall[],
+  scope: CallScope,
+  intervals: readonly PresenceIntervalFact[],
+  now: number,
+): Map<string, number> {
+  const online = new Map<string, Array<[number, number]>>();
+  for (const it of intervals) {
+    if (it.state === 'offline') continue;
+    const list = online.get(it.extension) ?? [];
+    list.push([it.startedAt.getTime(), it.endedAt?.getTime() ?? now]);
+    online.set(it.extension, list);
+  }
   const out = new Map<string, number>();
   for (const c of calls) {
-    if (c.startEpochMs < since || !inScope(c, scope) || c.direction === 'internal') continue;
-    for (const [ext, sec] of Object.entries(c.operatorTalk)) if (sec > 0) out.set(ext, (out.get(ext) ?? 0) + sec);
+    if (!inScope(c, scope) || c.direction === 'internal') continue;
+    for (const [ext, sec] of Object.entries(c.operatorTalk)) {
+      if (sec <= 0) continue;
+      if (!online.get(ext)?.some(([a, b]) => c.startEpochMs >= a && c.startEpochMs < b)) continue;
+      out.set(ext, (out.get(ext) ?? 0) + sec);
+    }
   }
   return out;
 }
@@ -108,7 +125,7 @@ export interface OperatorKpiInput {
   tickets: ReadonlyMap<string, KpiOperatorTickets>;
   quality: ReadonlyMap<string, KpiOperatorQuality>;
   presence: ReadonlyMap<string, PresenceTotals>;
-  /** Talk seconds since the presence log started (talkSince), for the talk share. */
+  /** Talk seconds while the operator was online in the presence log (talkWhileOnline), for the talk share. */
   talkForShare: ReadonlyMap<string, number>;
 }
 

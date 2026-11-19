@@ -92,7 +92,10 @@ export const KpiOperatorPresenceSchema = z.object({
   pauseSec: count,
   /** Pause time by reason, longest first. */
   pauses: z.array(KpiPauseReasonSchema),
-  /** Talk time (calls.talkSec) / online time × 100, capped at 100; null without online time or call data. */
+  /**
+   * Talk of the calls that started while the operator was online in the log / online time × 100, capped at 100; null
+   * without online time or call data.
+   */
   talkShare: percent,
 });
 export type KpiOperatorPresence = z.infer<typeof KpiOperatorPresenceSchema>;

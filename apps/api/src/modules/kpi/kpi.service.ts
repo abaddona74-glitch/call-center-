@@ -21,7 +21,7 @@ import { OperatorPresenceService } from '../operator-presence/operator-presence.
 import { summarize, surveyByOperator } from '../stats/domain/metrics.js';
 import { WorkingCalendarService } from '../working-calendar/working-calendar.service.js';
 import { buildExecutiveKpi } from './domain/executive-kpi.js';
-import { buildOperatorKpi, qualityByOperator, talkSince, ticketsByOperator } from './domain/operator-kpi.js';
+import { buildOperatorKpi, qualityByOperator, talkWhileOnline, ticketsByOperator } from './domain/operator-kpi.js';
 import { KpiRepository } from './kpi.repository.js';
 
 /** Same limit as the ticket reports and the overview dashboard. */
@@ -113,7 +113,7 @@ export class KpiService {
         tickets: ticketsByOperator(tickets, attempts, [from, to]),
         quality: qualityByOperator(quality.operators),
         presence: presenceTotals,
-        talkForShare: pbx ? talkSince(pbx.calls, q.scope, since ?? Number.POSITIVE_INFINITY) : new Map(),
+        talkForShare: pbx ? talkWhileOnline(pbx.calls, q.scope, presence.intervals, now.getTime()) : new Map(),
       }),
     };
   }
