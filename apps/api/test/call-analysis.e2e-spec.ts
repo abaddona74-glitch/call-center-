@@ -476,9 +476,7 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
         { version: 'v2-test', count: 1 },
       ]),
     );
-    const old = await root
-      .get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&promptVersion=v2-test')
-      .expect(200);
+    const old = await root.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&promptVersion=v2-test').expect(200);
     expect(old.body).toMatchObject({ promptVersion: 'v2-test', totals: { analyzed: 1, avgOverall: 6 } });
   });
 

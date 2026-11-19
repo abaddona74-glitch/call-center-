@@ -228,11 +228,14 @@ describe('access', () => {
     expect((await observer.post('/callbacks/1/notes', { text: 'salom' })).status).toBe(403);
   });
 
-  it('the live snapshot and callbacks stay open to the roles that had them', async () => {
-    expect((await operator.get('/live/snapshot')).status).toBe(200);
-    expect((await executive.get('/live/snapshot')).status).toBe(200);
-    expect((await operator.get('/callbacks')).status).toBe(200);
-    expect((await executive.get('/callbacks')).status).toBe(200);
+  it('the live snapshot and callbacks stay open to the roles that have them (operator, superuser)', async () => {
+    for (const c of [operator, root]) {
+      expect((await c.get('/live/snapshot')).status).toBe(200);
+      expect((await c.get('/callbacks')).status).toBe(200);
+    }
+    // "Mas'ul" (executive) works with tickets only (#14)
+    expect((await executive.get('/live/snapshot')).status).toBe(403);
+    expect((await executive.get('/callbacks')).status).toBe(403);
   });
 });
 

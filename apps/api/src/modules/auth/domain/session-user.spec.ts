@@ -17,9 +17,9 @@ describe('role permissions', () => {
     expect(ROLE_PERMISSIONS.executive).toEqual(['tickets.process']);
   });
 
-  it('the guide is for every role except the executive', () => {
+  it('the guide is for operators and the superuser (not "Mas’ul", not observers)', () => {
     expect(can({ role: 'operator' }, 'guide.view')).toBe(true);
-    expect(can({ role: 'observer' }, 'guide.view')).toBe(true);
+    expect(can({ role: 'observer' }, 'guide.view')).toBe(false);
     expect(can({ role: 'superuser' }, 'guide.view')).toBe(true);
     expect(can({ role: 'executive' }, 'guide.view')).toBe(false);
   });

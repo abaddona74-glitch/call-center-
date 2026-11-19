@@ -194,7 +194,6 @@ describe('access', () => {
     // observers see only the overview dashboard (owner, 19.11.2026): analysis totals there, no per-call analysis
     expect(canAccessCdr(as('observer'), 'analysis.call')).toBe(false);
     expect(canAccessCdr(as('observer'), 'analysis.stats')).toBe(false);
-    expect(canAccessCdr(as('executive'), 'analysis.call')).toBe(true);
     expect(canAccessCdr(as('operator'), 'analysis.stats')).toBe(false);
     // "Mas'ul" (executive) works with tickets only: no call analysis.
     expect(canAccessCdr(as('executive'), 'analysis.call')).toBe(false);
