@@ -53,7 +53,7 @@ async function main(): Promise<void> {
         await sleep(cfg.CC_WORKER_POLL_SEC * 1000);
         continue;
       }
-      log.info('job leased', { slot: n, callId: job.callId, attempt: job.attempts, talkSec: job.talkSec });
+      log.info('job leased', { slot: n, callId: job.callId, mode: job.mode, attempt: job.attempts, talkSec: job.talkSec });
       count(
         await processJob(job, lease.topics, { api, stt, llm }, {
           workerId: cfg.CC_WORKER_ID,

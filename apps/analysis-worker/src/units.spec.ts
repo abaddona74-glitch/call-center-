@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WorkerEnvSchema, loadConfig } from './config.js';
+import { dropEchoedTurns } from './stt/transcribe.js';
 import { maxTokensFor, buildTurns } from './stt/turns.js';
 import { cleanText, collapseRepeats } from './text/cleanup.js';
 import { callLanguage, russianShare } from './text/language.js';
@@ -53,6 +54,25 @@ describe('turns', () => {
     ]);
   });
 
+  it('drops the later of two overlapping turns that recognised the same words', () => {
+    const seg = (speaker: string, start: number, end: number, text: string) => ({ speaker, start, end, text });
+    const out = dropEchoedTurns([
+      seg('A', 7, 12, 'alo assalomu alaykum yaxshimisiz yuz uchinchi operatorman'),
+      seg('B', 9, 11, 'assalomu alaykum yaxshimisiz yuz uchinchi operatorman'),
+      seg('B', 12.5, 14, 'kalitim ishlamayapti'),
+      seg('A', 13, 15, 'tushunarli tekshiraman'),
+      // the later turn is the echo even when it is longer
+      seg('A', 20, 21, 'hozir tekshirib beraman'),
+      seg('B', 20.5, 26, 'hozir tekshirib beraman xo‘p'),
+    ]);
+    expect(out.map((x) => [x.speaker, x.start])).toEqual([
+      ['A', 7],
+      ['B', 12.5],
+      ['A', 13],
+      ['A', 20],
+    ]);
+  });
+
   it('token limit grows with the turn and stays within Whisper’s per-chunk 256', () => {
     expect(maxTokensFor(0.5)).toBe(32);
     expect(maxTokensFor(10)).toBe(106);
@@ -70,6 +90,8 @@ describe('text', () => {
   it('drops stock hallucinations', () => {
     expect(cleanText('musiqa')).toBe('');
     expect(cleanText('Rahmat.')).toBe('Rahmat.');
+    expect(cleanText('telefon qilish')).toBe('');
+    expect(cleanText('telefon qilish kerak')).toBe('telefon qilish kerak');
     expect(cleanText(' Продолжение следует... ')).toBe('');
     expect(cleanText('  assalomu   alaykum ')).toBe('assalomu alaykum');
   });
@@ -95,7 +117,13 @@ describe('config', () => {
   };
   it('defaults: 2 calls at a time, turns, thinking off', () => {
     const cfg = loadConfig(env);
-    expect(cfg).toMatchObject({ CC_API_URL: 'http://localhost:3000', CC_WORKER_CONCURRENCY: 2, CC_STT_STRATEGY: 'turns', CC_LLM_THINKING: false });
+    expect(cfg).toMatchObject({
+      CC_API_URL: 'http://localhost:3000',
+      CC_WORKER_CONCURRENCY: 2,
+      CC_STT_STRATEGY: 'turns',
+      CC_LLM_THINKING: false,
+      CC_STT_RU_THRESHOLD: 1,
+    });
   });
   it('errors name the variable, never the secret value', () => {
     expect(() => loadConfig({ ...env, CC_API_TOKEN: 'short' })).toThrow(/CC_API_TOKEN/);

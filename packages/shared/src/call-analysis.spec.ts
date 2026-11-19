@@ -7,6 +7,8 @@ import {
   type CallAnalysis,
   TranscriptSegmentSchema,
   WorkerFailRequestSchema,
+  WorkerJobSchema,
+  WorkerTranscriptSchema,
   WorkerLeaseRequestSchema,
   WorkerResultSchema,
 } from './call-analysis.js';
@@ -106,6 +108,27 @@ describe('worker contracts', () => {
   it('fail: a message is required', () => {
     expect(WorkerFailRequestSchema.safeParse({ workerId: 'w', error: '  ', retryable: true }).success).toBe(false);
     expect(WorkerFailRequestSchema.safeParse({ workerId: 'w', error: 'STT 503', retryable: true }).success).toBe(true);
+  });
+});
+
+describe('llm_only re-analysis', () => {
+  it('a leased job says its mode; the stored transcript validates', () => {
+    expect(
+      WorkerJobSchema.safeParse({
+        callId: '1.2',
+        mode: 'llm_only',
+        startedAt: '2026-11-13T09:00:00+05:00',
+        direction: 'inbound',
+        operatorExt: '101',
+        talkSec: 30,
+        attempts: 1,
+        leaseUntil: '2026-11-13T09:20:00Z',
+      }).success,
+    ).toBe(true);
+    expect(
+      WorkerTranscriptSchema.safeParse({ ...result.transcript, sttStrategy: 'turns', sttModel: 'w', sttMs: 1, sttRerun: false })
+        .success,
+    ).toBe(true);
   });
 });
 

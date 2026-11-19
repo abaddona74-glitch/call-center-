@@ -53,6 +53,8 @@ async function main(): Promise<void> {
       out: { type: 'string' },
       n: { type: 'string', default: '10' },
       ids: { type: 'string' },
+      /** Which runs: chunks, turns, turns_think (thinking costs 4–10× the time). */
+      modes: { type: 'string', default: 'chunks,turns,turns_think' },
     },
   });
   if (!values.calls || !values.monitor || !values.out) throw new Error('--calls, --monitor and --out are required');
@@ -89,7 +91,9 @@ async function main(): Promise<void> {
     const wav = parseWav(audio);
     const row: Record<string, unknown> = { callId: call.callId, direction: call.direction, audioSec: Math.round(wav.durationSec) };
     const detail: Record<string, unknown> = { ...row };
+    const modesWanted = new Set(values.modes.split(','));
     for (const strategy of ['chunks', 'turns'] as const) {
+      if (!modesWanted.has(strategy) && !modesWanted.has(`${strategy}_think`)) continue;
       const t0 = Date.now();
       const run = await transcribeCall(stt, audio, wav, {
         strategy,
@@ -99,7 +103,7 @@ async function main(): Promise<void> {
       });
       const sttMs = Date.now() - t0;
       const letters = speakerLetters(run.segments);
-      const modes = strategy === 'turns' ? [false, true] : [false];
+      const modes = [false, true].filter((th) => modesWanted.has(`${strategy}${th ? '_think' : ''}`));
       for (const thinking of modes) {
         const key = `${strategy}${thinking ? '_think' : ''}`;
         row[`${key}_sttMs`] = sttMs;

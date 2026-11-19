@@ -12,7 +12,7 @@ import { toTranscript } from './llm/output.js';
 import { type Topic, speakerLetters } from './llm/prompt.js';
 import { log } from './log.js';
 import { ServiceError, type SpeakerOptions, type SttClient } from './stt/stt-client.js';
-import { type SttRun, transcribeCall } from './stt/transcribe.js';
+import { type SttRun, dropEchoedTurns, transcribeCall } from './stt/transcribe.js';
 import { callLanguage } from './text/language.js';
 import { WavError, parseWav } from './wav.js';
 
@@ -57,7 +57,7 @@ export function buildResult(input: {
   thinking: boolean;
   llmModel: string;
 }): WorkerResult {
-  const segments = toTranscript(input.stt.segments, input.letters, input.llm.roles);
+  const segments = toTranscript(input.stt.segments, input.letters, input.llm.roles, input.llm.roleFixes);
   return {
     workerId: input.workerId,
     transcript: {
@@ -95,26 +95,51 @@ export async function processJob(
   const t0 = Date.now();
   let outcome: JobOutcome;
   try {
-    const audio = await deps.api.recording(callId);
-    let wav;
-    try {
-      wav = parseWav(audio);
-    } catch (err) {
-      if (err instanceof WavError) throw new Skip('unsupported_audio');
-      throw err;
-    }
-    if (wav.durationSec < 1) throw new Skip('empty_recording');
-    if (wav.durationSec > opts.maxAudioSec) throw new Skip('too_long');
+    let stt: SttRun;
+    let sttMs: number;
+    let audioSec: number;
+    if (job.mode === 'llm_only') {
+      // a new prompt/rubric version on the stored transcript: no recording, no STT
+      const stored = await deps.api.transcript(callId);
+      stt = {
+        strategy: stored.sttStrategy,
+        model: stored.sttModel,
+        rerun: stored.sttRerun,
+        requests: 0,
+        segments: stored.segments.map((x) => ({
+          start: x.start,
+          end: x.end,
+          speaker: x.speaker,
+          text: x.text,
+          language: stored.language === 'ru' ? 'ru' : 'uz',
+        })),
+      };
+      sttMs = stored.sttMs;
+      audioSec = stored.audioSec;
+    } else {
+      const audio = await deps.api.recording(callId);
+      let wav;
+      try {
+        wav = parseWav(audio);
+      } catch (err) {
+        if (err instanceof WavError) throw new Skip('unsupported_audio');
+        throw err;
+      }
+      if (wav.durationSec < 1) throw new Skip('empty_recording');
+      if (wav.durationSec > opts.maxAudioSec) throw new Skip('too_long');
 
-    const sttStart = Date.now();
-    const stt = await transcribeCall(deps.stt, audio, wav, {
-      strategy: opts.strategy,
-      turnConcurrency: opts.turnConcurrency,
-      ruThreshold: opts.ruThreshold,
-      speakers: opts.speakers ?? { minSpeakers: 2, maxSpeakers: 3 },
-    });
-    const sttMs = Date.now() - sttStart;
-    const speech = stt.segments.reduce((s, x) => s + (x.end - x.start), 0);
+      const sttStart = Date.now();
+      stt = await transcribeCall(deps.stt, audio, wav, {
+        strategy: opts.strategy,
+        turnConcurrency: opts.turnConcurrency,
+        ruThreshold: opts.ruThreshold,
+        speakers: opts.speakers ?? { minSpeakers: 2, maxSpeakers: 3 },
+      });
+      sttMs = Date.now() - sttStart;
+      audioSec = wav.durationSec;
+    }
+    stt = { ...stt, segments: dropEchoedTurns(stt.segments) };
+    const speech = stt.segments.reduce((sum, x) => sum + (x.end - x.start), 0);
     if (stt.segments.length === 0 || speech < MIN_SPEECH_SEC) throw new Skip('no_speech');
 
     const letters = speakerLetters(stt.segments);
@@ -123,7 +148,7 @@ export async function processJob(
       letters,
       topics,
       direction: job.direction,
-      audioSec: wav.durationSec,
+      audioSec,
       thinking: opts.thinking,
     });
     const result = buildResult({
@@ -131,7 +156,7 @@ export async function processJob(
       stt,
       llm,
       letters,
-      audioSec: wav.durationSec,
+      audioSec,
       sttMs,
       thinking: opts.thinking,
       llmModel: deps.llm.model,
@@ -139,7 +164,7 @@ export async function processJob(
     await deps.api.submit(callId, result);
     outcome = {
       kind: 'done',
-      audioSec: wav.durationSec,
+      audioSec,
       sttMs,
       llmMs: llm.ms,
       segments: result.transcript.segments.length,
@@ -147,7 +172,8 @@ export async function processJob(
     };
     log.info('job done', {
       callId,
-      audioSec: Math.round(wav.durationSec),
+      mode: job.mode,
+      audioSec: Math.round(audioSec),
       sttMs,
       llmMs: llm.ms,
       llmAttempts: llm.attempts,

@@ -5,6 +5,8 @@ import {
   type WorkerLeaseResponse,
   WorkerLeaseResponseSchema,
   type WorkerResult,
+  type WorkerTranscript,
+  WorkerTranscriptSchema,
 } from '@cc/shared';
 import { ServiceError } from './stt/stt-client.js';
 
@@ -15,6 +17,8 @@ const MAX_RECORDING_BYTES = 100 * 1024 * 1024;
 export interface ApiClient {
   lease(limit: number, leaseSec: number): Promise<WorkerLeaseResponse>;
   recording(callId: string): Promise<Buffer>;
+  /** Stored transcript of a leased `llm_only` job. */
+  transcript(callId: string): Promise<WorkerTranscript>;
   submit(callId: string, result: WorkerResult): Promise<WorkerAck>;
   fail(callId: string, error: string, retryable: boolean): Promise<WorkerAck>;
   skip(callId: string, reason: SkipReason): Promise<WorkerAck>;
@@ -61,6 +65,12 @@ export class HttpApiClient implements ApiClient {
     const size = Number(res.headers.get('content-length') ?? 0);
     if (size > MAX_RECORDING_BYTES) throw new ServiceError('api', 'recording is larger than 100 MiB', false);
     return Buffer.from(await res.arrayBuffer());
+  }
+
+  async transcript(callId: string): Promise<WorkerTranscript> {
+    const q = new URLSearchParams({ workerId: this.workerId });
+    const res = await this.request(`/jobs/${encodeURIComponent(callId)}/transcript?${q}`, { method: 'GET' });
+    return WorkerTranscriptSchema.parse(await res.json());
   }
 
   async submit(callId: string, result: WorkerResult): Promise<WorkerAck> {

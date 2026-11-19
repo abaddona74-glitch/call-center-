@@ -83,3 +83,8 @@ export function retryFailedCallAnalysis(): Promise<CallAnalysisRetryResponse> {
     schema: CallAnalysisRetryResponseSchema,
   });
 }
+
+/** Re-score analysed calls of a period with the current prompt version (the worker re-runs only the LLM). */
+export function reanalyzeCallAnalysis(body: CallAnalysisBackfillRequest): Promise<CallAnalysisRetryResponse> {
+  return api('/call-analysis/reanalyze', { method: 'POST', body, schema: CallAnalysisRetryResponseSchema });
+}

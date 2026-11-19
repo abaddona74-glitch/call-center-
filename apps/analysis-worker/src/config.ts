@@ -32,8 +32,12 @@ export const WorkerEnvSchema = z.object({
   /** Parallel STT requests inside one call (turn strategy). */
   CC_STT_TURN_CONCURRENCY: z.coerce.number().int().min(1).max(8).default(3),
   CC_STT_STRATEGY: z.enum(STT_STRATEGIES).default('turns'),
-  /** Re-run STT in Russian when at least this share of the recognised words looks Russian (0..1, 1 = never). */
-  CC_STT_RU_THRESHOLD: z.coerce.number().min(0).max(1).default(0.35),
+  /**
+   * Re-run STT in Russian when at least this share of the recognised words looks Russian (0..1, 1 = never).
+   * Off by default: the pilot (2026-11-19) showed the Uzbek checkpoint writes Russian speech as Latin transliteration
+   * with language=ru too, so the re-run only costs GPU time. Turn on with a multilingual checkpoint (e.g. 0.35).
+   */
+  CC_STT_RU_THRESHOLD: z.coerce.number().min(0).max(1).default(1),
   CC_LLM_THINKING: z.stringbool().default(false),
   CC_LLM_TIMEOUT_SEC: z.coerce.number().int().min(10).max(1800).default(300),
   CC_STT_TIMEOUT_SEC: z.coerce.number().int().min(10).max(3600).default(900),

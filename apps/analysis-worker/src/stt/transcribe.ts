@@ -37,6 +37,35 @@ const PAD_SEC = 0.2;
 /** A turn is re-run alone in Russian only when it has enough marker words to judge. */
 const MIN_WORDS_FOR_TURN_RERUN = 3;
 
+const wordsOf = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? []);
+
+/**
+ * When both sides talk at once, the clip of one speaker's turn also carries the other voice, and the same words are
+ * recognised twice. Of two time-overlapping turns of different speakers whose words are mostly the same (Jaccard ≥ 0.5,
+ * ≥ 2 words each), the one that started later is dropped: the other speaker's turn began while the words were already
+ * being said (the same start: the shorter one goes). Pilot 2026-11-19: ~1 % of turns.
+ */
+export function dropEchoedTurns<T extends { start: number; end: number; speaker: string | null; text: string }>(
+  segments: readonly T[],
+): T[] {
+  const drop = new Set<number>();
+  for (let i = 0; i < segments.length; i++) {
+    for (let j = i + 1; j < segments.length && segments[j].start < segments[i].end; j++) {
+      const a = segments[i];
+      const b = segments[j];
+      if (drop.has(i) || drop.has(j) || a.speaker === b.speaker) continue;
+      const wa = wordsOf(a.text);
+      const wb = wordsOf(b.text);
+      if (wa.size < 2 || wb.size < 2) continue;
+      const common = [...wa].filter((w) => wb.has(w)).length;
+      if (common / (wa.size + wb.size - common) < 0.5) continue;
+      // segments are in start order: b started at the same time or later
+      drop.add(a.start === b.start && a.end - a.start < b.end - b.start ? i : j);
+    }
+  }
+  return segments.filter((_, i) => !drop.has(i));
+}
+
 async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
   const out: R[] = Array.from({ length: items.length });
   let next = 0;
@@ -63,7 +92,7 @@ async function runChunks(stt: SttClient, audio: Buffer, opts: TranscribeOptions)
   let language: 'uz' | 'ru' = 'uz';
   let res = await stt.transcribe(audio, { language, diarize: true, ...opts.speakers });
   let requests = 1;
-  if (russianShare(res.text) >= opts.ruThreshold) {
+  if (opts.ruThreshold < 1 && russianShare(res.text) >= opts.ruThreshold) {
     language = 'ru';
     res = await stt.transcribe(audio, { language, diarize: true, ...opts.speakers });
     requests++;
@@ -107,7 +136,7 @@ async function runTurns(stt: SttClient, audio: Buffer, wav: WavInfo, opts: Trans
   const texts = await mapLimit(turns, opts.turnConcurrency, (t) => recognise(t, 'uz'));
   const languages: Array<'uz' | 'ru'> = turns.map(() => 'uz');
 
-  const callIsRussian = russianShare(texts.join(' ')) >= opts.ruThreshold;
+  const callIsRussian = opts.ruThreshold < 1 && russianShare(texts.join(' ')) >= opts.ruThreshold;
   const rerun = turns
     .map((_, i) => i)
     .filter((i) => {

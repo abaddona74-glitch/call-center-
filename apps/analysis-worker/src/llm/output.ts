@@ -17,6 +17,11 @@ const score5 = z.number().int().min(1).max(5);
 /** What the LLM must return (snake_case, as in the prompt). */
 export const LlmOutputSchema = z.object({
   speaker_roles: z.record(z.string().regex(/^[A-Z]$/), z.enum(TRANSCRIPT_ROLES)),
+  /** 1-based transcript lines whose role differs from their speaker letter's (diarization slips). */
+  role_fixes: z
+    .array(z.object({ line: z.number().int().min(1), role: z.enum(TRANSCRIPT_ROLES) }))
+    .max(100)
+    .default([]),
   language: z.enum(['uz', 'ru', 'mixed']),
   topic: z.string(),
   subtopic_uz: text,
@@ -93,14 +98,15 @@ export function toTranscript(
   segments: readonly RawSegment[],
   letters: ReadonlyMap<string, string>,
   roles: Record<string, TranscriptRole>,
+  fixes: ReadonlyMap<number, TranscriptRole> = new Map(),
 ): TranscriptSegment[] {
   const round = (n: number) => Math.round(n * 100) / 100;
-  return segments.map((s) => {
+  return segments.map((s, i) => {
     const letter = s.speaker ? letters.get(s.speaker) : undefined;
     return {
       start: round(s.start),
       end: round(Math.max(s.end, s.start)),
-      role: (letter && roles[letter]) || 'unknown',
+      role: fixes.get(i) ?? ((letter && roles[letter]) || 'unknown'),
       speaker: s.speaker,
       text: s.text.slice(0, 5000),
     };

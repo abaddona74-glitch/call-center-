@@ -20,6 +20,7 @@
 | S9 | Руководство для операторов (этап 2) | `modules/guide` (если нужен API; иначе только фронт) | `pages/guide`, `widgets/guide-*`, `entities/guide` | 3009 / 5182 | `callcenter_s9` |
 | S10 | Перенос данных legacy (этап 3) | `scripts/migrate-legacy/**` (кроме нового маппера исключённых операторов) | — | — / — | `callcenter_s10` |
 | S11 | Исключённые операторы (этап 3) | настройка списка, фильтры в `modules/{live,stats,cdr,callbacks}`, маппер `excluded-operators` | раздел в `pages/settings*`, `features/excluded-operators/*` | 3011 / 5184 | `callcenter_s11` |
+| AI | ИИ-анализ записей (после перехода, `CALL-ANALYSIS.md`) | `modules/call-analysis`, `apps/analysis-worker` | `pages/call-analysis`, `entities/call-analysis`, `features/call-analysis/*`, вкладка в `widgets/call-history-table` | 3000 / 5173 | `callcenter_ca` |
 
 ### Контракты между сессиями
 - **S3 → S4:** события `call.*` из `apps/api/src/common/events/domain-events.ts`. S3 их публикует из AMI, S4 подписывается (закрытие callback'ов, учёт попыток). S4 пишет свои тесты на синтетических событиях, не дожидаясь S3.

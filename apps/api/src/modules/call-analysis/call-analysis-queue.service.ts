@@ -2,6 +2,8 @@ import {
   type CallAnalysisBackfillRequest,
   type CallAnalysisBackfillResponse,
   type CallAnalysisQueue,
+  type CallAnalysisReanalyzeRequest,
+  type WorkerTranscript,
   type WorkerAck,
   type WorkerFailRequest,
   type WorkerLeaseRequest,
@@ -10,7 +12,7 @@ import {
   type WorkerSkipRequest,
 } from '@cc/shared';
 import { Transactional } from '@nestjs-cls/transactional';
-import { ConflictException, Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { wallToIso } from '../../common/time/business-time.js';
 import { AppConfig } from '../../config/app-config.js';
 import type { AssembledCall } from '../../pbx/calls/call-assembler.js';
@@ -84,6 +86,16 @@ export class CallAnalysisQueueService {
     return result;
   }
 
+  /** Superuser: re-score analysed calls with the current prompt version (LLM only, on the stored transcripts). */
+  async reanalyze(req: CallAnalysisReanalyzeRequest): Promise<{ requeued: number }> {
+    if (!('callIds' in req)) this.calls.assertRange(req.from, req.to, this.calls.maxStatsDays);
+    const requeued = await this.repo.requeueForReanalysis(req);
+    await this.audit.record('callAnalysis.reanalyze', {
+      details: 'callIds' in req ? { callIds: req.callIds.length, requeued } : { from: req.from, to: req.to, requeued },
+    });
+    return { requeued };
+  }
+
   async retryFailed(): Promise<{ requeued: number }> {
     const requeued = await this.repo.retryFailed();
     await this.audit.record('callAnalysis.retryFailed', { details: { requeued } });
@@ -102,6 +114,7 @@ export class CallAnalysisQueueService {
     return {
       jobs: rows.map((r) => ({
         callId: r.callId,
+        mode: r.mode,
         startedAt: r.callStartedAt.toISOString(),
         direction: r.direction,
         operatorExt: r.operatorExt,
@@ -119,6 +132,22 @@ export class CallAnalysisQueueService {
     if (!job || job.status !== 'processing' || job.leaseOwner !== workerId) {
       throw new ConflictException('This worker does not hold the lease of the job');
     }
+  }
+
+  /** The stored transcript of a leased job (llm_only re-analysis). */
+  async storedTranscript(callId: string, workerId: string): Promise<WorkerTranscript> {
+    await this.assertLease(callId, workerId);
+    const t = await this.repo.transcript(callId);
+    if (!t) throw new NotFoundException('This call has no stored transcript');
+    return {
+      language: t.language,
+      audioSec: t.audioSec,
+      segments: t.segments,
+      sttStrategy: t.sttStrategy,
+      sttModel: t.sttModel,
+      sttMs: t.sttMs,
+      sttRerun: t.sttRerun,
+    };
   }
 
   @Transactional()

@@ -20,7 +20,11 @@ import { TicketStatusSchema } from './tickets.js';
  * Version of the prompt + rubric the worker used. Bump it whenever the prompt, the topic list semantics,
  * the scores or the flags change; every stored result keeps the version it was made with.
  */
-export const CALL_ANALYSIS_PROMPT_VERSION = 'v1-2026-11-19';
+export const CALL_ANALYSIS_PROMPT_VERSION = 'v3-2026-11-19';
+/**
+ * Versions: v1 — first pilot rubric; v2 — scores anchored on the operator manual standard, calibrated overall;
+ * v3 — v2 + the model corrects the role of single transcript lines that diarization gave to the wrong side.
+ */
 
 export const CALL_ANALYSIS_JOB_STATUSES = ['queued', 'processing', 'done', 'failed', 'skipped'] as const;
 export const CallAnalysisJobStatusSchema = z.enum(CALL_ANALYSIS_JOB_STATUSES);
@@ -169,8 +173,17 @@ export const WorkerLeaseRequestSchema = z.object({
 });
 export type WorkerLeaseRequest = z.infer<typeof WorkerLeaseRequestSchema>;
 
+/**
+ * full — recording → STT → LLM; llm_only — re-run only the LLM on the stored transcript (a new prompt/rubric version:
+ * seconds per call instead of the STT minute).
+ */
+export const ANALYSIS_JOB_MODES = ['full', 'llm_only'] as const;
+export const AnalysisJobModeSchema = z.enum(ANALYSIS_JOB_MODES);
+export type AnalysisJobMode = z.infer<typeof AnalysisJobModeSchema>;
+
 export const WorkerJobSchema = z.object({
   callId: CdrCallIdSchema,
+  mode: AnalysisJobModeSchema,
   /** ISO-8601 with offset (Asia/Tashkent). */
   startedAt: z.string(),
   direction: CallDirectionSchema,
@@ -212,6 +225,18 @@ export const WorkerResultSchema = z.object({
   }),
 });
 export type WorkerResult = z.infer<typeof WorkerResultSchema>;
+
+/** The stored transcript of a leased `llm_only` job. */
+export const WorkerTranscriptSchema = z.object({
+  language: AnalysisLanguageSchema,
+  audioSec: z.number(),
+  segments: z.array(TranscriptSegmentSchema),
+  sttStrategy: SttStrategySchema,
+  sttModel: z.string(),
+  sttMs: z.number().int(),
+  sttRerun: z.boolean(),
+});
+export type WorkerTranscript = z.infer<typeof WorkerTranscriptSchema>;
 
 export const WorkerFailRequestSchema = z.object({
   workerId: WorkerIdSchema,
@@ -420,6 +445,10 @@ export const CallAnalysisBackfillResponseSchema = z.object({
 export type CallAnalysisBackfillResponse = z.infer<typeof CallAnalysisBackfillResponseSchema>;
 
 export const CallAnalysisRetryResponseSchema = z.object({ requeued: z.number().int() });
+
+/** Re-run only the LLM (current prompt version) on analysed calls of a period or on exact call ids. */
+export const CallAnalysisReanalyzeRequestSchema = CallAnalysisBackfillRequestSchema;
+export type CallAnalysisReanalyzeRequest = CallAnalysisBackfillRequest;
 export type CallAnalysisRetryResponse = z.infer<typeof CallAnalysisRetryResponseSchema>;
 
 export const CallTopicListSchema = z.object({ items: z.array(CallTopicSchema) });

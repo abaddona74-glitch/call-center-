@@ -9,6 +9,7 @@ export {
   callAnalysisStatsQuery,
   callAnalysisStatusQuery,
   callTopicsQuery,
+  reanalyzeCallAnalysis,
   retryFailedCallAnalysis,
 } from './api/call-analysis.api';
 export { activeSegmentIndex, formatAvg, formatClock, pickText, scoreTone, type ScoreTone } from './lib/format';

@@ -1,4 +1,4 @@
-import type { CallAnalysisJobStatus, SkipReason, TicketStatus, WorkerResult } from '@cc/shared';
+import type { CallAnalysisBackfillRequest, CallAnalysisJobStatus, SkipReason, TicketStatus, WorkerResult } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { type DbHost, InjectDb } from '../../database/db.js';
@@ -194,6 +194,32 @@ export class CallAnalysisRepository {
       .values({ callId, ...analysis })
       .onConflict((oc) => oc.column('callId').doUpdateSet({ ...analysis, updatedAt: sql<Date>`now()` }))
       .execute();
+  }
+
+  /**
+   * Analysed calls (done, with a transcript) of a period or exact ids go back to the queue as `llm_only`: the worker
+   * re-runs only the LLM with the current prompt version.
+   */
+  async requeueForReanalysis(req: CallAnalysisBackfillRequest): Promise<number> {
+    let q = this.db
+      .updateTable('callAnalysisJobs')
+      .set({
+        status: 'queued',
+        mode: 'llm_only',
+        attempts: 0,
+        notBefore: null,
+        lastError: null,
+        finishedAt: null,
+        updatedAt: sql<Date>`now()`,
+      })
+      .where('status', '=', 'done')
+      .where((eb) => eb.exists(eb.selectFrom('callTranscripts as t').select('t.callId').whereRef('t.callId', '=', 'callAnalysisJobs.callId')));
+    q =
+      'callIds' in req
+        ? q.where('callId', 'in', req.callIds)
+        : q.where('callDate', '>=', sql<Date>`${req.from}::date`).where('callDate', '<=', sql<Date>`${req.to}::date`);
+    const res = await q.executeTakeFirst();
+    return Number(res.numUpdatedRows);
   }
 
   async retryFailed(): Promise<number> {

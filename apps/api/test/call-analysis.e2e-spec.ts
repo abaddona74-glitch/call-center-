@@ -370,3 +370,39 @@ describe('reads', () => {
     await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-16').expect(400);
   });
 });
+
+describe('re-analysis with a new prompt version (llm_only)', () => {
+  it('superuser only', async () => {
+    for (const c of [operator, observer, executive]) {
+      await c.post('/call-analysis/reanalyze', { callIds: [ID1] }).expect(403);
+    }
+  });
+
+  it('requeues only analysed calls; the worker gets the stored transcript instead of the recording', async () => {
+    const r = await root.post('/call-analysis/reanalyze', { callIds: [ID1, ID3] }).expect(200);
+    expect(r.body).toEqual({ requeued: 1 }); // ID3 was skipped: nothing to re-score
+    expect(await jobRow(ID1)).toMatchObject({ status: 'queued', mode: 'llm_only', attempts: 0 });
+
+    const leased = await lease('w1', 5).expect(200);
+    expect(leased.body.jobs).toEqual([expect.objectContaining({ callId: ID1, mode: 'llm_only', attempts: 1 })]);
+    const t = await worker().get(`/jobs/${ID1}/transcript?workerId=w1`).expect(200);
+    expect(t.body).toMatchObject({ language: 'uz', sttStrategy: 'turns', sttModel: 'whisper-uz', sttMs: 1000, sttRerun: false });
+    expect(t.body.segments).toHaveLength(2);
+    await worker().get(`/jobs/${ID1}/transcript?workerId=w2`).expect(409);
+
+    const v2 = result({ workerId: 'w1' });
+    v2.meta.promptVersion = 'v2-test';
+    v2.analysis.overall = 6;
+    await worker().post(`/jobs/${ID1}/result`, v2).expect(200);
+    const d = await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
+    expect(d.body.analysis).toMatchObject({ promptVersion: 'v2-test', overall: 6 });
+    expect(d.body.transcript.segments).toHaveLength(2);
+  });
+
+  it('a period re-scores every analysed call of it', async () => {
+    const r = await root.post('/call-analysis/reanalyze', { from: '2026-11-17', to: '2026-11-17' }).expect(200);
+    expect(r.body).toEqual({ requeued: 2 });
+    const jobs = (await lease('w1', 5).expect(200)).body.jobs as Array<{ callId: string; mode: string }>;
+    expect(jobs.map((j) => [j.callId, j.mode]).sort()).toEqual([[ID1, 'llm_only'], [ID4, 'llm_only']].sort());
+  });
+});

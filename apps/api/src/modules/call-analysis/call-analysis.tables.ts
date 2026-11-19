@@ -1,4 +1,5 @@
 import type {
+  AnalysisJobMode,
   AnalysisLanguage,
   CallAnalysisJobStatus,
   CallDirection,
@@ -37,6 +38,8 @@ export interface CallAnalysisJobsTable {
   recordingFile: string | null;
   source: 'auto' | 'manual';
   status: Generated<CallAnalysisJobStatus>;
+  /** full = STT + LLM; llm_only = LLM on the stored transcript (re-analysis). */
+  mode: Generated<AnalysisJobMode>;
   attempts: Generated<number>;
   notBefore: Date | null;
   leaseOwner: string | null;

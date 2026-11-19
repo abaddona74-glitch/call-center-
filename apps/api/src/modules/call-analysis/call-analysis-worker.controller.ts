@@ -13,6 +13,8 @@ import {
   WorkerResultSchema,
   type WorkerSkipRequest,
   WorkerSkipRequestSchema,
+  type WorkerTranscript,
+  WorkerTranscriptSchema,
 } from '@cc/shared';
 import {
   BadRequestException,
@@ -98,6 +100,16 @@ export class CallAnalysisWorkerController {
     res.status(prepared.status);
     for (const [name, value] of Object.entries(prepared.headers)) res.setHeader(name, value);
     await pipeline(prepared.stream, res).catch(() => undefined);
+  }
+
+  /** The stored transcript of a leased `llm_only` job. */
+  @Get('jobs/:callId/transcript')
+  @SerializeOptions({ schema: WorkerTranscriptSchema })
+  transcript(
+    @Param('callId', { schema: CdrCallIdSchema }) callId: string,
+    @Query({ schema: WorkerQuerySchema }) q: { workerId: string },
+  ): Promise<WorkerTranscript> {
+    return this.queue.storedTranscript(callId, q.workerId);
   }
 
   @Post('jobs/:callId/result')

@@ -2,7 +2,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { backfillCallAnalysis, callAnalysisKeys, retryFailedCallAnalysis } from '@/entities/call-analysis';
+import {
+  backfillCallAnalysis,
+  callAnalysisKeys,
+  reanalyzeCallAnalysis,
+  retryFailedCallAnalysis,
+} from '@/entities/call-analysis';
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { Icon } from '@/shared/ui/icon';
 import { toDmy } from '@/shared/ui/range-calendar';
@@ -60,7 +65,17 @@ export function BackfillForm({ today, defaultFrom }: { today: string; defaultFro
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(today);
   const [open, setOpen] = useState(false);
+  const [reOpen, setReOpen] = useState(false);
   const valid = Boolean(from && to && from <= to && to <= today);
+  const reanalyze = useMutation({
+    mutationFn: () => reanalyzeCallAnalysis({ from, to }),
+    onSuccess: async (r) => {
+      setReOpen(false);
+      toast.success(t('reanalyzed', { n: r.requeued }));
+      await queryClient.invalidateQueries({ queryKey: callAnalysisKeys.all });
+    },
+    onError: (err) => toast.error(t('error', { message: err.message })),
+  });
   const backfill = useMutation({
     mutationFn: () => backfillCallAnalysis({ from, to }),
     onSuccess: async (r) => {
@@ -101,7 +116,27 @@ export function BackfillForm({ today, defaultFrom }: { today: string; defaultFro
         >
           <Icon name="import" className="size-4" /> {t('backfill')}
         </button>
+        <button
+          type="button"
+          title={t('reanalyzeHint')}
+          disabled={!valid || reanalyze.isPending}
+          onClick={() => setReOpen(true)}
+          className={`${BUTTON} border-tint/12 bg-tint/5 text-foreground hover:bg-tint/10`}
+        >
+          <Icon name="refresh" className={reanalyze.isPending ? 'size-4 animate-spin' : 'size-4'} /> {t('reanalyze')}
+        </button>
       </div>
+      <ConfirmDialog
+        open={reOpen}
+        onOpenChange={setReOpen}
+        tone="primary"
+        title={t('reanalyze')}
+        description={t('reanalyzeConfirm', { from: toDmy(from), to: toDmy(to) })}
+        confirmLabel={t('confirm')}
+        cancelLabel={t('cancel')}
+        pending={reanalyze.isPending}
+        onConfirm={() => reanalyze.mutate()}
+      />
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}

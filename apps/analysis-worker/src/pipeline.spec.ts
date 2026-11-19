@@ -9,6 +9,7 @@ import { pcmWav } from './wav.fixture.js';
 
 const job: WorkerJob = {
   callId: '1794544201.2101100',
+  mode: 'full',
   startedAt: '2026-11-13T09:30:09+05:00',
   direction: 'inbound',
   operatorExt: '114',
@@ -48,6 +49,18 @@ function fakeApi(audio: Buffer | Error = pcmWav(30)) {
       if (audio instanceof Error) throw audio;
       return audio;
     }),
+    transcript: vi.fn(async () => ({
+      language: 'uz' as const,
+      audioSec: 30,
+      sttStrategy: 'turns' as const,
+      sttModel: 'whisper-uz',
+      sttMs: 12_345,
+      sttRerun: false,
+      segments: [
+        { start: 0.5, end: 4, role: 'unknown' as const, speaker: 'SPEAKER_01', text: 'Assalomu alaykum, Call Center xizmati' },
+        { start: 4.5, end: 9, role: 'unknown' as const, speaker: 'SPEAKER_00', text: 'Kalitim ishlamayapti' },
+      ],
+    })),
     submit: vi.fn(async (_callId: string, _result: WorkerResult) => ({ ok: true as const, status: 'done' as const })),
     fail: vi.fn(async (_callId: string, _error: string, _retryable: boolean) => ({ ok: true as const, status: 'queued' as const })),
     skip: vi.fn(async (_callId: string, _reason: SkipReason) => ({ ok: true as const, status: 'skipped' as const })),
@@ -115,10 +128,18 @@ describe('processJob', () => {
     });
     // the prompt carries speaker letters and times, and the JSON schema lists them
     const req = llm.chat.mock.calls[0][0] as ChatRequest;
-    expect(req.messages[1].content).toContain('[A 00:00] Assalomu alaykum');
-    expect(req.messages[1].content).toContain('[B 00:04] Kalitim ishlamayapti');
+    expect(req.messages[1].content).toContain('[1 A 00:00] Assalomu alaykum');
+    expect(req.messages[1].content).toContain('[2 B 00:04] Kalitim ishlamayapti');
     expect(JSON.stringify(req.jsonSchema)).toContain('"required":["A","B"]');
     expect(api.fail).not.toHaveBeenCalled();
+  });
+
+  it('applies the model’s per-line role fixes (diarization gave a line to the wrong side)', async () => {
+    const api = fakeApi();
+    const llm = fakeLlm([JSON.stringify({ ...llmAnswer, role_fixes: [{ line: 3, role: 'client' }, { line: 99, role: 'client' }] })]);
+    await processJob(job, topics, { api, stt: fakeStt(), llm }, opts);
+    const r = WorkerResultSchema.parse(api.submit.mock.calls[0][1]);
+    expect(r.transcript.segments.map((x) => x.role)).toEqual(['operator', 'client', 'client']);
   });
 
   it('retries the LLM once with the validation errors, then succeeds; unknown topic → other', async () => {
@@ -188,6 +209,23 @@ describe('processJob', () => {
     expect(r.meta.sttRerun).toBe(true);
     expect(r.transcript.segments[0].text).toBe('Хорошо, сейчас посмотрю, подождите');
     expect(stt.transcribe).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe('processJob llm_only', () => {
+  it('re-runs only the LLM on the stored transcript: no recording, no STT, the stored STT facts are kept', async () => {
+    const api = fakeApi();
+    const stt = fakeStt();
+    const llm = fakeLlm([JSON.stringify(llmAnswer)]);
+    const out = await processJob({ ...job, mode: 'llm_only' }, topics, { api, stt, llm }, opts);
+    expect(out.kind).toBe('done');
+    expect(api.recording).not.toHaveBeenCalled();
+    expect(stt.diarize).not.toHaveBeenCalled();
+    expect(stt.transcribe).not.toHaveBeenCalled();
+    const r = WorkerResultSchema.parse(api.submit.mock.calls[0][1]);
+    expect(r.transcript.segments.map((x) => x.role)).toEqual(['operator', 'client']);
+    expect(r.meta).toMatchObject({ sttMs: 12_345, sttModel: 'whisper-uz', sttStrategy: 'turns', promptVersion: CALL_ANALYSIS_PROMPT_VERSION });
+    expect(r.transcript.audioSec).toBe(30);
   });
 });
 

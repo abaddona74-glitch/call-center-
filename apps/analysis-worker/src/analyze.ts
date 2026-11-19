@@ -16,6 +16,8 @@ export class LlmOutputError extends Error {
 export interface LlmRun {
   analysis: CallAnalysis;
   roles: Record<string, TranscriptRole>;
+  /** Segment index (0-based) → role, where the model corrected a single line. */
+  roleFixes: Map<number, TranscriptRole>;
   attempts: number;
   ms: number;
   promptTokens: number | null;
@@ -43,7 +45,8 @@ export async function analyzeTranscript(
   const letterList = [...input.letters.values()];
   const topicCodes = input.topics.map((t) => t.code);
   const messages: ChatMessage[] = buildMessages(input);
-  const schema = input.useJsonSchema === false ? undefined : responseJsonSchema(letterList, topicCodes);
+  const schema =
+    input.useJsonSchema === false ? undefined : responseJsonSchema(letterList, topicCodes, input.segments.length);
   let promptTokens: number | null = null;
   let completionTokens: number | null = null;
 
@@ -62,9 +65,12 @@ export async function analyzeTranscript(
       if (parsed.success) {
         const roles: Record<string, TranscriptRole> = {};
         for (const l of letterList) roles[l] = parsed.data.speaker_roles[l] ?? 'unknown';
+        const roleFixes = new Map<number, TranscriptRole>();
+        for (const f of parsed.data.role_fixes) if (f.line <= input.segments.length) roleFixes.set(f.line - 1, f.role);
         return {
           analysis: toAnalysis(parsed.data, new Set(topicCodes)),
           roles,
+          roleFixes,
           attempts: attempt,
           ms: Date.now() - started,
           promptTokens,

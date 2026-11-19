@@ -8,6 +8,8 @@ import {
   CallAnalysisDetailsSchema,
   type CallAnalysisQueue,
   CallAnalysisQueueSchema,
+  type CallAnalysisReanalyzeRequest,
+  CallAnalysisReanalyzeRequestSchema,
   type CallAnalysisRetryResponse,
   CallAnalysisRetryResponseSchema,
   type CallAnalysisStats,
@@ -83,6 +85,18 @@ export class CallAnalysisController {
     @Body({ schema: CallAnalysisBackfillRequestSchema }) body: CallAnalysisBackfillRequest,
   ): Promise<CallAnalysisBackfillResponse> {
     return this.queue.backfill(body);
+  }
+
+  /** Re-score analysed calls with the current prompt version (LLM only). */
+  @Post('reanalyze')
+  @HttpCode(200)
+  @RequirePermission(CDR_ACCESS['analysis.manage'])
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @SerializeOptions({ schema: CallAnalysisRetryResponseSchema })
+  reanalyze(
+    @Body({ schema: CallAnalysisReanalyzeRequestSchema }) body: CallAnalysisReanalyzeRequest,
+  ): Promise<CallAnalysisRetryResponse> {
+    return this.queue.reanalyze(body);
   }
 
   @Post('queue/retry-failed')

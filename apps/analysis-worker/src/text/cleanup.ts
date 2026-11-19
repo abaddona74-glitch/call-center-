@@ -7,6 +7,8 @@ const HALLUCINATIONS = [
   /^\[?(музыка|music|musiqa)\]?\.?$/i,
   /^(продолжение следует|субтитры|subtitles?)(\s|[.,!…]|$).*$/i,
   /^спасибо за просмотр\.?$/i,
+  // Whisper on the ringback tone of outbound calls (pilot 2026-11-19)
+  /^telefon qilish\.?$/i,
 ];
 
 /** Collapses an n-gram (1–8 words) repeated 3+ times in a row to one occurrence. */
