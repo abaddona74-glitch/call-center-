@@ -30,6 +30,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { OverviewModule } from './modules/overview/overview.module.js';
+import { SituationModule } from './modules/situation/situation.module.js';
 import { PasskeysModule } from './modules/passkeys/passkeys.module.js';
 import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
@@ -135,6 +136,7 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     ExportModule,
     ToolsModule,
     OverviewModule,
+    SituationModule,
     CallAnalysisModule,
   ],
   providers: [

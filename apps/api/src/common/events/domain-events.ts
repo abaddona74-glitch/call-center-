@@ -1,4 +1,4 @@
-import type { MissReason } from '@cc/shared';
+import type { MissReason, TicketChangeAction } from '@cc/shared';
 
 /**
  * In-process domain events between backend modules (@nestjs/event-emitter).
@@ -80,4 +80,15 @@ export const SettingsEvents = {
 export interface ExcludedOperatorsChangedEvent {
   /** The new list, sorted by number. */
   extensions: string[];
+}
+
+/** Tickets (tickets module): emitted after every committed change, so read models (the situation board) refresh. */
+export const TicketEvents = {
+  Changed: 'ticket.changed',
+} as const;
+
+export interface TicketChangedEvent {
+  ticketId: number;
+  action: TicketChangeAction;
+  at: string;
 }

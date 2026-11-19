@@ -21,6 +21,12 @@ export const PERMISSIONS = [
    * ("Mas'ul shaxslar"), deadlines and call figures — aggregates only, no ticket or call details.
    */
   'overview.view',
+  /**
+   * The live situation board «Hozirgi holat» (owner, 19.11.2026): operators by state, callers waiting, calls in
+   * progress with full citizen numbers, today's counters, open tickets and who works on them. Read-only — no
+   * telephony actions and no live monitor page (`monitor.view`).
+   */
+  'situation.view',
   /** Listen to / download recordings and transcripts. */
   'recordings.listen',
   /** AI call analysis: the queue, backfill and retries (docs/rewrite/CALL-ANALYSIS.md). */
@@ -78,14 +84,15 @@ const ALL: readonly Permission[] = PERMISSIONS;
  *  - executive ("Mas'ul" in the UI, owner decision 2026-11-19): ONLY processes the tickets of its regions —
  *    the tickets board, the ticket reports and its own profile; no monitoring, calls, contacts, tools or
  *    settings (the owner adds more later if needed);
- *  - observer: the overview dashboard only (owner, 19.11.2026): aggregated numbers, no other page or API;
+ *  - observer: the live situation board and the overview dashboard only (owner, 19.11.2026): no other page or API;
  *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   superuser: ALL,
   executive: ['tickets.process'],
-  // The overview dashboard and nothing else (owner, 19.11.2026): no live monitor, history, tickets, tools or guide.
-  observer: ['overview.view'],
+  // The live situation board (their landing page) and the overview dashboard, nothing else (owner, 19.11.2026):
+  // no live monitor, history, tickets, tools or guide.
+  observer: ['situation.view', 'overview.view'],
   operator: [
     'monitor.view',
     'callbacks.view',
