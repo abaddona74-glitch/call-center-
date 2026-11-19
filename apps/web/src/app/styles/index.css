@@ -214,6 +214,12 @@
   color: color-mix(in oklab, --value(--color-*, [color]), var(--ink) var(--shade));
 }
 
+/* Keeps the scrollbar thumb visible while the box overflows, for wide tables that scroll sideways:
+   an auto-hidden horizontal scrollbar leaves no hint that the cut-off columns can be reached. */
+@utility scrollbar-visible {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
 /* Switching themes recolors everything at once (shared/lib/theme adds this class for two frames). */
 .theme-switching,
 .theme-switching * {

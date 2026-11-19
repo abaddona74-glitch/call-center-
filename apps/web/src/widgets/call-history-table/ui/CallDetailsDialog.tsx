@@ -152,7 +152,7 @@ export function CallDetailsDialog({
               ) : details.isError ? (
                 <div className="text-sm text-destructive">{t('error')}</div>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-tint/8">
+                <div className="scrollbar-visible overflow-x-auto rounded-xl border border-tint/8">
                   <table className="w-full border-collapse text-xs">
                     <thead className="bg-secondary/85 text-[11px] font-bold tracking-[0.6px] text-muted-foreground uppercase">
                       <tr>

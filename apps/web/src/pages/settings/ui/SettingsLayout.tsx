@@ -22,7 +22,7 @@ export function SettingsLayout() {
   const user = useSessionUser();
   const tabs = SETTINGS_TABS.filter((tab) => hasPermission(user, tab.permission));
   return (
-    <div className="mx-auto flex max-w-[1060px] flex-col overflow-hidden rounded-[18px] border border-tint/12 bg-[linear-gradient(160deg,var(--glass-2)_0%,var(--sidebar)_100%)] shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_45%,transparent),0_0_1px_color-mix(in_srgb,var(--tint)_20%,transparent)]">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col overflow-hidden rounded-[18px] border border-tint/12 bg-[linear-gradient(160deg,var(--glass-2)_0%,var(--sidebar)_100%)] shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_45%,transparent),0_0_1px_color-mix(in_srgb,var(--tint)_20%,transparent)]">
       <div className="flex items-center justify-between border-b border-tint/8 px-[22px] pt-[18px] pb-3.5">
         <div className="flex items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(59,130,246,0.3)] bg-[rgba(59,130,246,0.15)] text-link">
