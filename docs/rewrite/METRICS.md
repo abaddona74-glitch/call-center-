@@ -187,7 +187,7 @@
 
 Единственная страница наблюдателя (`observer`), superuser её тоже видит, executive — нет (карта только наблюдателю). Разрешение `overview.view`. На странице — агрегаты; каждая цифра открывает записи, из которых она сложилась (§9.4). Код: `apps/api/src/modules/overview` (`domain/ticket-overview.ts`, `domain/ticket-list.ts`, `domain/call-list.ts` — чистые функции и тесты).
 
-**Период** — как на странице статистики: «Bugun», «7 kun» (сегодня и 6 дней до), «Shu oy» (с 1-го числа по сегодня; по умолчанию), «Oraliq» (до 366 дней). Дни — Asia/Tashkent.
+**Период** (решение владельца 19.11.2026) — те же пресеты, что на страницах статистики и истории (`rangePresets`): «Bugun», «Kecha», «Oxirgi 7 kun» (сегодня и 6 дней до), «Shu oy» (с 1-го числа по сегодня; по умолчанию) и «Oraliq» — календарь (`DateRangeModal`, до 366 дней; диапазон, совпавший с пресетом, сохраняется как пресет). Период хранится в URL (`?period=today|yesterday|week|month|range[&from&to]`). Дни — Asia/Tashkent.
 
 ### 9.1 Тикеты (`/api/overview/tickets?from&to[&region]`)
 

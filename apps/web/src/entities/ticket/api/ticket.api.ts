@@ -206,7 +206,12 @@ export function attachmentUrl(ticketId: number, attachmentId: number, scope: Api
   return `/api${ticketBase(scope)}/${ticketId}/attachments/${attachmentId}`;
 }
 
-export function recordingUrl(ticketId: number, callRowId: number, download = false, scope: ApiScope = 'default'): string {
+export function recordingUrl(
+  ticketId: number,
+  callRowId: number,
+  download = false,
+  scope: ApiScope = 'default',
+): string {
   return `/api${ticketBase(scope)}/${ticketId}/calls/${callRowId}/recording${download ? '?download=1' : ''}`;
 }
 
@@ -215,7 +220,9 @@ export function fetchDocPreview(
   attachmentId: number,
   scope: ApiScope = 'default',
 ): Promise<{ html: string }> {
-  return api(`${ticketBase(scope)}/${ticketId}/attachments/${attachmentId}/preview`, { schema: TicketDocPreviewSchema });
+  return api(`${ticketBase(scope)}/${ticketId}/attachments/${attachmentId}/preview`, {
+    schema: TicketDocPreviewSchema,
+  });
 }
 
 /** Superuser: ticket directories. */

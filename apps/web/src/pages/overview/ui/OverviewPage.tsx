@@ -39,14 +39,15 @@ import {
   type TicketListDialogView,
 } from '@/widgets/ticket-overview';
 import { listId, ticketListParams } from '../model/details';
-import { OVERVIEW_PERIODS, type OverviewSearch, overviewStateFrom } from '../model/search';
+import { OVERVIEW_PERIODS, type OverviewSearch, overviewStateFrom, periodSearchOf } from '../model/search';
 import { type CallCard, CallsSection } from './CallsSection';
 import { type QualityRequest, QualitySection } from './QualitySection';
 import { TicketTotals } from './TicketTotals';
 import '../i18n';
 
 const route = getRouteApi('/_app/overview');
-const PRESETS: RangePresetId[] = ['today', 'week', 'month', 'prevMonth'];
+/** Quick picks of the calendar: the statistics / history pages' presets plus «Kecha». */
+const PRESETS: RangePresetId[] = ['today', 'yesterday', 'week', 'month', 'prevMonth'];
 
 /**
  * The overview dashboard (observers — their only page — and the superuser; owner, 19.11.2026): ticket totals,
@@ -227,6 +228,8 @@ export function OverviewPage() {
         <div className="flex flex-wrap items-center gap-2.5">
           <Segmented
             tone="sky"
+            // Five presets: one-line labels; on phones they wrap into full-width rows instead of squeezing.
+            className="[&>button]:whitespace-nowrap max-sm:flex max-sm:w-full max-sm:flex-wrap max-sm:[&>button]:grow"
             value={state.period}
             onChange={(p) => (p === 'range' ? setRangeOpen(true) : set({ period: p, from: undefined, to: undefined }))}
             options={OVERVIEW_PERIODS.map((p) => ({ value: p, label: t(`periods.${p}`) }))}
@@ -378,7 +381,7 @@ export function OverviewPage() {
               tone="blue"
               disabled={!valid}
               onClick={() => {
-                set({ period: 'range', from: r.from, to: r.to });
+                set(periodSearchOf(r, today));
                 setRangeOpen(false);
               }}
             >
