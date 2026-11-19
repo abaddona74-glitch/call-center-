@@ -193,7 +193,10 @@ describe('access', () => {
     expect(canAccessCdr(as('operator'), 'analysis.call')).toBe(false);
     expect(canAccessCdr(as('observer'), 'analysis.call')).toBe(true);
     expect(canAccessCdr(as('operator'), 'analysis.stats')).toBe(false);
-    expect(canAccessCdr(as('executive'), 'analysis.stats')).toBe(true);
+    // "Mas'ul" (executive) works with tickets only: no call analysis.
+    expect(canAccessCdr(as('executive'), 'analysis.call')).toBe(false);
+    expect(canAccessCdr(as('executive'), 'analysis.stats')).toBe(false);
+    expect(canAccessCdr(as('superuser'), 'analysis.stats')).toBe(true);
     expect(canAccessCdr(as('superuser'), 'analysis.manage')).toBe(true);
     expect(canAccessCdr(as('executive'), 'analysis.manage')).toBe(false);
     expect(canAccessCdr(as('observer'), 'analysis.manage')).toBe(false);

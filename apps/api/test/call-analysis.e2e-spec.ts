@@ -184,7 +184,9 @@ describe('access', () => {
     await operator.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(403);
     await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
     await observer.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
-    await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
+    // "Mas'ul" (executive) works with tickets only (#14): no call analysis at all.
+    await executive.get(`/call-analysis/calls/${ID1}`).expect(403);
+    await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(403);
     for (const c of [operator, observer, executive]) {
       await c.get('/call-analysis/queue').expect(403);
       await c.post('/call-analysis/backfill', { from: '2026-11-17', to: '2026-11-17' }).expect(403);
@@ -401,7 +403,7 @@ describe('reads', () => {
   });
 
   it('aggregates for a period and an operator', async () => {
-    const s = await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
+    const s = await root.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
     expect(s.body.totals).toMatchObject({
       analyzed: 2,
       avgOverall: 8,
@@ -420,11 +422,11 @@ describe('reads', () => {
       versions: [{ version: CALL_ANALYSIS_PROMPT_VERSION, count: 2 }],
     });
     expect(s.body.totals.avgScores.greeting).toBeNull();
-    const one = await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&operator=101').expect(200);
+    const one = await root.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&operator=101').expect(200);
     expect(one.body.totals.analyzed).toBe(1);
-    const other = await executive.get('/call-analysis/stats?from=2026-11-16&to=2026-11-16').expect(200);
+    const other = await root.get('/call-analysis/stats?from=2026-11-16&to=2026-11-16').expect(200);
     expect(other.body.totals.analyzed).toBe(0);
-    await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-16').expect(400);
+    await root.get('/call-analysis/stats?from=2026-11-17&to=2026-11-16').expect(400);
   });
 });
 
@@ -463,7 +465,7 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
   });
 
   it('statistics never mix prompt versions', async () => {
-    const s = await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
+    const s = await root.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
     expect(s.body.totals.analyzed).toBe(1); // ID1 is now 'v2-test'
     expect(s.body.versions).toEqual(
       expect.arrayContaining([
@@ -471,7 +473,7 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
         { version: 'v2-test', count: 1 },
       ]),
     );
-    const old = await executive
+    const old = await root
       .get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&promptVersion=v2-test')
       .expect(200);
     expect(old.body).toMatchObject({ promptVersion: 'v2-test', totals: { analyzed: 1, avgOverall: 6 } });
