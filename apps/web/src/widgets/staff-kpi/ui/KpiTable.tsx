@@ -133,7 +133,11 @@ export function KpiTable<T extends RowData>({
                   key={c.id}
                   scope="colgroup"
                   colSpan={c.span}
-                  className={cn(TH, SEPARATOR, 'border-b-tint/5 py-1.5 text-[10px] tracking-[0.6px] text-ink-2')}
+                  className={cn(
+                    TH,
+                    SEPARATOR,
+                    'border-b-tint/5 py-1.5 text-left text-[10px] tracking-[0.6px] text-ink-2',
+                  )}
                 >
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden className={cn('size-2 rounded-full', c.group.dot)} />

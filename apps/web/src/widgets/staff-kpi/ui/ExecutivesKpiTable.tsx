@@ -95,7 +95,7 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
           const r = row.original;
           if (r.kind === 'region')
             return (
-              <div className="flex max-w-[240px] items-center gap-2 pl-10">
+              <div className="flex max-w-[170px] items-center gap-2 pl-10 sm:max-w-[240px]">
                 <span className="truncate text-ink-2">{r.name}</span>
                 {!r.assigned && (
                   <span
@@ -109,7 +109,7 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
             );
           const label = t(row.getIsExpanded() ? 'ex.collapse' : 'ex.expand', { name: r.name });
           return (
-            <div className="flex max-w-[240px] items-center gap-2">
+            <div className="flex max-w-[170px] items-center gap-2 sm:max-w-[240px]">
               {row.getCanExpand() ? (
                 <ExpandButton
                   expanded={row.getIsExpanded()}

@@ -83,7 +83,7 @@ export function OperatorsKpiTable({
         sortFn: 'alphanumeric',
         meta: { sticky: true },
         cell: ({ row }) => (
-          <div className="flex max-w-[220px] items-center gap-2">
+          <div className="flex max-w-[150px] items-center gap-2 sm:max-w-[220px]">
             <span className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 px-1 text-[11px] font-bold text-primary">
               {row.original.ext}
             </span>
@@ -242,7 +242,7 @@ export function OperatorsKpiTable({
               meta: { group: 'presence' },
               cell: ({ row }) =>
                 row.original.presence.pauses.length ? (
-                  <ul className="flex flex-wrap justify-center gap-1">
+                  <ul className="flex gap-1">
                     {row.original.presence.pauses.map((p) => (
                       <li
                         key={p.reason ?? ''}

@@ -1,7 +1,7 @@
 import type { KpiOperatorsResponse } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { businessToday, calendarLabels, type RangePresetId, rangePresets } from '@/entities/call';
 import { kpiExecutivesQuery, kpiOperatorsQuery } from '@/entities/staff-kpi';
@@ -17,6 +17,8 @@ import { KPI_PERIODS, KPI_VIEWS, type KpiSearch, kpiStateFrom } from '../model/s
 import '../i18n';
 
 const route = getRouteApi('/_app/kpi');
+/** Pill switches with many options scroll sideways on a phone instead of breaking their labels. */
+const SCROLLING_PILLS = 'max-w-full overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap';
 const PRESETS: RangePresetId[] = ['today', 'yesterday', 'week', 'month', 'prevMonth'];
 /** More days than this are summarised as "… and N more days". */
 const MAX_DAYS_LISTED = 5;
@@ -65,16 +67,18 @@ export function StaffKpiPage() {
           </span>
         </p>
         <div className="flex flex-wrap items-center gap-2.5">
-          <Labeled label={t('viewLabel')}>
+          <Labeled label={t('viewLabel')} value={state.view}>
             <Segmented
+              className={SCROLLING_PILLS}
               tone="indigo"
               value={state.view}
               onChange={(v) => set({ view: v === 'operators' ? undefined : v })}
               options={KPI_VIEWS.map((v) => ({ value: v, label: t(`views.${v}`) }))}
             />
           </Labeled>
-          <Labeled label={t('periodLabel')}>
+          <Labeled label={t('periodLabel')} value={state.period}>
             <Segmented
+              className={SCROLLING_PILLS}
               tone="sky"
               value={state.period}
               onChange={(p) =>
@@ -130,9 +134,10 @@ export function StaffKpiPage() {
               </PanelTitle>
               <p className="mt-1 text-xs text-mute">{t('operators.subtitle')}</p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Labeled label={t('operators.scopeLabel')}>
+            <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">
+              <Labeled label={t('operators.scopeLabel')} value={state.scope}>
                 <Segmented
+                  className={SCROLLING_PILLS}
                   size="xs"
                   value={state.scope}
                   onChange={(s) => set({ scope: s === 'working' ? undefined : s })}
@@ -232,8 +237,9 @@ function GroupFilter({
   const { t } = useTranslation('staffKpi');
   const { t: tp } = useTranslation('staffKpiPage');
   return (
-    <Labeled label={tp('operators.groupLabel')}>
+    <Labeled label={tp('operators.groupLabel')} value={value}>
       <Segmented
+        className={SCROLLING_PILLS}
         size="xs"
         tone="indigo"
         value={value}
@@ -300,10 +306,29 @@ function OperatorNotices({ data }: { data: KpiOperatorsResponse }) {
   );
 }
 
-/** A named group around a pill switch (screen readers announce what it switches). */
-function Labeled({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * A named group around a pill switch (screen readers announce what it switches). On a phone the switch scrolls
+ * sideways; the selected pill is kept in view.
+ */
+function Labeled({ label, value, children }: { label: string; value: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const group = ref.current?.querySelector<HTMLElement>('[role="radiogroup"]');
+    if (!group) return;
+    const reveal = () => {
+      const active = group.querySelector<HTMLElement>('[aria-checked="true"]');
+      if (!active || group.scrollWidth <= group.clientWidth) return;
+      const left = active.offsetLeft - group.offsetLeft;
+      if (left < group.scrollLeft || left + active.offsetWidth > group.scrollLeft + group.clientWidth)
+        group.scrollLeft = Math.max(0, left - 8);
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(group);
+    return () => observer.disconnect();
+  }, [value]);
   return (
-    <div role="group" aria-label={label} className="inline-flex">
+    <div ref={ref} role="group" aria-label={label} className="inline-flex max-w-full min-w-0">
       {children}
     </div>
   );
@@ -327,10 +352,12 @@ function Notice({
   aside?: ReactNode;
 }) {
   return (
-    <div className={cn('flex flex-wrap items-start gap-2.5 rounded-xl border px-3.5 py-2.5', NOTICE_TONE[tone])}>
+    <div className={cn('flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5', NOTICE_TONE[tone])}>
       <Icon name={icon} className="mt-0.5 size-4 shrink-0" />
-      <p className="min-w-0 flex-1 text-[13px] leading-snug text-ink-2">{text}</p>
-      {aside}
+      <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-2.5 gap-y-1.5">
+        <p className="min-w-[min(100%,260px)] flex-1 text-[13px] leading-snug text-ink-2">{text}</p>
+        {aside}
+      </div>
     </div>
   );
 }
