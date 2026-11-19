@@ -142,6 +142,7 @@ export function projectCounters(store: LiveStore): LiveCounters {
     clientHangups: c.clientHangups,
     operatorHangups: c.operatorHangups,
     unknownHangups: c.unknownHangups + (s?.unknownHangups ?? 0),
+    avgWaitSec: answered ? Math.round((c.waitSeconds + (s?.waitSeconds ?? 0)) / answered) : 0,
   };
 }
 

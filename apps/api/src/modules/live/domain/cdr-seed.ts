@@ -34,6 +34,8 @@ export interface SeedCounters {
   operatorMissedRejected: number;
   talkSeconds: number;
   unknownHangups: number;
+  /** Σ waitSec of the answered inbound calls (null counts as 0, like `summarize`'s avgWaitSec). */
+  waitSeconds: number;
 }
 
 export interface CounterSeed {
@@ -103,6 +105,7 @@ export function emptySeed(date: string, from: number, through: number): CounterS
       operatorMissedRejected: 0,
       talkSeconds: 0,
       unknownHangups: 0,
+      waitSeconds: 0,
     },
     operators: new Map(),
     callIds: new Set(),
@@ -153,6 +156,12 @@ export function addCallsToSeed(
     talkSeconds: c.talkSeconds + s.talk.totalSec,
     // the CDR does not say who hung up (METRICS.md §1.4: hangupBy = unknown)
     unknownHangups: c.unknownHangups + s.inbound.answered + s.outbound.connected,
+    // the sum behind summarize's avgWaitSec, so seed + live average exactly
+    waitSeconds:
+      c.waitSeconds +
+      picked
+        .filter((p) => p.direction === 'inbound' && p.status === 'answered')
+        .reduce((n, p) => n + (p.waitSec ?? 0), 0),
   };
 
   const operators = new Map(seed.operators);

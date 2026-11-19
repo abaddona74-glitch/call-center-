@@ -137,6 +137,8 @@ export type LiveQueue = z.infer<typeof LiveQueueSchema>;
  *  operatorMissed   — (call, operator) pairs where the operator's phone rang and they never talked on the call
  *                     = operatorMissedNoAnswer + operatorMissedRejected (offline / busy-at-once phones do not count)
  *  *Hangups         — who ended answered calls (AgentComplete reason / HangupRequest / bridge leave)
+ *  avgWaitSec       — average wait of the answered inbound calls: queue entry → first operator answer, 0 for calls
+ *                     answered without a queue (= the statistics page's `inbound.avgWaitSec`, METRICS.md §1.4, §2)
  *
  * Calls that started before the API began counting live are seeded from the PBX CDR with the statistics page's
  * definitions (docs/rewrite/METRICS.md): then `seededThrough` is set and `since` is the start of the day. Who hung
@@ -164,6 +166,8 @@ export const LiveCountersSchema = z.object({
   clientHangups: z.number().int(),
   operatorHangups: z.number().int(),
   unknownHangups: z.number().int(),
+  /** Whole seconds; 0 while nothing was answered. */
+  avgWaitSec: z.number().int(),
 });
 export type LiveCounters = z.infer<typeof LiveCountersSchema>;
 
