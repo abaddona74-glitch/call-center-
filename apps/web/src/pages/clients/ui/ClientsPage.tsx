@@ -161,7 +161,7 @@ export function ClientsPage() {
           </div>
         </div>
 
-        <div className="max-h-[600px] w-full overflow-x-auto rounded-xl border border-tint/[0.08]">
+        <div className="scrollbar-visible max-h-[600px] w-full overflow-x-auto rounded-xl border border-tint/[0.08]">
           <table className="w-full border-collapse text-center text-[13px]">
             <thead>
               <tr className="[&>th]:border-b [&>th]:border-tint/[0.08] [&>th]:bg-glass-2/85 [&>th]:px-3.5 [&>th]:py-3 [&>th]:text-[11px] [&>th]:font-bold [&>th]:tracking-[0.6px] [&>th]:whitespace-nowrap [&>th]:text-mute [&>th]:uppercase">

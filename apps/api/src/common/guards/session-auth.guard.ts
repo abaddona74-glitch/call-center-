@@ -1,4 +1,4 @@
-import { type GroupFlag, type Permission, hasPermission } from '@cc/shared';
+import { type Permission, hasPermission } from '@cc/shared';
 import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
@@ -55,7 +55,7 @@ export class SessionAuthGuard implements CanActivate {
       throw new ForbiddenException('Not allowed while acting as another user');
     }
 
-    const permission = this.reflector.getAllAndOverride<Permission | GroupFlag | undefined>(PERMISSION_KEY, targets);
+    const permission = this.reflector.getAllAndOverride<Permission | undefined>(PERMISSION_KEY, targets);
     if (permission && !hasPermission(user, permission)) {
       throw new ForbiddenException('Insufficient permissions');
     }

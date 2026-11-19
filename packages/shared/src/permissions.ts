@@ -50,13 +50,12 @@ export const PERMISSIONS = [
   'tools.view',
   /** Extra tools legacy hid from the "200" group: the file converter and the Ijro letter generator. */
   'tools.use',
-  'remoteDesktop.use',
   /** "Help" ring to other operators. */
   'help.request',
   /** System settings: excluded operators, working hours, holidays, interface options. */
   'settings.manage',
   'audit.view',
-  /** Users, roles, operator groups, other people's passwords and passkeys. */
+  /** Users, roles, other people's passwords and passkeys. */
   'users.manage',
   /** See and end other people's sessions. */
   'sessions.manage',
@@ -95,52 +94,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'tickets.callback',
     'tools.view',
     'tools.use',
-    'remoteDesktop.use',
     'help.request',
     'guide.view',
   ],
 };
 
-// --- operator groups ----------------------------------------------------------------------
-/**
- * Per-group restriction flags for operators (replaces the legacy "extension >= 200" rule).
- * `false` removes the matching permission from the group's operators; other roles are not affected.
- * New flags must get `.default(true)` so stored groups without the flag stay valid.
- */
-export const GroupFlagsSchema = z.object({
-  canSeeContacts: z.boolean().default(true),
-  canEditContacts: z.boolean().default(true),
-  canUseRemoteDesktop: z.boolean().default(true),
-  canRequestHelp: z.boolean().default(true),
-  canUseTools: z.boolean().default(true),
-});
-export type GroupFlags = z.infer<typeof GroupFlagsSchema>;
-export type GroupFlag = keyof GroupFlags;
-export const GROUP_FLAGS = Object.keys(GroupFlagsSchema.shape) as GroupFlag[];
-
-/** Which permission each group flag controls. */
-export const GROUP_FLAG_PERMISSION: Readonly<Record<GroupFlag, Permission>> = {
-  canSeeContacts: 'contacts.view',
-  canEditContacts: 'contacts.manage',
-  canUseRemoteDesktop: 'remoteDesktop.use',
-  canRequestHelp: 'help.request',
-  canUseTools: 'tools.use',
-};
-
-export const ALL_GROUP_FLAGS: GroupFlags = {
-  canSeeContacts: true,
-  canEditContacts: true,
-  canUseRemoteDesktop: true,
-  canRequestHelp: true,
-  canUseTools: true,
-};
-
-/** Effective permissions: the role's set, minus what the operator's group switches off. */
-export function permissionsFor(role: Role, groupFlags: GroupFlags | null | undefined): Permission[] {
-  const base = ROLE_PERMISSIONS[role] ?? [];
-  if (role !== 'operator' || !groupFlags) return [...base];
-  const denied = new Set(GROUP_FLAGS.filter((f) => !groupFlags[f]).map((f) => GROUP_FLAG_PERMISSION[f]));
-  return base.filter((p) => !denied.has(p));
+/** The permissions of a role (the one place that decides who may do what). */
+export function permissionsFor(role: Role): Permission[] {
+  return [...(ROLE_PERMISSIONS[role] ?? [])];
 }
 
 /**
@@ -154,16 +115,12 @@ export function effectivePermissions(user: {
   return new Set(user.permissions ?? ROLE_PERMISSIONS[user.role] ?? []);
 }
 
-/**
- * `hasPermission(user, 'users.manage')`. A group flag name (`'canSeeContacts'`) is accepted too and
- * means its permission (compatibility with the first version of this contract).
- */
+/** `hasPermission(user, 'users.manage')`. */
 export function hasPermission(
   user: { role: Role; permissions?: readonly Permission[] | null },
-  permission: Permission | GroupFlag,
+  permission: Permission,
 ): boolean {
-  const p = (GROUP_FLAG_PERMISSION as Record<string, Permission>)[permission] ?? (permission as Permission);
-  return effectivePermissions(user).has(p);
+  return effectivePermissions(user).has(permission);
 }
 
 /** Short alias for api and web: `can(user, 'tickets.process')`. */

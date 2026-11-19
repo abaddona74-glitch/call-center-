@@ -110,6 +110,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm --filter @cc/api test:e2e
       - run: pnpm build
 
   build:

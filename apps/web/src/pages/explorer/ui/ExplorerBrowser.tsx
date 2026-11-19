@@ -184,7 +184,7 @@ export function ExplorerBrowser({ onPlay }: { onPlay: () => void }) {
             </div>
           )}
           {allFiles.length > 0 && (
-            <div className="w-full overflow-x-auto rounded-xl border border-tint/8">
+            <div className="scrollbar-visible w-full overflow-x-auto rounded-xl border border-tint/8">
               <table className="w-full border-collapse text-center text-[13px]">
                 <thead>
                   <tr>

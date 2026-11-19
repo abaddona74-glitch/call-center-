@@ -37,11 +37,11 @@ export class ContactsService {
   }
 
   private assertView(user: SessionUser): void {
-    if (!this.access(user).canView) throw new ForbiddenException('Your operator group may not see client contacts');
+    if (!this.access(user).canView) throw new ForbiddenException('You may not see client contacts');
   }
 
   private assertEdit(user: SessionUser): void {
-    if (!this.access(user).canEdit) throw new ForbiddenException('Your operator group may not edit client contacts');
+    if (!this.access(user).canEdit) throw new ForbiddenException('You may not edit client contacts');
   }
 
   async list(q: ContactListQuery, user: SessionUser): Promise<ContactListResponse> {

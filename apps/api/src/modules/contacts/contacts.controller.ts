@@ -21,7 +21,7 @@ import { CurrentUser } from '../../common/decorators/auth.decorators.js';
 import { ContactsService } from './contacts.service.js';
 
 /**
- * Phonebook. Open to every role except operator groups that may not see contacts
+ * Phonebook. Open to whoever has `contacts.view` (`contacts.manage` to change it)
  * (checked in the service on every call, not only hidden in the UI).
  */
 @Controller('contacts')

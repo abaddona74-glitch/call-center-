@@ -16,16 +16,18 @@ afterAll(async () => {
   await ctx?.close();
 });
 
-describe('access by operator group (server-side)', () => {
+describe('access by permission (server-side)', () => {
   it('tells the UI what the user may do', async () => {
     const get = (auth: string) => http().get('/api/contacts/access').set('Authorization', auth).expect(200);
     expect((await get(ctx.users.admin.auth)).body).toEqual({ canView: true, canEdit: true });
     expect((await get(ctx.users.op101.auth)).body).toEqual({ canView: true, canEdit: true });
-    expect((await get(ctx.users.op205.auth)).body).toEqual({ canView: false, canEdit: false });
+    // no operator groups since 19.11.2026: the legacy "200 group" has the phonebook too
+    expect((await get(ctx.users.op205.auth)).body).toEqual({ canView: true, canEdit: true });
+    expect((await get(ctx.users.exec1.auth)).body).toEqual({ canView: false, canEdit: false });
   });
 
-  it('denies every phonebook endpoint to the restricted group', async () => {
-    const a = ctx.users.op205.auth;
+  it('denies every phonebook endpoint without the permission', async () => {
+    const a = ctx.users.exec1.auth;
     await http().get('/api/contacts').set('Authorization', a).expect(403);
     await http().get('/api/contacts/901234567').set('Authorization', a).expect(403);
     await http().get('/api/contacts/top-active').set('Authorization', a).expect(403);

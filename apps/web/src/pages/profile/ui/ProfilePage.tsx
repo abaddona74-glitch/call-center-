@@ -1,8 +1,7 @@
-import { GROUP_FLAG_PERMISSION, GROUP_FLAGS } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { usePermissions, useSessionUser } from '@/entities/session';
+import { useSessionUser } from '@/entities/session';
 import { RoleBadge, accountKeys, mySessionsQuery, revokeMySession } from '@/entities/user';
 import { ChangePasswordCard } from '@/features/auth/change-password';
 import { EmailBindingCard } from '@/features/auth/email-binding';
@@ -19,7 +18,6 @@ registerTranslations('profile', {
     subtitle: 'Parol, email, passkey va faol sessiyalar',
     account: 'Joriy hisob',
     extension: 'Operator ID',
-    restricted: 'Guruh cheklovlari',
     sessionsTitle: 'Faol sessiyalarim',
     sessionsText: 'Hisobingizga kirilgan qurilmalar. Tanimagan sessiyani darhol yoping va parolni o‘zgartiring.',
     current: 'Shu qurilma',
@@ -35,7 +33,6 @@ registerTranslations('profile', {
     subtitle: 'Пароль, email, passkey и активные сеансы',
     account: 'Текущая учётная запись',
     extension: 'ID оператора',
-    restricted: 'Ограничения группы',
     sessionsTitle: 'Мои активные сеансы',
     sessionsText: 'Устройства, где выполнен вход. Незнакомый сеанс сразу завершите и смените пароль.',
     current: 'Это устройство',
@@ -50,11 +47,7 @@ registerTranslations('profile', {
 
 export function ProfilePage() {
   const { t } = useTranslation('profile');
-  const { t: tu } = useTranslation('user');
   const user = useSessionUser();
-  const permissions = usePermissions();
-  // what the operator's group switches off (legacy "200 group" restrictions)
-  const denied = user.role === 'operator' ? GROUP_FLAGS.filter((f) => !permissions.has(GROUP_FLAG_PERMISSION[f])) : [];
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -83,17 +76,6 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
-
-      {denied.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-[rgba(245,158,11,0.25)] bg-[rgba(245,158,11,0.08)] px-3.5 py-2.5 text-xs text-caution">
-          <span className="font-semibold">{t('restricted')}:</span>
-          {denied.map((flag) => (
-            <Pill key={flag} tone="amber">
-              {tu(`permission.${flag}`)}
-            </Pill>
-          ))}
-        </div>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ChangePasswordCard />

@@ -1,2 +1,10 @@
 export { AppShell } from './ui/AppShell';
-export { NAV_ITEMS, type NavItem, homePath, visibleNavItems } from './model/nav';
+export {
+  NAV_ENTRIES,
+  type NavEntry,
+  type NavGroup,
+  type NavItem,
+  homePath,
+  visibleNavEntries,
+  visibleNavItems,
+} from './model/nav';

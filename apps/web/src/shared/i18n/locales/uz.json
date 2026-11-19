@@ -4,6 +4,7 @@
     "overview": "Umumiy ko‘rinish",
     "dashboard": "Bosh sahifa",
     "settings": "Sozlamalar",
+    "systemSettings": "Tizim sozlamalari",
     "profile": "Profil",
     "explorer": "Audio Explorer",
     "tickets": "Ticketlar",
@@ -17,7 +18,9 @@
     "ticketReports": "Ticket hisoboti",
     "ticketSettings": "Ticket sozlamalari",
     "tools": "Asboblar",
-    "guide": "Yo'riqnoma"
+    "guide": "Yo'riqnoma",
+    "collapse": "Menyuni yig'ish",
+    "expand": "Menyuni yoyish"
   },
   "auth": {
     "username": "Login",

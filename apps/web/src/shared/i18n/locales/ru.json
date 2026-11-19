@@ -4,6 +4,7 @@
     "overview": "Общая картина",
     "dashboard": "Главная",
     "settings": "Настройки",
+    "systemSettings": "Системные настройки",
     "profile": "Профиль",
     "explorer": "Аудио записи",
     "tickets": "Тикеты",
@@ -17,7 +18,9 @@
     "ticketReports": "Отчёт по тикетам",
     "ticketSettings": "Настройки тикетов",
     "tools": "Инструменты",
-    "guide": "Руководство"
+    "guide": "Руководство",
+    "collapse": "Свернуть меню",
+    "expand": "Развернуть меню"
   },
   "auth": {
     "username": "Логин",

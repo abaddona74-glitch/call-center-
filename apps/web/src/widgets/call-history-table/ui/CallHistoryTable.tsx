@@ -304,7 +304,7 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
   const table = useCallHistoryTable(props);
   const visibleCount = table.getVisibleLeafColumns().length;
   return (
-    <div className="w-full overflow-x-auto rounded-xl border border-tint/8">
+    <div className="scrollbar-visible w-full overflow-x-auto rounded-xl border border-tint/8">
       <table className="w-full min-w-[760px] border-collapse text-[13px]">
         <thead>
           {table.getHeaderGroups().map((group) => (

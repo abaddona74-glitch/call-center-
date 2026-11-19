@@ -1,5 +1,5 @@
 import { type ExecutionContext, SetMetadata, createParamDecorator } from '@nestjs/common';
-import type { GroupFlag, Permission, SessionUser } from '@cc/shared';
+import type { Permission, SessionUser } from '@cc/shared';
 
 export const IS_PUBLIC_KEY = 'auth:isPublic';
 export const PERMISSION_KEY = 'auth:permission';
@@ -11,10 +11,9 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 /**
  * The way to authorize: a permission from `PERMISSIONS` (@cc/shared permissions.ts), e.g.
- * `@RequirePermission('users.manage')`. Which roles have it is decided in ONE place, `ROLE_PERMISSIONS`;
- * operator groups can switch some off. A group flag name (`'canSeeContacts'`) is accepted as an alias.
+ * `@RequirePermission('users.manage')`. Which roles have it is decided in ONE place, `ROLE_PERMISSIONS`.
  */
-export const RequirePermission = (permission: Permission | GroupFlag) => SetMetadata(PERMISSION_KEY, permission);
+export const RequirePermission = (permission: Permission) => SetMetadata(PERMISSION_KEY, permission);
 
 /**
  * Reachable while the user still has to change the password (forced change): /auth/me,

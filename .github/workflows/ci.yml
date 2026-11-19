@@ -39,6 +39,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # API e2e against the Postgres service (each suite creates its own database; the AMI test starts its own
+      # simulator; the PBX MariaDB suite skips without PBX_DB_HOST).
+      - run: pnpm --filter @cc/api test:e2e
       - run: pnpm build
 
   docker:

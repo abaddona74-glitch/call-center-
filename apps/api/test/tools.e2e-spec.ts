@@ -8,7 +8,7 @@ import { ConverterService } from '../src/modules/tools/converter.service.js';
 import { Client, createE2eApp, createUser, type E2eApp, loginAs, ROOT } from './support/e2e-app.js';
 
 /**
- * Tools API (session S8): access by permission (tools.view / tools.use, the Zangiota group flag; observers none),
+ * Tools API (session S8): access by permission (tools.view / tools.use; observers none),
  * config, Uzcrypto (lookup off: no internet in tests), downloads, the managers directory, and the
  * document converter end to end (real worker threads).
  *   E2E_DATABASE_URL=postgres://callcenter:callcenter@127.0.0.1:54320/callcenter_s8_test pnpm --filter @cc/api test:e2e tools
@@ -16,6 +16,7 @@ import { Client, createE2eApp, createUser, type E2eApp, loginAs, ROOT } from './
 let e2e: E2eApp;
 let root: Client;
 let op: Client;
+/** Extension 201: the legacy "200 group", which had no converter. */
 let zangiota: Client;
 let observer: Client;
 
@@ -65,18 +66,8 @@ beforeAll(async () => {
   process.env.TOOLS_TELEGRAM_FORM_URL = 'https://forms.example.uz/dashboard';
   e2e = await createE2eApp();
   root = await loginAs(e2e, ROOT.username, ROOT.password);
-  const zangiotaGroup = await e2e.db
-    .selectFrom('operatorGroups')
-    .select('id')
-    .where('name', '=', 'Zangiota')
-    .executeTakeFirstOrThrow();
   await createUser(root, { username: 'op101', password: 'Oper-Pass-1234', extension: '101' });
-  await createUser(root, {
-    username: 'op201',
-    password: 'Oper-Pass-1234',
-    extension: '201',
-    groupId: zangiotaGroup.id,
-  });
+  await createUser(root, { username: 'op201', password: 'Oper-Pass-1234', extension: '201' });
   await createUser(root, { username: 'watcher', password: 'Watch-Pass-123', role: 'observer' });
   op = await loginAs(e2e, 'op101', 'Oper-Pass-1234');
   zangiota = await loginAs(e2e, 'op201', 'Oper-Pass-1234');
@@ -97,7 +88,7 @@ describe('access', () => {
     expect((await convert(anon, Buffer.from('salom'), 'a.txt', 'pdf')).status).toBe(401);
   });
 
-  it('the tools page is open to operators (both groups); the converter is not', async () => {
+  it('the tools page and the converter are open to operators, not to observers', async () => {
     for (const [name, c] of [
       ['operator', op],
       ['zangiota', zangiota],
@@ -105,13 +96,13 @@ describe('access', () => {
       expect((await c.get('/tools/config')).status, name).toBe(200);
       expect((await c.get('/tools/managers')).status, name).toBe(200);
     }
-    // observers see only the overview dashboard (owner, 19.11.2026)
+    // observers see only their dashboards (owner, 19.11.2026)
     expect((await observer.get('/tools/config')).status).toBe(403);
     expect((await observer.get('/tools/managers')).status).toBe(403);
-    const me = (await zangiota.get('/auth/me')).body.user;
-    expect(me.permissions).toContain('tools.view');
-    expect(me.permissions).not.toContain('tools.use'); // legacy hid the converter from the 200 group
-    expect((await convert(zangiota, Buffer.from('salom'), 'a.txt', 'pdf')).status).toBe(403);
+    // no operator groups since 19.11.2026: the legacy "200 group" has the converter too
+    expect((await zangiota.get('/auth/me')).body.user.permissions).toEqual(
+      expect.arrayContaining(['tools.view', 'tools.use']),
+    );
     expect((await convert(observer, Buffer.from('salom'), 'a.txt', 'pdf')).status).toBe(403);
   });
 });
