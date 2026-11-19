@@ -191,7 +191,10 @@ describe('access', () => {
     expect(CDR_ACCESS['analysis.call']).toBe(CDR_ACCESS['calls.recordings']);
     expect(CDR_ACCESS['analysis.stats']).toBe(CDR_ACCESS['stats.read']);
     expect(canAccessCdr(as('operator'), 'analysis.call')).toBe(false);
-    expect(canAccessCdr(as('observer'), 'analysis.call')).toBe(true);
+    // observers see only the overview dashboard (owner, 19.11.2026): analysis totals there, no per-call analysis
+    expect(canAccessCdr(as('observer'), 'analysis.call')).toBe(false);
+    expect(canAccessCdr(as('observer'), 'analysis.stats')).toBe(false);
+    expect(canAccessCdr(as('executive'), 'analysis.call')).toBe(true);
     expect(canAccessCdr(as('operator'), 'analysis.stats')).toBe(false);
     expect(canAccessCdr(as('executive'), 'analysis.stats')).toBe(true);
     expect(canAccessCdr(as('superuser'), 'analysis.manage')).toBe(true);

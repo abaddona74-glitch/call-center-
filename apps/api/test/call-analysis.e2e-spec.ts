@@ -182,8 +182,10 @@ describe('access', () => {
     await operator.get(`/call-analysis/calls/${ID1}`).expect(403);
     await operator.get('/call-analysis/status?ids=1.1').expect(403);
     await operator.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(403);
-    await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
-    await observer.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
+    // observers see only the overview dashboard (owner, 19.11.2026): its totals, not this API
+    await observer.get(`/call-analysis/calls/${ID1}`).expect(403);
+    await observer.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(403);
+    await executive.get(`/call-analysis/calls/${ID1}`).expect(200);
     await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
     for (const c of [operator, observer, executive]) {
       await c.get('/call-analysis/queue').expect(403);
@@ -363,7 +365,7 @@ describe('worker flow', () => {
     await lease('w1').expect(200);
     await worker().post(`/jobs/${ID3}/skip`, { workerId: 'w1', reason: 'no_speech' }).expect(200);
     expect(await jobRow(ID3)).toMatchObject({ status: 'skipped', skipReason: 'no_speech' });
-    const d = await observer.get(`/call-analysis/calls/${ID3}`).expect(200);
+    const d = await executive.get(`/call-analysis/calls/${ID3}`).expect(200);
     expect(d.body.job).toMatchObject({ status: 'skipped', lastError: 'no_speech' });
     expect(d.body.analysis).toBeNull();
   });
@@ -372,7 +374,7 @@ describe('worker flow', () => {
 describe('reads', () => {
   it('per-call transcript and analysis, with the tickets of the call as ground truth', async () => {
     await sql`insert into tickets (creator_label, origin_call_id) values ('e2e', ${ID1})`.execute(e2e.db);
-    const d = await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
+    const d = await executive.get(`/call-analysis/calls/${ID1}`).expect(200);
     expect(d.body.job).toMatchObject({ status: 'done', attempts: 1 });
     expect(d.body.transcript.segments).toHaveLength(2);
     expect(d.body.transcript.segments[0]).toMatchObject({ role: 'operator', start: 0 });
@@ -385,12 +387,12 @@ describe('reads', () => {
       scores: { greeting: null, politeness: 4, understanding: 4, solution: 3, closing: 5 },
     });
     expect(d.body.tickets).toHaveLength(1);
-    const none = await observer.get('/call-analysis/calls/1700000000.1').expect(200);
+    const none = await executive.get('/call-analysis/calls/1700000000.1').expect(200);
     expect(none.body).toMatchObject({ job: null, transcript: null, analysis: null, tickets: [] });
   });
 
   it('statuses for a history page', async () => {
-    const s = await observer.get(`/call-analysis/status?ids=${ID1},${ID3},1700000000.1`).expect(200);
+    const s = await executive.get(`/call-analysis/status?ids=${ID1},${ID3},1700000000.1`).expect(200);
     expect(s.body.items).toHaveLength(2);
     expect(s.body.items.find((i: { callId: string }) => i.callId === ID1)).toMatchObject({
       status: 'done',
@@ -457,7 +459,7 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
     v2.meta.promptVersion = 'v2-test';
     v2.analysis.overall = 6;
     await worker().post(`/jobs/${ID1}/result`, v2).expect(200);
-    const d = await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
+    const d = await executive.get(`/call-analysis/calls/${ID1}`).expect(200);
     expect(d.body.analysis).toMatchObject({ promptVersion: 'v2-test', overall: 6 });
     expect(d.body.transcript.segments).toHaveLength(2);
   });
