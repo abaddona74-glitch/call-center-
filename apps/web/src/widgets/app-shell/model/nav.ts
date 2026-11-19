@@ -1,6 +1,7 @@
 import type { Permission, SessionUser } from '@cc/shared';
 import { CDR_ACCESS, hasPermission } from '@cc/shared';
 import {
+  Award,
   AudioLines,
   BookOpen,
   CalendarClock,
@@ -39,6 +40,8 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'monitor.view' },
   // Overview dashboard: observers' only page, the superuser too (owner, 19.11.2026)
   { to: '/overview', label: 'nav.overview', icon: MapIcon, permission: 'overview.view' },
+  // Staff KPI: observers and the superuser (owner, 19.11.2026)
+  { to: '/kpi', label: 'nav.kpi', icon: Award, permission: 'kpi.view' },
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },
   {
     to: '/tickets',
@@ -80,9 +83,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 /** The sidebar items this user may open. */
 export function visibleNavItems(user: SessionUser): NavItem[] {
-  return NAV_ITEMS.filter(
-    (item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)),
-  );
+  return NAV_ITEMS.filter((item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)));
 }
 
 /** Where `/` sends a user without the dashboard (e.g. "Mas'ul" → tickets): the first page of their sidebar. */

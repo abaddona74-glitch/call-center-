@@ -17,6 +17,7 @@ import { Route as AppAnalysisRouteImport } from './routes/_app/analysis'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
+import { Route as AppKpiRouteImport } from './routes/_app/kpi'
 import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
@@ -79,6 +80,11 @@ const AppExplorerRoute = AppExplorerRouteImport.update({
 const AppHistoryRoute = AppHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKpiRoute = AppKpiRouteImport.update({
+  id: '/kpi',
+  path: '/kpi',
   getParentRoute: () => AppRoute,
 } as any)
 const AppOperatorsRoute = AppOperatorsRouteImport.update({
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
+  '/kpi': typeof AppKpiRoute
   '/operators': typeof AppOperatorsRoute
   '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
+  '/kpi': typeof AppKpiRoute
   '/operators': typeof AppOperatorsRoute
   '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/_app/clients': typeof AppClientsRoute
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/history': typeof AppHistoryRoute
+  '/_app/kpi': typeof AppKpiRoute
   '/_app/operators': typeof AppOperatorsRoute
   '/_app/overview': typeof AppOverviewRoute
   '/_app/profile': typeof AppProfileRoute
@@ -312,6 +321,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/explorer'
     | '/history'
+    | '/kpi'
     | '/operators'
     | '/overview'
     | '/profile'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/explorer'
     | '/history'
+    | '/kpi'
     | '/operators'
     | '/overview'
     | '/profile'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/_app/clients'
     | '/_app/explorer'
     | '/_app/history'
+    | '/_app/kpi'
     | '/_app/operators'
     | '/_app/overview'
     | '/_app/profile'
@@ -466,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof AppHistoryRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/kpi': {
+      id: '/_app/kpi'
+      path: '/kpi'
+      fullPath: '/kpi'
+      preLoaderRoute: typeof AppKpiRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/operators': {
@@ -670,6 +689,7 @@ interface AppRouteChildren {
   AppClientsRoute: typeof AppClientsRoute
   AppExplorerRoute: typeof AppExplorerRoute
   AppHistoryRoute: typeof AppHistoryRoute
+  AppKpiRoute: typeof AppKpiRoute
   AppOperatorsRoute: typeof AppOperatorsRoute
   AppOverviewRoute: typeof AppOverviewRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -694,6 +714,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClientsRoute: AppClientsRoute,
   AppExplorerRoute: AppExplorerRoute,
   AppHistoryRoute: AppHistoryRoute,
+  AppKpiRoute: AppKpiRoute,
   AppOperatorsRoute: AppOperatorsRoute,
   AppOverviewRoute: AppOverviewRoute,
   AppProfileRoute: AppProfileRoute,

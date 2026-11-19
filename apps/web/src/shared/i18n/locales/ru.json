@@ -2,6 +2,7 @@
   "app": { "title": "Call Center" },
   "nav": {
     "overview": "Общая картина",
+    "kpi": "KPI сотрудников",
     "dashboard": "Главная",
     "settings": "Настройки",
     "profile": "Профиль",

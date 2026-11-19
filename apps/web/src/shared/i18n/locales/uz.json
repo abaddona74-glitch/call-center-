@@ -2,6 +2,7 @@
   "app": { "title": "Call Center" },
   "nav": {
     "overview": "Umumiy ko‘rinish",
+    "kpi": "KPI xodimlar",
     "dashboard": "Bosh sahifa",
     "settings": "Sozlamalar",
     "profile": "Profil",

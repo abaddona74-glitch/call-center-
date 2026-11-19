@@ -27,10 +27,13 @@ describe('sidebar by role', () => {
     for (const role of ['operator', 'superuser'] as const) expect(paths(role)).toContain('/guide');
   });
 
-  it('observer: the overview dashboard and the profile only, landing on the overview (owner, 19.11.2026)', () => {
-    expect(paths('observer')).toEqual(['/overview', '/profile']);
+  it('observer: the overview dashboard, the staff KPI page and the profile only, landing on the overview (owner, 19.11.2026)', () => {
+    expect(paths('observer')).toEqual(['/overview', '/kpi', '/profile']);
     expect(homePath(user('observer'))).toBe('/overview');
-    expect(paths('executive')).not.toContain('/overview');
-    expect(paths('superuser')).toContain('/overview');
+    for (const role of ['executive', 'operator'] as const) {
+      expect(paths(role)).not.toContain('/overview');
+      expect(paths(role)).not.toContain('/kpi');
+    }
+    expect(paths('superuser')).toEqual(expect.arrayContaining(['/overview', '/kpi']));
   });
 });
