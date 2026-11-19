@@ -16,7 +16,7 @@ import { type Medal, ratingOf } from '../model/rating';
 export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; controls: boolean; medal?: Medal }) {
   const { t } = useTranslation('operatorsPage');
   const { t: tp } = useTranslation('operator');
-  const { answered, outbound, missed, transfersIn, talkSeconds } = op.today;
+  const { answered, outbound, missed, missedNoAnswer, missedRejected, transfersIn, talkSeconds } = op.today;
   const total = answered + outbound + transfersIn;
   const offline = op.presence === 'offline';
   const rating = ratingOf(total);
@@ -71,9 +71,14 @@ export function OperatorStatsCard({ op, controls, medal }: { op: LiveOperator; c
         <span>{t('card.outbound')}:</span>
         <span className="text-info">{t('card.count', { n: outbound })}</span>
       </div>
-      <div className="opp-row">
+      <div className="opp-row" title={t('card.missedTitle', { noAnswer: missedNoAnswer, rejected: missedRejected })}>
         <span>{t('card.missed')}:</span>
-        <span className="text-caution">{t('card.count', { n: missed })}</span>
+        <span className="text-caution">
+          {t('card.count', { n: missed })}
+          <span className="ml-1 text-[11px] text-mute">
+            ({missedNoAnswer} / {missedRejected})
+          </span>
+        </span>
       </div>
       <div className="opp-row extra">
         <span>{t('card.talkTotal')}:</span>

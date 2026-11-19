@@ -19,7 +19,10 @@ registerTranslations('liveCounters', {
     hangupOperator: 'Operator',
     ivrOnly: 'Faqat IVR',
     talkingNow: 'Hozir suhbatda',
-    missedHint: "Operator ko'tarmagan / rad etgan",
+    missedHint:
+      "Telefoni jiringlagan, operator ko'tarmagan yoki rad etgan qo'ng'iroqlar (o'chiq va band telefonlar hisobga olinmaydi)",
+    missedNoAnswer: "ko'tarmagan",
+    missedRejected: 'rad etgan',
     since: 'Jonli hisob {{time}} dan beri (AMI). Kunlik hisobot — CDR statistikasida.',
     seeded:
       "Butun kun: {{time}} gacha — ATS CDR bo'yicha (statistikadagidek), keyin — jonli hisob (AMI). «Mijoz tugatdi / Operator» — faqat {{time}} dan beri.",
@@ -42,7 +45,9 @@ registerTranslations('liveCounters', {
     hangupOperator: 'Оператор',
     ivrOnly: 'Только IVR',
     talkingNow: 'Сейчас в разговоре',
-    missedHint: 'Оператор не ответил / отклонил',
+    missedHint: 'Телефон звонил, а оператор не взял или отклонил (выключенные и занятые телефоны не считаются)',
+    missedNoAnswer: 'не взял',
+    missedRejected: 'отклонил',
     since: 'Живой подсчёт с {{time}} (AMI). Отчёт за день — в статистике CDR.',
     seeded:
       'За весь день: до {{time}} — по CDR АТС (как в статистике), дальше — живой подсчёт (AMI). «Завершил клиент / Оператор» — только с {{time}}.',

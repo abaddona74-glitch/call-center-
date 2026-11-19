@@ -40,6 +40,19 @@ export const CallOperatorSchema = z.object({
 });
 export type CallOperator = z.infer<typeof CallOperatorSchema>;
 
+/**
+ * Why an operator whose phone rang never talked on a call (docs/rewrite/METRICS.md §1.2):
+ *  no_answer — the ring ended without an answer (CDR `NO ANSWER`: ring timeout, the caller left, the queue moved on);
+ *  rejected  — the operator declined after ringing at least 1 s (CDR `BUSY` with duration ≥ 1).
+ * An offline phone (CONGESTION) or one busy at once (BUSY in under a second: already on a call) did not ring: no miss.
+ */
+export const MissReasonSchema = z.enum(['no_answer', 'rejected']);
+export type MissReason = z.infer<typeof MissReasonSchema>;
+
+/** One operator who missed a call: once per call, `rejected` when they both let it ring out and declined it. */
+export const CallMissSchema = z.object({ ext: z.string(), reason: MissReasonSchema });
+export type CallMiss = z.infer<typeof CallMissSchema>;
+
 export const CallTransferSchema = z.object({
   from: z.string().nullable(),
   to: z.string(),
@@ -70,8 +83,8 @@ export const CallListItemSchema = z.object({
   /** Every operator who talked, in order. */
   operators: z.array(CallOperatorSchema),
   transfers: z.array(CallTransferSchema),
-  /** Operators whose phone rang but who did not answer (inbound). */
-  missedBy: z.array(z.string()),
+  /** Operators whose phone rang and who never talked on the call, with why (inbound). */
+  missedBy: z.array(CallMissSchema),
   talkSec: z.number().int(),
   /** Inbound: queue entry → answer (answered) or → hang-up (abandoned). Null when not applicable. */
   waitSec: z.number().int().nullable(),

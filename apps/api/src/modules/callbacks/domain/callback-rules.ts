@@ -28,7 +28,7 @@ export interface CallbackState {
 export interface MissedSourceInput {
   /** When the citizen started calling. */
   startedAt: Date;
-  /** Some operator's phone rang during the call and nobody picked up. */
+  /** Some operator's phone actually rang during the call (not offline, not busy at once) and nobody picked up. */
   operatorRang: boolean;
   /** The PBX played its "outside working hours" announcement. */
   ivrAfterHours?: boolean;

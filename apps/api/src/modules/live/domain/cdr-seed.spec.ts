@@ -78,7 +78,9 @@ describe('addCallsToSeed', () => {
       unanswered: s.inbound.abandoned + s.inbound.ivr + s.inbound.afterHours,
       outbound: s.outbound.attempts,
       outboundAnswered: s.outbound.connected,
-      operatorMissed: 2, // 103 on 09:10, 101 on 09:40
+      operatorMissed: 2, // 103 on 09:10, 101 on 09:40 (both let it ring out)
+      operatorMissedNoAnswer: 2,
+      operatorMissedRejected: 0,
       talkSeconds: s.talk.totalSec,
       unknownHangups: s.inbound.answered + s.outbound.connected,
     });
@@ -106,6 +108,8 @@ describe('addCallsToSeed', () => {
         outbound: r.outbound,
         outboundAttempts: r.outboundAttempts,
         missed: r.missed,
+        missedNoAnswer: r.missedNoAnswer,
+        missedRejected: r.missedRejected,
         transfersIn: r.transferredIn,
         transfersOut: r.transferredOut,
         talkSeconds: r.talkSec,

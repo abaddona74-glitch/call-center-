@@ -1,4 +1,4 @@
-import { digitsOnly, normalizeUzPhone } from '@cc/shared';
+import { type MissReason, digitsOnly, normalizeUzPhone } from '@cc/shared';
 import type { CdrRow } from './cdr-row.js';
 
 /**
@@ -176,6 +176,32 @@ export function isInternalCallRow(row: CdrRow, dp: PbxDialplan): boolean {
 /** P_XFER (without the answered part): a transfer leg to an extension. */
 export function isTransferRow(row: CdrRow, dp: PbxDialplan): boolean {
   return row.dcontext === dp.transferContext && isExtension(row.dst, dp);
+}
+
+/**
+ * A BUSY ring shorter than this is "busy at once": the phone was already on a call and did not ring, so it is no
+ * miss. CDR `duration` is whole seconds rounded down (Asterisk 13: (end − start) ms / 1000), so `duration >= 1` means
+ * the ring lasted ≥ 1 000 ms — the live AMI side uses the same 1 000 ms.
+ */
+export const REJECT_MIN_RING_SEC = 1;
+
+/**
+ * How one unanswered ring towards an operator ended (an operator leg: queue member or phone):
+ *  - `NO ANSWER` → no_answer (ring timeout, the caller left, the queue moved on; Asterisk writes it for the dial
+ *    statuses NOANSWER and CANCEL);
+ *  - `BUSY` after ringing ≥ REJECT_MIN_RING_SEC → rejected (the operator declined);
+ *  - anything else → null: CONGESTION / FAILED (phone offline), BUSY at once (already on a call), ANSWERED.
+ */
+export function missReasonOfRow(row: Pick<CdrRow, 'disposition' | 'duration'>): MissReason | null {
+  const disposition = row.disposition.toUpperCase();
+  if (disposition === 'NO ANSWER') return 'no_answer';
+  if (disposition === 'BUSY' && row.duration >= REJECT_MIN_RING_SEC) return 'rejected';
+  return null;
+}
+
+/** One operator, several rings on one call: counted once, `rejected` over `no_answer`. */
+export function worseMiss(a: MissReason | null, b: MissReason | null): MissReason | null {
+  return a === 'rejected' || b === 'rejected' ? 'rejected' : (a ?? b);
 }
 
 /** The IVR played the "outside working hours" announcement. */

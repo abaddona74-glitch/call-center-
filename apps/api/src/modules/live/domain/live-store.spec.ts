@@ -130,26 +130,32 @@ describe('LiveStore — recorded simulator scenarios', () => {
     expect(projectCounters(store)).toMatchObject({ operatorHangups: 1, clientHangups: 0 });
   });
 
-  it('abandoned in queue while an operator was ringing: one miss, one abandon, no answer', () => {
+  it('abandoned in queue while an operator was ringing: a miss per rung operator, one abandon, no answer', () => {
     const { events, store } = play('queue-abandoned');
     expect(names(events)).toEqual([
       CallEvents.QueueJoined,
       CallEvents.OperatorMissed,
       CallEvents.Abandoned,
+      CallEvents.OperatorMissed,
       CallEvents.Ended,
     ]);
+    // 101 let it ring out (queue timeout); 103 was ringing when the citizen hung up: DialEnd CANCEL, which the CDR
+    // writes as NO ANSWER — a "no answer" miss on both sides.
     expect(events[1].payload).toMatchObject({ extension: '101', reason: 'no_answer' });
     expect(events[2].payload).toMatchObject({ queue: '2020159', waitSeconds: 20 });
+    expect(events[3].payload).toMatchObject({ extension: '103', reason: 'no_answer' });
     expect(ended(events)[0]).toMatchObject({ answered: false, extension: null, hangupParty: 'client', talkSeconds: 0 });
     expect(projectCounters(store)).toMatchObject({
       inbound: 1,
       answered: 0,
       abandoned: 1,
       unanswered: 1,
-      operatorMissed: 1,
+      operatorMissed: 2,
+      operatorMissedNoAnswer: 2,
+      operatorMissedRejected: 0,
       answerRate: 0,
     });
-    expect(op(store, '101', T0 + 60_000).today.missed).toBe(1);
+    expect(op(store, '101', T0 + 60_000).today).toMatchObject({ missed: 1, missedNoAnswer: 1, missedRejected: 0 });
   });
 
   it('ring-no-answer, then a rejected ring, then answered: each ring is counted once', () => {
@@ -344,7 +350,8 @@ describe('LiveStore — legacy edge cases', () => {
       [9_000, { event: 'Hangup', ...sip101, cause: '16' }],
       [9_000, { event: 'Hangup', ...trunk, cause: '16' }],
     ]);
-    expect(names(events)).toEqual([CallEvents.Ended]);
+    // 101's phone rang 9 s and the citizen hung up (CANCEL = CDR NO ANSWER): a "no answer" miss, not an answer.
+    expect(names(events)).toEqual([CallEvents.OperatorMissed, CallEvents.Ended]);
     expect(ended(events)[0]).toMatchObject({
       answered: false,
       extension: null,
@@ -356,7 +363,7 @@ describe('LiveStore — legacy edge cases', () => {
       answered: 0,
       unanswered: 1,
       ivrOnly: 0,
-      operatorMissed: 0,
+      operatorMissed: 1,
     });
   });
 

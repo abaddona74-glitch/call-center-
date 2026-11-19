@@ -30,6 +30,8 @@ export interface SeedCounters {
   outbound: number;
   outboundAnswered: number;
   operatorMissed: number;
+  operatorMissedNoAnswer: number;
+  operatorMissedRejected: number;
   talkSeconds: number;
   unknownHangups: number;
 }
@@ -74,6 +76,8 @@ export const emptyOperatorToday = (): OperatorToday => ({
   outbound: 0,
   outboundAttempts: 0,
   missed: 0,
+  missedNoAnswer: 0,
+  missedRejected: 0,
   transfersIn: 0,
   transfersOut: 0,
   talkSeconds: 0,
@@ -95,6 +99,8 @@ export function emptySeed(date: string, from: number, through: number): CounterS
       outbound: 0,
       outboundAnswered: 0,
       operatorMissed: 0,
+      operatorMissedNoAnswer: 0,
+      operatorMissedRejected: 0,
       talkSeconds: 0,
       unknownHangups: 0,
     },
@@ -142,6 +148,8 @@ export function addCallsToSeed(
     outbound: c.outbound + s.outbound.attempts,
     outboundAnswered: c.outboundAnswered + s.outbound.connected,
     operatorMissed: c.operatorMissed + rows.reduce((n, r) => n + r.missed, 0),
+    operatorMissedNoAnswer: c.operatorMissedNoAnswer + rows.reduce((n, r) => n + r.missedNoAnswer, 0),
+    operatorMissedRejected: c.operatorMissedRejected + rows.reduce((n, r) => n + r.missedRejected, 0),
     talkSeconds: c.talkSeconds + s.talk.totalSec,
     // the CDR does not say who hung up (METRICS.md §1.4: hangupBy = unknown)
     unknownHangups: c.unknownHangups + s.inbound.answered + s.outbound.connected,
@@ -156,6 +164,8 @@ export function addCallsToSeed(
       outbound: t.outbound + r.outbound,
       outboundAttempts: t.outboundAttempts + r.outboundAttempts,
       missed: t.missed + r.missed,
+      missedNoAnswer: t.missedNoAnswer + r.missedNoAnswer,
+      missedRejected: t.missedRejected + r.missedRejected,
       transfersIn: t.transfersIn + r.transferredIn,
       transfersOut: t.transfersOut + r.transferredOut,
       talkSeconds: t.talkSeconds + r.talkSec,
@@ -177,6 +187,8 @@ export function withSeed(today: OperatorToday, seeded: OperatorToday | undefined
     outbound: today.outbound + seeded.outbound,
     outboundAttempts: today.outboundAttempts + seeded.outboundAttempts,
     missed: today.missed + seeded.missed,
+    missedNoAnswer: today.missedNoAnswer + seeded.missedNoAnswer,
+    missedRejected: today.missedRejected + seeded.missedRejected,
     transfersIn: today.transfersIn + seeded.transfersIn,
     transfersOut: today.transfersOut + seeded.transfersOut,
     talkSeconds: today.talkSeconds + seeded.talkSeconds,

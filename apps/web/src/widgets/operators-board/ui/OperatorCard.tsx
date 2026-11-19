@@ -23,7 +23,8 @@ export function OperatorCard({
   const { t: tp } = useTranslation('operator');
   const { t: tt } = useTranslation('telephony');
   const total = grandTotal(op);
-  const { answered, outbound, missed, transfersIn, transfersOut, talkSeconds } = op.today;
+  const { answered, outbound, missed, missedNoAnswer, missedRejected, transfersIn, transfersOut, talkSeconds } =
+    op.today;
   const handled = answered + outbound + transfersIn;
   const avg = handled ? talkSeconds / handled : 0;
   const phone = displayPhone(op.call?.phone ?? null, tt('hidden'));
@@ -136,7 +137,10 @@ export function OperatorCard({
             </span>
           </dd>
         </div>
-        <div className={cn(missed > 0 && 'warn')}>
+        <div
+          className={cn(missed > 0 && 'warn')}
+          title={t('card.missedTitle', { noAnswer: missedNoAnswer, rejected: missedRejected })}
+        >
           <dt>{t('card.missed')}</dt>
           <dd>{t('card.count', { n: missed })}</dd>
         </div>
