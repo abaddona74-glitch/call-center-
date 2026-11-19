@@ -4,6 +4,7 @@ import {
   AudioLines,
   BookOpen,
   CalendarClock,
+  Activity,
   ClipboardList,
   ChartColumn,
   Headset,
@@ -52,6 +53,8 @@ export const isNavGroup = (entry: NavEntry): entry is NavGroup => 'children' in 
  */
 export const NAV_ENTRIES: NavEntry[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'monitor.view' },
+  // Live situation board: observers land here (first item → `homePath`), the superuser too (owner, 19.11.2026)
+  { to: '/situation', label: 'nav.situation', icon: Activity, permission: 'situation.view' },
   // Overview dashboard: observers' only page, the superuser too (owner, 19.11.2026)
   { to: '/overview', label: 'nav.overview', icon: MapIcon, permission: 'overview.view' },
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },

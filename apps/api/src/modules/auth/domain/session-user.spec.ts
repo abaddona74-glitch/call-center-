@@ -21,8 +21,14 @@ describe('role permissions', () => {
     for (const p of ROLE_PERMISSIONS.observer) expect(p).toMatch(/\.(view|viewAll|listen)$/);
   });
 
-  it('the overview dashboard: observer sees only it, the superuser too, executives and operators not (owner, 19.11.2026)', () => {
-    expect(ROLE_PERMISSIONS.observer).toEqual(['overview.view']);
+  it('observer: the live situation board and the overview dashboard only; the superuser too, executives and operators not (owner, 19.11.2026)', () => {
+    expect(ROLE_PERMISSIONS.observer).toEqual(['situation.view', 'overview.view']);
+    expect(can({ role: 'superuser' }, 'situation.view')).toBe(true);
+    expect(can({ role: 'executive' }, 'situation.view')).toBe(false);
+    expect(can({ role: 'operator' }, 'situation.view')).toBe(false);
+    // the board is read-only: no live monitor page, no telephony actions
+    expect(can({ role: 'observer' }, 'monitor.view')).toBe(false);
+    expect(can({ role: 'observer' }, 'actions.call')).toBe(false);
     expect(can({ role: 'superuser' }, 'overview.view')).toBe(true);
     expect(can({ role: 'executive' }, 'overview.view')).toBe(false);
     expect(can({ role: 'operator' }, 'overview.view')).toBe(false);

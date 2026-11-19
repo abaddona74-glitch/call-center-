@@ -21,6 +21,7 @@ import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSituationRouteImport } from './routes/_app/situation'
 import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppToolsRouteImport } from './routes/_app/tools'
@@ -98,6 +99,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSituationRoute = AppSituationRouteImport.update({
+  id: '/situation',
+  path: '/situation',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStatisticsRoute = AppStatisticsRouteImport.update({
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
   '/settings': typeof AppSettingsRouteWithChildren
+  '/situation': typeof AppSituationRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
   '/tools': typeof AppToolsRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/operators': typeof AppOperatorsRoute
   '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
+  '/situation': typeof AppSituationRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
   '/tools': typeof AppToolsRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/_app/overview': typeof AppOverviewRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_app/situation': typeof AppSituationRoute
   '/_app/statistics': typeof AppStatisticsRoute
   '/_app/tickets': typeof AppTicketsRoute
   '/_app/tools': typeof AppToolsRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/overview'
     | '/profile'
     | '/settings'
+    | '/situation'
     | '/statistics'
     | '/tickets'
     | '/tools'
@@ -337,6 +347,7 @@ export interface FileRouteTypes {
     | '/operators'
     | '/overview'
     | '/profile'
+    | '/situation'
     | '/statistics'
     | '/tickets'
     | '/tools'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/_app/overview'
     | '/_app/profile'
     | '/_app/settings'
+    | '/_app/situation'
     | '/_app/statistics'
     | '/_app/tickets'
     | '/_app/tools'
@@ -482,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/situation': {
+      id: '/_app/situation'
+      path: '/situation'
+      fullPath: '/situation'
+      preLoaderRoute: typeof AppSituationRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/statistics': {
@@ -653,6 +672,7 @@ interface AppRouteChildren {
   AppOverviewRoute: typeof AppOverviewRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppSituationRoute: typeof AppSituationRoute
   AppStatisticsRoute: typeof AppStatisticsRoute
   AppTicketsRoute: typeof AppTicketsRoute
   AppToolsRoute: typeof AppToolsRoute
@@ -677,6 +697,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppOverviewRoute: AppOverviewRoute,
   AppProfileRoute: AppProfileRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppSituationRoute: AppSituationRoute,
   AppStatisticsRoute: AppStatisticsRoute,
   AppTicketsRoute: AppTicketsRoute,
   AppToolsRoute: AppToolsRoute,

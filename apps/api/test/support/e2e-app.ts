@@ -65,9 +65,13 @@ async function resetSchema(url: string): Promise<void> {
   }
 }
 
-/** `override`: replace providers before compiling (e.g. a fake CdrRepository for the PBX). */
+/**
+ * `override`: replace providers before compiling (e.g. a fake CdrRepository for the PBX).
+ * `env`: extra environment on top of the defaults below (e.g. AMI_* for a FakeAmi).
+ */
 export async function createE2eApp(
   override: (b: TestingModuleBuilder) => TestingModuleBuilder = (b) => b,
+  env: Record<string, string> = {},
 ): Promise<E2eApp> {
   const url = testDatabaseUrl();
   Object.assign(process.env, {
@@ -84,6 +88,7 @@ export async function createE2eApp(
     PBX_DB_HOST: '',
     AMI_HOST: '',
     SMTP_HOST: '',
+    ...env,
   });
   await resetSchema(url);
 

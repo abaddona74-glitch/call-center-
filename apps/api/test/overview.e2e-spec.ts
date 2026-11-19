@@ -242,9 +242,9 @@ describe('access', () => {
     }
   });
 
-  it('observer: the overview permission and nothing else', async () => {
+  it('observer: the situation board and overview permissions and nothing else', async () => {
     const me = (await observer.get('/auth/me')).body.user;
-    expect(me.permissions).toEqual(['overview.view']);
+    expect(me.permissions).toEqual(['situation.view', 'overview.view']);
   });
 
   it('observer: every other API answers 403 (or 404 for tickets it cannot see)', async () => {

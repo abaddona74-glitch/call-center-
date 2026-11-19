@@ -51,6 +51,7 @@ export function KpiCard({
   sub,
   title,
   onOpen,
+  className,
 }: {
   accent: Accent;
   image?: string;
@@ -63,6 +64,8 @@ export function KpiCard({
   title?: string;
   /** Opens the records behind the number (a details dialog); the card becomes a button named "<label>: <value>". */
   onOpen?: () => void;
+  /** Layout from the parent grid (e.g. a column span). */
+  className?: string;
 }) {
   const a = ACCENTS[accent];
   const clickable = onOpen
@@ -89,6 +92,7 @@ export function KpiCard({
         onOpen &&
           'cursor-pointer outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/50',
         a.border,
+        className,
       )}
     >
       <div className="flex size-[54px] min-w-[54px] items-center justify-center rounded-xl 2xl:size-[62px] 2xl:min-w-[62px]">

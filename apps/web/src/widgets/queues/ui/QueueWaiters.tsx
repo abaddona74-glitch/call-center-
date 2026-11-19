@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { LiveTimer, carrierOf, displayPhone, liveSnapshotQuery } from '@/entities/telephony';
+import { LiveTimer, carrierOf, displayPhone, useLiveSnapshot } from '@/entities/telephony';
 import { Icon } from '@/shared/ui/icon';
 import { accentText } from '@/shared/lib/theme';
 import '../i18n';
@@ -13,7 +12,7 @@ import './queues.css';
 export function QueueWaiters() {
   const { t } = useTranslation('queues');
   const { t: tt } = useTranslation('telephony');
-  const { data } = useQuery({ ...liveSnapshotQuery, select: (s) => ({ queues: s.queues, calls: s.calls }) });
+  const { data } = useLiveSnapshot((s) => ({ queues: s.queues, calls: s.calls }));
   const waiting = (data?.queues ?? []).flatMap((q) => q.waiting.map((w) => ({ ...w, queue: q.name })));
   const ivr = (data?.calls ?? []).filter((c) => c.state === 'ivr' && c.direction === 'inbound');
 

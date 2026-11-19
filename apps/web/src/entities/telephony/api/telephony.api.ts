@@ -10,14 +10,12 @@ import {
 } from '@cc/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
+import { noteServerTime } from '@/shared/lib/server-clock';
 
 export const telephonyKeys = {
   all: ['telephony'] as const,
   snapshot: ['telephony', 'snapshot'] as const,
 };
-
-/** Clock offset server − browser (ms), so stopwatches don't depend on the PC clock. */
-export let serverClockOffset = 0;
 
 /** Initial live state; afterwards `useLiveTelephonySync` keeps the cache current from WS events. */
 export const liveSnapshotQuery = queryOptions({
@@ -25,8 +23,7 @@ export const liveSnapshotQuery = queryOptions({
   queryFn: async ({ signal }): Promise<LiveSnapshot> => {
     const started = Date.now();
     const data = await api('/live/snapshot', { schema: LiveSnapshotSchema, signal });
-    const rtt = Date.now() - started;
-    serverClockOffset = Date.parse(data.serverTime) - (started + rtt / 2);
+    noteServerTime(data.serverTime, started);
     return data;
   },
   // Live data comes over WebSocket; refetch only on reconnect or when the page mounts again.
