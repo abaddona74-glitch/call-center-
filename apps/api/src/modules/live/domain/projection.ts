@@ -135,6 +135,8 @@ export function projectCounters(store: LiveStore): LiveCounters {
     outbound: c.outbound + (s?.outbound ?? 0),
     outboundAnswered: c.outboundAnswered + (s?.outboundAnswered ?? 0),
     operatorMissed: c.operatorMissed + (s?.operatorMissed ?? 0),
+    operatorMissedNoAnswer: c.operatorMissedNoAnswer + (s?.operatorMissedNoAnswer ?? 0),
+    operatorMissedRejected: c.operatorMissedRejected + (s?.operatorMissedRejected ?? 0),
     talkSeconds: c.talkSeconds + (s?.talkSeconds ?? 0),
     clientHangups: c.clientHangups,
     operatorHangups: c.operatorHangups,

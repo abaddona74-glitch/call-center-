@@ -28,7 +28,7 @@ describe('assembleCalls — inbound', () => {
       firstOperator: '103',
       finalOperator: '103',
       operators: ['103'],
-      missedBy: ['101'],
+      missedBy: [{ ext: '101', reason: 'no_answer' }],
       talkSec: 120,
       // queue entry (10 s after start) → 15 s ring on 101 + 5 s ring on 103
       waitSec: 20,
@@ -58,7 +58,10 @@ describe('assembleCalls — inbound', () => {
       }),
     );
     expect(c.status).toBe('abandoned');
-    expect(c.missedBy.sort()).toEqual(['101', '106']);
+    expect(c.missedBy).toEqual([
+      { ext: '101', reason: 'no_answer' },
+      { ext: '106', reason: 'no_answer' },
+    ]);
     expect(c.waitSec).toBe(42); // 2 × 15 s ringing + 12 s
     expect(c.talkSec).toBe(0);
   });
@@ -146,7 +149,7 @@ describe('assembleCalls — inbound', () => {
     );
     expect(c.finalOperator).toBe('101');
     expect(c.transfers).toEqual([expect.objectContaining({ from: '101', to: '103', answered: false })]);
-    expect(c.missedBy).toEqual(['103']);
+    expect(c.missedBy).toEqual([{ ext: '103', reason: 'no_answer' }]);
   });
 
   it('single-row (Asterisk 11 style) queue answer falls back to the member leg', () => {

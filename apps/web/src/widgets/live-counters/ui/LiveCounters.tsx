@@ -149,7 +149,12 @@ export function LiveCounters() {
           icon="missedcall"
           label={t('missed')}
           value={c.operatorMissed}
-          sub={<span>{t('missedHint')}</span>}
+          sub={
+            <span title={t('missedHint')}>
+              {t('missedNoAnswer')} <b>{c.operatorMissedNoAnswer}</b> · {t('missedRejected')}{' '}
+              <b>{c.operatorMissedRejected}</b>
+            </span>
+          }
         />
         {/* Shown when there is room (legacy: only with the monitor panel collapsed). */}
         <Kpi

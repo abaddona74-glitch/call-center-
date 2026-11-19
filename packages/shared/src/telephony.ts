@@ -47,8 +47,12 @@ export const OperatorTodaySchema = z.object({
   /** Outbound calls placed by this operator that the callee answered. */
   outbound: z.number().int(),
   outboundAttempts: z.number().int(),
-  /** Ring-no-answer / rejected rings. */
+  /** Calls whose ring this operator did not take, once per call (missedNoAnswer + missedRejected). */
   missed: z.number().int(),
+  /** … the ring ended unanswered. */
+  missedNoAnswer: z.number().int(),
+  /** … declined after ringing ≥ 1 s. */
+  missedRejected: z.number().int(),
   transfersIn: z.number().int(),
   transfersOut: z.number().int(),
   talkSeconds: z.number().int(),
@@ -130,7 +134,8 @@ export type LiveQueue = z.infer<typeof LiveQueueSchema>;
  *  unanswered       — inbound calls that ended without an operator (abandoned + ivrOnly + other)
  *  answerRate       — answered / inbound, % (B15: inbound only)
  *  outbound         — outbound calls placed; outboundAnswered — of them answered by the callee
- *  operatorMissed   — operator rings that were not picked up / rejected
+ *  operatorMissed   — (call, operator) pairs where the operator's phone rang and they never talked on the call
+ *                     = operatorMissedNoAnswer + operatorMissedRejected (offline / busy-at-once phones do not count)
  *  *Hangups         — who ended answered calls (AgentComplete reason / HangupRequest / bridge leave)
  *
  * Calls that started before the API began counting live are seeded from the PBX CDR with the statistics page's
@@ -153,6 +158,8 @@ export const LiveCountersSchema = z.object({
   outbound: z.number().int(),
   outboundAnswered: z.number().int(),
   operatorMissed: z.number().int(),
+  operatorMissedNoAnswer: z.number().int(),
+  operatorMissedRejected: z.number().int(),
   talkSeconds: z.number().int(),
   clientHangups: z.number().int(),
   operatorHangups: z.number().int(),

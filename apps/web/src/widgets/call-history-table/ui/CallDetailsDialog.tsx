@@ -62,7 +62,15 @@ export function CallDetailsDialog({
               <Fact label={t('details.operators')}>
                 {c.operators.length ? c.operators.map((o) => opName(o.ext)).join(' ➔ ') : '—'}
               </Fact>
-              <Fact label={t('details.missed')}>{c.missedBy.length ? c.missedBy.join(', ') : '—'}</Fact>
+              <Fact label={t('details.missed')}>
+                {c.missedBy.length
+                  ? c.missedBy.map((m) => (
+                      <div key={m.ext} className="text-xs">
+                        {opName(m.ext)} · {t(`details.missReason.${m.reason}`)}
+                      </div>
+                    ))
+                  : '—'}
+              </Fact>
               <Fact label={t('details.transfers')}>
                 {c.transfers.length
                   ? c.transfers.map((x, i) => (

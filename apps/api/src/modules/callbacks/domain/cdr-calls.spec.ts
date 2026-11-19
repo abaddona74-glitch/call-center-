@@ -106,6 +106,29 @@ describe('callFactsFromCdr', () => {
     expect(facts[0]).toMatchObject({ kind: 'missed', operatorRang: true, startedAt: t('2026-11-17T10:00:00') });
   });
 
+  it.each([
+    ['NO ANSWER', 15, true], // rang out
+    ['BUSY', 3, true], // declined after ringing
+    ['BUSY', 1, true],
+    ['BUSY', 0, false], // busy at once: already on a call, the phone did not ring
+    ['CONGESTION', 0, false], // phone offline
+    ['FAILED', 0, false],
+  ])('a member leg %s of %i s: operatorRang = %s (the phone actually rang)', (disposition, duration, rang) => {
+    const facts = callFactsFromCdr(
+      [
+        leg({ dstchannel: '' }),
+        leg({
+          calldate: '2026-11-17 10:00:05',
+          dstchannel: 'Local/103@from-queue-0002;1',
+          disposition,
+          duration,
+        }),
+      ],
+      TZ,
+    );
+    expect(facts).toMatchObject([{ kind: 'missed', operatorRang: rang }]);
+  });
+
   it('marks the PBX off-hours announcement', () => {
     const facts = callFactsFromCdr([leg({ dcontext: 'ivr-4', lastdata: 'custom/music-working-time' })], TZ);
     expect(facts[0]).toMatchObject({ kind: 'missed', ivrAfterHours: true });
@@ -283,7 +306,7 @@ describe("queue members' own ring attempts, legs keyed by uniqueid", () => {
       duration: 200,
       billsec: 180,
     }),
-    // abandoned in the queue: only busy attempts → missed, operators were rung
+    // abandoned in the queue: one phone busy at once, one offline → missed, and no operator's phone rang
     leg({
       ...caller,
       src: '935551122',

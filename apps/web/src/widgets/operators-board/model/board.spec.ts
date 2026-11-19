@@ -23,6 +23,8 @@ const op = (
     outbound: 1,
     outboundAttempts: 1,
     missed: 0,
+    missedNoAnswer: 0,
+    missedRejected: 0,
     transfersIn: 0,
     transfersOut: 0,
     talkSeconds: 0,

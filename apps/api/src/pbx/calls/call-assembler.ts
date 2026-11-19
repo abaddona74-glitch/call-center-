@@ -1,4 +1,4 @@
-import type { CallDirection, CallStatus } from '@cc/shared';
+import type { CallDirection, CallMiss, CallStatus } from '@cc/shared';
 import { parseWall } from '../../common/time/business-time.js';
 import type { WorkingCalendar } from '../../common/time/working-calendar.js';
 import type { CdrRow } from './cdr-row.js';
@@ -10,12 +10,14 @@ import {
   isOutboundRow,
   isQueueRow,
   isTransferRow,
+  missReasonOfRow,
   normalizeClientNumber,
   operatorExtOfChannel,
   operatorExtOfSipChannel,
   operatorLegOf,
   type OperatorLeg,
   type PbxDialplan,
+  worseMiss,
 } from './dialplan.js';
 
 export interface TransferHop {
@@ -56,8 +58,11 @@ export interface AssembledCall {
   transfers: TransferHop[];
   /** Talk seconds per operator, from that operator's own legs. */
   operatorTalk: Record<string, number>;
-  /** Inbound: operators whose phone rang without answering. */
-  missedBy: string[];
+  /**
+   * Inbound: operators whose phone actually rang and who never talked on the call, once each, with why
+   * (`missReasonOfRow`). Offline phones and phones busy at once are not here.
+   */
+  missedBy: CallMiss[];
   /** Σ operatorTalk (inbound) / billsec of the connected leg (outbound, internal). */
   talkSec: number;
   waitSec: number | null;
@@ -221,7 +226,12 @@ function assembleInbound(base: CallBase, group: ParsedRow[], inboundRows: Parsed
   const answered = operators.length > 0;
   const finalOperator = operators.at(-1) ?? null;
   // Rang (queue member or transfer target) and never talked on this call.
-  const missedBy = [...byExt.keys()].filter((ext) => !(ext in operatorTalk));
+  const missedBy: CallMiss[] = [];
+  for (const [ext, list] of byExt) {
+    if (ext in operatorTalk) continue;
+    const reason = list.reduce<CallMiss['reason'] | null>((r, l) => worseMiss(r, missReasonOfRow(l.p.row)), null);
+    if (reason) missedBy.push({ ext, reason });
+  }
 
   const reachedQueue = group.some((p) => isQueueRow(p.row, dp));
   const offHoursAnnouncement = group.some((p) => isOffHoursAnnouncementRow(p.row, dp));

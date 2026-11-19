@@ -72,8 +72,12 @@ export const OperatorStatsRowSchema = z.object({
   /** Outbound calls that connected. */
   outbound: int,
   outboundAttempts: int,
-  /** Inbound calls where this operator's phone rang but they did not answer. */
+  /** Inbound calls where this operator's phone rang and they never talked: missedNoAnswer + missedRejected. */
   missed: int,
+  /** … the ring ended unanswered (CDR NO ANSWER). */
+  missedNoAnswer: int,
+  /** … they declined after ringing ≥ 1 s (CDR BUSY, duration ≥ 1). */
+  missedRejected: int,
   /** "Jami" per operator: answered + transferredIn + outbound. Sums to the center's answered inbound + connected outbound. */
   total: int,
   talkSec: int,

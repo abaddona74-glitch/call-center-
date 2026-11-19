@@ -1,3 +1,5 @@
+import type { MissReason } from '@cc/shared';
+
 /**
  * In-process domain events between backend modules (@nestjs/event-emitter).
  * The telephony module publishes call lifecycle events; callbacks, stats, notifications
@@ -59,9 +61,14 @@ export interface CallEndedEvent extends CallEventBase {
   hangupParty: HangupParty;
 }
 
+/**
+ * The operator's phone actually rang and they did not take the call (once per call and operator; docs/rewrite/METRICS.md
+ * §1.2). Offline phones and phones busy at once raise nothing.
+ */
 export interface CallOperatorMissedEvent extends CallEventBase {
   extension: string;
-  reason: 'no_answer' | 'rejected' | 'busy' | 'unavailable';
+  /** The first outcome seen; a later rejected ring of the same pair raises no second event. */
+  reason: MissReason;
 }
 
 /** System settings changed: consumers drop caches derived from them and re-publish live views. */

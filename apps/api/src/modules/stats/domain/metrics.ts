@@ -144,6 +144,8 @@ interface OperatorAcc {
   outbound: number;
   outboundAttempts: number;
   missed: number;
+  missedNoAnswer: number;
+  missedRejected: number;
   talkSec: number;
   talkedCalls: number;
 }
@@ -179,6 +181,8 @@ export function operatorStats(
         outbound: 0,
         outboundAttempts: 0,
         missed: 0,
+        missedNoAnswer: 0,
+        missedRejected: 0,
         talkSec: 0,
         talkedCalls: 0,
       };
@@ -198,7 +202,12 @@ export function operatorStats(
         else get(c.finalOperator).answered++;
         for (const hop of hops) if (hop.from) get(hop.from).transferredOut++;
       }
-      for (const ext of c.missedBy) get(ext).missed++;
+      for (const m of c.missedBy) {
+        const a = get(m.ext);
+        a.missed++;
+        if (m.reason === 'rejected') a.missedRejected++;
+        else a.missedNoAnswer++;
+      }
     } else if (c.firstOperator) {
       const a = get(c.firstOperator);
       a.outboundAttempts++;
@@ -227,6 +236,8 @@ export function operatorStats(
         outbound: a.outbound,
         outboundAttempts: a.outboundAttempts,
         missed: a.missed,
+        missedNoAnswer: a.missedNoAnswer,
+        missedRejected: a.missedRejected,
         total,
         talkSec: a.talkSec,
         avgTalkSec: a.talkedCalls ? Math.round(a.talkSec / a.talkedCalls) : 0,
