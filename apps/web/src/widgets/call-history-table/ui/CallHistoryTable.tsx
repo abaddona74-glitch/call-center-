@@ -94,6 +94,8 @@ export interface CallHistoryTableProps {
   analysis?: ReadonlyMap<string, CallAnalysisStatusResponse['items'][number]>;
   /** Rendered instead of rows (loading / empty / error). */
   placeholder?: ReactNode;
+  /** Names for the "missed by" column (the call list only carries extensions there). */
+  operatorNames?: Readonly<Record<string, string>>;
 }
 
 /** Column ids in display order (labels: `callHistory:col.<id>`). `num` and `action` cannot be hidden. */
@@ -106,6 +108,7 @@ export const HISTORY_COLUMNS = [
   'dur',
   'wait',
   'status',
+  'missedBy',
   'hangup',
   'host',
   'action',
@@ -115,7 +118,7 @@ export const TOGGLEABLE_COLUMNS = HISTORY_COLUMNS.filter((c) => c !== 'num' && c
 function useCallHistoryTable(props: CallHistoryTableProps) {
   const { t, i18n } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
-  const { firstRowNumber, showDate, onOpenDetails, canListen, analysis } = props;
+  const { firstRowNumber, showDate, onOpenDetails, canListen, analysis, operatorNames } = props;
 
   const columns = useMemo(
     () =>
@@ -205,6 +208,27 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           cell: ({ row }) => <CallStatusBadge call={row.original} />,
         }),
         helper.display({
+          id: 'missedBy',
+          header: () => t('col.missedBy'),
+          cell: ({ row: { original: c } }) =>
+            c.missedBy.length === 0 ? (
+              <span className="text-muted-foreground">—</span>
+            ) : (
+              <div className="flex flex-col items-center gap-0.5">
+                {c.missedBy.map((m) => (
+                  <span key={m.ext} className="text-xs whitespace-nowrap">
+                    <span className="font-semibold text-ink">
+                      {operatorNames?.[m.ext] ? `${operatorNames[m.ext]} (${m.ext})` : m.ext}
+                    </span>
+                    <span className={cn('ml-1.5', m.reason === 'rejected' ? 'text-danger' : 'text-caution')}>
+                      {t(`details.missReason.${m.reason}`)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            ),
+        }),
+        helper.display({
           id: 'hangup',
           header: () => t('col.hangup'),
           // CDR has no hang-up side; the live module (AMI) will provide it (ROADMAP decision: unknown, not "client").
@@ -263,7 +287,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
       ]),
     // i18n.language: re-render headers on language switch
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [t, tc, i18n.language, firstRowNumber, showDate, onOpenDetails, canListen, analysis],
+    [t, tc, i18n.language, firstRowNumber, showDate, onOpenDetails, canListen, analysis, operatorNames],
   );
 
   return useTable({

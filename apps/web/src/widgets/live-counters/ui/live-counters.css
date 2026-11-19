@@ -27,6 +27,18 @@
   transform: translateY(-2px);
   border-color: rgba(99, 102, 241, 0.3);
 }
+/* Legacy `.clickable-kpi`: the card opens its details. */
+.kpi-card.clickable {
+  cursor: pointer;
+  outline: none;
+}
+.kpi-card.clickable:active {
+  transform: translateY(0) scale(0.99);
+}
+.kpi-card.clickable:focus-visible {
+  border-color: var(--kpi);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kpi) 45%, transparent);
+}
 .kpi-card.blue {
   border-top: 3px solid #3b82f6;
   --kpi: var(--link);
