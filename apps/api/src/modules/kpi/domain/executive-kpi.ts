@@ -5,7 +5,8 @@ import type { KpiExecutiveFigures, KpiExecutiveRegion, KpiExecutiveRow, TicketEv
  * Pure: no Nest, no DB.
  *
  * Every event of a ticket is replayed in order to know the ticket's region at that moment: it starts in the region of
- * the `created` event and moves with each `forwarded` event. An action belongs to its actor and to the region the
+ * the `created` event (if that has none: the region before the first forward, else the ticket's current region) and
+ * moves with each `forwarded` event. An action belongs to its actor and to the region the
  * ticket was in when it happened (a forward to the region it was sent FROM). A ticket enters a region's queue when it
  * is created there, forwarded there or released back there; that is the start of the wait until someone takes it.
  */
@@ -155,11 +156,10 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
     const ticket = ticketById.get(ticketId);
     const created = list.find((e) => e.kind === 'created');
     const firstForward = list.find((e) => e.kind === 'forwarded');
-    let region: number | null = created
-      ? created.toRegionId
-      : firstForward
-        ? firstForward.fromRegionId
-        : (ticket?.regionId ?? null);
+    // A region set at creation, else (no region on the event, e.g. imported data) the region before the first
+    // forward, else the ticket's current one — nothing else moves a ticket between regions.
+    let region: number | null =
+      created?.toRegionId ?? (firstForward ? firstForward.fromRegionId : (ticket?.regionId ?? null));
     let queuedAt: number | null = null;
     let holder: { userId: number; at: number } | null = null;
     const dueAt = ticket?.dueAt?.getTime() ?? null;
@@ -170,7 +170,6 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
       const here = keyOf(region);
       switch (e.kind) {
         case 'created':
-          region = e.toRegionId;
           queuedAt = at;
           if (counted) arrivals.set(keyOf(region), (arrivals.get(keyOf(region)) ?? new Set()).add(ticketId));
           break;

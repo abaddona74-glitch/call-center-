@@ -148,6 +148,21 @@ describe('buildExecutiveKpi', () => {
     expect(later.find((r) => r.name === 'masul_s')?.totals).toMatchObject({ holdingNow: 2, overdueNow: 1 });
   });
 
+  it("a `created` event without a region (imported data) starts in the ticket's region", () => {
+    const out = buildExecutiveKpi({
+      ...input(),
+      events: [ev(8, 'created', '16T09:00:00', 100), ev(8, 'assigned', '16T09:30:00', E1)],
+      tickets: [{ id: 8, regionId: T, dueAt: null }],
+      holding: [],
+    });
+    expect(out.find((r) => r.name === 'masul_t')?.regions[0]).toMatchObject({
+      code: 'toshkent-shahri',
+      arrived: 1,
+      taken: 1,
+      avgTakeHours: 0.5,
+    });
+  });
+
   it('executives without any work still get a row with their regions', () => {
     const out = buildExecutiveKpi({
       ...input(),
