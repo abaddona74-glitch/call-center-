@@ -1,7 +1,7 @@
 import type { Generated, Selectable } from 'kysely';
 import type { PresenceState } from './domain/presence-state.js';
 
-/** One state interval of an operator phone (migration 202611192000_operator_presence_log). */
+/** One state interval of an operator phone (migration 202611191810_operator_presence_log). */
 export interface OperatorPresenceLogTable {
   id: Generated<string>;
   extension: string;

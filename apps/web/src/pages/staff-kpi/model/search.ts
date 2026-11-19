@@ -55,3 +55,16 @@ export function kpiStateFrom(s: KpiSearch, today: string): KpiState {
     group: s.group ?? 'all',
   };
 }
+
+/** A calendar range → URL params; a range equal to a preset is stored as that preset (like the overview dashboard). */
+export function periodSearchOf(
+  range: { from: string; to: string },
+  today: string,
+): Pick<KpiSearch, 'period' | 'from' | 'to'> {
+  const presets = rangePresets(today);
+  const preset = KPI_PERIODS.filter((p): p is Exclude<KpiPeriod, 'range'> => p !== 'range').find(
+    (id) => presets[id].from === range.from && presets[id].to === range.to,
+  );
+  if (preset) return { period: preset === DEFAULT_PERIOD ? undefined : preset, from: undefined, to: undefined };
+  return { period: 'range', from: range.from, to: range.to };
+}

@@ -1,19 +1,38 @@
-import type { KpiOperatorsResponse } from '@cc/shared';
+import { KPI_NO_REGION, type KpiOperatorsResponse } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { businessToday, calendarLabels, type RangePresetId, rangePresets } from '@/entities/call';
-import { kpiExecutivesQuery, kpiOperatorsQuery } from '@/entities/staff-kpi';
+import {
+  type CallListView,
+  asCallListQuery,
+  businessToday,
+  calendarLabels,
+  type RangePresetId,
+  rangePresets,
+} from '@/entities/call';
+import {
+  kpiExecutiveTicketListQuery,
+  kpiExecutivesQuery,
+  kpiOperatorCallListQuery,
+  kpiOperatorTicketListQuery,
+  kpiOperatorsQuery,
+} from '@/entities/staff-kpi';
+import { ApiScopeProvider } from '@/shared/lib/api-scope';
 import { cn } from '@/shared/lib/cn';
+import { useStableCallback } from '@/shared/lib/use-stable-callback';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';
 import { Icon } from '@/shared/ui/icon';
 import { ModalButton } from '@/shared/ui/modal';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { toDmy } from '@/shared/ui/range-calendar';
 import { Segmented } from '@/shared/ui/segmented';
-import { ExecutivesKpiTable, KPI_GROUPS, OperatorsKpiTable } from '@/widgets/staff-kpi';
-import { KPI_PERIODS, KPI_VIEWS, type KpiSearch, kpiStateFrom } from '../model/search';
+import { CallListDialog } from '@/widgets/call-history-table';
+import { TicketBox } from '@/widgets/ticket-box';
+import { TicketListDialog, type TicketListDialogView, asTicketListQuery } from '@/widgets/ticket-overview';
+import { ExecutivesKpiTable, KPI_GROUPS, type KpiDetailRequest, OperatorsKpiTable } from '@/widgets/staff-kpi';
+import { callTabsOf, detailId } from '../model/details';
+import { KPI_PERIODS, KPI_VIEWS, type KpiSearch, kpiStateFrom, periodSearchOf } from '../model/search';
 import '../i18n';
 
 const route = getRouteApi('/_app/kpi');
@@ -57,6 +76,87 @@ export function StaffKpiPage() {
     enabled: state.view === 'executives',
   });
   const active = state.view === 'operators' ? operators : executives;
+
+  // The records behind a number: the overview dashboard's dialogs and read-only cards (its `/api/overview/*` card
+  // endpoints, `overview.view`), fed with this page's lists so each list adds up to the number clicked.
+  const [callView, setCallView] = useState<CallListView | null>(null);
+  const [ticketView, setTicketView] = useState<TicketListDialogView | null>(null);
+  const [ticketId, setTicketId] = useState<number | null>(null);
+  const range = state.from === state.to ? toDmy(state.from) : `${toDmy(state.from)} — ${toDmy(state.to)}`;
+  const sla = executives.data?.slaWorkingDays ?? 3;
+  // Stable: the tables keep their cells (and the focused number) while dialogs open and close.
+  const openDetail = useStableCallback((r: KpiDetailRequest) => {
+    if (r.kind === 'calls') {
+      const quality = r.metric === 'analysed' || r.metric === 'flagged' || r.metric === 'handled';
+      const tabs = callTabsOf(r.metric);
+      setCallView({
+        id: detailId({ ...r, from: state.from, to: state.to, scope: state.scope }),
+        title: t('details.personTitle', { name: `${r.name} (${r.ext})`, title: t(`details.calls.${r.metric}.title`) }),
+        value: r.value,
+        icon: quality ? 'magic-star' : 'call',
+        subtitle: t(quality ? 'details.qualitySubtitle' : 'details.callSubtitle', { range }),
+        note: quality
+          ? t(`details.calls.${r.metric}.def`)
+          : `${t(`details.calls.${r.metric}.def`)} ${t(state.scope === 'working' ? 'details.scopeWorking' : 'details.scopeAll')}`,
+        showDate: state.from !== state.to,
+        tabs: tabs.map((m) => ({
+          id: m,
+          label: t(`details.calls.${m}.title`),
+          count: m === r.metric ? r.value : undefined,
+          filter: {},
+        })),
+        list: (tab, p) =>
+          asCallListQuery(
+            kpiOperatorCallListQuery({
+              from: state.from,
+              to: state.to,
+              scope: state.scope,
+              ext: r.ext,
+              metric: tab as (typeof tabs)[number],
+              ...p,
+            }),
+          ),
+      });
+      return;
+    }
+    if (r.kind === 'operatorTickets') {
+      setTicketView({
+        id: detailId({ ...r, from: state.from, to: state.to }),
+        title: t('details.personTitle', {
+          name: `${r.name} (${r.ext})`,
+          title: t(`details.tickets.${r.metric}.title`),
+        }),
+        definition: `${t(`details.tickets.${r.metric}.def`)} ${range}`,
+        value: r.value,
+        list: (p) =>
+          asTicketListQuery(
+            kpiOperatorTicketListQuery({ from: state.from, to: state.to, ext: r.ext, metric: r.metric, ...p }),
+          ),
+      });
+      return;
+    }
+    const title = t(`details.executive.${r.metric}.title`);
+    setTicketView({
+      id: detailId({ ...r, from: state.from, to: state.to }),
+      title: r.region
+        ? t('details.regionTitle', { name: r.name, region: r.region.name, title })
+        : t('details.personTitle', { name: r.name, title }),
+      definition:
+        `${t(`details.executive.${r.metric}.def`, { sla })} ${r.metric === 'holding' || r.metric === 'overdueNow' ? '' : range}`.trim(),
+      value: r.value,
+      list: (p) =>
+        asTicketListQuery(
+          kpiExecutiveTicketListQuery({
+            from: state.from,
+            to: state.to,
+            user: r.userId,
+            metric: r.metric,
+            ...(r.region ? { region: r.region.code ?? KPI_NO_REGION } : {}),
+            ...p,
+          }),
+        ),
+    });
+  });
   const updated = active.data ? new Date(active.data.generatedAt) : null;
   const cal = calendarLabels(i18n.language);
   const presets = rangePresets(today);
@@ -163,6 +263,7 @@ export function StaffKpiPage() {
             <>
               {operators.data && <OperatorNotices data={operators.data} />}
               <OperatorsKpiTable
+                onOpen={openDetail}
                 key={state.group}
                 rows={operators.data?.operators}
                 group={state.group}
@@ -193,10 +294,20 @@ export function StaffKpiPage() {
           {executives.isError && !executives.data ? (
             <p className="py-6 text-center text-sm text-destructive">{t('error')}</p>
           ) : (
-            <ExecutivesKpiTable rows={executives.data?.executives} loading={executives.isFetching} />
+            <ExecutivesKpiTable
+              rows={executives.data?.executives}
+              loading={executives.isFetching}
+              onOpen={openDetail}
+            />
           )}
         </Panel>
       )}
+
+      <TicketListDialog view={ticketView} onClose={() => setTicketView(null)} onOpenTicket={setTicketId} />
+      <ApiScopeProvider scope="overview">
+        <CallListDialog view={callView} onClose={() => setCallView(null)} />
+        <TicketBox ticketId={ticketId} maxFileMb={10} onClose={() => setTicketId(null)} />
+      </ApiScopeProvider>
 
       <DateRangeModal
         open={rangeOpen}
@@ -224,7 +335,7 @@ export function StaffKpiPage() {
               tone="blue"
               disabled={!valid}
               onClick={() => {
-                set({ period: 'range', from: r.from, to: r.to });
+                set(periodSearchOf(r, today));
                 setRangeOpen(false);
               }}
             >

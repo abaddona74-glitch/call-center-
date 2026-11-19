@@ -1,5 +1,5 @@
-import type { OverviewTicketListItem } from '@cc/shared';
-import { useQuery } from '@tanstack/react-query';
+import type { OverviewTicketList, OverviewTicketListItem } from '@cc/shared';
+import { type QueryKey, type UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type TicketListParams, overviewTicketListQuery } from '@/entities/overview';
@@ -18,7 +18,7 @@ const PAGE_SIZE = 25;
 const col = dataTableColumns<OverviewTicketListItem>();
 
 /** What the dialog shows: the number's title, how it is calculated, and the list filters (same as the number). */
-export interface TicketListDialogView {
+export type TicketListDialogView = {
   /** Stable per number: the dialog starts over (page 1, no search) when another one opens. */
   id: string;
   title: string;
@@ -26,8 +26,22 @@ export interface TicketListDialogView {
   definition: string;
   /** The number clicked. */
   value: number;
-  params: Omit<TicketListParams, 'page' | 'pageSize' | 'search'>;
-}
+} & (
+  | { params: Omit<TicketListParams, 'page' | 'pageSize' | 'search'>; list?: undefined }
+  | {
+      params?: undefined;
+      /**
+       * Where the pages come from instead of `/overview/tickets/list` — another page's list of the same shape (the
+       * staff KPI page: `/kpi/operators/tickets`, `/kpi/executives/tickets`).
+       */
+      list: (p: { page: number; pageSize: number; search?: string }) => TicketListQueryOptions;
+    }
+);
+
+/** Query options of a ticket list page (any query key), e.g. `asTicketListQuery(queryOptions({...}))`. */
+export type TicketListQueryOptions = UseQueryOptions<OverviewTicketList, Error, OverviewTicketList, QueryKey>;
+export const asTicketListQuery = (options: { queryKey: QueryKey }): TicketListQueryOptions =>
+  options as unknown as TicketListQueryOptions;
 
 /**
  * The tickets behind a ticket number of the overview dashboard: definition line, search, pages; a ticket number
@@ -71,8 +85,11 @@ function Body({ view, onOpenTicket }: { view: TicketListDialogView; onOpenTicket
     return () => clearTimeout(id);
   }, [term]);
 
+  const pageParams = { page, pageSize: PAGE_SIZE, search: search || undefined };
   const query = useQuery(
-    overviewTicketListQuery({ ...view.params, page, pageSize: PAGE_SIZE, search: search || undefined }),
+    view.list === undefined
+      ? asTicketListQuery(overviewTicketListQuery({ ...view.params, ...pageParams }))
+      : view.list(pageParams),
   );
   const data = query.data;
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;

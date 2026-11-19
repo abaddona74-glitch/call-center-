@@ -1,7 +1,9 @@
-import type { KpiExecutiveFigures, KpiExecutiveRow } from '@cc/shared';
+import type { KpiExecutiveFigures, KpiExecutiveRow, KpiExecutiveTicketMetric } from '@cc/shared';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
+import { NumberButton } from '@/shared/ui/number-button';
+import type { KpiDetailRequest } from '../model/details';
 import { DANGER_TEXT, hoursText, orLast, percentText, shareTone } from '../model/format';
 import { ExpandButton, type KpiColumn, type KpiGroupHeader, KpiTable, kpiColumns, rowDomId } from './KpiTable';
 import '../i18n';
@@ -11,6 +13,11 @@ interface Row {
   id: string;
   kind: 'person' | 'region';
   name: string;
+  userId: number;
+  /** The person's name (a region row's own name is the region). */
+  personName: string;
+  /** Region rows: the region code (null = tickets without a region). */
+  regionCode: string | null;
   /** person: number of regions; region: assigned or only acted in. */
   regionCount: number;
   assigned: boolean;
@@ -25,13 +32,19 @@ function toRows(executives: readonly KpiExecutiveRow[], ru: boolean, noRegion: s
     id: `u${e.userId}`,
     kind: 'person',
     name: e.name,
+    userId: e.userId,
+    personName: e.name,
+    regionCode: null,
     regionCount: e.regions.filter((r) => r.assigned).length,
     assigned: true,
     figures: e.totals,
-    children: e.regions.map(({ regionId, code: _code, nameUz, nameRu, assigned, ...figures }) => ({
+    children: e.regions.map(({ regionId, code, nameUz, nameRu, assigned, ...figures }) => ({
       id: `u${e.userId}-r${regionId ?? 'none'}`,
       kind: 'region',
       name: regionId === null ? noRegion : ru ? nameRu : nameUz,
+      userId: e.userId,
+      personName: e.name,
+      regionCode: code,
       regionCount: 0,
       assigned,
       figures,
@@ -44,7 +57,16 @@ function toRows(executives: readonly KpiExecutiveRow[], ru: boolean, noRegion: s
  * they hold now — opened per region with the button in the first cell. Sort by any column (regions sort inside their
  * person).
  */
-export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] | undefined; loading?: boolean }) {
+export function ExecutivesKpiTable({
+  rows,
+  loading,
+  onOpen,
+}: {
+  rows: KpiExecutiveRow[] | undefined;
+  loading?: boolean;
+  /** Opens the tickets behind a number (keep it stable: the columns depend on it). */
+  onOpen?: (request: KpiDetailRequest) => void;
+}) {
   const { t, i18n } = useTranslation('staffKpi');
   const ru = i18n.language === 'ru';
   const locale = ru ? 'ru-RU' : 'uz-UZ';
@@ -59,12 +81,27 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
   );
 
   const columns = useMemo(() => {
+    const request = (r: Row, metric: KpiExecutiveTicketMetric, value: number): KpiDetailRequest => ({
+      kind: 'executiveTickets',
+      userId: r.userId,
+      name: r.personName,
+      region: r.kind === 'region' ? { code: r.regionCode, name: r.name } : null,
+      metric,
+      value,
+    });
+    const label = (r: Row, id: string) =>
+      r.kind === 'region' ? `${r.personName}, ${r.name}, ${t(`ex.${id}Title`)}` : `${r.name}, ${t(`ex.${id}Title`)}`;
     const num = (
       id: keyof KpiExecutiveFigures | 'onTime' | 'avgTake' | 'avgResolve' | 'holding',
       groupId: string,
       value: (f: KpiExecutiveFigures) => number | null,
-      render: (v: number, f: KpiExecutiveFigures) => React.ReactNode,
-      groupStart = false,
+      render: (v: number, f: KpiExecutiveFigures, r: Row) => React.ReactNode,
+      opts: {
+        groupStart?: boolean;
+        /** The tickets behind the number and how many there are. */
+        open?: (f: KpiExecutiveFigures) => { metric: KpiExecutiveTicketMetric; count: number };
+        spoken?: (v: number) => string;
+      } = {},
     ): KpiColumn<Row> =>
       col.accessor((r) => orLast(value(r.figures)), {
         id,
@@ -72,10 +109,23 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
         sortFn: 'basic',
         sortUndefined: 'last',
         sortDescFirst: true,
-        meta: { group: groupId, title: t(`ex.${id}Title`), groupStart },
+        meta: { group: groupId, title: t(`ex.${id}Title`), groupStart: opts.groupStart },
         cell: ({ row }) => {
-          const v = value(row.original.figures);
-          return v === null ? <span className="text-mute">—</span> : render(v, row.original.figures);
+          const r = row.original;
+          const v = value(r.figures);
+          if (v === null) return <span className="text-mute">—</span>;
+          const content = render(v, r.figures, r);
+          const target = onOpen ? opts.open?.(r.figures) : undefined;
+          if (!target || target.count === 0) return content;
+          return (
+            <NumberButton
+              label={label(r, id)}
+              value={opts.spoken?.(v) ?? v}
+              onOpen={() => onOpen?.(request(r, target.metric, target.count))}
+            >
+              {content}
+            </NumberButton>
+          );
         },
       });
     const count = (tone?: string) => (v: number) => (
@@ -130,43 +180,77 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
           );
         },
       }),
-      num('arrived', 'period', (f) => f.arrived, count(), true),
-      num('taken', 'period', (f) => f.taken, count()),
-      num('done', 'period', (f) => f.done, count('font-semibold text-positive')),
-      num('rejected', 'period', (f) => f.rejected, count('text-caution')),
-      num('released', 'period', (f) => f.released, count('text-ink-2')),
-      num('forwarded', 'period', (f) => f.forwarded, count('text-ink-2')),
-      num('late', 'period', (f) => f.late, count(`font-semibold ${DANGER_TEXT}`)),
+      num('arrived', 'period', (f) => f.arrived, count(), {
+        groupStart: true,
+        open: (f) => ({ metric: 'arrived', count: f.arrived ?? 0 }),
+      }),
+      num('taken', 'period', (f) => f.taken, count(), { open: (f) => ({ metric: 'taken', count: f.taken }) }),
+      num('done', 'period', (f) => f.done, count('font-semibold text-positive'), {
+        open: (f) => ({ metric: 'done', count: f.done }),
+      }),
+      num('rejected', 'period', (f) => f.rejected, count('text-caution'), {
+        open: (f) => ({ metric: 'rejected', count: f.rejected }),
+      }),
+      num('released', 'period', (f) => f.released, count('text-ink-2'), {
+        open: (f) => ({ metric: 'released', count: f.released }),
+      }),
+      num('forwarded', 'period', (f) => f.forwarded, count('text-ink-2'), {
+        open: (f) => ({ metric: 'forwarded', count: f.forwarded }),
+      }),
+      num('late', 'period', (f) => f.late, count(`font-semibold ${DANGER_TEXT}`), {
+        open: (f) => ({ metric: 'late', count: f.late }),
+      }),
       num(
         'onTime',
         'period',
         (f) => f.onTimeRate,
         (v) => <span className={shareTone(v)}>{percentText(v, locale)}</span>,
+        {
+          open: (f) => ({ metric: 'resolved', count: f.done + f.rejected }),
+          spoken: (v) => percentText(v, locale) ?? '',
+        },
       ),
-      num('avgTake', 'period', (f) => f.avgTakeHours, hours),
-      num('avgResolve', 'period', (f) => f.avgResolveHours, hours),
+      num('avgTake', 'period', (f) => f.avgTakeHours, hours, {
+        open: (f) => ({ metric: 'taken', count: f.taken }),
+        spoken: (v) => t('ex.hours', { n: hoursText(v, locale) }),
+      }),
+      num('avgResolve', 'period', (f) => f.avgResolveHours, hours, {
+        open: (f) => ({ metric: 'resolved', count: f.done + f.rejected }),
+        spoken: (v) => t('ex.hours', { n: hoursText(v, locale) }),
+      }),
       num(
         'holding',
         'now',
         (f) => f.holdingNow,
-        (v, f) => (
+        // Two numbers in one cell, each its own button: what the person holds, and how many of them are overdue.
+        (v, f, r) => (
           <span className={cn(v ? 'font-bold text-ink' : 'text-mute')}>
-            {v}
+            <NumberButton
+              label={label(r, 'holding')}
+              value={v}
+              onOpen={onOpen && v > 0 ? () => onOpen(request(r, 'holding', v)) : undefined}
+            />
             {f.overdueNow > 0 && (
               <span
                 className={cn('ml-1 text-xs font-semibold', DANGER_TEXT)}
                 title={t('ex.overdueNow', { n: f.overdueNow })}
               >
-                ({f.overdueNow})
+                (
+                <NumberButton
+                  label={`${label(r, 'holding')}, ${t('ex.overdueNow', { n: f.overdueNow })}`}
+                  value={f.overdueNow}
+                  onOpen={onOpen ? () => onOpen(request(r, 'overdueNow', f.overdueNow)) : undefined}
+                />
+                )
               </span>
             )}
           </span>
         ),
-        true,
+        { groupStart: true },
       ),
     ];
     return list;
-  }, [t, locale]);
+  }, [t, locale, onOpen]);
 
   return (
     <KpiTable

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { kpiSearchSchema, kpiStateFrom } from './search';
+import { callTabsOf } from './details';
+import { kpiSearchSchema, kpiStateFrom, periodSearchOf } from './search';
 
 const TODAY = '2026-11-19';
 
@@ -40,5 +41,33 @@ describe('kpiStateFrom', () => {
       view: 'executives',
       group: 'presence',
     });
+  });
+});
+
+describe('periodSearchOf', () => {
+  it('a calendar range equal to a preset is stored as the preset', () => {
+    expect(periodSearchOf({ from: '2026-11-13', to: TODAY }, TODAY)).toEqual({
+      period: 'week',
+      from: undefined,
+      to: undefined,
+    });
+    expect(periodSearchOf({ from: TODAY, to: TODAY }, TODAY)).toEqual({
+      period: undefined,
+      from: undefined,
+      to: undefined,
+    });
+    expect(periodSearchOf({ from: '2026-11-02', to: '2026-11-05' }, TODAY)).toEqual({
+      period: 'range',
+      from: '2026-11-02',
+      to: '2026-11-05',
+    });
+  });
+});
+
+describe('callTabsOf', () => {
+  it('missed and outbound lists get their split as tabs', () => {
+    expect(callTabsOf('missed')).toEqual(['missed', 'missedNoAnswer', 'missedRejected']);
+    expect(callTabsOf('outbound')).toEqual(['outbound', 'outboundAttempts']);
+    expect(callTabsOf('rated')).toEqual(['rated']);
   });
 });

@@ -52,7 +52,7 @@ out.push(
   `INSERT INTO ticket_calls (ticket_id, kind, extension, user_label, started_at, ended_at, talk_seconds, attempt_status, recording_status, recording_deadline)
    SELECT t.id, 'callback', COALESCE(t.closed_by_extension, (${opArray})[1 + (t.id * 5) % ${OPERATORS.length}]), 'devseed',
           s.at, s.at + interval '2 minutes', CASE WHEN s.n = 1 AND t.status = 'closed' THEN 95 ELSE 0 END,
-          CASE WHEN s.n = 1 AND t.status = 'closed' THEN 'answered' ELSE 'not_connected' END, 'none', s.at
+          CASE WHEN s.n = 1 AND t.status = 'closed' THEN 'connected' ELSE 'not_connected' END, 'none', s.at
      FROM tickets t
      CROSS JOIN LATERAL (
        SELECT n, COALESCE(t.closed_at - (n * interval '20 minutes'), t.resolved_at + (n * interval '3 hours')) AS at

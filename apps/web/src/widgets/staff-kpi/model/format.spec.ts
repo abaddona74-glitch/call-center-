@@ -37,3 +37,12 @@ describe('KPI formatting', () => {
     expect(orLast(0)).toBe(0);
   });
 });
+
+describe('handledCount', () => {
+  it('recovers the count behind a share', async () => {
+    const { handledCount } = await import('./details');
+    expect(handledCount(66.67, 3)).toBe(2);
+    expect(handledCount(100, 7)).toBe(7);
+    expect(handledCount(null, 4)).toBe(0);
+  });
+});

@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDuration } from '@/entities/call';
 import { cn } from '@/shared/lib/cn';
+import { NumberButton } from '@/shared/ui/number-button';
 import {
   DANGER_TEXT,
   type KpiGroup,
@@ -13,6 +14,7 @@ import {
   shareTone,
   surveyTone,
 } from '../model/format';
+import { type KpiDetailRequest, handledCount } from '../model/details';
 import { type KpiColumn, type KpiGroupHeader, KpiTable, kpiColumns } from './KpiTable';
 import '../i18n';
 
@@ -40,6 +42,22 @@ function Score({ value, max }: { value: number; max: number }) {
   );
 }
 
+/** What a number of an operator row opens (the row adds the operator); null = nothing to open. */
+type OperatorDetail =
+  | Omit<Extract<KpiDetailRequest, { kind: 'calls' }>, 'ext' | 'name'>
+  | Omit<Extract<KpiDetailRequest, { kind: 'operatorTickets' }>, 'ext' | 'name'>
+  | null;
+
+const calls = (metric: Extract<KpiDetailRequest, { kind: 'calls' }>['metric'], value?: number): OperatorDetail => ({
+  kind: 'calls',
+  metric,
+  value,
+});
+const tickets = (
+  metric: Extract<KpiDetailRequest, { kind: 'operatorTickets' }>['metric'],
+  value: number,
+): OperatorDetail => (value > 0 ? { kind: 'operatorTickets', metric, value } : null);
+
 const Muted = ({ children }: { children?: React.ReactNode }) => <span className="text-mute">{children ?? '—'}</span>;
 
 /**
@@ -52,11 +70,14 @@ export function OperatorsKpiTable({
   group,
   surveyAvailable,
   loading,
+  onOpen,
 }: {
   rows: KpiOperatorRow[] | undefined;
   group: KpiGroup | 'all';
   surveyAvailable: boolean;
   loading?: boolean;
+  /** Opens the records behind a number (keep it stable: the columns depend on it). */
+  onOpen?: (request: KpiDetailRequest) => void;
 }) {
   const { t, i18n } = useTranslation('staffKpi');
   const locale = i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ';
@@ -80,7 +101,13 @@ export function OperatorsKpiTable({
       groupId: string,
       value: (r: KpiOperatorRow) => number | null | undefined,
       render: (v: number, r: KpiOperatorRow) => React.ReactNode,
-      opts: { groupStart?: boolean } = {},
+      opts: {
+        groupStart?: boolean;
+        /** The records behind the number (null: nothing to open, e.g. zero). */
+        open?: (r: KpiOperatorRow, v: number) => OperatorDetail;
+        /** How a screen reader reads the value (times, shares). */
+        spoken?: (v: number) => string;
+      } = {},
     ): KpiColumn<KpiOperatorRow> =>
       col.accessor((r) => orLast(value(r)), {
         id,
@@ -90,8 +117,22 @@ export function OperatorsKpiTable({
         sortDescFirst: true,
         meta: { group: groupId, title: t(`op.${id}Title`), groupStart: opts.groupStart },
         cell: ({ row }) => {
-          const v = value(row.original);
-          return v === null || v === undefined ? <Muted /> : render(v, row.original);
+          const r = row.original;
+          const v = value(r);
+          if (v === null || v === undefined) return <Muted />;
+          const content = render(v, r);
+          const detail = onOpen && v > 0 ? opts.open?.(r, v) : null;
+          if (!detail) return content;
+          const name = r.name ?? `Operator ${r.ext}`;
+          return (
+            <NumberButton
+              label={`${name}, ${t(`op.${id}Title`)}`}
+              value={opts.spoken?.(v) ?? v}
+              onOpen={() => onOpen?.({ ...detail, ext: r.ext, name } as KpiDetailRequest)}
+            >
+              {content}
+            </NumberButton>
+          );
         },
       });
     const count = (tone?: (v: number) => string) => (v: number) => (
@@ -121,7 +162,7 @@ export function OperatorsKpiTable({
         'calls',
         (r) => (r.calls ? r.calls.answered + r.calls.transferredIn : null),
         count(() => 'font-semibold text-positive'),
-        { groupStart: true },
+        { groupStart: true, open: (_r, v) => calls('answered', v) },
       ),
       num(
         'missed',
@@ -140,6 +181,7 @@ export function OperatorsKpiTable({
             )}
           </span>
         ),
+        { open: (_r, v) => calls('missed', v) },
       ),
       num(
         'outbound',
@@ -153,12 +195,14 @@ export function OperatorsKpiTable({
             )}
           </span>
         ),
+        { open: (_r, v) => calls('outbound', v) },
       ),
       num(
         'talk',
         'calls',
         (r) => r.calls?.talkSec,
         (v) => <span className={cn('font-mono', !v && 'text-mute')}>{v ? formatDuration(v) : '0:00'}</span>,
+        { open: () => calls('talked'), spoken: formatDuration },
       ),
       num(
         'avgTalk',
@@ -167,6 +211,7 @@ export function OperatorsKpiTable({
         (v) => (
           <span className={cn('font-mono', v ? 'text-ink-2' : 'text-mute')}>{v ? formatDuration(v) : '0:00'}</span>
         ),
+        { open: () => calls('talked'), spoken: formatDuration },
       ),
       // --- client rating
       num(
@@ -179,30 +224,54 @@ export function OperatorsKpiTable({
             <span className="ml-1 text-[11px] text-mute">({t('op.surveyVotes', { n: r.survey.count })})</span>
           </span>
         ),
-        { groupStart: true },
+        { groupStart: true, open: (r) => calls('rated', r.survey.count) },
       ),
       // --- tickets
-      num('created', 'tickets', (r) => r.tickets.created, count(), { groupStart: true }),
-      num('callbacks', 'tickets', (r) => r.tickets.callbacks, count()),
+      num('created', 'tickets', (r) => r.tickets.created, count(), {
+        groupStart: true,
+        open: (_r, v) => tickets('created', v),
+      }),
+      num(
+        'callbacks',
+        'tickets',
+        (r) => r.tickets.callbacks,
+        (v, r) => (
+          <span>
+            {count()(v)}
+            {r.tickets.callbackAttempts > v && (
+              <span className="ml-1 text-[11px] text-mute" title={t('op.callbackAttemptsTitle')}>
+                ({r.tickets.callbackAttempts})
+              </span>
+            )}
+          </span>
+        ),
+        { open: (_r, v) => tickets('callbacks', v) },
+      ),
       num(
         'closed',
         'tickets',
         (r) => r.tickets.closed,
         count(() => 'font-semibold text-positive'),
+        { open: (_r, v) => tickets('closed', v) },
       ),
       num(
         'closedLate',
         'tickets',
         (r) => r.tickets.closedLate,
         count(() => `font-semibold ${DANGER_TEXT}`),
+        { open: (_r, v) => tickets('closedLate', v) },
       ),
       // --- AI quality (current prompt version)
-      num('analysed', 'quality', (r) => r.quality?.analysed, count(), { groupStart: true }),
+      num('analysed', 'quality', (r) => r.quality?.analysed, count(), {
+        groupStart: true,
+        open: (_r, v) => calls('analysed', v),
+      }),
       num(
         'overall',
         'quality',
         (r) => r.quality?.avgOverall,
         (v) => <Score value={v} max={10} />,
+        { open: (r) => calls('analysed', r.quality?.analysed) },
       ),
       ...(['politeness', 'understanding', 'solution', 'closing'] as const).map((k) =>
         num(
@@ -210,6 +279,7 @@ export function OperatorsKpiTable({
           'quality',
           (r) => r.quality?.avgScores[k],
           (v) => <Score value={v} max={5} />,
+          { open: (r) => calls('analysed', r.quality?.analysed) },
         ),
       ),
       num(
@@ -217,12 +287,20 @@ export function OperatorsKpiTable({
         'quality',
         (r) => r.quality?.redFlagCalls,
         count(() => `font-semibold ${DANGER_TEXT}`),
+        { open: (_r, v) => calls('flagged', v) },
       ),
       num(
         'handled',
         'quality',
         (r) => r.quality?.handledRate,
         (v) => <span className={shareTone(v)}>{percentText(v, locale)}</span>,
+        {
+          open: (r) => {
+            const n = handledCount(r.quality?.handledRate ?? null, r.quality?.analysed ?? 0);
+            return n > 0 ? calls('handled', n) : null;
+          },
+          spoken: (v) => percentText(v, locale) ?? '',
+        },
       ),
       // --- online time
       num(
@@ -288,7 +366,7 @@ export function OperatorsKpiTable({
       if (g === 'rating' && !surveyAvailable) return false;
       return !g || group === 'all' || FILTER_OF[g] === group;
     });
-  }, [t, locale, group, surveyAvailable]);
+  }, [t, locale, group, surveyAvailable, onOpen]);
 
   return (
     <KpiTable
