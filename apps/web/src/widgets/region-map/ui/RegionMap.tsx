@@ -206,7 +206,7 @@ export function RegionMap({
         ))}
         <span className="inline-flex items-center gap-1.5">
           <span className="size-3 rounded-[3px] border border-tint/15" style={{ background: binFill(metric, null) }} />
-          {t('legendNone')}
+          {t('legendZero')}
         </span>
         <span className="ml-auto text-[10px] text-dim">{t('attribution')}</span>
       </div>

@@ -69,7 +69,8 @@ const STEP_MIX = [24, 42, 60, 78, 96];
 
 /** Fill of bin `bin` out of `bins`; fewer bins are spread over the whole light → strong range. */
 export function binFill(metric: MapMetric, bin: number | null, bins = BIN_COUNT): string {
-  if (bin === null) return 'var(--panel-2)';
+  // No data: a faint tint of the ink colour, visible on the panel in both themes.
+  if (bin === null) return 'color-mix(in oklab, var(--tint) 10%, var(--muted))';
   const step = bins <= 1 ? STEP_MIX.length - 1 : Math.round((bin * (STEP_MIX.length - 1)) / (bins - 1));
   return `color-mix(in oklab, ${METRIC_HUE[metric]} ${STEP_MIX[step]}%, var(--muted))`;
 }

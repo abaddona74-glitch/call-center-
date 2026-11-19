@@ -8,6 +8,7 @@ registerTranslations('regionMap', {
       overdueShare: 'Muddati o‘tganlar ulushi',
     },
     legendNone: 'Murojaat yo‘q',
+    legendZero: '0 / ma’lumot yo‘q',
     tooltip: {
       received: 'Kelib tushgan',
       closed: 'Yopilgan',
@@ -48,6 +49,7 @@ registerTranslations('regionMap', {
       overdueShare: 'Доля просроченных',
     },
     legendNone: 'Нет обращений',
+    legendZero: '0 / нет данных',
     tooltip: {
       received: 'Поступило',
       closed: 'Закрыто',

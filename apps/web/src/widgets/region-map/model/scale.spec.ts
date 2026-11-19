@@ -40,6 +40,6 @@ describe('region map scale', () => {
     expect(binFill('received', 1, 2)).toContain('var(--chart-6) 96%');
     expect(binFill('received', 1, 3)).toContain('var(--chart-6) 60%');
     expect(binFill('received', 0, 1)).toContain('var(--chart-6) 96%');
-    expect(binFill('closed', null)).toBe('var(--panel-2)');
+    expect(binFill('closed', null)).toBe('color-mix(in oklab, var(--tint) 10%, var(--muted))');
   });
 });
