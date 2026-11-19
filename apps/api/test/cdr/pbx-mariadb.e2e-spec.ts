@@ -51,7 +51,7 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
     for (const r of ratings ?? []) expect(r.score).toBeGreaterThanOrEqual(1);
     const ops = await request(ctx.app.getHttpServer())
       .get(`/api/stats/operators?from=${today}&to=${today}&scope=all`)
-      .set('Cookie', ctx.cookies.executive)
+      .set('Cookie', ctx.cookies.observer)
       .expect(200);
     expect(ops.body.surveyAvailable).toBe(ratings !== null);
     // Ratings reach their calls both with and without the cdr.linkedid column (PBX_CDR_HAS_LINKEDID).
@@ -75,7 +75,7 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
     const { seed } = addCallsToSeed(emptySeed(today, from, from + day), read.calls);
     const summary = await request(ctx.app.getHttpServer())
       .get(`/api/stats/summary?from=${today}&to=${today}&scope=all`)
-      .set('Cookie', ctx.cookies.executive)
+      .set('Cookie', ctx.cookies.observer)
       .expect(200);
     const s = summary.body;
     expect(seed.counters).toMatchObject({
@@ -93,12 +93,12 @@ describe.runIf(enabled)('PBX MariaDB (read-only user)', () => {
   it('serves history and stats from the seeded PBX', async () => {
     const res = await request(ctx.app.getHttpServer())
       .get(`/api/cdr/calls?pageSize=5`)
-      .set('Cookie', ctx.cookies.executive)
+      .set('Cookie', ctx.cookies.observer)
       .expect(200);
     expect(res.body.range.to).toBe(today);
     const summary = await request(ctx.app.getHttpServer())
       .get(`/api/stats/summary?from=${today}&to=${today}&scope=all`)
-      .set('Cookie', ctx.cookies.executive)
+      .set('Cookie', ctx.cookies.observer)
       .expect(200);
     expect(summary.body.inbound.offered).toBeGreaterThanOrEqual(summary.body.inbound.answered);
   });

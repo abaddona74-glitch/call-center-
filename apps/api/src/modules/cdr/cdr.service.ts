@@ -42,7 +42,14 @@ export class CdrService {
     const filtered = all.filter((c) =>
       matchesFilter(
         c,
-        { direction: q.direction, status: q.status, operator: q.operator, scope: q.scope, search },
+        {
+          direction: q.direction,
+          status: q.status,
+          operatorMiss: q.operatorMiss,
+          operator: q.operator,
+          scope: q.scope,
+          search,
+        },
         names,
       ),
     );

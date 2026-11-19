@@ -3,7 +3,7 @@ import { usePermission, useSessionUser } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { ActiveCalls } from '@/widgets/active-calls';
-import { RecentCallsPanel } from '@/widgets/call-history-table';
+import { CallListDialog, RecentCallsPanel } from '@/widgets/call-history-table';
 import { CallbacksPanel } from '@/widgets/callbacks-panel';
 import { LiveCounters } from '@/widgets/live-counters';
 import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
@@ -24,6 +24,7 @@ export function DashboardPage() {
   const open = monitor === 'open';
   const canSeeCallbacks = usePermission('callbacks.view');
   const canSeeRecent = usePermission(CDR_ACCESS['history.page']);
+  const canReadCalls = usePermission(CDR_ACCESS['calls.read']);
   // Operators get the legacy operator-portal cards (Diamond / Gold / Silver), staff the dashboard cards.
   const isOperator = useSessionUser().role === 'operator';
   return (
@@ -31,7 +32,8 @@ export function DashboardPage() {
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
         <TicketCallbackQueue />
-        <LiveCounters />
+        {/* The call cards open today's calls behind them (GET /cdr/calls). */}
+        <LiveCounters CallListDialog={canReadCalls ? CallListDialog : undefined} />
         <OperatorsBoard variant={isOperator ? 'mockup' : 'classic'} />
         {canSeeRecent && <RecentCallsPanel />}
       </div>

@@ -2,7 +2,7 @@ import { type Permission, type Role, digitsOnly, normalizeUzPhone, telephonyAcce
 
 /**
  * Who may do what with live calls (pure rules, unit-tested):
- *  - `actions.call` (executive/superuser): any operator / any call (as in legacy);
+ *  - `actions.call` (superuser): any operator / any call (as in legacy);
  *  - operator: only their own extension and the calls they are on.
  */
 export interface Actor {

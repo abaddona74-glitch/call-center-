@@ -134,7 +134,7 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
 
   const users = {
     superuser: await user('superuser', 'superuser', null),
-    admin: await user('admin1', 'executive', null),
+    admin: await user('admin1', 'superuser', null),
     op101: await user('op101', 'operator', '101'),
     op205: await user('op205', 'operator', '205', 'Zangiota'),
   };

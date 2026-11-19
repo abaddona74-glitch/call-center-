@@ -15,7 +15,8 @@ import type { LiveStore } from './live-store.js';
  * Read models sent to clients (REST snapshot + WS). Pure functions over the store.
  *
  * Visibility (same for REST and WS):
- *  - `monitor.viewAll` (executive/superuser): everything; observers have no live monitor at all (no `monitor.view`);
+ *  - `monitor.viewAll` (superuser): everything;
+ *  - no `monitor.view` (executive "Mas’ul", observer): nothing — the snapshot and `telephony.*` events are refused;
  *  - operator: the presence board, queues and active calls, but citizen numbers only for the
  *    calls on their own extension (others are masked); no KPI counters.
  */

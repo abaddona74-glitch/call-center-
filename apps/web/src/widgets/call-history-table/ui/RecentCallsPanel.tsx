@@ -24,7 +24,7 @@ const SEGMENT_FILTER: Record<Segment, Pick<CallHistoryParams, 'status' | 'direct
 };
 const PAGE_SIZE = 20;
 /** Legacy dashboard columns: time, number, operator, duration, wait, status, action. */
-const COLUMNS: ColumnVisibility = { num: false, dir: false, hangup: false, host: false };
+const COLUMNS: ColumnVisibility = { num: false, dir: false, missedBy: false, hangup: false, host: false };
 const noop = () => {};
 
 /**

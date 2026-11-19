@@ -1,4 +1,3 @@
-import { hasPermission } from '@cc/shared';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
@@ -13,16 +12,14 @@ import { NativeSelect } from '@/shared/ui/native-select';
 import { OnlineUsers } from '@/features/presence/online-users';
 import { TicketAlerts } from '@/features/tickets/notifications';
 import { ThemeSwitch } from '@/features/theme-switch';
-import { NAV_ITEMS } from '../model/nav';
+import { visibleNavItems } from '../model/nav';
 
 export function AppShell() {
   const { t, i18n } = useTranslation();
   const user = useSessionUser();
   const status = useRealtimeStatus();
   useExcludedOperatorsSync();
-  const items = NAV_ITEMS.filter(
-    (item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)),
-  );
+  const items = visibleNavItems(user);
 
   return (
     <div className="flex min-h-svh">

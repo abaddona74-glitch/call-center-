@@ -33,9 +33,10 @@ import { CallbacksReconciler } from './callbacks.reconciler.js';
 import { CallbacksService } from './callbacks.service.js';
 
 /**
- * Citizens to call back. Whoever has `callbacks.view` (operators, executives, superuser; not observers, who see
- * only the overview dashboard) can see the list and log notes (operators do the calling); closing callbacks by
- * hand, bulk actions, settings and the CDR re-check are admin only (method-level permissions override this one).
+ * Citizens to call back. `callbacks.view` (operators, superuser) sees the list and logs notes (operators do the
+ * calling); executives ("Mas'ul") and observers (overview dashboard only) do not. Closing callbacks by hand, bulk
+ * actions, settings and the CDR re-check need their own permission (a method's `@RequirePermission` overrides the
+ * class one).
  */
 @Controller('callbacks')
 @RequirePermission('callbacks.view')

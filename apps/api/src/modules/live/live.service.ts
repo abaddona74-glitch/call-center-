@@ -74,7 +74,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
         this.flush();
       }),
       this.ami.onStatus((status) => {
-        this.realtime.broadcast('telephony.ami', status);
+        this.realtime.broadcast('telephony.ami', status, { permission: 'monitor.view' });
         if (status.state !== 'connected') return;
         // First connection: count live from now; the calls before it come from the CDR once the
         // resync has shown which of them are still in progress.
@@ -189,7 +189,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     if (sections.has('counters')) {
       const counters = projectCounters(this.store);
       this.realtime.broadcastEach('telephony.counters', (user) =>
-        isPrivileged(toViewer(user)) ? counters : undefined,
+        canMonitor(user) && isPrivileged(toViewer(user)) ? counters : undefined,
       );
     }
   }
@@ -249,14 +249,17 @@ export function toViewer(user: Pick<SessionUser, 'role' | 'extension' | 'permiss
   return { role: user.role, extension: user.extension, permissions: user.permissions };
 }
 
+/** Live telephony (REST snapshot + WS) is for `monitor.view`; a "Mas'ul" (executive) sees tickets only. */
+const canMonitor = (user: SessionUser) => hasPermission(user, 'monitor.view');
+
 /**
  * Same projection for every privileged viewer / per operator extension (one JSON serialization per group).
- * Nothing for sessions without `monitor.view` (observers: overview dashboard only), as GET /live/snapshot.
+ * Users without `monitor.view` get nothing (`undefined` skips them).
  */
 function memo<T>(fn: (v: Viewer) => T): (user: SessionUser) => T | undefined {
   const cache = new Map<string, T>();
   return (user) => {
-    if (!hasPermission(user, 'monitor.view')) return undefined;
+    if (!canMonitor(user)) return undefined;
     const viewer = toViewer(user);
     const key = isPrivileged(viewer) ? 'all' : `op:${viewer.extension ?? ''}`;
     let v = cache.get(key);
