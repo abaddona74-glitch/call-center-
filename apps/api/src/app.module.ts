@@ -28,6 +28,7 @@ import { ExportModule } from './modules/export/export.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
+import { OverviewModule } from './modules/overview/overview.module.js';
 import { PasskeysModule } from './modules/passkeys/passkeys.module.js';
 import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
@@ -132,6 +133,7 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     StatsModule,
     ExportModule,
     ToolsModule,
+    OverviewModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
