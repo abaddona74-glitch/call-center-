@@ -1,0 +1,26 @@
+{
+  "name": "@cc/analysis-worker",
+  "version": "0.0.1",
+  "description": "AI call analysis worker: leases jobs from the call-center API, runs STT + LLM on the AI servers, posts results",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint src/",
+    "test": "vitest run",
+    "start": "node --env-file-if-exists=${CC_WORKER_ENV_FILE:-$HOME/.config/cc-analysis/worker.env} --env-file-if-exists=${CC_WORKER_API_ENV_FILE:-$HOME/.config/cc-analysis/worker-api.env} dist/main.js",
+    "compare-stt": "node --env-file-if-exists=$HOME/.config/cc-analysis/worker.env dist/tools/compare-stt.js"
+  },
+  "dependencies": {
+    "@cc/shared": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "oxlint": "^1.58.0",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.12"
+  }
+}

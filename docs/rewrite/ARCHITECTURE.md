@@ -27,6 +27,7 @@
 |---|---|---|
 | `apps/api` | Бэкенд (модульный монолит) | NestJS 12 (ESM), Express, Kysely + pg, mysql2, nestjs-cls (AsyncLocalStorage) + @nestjs-cls/transactional, nestjs-pino, @nestjs/schedule, @nestjs/throttler, @nestjs/platform-ws, zod 4 (Standard Schema, встроен в Nest 12) |
 | `apps/web` | Единое SPA для админов и операторов (вместо 3535 + 3005) | React 19, TypeScript, Vite 8, TanStack Router (file-based) + Query + Table + Form, Tailwind 4 + shadcn/ui (Radix), i18next (uz, ru), Feature-Sliced Design, steiger |
+| `apps/analysis-worker` | ИИ-анализ записей (запускается в сети ИИ, ходит в API по токену) | Node 26, TypeScript, zod; без ffmpeg |
 | `packages/shared` | Контракты api ↔ web | zod-схемы, роли, типы WS-событий, утилиты телефонов |
 | `infra` | Docker | `compose.dev.yml` (Postgres + заглушка АТС), `compose.yml` (prod: postgres + api + web/Caddy), Caddyfile |
 | `legacy` | Старая система | только для чтения, не запускается в новой схеме |
@@ -40,7 +41,7 @@
 - **Сессии:** cookie `cc_session` (HttpOnly, Secure, SameSite=Lax), в БД хранится только `sha256(token)`. WebSocket аутентифицируется той же cookie.
 - **Пароли пользователей переносятся без сброса:** формат scrypt совместим со старым (`modules/auth/password-hasher.ts`, функция `fromLegacy`). Passkeys переносятся при том же `WEBAUTHN_RP_ID`.
 - **Время:** все бизнес-правила в `Asia/Tashkent` (luxon), даты CDR читаются строками (`dateStrings`) и трактуются как ташкентские.
-- **ИИ (STT, Gemini, темы) не переносится** (решение 18.11.2026); если понадобится — отдельный этап.
+- **ИИ-анализ звонков** (решение 19.11.2026, вместо отказа от 18.11): собственные модели компании (Whisper uz + pyannote, DeepSeek), отдельный воркер `apps/analysis-worker` в сети ИИ забирает задачи из API по сервисному токену — `CALL-ANALYSIS.md`. Gemini не используется.
 - **«Прочее»:** «Инструменты» (конвертер, ссылки Ijro/Uzcrypto) и руководство для операторов переносятся позже без изменения поведения. Telegram-уведомления, Proxmox watchdog, RustDesk и speedtest не переносятся (18.11.2026).
 
 ## Запуск локально

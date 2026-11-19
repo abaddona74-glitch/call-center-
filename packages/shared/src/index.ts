@@ -24,3 +24,4 @@ export * from './working-calendar.js';
 export * from './excluded-operators.js';
 export * from './tools.js';
 export * from './docx.js';
+export * from './call-analysis.js';

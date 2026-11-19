@@ -21,6 +21,7 @@ import { WorkingCalendarModule } from './modules/working-calendar/working-calend
 import { ExcludedOperatorsModule } from './modules/excluded-operators/excluded-operators.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
+import { CallAnalysisModule } from './modules/call-analysis/call-analysis.module.js';
 import { CallbacksModule } from './modules/callbacks/callbacks.module.js';
 import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { CdrModule } from './modules/cdr/cdr.module.js';
@@ -132,6 +133,7 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     StatsModule,
     ExportModule,
     ToolsModule,
+    CallAnalysisModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

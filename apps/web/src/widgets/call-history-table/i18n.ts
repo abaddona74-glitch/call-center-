@@ -20,6 +20,7 @@ registerTranslations('callHistory', {
     columnsAll: 'Barchasi',
     listen: 'Tinglash',
     detail: 'Detal',
+    aiScore: 'AI bahosi: {{n}}/10 · qizil bayroqlar: {{flags}}',
     noAudio: "Audio yo'q",
     noAudioTitle: "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)",
     queue: 'Navbat',
@@ -46,6 +47,7 @@ registerTranslations('callHistory', {
       legs: 'CDR yozuvlari',
       notAnswered: "ko'tarilmadi",
       recording: 'Yozuv',
+      tabs: { conversation: 'Suhbat va tahlil', legs: 'CDR yozuvlari' },
     },
   },
   ru: {
@@ -67,6 +69,7 @@ registerTranslations('callHistory', {
     columnsAll: 'Все',
     listen: 'Слушать',
     detail: 'Детали',
+    aiScore: 'Оценка AI: {{n}}/10 · красных флагов: {{flags}}',
     noAudio: 'Нет аудио',
     noAudioTitle: 'Разговора не было (нет записи)',
     queue: 'Очередь',
@@ -93,6 +96,7 @@ registerTranslations('callHistory', {
       legs: 'Записи CDR',
       notAnswered: 'не ответил',
       recording: 'Запись',
+      tabs: { conversation: 'Диалог и анализ', legs: 'Записи CDR' },
     },
   },
 });

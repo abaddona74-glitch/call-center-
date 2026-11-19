@@ -218,6 +218,27 @@ export const EnvSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .optional(),
 
+  // --- AI call analysis (docs/rewrite/CALL-ANALYSIS.md) ---
+  /** Queue new answered calls with a recording automatically. Off: only the superuser's backfill queues calls. */
+  CALL_ANALYSIS_ENABLED: z.stringbool().default(false),
+  /** Shorter talks are not analysed. */
+  CALL_ANALYSIS_MIN_TALK_SEC: z.coerce.number().int().min(0).max(3600).default(20),
+  /** How often the enqueuer reads recent calls, and how far back. */
+  CALL_ANALYSIS_ENQUEUE_INTERVAL_SEC: z.coerce.number().int().min(30).max(86_400).default(300),
+  CALL_ANALYSIS_LOOKBACK_HOURS: z.coerce.number().int().min(1).max(168).default(6),
+  /** Leases per job before it is marked failed. */
+  CALL_ANALYSIS_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+  /**
+   * SHA-256 (hex) of the analysis worker's bearer token (`printf %s "$TOKEN" | shasum -a 256`). The token itself lives
+   * only on the worker machine. Unset: the worker API answers 401.
+   */
+  CALL_ANALYSIS_WORKER_TOKEN_SHA256: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-f0-9]{64}$/, 'Expected a SHA-256 hex digest')
+    .optional(),
+
   // --- Callbacks / contacts / blacklist ---
   /** Missed calls are re-read from the PBX CDR this often (catches calls missed while the API was down). 0 = off. */
   CALLBACKS_RECONCILE_INTERVAL_SEC: z.coerce.number().int().min(0).default(300),

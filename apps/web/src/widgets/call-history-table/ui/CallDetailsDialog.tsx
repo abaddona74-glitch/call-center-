@@ -1,8 +1,14 @@
-import type { CallListItem } from '@cc/shared';
+import { type CallListItem, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CallDirectionBadge, CallStatusBadge, callDetailsQuery, formatDuration, formatPhone } from '@/entities/call';
+import { ScorePill, callAnalysisQuery } from '@/entities/call-analysis';
+import { useSessionUser } from '@/entities/session';
+import { CallConversation } from '@/features/call-analysis/conversation';
 import { CallRecordingButton } from '@/features/recordings/play-call';
+import { cn } from '@/shared/lib/cn';
+import { Segmented } from '@/shared/ui/segmented';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { recordingLabel } from './CallHistoryTable';
@@ -17,7 +23,12 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-/** Call drill-down: facts + raw CDR legs (legacy call detail modal). */
+type DetailsTab = 'conversation' | 'legs';
+
+/**
+ * Call drill-down: facts, then the AI analysis («Suhbat»: rubric + dialogue, for whoever may read it —
+ * `CDR_ACCESS['analysis.call']`) and the raw CDR legs (legacy call detail modal).
+ */
 export function CallDetailsDialog({
   call,
   onClose,
@@ -30,7 +41,13 @@ export function CallDetailsDialog({
 }) {
   const { t } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
+  const canAnalyse = canAccessCdr(useSessionUser(), 'analysis.call');
+  const [tab, setTab] = useState<DetailsTab>('conversation');
+  useEffect(() => setTab('conversation'), [call?.id]);
   const details = useQuery({ ...callDetailsQuery(call?.id ?? ''), enabled: Boolean(call) });
+  const analysis = useQuery({ ...callAnalysisQuery(call?.id ?? ''), enabled: Boolean(call) && canAnalyse });
+  const overall = analysis.data?.analysis?.overall;
+  const shownTab: DetailsTab = canAnalyse ? tab : 'legs';
   const c = details.data?.call ?? call;
   const opName = (ext: string | null) => {
     if (!ext) return '—';
@@ -40,7 +57,12 @@ export function CallDetailsDialog({
 
   return (
     <Dialog open={Boolean(call)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90svh] overflow-y-auto border-tint/8 bg-card sm:max-w-4xl [&>*]:min-w-0">
+      <DialogContent
+        className={cn(
+          'max-h-[90svh] overflow-y-auto border-tint/8 bg-card [&>*]:min-w-0',
+          canAnalyse ? 'sm:max-w-5xl' : 'sm:max-w-4xl',
+        )}
+      >
         {c && (
           <>
             <DialogHeader>
@@ -95,10 +117,36 @@ export function CallDetailsDialog({
               </Fact>
             </div>
 
-            <div>
-              <div className="mb-2 text-xs font-bold tracking-[0.4px] text-muted-foreground uppercase">
-                {t('details.legs')}
-              </div>
+            {canAnalyse && (
+              <Segmented
+                value={shownTab}
+                onChange={setTab}
+                className="justify-self-start"
+                options={[
+                  {
+                    value: 'conversation',
+                    label: (
+                      <span className="inline-flex items-center gap-1.5">
+                        {t('details.tabs.conversation')}
+                        {overall !== undefined && <ScorePill value={overall} max={10} className="px-1.5 py-0" />}
+                      </span>
+                    ),
+                  },
+                  { value: 'legs', label: t('details.tabs.legs') },
+                ]}
+              />
+            )}
+
+            {shownTab === 'conversation' && (
+              <CallConversation callId={c.id} recordingTitle={recordingLabel(c)} canListen={canListen} />
+            )}
+
+            <div className={shownTab === 'legs' ? undefined : 'hidden'}>
+              {!canAnalyse && (
+                <div className="mb-2 text-xs font-bold tracking-[0.4px] text-muted-foreground uppercase">
+                  {t('details.legs')}
+                </div>
+              )}
               {details.isPending ? (
                 <Skeleton className="h-24 w-full" />
               ) : details.isError ? (
