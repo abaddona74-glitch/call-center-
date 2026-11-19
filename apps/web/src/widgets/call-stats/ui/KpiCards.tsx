@@ -50,6 +50,7 @@ export function KpiCard({
   badge,
   sub,
   title,
+  className,
 }: {
   accent: Accent;
   image?: string;
@@ -60,6 +61,8 @@ export function KpiCard({
   badge?: string;
   sub?: React.ReactNode;
   title?: string;
+  /** Layout from the parent grid (e.g. a column span). */
+  className?: string;
 }) {
   const a = ACCENTS[accent];
   return (
@@ -68,6 +71,7 @@ export function KpiCard({
       className={cn(
         'group relative flex min-h-[145px] items-center gap-3.5 overflow-hidden rounded-2xl border border-t-[3px] border-tint/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
         a.border,
+        className,
       )}
     >
       <div className="flex size-[54px] min-w-[54px] items-center justify-center rounded-xl 2xl:size-[62px] 2xl:min-w-[62px]">

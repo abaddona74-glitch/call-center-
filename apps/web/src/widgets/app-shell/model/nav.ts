@@ -4,6 +4,7 @@ import {
   AudioLines,
   BookOpen,
   CalendarClock,
+  Activity,
   ClipboardList,
   ChartColumn,
   Headset,
@@ -37,6 +38,8 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, permission: 'monitor.view' },
+  // Live situation board: observers land here (first item → `homePath`), the superuser too (owner, 19.11.2026)
+  { to: '/situation', label: 'nav.situation', icon: Activity, permission: 'situation.view' },
   // Overview dashboard: observers' only page, the superuser too (owner, 19.11.2026)
   { to: '/overview', label: 'nav.overview', icon: MapIcon, permission: 'overview.view' },
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },
@@ -80,9 +83,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 /** The sidebar items this user may open. */
 export function visibleNavItems(user: SessionUser): NavItem[] {
-  return NAV_ITEMS.filter(
-    (item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)),
-  );
+  return NAV_ITEMS.filter((item) => !item.permission || [item.permission].flat().some((p) => hasPermission(user, p)));
 }
 
 /** Where `/` sends a user without the dashboard (e.g. "Mas'ul" → tickets): the first page of their sidebar. */

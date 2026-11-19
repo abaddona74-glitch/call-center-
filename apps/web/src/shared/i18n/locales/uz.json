@@ -1,6 +1,7 @@
 {
   "app": { "title": "Call Center" },
   "nav": {
+    "situation": "Hozirgi holat",
     "overview": "Umumiy ko‘rinish",
     "dashboard": "Bosh sahifa",
     "settings": "Sozlamalar",

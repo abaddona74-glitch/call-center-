@@ -1,6 +1,6 @@
 import { useNow } from '@/shared/lib/use-now';
 import { cn } from '@/shared/lib/cn';
-import { serverClockOffset } from '../api/telephony.api';
+import { serverClockOffset } from '@/shared/lib/server-clock';
 import { formatSeconds } from '../lib/format';
 import './live-timer.css';
 
@@ -8,7 +8,7 @@ import './live-timer.css';
 export function useElapsed(since: string | null | undefined): number {
   const now = useNow();
   if (!since) return 0;
-  return Math.max(0, Math.floor((now + serverClockOffset - Date.parse(since)) / 1000));
+  return Math.max(0, Math.floor((now + serverClockOffset() - Date.parse(since)) / 1000));
 }
 
 /**

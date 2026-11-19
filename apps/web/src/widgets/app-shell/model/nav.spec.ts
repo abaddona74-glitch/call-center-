@@ -27,10 +27,14 @@ describe('sidebar by role', () => {
     for (const role of ['operator', 'superuser'] as const) expect(paths(role)).toContain('/guide');
   });
 
-  it('observer: the overview dashboard and the profile only, landing on the overview (owner, 19.11.2026)', () => {
-    expect(paths('observer')).toEqual(['/overview', '/profile']);
-    expect(homePath(user('observer'))).toBe('/overview');
+  it('observer: the live situation board, the overview dashboard and the profile, landing on the board (owner, 19.11.2026)', () => {
+    expect(paths('observer')).toEqual(['/situation', '/overview', '/profile']);
+    expect(homePath(user('observer'))).toBe('/situation');
     expect(paths('executive')).not.toContain('/overview');
+    expect(paths('executive')).not.toContain('/situation');
+    expect(paths('operator')).not.toContain('/situation');
     expect(paths('superuser')).toContain('/overview');
+    // the superuser keeps the live dashboard on `/` and gets the board as its next item
+    expect(paths('superuser').slice(0, 3)).toEqual(['/', '/situation', '/overview']);
   });
 });

@@ -1,6 +1,7 @@
 {
   "app": { "title": "Call Center" },
   "nav": {
+    "situation": "Текущая ситуация",
     "overview": "Общая картина",
     "dashboard": "Главная",
     "settings": "Настройки",
