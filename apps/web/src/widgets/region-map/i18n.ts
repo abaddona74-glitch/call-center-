@@ -5,7 +5,7 @@ registerTranslations('regionMap', {
     metric: {
       received: 'Kelib tushgan',
       closed: 'Yopilgan',
-      overdueShare: 'Muddati o‘tganlar ulushi',
+      overdueShare: 'Muddati o‘tgan, %',
     },
     legendNone: 'Murojaat yo‘q',
     legendZero: '0 / ma’lumot yo‘q',
@@ -20,8 +20,8 @@ registerTranslations('regionMap', {
       avgResolution: 'O‘rtacha hal qilish',
       hours: '{{n}} soat',
       none: '—',
-      clickToFilter: 'Bosing — hudud bo‘yicha saralash',
-      clickToClear: 'Bosing — saralashni olib tashlash',
+      clickToFilter: 'Bosing — faqat shu hudud',
+      clickToClear: 'Bosing — barcha hududlar',
     },
     short: {
       'toshkent-shahri': 'Toshkent sh.',
@@ -46,7 +46,7 @@ registerTranslations('regionMap', {
     metric: {
       received: 'Поступило',
       closed: 'Закрыто',
-      overdueShare: 'Доля просроченных',
+      overdueShare: 'Просрочено, %',
     },
     legendNone: 'Нет обращений',
     legendZero: '0 / нет данных',
@@ -61,8 +61,8 @@ registerTranslations('regionMap', {
       avgResolution: 'Среднее время решения',
       hours: '{{n}} ч',
       none: '—',
-      clickToFilter: 'Нажмите — фильтр по региону',
-      clickToClear: 'Нажмите — снять фильтр',
+      clickToFilter: 'Нажмите — только этот регион',
+      clickToClear: 'Нажмите — все регионы',
     },
     short: {
       'toshkent-shahri': 'г. Ташкент',

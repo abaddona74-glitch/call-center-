@@ -146,6 +146,9 @@ export function OverviewPage() {
                   {t('map.title')}
                 </PanelTitle>
                 <p className="mt-1 text-xs text-mute">{t('map.hint')}</p>
+                {data && data.totals.received === 0 && (
+                  <p className="mt-1 text-xs font-semibold text-caution">{t('map.empty')}</p>
+                )}
               </div>
               <Segmented
                 tone="indigo"
@@ -154,7 +157,7 @@ export function OverviewPage() {
                 options={MAP_METRICS.map((m) => ({ value: m, label: <MetricLabel metric={m} /> }))}
               />
             </PanelHeader>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               <div className={cn('min-w-0', !data && 'min-h-[300px] animate-pulse rounded-xl bg-tint/5')}>
                 {data && (
                   <RegionMap

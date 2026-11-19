@@ -107,15 +107,15 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
           />
         </dl>
         <div className="grid grid-cols-3 gap-3 border-t border-tint/8 pt-3 text-xs">
-          <div>
+          <div className="flex flex-col justify-between">
             <div className="leading-tight text-mute">{t('deadlines.avgResolution')}</div>
             <div className="mt-1 text-base font-bold text-ink">{hours(totals.avgResolutionHours)}</div>
           </div>
-          <div>
+          <div className="flex flex-col justify-between">
             <div className="leading-tight text-mute">{t('deadlines.avgClose')}</div>
             <div className="mt-1 text-base font-bold text-ink">{hours(totals.avgCloseHours)}</div>
           </div>
-          <div>
+          <div className="flex flex-col justify-between">
             <div className="leading-tight text-mute">{t('deadlines.callbackOverdue')}</div>
             <div className={cn('mt-1 text-base font-bold', totals.callbackOverdue ? 'text-caution' : 'text-ink')}>
               {totals.callbackOverdue}

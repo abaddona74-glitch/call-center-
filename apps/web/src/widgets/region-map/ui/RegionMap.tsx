@@ -1,5 +1,5 @@
 import type { OverviewRegionRow } from '@cc/shared';
-import { type KeyboardEvent, type PointerEvent, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, type PointerEvent, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
 import geo from '../model/uz-regions.json';
@@ -23,6 +23,8 @@ const LABEL_SHIFT: Record<string, [number, number]> = {
 };
 /** Tashkent city is a few pixels wide: a round marker makes it visible and clickable. */
 const CITY_RADIUS = 15;
+/** Region borders: a tint of the ink colour, so the shapes stand out from the panel even in the lightest step. */
+const BORDER = 'color-mix(in oklab, var(--tint) 30%, var(--muted))';
 
 interface Tip {
   code: string;
@@ -51,6 +53,7 @@ export function RegionMap({
   const ru = i18n.language === 'ru';
   const box = useRef<HTMLDivElement>(null);
   const [tip, setTip] = useState<Tip | null>(null);
+  const tipId = useId();
 
   const byCode = useMemo(() => new Map(rows.filter((r) => r.code).map((r) => [r.code as string, r])), [rows]);
   const values = useMemo(
@@ -79,6 +82,8 @@ export function RegionMap({
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       toggle(code);
+    } else if (e.key === 'Escape') {
+      setTip(null); // the tooltip can be dismissed without moving focus (WCAG 1.4.13)
     }
   };
   const regionProps = (s: RegionShape) => {
@@ -89,7 +94,9 @@ export function RegionMap({
       tabIndex: 0,
       'aria-label': `${name}: ${t(`metric.${metric}`)} ${format(row ? metricValue(row, metric) : null)}`,
       'aria-pressed': selected === s.code,
-      className: 'cursor-pointer outline-none transition-[opacity] duration-150 focus-visible:[stroke:var(--primary)]',
+      'aria-describedby': tip?.code === s.code ? tipId : undefined,
+      className:
+        'cursor-pointer outline-none transition-[opacity] duration-150 focus-visible:[stroke-width:7] focus-visible:[stroke:var(--primary)]',
       onClick: () => toggle(s.code),
       onKeyDown: onKey(s.code),
       onPointerMove: tipAtPointer(s.code),
@@ -99,9 +106,9 @@ export function RegionMap({
     };
   };
 
-  // The selected region is drawn last so its outline is not covered by the neighbours.
-  const shapes = [...MAP.regions].sort((a, b) => Number(a.code === selected) - Number(b.code === selected));
+  // Regions keep a fixed DOM (= Tab) order; the selected outline is drawn on top by a separate, inert copy.
   const city = MAP.regions.find((s) => s.code === CITY);
+  const selectedShape = selected && selected !== CITY ? MAP.regions.find((s) => s.code === selected) : undefined;
   const tipRow = tip ? byCode.get(tip.code) : undefined;
 
   return (
@@ -114,22 +121,31 @@ export function RegionMap({
           className="block h-auto w-full select-none"
           onPointerLeave={() => setTip(null)}
         >
-          {shapes.map((s) => {
-            const isSelected = selected === s.code;
-            return (
-              <path
-                key={s.code}
-                d={s.d}
-                fillRule="evenodd"
-                fill={fillOf(s.code)}
-                stroke={isSelected ? 'var(--primary)' : 'var(--muted)'}
-                strokeWidth={isSelected ? 4 : 2}
-                strokeLinejoin="round"
-                opacity={selected && !isSelected ? 0.55 : 1}
-                {...regionProps(s)}
-              />
-            );
-          })}
+          {MAP.regions.map((s) => (
+            <path
+              key={s.code}
+              d={s.d}
+              fillRule="evenodd"
+              fill={fillOf(s.code)}
+              stroke={BORDER}
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+              opacity={selected && selected !== s.code ? 0.55 : 1}
+              {...regionProps(s)}
+            />
+          ))}
+          {selectedShape && (
+            <path
+              d={selectedShape.d}
+              fillRule="evenodd"
+              fill="none"
+              stroke="var(--primary)"
+              strokeWidth={5}
+              strokeLinejoin="round"
+              className="pointer-events-none"
+              aria-hidden="true"
+            />
+          )}
           {city && (
             <circle
               cx={city.label[0]}
@@ -137,13 +153,13 @@ export function RegionMap({
               r={CITY_RADIUS}
               fill={fillOf(CITY)}
               stroke={selected === CITY ? 'var(--primary)' : 'var(--ink-2)'}
-              strokeWidth={selected === CITY ? 4 : 2}
+              strokeWidth={selected === CITY ? 5 : 2}
               opacity={selected && selected !== CITY ? 0.55 : 1}
               {...regionProps(city)}
             />
           )}
           {/* Labels: value (bold) and short name; pointer events go to the regions underneath. */}
-          <g className="pointer-events-none" style={{ paintOrder: 'stroke' }}>
+          <g className="pointer-events-none" style={{ paintOrder: 'stroke' }} aria-hidden="true">
             {MAP.regions.map((s) => {
               const row = byCode.get(s.code);
               const isCity = s.code === CITY;
@@ -175,6 +191,7 @@ export function RegionMap({
 
         {tip && (
           <div
+            id={tipId}
             role="tooltip"
             className="pointer-events-none absolute z-20 w-[230px] rounded-xl border border-tint/10 bg-glass/95 px-3.5 py-3 text-xs shadow-[0_10px_30px_color-mix(in_srgb,var(--shadow-color)_45%,transparent)] backdrop-blur"
             style={{
@@ -186,7 +203,7 @@ export function RegionMap({
               {tipRow ? (ru ? tipRow.nameRu : tipRow.nameUz) : t(`short.${tip.code}`)}
             </div>
             {tipRow ? <TipRows row={tipRow} /> : <div className="text-mute">{t('legendNone')}</div>}
-            <div className="mt-2 text-[10.5px] text-dim">
+            <div className="mt-2 text-[10.5px] text-mute">
               {selected === tip.code ? t('tooltip.clickToClear') : t('tooltip.clickToFilter')}
             </div>
           </div>
@@ -208,7 +225,7 @@ export function RegionMap({
           <span className="size-3 rounded-[3px] border border-tint/15" style={{ background: binFill(metric, null) }} />
           {t('legendZero')}
         </span>
-        <span className="ml-auto text-[10px] text-dim">{t('attribution')}</span>
+        <span className="ml-auto text-[10px] text-mute">{t('attribution')}</span>
       </div>
     </div>
   );
