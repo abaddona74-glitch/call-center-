@@ -1,4 +1,14 @@
 import {
+  type CallHistoryResponse,
+  CallHistoryResponseSchema,
+  type KpiExecutiveTicketListQuery,
+  KpiExecutiveTicketListQuerySchema,
+  type KpiOperatorCallListQuery,
+  KpiOperatorCallListQuerySchema,
+  type KpiOperatorTicketListQuery,
+  KpiOperatorTicketListQuerySchema,
+  type OverviewTicketList,
+  OverviewTicketListSchema,
   type KpiExecutivesQuery,
   KpiExecutivesQuerySchema,
   type KpiExecutivesResponse,
@@ -14,7 +24,8 @@ import { KpiService } from './kpi.service.js';
 
 /**
  * The staff KPI page «KPI xodimlar» (owner, 19.11.2026): observers and the superuser (`kpi.view` on every endpoint).
- * Figures only (docs/rewrite/METRICS.md §11); the records behind them are the overview dashboard's detail endpoints.
+ * Figures (docs/rewrite/METRICS.md §11) and the records behind each of them (§11.4): calls and tickets in the overview
+ * dashboard's list shapes; their read-only cards (call, recording, AI analysis, ticket) are the overview's endpoints.
  */
 @Controller('kpi')
 @RequirePermission('kpi.view')
@@ -26,6 +37,33 @@ export class KpiController {
   @SerializeOptions({ schema: KpiOperatorsResponseSchema })
   operators(@Query({ schema: KpiOperatorsQuerySchema }) q: KpiOperatorsQuery): Promise<KpiOperatorsResponse> {
     return this.kpi.operators(q);
+  }
+
+  /** The calls behind one operator's call or quality number. */
+  @Get('operators/calls')
+  @SerializeOptions({ schema: CallHistoryResponseSchema })
+  operatorCalls(
+    @Query({ schema: KpiOperatorCallListQuerySchema }) q: KpiOperatorCallListQuery,
+  ): Promise<CallHistoryResponse> {
+    return this.kpi.operatorCalls(q);
+  }
+
+  /** The tickets behind one operator's ticket number. */
+  @Get('operators/tickets')
+  @SerializeOptions({ schema: OverviewTicketListSchema })
+  operatorTickets(
+    @Query({ schema: KpiOperatorTicketListQuerySchema }) q: KpiOperatorTicketListQuery,
+  ): Promise<OverviewTicketList> {
+    return this.kpi.operatorTickets(q);
+  }
+
+  /** The tickets behind one Mas'ul number (the whole row or one region). */
+  @Get('executives/tickets')
+  @SerializeOptions({ schema: OverviewTicketListSchema })
+  executiveTickets(
+    @Query({ schema: KpiExecutiveTicketListQuerySchema }) q: KpiExecutiveTicketListQuery,
+  ): Promise<OverviewTicketList> {
+    return this.kpi.executiveTickets(q);
   }
 
   /** One row per "Mas'ul" (executive), with the same figures per region. */

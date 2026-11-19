@@ -1,4 +1,10 @@
-import type { KpiExecutiveFigures, KpiExecutiveRegion, KpiExecutiveRow, TicketEventKind } from '@cc/shared';
+import type {
+  KpiExecutiveFigures,
+  KpiExecutiveRegion,
+  KpiExecutiveRow,
+  KpiExecutiveTicketMetric,
+  TicketEventKind,
+} from '@cc/shared';
 
 /**
  * «KPI xodimlar» — the "Mas'ul shaxslar" (executives), attributed by the ticket events (docs/rewrite/METRICS.md §11.3).
@@ -50,60 +56,64 @@ export interface KpiExecutiveRef {
   regionIds: number[];
 }
 
+/** The tickets behind one person's numbers in one region (sets: a ticket counts once per number). */
 interface Acc {
   taken: Set<number>;
-  done: number;
-  rejected: number;
-  released: number;
-  forwarded: number;
-  late: number;
+  done: Set<number>;
+  rejected: Set<number>;
+  released: Set<number>;
+  forwarded: Set<number>;
+  late: Set<number>;
   takeMs: number[];
   resolveMs: number[];
-  holdingNow: number;
-  overdueNow: number;
+  holding: Set<number>;
+  overdueNow: Set<number>;
 }
 
 const emptyAcc = (): Acc => ({
   taken: new Set(),
-  done: 0,
-  rejected: 0,
-  released: 0,
-  forwarded: 0,
-  late: 0,
+  done: new Set(),
+  rejected: new Set(),
+  released: new Set(),
+  forwarded: new Set(),
+  late: new Set(),
   takeMs: [],
   resolveMs: [],
-  holdingNow: 0,
-  overdueNow: 0,
+  holding: new Set(),
+  overdueNow: new Set(),
 });
 
 /** Region key: a region id, or "none" for tickets without a region. */
-type RegionKey = number | 'none';
+export type RegionKey = number | 'none';
 const keyOf = (regionId: number | null): RegionKey => regionId ?? 'none';
 
 const hoursAvg = (ms: number[]) =>
   ms.length ? Math.round((ms.reduce((a, b) => a + b, 0) / ms.length / 3_600_000) * 10) / 10 : null;
 
+const union = (accs: readonly Acc[], pick: (a: Acc) => Set<number>) => {
+  const out = new Set<number>();
+  for (const a of accs) for (const id of pick(a)) out.add(id);
+  return out;
+};
+
 function figures(accs: readonly Acc[], arrived: number | null): KpiExecutiveFigures {
-  const taken = new Set<number>();
-  const sum = (pick: (a: Acc) => number) => accs.reduce((s, a) => s + pick(a), 0);
-  for (const a of accs) for (const id of a.taken) taken.add(id);
-  const done = sum((a) => a.done);
-  const rejected = sum((a) => a.rejected);
-  const late = sum((a) => a.late);
+  const done = union(accs, (a) => a.done).size;
+  const rejected = union(accs, (a) => a.rejected).size;
+  const late = union(accs, (a) => a.late).size;
   const resolved = done + rejected;
   return {
     arrived,
-    taken: taken.size,
+    taken: union(accs, (a) => a.taken).size,
     done,
     rejected,
-    released: sum((a) => a.released),
-    forwarded: sum((a) => a.forwarded),
+    released: union(accs, (a) => a.released).size,
+    forwarded: union(accs, (a) => a.forwarded).size,
     late,
     onTimeRate: resolved ? Math.round(((resolved - late) / resolved) * 1000) / 10 : null,
     avgTakeHours: hoursAvg(accs.flatMap((a) => a.takeMs)),
     avgResolveHours: hoursAvg(accs.flatMap((a) => a.resolveMs)),
-    holdingNow: sum((a) => a.holdingNow),
-    overdueNow: sum((a) => a.overdueNow),
+    holdingNow: union(accs, (a) => a.holding).size,
+    overdueNow: union(accs, (a) => a.overdueNow).size,
   };
 }
 
@@ -121,12 +131,19 @@ export interface ExecutiveKpiInput {
   now: Date;
 }
 
-export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
+interface Replay {
+  /** userId → region → the tickets behind each number. */
+  accs: Map<number, Map<RegionKey, Acc>>;
+  /** region → tickets that entered its queue in the period (created there or forwarded in). */
+  arrivals: Map<RegionKey, Set<number>>;
+  assignedOf: Map<number, Set<number>>;
+}
+
+/** Replays every ticket's events once: who did what, in which region, in the period (and who holds what now). */
+function replay(input: ExecutiveKpiInput): Replay {
   const [from, to] = [input.period[0].getTime(), input.period[1].getTime()];
   const inPeriod = (d: Date) => d.getTime() >= from && d.getTime() < to;
   const ticketById = new Map(input.tickets.map((t) => [t.id, t]));
-
-  /** userId → region → accumulators. */
   const accs = new Map<number, Map<RegionKey, Acc>>();
   const acc = (userId: number, region: RegionKey) => {
     let byRegion = accs.get(userId);
@@ -141,8 +158,9 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
     }
     return a;
   };
-  /** region → tickets that entered its queue in the period (created there or forwarded in). */
   const arrivals = new Map<RegionKey, Set<number>>();
+  const arrive = (region: RegionKey, ticketId: number) =>
+    arrivals.set(region, (arrivals.get(region) ?? new Set()).add(ticketId));
 
   const byTicket = new Map<number, KpiTicketEventFact[]>();
   for (const e of input.events) {
@@ -171,17 +189,18 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
       switch (e.kind) {
         case 'created':
           queuedAt = at;
-          if (counted) arrivals.set(keyOf(region), (arrivals.get(keyOf(region)) ?? new Set()).add(ticketId));
+          if (counted) arrive(here, ticketId);
           break;
         case 'forwarded':
-          if (counted && e.actorUserId !== null) acc(e.actorUserId, keyOf(e.fromRegionId ?? region)).forwarded++;
+          if (counted && e.actorUserId !== null)
+            acc(e.actorUserId, keyOf(e.fromRegionId ?? region)).forwarded.add(ticketId);
           region = e.toRegionId;
           queuedAt = at;
           holder = null;
-          if (counted) arrivals.set(keyOf(region), (arrivals.get(keyOf(region)) ?? new Set()).add(ticketId));
+          if (counted) arrive(keyOf(region), ticketId);
           break;
         case 'released':
-          if (counted && e.actorUserId !== null) acc(e.actorUserId, here).released++;
+          if (counted && e.actorUserId !== null) acc(e.actorUserId, here).released.add(ticketId);
           queuedAt = at;
           holder = null;
           break;
@@ -200,9 +219,8 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
           if (e.actorUserId === null) break;
           if (counted) {
             const a = acc(e.actorUserId, here);
-            if (e.kind === 'done') a.done++;
-            else a.rejected++;
-            if (dueAt !== null && at > dueAt) a.late++;
+            (e.kind === 'done' ? a.done : a.rejected).add(ticketId);
+            if (dueAt !== null && at > dueAt) a.late.add(ticketId);
             if (holder?.userId === e.actorUserId) a.resolveMs.push(at - holder.at);
           }
           holder = null;
@@ -215,13 +233,17 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
 
   for (const h of input.holding) {
     const a = acc(h.assigneeUserId, keyOf(h.regionId));
-    a.holdingNow++;
-    if (h.dueAt && input.now.getTime() > h.dueAt.getTime()) a.overdueNow++;
+    a.holding.add(h.id);
+    if (h.dueAt && input.now.getTime() > h.dueAt.getTime()) a.overdueNow.add(h.id);
   }
 
+  return { accs, arrivals, assignedOf: new Map(input.executives.map((e) => [e.userId, new Set(e.regionIds)])) };
+}
+
+export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
+  const { accs, arrivals, assignedOf } = replay(input);
   const regionOrder = new Map(input.regions.map((r, i) => [r.id, i]));
   const regionById = new Map(input.regions.map((r) => [r.id, r]));
-  const assignedOf = new Map(input.executives.map((e) => [e.userId, new Set(e.regionIds)]));
   const userIds = new Set<number>([...input.executives.map((e) => e.userId), ...accs.keys()]);
 
   const rows: KpiExecutiveRow[] = [];
@@ -250,14 +272,42 @@ export function buildExecutiveKpi(input: ExecutiveKpiInput): KpiExecutiveRow[] {
         ...figures([byRegion.get(k) ?? emptyAcc()], isAssigned ? (arrivals.get(k)?.size ?? 0) : null),
       };
     });
-    const arrivedUnion = new Set<number>();
-    for (const k of assigned) for (const id of arrivals.get(k) ?? []) arrivedUnion.add(id);
     rows.push({
       userId,
       name: input.executives.find((e) => e.userId === userId)?.username ?? input.names.get(userId) ?? `#${userId}`,
-      totals: figures([...byRegion.values()], assigned.size ? arrivedUnion.size : null),
+      totals: figures([...byRegion.values()], assigned.size ? arrivedIn(arrivals, assigned).size : null),
       regions,
     });
   }
   return rows.sort((a, b) => b.totals.taken - a.totals.taken || a.name.localeCompare(b.name));
+}
+
+function arrivedIn(arrivals: ReadonlyMap<RegionKey, Set<number>>, regions: Iterable<RegionKey>): Set<number> {
+  const out = new Set<number>();
+  for (const k of regions) for (const id of arrivals.get(k) ?? []) out.add(id);
+  return out;
+}
+
+/**
+ * The tickets behind one of a person's numbers — their whole row (`region` undefined) or one region — from the same
+ * replay as buildExecutiveKpi, so a list adds up to its number. `arrived` covers the person's assigned regions (the
+ * whole row) or the given region; `resolved` = done + rejected.
+ */
+export function executiveTicketIds(
+  input: ExecutiveKpiInput,
+  userId: number,
+  region: RegionKey | undefined,
+  metric: KpiExecutiveTicketMetric,
+): Set<number> {
+  const { accs, arrivals, assignedOf } = replay(input);
+  const byRegion = accs.get(userId) ?? new Map<RegionKey, Acc>();
+  const picked = region === undefined ? [...byRegion.values()] : [byRegion.get(region) ?? emptyAcc()];
+  switch (metric) {
+    case 'arrived':
+      return arrivedIn(arrivals, region === undefined ? (assignedOf.get(userId) ?? []) : [region]);
+    case 'resolved':
+      return new Set([...union(picked, (a) => a.done), ...union(picked, (a) => a.rejected)]);
+    default:
+      return union(picked, (a) => a[metric]);
+  }
 }

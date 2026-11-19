@@ -328,8 +328,9 @@ describe('operators', () => {
 
   it('tickets and callbacks by extension', async () => {
     const rows = byExt((await observer.get(`/kpi/operators?${DAY}`)).body.operators);
-    expect(rows['101'].tickets).toEqual({ created: 2, callbacks: 0, closed: 0, closedLate: 0 });
-    expect(rows['103'].tickets).toEqual({ created: 0, callbacks: 2, closed: 2, closedLate: 1 });
+    expect(rows['101'].tickets).toEqual({ created: 2, callbacks: 0, callbackAttempts: 0, closed: 0, closedLate: 0 });
+    // two calls to the citizen of one ticket: one ticket called back, two attempts
+    expect(rows['103'].tickets).toEqual({ created: 0, callbacks: 1, callbackAttempts: 2, closed: 2, closedLate: 1 });
     expect(rows['100']).toBeUndefined(); // the force-close is not counted
   });
 
@@ -422,5 +423,99 @@ describe('executives', () => {
     const ops = JSON.stringify((await observer.get(`/kpi/operators?${DAY}`)).body);
     expect(ops).not.toContain('935551122');
     expect(ops).not.toContain('проблема');
+  });
+});
+
+describe('details: the records behind each number', () => {
+  const total = async (client: Client, path: string) => {
+    const r = await client.get(path);
+    expect(r.status, path).toBe(200);
+    return r.body.total as number;
+  };
+
+  it('only observer and superuser; validated', async () => {
+    const paths = [
+      `/kpi/operators/calls?${DAY}&ext=101&metric=answered`,
+      `/kpi/operators/tickets?${DAY}&ext=101&metric=created`,
+      `/kpi/executives/tickets?${DAY}&user=${ids.e1}&metric=taken`,
+    ];
+    for (const path of paths) {
+      expect((await anon.get(path)).status, path).toBe(401);
+      expect((await operator.get(path)).status, path).toBe(403);
+      expect((await executive.get(path)).status, path).toBe(403);
+      expect((await observer.get(path)).status, path).toBe(200);
+      expect((await root.get(path)).status, path).toBe(200);
+    }
+    expect((await root.get(`/kpi/operators/calls?${DAY}&ext=101&metric=nope`)).status).toBe(400);
+    expect((await root.get(`/kpi/operators/calls?${DAY}&ext=1a&metric=answered`)).status).toBe(400);
+    expect((await root.get(`/kpi/executives/tickets?${DAY}&user=${ids.e1}&metric=taken&region=atlantis`)).status).toBe(
+      400,
+    );
+  });
+
+  it('operator call lists add up to the operator numbers (scope working and all)', async () => {
+    for (const scope of ['working', 'all'] as const) {
+      const rows = Object.fromEntries(
+        (await observer.get(`/kpi/operators?${DAY}&scope=${scope}`)).body.operators.map((r: { ext: string }) => [
+          r.ext,
+          r,
+        ]),
+      );
+      for (const ext of ['101', '103', '120']) {
+        const c = rows[ext].calls;
+        const list = (metric: string) =>
+          total(observer, `/kpi/operators/calls?${DAY}&scope=${scope}&ext=${ext}&metric=${metric}`);
+        expect(await list('answered'), `${ext} ${scope}`).toBe(c.answered + c.transferredIn);
+        expect(await list('missed')).toBe(c.missed);
+        expect(await list('missedNoAnswer')).toBe(c.missedNoAnswer);
+        expect(await list('missedRejected')).toBe(c.missedRejected);
+        expect(await list('outbound')).toBe(c.outbound);
+        expect(await list('outboundAttempts')).toBe(c.outboundAttempts);
+        expect(await list('rated')).toBe(rows[ext].survey.count);
+      }
+    }
+  });
+
+  it("quality lists: the operator's analysed calls of the current prompt version", async () => {
+    const list = (metric: string) => total(observer, `/kpi/operators/calls?${DAY}&ext=101&metric=${metric}`);
+    expect(await list('analysed')).toBe(2);
+    expect(await list('flagged')).toBe(1);
+    expect(await list('handled')).toBe(1);
+    expect(await total(observer, `/kpi/operators/calls?${DAY}&ext=103&metric=analysed`)).toBe(0);
+    const items = (await observer.get(`/kpi/operators/calls?${DAY}&ext=101&metric=analysed`)).body.items;
+    expect(items.map((i: { id: string }) => i.id).sort()).toEqual([callId(a), callId(b)].sort());
+    expect(items[0]).not.toHaveProperty('recordingFile', expect.any(String));
+  });
+
+  it('operator ticket lists', async () => {
+    const list = (ext: string, metric: string) =>
+      total(observer, `/kpi/operators/tickets?${DAY}&ext=${ext}&metric=${metric}`);
+    expect(await list('101', 'created')).toBe(2);
+    expect(await list('103', 'callbacks')).toBe(1);
+    expect(await list('103', 'closed')).toBe(2);
+    expect(await list('103', 'closedLate')).toBe(1);
+    const late = (await observer.get(`/kpi/operators/tickets?${DAY}&ext=103&metric=closedLate`)).body.items[0];
+    expect(late).toMatchObject({ code: expect.stringMatching(/^TK-\d+$/), status: 'closed' });
+    expect(JSON.stringify(late)).not.toMatch(/9\d{8}/);
+  });
+
+  it("Mas'ul ticket lists, whole row and per region, add up to the numbers", async () => {
+    const list = (q: string) => total(observer, `/kpi/executives/tickets?${DAY}&${q}`);
+    expect(await list(`user=${ids.e1}&metric=arrived`)).toBe(2);
+    expect(await list(`user=${ids.e1}&metric=taken`)).toBe(1);
+    expect(await list(`user=${ids.e1}&metric=forwarded`)).toBe(1);
+    expect(await list(`user=${ids.e1}&metric=resolved`)).toBe(1);
+    expect(await list(`user=${ids.e1}&metric=arrived&region=toshkent-shahri`)).toBe(2);
+    expect(await list(`user=${ids.e1}&metric=arrived&region=samarqand`)).toBe(1);
+    expect(await list(`user=${ids.e2}&metric=holding`)).toBe(1);
+    expect(await list(`user=${ids.e2}&metric=taken&region=samarqand`)).toBe(1);
+    expect(await list(`user=${ids.e2}&metric=taken&region=none`)).toBe(0);
+    const taken = (await observer.get(`/kpi/executives/tickets?${DAY}&user=${ids.e1}&metric=taken`)).body.items;
+    expect(taken.map((t: { id: number }) => t.id)).toEqual([ids.t1]);
+  });
+
+  it('the read-only cards come from the overview endpoints the observer already has', async () => {
+    expect((await observer.get(`/overview/tickets/${ids.t1}`)).status).toBe(200);
+    expect((await observer.get(`/overview/calls/${callId(a)}`)).status).toBe(200);
   });
 });

@@ -1,6 +1,11 @@
 import type { TicketEventKind } from '@cc/shared';
 import { describe, expect, it } from 'vitest';
-import { buildExecutiveKpi, type ExecutiveKpiInput, type KpiTicketEventFact } from './executive-kpi.js';
+import {
+  buildExecutiveKpi,
+  type ExecutiveKpiInput,
+  executiveTicketIds,
+  type KpiTicketEventFact,
+} from './executive-kpi.js';
 
 /** Tashkent wall time → Date (UTC+5, no DST). */
 const tk = (wall: string) => new Date(`2026-11-${wall}+05:00`);
@@ -177,5 +182,31 @@ describe('buildExecutiveKpi', () => {
         regions: [expect.objectContaining({ code: 'toshkent-shahri' }), expect.objectContaining({ code: 'buxoro' })],
       }),
     ]);
+  });
+
+  it('every list adds up to its number, for the whole row and for each region', () => {
+    const data = input();
+    for (const row of buildExecutiveKpi(data)) {
+      const check = (
+        figures: (typeof row)['totals'],
+        region: Parameters<typeof executiveTicketIds>[2],
+        where: string,
+      ) => {
+        const size = (m: Parameters<typeof executiveTicketIds>[3]) =>
+          executiveTicketIds(data, row.userId, region, m).size;
+        expect(size('taken'), where).toBe(figures.taken);
+        expect(size('done'), where).toBe(figures.done);
+        expect(size('rejected'), where).toBe(figures.rejected);
+        expect(size('released'), where).toBe(figures.released);
+        expect(size('forwarded'), where).toBe(figures.forwarded);
+        expect(size('late'), where).toBe(figures.late);
+        expect(size('resolved'), where).toBe(figures.done + figures.rejected);
+        expect(size('holding'), where).toBe(figures.holdingNow);
+        expect(size('overdueNow'), where).toBe(figures.overdueNow);
+        if (figures.arrived !== null) expect(size('arrived'), where).toBe(figures.arrived);
+      };
+      check(row.totals, undefined, row.name);
+      for (const r of row.regions) check(r, r.regionId ?? 'none', `${row.name} ${r.code}`);
+    }
   });
 });

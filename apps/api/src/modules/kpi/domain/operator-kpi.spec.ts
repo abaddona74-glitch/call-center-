@@ -1,9 +1,12 @@
 import type { CallAnalysisStats } from '@cc/shared';
 import { describe, expect, it } from 'vitest';
 import { calls, inbound, internal, outbound } from '../../../pbx/calls/testing/cdr-fixtures.js';
-import { operatorStats } from '../../stats/domain/metrics.js';
+import { operatorStats, surveyByOperator } from '../../stats/domain/metrics.js';
 import {
   buildOperatorKpi,
+  matchesOperatorCall,
+  operatorTicketIds,
+  ratedCallIds,
   type OperatorKpiInput,
   type OperatorTicketFact,
   qualityByOperator,
@@ -91,7 +94,7 @@ describe('buildOperatorKpi — calls', () => {
   it('excluded operators get no row even with tickets, quality or online time', () => {
     const rows = buildOperatorKpi(
       base({
-        tickets: new Map([['118', { created: 3, callbacks: 0, closed: 0, closedLate: 0 }]]),
+        tickets: new Map([['118', { created: 3, callbacks: 0, callbackAttempts: 0, closed: 0, closedLate: 0 }]]),
         presence: new Map([['118', { onlineSec: 100, pauseSec: 0, pauses: [] }]]),
       }),
     );
@@ -100,12 +103,14 @@ describe('buildOperatorKpi — calls', () => {
 
   it('operators known only from tickets / presence get a row with zero calls', () => {
     const rows = buildOperatorKpi(
-      base({ tickets: new Map([['150', { created: 2, callbacks: 1, closed: 1, closedLate: 0 }]]) }),
+      base({
+        tickets: new Map([['150', { created: 2, callbacks: 1, callbackAttempts: 2, closed: 1, closedLate: 0 }]]),
+      }),
     );
     expect(rows.find((r) => r.ext === '150')).toMatchObject({
       name: null,
       calls: { total: 0, talkSec: 0 },
-      tickets: { created: 2, callbacks: 1, closed: 1, closedLate: 0 },
+      tickets: { created: 2, callbacks: 1, callbackAttempts: 2, closed: 1, closedLate: 0 },
       quality: null,
     });
   });
@@ -172,9 +177,11 @@ describe('talk share', () => {
   });
 });
 
-describe('ticketsByOperator', () => {
+describe('ticketsByOperator / operatorTicketIds', () => {
   const period = [tk('2026-11-17T00:00:00'), tk('2026-11-18T00:00:00')] as const;
+  let id = 0;
   const t = (over: Partial<OperatorTicketFact>): OperatorTicketFact => ({
+    id: ++id,
     creatorExtension: null,
     createdAt: tk('2026-11-10T10:00:00'),
     closedByExtension: null,
@@ -183,39 +190,96 @@ describe('ticketsByOperator', () => {
     callbackOutcome: null,
     ...over,
   });
+  const tickets = [
+    t({ id: 1, creatorExtension: '101', createdAt: tk('2026-11-17T09:00:00') }),
+    t({ id: 2, creatorExtension: '101', createdAt: tk('2026-11-16T23:59:59') }), // before the period
+    t({
+      id: 3,
+      closedByExtension: '103',
+      closedAt: tk('2026-11-17T11:00:00'),
+      callbackDueAt: tk('2026-11-17T12:00:00'),
+      callbackOutcome: 'informed',
+    }),
+    t({
+      id: 4,
+      closedByExtension: '103',
+      closedAt: tk('2026-11-17T15:00:00'),
+      callbackDueAt: tk('2026-11-17T12:00:00'),
+      callbackOutcome: 'informed',
+    }),
+    // force-closed by the superuser: not an operator's callback
+    t({ id: 5, closedByExtension: '100', closedAt: tk('2026-11-17T15:00:00'), callbackOutcome: 'forced' }),
+  ];
+  const attempts = [
+    { ticketId: 3, extension: '103', startedAt: tk('2026-11-17T10:55:00') },
+    { ticketId: 4, extension: '103', startedAt: tk('2026-11-17T14:00:00') },
+    { ticketId: 4, extension: '103', startedAt: tk('2026-11-17T14:50:00') },
+    { ticketId: 4, extension: '103', startedAt: tk('2026-11-18T00:00:00') }, // after the period
+    { ticketId: 3, extension: null, startedAt: tk('2026-11-17T14:00:00') },
+  ];
 
-  it('created, callbacks, closed and closed after the callback deadline — in the period only', () => {
-    const out = ticketsByOperator(
-      [
-        t({ creatorExtension: '101', createdAt: tk('2026-11-17T09:00:00') }),
-        t({ creatorExtension: '101', createdAt: tk('2026-11-16T23:59:59') }), // before the period
-        t({
-          closedByExtension: '103',
-          closedAt: tk('2026-11-17T11:00:00'),
-          callbackDueAt: tk('2026-11-17T12:00:00'),
-          callbackOutcome: 'informed',
-        }),
-        t({
-          closedByExtension: '103',
-          closedAt: tk('2026-11-17T15:00:00'),
-          callbackDueAt: tk('2026-11-17T12:00:00'),
-          callbackOutcome: 'informed',
-        }),
-        // force-closed by the superuser: not an operator's callback
-        t({ closedByExtension: '100', closedAt: tk('2026-11-17T15:00:00'), callbackOutcome: 'forced' }),
-      ],
-      [
-        { extension: '103', startedAt: tk('2026-11-17T10:55:00') },
-        { extension: '103', startedAt: tk('2026-11-17T14:50:00') },
-        { extension: '103', startedAt: tk('2026-11-18T00:00:00') }, // after the period
-        { extension: null, startedAt: tk('2026-11-17T14:00:00') },
-      ],
-      period,
-    );
-    expect(Object.fromEntries(out)).toEqual({
-      '101': { created: 1, callbacks: 0, closed: 0, closedLate: 0 },
-      '103': { created: 0, callbacks: 2, closed: 2, closedLate: 1 },
+  it('created, callbacks (tickets and attempts), closed and closed after the callback deadline — in the period only', () => {
+    expect(Object.fromEntries(ticketsByOperator(tickets, attempts, period))).toEqual({
+      '101': { created: 1, callbacks: 0, callbackAttempts: 0, closed: 0, closedLate: 0 },
+      '103': { created: 0, callbacks: 2, callbackAttempts: 3, closed: 2, closedLate: 1 },
     });
+  });
+
+  it('the lists behind the numbers', () => {
+    const ids = operatorTicketIds(tickets, attempts, period);
+    expect([...(ids.get('101')?.created ?? [])]).toEqual([1]);
+    expect([...(ids.get('103')?.callbacks ?? [])].sort()).toEqual([3, 4]);
+    expect([...(ids.get('103')?.closedLate ?? [])]).toEqual([4]);
+    expect(ids.has('100')).toBe(false);
+  });
+});
+
+describe('the calls behind each call number', () => {
+  const stats = operatorStats(day, {
+    scope: 'working',
+    names,
+    groupOf: () => 'main',
+    knownExtensions: names.keys(),
+  });
+  const count = (
+    ext: string,
+    metric: Parameters<typeof matchesOperatorCall>[2],
+    scope: 'working' | 'all' = 'working',
+  ) => day.filter((c) => matchesOperatorCall(c, ext, metric, scope)).length;
+
+  it.each(['101', '103'])('lists add up to the statistics numbers (%s)', (ext) => {
+    const s = stats.find((r) => r.ext === ext)!;
+    expect(count(ext, 'answered')).toBe(s.answered + s.transferredIn);
+    expect(count(ext, 'missed')).toBe(s.missed);
+    expect(count(ext, 'missedNoAnswer')).toBe(s.missedNoAnswer);
+    expect(count(ext, 'missedRejected')).toBe(s.missedRejected);
+    expect(count(ext, 'outbound')).toBe(s.outbound);
+    expect(count(ext, 'outboundAttempts')).toBe(s.outboundAttempts);
+    // talkSec / avgTalkSec are over the calls the operator talked on
+    const talked = day.filter((c) => matchesOperatorCall(c, ext, 'talked', 'working'));
+    expect(talked.reduce((sum, c) => sum + (c.operatorTalk[ext] ?? 0), 0)).toBe(s.talkSec);
+    expect(Math.round(s.talkSec / talked.length)).toBe(s.avgTalkSec);
+  });
+
+  it('never internal calls; after-hours calls only for scope "all"', () => {
+    expect(count('101', 'answered', 'all')).toBe(count('101', 'answered') + 1);
+    expect(day.some((c) => c.direction === 'internal' && matchesOperatorCall(c, '101', 'talked', 'all'))).toBe(false);
+  });
+
+  it('rated calls follow the survey attribution (surveyByOperator)', () => {
+    const answered = day.filter((c) => c.direction === 'inbound' && c.status === 'answered');
+    const ratings = answered.map((c, i) => ({
+      uniqueid: c.id,
+      linkedid: c.id,
+      operatorExt: c.firstOperator ?? '',
+      score: (i % 5) + 1,
+    }));
+    for (const scope of ['working', 'all'] as const) {
+      const totals = surveyByOperator(ratings, day, scope);
+      for (const ext of ['101', '103']) {
+        expect(ratedCallIds(ratings, day, scope, ext).size, `${ext} ${scope}`).toBe(totals.get(ext)?.count ?? 0);
+      }
+    }
   });
 });
 

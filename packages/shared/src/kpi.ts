@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { ExtensionSchema } from './auth.js';
 import { CallScopeSchema } from './cdr.js';
 import { IsoDateSchema } from './common.js';
+import { OVERVIEW_NO_REGION } from './overview.js';
 import { OperatorStatsRowSchema } from './stats.js';
 
 /**
@@ -54,8 +56,10 @@ export const KpiOperatorSurveySchema = z.object({ count, avg: average });
 export const KpiOperatorTicketsSchema = z.object({
   /** Tickets this operator opened in the period. */
   created: count,
-  /** Callback calls this operator made to citizens on done/rejected tickets in the period (every attempt). */
+  /** Done/rejected tickets this operator called the citizen back on in the period (distinct tickets). */
   callbacks: count,
+  /** … and the callback calls behind them (every attempt). */
+  callbackAttempts: count,
   /** Tickets this operator closed in the period after a confirmed callback (not superuser force-closes). */
   closed: count,
   /** Of `closed`: closed after the callback deadline (`callback_due_at`). */
@@ -156,9 +160,9 @@ export const KpiExecutiveFiguresSchema = z.object({
   /** Resolved by the person in the period. */
   done: count,
   rejected: count,
-  /** Given back to the region queue by the person in the period. */
+  /** Given back to the region queue by the person in the period (distinct tickets). */
   released: count,
-  /** Sent to another region by the person in the period. */
+  /** Sent to another region by the person in the period (distinct tickets). */
   forwarded: count,
   /** Of done + rejected: resolved after the ticket's deadline (`due_at`). */
   late: count,
@@ -201,3 +205,105 @@ export const KpiExecutivesResponseSchema = z.object({
   executives: z.array(KpiExecutiveRowSchema),
 });
 export type KpiExecutivesResponse = z.infer<typeof KpiExecutivesResponseSchema>;
+
+// --- Details: the records behind each number (owner, 19.11.2026) ------------------------------------------------
+// Every list adds up to its number for the same filters (METRICS.md §11.4). Responses: the overview dashboard's list
+// shapes (CallHistoryResponse, OverviewTicketList), so the same dialogs and read-only cards show them.
+
+const pageParams = {
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  search: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+};
+
+/**
+ * One operator's call numbers: `answered` (inbound they finished, transfers in included), `missed` (+ `missedNoAnswer`,
+ * `missedRejected`), `outbound` (connected) / `outboundAttempts`, `talked` (calls they talked on: talk time and its
+ * average), `rated` (calls with a client rating credited to them), and the analysed calls of the current prompt version
+ * (`analysed` — also the averages —, `flagged`, `handled`).
+ */
+export const KPI_OPERATOR_CALL_METRICS = [
+  'answered',
+  'missed',
+  'missedNoAnswer',
+  'missedRejected',
+  'outbound',
+  'outboundAttempts',
+  'talked',
+  'rated',
+  'analysed',
+  'flagged',
+  'handled',
+] as const;
+export const KpiOperatorCallMetricSchema = z.enum(KPI_OPERATOR_CALL_METRICS);
+export type KpiOperatorCallMetric = z.infer<typeof KpiOperatorCallMetricSchema>;
+
+export const KpiOperatorCallListQuerySchema = z
+  .object({
+    ...range,
+    scope: CallScopeSchema.default('working'),
+    ext: ExtensionSchema,
+    metric: KpiOperatorCallMetricSchema,
+    ...pageParams,
+  })
+  .refine(fromNotAfterTo, fromNotAfterToError);
+export type KpiOperatorCallListQuery = z.infer<typeof KpiOperatorCallListQuerySchema>;
+
+/** One operator's ticket numbers (KpiOperatorTickets): `callbacks` lists the tickets, not the attempts. */
+export const KPI_OPERATOR_TICKET_METRICS = ['created', 'callbacks', 'closed', 'closedLate'] as const;
+export const KpiOperatorTicketMetricSchema = z.enum(KPI_OPERATOR_TICKET_METRICS);
+export type KpiOperatorTicketMetric = z.infer<typeof KpiOperatorTicketMetricSchema>;
+
+export const KpiOperatorTicketListQuerySchema = z
+  .object({ ...range, ext: ExtensionSchema, metric: KpiOperatorTicketMetricSchema, ...pageParams })
+  .refine(fromNotAfterTo, fromNotAfterToError);
+export type KpiOperatorTicketListQuery = z.infer<typeof KpiOperatorTicketListQuerySchema>;
+
+/**
+ * One Mas'ul's ticket numbers (KpiExecutiveFigures), whole or in one region: `resolved` = done + rejected (the on-time
+ * share and the resolution time are over them), `taken` (also the wait until taken), `holding` / `overdueNow` (now).
+ */
+export const KPI_EXECUTIVE_TICKET_METRICS = [
+  'arrived',
+  'taken',
+  'done',
+  'rejected',
+  'released',
+  'forwarded',
+  'late',
+  'resolved',
+  'holding',
+  'overdueNow',
+] as const;
+export const KpiExecutiveTicketMetricSchema = z.enum(KPI_EXECUTIVE_TICKET_METRICS);
+export type KpiExecutiveTicketMetric = z.infer<typeof KpiExecutiveTicketMetricSchema>;
+
+export const KpiExecutiveTicketListQuerySchema = z
+  .object({
+    ...range,
+    user: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(2 ** 31),
+    /** A region code, or "none" (tickets without a region); absent = the person's whole row. */
+    region: z
+      .string()
+      .trim()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9-]+$/, 'Expected a region code')
+      .optional(),
+    metric: KpiExecutiveTicketMetricSchema,
+    ...pageParams,
+  })
+  .refine(fromNotAfterTo, fromNotAfterToError);
+export type KpiExecutiveTicketListQuery = z.infer<typeof KpiExecutiveTicketListQuerySchema>;
+
+/** `region` value for tickets without a region (same as the overview dashboard). */
+export const KPI_NO_REGION = OVERVIEW_NO_REGION;

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { type DbHost, InjectDb } from '../../database/db.js';
+import type { OverviewTicketFact } from '../overview/domain/ticket-overview.js';
 import type {
   KpiExecutiveRef,
   KpiHoldingFact,
@@ -28,7 +29,15 @@ export class KpiRepository {
   operatorTickets(from: Date, to: Date): Promise<OperatorTicketFact[]> {
     return this.db
       .selectFrom('tickets')
-      .select(['creatorExtension', 'createdAt', 'closedByExtension', 'closedAt', 'callbackDueAt', 'callbackOutcome'])
+      .select([
+        'id',
+        'creatorExtension',
+        'createdAt',
+        'closedByExtension',
+        'closedAt',
+        'callbackDueAt',
+        'callbackOutcome',
+      ])
       .where((eb) =>
         eb.or([
           eb.and([eb('createdAt', '>=', from), eb('createdAt', '<', to)]),
@@ -42,7 +51,7 @@ export class KpiRepository {
   callbackAttempts(from: Date, to: Date): Promise<CallbackAttemptFact[]> {
     return this.db
       .selectFrom('ticketCalls')
-      .select(['extension', 'startedAt'])
+      .select(['ticketId', 'extension', 'startedAt'])
       .where('kind', '=', 'callback')
       .where('startedAt', '>=', from)
       .where('startedAt', '<', to)
@@ -89,12 +98,37 @@ export class KpiRepository {
   }
 
   /** Every region (deactivated ones too: old tickets still point at them), in directory order. */
-  regions(): Promise<KpiRegionRef[]> {
+  regions(): Promise<Array<KpiRegionRef & { isActive: boolean }>> {
     return this.db
       .selectFrom('ticketRegions')
-      .select(['id', 'code', 'nameUz', 'nameRu'])
+      .select(['id', 'code', 'nameUz', 'nameRu', 'isActive'])
       .orderBy('sortOrder')
       .orderBy('nameUz')
+      .execute();
+  }
+
+  /** The list rows of some tickets (the overview dashboard's list columns; no texts or citizen data). */
+  ticketFacts(ids: readonly number[]): Promise<OverviewTicketFact[]> {
+    if (!ids.length) return Promise.resolve([]);
+    return this.db
+      .selectFrom('tickets')
+      .select([
+        'id',
+        'status',
+        'regionId',
+        'assigneeUserId',
+        'assigneeLabel',
+        'resolvedByUserId',
+        'resolvedByLabel',
+        'resolution',
+        'createdAt',
+        'dueAt',
+        'resolvedAt',
+        'callbackDueAt',
+        'closedAt',
+        'organizationName',
+      ])
+      .where('id', 'in', ids)
       .execute();
   }
 
