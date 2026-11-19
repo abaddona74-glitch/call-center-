@@ -1,20 +1,31 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { WAVEFORM_BARS, audioPlayer, formatBytes, formatDuration, makeWaveform, useAudioPlayer } from '@/entities/recording';
 import { cn } from '@/shared/lib/cn';
 import { useTheme } from '@/shared/lib/theme';
 import { Icon } from '@/shared/ui/icon';
 import { LegacyIcon, PlayGlyph } from '@/shared/ui/legacy-icon';
+import { formatBytes, formatDuration } from '../lib/format';
+import { WAVEFORM_BARS, makeWaveform } from '../lib/waveform';
+import { audioPlayer, useAudioPlayer } from '../model/player';
 import './studio-player.css';
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 const CANVAS_HEIGHT = 150;
+const EMBEDDED_CANVAS_HEIGHT = 110;
+
+export interface StudioPlayerProps {
+  /**
+   * Inside another card (the call details dialog): no outer margin or close button (the host closes it),
+   * a shorter waveform and a keyboard-shortcut hint under the controls.
+   */
+  embedded?: boolean;
+}
 
 /**
  * The legacy "Studio" player card (shown while a recording is loaded). Renders the shared
  * audio player state; the waveform is the legacy synthetic one (seeded per file).
  */
-export const StudioPlayer = forwardRef<HTMLElement>(function StudioPlayer(_, ref) {
+export const StudioPlayer = forwardRef<HTMLElement, StudioPlayerProps>(function StudioPlayer({ embedded = false }, ref) {
   const { t } = useTranslation('recording');
   const s = useAudioPlayer();
   const track = s.track;
@@ -32,7 +43,7 @@ export const StudioPlayer = forwardRef<HTMLElement>(function StudioPlayer(_, ref
   else if (s.status === 'ended') status = t('player.ended');
 
   return (
-    <section ref={ref} className={cn('studio', isPlaying && 'playing')} aria-label={t('player.aria')}>
+    <section ref={ref} className={cn('studio', isPlaying && 'playing', embedded && 'embedded')} aria-label={t('player.aria')}>
       <div className="top">
         <div className="disc">
           <i>
@@ -47,18 +58,26 @@ export const StudioPlayer = forwardRef<HTMLElement>(function StudioPlayer(_, ref
           <LegacyIcon name="document-download" strokeWidth={1.8} />
           {t('download')}
         </a>
-        <button
-          type="button"
-          className="ic"
-          aria-label={t('player.close')}
-          title={t('player.closeTitle')}
-          onClick={() => audioPlayer.close()}
-        >
-          <Icon name="close" className="size-4" />
-        </button>
+        {!embedded && (
+          <button
+            type="button"
+            className="ic"
+            aria-label={t('player.close')}
+            title={t('player.closeTitle')}
+            onClick={() => audioPlayer.close()}
+          >
+            <Icon name="close" className="size-4" />
+          </button>
+        )}
       </div>
 
-      <Waveform seed={`${track.key}_${track.size}`} duration={s.duration} currentTime={s.currentTime} playing={isPlaying} />
+      <Waveform
+        seed={`${track.key}_${track.size}`}
+        duration={s.duration}
+        currentTime={s.currentTime}
+        playing={isPlaying}
+        height={embedded ? EMBEDDED_CANVAS_HEIGHT : CANVAS_HEIGHT}
+      />
 
       <div className="ctl">
         <div className="vol">
@@ -126,11 +145,24 @@ export const StudioPlayer = forwardRef<HTMLElement>(function StudioPlayer(_, ref
           ))}
         </div>
       </div>
+      {embedded && <p className="keys">{t('player.keysHint')}</p>}
     </section>
   );
 });
 
-function Waveform({ seed, duration, currentTime, playing }: { seed: string; duration: number; currentTime: number; playing: boolean }) {
+function Waveform({
+  seed,
+  duration,
+  currentTime,
+  playing,
+  height,
+}: {
+  seed: string;
+  duration: number;
+  currentTime: number;
+  playing: boolean;
+  height: number;
+}) {
   const { t } = useTranslation('recording');
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -148,9 +180,9 @@ function Waveform({ seed, duration, currentTime, playing }: { seed: string; dura
     if (!canvas || !wrap) return;
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth;
-    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(CANVAS_HEIGHT * dpr)) {
+    if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
       canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(CANVAS_HEIGHT * dpr);
+      canvas.height = Math.round(height * dpr);
     }
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -162,13 +194,13 @@ function Waveform({ seed, duration, currentTime, playing }: { seed: string; dura
     const head = color('--head', '#fff');
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, CANVAS_HEIGHT);
-    const mid = CANVAS_HEIGHT / 2;
+    ctx.clearRect(0, 0, width, height);
+    const mid = height / 2;
     const bw = width / WAVEFORM_BARS;
     const px = Math.min(Math.max((audioPlayer.position / total) * width, 0), width);
     for (let i = 0; i < WAVEFORM_BARS; i++) {
       const x = i * bw;
-      const a = wave.amp[i] * (CANVAS_HEIGHT / 2 - 6);
+      const a = wave.amp[i] * (height / 2 - 6);
       const played = x + bw / 2 <= px;
       const who = wave.who[i];
       ctx.fillStyle = who === 0 ? (played ? op : dim) : who === 1 ? (played ? cl : dim) : dim;
@@ -178,13 +210,13 @@ function Waveform({ seed, duration, currentTime, playing }: { seed: string; dura
       ctx.fill();
     }
     ctx.fillStyle = head;
-    ctx.fillRect(px - 1, 0, 2, CANVAS_HEIGHT);
+    ctx.fillRect(px - 1, 0, 2, height);
     ctx.beginPath();
     ctx.arc(px, mid, 5, 0, Math.PI * 2);
     ctx.fill();
     if (hover.current !== null) {
       ctx.fillStyle = 'rgba(128,140,170,0.7)';
-      ctx.fillRect(hover.current, 0, 1, CANVAS_HEIGHT);
+      ctx.fillRect(hover.current, 0, 1, height);
     }
   };
 
@@ -233,6 +265,7 @@ function Waveform({ seed, duration, currentTime, playing }: { seed: string; dura
       </div>
       <canvas
         ref={canvasRef}
+        style={{ height }}
         tabIndex={0}
         role="slider"
         aria-label={t('player.timeline')}

@@ -1,12 +1,12 @@
 import { type CallListItem, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CallDirectionBadge, CallStatusBadge, callDetailsQuery, formatDuration, formatPhone } from '@/entities/call';
 import { ScorePill, callAnalysisQuery } from '@/entities/call-analysis';
 import { useSessionUser } from '@/entities/session';
 import { CallConversation } from '@/features/call-analysis/conversation';
-import { CallRecordingButton } from '@/features/recordings/play-call';
+import { CallRecordingStudio } from '@/features/recordings/play-call';
 import { cn } from '@/shared/lib/cn';
 import { Segmented } from '@/shared/ui/segmented';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
@@ -26,8 +26,9 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 type DetailsTab = 'conversation' | 'legs';
 
 /**
- * Call drill-down: facts, then the AI analysis («Suhbat»: rubric + dialogue, for whoever may read it —
- * `CDR_ACCESS['analysis.call']`) and the raw CDR legs (legacy call detail modal).
+ * Call drill-down: the Studio player for the call's recording (when it has one and the user may listen; it starts
+ * right here, no trip to Audio Explorer), facts, then the AI analysis («Suhbat»: rubric + dialogue, for whoever may
+ * read it — `CDR_ACCESS['analysis.call']`) and the raw CDR legs (legacy call detail modal).
  */
 export function CallDetailsDialog({
   call,
@@ -49,6 +50,8 @@ export function CallDetailsDialog({
   const overall = analysis.data?.analysis?.overall;
   const shownTab: DetailsTab = canAnalyse ? tab : 'legs';
   const c = details.data?.call ?? call;
+  const listenHere = Boolean(c?.hasRecording && canListen);
+  const contentRef = useRef<HTMLDivElement>(null);
   const opName = (ext: string | null) => {
     if (!ext) return '—';
     const o = c?.operators.find((x) => x.ext === ext);
@@ -58,6 +61,14 @@ export function CallDetailsDialog({
   return (
     <Dialog open={Boolean(call)} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
+        ref={contentRef}
+        // With the player: focus the dialog itself, not its first button, so Space / arrows reach the player
+        // shortcuts (a focused button would take Space for itself).
+        onOpenAutoFocus={(e) => {
+          if (!listenHere) return;
+          e.preventDefault();
+          contentRef.current?.focus();
+        }}
         className={cn(
           'max-h-[90svh] overflow-y-auto border-tint/8 bg-card [&>*]:min-w-0',
           canAnalyse ? 'sm:max-w-5xl' : 'sm:max-w-4xl',
@@ -75,6 +86,8 @@ export function CallDetailsDialog({
                 {t('details.title')} · {c.date} {c.time} · ID {c.id}
               </DialogDescription>
             </DialogHeader>
+
+            {listenHere && <CallRecordingStudio uniqueid={c.id} label={recordingLabel(c)} />}
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 [&>*]:min-w-0">
               <Fact label={t('details.talk')}>{formatDuration(c.talkSec)}</Fact>
@@ -103,17 +116,9 @@ export function CallDetailsDialog({
                     ))
                   : '—'}
               </Fact>
+              {/* With listening the Studio player above is the control; this shows the file only. */}
               <Fact label={t('details.recording')}>
-                {c.hasRecording && canListen ? (
-                  <div className="flex flex-col items-start gap-1.5">
-                    <CallRecordingButton uniqueid={c.id} label={recordingLabel(c)} />
-                    {c.recordingFile && (
-                      <span className="font-mono text-[11px] break-all text-muted-foreground">{c.recordingFile}</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className="font-mono text-xs break-all">{c.recordingFile ?? (c.hasRecording ? '✓' : '—')}</span>
-                )}
+                <span className="font-mono text-xs break-all">{c.recordingFile ?? (c.hasRecording ? '✓' : '—')}</span>
               </Fact>
             </div>
 

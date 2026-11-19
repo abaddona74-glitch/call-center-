@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SkipToast, StudioPlayer } from '@/widgets/audio-player';
+import { SkipToast, StudioPlayer } from '@/entities/recording';
 import { EqualizerGlyph } from '@/shared/ui/legacy-icon';
 import { ExplorerBrowser } from './ExplorerBrowser';
 import './explorer.css';
