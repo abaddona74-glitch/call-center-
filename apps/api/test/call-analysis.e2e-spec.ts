@@ -27,11 +27,29 @@ import { Client, type E2eApp, ROOT, createE2eApp, createUser, loginAs } from './
 const TOKEN = 'e2e-worker-token-0123456789abcdef';
 
 // Tue 2026-11-17 (Asia/Tashkent): newest first = c4, c3, c1 among the analysable ones.
-const c1 = inbound({ at: '2026-11-17 09:00:00', caller: '901234567', outcome: 'answered', answeredBy: '101', talk: 90 });
-const cShort = inbound({ at: '2026-11-17 09:30:00', caller: '901234568', outcome: 'answered', answeredBy: '101', talk: 10 });
+const c1 = inbound({
+  at: '2026-11-17 09:00:00',
+  caller: '901234567',
+  outcome: 'answered',
+  answeredBy: '101',
+  talk: 90,
+});
+const cShort = inbound({
+  at: '2026-11-17 09:30:00',
+  caller: '901234568',
+  outcome: 'answered',
+  answeredBy: '101',
+  talk: 10,
+});
 const cAbandoned = inbound({ at: '2026-11-17 10:00:00', caller: '901234569', outcome: 'abandoned', abandonAfter: 30 });
 const c3 = outbound({ at: '2026-11-17 11:00:00', ext: '103', number: '935551122', disposition: 'ANSWERED', talk: 40 });
-const c4 = inbound({ at: '2026-11-17 12:00:00', caller: '901234570', outcome: 'answered', answeredBy: '103', talk: 120 });
+const c4 = inbound({
+  at: '2026-11-17 12:00:00',
+  caller: '901234570',
+  outcome: 'answered',
+  answeredBy: '103',
+  talk: 120,
+});
 const rows: CdrRow[] = [c1, cShort, cAbandoned, c3, c4].flat();
 const idOf = (legs: CdrRow[]) => legs[0].linkedid || legs[0].uniqueid;
 const [ID1, ID3, ID4] = [idOf(c1), idOf(c3), idOf(c4)];
@@ -191,9 +209,16 @@ describe('queueing', () => {
     expect(r).toEqual({ eligible: 3, enqueued: 3 });
     const again = await enqueuer.tick(Date.parse('2026-11-17T12:30:00+05:00'));
     expect(again).toEqual({ eligible: 3, enqueued: 0 });
-    const jobs = await e2e.db.selectFrom('callAnalysisJobs').select(['callId', 'source', 'operatorExt', 'direction']).execute();
+    const jobs = await e2e.db
+      .selectFrom('callAnalysisJobs')
+      .select(['callId', 'source', 'operatorExt', 'direction'])
+      .execute();
     expect(jobs.map((j) => j.callId).sort()).toEqual([ID1, ID3, ID4].sort());
-    expect(jobs.find((j) => j.callId === ID4)).toMatchObject({ source: 'auto', operatorExt: '103', direction: 'inbound' });
+    expect(jobs.find((j) => j.callId === ID4)).toMatchObject({
+      source: 'auto',
+      operatorExt: '103',
+      direction: 'inbound',
+    });
     expect(jobs.find((j) => j.callId === ID3)).toMatchObject({ operatorExt: '103', direction: 'outbound' });
   });
 
@@ -230,7 +255,9 @@ describe('worker flow', () => {
     expect(rec.headers['content-type']).toBe('audio/wav');
     expect(Number(rec.headers['content-length'])).toBe(16_044);
     await worker().get(`/jobs/${ID4}/recording?workerId=w2`).expect(409);
-    await worker().post(`/jobs/${ID4}/result`, result({ workerId: 'w2' })).expect(409);
+    await worker()
+      .post(`/jobs/${ID4}/result`, result({ workerId: 'w2' }))
+      .expect(409);
     await worker().post(`/jobs/${ID4}/fail`, { workerId: 'w2', error: 'x', retryable: true }).expect(409);
   });
 
@@ -251,7 +278,9 @@ describe('worker flow', () => {
       speaker: i % 2 ? 'SPEAKER_00' : 'SPEAKER_01',
       text: 'Assalomu alaykum, kalitim ishlamayapti, yordam bering iltimos. '.repeat(2),
     }));
-    const big = JSON.stringify(result({ transcript: { language: 'uz', audioSec: 3000, segments } as WorkerResult['transcript'] }));
+    const big = JSON.stringify(
+      result({ transcript: { language: 'uz', audioSec: 3000, segments } as WorkerResult['transcript'] }),
+    );
     expect(big.length).toBeGreaterThan(150_000);
     const ok = await request(e2e.app.getHttpServer())
       .post(`/api/call-analysis/worker/jobs/${ID4}/result`)
@@ -265,21 +294,31 @@ describe('worker flow', () => {
   });
 
   it('a normal-sized result as plain JSON', async () => {
-    await worker().post(`/jobs/${ID1}/result`, result({ workerId: 'w2' })).expect(200);
+    await worker()
+      .post(`/jobs/${ID1}/result`, result({ workerId: 'w2' }))
+      .expect(200);
     const job = await jobRow(ID1);
     expect(job).toMatchObject({ status: 'done', leaseOwner: null, lastError: null });
     expect(job.finishedAt).not.toBeNull();
   });
 
   it('retryable failures wait and come back; the last attempt fails; retry-failed requeues', async () => {
-    const f = await worker().post(`/jobs/${ID3}/fail`, { workerId: 'w2', error: 'STT 503 for 998901234567', retryable: true });
+    const f = await worker().post(`/jobs/${ID3}/fail`, {
+      workerId: 'w2',
+      error: 'STT 503 for 998901234567',
+      retryable: true,
+    });
     expect(f.status).toBe(200);
     expect(f.body.status).toBe('queued');
     const job = await jobRow(ID3);
     expect(job.lastError).toBe('STT 503 for ***');
     expect(job.notBefore!.getTime()).toBeGreaterThan(Date.now());
     expect((await lease('w1').expect(200)).body.jobs).toEqual([]); // still waiting
-    await e2e.db.updateTable('callAnalysisJobs').set({ notBefore: sql<Date>`now() - interval '1 second'` }).where('callId', '=', ID3).execute();
+    await e2e.db
+      .updateTable('callAnalysisJobs')
+      .set({ notBefore: sql<Date>`now() - interval '1 second'` })
+      .where('callId', '=', ID3)
+      .execute();
     const again = await lease('w1').expect(200);
     expect(again.body.jobs[0]).toMatchObject({ callId: ID3, attempts: 2 });
     const last = await worker().post(`/jobs/${ID3}/fail`, { workerId: 'w1', error: 'LLM timeout', retryable: true });
@@ -297,11 +336,21 @@ describe('worker flow', () => {
 
   it('an expired lease goes to another worker; the old holder loses it; exhausted leases fail', async () => {
     expect((await lease('w1').expect(200)).body.jobs[0].callId).toBe(ID3);
-    await e2e.db.updateTable('callAnalysisJobs').set({ leaseUntil: sql<Date>`now() - interval '1 second'` }).where('callId', '=', ID3).execute();
+    await e2e.db
+      .updateTable('callAnalysisJobs')
+      .set({ leaseUntil: sql<Date>`now() - interval '1 second'` })
+      .where('callId', '=', ID3)
+      .execute();
     const taken = await lease('w2').expect(200);
     expect(taken.body.jobs[0]).toMatchObject({ callId: ID3, attempts: 2 });
-    await worker().post(`/jobs/${ID3}/result`, result({ workerId: 'w1' })).expect(409);
-    await e2e.db.updateTable('callAnalysisJobs').set({ leaseUntil: sql<Date>`now() - interval '1 second'` }).where('callId', '=', ID3).execute();
+    await worker()
+      .post(`/jobs/${ID3}/result`, result({ workerId: 'w1' }))
+      .expect(409);
+    await e2e.db
+      .updateTable('callAnalysisJobs')
+      .set({ leaseUntil: sql<Date>`now() - interval '1 second'` })
+      .where('callId', '=', ID3)
+      .execute();
     expect((await lease('w3').expect(200)).body.jobs).toEqual([]);
     expect(await jobRow(ID3)).toMatchObject({ status: 'failed', lastError: 'lease expired' });
   });
@@ -386,7 +435,13 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
     const leased = await lease('w1', 5).expect(200);
     expect(leased.body.jobs).toEqual([expect.objectContaining({ callId: ID1, mode: 'llm_only', attempts: 1 })]);
     const t = await worker().get(`/jobs/${ID1}/transcript?workerId=w1`).expect(200);
-    expect(t.body).toMatchObject({ language: 'uz', sttStrategy: 'turns', sttModel: 'whisper-uz', sttMs: 1000, sttRerun: false });
+    expect(t.body).toMatchObject({
+      language: 'uz',
+      sttStrategy: 'turns',
+      sttModel: 'whisper-uz',
+      sttMs: 1000,
+      sttRerun: false,
+    });
     expect(t.body.segments).toHaveLength(2);
     await worker().get(`/jobs/${ID1}/transcript?workerId=w2`).expect(409);
 
@@ -403,6 +458,11 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
     const r = await root.post('/call-analysis/reanalyze', { from: '2026-11-17', to: '2026-11-17' }).expect(200);
     expect(r.body).toEqual({ requeued: 2 });
     const jobs = (await lease('w1', 5).expect(200)).body.jobs as Array<{ callId: string; mode: string }>;
-    expect(jobs.map((j) => [j.callId, j.mode]).sort()).toEqual([[ID1, 'llm_only'], [ID4, 'llm_only']].sort());
+    expect(jobs.map((j) => [j.callId, j.mode]).sort()).toEqual(
+      [
+        [ID1, 'llm_only'],
+        [ID4, 'llm_only'],
+      ].sort(),
+    );
   });
 });

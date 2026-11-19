@@ -62,7 +62,10 @@ export function buildResult(input: {
     workerId: input.workerId,
     transcript: {
       // the model's judgement of the spoken language, or ours when STT re-ran turns in Russian
-      language: input.stt.rerun && input.llm.analysis.language === 'uz' ? callLanguage(segments.map((s) => s.text)) : input.llm.analysis.language,
+      language:
+        input.stt.rerun && input.llm.analysis.language === 'uz'
+          ? callLanguage(segments.map((s) => s.text))
+          : input.llm.analysis.language,
       segments,
       audioSec: Math.round(input.audioSec * 100) / 100,
     },

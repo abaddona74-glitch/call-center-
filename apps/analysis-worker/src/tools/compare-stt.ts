@@ -59,10 +59,20 @@ async function main(): Promise<void> {
   });
   if (!values.calls || !values.monitor || !values.out) throw new Error('--calls, --monitor and --out are required');
   const env = z
-    .object({ CC_AI_STT_URL: z.url(), CC_AI_LLM_URL: z.url(), CC_AI_LLM_MODEL: z.string(), CC_AI_LLM_API_KEY: z.string() })
+    .object({
+      CC_AI_STT_URL: z.url(),
+      CC_AI_LLM_URL: z.url(),
+      CC_AI_LLM_MODEL: z.string(),
+      CC_AI_LLM_API_KEY: z.string(),
+    })
     .parse(process.env);
   const stt = new HttpSttClient(env.CC_AI_STT_URL.replace(/\/+$/, ''), 900_000);
-  const llm = new HttpLlmClient(env.CC_AI_LLM_URL.replace(/\/+$/, ''), env.CC_AI_LLM_MODEL, env.CC_AI_LLM_API_KEY, 600_000);
+  const llm = new HttpLlmClient(
+    env.CC_AI_LLM_URL.replace(/\/+$/, ''),
+    env.CC_AI_LLM_MODEL,
+    env.CC_AI_LLM_API_KEY,
+    600_000,
+  );
 
   const all = CallsSchema.parse(JSON.parse(await readFile(values.calls, 'utf8'))).calls;
   let picked;
@@ -89,7 +99,11 @@ async function main(): Promise<void> {
     }
     const audio = await readFile(path.join(values.monitor, call.recordings[0]));
     const wav = parseWav(audio);
-    const row: Record<string, unknown> = { callId: call.callId, direction: call.direction, audioSec: Math.round(wav.durationSec) };
+    const row: Record<string, unknown> = {
+      callId: call.callId,
+      direction: call.direction,
+      audioSec: Math.round(wav.durationSec),
+    };
     const detail: Record<string, unknown> = { ...row };
     const modesWanted = new Set(values.modes.split(','));
     for (const strategy of ['chunks', 'turns'] as const) {

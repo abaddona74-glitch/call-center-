@@ -77,21 +77,25 @@ describe('CallAnalysisSchema', () => {
 
 describe('TranscriptSegmentSchema', () => {
   it('needs end ≥ start and a known role', () => {
-    expect(TranscriptSegmentSchema.safeParse({ start: 2, end: 1, role: 'client', speaker: null, text: '' }).success).toBe(
-      false,
-    );
-    expect(TranscriptSegmentSchema.safeParse({ start: 1, end: 2, role: 'agent', speaker: null, text: '' }).success).toBe(
-      false,
-    );
-    expect(TranscriptSegmentSchema.safeParse({ start: 1, end: 1, role: 'unknown', speaker: null, text: '' }).success).toBe(
-      true,
-    );
+    expect(
+      TranscriptSegmentSchema.safeParse({ start: 2, end: 1, role: 'client', speaker: null, text: '' }).success,
+    ).toBe(false);
+    expect(
+      TranscriptSegmentSchema.safeParse({ start: 1, end: 2, role: 'agent', speaker: null, text: '' }).success,
+    ).toBe(false);
+    expect(
+      TranscriptSegmentSchema.safeParse({ start: 1, end: 1, role: 'unknown', speaker: null, text: '' }).success,
+    ).toBe(true);
   });
 });
 
 describe('worker contracts', () => {
   it('lease request: defaults and limits', () => {
-    expect(WorkerLeaseRequestSchema.parse({ workerId: 'mac-1' })).toEqual({ workerId: 'mac-1', limit: 1, leaseSec: 900 });
+    expect(WorkerLeaseRequestSchema.parse({ workerId: 'mac-1' })).toEqual({
+      workerId: 'mac-1',
+      limit: 1,
+      leaseSec: 900,
+    });
     expect(WorkerLeaseRequestSchema.safeParse({ workerId: 'mac 1' }).success).toBe(false);
     expect(WorkerLeaseRequestSchema.safeParse({ workerId: 'mac-1', limit: 11 }).success).toBe(false);
     expect(WorkerLeaseRequestSchema.safeParse({ workerId: 'mac-1', leaseSec: 30 }).success).toBe(false);
@@ -126,8 +130,13 @@ describe('llm_only re-analysis', () => {
       }).success,
     ).toBe(true);
     expect(
-      WorkerTranscriptSchema.safeParse({ ...result.transcript, sttStrategy: 'turns', sttModel: 'w', sttMs: 1, sttRerun: false })
-        .success,
+      WorkerTranscriptSchema.safeParse({
+        ...result.transcript,
+        sttStrategy: 'turns',
+        sttModel: 'w',
+        sttMs: 1,
+        sttRerun: false,
+      }).success,
     ).toBe(true);
   });
 });
@@ -140,9 +149,9 @@ describe('read contracts', () => {
 
   it('stats query: from ≤ to, operator is an extension', () => {
     expect(CallAnalysisStatsQuerySchema.safeParse({ from: '2026-11-02', to: '2026-11-01' }).success).toBe(false);
-    expect(CallAnalysisStatsQuerySchema.safeParse({ from: '2026-11-01', to: '2026-11-02', operator: 'abc' }).success).toBe(
-      false,
-    );
+    expect(
+      CallAnalysisStatsQuerySchema.safeParse({ from: '2026-11-01', to: '2026-11-02', operator: 'abc' }).success,
+    ).toBe(false);
     expect(CallAnalysisStatsQuerySchema.parse({ from: '2026-11-01', to: '2026-11-02', operator: '101' }).operator).toBe(
       '101',
     );

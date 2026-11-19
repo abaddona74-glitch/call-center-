@@ -66,7 +66,11 @@ export function dropEchoedTurns<T extends { start: number; end: number; speaker:
   return segments.filter((_, i) => !drop.has(i));
 }
 
-async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, i: number) => Promise<R>,
+): Promise<R[]> {
   const out: R[] = Array.from({ length: items.length });
   let next = 0;
   const run = async () => {

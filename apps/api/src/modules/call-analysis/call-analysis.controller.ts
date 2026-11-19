@@ -51,7 +51,9 @@ export class CallAnalysisController {
   @Get('status')
   @RequirePermission(CDR_ACCESS['analysis.call'])
   @SerializeOptions({ schema: CallAnalysisStatusResponseSchema })
-  status(@Query({ schema: CallAnalysisStatusQuerySchema }) q: CallAnalysisStatusQuery): Promise<CallAnalysisStatusResponse> {
+  status(
+    @Query({ schema: CallAnalysisStatusQuerySchema }) q: CallAnalysisStatusQuery,
+  ): Promise<CallAnalysisStatusResponse> {
     return this.analysis.status(q.ids);
   }
 

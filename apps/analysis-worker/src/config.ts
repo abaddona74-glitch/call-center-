@@ -2,9 +2,7 @@ import { hostname } from 'node:os';
 import { STT_STRATEGIES, WorkerIdSchema } from '@cc/shared';
 import { z } from 'zod';
 
-const url = z
-  .url({ protocol: /^https?$/ })
-  .transform((v) => v.replace(/\/+$/, ''));
+const url = z.url({ protocol: /^https?$/ }).transform((v) => v.replace(/\/+$/, ''));
 
 /**
  * Worker settings, all from the environment (docs/rewrite/CALL-ANALYSIS.md §Runbook). On the Mac:

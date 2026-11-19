@@ -35,7 +35,16 @@ const rows: AnalysisFacts[] = [
     sentimentEnd: 'negative',
   },
   { ...base, callId: '3', startedAt: '2026-11-13T11:00:00.000Z', outcome: 'ticket_opened', overall: 7 },
-  { ...base, callId: '4', startedAt: '2026-11-13T12:00:00.000Z', operatorExt: '102', outcome: 'unresolved', hasTicket: true, overall: 6, redFlagCodes: ['interrupting'] },
+  {
+    ...base,
+    callId: '4',
+    startedAt: '2026-11-13T12:00:00.000Z',
+    operatorExt: '102',
+    outcome: 'unresolved',
+    hasTicket: true,
+    overall: 6,
+    redFlagCodes: ['interrupting'],
+  },
 ];
 const topics = [
   { code: 'edo', nameUz: 'EDO', nameRu: 'ЭДО', sort: 10 },

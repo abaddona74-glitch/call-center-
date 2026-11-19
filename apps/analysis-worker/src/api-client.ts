@@ -61,7 +61,10 @@ export class HttpApiClient implements ApiClient {
 
   async recording(callId: string): Promise<Buffer> {
     const q = new URLSearchParams({ workerId: this.workerId });
-    const res = await this.request(`/jobs/${encodeURIComponent(callId)}/recording?${q}`, { method: 'GET', timeoutMs: 300_000 });
+    const res = await this.request(`/jobs/${encodeURIComponent(callId)}/recording?${q}`, {
+      method: 'GET',
+      timeoutMs: 300_000,
+    });
     const size = Number(res.headers.get('content-length') ?? 0);
     if (size > MAX_RECORDING_BYTES) throw new ServiceError('api', 'recording is larger than 100 MiB', false);
     return Buffer.from(await res.arrayBuffer());
@@ -74,7 +77,10 @@ export class HttpApiClient implements ApiClient {
   }
 
   async submit(callId: string, result: WorkerResult): Promise<WorkerAck> {
-    const res = await this.request(`/jobs/${encodeURIComponent(callId)}/result`, this.json(result, RESULT_CONTENT_TYPE));
+    const res = await this.request(
+      `/jobs/${encodeURIComponent(callId)}/result`,
+      this.json(result, RESULT_CONTENT_TYPE),
+    );
     return WorkerAckSchema.parse(await res.json());
   }
 
@@ -87,7 +93,10 @@ export class HttpApiClient implements ApiClient {
   }
 
   async skip(callId: string, reason: SkipReason): Promise<WorkerAck> {
-    const res = await this.request(`/jobs/${encodeURIComponent(callId)}/skip`, this.json({ workerId: this.workerId, reason }));
+    const res = await this.request(
+      `/jobs/${encodeURIComponent(callId)}/skip`,
+      this.json({ workerId: this.workerId, reason }),
+    );
     return WorkerAckSchema.parse(await res.json());
   }
 }

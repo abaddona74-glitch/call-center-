@@ -47,7 +47,10 @@ export class CallAnalysisQueueService {
   // --- what gets queued ---
 
   /** Queues the analysable calls among these; returns how many were new. */
-  async enqueueCalls(calls: readonly AssembledCall[], source: 'auto' | 'manual'): Promise<{ eligible: number; enqueued: number }> {
+  async enqueueCalls(
+    calls: readonly AssembledCall[],
+    source: 'auto' | 'manual',
+  ): Promise<{ eligible: number; enqueued: number }> {
     const eligible = calls.filter((c) => isAnalyzable(c, this.minTalkSec));
     const inserted = await this.repo.enqueue(
       eligible.map((c) => jobOf(c, wallToIso)),
@@ -170,7 +173,8 @@ export class CallAnalysisQueueService {
     if (!job) throw new ConflictException('This worker does not hold the lease of the job');
     const next = afterFailure({ attempts: job.attempts, maxAttempts: this.maxAttempts, retryable: req.retryable });
     const lastError = sanitizeError(req.error);
-    if (next.status === 'queued') await this.repo.finishJob(callId, { status: 'queued', lastError, delaySec: next.delaySec });
+    if (next.status === 'queued')
+      await this.repo.finishJob(callId, { status: 'queued', lastError, delaySec: next.delaySec });
     else await this.repo.finishJob(callId, { status: 'failed', lastError });
     this.logger.warn(`call ${callId}: worker ${req.workerId} failed (attempt ${job.attempts}) → ${next.status}`);
     return { ok: true, status: next.status };

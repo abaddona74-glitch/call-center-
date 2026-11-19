@@ -92,7 +92,11 @@ export class HttpSttClient implements SttClient {
   private async post(path: string, form: FormData): Promise<unknown> {
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl}${path}`, { method: 'POST', body: form, signal: AbortSignal.timeout(this.timeoutMs) });
+      res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
     } catch (err) {
       throw new ServiceError('stt', `${path} request failed (${(err as Error).name})`, true);
     }

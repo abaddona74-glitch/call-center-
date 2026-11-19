@@ -15,7 +15,12 @@ async function main(): Promise<void> {
   const cfg = loadConfig();
   const api = new HttpApiClient(cfg.CC_API_URL, cfg.CC_API_TOKEN, cfg.CC_WORKER_ID);
   const stt = new HttpSttClient(cfg.CC_AI_STT_URL, cfg.CC_STT_TIMEOUT_SEC * 1000);
-  const llm = new HttpLlmClient(cfg.CC_AI_LLM_URL, cfg.CC_AI_LLM_MODEL, cfg.CC_AI_LLM_API_KEY, cfg.CC_LLM_TIMEOUT_SEC * 1000);
+  const llm = new HttpLlmClient(
+    cfg.CC_AI_LLM_URL,
+    cfg.CC_AI_LLM_MODEL,
+    cfg.CC_AI_LLM_API_KEY,
+    cfg.CC_LLM_TIMEOUT_SEC * 1000,
+  );
 
   let stopping = false;
   const stop = (signal: string) => {
@@ -53,16 +58,27 @@ async function main(): Promise<void> {
         await sleep(cfg.CC_WORKER_POLL_SEC * 1000);
         continue;
       }
-      log.info('job leased', { slot: n, callId: job.callId, mode: job.mode, attempt: job.attempts, talkSec: job.talkSec });
+      log.info('job leased', {
+        slot: n,
+        callId: job.callId,
+        mode: job.mode,
+        attempt: job.attempts,
+        talkSec: job.talkSec,
+      });
       count(
-        await processJob(job, lease.topics, { api, stt, llm }, {
-          workerId: cfg.CC_WORKER_ID,
-          strategy: cfg.CC_STT_STRATEGY,
-          turnConcurrency: cfg.CC_STT_TURN_CONCURRENCY,
-          ruThreshold: cfg.CC_STT_RU_THRESHOLD,
-          thinking: cfg.CC_LLM_THINKING,
-          maxAudioSec: cfg.CC_WORKER_MAX_AUDIO_SEC,
-        }),
+        await processJob(
+          job,
+          lease.topics,
+          { api, stt, llm },
+          {
+            workerId: cfg.CC_WORKER_ID,
+            strategy: cfg.CC_STT_STRATEGY,
+            turnConcurrency: cfg.CC_STT_TURN_CONCURRENCY,
+            ruThreshold: cfg.CC_STT_RU_THRESHOLD,
+            thinking: cfg.CC_LLM_THINKING,
+            maxAudioSec: cfg.CC_WORKER_MAX_AUDIO_SEC,
+          },
+        ),
       );
     }
   };

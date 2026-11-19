@@ -12,7 +12,8 @@ registerTranslations('analysisQueueActions', {
       "{{from}} — {{to}} oralig'idagi qo'ng'iroqlar navbatga qo'shilsinmi? Ko'p qo'ng'iroqlar AI serverlarini uzoq band qiladi.",
     backfilled: "Mos keldi: {{eligible}} · qo'shildi: {{enqueued}} · avval bor: {{existing}}",
     reanalyze: 'Qayta baholash (LLM)',
-    reanalyzeHint: "Tahlil qilingan qo'ng'iroqlar yangi prompt versiyasi bilan qayta baholanadi (nutqni qayta tanimasdan).",
+    reanalyzeHint:
+      "Tahlil qilingan qo'ng'iroqlar yangi prompt versiyasi bilan qayta baholanadi (nutqni qayta tanimasdan).",
     reanalyzeConfirm:
       "{{from}} — {{to}} oralig'idagi tahlil qilingan qo'ng'iroqlar joriy prompt versiyasi bilan qayta baholansinmi? Matn qayta tanilmaydi, faqat LLM.",
     reanalyzed: "Qayta baholashga qo'yildi: {{n}}",
@@ -32,7 +33,8 @@ registerTranslations('analysisQueueActions', {
     backfillConfirm: 'Поставить в очередь звонки за {{from}} — {{to}}? Много звонков надолго займут AI-серверы.',
     backfilled: 'Подходит: {{eligible}} · добавлено: {{enqueued}} · уже были: {{existing}}',
     reanalyze: 'Переоценить (LLM)',
-    reanalyzeHint: 'Проанализированные звонки заново оцениваются текущей версией промпта (без повторного распознавания речи).',
+    reanalyzeHint:
+      'Проанализированные звонки заново оцениваются текущей версией промпта (без повторного распознавания речи).',
     reanalyzeConfirm:
       'Переоценить проанализированные звонки за {{from}} — {{to}} текущей версией промпта? Речь не распознаётся заново, работает только LLM.',
     reanalyzed: 'Поставлено на переоценку: {{n}}',

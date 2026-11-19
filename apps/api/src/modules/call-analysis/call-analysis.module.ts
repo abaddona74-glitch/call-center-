@@ -13,6 +13,12 @@ import { WorkerTokenGuard } from './worker-token.guard.js';
 @Module({
   imports: [PbxCallsModule, RecordingsModule],
   controllers: [CallAnalysisController, CallAnalysisWorkerController],
-  providers: [CallAnalysisRepository, CallAnalysisService, CallAnalysisQueueService, CallAnalysisEnqueuer, WorkerTokenGuard],
+  providers: [
+    CallAnalysisRepository,
+    CallAnalysisService,
+    CallAnalysisQueueService,
+    CallAnalysisEnqueuer,
+    WorkerTokenGuard,
+  ],
 })
 export class CallAnalysisModule {}

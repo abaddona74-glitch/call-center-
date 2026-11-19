@@ -38,7 +38,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 const mean = (values: number[]) => (values.length ? round2(values.reduce((a, b) => a + b, 0) / values.length) : null);
 
 function avgScores(rows: readonly AnalysisFacts[]): CallAnalysisStats['totals']['avgScores'] {
-  return Object.fromEntries(KPI_CRITERIA.map((k) => [k, mean(rows.map((r) => r.scores[k]))])) as CallAnalysisStats['totals']['avgScores'];
+  return Object.fromEntries(
+    KPI_CRITERIA.map((k) => [k, mean(rows.map((r) => r.scores[k]))]),
+  ) as CallAnalysisStats['totals']['avgScores'];
 }
 
 /**
@@ -101,9 +103,7 @@ export function aggregateAnalyses(
       avgOverall: mean(list.map((r) => r.overall)),
       avgScores: avgScores(list),
       redFlagCalls: list.filter((r) => r.redFlagCodes.length > 0).length,
-      resolvedRate: round2(
-        (list.filter((r) => HANDLED_OUTCOMES.includes(r.outcome)).length / list.length) * 100,
-      ),
+      resolvedRate: round2((list.filter((r) => HANDLED_OUTCOMES.includes(r.outcome)).length / list.length) * 100),
     }))
     .sort((a, b) => b.analyzed - a.analyzed || a.ext.localeCompare(b.ext, undefined, { numeric: true }));
 

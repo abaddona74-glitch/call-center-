@@ -38,12 +38,18 @@ describe('turns', () => {
   const seg = (speaker: string, s: number, e: number) => ({ speaker, start_seconds: s, end_seconds: e });
 
   it('merges a speaker’s close turns unless the other speaker talked in between', () => {
-    expect(buildTurns([seg('A', 0, 2), seg('A', 2.5, 4), seg('B', 5, 7), seg('A', 7.2, 9), seg('A', 9.5, 10)])).toEqual([
-      { speaker: 'A', start: 0, end: 4 },
-      { speaker: 'B', start: 5, end: 7 },
-      { speaker: 'A', start: 7.2, end: 10 },
+    expect(buildTurns([seg('A', 0, 2), seg('A', 2.5, 4), seg('B', 5, 7), seg('A', 7.2, 9), seg('A', 9.5, 10)])).toEqual(
+      [
+        { speaker: 'A', start: 0, end: 4 },
+        { speaker: 'B', start: 5, end: 7 },
+        { speaker: 'A', start: 7.2, end: 10 },
+      ],
+    );
+    expect(buildTurns([seg('A', 0, 2), seg('B', 2.1, 2.6), seg('A', 2.7, 4)]).map((t) => t.speaker)).toEqual([
+      'A',
+      'B',
+      'A',
     ]);
-    expect(buildTurns([seg('A', 0, 2), seg('B', 2.1, 2.6), seg('A', 2.7, 4)]).map((t) => t.speaker)).toEqual(['A', 'B', 'A']);
   });
 
   it('drops blips and backchannels inside the other speaker’s turn', () => {
@@ -82,7 +88,9 @@ describe('turns', () => {
 
 describe('text', () => {
   it('collapses looped words and phrases, keeps normal repetition', () => {
-    expect(collapseRepeats('qani, bu yerda mana bu yerda mana bu yerda mana bu yerda mana')).toBe('qani, bu yerda mana');
+    expect(collapseRepeats('qani, bu yerda mana bu yerda mana bu yerda mana bu yerda mana')).toBe(
+      'qani, bu yerda mana',
+    );
     expect(collapseRepeats('ha ha ha ha ha')).toBe('ha');
     expect(collapseRepeats('ha, ha. bo‘ldi')).toBe('ha, ha. bo‘ldi');
   });

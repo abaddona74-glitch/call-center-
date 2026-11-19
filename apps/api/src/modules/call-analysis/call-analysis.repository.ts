@@ -1,4 +1,10 @@
-import type { CallAnalysisBackfillRequest, CallAnalysisJobStatus, SkipReason, TicketStatus, WorkerResult } from '@cc/shared';
+import type {
+  CallAnalysisBackfillRequest,
+  CallAnalysisJobStatus,
+  SkipReason,
+  TicketStatus,
+  WorkerResult,
+} from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { type DbHost, InjectDb } from '../../database/db.js';
@@ -128,7 +134,12 @@ export class CallAnalysisRepository {
 
   async finishJob(
     callId: string,
-    patch: { status: 'done' | 'failed' | 'skipped' | 'queued'; lastError?: string | null; skipReason?: SkipReason; delaySec?: number },
+    patch: {
+      status: 'done' | 'failed' | 'skipped' | 'queued';
+      lastError?: string | null;
+      skipReason?: SkipReason;
+      delaySec?: number;
+    },
   ): Promise<void> {
     const terminal = patch.status !== 'queued';
     await this.db
@@ -213,7 +224,11 @@ export class CallAnalysisRepository {
         updatedAt: sql<Date>`now()`,
       })
       .where('status', '=', 'done')
-      .where((eb) => eb.exists(eb.selectFrom('callTranscripts as t').select('t.callId').whereRef('t.callId', '=', 'callAnalysisJobs.callId')));
+      .where((eb) =>
+        eb.exists(
+          eb.selectFrom('callTranscripts as t').select('t.callId').whereRef('t.callId', '=', 'callAnalysisJobs.callId'),
+        ),
+      );
     q =
       'callIds' in req
         ? q.where('callId', 'in', req.callIds)
@@ -225,7 +240,14 @@ export class CallAnalysisRepository {
   async retryFailed(): Promise<number> {
     const res = await this.db
       .updateTable('callAnalysisJobs')
-      .set({ status: 'queued', attempts: 0, notBefore: null, lastError: null, finishedAt: null, updatedAt: sql<Date>`now()` })
+      .set({
+        status: 'queued',
+        attempts: 0,
+        notBefore: null,
+        lastError: null,
+        finishedAt: null,
+        updatedAt: sql<Date>`now()`,
+      })
       .where('status', '=', 'failed')
       .executeTakeFirst();
     return Number(res.numUpdatedRows);
@@ -392,7 +414,9 @@ export class CallAnalysisRepository {
     return this.db
       .selectFrom('callAnalysisJobs')
       .select(['callId', 'attempts', 'lastError', 'updatedAt'])
-      .where((eb) => eb.or([eb('status', '=', 'failed'), eb.and([eb('status', '=', 'queued'), eb('lastError', 'is not', null)])]))
+      .where((eb) =>
+        eb.or([eb('status', '=', 'failed'), eb.and([eb('status', '=', 'queued'), eb('lastError', 'is not', null)])]),
+      )
       .orderBy('updatedAt', 'desc')
       .limit(limit)
       .execute();

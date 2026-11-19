@@ -1,4 +1,10 @@
-import { CALL_ANALYSIS_PROMPT_VERSION, type SkipReason, type WorkerJob, type WorkerResult, WorkerResultSchema } from '@cc/shared';
+import {
+  CALL_ANALYSIS_PROMPT_VERSION,
+  type SkipReason,
+  type WorkerJob,
+  type WorkerResult,
+  WorkerResultSchema,
+} from '@cc/shared';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from './api-client.js';
 import type { ChatRequest, LlmClient } from './llm/llm-client.js';
@@ -57,12 +63,21 @@ function fakeApi(audio: Buffer | Error = pcmWav(30)) {
       sttMs: 12_345,
       sttRerun: false,
       segments: [
-        { start: 0.5, end: 4, role: 'unknown' as const, speaker: 'SPEAKER_01', text: 'Assalomu alaykum, Call Center xizmati' },
+        {
+          start: 0.5,
+          end: 4,
+          role: 'unknown' as const,
+          speaker: 'SPEAKER_01',
+          text: 'Assalomu alaykum, Call Center xizmati',
+        },
         { start: 4.5, end: 9, role: 'unknown' as const, speaker: 'SPEAKER_00', text: 'Kalitim ishlamayapti' },
       ],
     })),
     submit: vi.fn(async (_callId: string, _result: WorkerResult) => ({ ok: true as const, status: 'done' as const })),
-    fail: vi.fn(async (_callId: string, _error: string, _retryable: boolean) => ({ ok: true as const, status: 'queued' as const })),
+    fail: vi.fn(async (_callId: string, _error: string, _retryable: boolean) => ({
+      ok: true as const,
+      status: 'queued' as const,
+    })),
     skip: vi.fn(async (_callId: string, _reason: SkipReason) => ({ ok: true as const, status: 'skipped' as const })),
   } satisfies ApiClient;
 }
@@ -86,11 +101,23 @@ function fakeLlm(answers: string[]): LlmClient & { chat: ReturnType<typeof vi.fn
   let i = 0;
   return {
     model: '/mnt/models/DeepSeek-V4-Flash',
-    chat: vi.fn(async (_req: ChatRequest) => ({ content: answers[Math.min(i++, answers.length - 1)], finishReason: 'stop', promptTokens: 100, completionTokens: 50 })),
+    chat: vi.fn(async (_req: ChatRequest) => ({
+      content: answers[Math.min(i++, answers.length - 1)],
+      finishReason: 'stop',
+      promptTokens: 100,
+      completionTokens: 50,
+    })),
   };
 }
 
-const opts = { workerId: 'mac-1', strategy: 'turns' as const, turnConcurrency: 2, ruThreshold: 0.35, thinking: false, maxAudioSec: 1800 };
+const opts = {
+  workerId: 'mac-1',
+  strategy: 'turns' as const,
+  turnConcurrency: 2,
+  ruThreshold: 0.35,
+  thinking: false,
+  maxAudioSec: 1800,
+};
 
 describe('processJob', () => {
   it('maps STT turns and the LLM answer to a valid result: roles by speaker, masked texts, versions', async () => {
@@ -136,7 +163,15 @@ describe('processJob', () => {
 
   it('applies the model’s per-line role fixes (diarization gave a line to the wrong side)', async () => {
     const api = fakeApi();
-    const llm = fakeLlm([JSON.stringify({ ...llmAnswer, role_fixes: [{ line: 3, role: 'client' }, { line: 99, role: 'client' }] })]);
+    const llm = fakeLlm([
+      JSON.stringify({
+        ...llmAnswer,
+        role_fixes: [
+          { line: 3, role: 'client' },
+          { line: 99, role: 'client' },
+        ],
+      }),
+    ]);
     await processJob(job, topics, { api, stt: fakeStt(), llm }, opts);
     const r = WorkerResultSchema.parse(api.submit.mock.calls[0][1]);
     expect(r.transcript.segments.map((x) => x.role)).toEqual(['operator', 'client', 'client']);
@@ -160,7 +195,12 @@ describe('processJob', () => {
 
   it('a second invalid answer is a retryable failure (no values in the error)', async () => {
     const api = fakeApi();
-    const out = await processJob(job, topics, { api, stt: fakeStt(), llm: fakeLlm(['not json', '{"overall": 99}']) }, opts);
+    const out = await processJob(
+      job,
+      topics,
+      { api, stt: fakeStt(), llm: fakeLlm(['not json', '{"overall": 99}']) },
+      opts,
+    );
     expect(out).toMatchObject({ kind: 'failed', retryable: true });
     expect(api.fail).toHaveBeenCalledWith(job.callId, expect.stringContaining('LLM output invalid'), true);
     expect(api.fail.mock.calls[0][1]).not.toContain('99');
@@ -171,10 +211,16 @@ describe('processJob', () => {
     const busy = fakeStt();
     busy.diarize.mockRejectedValueOnce(new ServiceError('stt', '/v1/diarizations HTTP 503', true, 503));
     const api = fakeApi();
-    expect(await processJob(job, topics, { api, stt: busy, llm: fakeLlm(['{}']) }, opts)).toMatchObject({ kind: 'failed', retryable: true });
+    expect(await processJob(job, topics, { api, stt: busy, llm: fakeLlm(['{}']) }, opts)).toMatchObject({
+      kind: 'failed',
+      retryable: true,
+    });
     const bad = fakeStt();
     bad.diarize.mockRejectedValueOnce(new ServiceError('stt', '/v1/diarizations HTTP 400', false, 400));
-    expect(await processJob(job, topics, { api, stt: bad, llm: fakeLlm(['{}']) }, opts)).toMatchObject({ kind: 'failed', retryable: false });
+    expect(await processJob(job, topics, { api, stt: bad, llm: fakeLlm(['{}']) }, opts)).toMatchObject({
+      kind: 'failed',
+      retryable: false,
+    });
     expect(api.fail).toHaveBeenLastCalledWith(job.callId, 'stt: /v1/diarizations HTTP 400', false);
   });
 
@@ -186,14 +232,22 @@ describe('processJob', () => {
       [fakeApi(new ServiceError('api', 'recording HTTP 404', false, 404)), 'no_recording'],
     ];
     for (const [api, reason] of cases) {
-      const out = await processJob(job, topics, { api, stt: fakeStt(), llm: fakeLlm(['{}']) }, { ...opts, maxAudioSec: 60 });
+      const out = await processJob(
+        job,
+        topics,
+        { api, stt: fakeStt(), llm: fakeLlm(['{}']) },
+        { ...opts, maxAudioSec: 60 },
+      );
       expect(out).toEqual({ kind: 'skipped', reason });
       expect(api.skip).toHaveBeenCalledWith(job.callId, reason);
     }
     const silent = fakeStt();
     silent.transcribe.mockResolvedValue({ text: 'musiqa', segments: [] });
     const api = fakeApi();
-    expect(await processJob(job, topics, { api, stt: silent, llm: fakeLlm(['{}']) }, opts)).toEqual({ kind: 'skipped', reason: 'no_speech' });
+    expect(await processJob(job, topics, { api, stt: silent, llm: fakeLlm(['{}']) }, opts)).toEqual({
+      kind: 'skipped',
+      reason: 'no_speech',
+    });
   });
 
   it('Russian turns are transcribed again in Russian', async () => {
@@ -224,7 +278,12 @@ describe('processJob llm_only', () => {
     expect(stt.transcribe).not.toHaveBeenCalled();
     const r = WorkerResultSchema.parse(api.submit.mock.calls[0][1]);
     expect(r.transcript.segments.map((x) => x.role)).toEqual(['operator', 'client']);
-    expect(r.meta).toMatchObject({ sttMs: 12_345, sttModel: 'whisper-uz', sttStrategy: 'turns', promptVersion: CALL_ANALYSIS_PROMPT_VERSION });
+    expect(r.meta).toMatchObject({
+      sttMs: 12_345,
+      sttModel: 'whisper-uz',
+      sttStrategy: 'turns',
+      promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
+    });
     expect(r.transcript.audioSec).toBe(30);
   });
 });

@@ -52,7 +52,12 @@ export class HttpLlmClient implements LlmClient {
       chat_template_kwargs: { thinking: req.thinking },
       separate_reasoning: true,
       ...(req.jsonSchema
-        ? { response_format: { type: 'json_schema', json_schema: { name: 'call_analysis', schema: req.jsonSchema, strict: true } } }
+        ? {
+            response_format: {
+              type: 'json_schema',
+              json_schema: { name: 'call_analysis', schema: req.jsonSchema, strict: true },
+            },
+          }
         : {}),
     };
     let res: Response;
@@ -66,7 +71,8 @@ export class HttpLlmClient implements LlmClient {
     } catch (err) {
       throw new ServiceError('llm', `request failed (${(err as Error).name})`, true);
     }
-    if (!res.ok) throw new ServiceError('llm', `HTTP ${res.status}`, res.status >= 500 || res.status === 429, res.status);
+    if (!res.ok)
+      throw new ServiceError('llm', `HTTP ${res.status}`, res.status >= 500 || res.status === 429, res.status);
     const parsed = CompletionSchema.safeParse(await res.json());
     if (!parsed.success) throw new ServiceError('llm', 'unexpected response shape', true);
     return {

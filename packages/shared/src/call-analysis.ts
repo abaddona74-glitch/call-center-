@@ -296,7 +296,14 @@ export const CallAnalysisStatusQuerySchema = z.object({
   ids: z
     .string()
     .max(4000)
-    .transform((v) => [...new Set(v.split(',').map((s) => s.trim()).filter(Boolean))])
+    .transform((v) => [
+      ...new Set(
+        v
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    ])
     .pipe(z.array(CdrCallIdSchema).max(200)),
 });
 export type CallAnalysisStatusQuery = z.infer<typeof CallAnalysisStatusQuerySchema>;
@@ -418,7 +425,12 @@ export const CallAnalysisQueueSchema = z.object({
   avgProcessingSec: z.number().nullable(),
   workers: z.array(z.object({ workerId: z.string(), lastSeenAt: z.string(), processing: z.number().int() })),
   recentFailures: z.array(
-    z.object({ callId: z.string(), attempts: z.number().int(), lastError: z.string().nullable(), updatedAt: z.string() }),
+    z.object({
+      callId: z.string(),
+      attempts: z.number().int(),
+      lastError: z.string().nullable(),
+      updatedAt: z.string(),
+    }),
   ),
 });
 export type CallAnalysisQueue = z.infer<typeof CallAnalysisQueueSchema>;

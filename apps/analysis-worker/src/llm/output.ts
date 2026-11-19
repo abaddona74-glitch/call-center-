@@ -31,7 +31,9 @@ export const LlmOutputSchema = z.object({
   summary_uz: text.min(1),
   summary_ru: text.min(1),
   outcome: z.enum(CALL_OUTCOMES),
-  scores: z.object(Object.fromEntries(KPI_CRITERIA.map((k) => [k, score5])) as Record<(typeof KPI_CRITERIA)[number], typeof score5>),
+  scores: z.object(
+    Object.fromEntries(KPI_CRITERIA.map((k) => [k, score5])) as Record<(typeof KPI_CRITERIA)[number], typeof score5>,
+  ),
   overall: z.number().int().min(1).max(10),
   red_flags: z
     .array(z.object({ code: z.enum(RED_FLAGS), note_ru: text, at_sec: z.number().nonnegative().nullable() }))
@@ -45,7 +47,10 @@ export type LlmOutput = z.infer<typeof LlmOutputSchema>;
 
 /** Model output text → JSON value (tolerates ```json fences and text around the object). */
 export function extractJson(content: string): unknown {
-  const trimmed = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const trimmed = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '');
   try {
     return JSON.parse(trimmed);
   } catch {
