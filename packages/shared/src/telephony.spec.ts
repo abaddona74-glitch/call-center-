@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { isMaskedPhone, maskPhone, telephonyAccess } from './telephony.js';
+import { PauseOperatorRequestSchema, isMaskedPhone, maskPhone, telephonyAccess } from './telephony.js';
+
+describe('PauseOperatorRequestSchema reason', () => {
+  const reason = (r: string) => PauseOperatorRequestSchema.safeParse({ paused: true, reason: r });
+
+  it.each(['Tanaffus', 'Tushlik', "Yig'ilish", 'Yig`ilish', 'Yig‘ilish', 'Yig’ilish', 'Yigʻilish', 'Перерыв (обед)'])(
+    'accepts the menu reasons and Uzbek apostrophes: %s',
+    (r) => expect(reason(r).success).toBe(true),
+  );
+
+  it.each(['a\r\nAction: Hangup', 'a\nb', 'a|b', 'x'.repeat(65)])('rejects %j', (r) =>
+    expect(reason(r).success).toBe(false),
+  );
+});
 
 describe('telephonyAccess', () => {
   it('operators see masked numbers and act on their own extension only', () => {

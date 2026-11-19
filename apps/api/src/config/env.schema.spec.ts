@@ -17,6 +17,13 @@ describe('validateEnv', () => {
     expect(env.PORT).toBe(3000);
   });
 
+  it('keeps a blank optional value as an explicit undefined key', () => {
+    const env = validateEnv({ ...base, TOOLS_TELEGRAM_FORM_URL: '', UNRELATED_BLANK: '' });
+    expect(Object.hasOwn(env, 'TOOLS_TELEGRAM_FORM_URL')).toBe(true);
+    expect(env.TOOLS_TELEGRAM_FORM_URL).toBeUndefined();
+    expect(Object.hasOwn(env, 'UNRELATED_BLANK')).toBe(false);
+  });
+
   it('still rejects a too short bootstrap password', () => {
     expect(() => validateEnv({ ...base, BOOTSTRAP_SUPERUSER_PASSWORD: 'short' })).toThrow(/BOOTSTRAP_SUPERUSER_PASSWORD/);
   });
