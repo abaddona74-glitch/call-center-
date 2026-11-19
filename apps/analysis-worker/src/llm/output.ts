@@ -77,7 +77,18 @@ export function maskPersonalData(value: string): string {
     .replace(/\+?\d(?:[\s-]?\d){6,}/g, '***');
 }
 
-const clip = (value: string, max: number) => maskPersonalData(value).slice(0, max).trim();
+/**
+ * Diarization letters must not reach texts ("оператор B", "mijoz A", "speaker C"): the prompt forbids them, this removes
+ * what slips through. Only a role word directly followed by a lone capital letter A–E is touched.
+ */
+export function stripSpeakerLetters(value: string): string {
+  return value.replace(
+    /(^|[^\p{L}])((?:оператор|клиент|спикер|говорящ|собеседник|operator|mijoz|speaker|spiker|so'zlovchi)\p{L}*)\s*\(?([A-E])\)?(?![\p{L}\p{N}])/giu,
+    (match, pre: string, word: string, letter: string) => (letter === letter.toUpperCase() ? `${pre}${word}` : match),
+  );
+}
+
+const clip = (value: string, max: number) => stripSpeakerLetters(maskPersonalData(value)).slice(0, max).trim();
 const loc = (uz: string, ru: string, max: number) => ({ uz: clip(uz, max), ru: clip(ru, max) });
 
 /** LLM output → the shared rubric (unknown topic → "other", texts masked and clipped to the contract limits). */

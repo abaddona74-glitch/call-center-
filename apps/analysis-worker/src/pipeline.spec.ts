@@ -8,7 +8,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiClient } from './api-client.js';
 import type { ChatRequest, LlmClient } from './llm/llm-client.js';
-import { maskPersonalData } from './llm/output.js';
+import { maskPersonalData, stripSpeakerLetters } from './llm/output.js';
 import { processJob } from './pipeline.js';
 import { ServiceError, type SttClient } from './stt/stt-client.js';
 import { pcmWav } from './wav.fixture.js';
@@ -285,6 +285,30 @@ describe('processJob llm_only', () => {
       promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
     });
     expect(r.transcript.audioSec).toBe(30);
+  });
+});
+
+describe('stripSpeakerLetters', () => {
+  it('removes diarization letters after role words, leaves other capitals alone', () => {
+    expect(stripSpeakerLetters('Оператор B перевёл клиента на оператора C.')).toBe(
+      'Оператор перевёл клиента на оператора.',
+    );
+    expect(stripSpeakerLetters('Operator (A) mijoz A bilan gaplashdi, speaker B jim.')).toBe(
+      'Operator mijoz bilan gaplashdi, speaker jim.',
+    );
+    expect(stripSpeakerLetters('Ключ ЭЦП класса A, оператор EDO, оператор Bobur')).toBe(
+      'Ключ ЭЦП класса A, оператор EDO, оператор Bobur',
+    );
+    expect(stripSpeakerLetters('оператор a сказал')).toBe('оператор a сказал');
+  });
+
+  it('applies to every text field of the analysis', async () => {
+    const api = fakeApi();
+    const llm = fakeLlm([JSON.stringify({ ...llmAnswer, summary_ru: 'Оператор B помог, клиент A доволен.' })]);
+    await processJob(job, topics, { api, stt: fakeStt(), llm }, opts);
+    expect(WorkerResultSchema.parse(api.submit.mock.calls[0][1]).analysis.summary.ru).toBe(
+      'Оператор помог, клиент доволен.',
+    );
   });
 });
 

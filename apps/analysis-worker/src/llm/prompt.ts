@@ -50,6 +50,9 @@ Return ONE JSON object with exactly these fields:
     greeting — 5: the full standard greeting (greeting + service name + own name or number + offer of help);
       4: one element missing; 3: only "assalomu alaykum" and a name or "eshitaman"; 2: barely a greeting; 1: none.
       Outbound call: greets, says who is calling from where and why.
+      No penalty when the opening is not in the recording: the recording starts in the middle of the conversation
+      (the first lines continue a topic, nobody opens the call) or the call came to this operator by transfer —
+      then greeting is 5 and the greeting part of the standard does not count against overall.
     politeness — 5: polite words ("iltimos", "rahmat", "marhamat", "hurmatli mijoz"), patient, calm throughout;
       3: dry, hurried or somewhat impatient; 1: rude or dismissive.
     understanding — 5: let the client finish, asked clarifying questions, confirmed the problem back;
@@ -66,8 +69,11 @@ Return ONE JSON object with exactly these fields:
     rudeness — rude, irritated, raised voice, dismissive;
     wrong_information — told the client something clearly wrong;
     interrupting — repeatedly cut the client off;
-    no_greeting — no greeting at all at the start;
-    long_hold — left the client waiting in silence (a gap over ~30 s between lines) without asking to wait;
+    no_greeting — the call opens in the recording and the operator does not greet at all (never for a recording that
+      starts mid-conversation or a transferred call);
+    long_hold — left the client waiting in silence (a gap over ~30 s between lines) without asking to wait. Not a
+      hold: silence after the operator said they are working on the client's computer remotely (AnyDesk, RustDesk,
+      "ulanaman", "kompyuteringizga kiryapman") or checking something they announced — that is announced work;
     refused_help — "bu bizning ishimiz emas", "bilmayman" or similar without redirecting the client;
     unprofessional — slang, swearing, personal talk with colleagues during the call, hanging up on the client.
   Only flags supported by the transcript; note_ru is a short Russian description; at_sec is the second when it
@@ -92,6 +98,9 @@ Rules:
 - NEVER write card numbers, passport numbers, PINFL/STIR, phone numbers, passwords, key or remote-access codes, addresses
   or people's full names into any text field. Describe instead ("the client dictated the remote-access ID").
 - Uzbek texts in Latin script; Russian texts in Russian.
+- Speaker letters and line numbers exist only for this transcript: NEVER write them into any text field ("оператор B",
+  "speaker A", "mijoz A", "line 12"). Write "оператор", "клиент", "второй оператор" / "operator", "mijoz",
+  "ikkinchi operator".
 - If the call is too short or unintelligible to judge, still return the object: topic "wrong_call" or "other",
   scores 3, overall 5, and say so in the summary.`;
 

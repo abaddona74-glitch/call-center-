@@ -20,10 +20,13 @@ import { TicketStatusSchema } from './tickets.js';
  * Version of the prompt + rubric the worker used. Bump it whenever the prompt, the topic list semantics,
  * the scores or the flags change; every stored result keeps the version it was made with.
  */
-export const CALL_ANALYSIS_PROMPT_VERSION = 'v3-2026-11-19';
+export const CALL_ANALYSIS_PROMPT_VERSION = 'v4-draft-2026-11-19';
 /**
  * Versions: v1 — first pilot rubric; v2 — scores anchored on the operator manual standard, calibrated overall;
- * v3 — v2 + the model corrects the role of single transcript lines that diarization gave to the wrong side.
+ * v3 — v2 + the model corrects the role of single transcript lines that diarization gave to the wrong side;
+ * v4-draft — v3 + the owner's approved fixes (19.11): announced remote work is not long_hold, no greeting penalty or
+ *   no_greeting flag for transferred calls / recordings that start mid-conversation, no diarization letters in texts.
+ *   Topics and the greeting standard are still open: the final v4 adds them; pilot results stay v3 until then.
  */
 
 export const CALL_ANALYSIS_JOB_STATUSES = ['queued', 'processing', 'done', 'failed', 'skipped'] as const;
