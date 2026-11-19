@@ -22,6 +22,7 @@ const counters: LiveCounters = {
   clientHangups: 1,
   operatorHangups: 0,
   unknownHangups: 209,
+  avgWaitSec: 31,
 };
 
 const today = (over: Partial<OperatorToday>): OperatorToday => ({

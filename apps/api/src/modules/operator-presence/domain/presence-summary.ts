@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import type { PresenceState } from './presence-state.js';
 
 /**
- * Online / pause time per operator from the presence log (docs/rewrite/METRICS.md §10.1). Pure: no Nest, no DB.
+ * Online / pause time per operator from the presence log (docs/rewrite/METRICS.md §11.1). Pure: no Nest, no DB.
  * Times are epoch milliseconds; the result is whole seconds.
  */
 

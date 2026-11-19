@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { audioPlayer, callRecordingQuery, callRecordingStreamUrl, useAudioPlayer } from '@/entities/recording';
 import { isHttpError } from '@/shared/api';
+import { useApiScope } from '@/shared/lib/api-scope';
 
 /**
  * "Play this call's recording from second N" in the shared player. Loads the recording first when the player holds
@@ -13,6 +14,7 @@ export function useRecordingSeek(callId: string, title: string) {
   const { t } = useTranslation('recording');
   const queryClient = useQueryClient();
   const player = useAudioPlayer();
+  const scope = useApiScope();
   const key = `call:${callId}`;
   const loaded = player.track?.key === key && player.status !== 'error';
 
@@ -23,12 +25,12 @@ export function useRecordingSeek(callId: string, title: string) {
       return;
     }
     try {
-      const rec = await queryClient.fetchQuery(callRecordingQuery(callId));
+      const rec = await queryClient.fetchQuery(callRecordingQuery(callId, scope));
       audioPlayer.play({
         key,
         title,
-        src: callRecordingStreamUrl(callId),
-        downloadUrl: callRecordingStreamUrl(callId, true),
+        src: callRecordingStreamUrl(callId, false, scope),
+        downloadUrl: callRecordingStreamUrl(callId, true, scope),
         size: rec.file.size,
       });
       audioPlayer.seek(seconds);

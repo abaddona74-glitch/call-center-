@@ -4,7 +4,7 @@ import type { PresenceIntervalFact, PresenceTotals } from '../../operator-presen
 import { inScope, operatorStats, type SurveyTotals } from '../../stats/domain/metrics.js';
 
 /**
- * «KPI xodimlar» — operators (docs/rewrite/METRICS.md §10.2). Pure: no Nest, no DB.
+ * «KPI xodimlar» — operators (docs/rewrite/METRICS.md §11.2). Pure: no Nest, no DB.
  * Calls and ratings come from the statistics page's functions (`operatorStats`, `surveyByOperator`), quality from the
  * «Tahlil» aggregates, online time from the presence log; this file only joins them by extension.
  */

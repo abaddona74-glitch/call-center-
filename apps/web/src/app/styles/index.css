@@ -214,6 +214,12 @@
   color: color-mix(in oklab, --value(--color-*, [color]), var(--ink) var(--shade));
 }
 
+/* Keeps the scrollbar thumb visible while the box overflows, for wide tables that scroll sideways:
+   an auto-hidden horizontal scrollbar leaves no hint that the cut-off columns can be reached. */
+@utility scrollbar-visible {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
 /* Switching themes recolors everything at once (shared/lib/theme adds this class for two frames). */
 .theme-switching,
 .theme-switching * {
@@ -226,6 +232,24 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+  /* Tailwind v4's preflight leaves buttons on the arrow cursor; every clickable control shows the
+     hand, as in legacy. Disabled controls keep the arrow; cursor-* utilities and component CSS still win. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true'], [data-disabled]),
+  [role='option']:not([aria-disabled='true'], [data-disabled]),
+  [role='menuitem']:not([aria-disabled='true'], [data-disabled]),
+  [role='menuitemcheckbox']:not([aria-disabled='true'], [data-disabled]),
+  [role='menuitemradio']:not([aria-disabled='true'], [data-disabled]),
+  [role='checkbox']:not([aria-disabled='true'], [data-disabled]),
+  [role='radio']:not([aria-disabled='true'], [data-disabled]),
+  [role='switch']:not([aria-disabled='true'], [data-disabled]),
+  select:not(:disabled),
+  summary,
+  input:is([type='checkbox'], [type='radio'], [type='file'], [type='range'], [type='color'], [type='button'], [type='submit'], [type='reset']):not(:disabled),
+  label:has(input:is([type='checkbox'], [type='radio'], [type='file']):not(:disabled)) {
+    cursor: pointer;
   }
   /* Thin scrollbars with no track behind the thumb, both themes (legacy style.css global
      scrollbars; the native light track looked like a white strip on the dark theme).

@@ -13,7 +13,7 @@ describe('contactAccessFor', () => {
     expect(contactAccessFor({ role: 'operator' })).toEqual({ canView: true, canEdit: true });
   });
 
-  it('session permissions (role + operator group flags) decide', () => {
+  it("the session's permissions decide", () => {
     expect(contactAccessFor({ role: 'operator', permissions: ['monitor.view'] })).toEqual({
       canView: false,
       canEdit: false,

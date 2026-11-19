@@ -22,8 +22,14 @@ export const PERMISSIONS = [
    */
   'overview.view',
   /**
+   * The live situation board «Hozirgi holat» (owner, 19.11.2026): operators by state, callers waiting, calls in
+   * progress with full citizen numbers, today's counters, open tickets and who works on them. Read-only — no
+   * telephony actions and no live monitor page (`monitor.view`).
+   */
+  'situation.view',
+  /**
    * The staff KPI page «KPI xodimlar» (owner, 19.11.2026): per-operator calls, client ratings, tickets, AI call quality
-   * and online/pause time; per-"Mas'ul" ticket processing by region. Figures only (docs/rewrite/METRICS.md §10).
+   * and online/pause time; per-"Mas'ul" ticket processing by region. Figures only (docs/rewrite/METRICS.md §11).
    */
   'kpi.view',
   /** Listen to / download recordings and transcripts. */
@@ -55,13 +61,12 @@ export const PERMISSIONS = [
   'tools.view',
   /** Extra tools legacy hid from the "200" group: the file converter and the Ijro letter generator. */
   'tools.use',
-  'remoteDesktop.use',
   /** "Help" ring to other operators. */
   'help.request',
   /** System settings: excluded operators, working hours, holidays, interface options. */
   'settings.manage',
   'audit.view',
-  /** Users, roles, operator groups, other people's passwords and passkeys. */
+  /** Users, roles, other people's passwords and passkeys. */
   'users.manage',
   /** See and end other people's sessions. */
   'sessions.manage',
@@ -83,16 +88,16 @@ const ALL: readonly Permission[] = PERMISSIONS;
  *  - executive ("Mas'ul" in the UI, owner decision 2026-11-19): ONLY processes the tickets of its regions —
  *    the tickets board, the ticket reports and its own profile; no monitoring, calls, contacts, tools or
  *    settings (the owner adds more later if needed);
- *  - observer: the overview dashboard and the staff KPI page (owner, 19.11.2026): aggregated numbers, no other page
- *    or API;
+ *  - observer: the live situation board, the overview dashboard and the staff KPI page only (owner, 19.11.2026): no
+ *    other page or API;
  *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   superuser: ALL,
   executive: ['tickets.process'],
-  // The overview dashboard and the staff KPI page, nothing else (owner, 19.11.2026): no live monitor, history,
-  // tickets, tools or guide.
-  observer: ['overview.view', 'kpi.view'],
+  // The live situation board (their landing page), the overview dashboard and the staff KPI page, nothing else
+  // (owner, 19.11.2026): no live monitor, history, tickets, tools or guide.
+  observer: ['situation.view', 'overview.view', 'kpi.view'],
   operator: [
     'monitor.view',
     'callbacks.view',
@@ -102,52 +107,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'tickets.callback',
     'tools.view',
     'tools.use',
-    'remoteDesktop.use',
     'help.request',
     'guide.view',
   ],
 };
 
-// --- operator groups ----------------------------------------------------------------------
-/**
- * Per-group restriction flags for operators (replaces the legacy "extension >= 200" rule).
- * `false` removes the matching permission from the group's operators; other roles are not affected.
- * New flags must get `.default(true)` so stored groups without the flag stay valid.
- */
-export const GroupFlagsSchema = z.object({
-  canSeeContacts: z.boolean().default(true),
-  canEditContacts: z.boolean().default(true),
-  canUseRemoteDesktop: z.boolean().default(true),
-  canRequestHelp: z.boolean().default(true),
-  canUseTools: z.boolean().default(true),
-});
-export type GroupFlags = z.infer<typeof GroupFlagsSchema>;
-export type GroupFlag = keyof GroupFlags;
-export const GROUP_FLAGS = Object.keys(GroupFlagsSchema.shape) as GroupFlag[];
-
-/** Which permission each group flag controls. */
-export const GROUP_FLAG_PERMISSION: Readonly<Record<GroupFlag, Permission>> = {
-  canSeeContacts: 'contacts.view',
-  canEditContacts: 'contacts.manage',
-  canUseRemoteDesktop: 'remoteDesktop.use',
-  canRequestHelp: 'help.request',
-  canUseTools: 'tools.use',
-};
-
-export const ALL_GROUP_FLAGS: GroupFlags = {
-  canSeeContacts: true,
-  canEditContacts: true,
-  canUseRemoteDesktop: true,
-  canRequestHelp: true,
-  canUseTools: true,
-};
-
-/** Effective permissions: the role's set, minus what the operator's group switches off. */
-export function permissionsFor(role: Role, groupFlags: GroupFlags | null | undefined): Permission[] {
-  const base = ROLE_PERMISSIONS[role] ?? [];
-  if (role !== 'operator' || !groupFlags) return [...base];
-  const denied = new Set(GROUP_FLAGS.filter((f) => !groupFlags[f]).map((f) => GROUP_FLAG_PERMISSION[f]));
-  return base.filter((p) => !denied.has(p));
+/** The permissions of a role (the one place that decides who may do what). */
+export function permissionsFor(role: Role): Permission[] {
+  return [...(ROLE_PERMISSIONS[role] ?? [])];
 }
 
 /**
@@ -161,16 +128,12 @@ export function effectivePermissions(user: {
   return new Set(user.permissions ?? ROLE_PERMISSIONS[user.role] ?? []);
 }
 
-/**
- * `hasPermission(user, 'users.manage')`. A group flag name (`'canSeeContacts'`) is accepted too and
- * means its permission (compatibility with the first version of this contract).
- */
+/** `hasPermission(user, 'users.manage')`. */
 export function hasPermission(
   user: { role: Role; permissions?: readonly Permission[] | null },
-  permission: Permission | GroupFlag,
+  permission: Permission,
 ): boolean {
-  const p = (GROUP_FLAG_PERMISSION as Record<string, Permission>)[permission] ?? (permission as Permission);
-  return effectivePermissions(user).has(p);
+  return effectivePermissions(user).has(permission);
 }
 
 /** Short alias for api and web: `can(user, 'tickets.process')`. */

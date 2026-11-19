@@ -166,6 +166,8 @@ export interface CountersRec {
   clientHangups: number;
   operatorHangups: number;
   unknownHangups: number;
+  /** Σ wait of the answered inbound calls (queue entry → first answer, whole seconds; 0 without a queue). */
+  waitSeconds: number;
 }
 
 const STALE_RING_MS = 120_000;
@@ -999,7 +1001,11 @@ export class LiveStore {
     }
     if (call.answeredAt === null) {
       call.answeredAt = now;
-      if (call.direction === 'inbound' && counted) this.counters.answered++;
+      if (call.direction === 'inbound' && counted) {
+        this.counters.answered++;
+        // METRICS.md §1.4 waitSec: from the queue entry to the first answer (0 when answered without a queue).
+        if (call.queuedAt !== null) this.counters.waitSeconds += Math.max(0, Math.round((now - call.queuedAt) / 1000));
+      }
     }
     const op = this.ensureOperator(ext, now);
     if (op && counted && call.direction === 'inbound') {
@@ -1337,6 +1343,7 @@ export class LiveStore {
       clientHangups: 0,
       operatorHangups: 0,
       unknownHangups: 0,
+      waitSeconds: 0,
     };
   }
 

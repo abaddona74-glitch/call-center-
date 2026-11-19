@@ -1,12 +1,4 @@
-import type {
-  CreateOperatorGroupSchema,
-  OperatorGroup,
-  ResetUserPasswordResult,
-  SessionUser,
-  User,
-  UserListQuery,
-} from '@cc/shared';
-import { GroupFlagsSchema } from '@cc/shared';
+import type { ResetUserPasswordResult, SessionUser, User, UserListQuery } from '@cc/shared';
 import {
   BadRequestException,
   ConflictException,
@@ -15,7 +7,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Transactional } from '@nestjs-cls/transactional';
-import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
 import { hashPassword } from '../auth/password-hasher.js';
 import { SessionManager } from '../auth/session-manager.service.js';
@@ -43,10 +34,8 @@ function mapDbError(err: unknown): never {
   if (e?.code === '23505') {
     if (e.constraint?.includes('email')) throw new ConflictException('This email is used by another account');
     if (e.constraint?.includes('username')) throw new ConflictException('This username is taken');
-    if (e.constraint?.includes('operator_groups')) throw new ConflictException('A group with this name exists');
     throw new ConflictException('Already exists');
   }
-  if (e?.code === '23503') throw new BadRequestException('Operator group not found');
   throw err;
 }
 
@@ -65,8 +54,6 @@ export class UsersService {
       role: row.role,
       extension: row.extension,
       email: row.email,
-      groupId: row.groupId,
-      groupName: row.groupName,
       isActive: row.isActive,
       mustChangePassword: row.mustChangePassword,
       createdAt: row.createdAt.toISOString(),
@@ -97,7 +84,6 @@ export class UsersService {
       role: User['role'];
       extension: string | null;
       email: string | null;
-      groupId: number | null;
       mustChangePassword: boolean;
     },
   ): Promise<User> {
@@ -109,7 +95,6 @@ export class UsersService {
         role: body.role,
         extension: body.extension,
         email: body.email,
-        groupId: body.groupId,
         mustChangePassword: body.mustChangePassword,
       })
       .catch(mapDbError);
@@ -120,7 +105,6 @@ export class UsersService {
         role: body.role,
         extension: body.extension,
         email: body.email,
-        groupId: body.groupId,
         mustChangePassword: body.mustChangePassword,
       },
     });
@@ -145,7 +129,7 @@ export class UsersService {
     await this.repo.update(id, patch).catch(mapDbError);
 
     if (deactivating) await this.sessions.revokeUserSessions(id, 'account_disabled');
-    else if (roleChange || patch.groupId !== undefined) this.sessions.refreshSockets(id, 'account_changed');
+    else if (roleChange) this.sessions.refreshSockets(id, 'account_changed');
 
     await this.audit.record(deactivating ? 'users.deactivate' : roleChange ? 'users.role_change' : 'users.update', {
       target: `user:${id}`,
@@ -195,59 +179,6 @@ export class UsersService {
     const target = await this.load(id);
     enforce(checkCredentialsAdmin(actor, target));
     return target;
-  }
-
-  // --- operator groups ---------------------------------------------------------------------
-
-  listGroups(): Promise<OperatorGroup[]> {
-    return this.repo.listGroups();
-  }
-
-  @Transactional()
-  async createGroup(body: z.output<typeof CreateOperatorGroupSchema>): Promise<OperatorGroup> {
-    const permissions = GroupFlagsSchema.parse(body.permissions);
-    const id = await this.repo
-      .insertGroup({ name: body.name, description: body.description, permissions })
-      .catch(mapDbError);
-    await this.audit.record('groups.create', { target: `group:${id}`, details: { name: body.name, permissions } });
-    return (await this.repo.findGroup(id))!;
-  }
-
-  @Transactional()
-  async updateGroup(
-    id: number,
-    patch: { name?: string; description?: string | null; permissions?: OperatorGroup['permissions'] },
-  ): Promise<OperatorGroup> {
-    const before = await this.repo.findGroup(id);
-    if (!before) throw new NotFoundException('Group not found');
-    await this.repo.updateGroup(id, patch).catch(mapDbError);
-    const after = (await this.repo.findGroup(id))!;
-    if (patch.permissions) {
-      // Connected clients of members reload with the new permissions.
-      for (const userId of await this.repo.groupMemberIds(id))
-        this.sessions.refreshSockets(userId, 'permissions_changed');
-    }
-    await this.audit.record('groups.update', {
-      target: `group:${id}`,
-      details: {
-        before: { name: before.name, description: before.description, permissions: before.permissions },
-        after: { name: after.name, description: after.description, permissions: after.permissions },
-      },
-    });
-    return after;
-  }
-
-  @Transactional()
-  async deleteGroup(id: number): Promise<void> {
-    const group = await this.repo.findGroup(id);
-    if (!group) throw new NotFoundException('Group not found');
-    const members = await this.repo.groupMemberIds(id);
-    await this.repo.deleteGroup(id);
-    for (const userId of members) this.sessions.refreshSockets(userId, 'permissions_changed');
-    await this.audit.record('groups.delete', {
-      target: `group:${id}`,
-      details: { name: group.name, members: members.length },
-    });
   }
 
   private async load(id: number): Promise<UserRow> {

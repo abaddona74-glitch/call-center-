@@ -26,7 +26,7 @@ export interface E2eContext {
   app: INestApplication;
   ami: InMemoryAmiCommands;
   cdr: { legs: CdrLeg[] };
-  users: { superuser: E2eUser; admin: E2eUser; op101: E2eUser; op205: E2eUser };
+  users: { superuser: E2eUser; admin: E2eUser; op101: E2eUser; op205: E2eUser; exec1: E2eUser };
   db: pg.Pool;
   close(): Promise<void>;
 }
@@ -109,22 +109,15 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
   const db = new pg.Pool({ connectionString: databaseUrl, max: 2 });
   const sessions = app.get(SessionsService);
 
-  /** `group`: an operator group seeded by S1 (e.g. 'Zangiota' = no phonebook, the legacy "200 group"). */
-  async function user(
-    username: string,
-    role: string,
-    extension: string | null,
-    group: string | null = null,
-  ): Promise<E2eUser> {
+  async function user(username: string, role: string, extension: string | null): Promise<E2eUser> {
     const existing = await db.query<{ id: string }>('select id from users where username = $1', [username]);
     const id = existing.rows[0]
       ? Number(existing.rows[0].id)
       : Number(
           (
             await db.query<{ id: string }>(
-              `insert into users (username, password_hash, role, extension, group_id)
-               values ($1, 'x', $2, $3, (select id from operator_groups where name = $4)) returning id`,
-              [username, role, extension, group],
+              `insert into users (username, password_hash, role, extension) values ($1, 'x', $2, $3) returning id`,
+              [username, role, extension],
             )
           ).rows[0].id,
         );
@@ -136,7 +129,9 @@ export async function createE2eApp(suite: string, env: Record<string, string> = 
     superuser: await user('superuser', 'superuser', null),
     admin: await user('admin1', 'superuser', null),
     op101: await user('op101', 'operator', '101'),
-    op205: await user('op205', 'operator', '205', 'Zangiota'),
+    op205: await user('op205', 'operator', '205'),
+    /** "Mas'ul": no phonebook permissions. */
+    exec1: await user('exec1', 'executive', null),
   };
 
   return {

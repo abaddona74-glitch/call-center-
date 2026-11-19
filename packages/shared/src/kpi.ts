@@ -8,7 +8,7 @@ import { OperatorStatsRowSchema } from './stats.js';
  * Two views of one period: operators (calls, client ratings, tickets and callbacks, AI call quality, online/pause
  * time) and the "Mas'ul shaxslar" (executives: ticket processing, also per region). No composite score: the owner
  * picks weights later. Figures only — no ticket texts, citizen numbers or call lists.
- * Definitions: docs/rewrite/METRICS.md §10.
+ * Definitions: docs/rewrite/METRICS.md §11.
  */
 
 const range = { from: IsoDateSchema, to: IsoDateSchema };

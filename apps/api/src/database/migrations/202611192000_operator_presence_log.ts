@@ -1,7 +1,7 @@
 import { type Kysely, sql } from 'kysely';
 
 /**
- * Operator presence history for the staff KPI page (owner, 19.11.2026; docs/rewrite/METRICS.md §10.1). Only the live
+ * Operator presence history for the staff KPI page (owner, 19.11.2026; docs/rewrite/METRICS.md §11.1). Only the live
  * state existed (AMI, in memory); this log keeps one row per state interval of an operator phone:
  *   offline — not registered; online — registered and taking queue calls; paused — registered, paused in the queue.
  * An open interval has `ended_at` null; `last_seen_at` is refreshed while the API watches it, so intervals left open

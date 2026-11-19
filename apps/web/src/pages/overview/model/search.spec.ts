@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { overviewSearchSchema, overviewStateFrom } from './search';
+import { overviewSearchSchema, overviewStateFrom, periodSearchOf } from './search';
 
 const today = '2026-11-19';
 
@@ -17,7 +17,26 @@ describe('overview search', () => {
 
   it('presets resolve against today (Asia/Tashkent business day)', () => {
     expect(overviewStateFrom({ period: 'today' }, today)).toMatchObject({ from: today, to: today });
+    expect(overviewStateFrom({ period: 'yesterday' }, today)).toMatchObject({ from: '2026-11-18', to: '2026-11-18' });
     expect(overviewStateFrom({ period: 'week' }, today)).toMatchObject({ from: '2026-11-13', to: today });
+    expect(overviewStateFrom({ period: 'yesterday' }, '2026-12-01')).toMatchObject({
+      from: '2026-11-30',
+      to: '2026-11-30',
+    });
+  });
+
+  it('a calendar range equal to a preset is stored as the preset', () => {
+    expect(periodSearchOf({ from: '2026-11-18', to: '2026-11-18' }, today)).toEqual({
+      period: 'yesterday',
+      from: undefined,
+      to: undefined,
+    });
+    expect(periodSearchOf({ from: '2026-11-01', to: today }, today)).toMatchObject({ period: 'month' });
+    expect(periodSearchOf({ from: '2026-10-01', to: '2026-10-31' }, today)).toEqual({
+      period: 'range',
+      from: '2026-10-01',
+      to: '2026-10-31',
+    });
   });
 
   it('a custom range is ordered and never goes past today', () => {

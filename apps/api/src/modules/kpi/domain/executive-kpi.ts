@@ -1,7 +1,7 @@
 import type { KpiExecutiveFigures, KpiExecutiveRegion, KpiExecutiveRow, TicketEventKind } from '@cc/shared';
 
 /**
- * «KPI xodimlar» — the "Mas'ul shaxslar" (executives), attributed by the ticket events (docs/rewrite/METRICS.md §10.3).
+ * «KPI xodimlar» — the "Mas'ul shaxslar" (executives), attributed by the ticket events (docs/rewrite/METRICS.md §11.3).
  * Pure: no Nest, no DB.
  *
  * Every event of a ticket is replayed in order to know the ticket's region at that moment: it starts in the region of

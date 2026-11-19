@@ -105,7 +105,7 @@ export const EnvSchema = z.object({
   CDR_HISTORY_MAX_DAYS: z.coerce.number().int().min(1).max(366).default(93),
   STATS_MAX_DAYS: z.coerce.number().int().min(1).max(1100).default(366),
 
-  /** Operator groups by extension range until the groups model exists, e.g. "main:100-199;secondary:200-299". */
+  /** Operator groups (board tabs, statistics, exports) by extension range, e.g. "main:100-199;secondary:200-299". */
   OPERATOR_GROUPS: z
     .string()
     .default('main:100-199;secondary:200-299')
@@ -246,7 +246,7 @@ export const EnvSchema = z.object({
   /** Extensions with a personal AstDB block list `blacklist_<ext>` read by the PBX dialplan (legacy: 114). */
   BLACKLIST_OPERATOR_EXTENSIONS: csvWithDefault('114').pipe(z.array(z.string().regex(/^\d{2,6}$/))),
 
-  // --- Operator presence log (online / pause time on the KPI page, docs/rewrite/METRICS.md §10.1) ---
+  // --- Operator presence log (online / pause time on the KPI page, docs/rewrite/METRICS.md §11.1) ---
   /** Presence intervals that ended longer ago than this are deleted every night. */
   PRESENCE_LOG_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(400),
 

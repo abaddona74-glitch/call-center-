@@ -94,7 +94,7 @@ export function DataTable<T extends RowData>({
   const rows = table.getRowModel().rows;
 
   return (
-    <div className={cn('overflow-x-auto', look.wrap, className)}>
+    <div className={cn('scrollbar-visible overflow-x-auto', look.wrap, className)}>
       <table className={cn('w-full border-collapse text-left', look.table)}>
         <thead>
           {table.getHeaderGroups().map((group) => (

@@ -97,7 +97,9 @@ export function OperatorCard({
             )}
           </strong>
           <small>
-            Exten {op.extension} · {op.ip ?? '-none-'}
+            Exten {op.extension}
+            {/* The situation board gets no addresses: a registered phone without one shows just the extension. */}
+            {(op.ip || !op.registered) && ` · ${op.ip ?? '-none-'}`}
           </small>
         </div>
         <span className="st">{tp(`presence.${op.presence}`)}</span>

@@ -1,18 +1,30 @@
 import type { OverviewTickets } from '@cc/shared';
 import { useTranslation } from 'react-i18next';
+import type { TicketListRequest } from '@/entities/overview';
 import { STATUS_STRIPE, TicketStatusBadge } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { NumberButton } from '@/shared/ui/number-button';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { deadlineSplit, lateBy, percentOf } from '../model/format';
 import '../i18n';
 
 /**
  * Deadlines (SLA `due_at`, callback `callback_due_at`): the state right now (overdue backlog, unclosed tickets by
- * status, the longest overdue ones) and how the period's tickets did against the SLA.
+ * status, the longest overdue ones) and how the period's tickets did against the SLA. Every number opens the tickets
+ * behind it (`onOpenList`); a longest-overdue row opens its read-only card (`onOpenTicket`).
  */
-export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) {
+export function DeadlinesPanel({
+  data,
+  onOpenList,
+  onOpenTicket,
+}: {
+  data: OverviewTickets | undefined;
+  onOpenList?: (request: TicketListRequest) => void;
+  onOpenTicket?: (id: number) => void;
+}) {
   const { t, i18n } = useTranslation('ticketOverview');
+  const { t: tt } = useTranslation('ticket');
   const ru = i18n.language === 'ru';
   if (!data) return <Panel className="min-h-[300px] animate-pulse" />;
 
@@ -24,6 +36,8 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
   const split = deadlineSplit(totals);
   const splitTotal = split.onTime + split.late + split.stillOverdue;
   const hours = (n: number | null) => (n === null ? t('deadlines.none') : t('deadlines.hours', { n }));
+  const opener = (request: TicketListRequest) =>
+    onOpenList && request.value > 0 ? () => onOpenList(request) : undefined;
 
   return (
     <Panel className="flex flex-col gap-5">
@@ -41,18 +55,29 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
       <section className="flex flex-col gap-3">
         <h4 className="text-[11px] font-bold tracking-[0.5px] text-mute uppercase">{t('deadlines.nowTitle')}</h4>
         <div className="grid grid-cols-2 gap-3">
-          <Big value={current.overdue} label={t('deadlines.overdueNow')} tone={current.overdue ? 'danger' : 'mute'} />
+          <Big
+            value={current.overdue}
+            label={t('deadlines.overdueNow')}
+            tone={current.overdue ? 'danger' : 'mute'}
+            onOpen={opener({ metric: 'nowOverdue', value: current.overdue })}
+          />
           <Big
             value={current.callbackOverdue}
             label={t('deadlines.callbackOverdueNow')}
             tone={current.callbackOverdue ? 'caution' : 'mute'}
+            onOpen={opener({ metric: 'nowCallbackOverdue', value: current.callbackOverdue })}
           />
         </div>
         {backlogTotal > 0 && (
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-xs text-mute">
               <span>{t('deadlines.backlog')}</span>
-              <span className="font-bold text-ink tabular-nums">{backlogTotal}</span>
+              <NumberButton
+                label={t('deadlines.backlog')}
+                value={backlogTotal}
+                className="font-bold text-ink"
+                onOpen={opener({ metric: 'nowOpen', value: backlogTotal })}
+              />
             </div>
             <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-full">
               {backlog.map((s) => (
@@ -68,7 +93,12 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
               {backlog.map((s) => (
                 <span key={s.status} className="inline-flex items-center gap-1 text-xs text-ink tabular-nums">
                   <TicketStatusBadge status={s.status} />
-                  <b>{s.count}</b>
+                  <NumberButton
+                    label={`${t('deadlines.backlog')} — ${tt(`status.${s.status}`)}`}
+                    value={s.count}
+                    className="font-bold"
+                    onOpen={opener({ metric: 'nowStatus', status: s.status, value: s.count })}
+                  />
                 </span>
               ))}
             </div>
@@ -92,35 +122,43 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
             label={t('deadlines.onTime')}
             value={split.onTime}
             pct={percentOf(split.onTime, splitTotal)}
+            onOpen={opener({ metric: 'onTime', value: split.onTime })}
           />
           <Row
             dot="bg-chart-5"
             label={t('deadlines.late')}
             value={split.late}
             pct={percentOf(split.late, splitTotal)}
+            onOpen={opener({ metric: 'overdueLate', value: split.late })}
           />
           <Row
             dot="bg-chart-8"
             label={t('deadlines.stillOverdue')}
             value={split.stillOverdue}
             pct={percentOf(split.stillOverdue, splitTotal)}
+            onOpen={opener({ metric: 'overdueOpen', value: split.stillOverdue })}
           />
         </dl>
         <div className="grid grid-cols-3 gap-3 border-t border-tint/8 pt-3 text-xs">
-          <div className="flex flex-col justify-between">
-            <div className="leading-tight text-mute">{t('deadlines.avgResolution')}</div>
-            <div className="mt-1 text-base font-bold text-ink">{hours(totals.avgResolutionHours)}</div>
-          </div>
-          <div className="flex flex-col justify-between">
-            <div className="leading-tight text-mute">{t('deadlines.avgClose')}</div>
-            <div className="mt-1 text-base font-bold text-ink">{hours(totals.avgCloseHours)}</div>
-          </div>
-          <div className="flex flex-col justify-between">
-            <div className="leading-tight text-mute">{t('deadlines.callbackOverdue')}</div>
-            <div className={cn('mt-1 text-base font-bold', totals.callbackOverdue ? 'text-caution' : 'text-ink')}>
-              {totals.callbackOverdue}
-            </div>
-          </div>
+          <Stat
+            label={t('deadlines.avgResolution')}
+            shown={hours(totals.avgResolutionHours)}
+            value={totals.done + totals.rejected}
+            onOpen={opener({ metric: 'resolved', value: totals.done + totals.rejected })}
+          />
+          <Stat
+            label={t('deadlines.avgClose')}
+            shown={hours(totals.avgCloseHours)}
+            value={totals.closed}
+            onOpen={opener({ metric: 'closeTimed', value: totals.closed })}
+          />
+          <Stat
+            label={t('deadlines.callbackOverdue')}
+            shown={String(totals.callbackOverdue)}
+            value={totals.callbackOverdue}
+            tone={totals.callbackOverdue ? 'text-caution' : 'text-ink'}
+            onOpen={opener({ metric: 'callbackOverdue', value: totals.callbackOverdue })}
+          />
         </div>
       </section>
 
@@ -133,19 +171,33 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
           <ul className="flex flex-col divide-y divide-tint/6 rounded-xl border border-tint/8">
             {current.oldestOverdue.map((x) => {
               const late = lateBy(x.dueAt, now);
-              return (
-                <li key={x.id} className="flex items-center gap-2.5 px-3 py-2 text-xs">
+              const lateText =
+                late.unit === 'days' ? t('deadlines.lateBy', { n: late.n }) : t('deadlines.lateByHours', { n: late.n });
+              const body = (
+                <>
                   <span className="font-mono font-bold text-ink">{x.code}</span>
-                  <span className="min-w-0 flex-1 truncate text-ink-2">
+                  <span className="min-w-0 flex-1 truncate text-left text-ink-2">
                     {ru ? x.regionNameRu : x.regionNameUz}
                     <span className="text-mute"> · {x.executive ?? t('deadlines.queue')}</span>
                   </span>
-                  <span className="shrink-0 font-bold whitespace-nowrap text-danger">
-                    +
-                    {late.unit === 'days'
-                      ? t('deadlines.lateBy', { n: late.n })
-                      : t('deadlines.lateByHours', { n: late.n })}
-                  </span>
+                  <span className="shrink-0 font-bold whitespace-nowrap text-danger">+{lateText}</span>
+                </>
+              );
+              return (
+                <li key={x.id}>
+                  {onOpenTicket ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenTicket(x.id)}
+                      aria-haspopup="dialog"
+                      aria-label={t('deadlines.openTicket', { code: x.code, late: lateText })}
+                      className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-xs outline-none hover:bg-tint/5 focus-visible:bg-tint/8 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2.5 px-3 py-2 text-xs">{body}</div>
+                  )}
                 </li>
               );
             })}
@@ -156,9 +208,19 @@ export function DeadlinesPanel({ data }: { data: OverviewTickets | undefined }) 
   );
 }
 
-function Big({ value, label, tone }: { value: number; label: string; tone: 'danger' | 'caution' | 'mute' }) {
-  return (
-    <div className="rounded-xl border border-tint/8 bg-tint/[0.03] px-3.5 py-3">
+function Big({
+  value,
+  label,
+  tone,
+  onOpen,
+}: {
+  value: number;
+  label: string;
+  tone: 'danger' | 'caution' | 'mute';
+  onOpen?: () => void;
+}) {
+  const inner = (
+    <>
       <div
         className={cn(
           'text-[28px] leading-none font-extrabold tabular-nums',
@@ -170,19 +232,74 @@ function Big({ value, label, tone }: { value: number; label: string; tone: 'dang
         {value}
       </div>
       <div className="mt-1.5 text-[11.5px] leading-tight text-mute">{label}</div>
-    </div>
+    </>
+  );
+  const box = 'rounded-xl border border-tint/8 bg-tint/[0.03] px-3.5 py-3 text-left';
+  return onOpen ? (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-haspopup="dialog"
+      aria-label={`${label}: ${value}`}
+      className={cn(
+        box,
+        'cursor-pointer outline-none transition-colors hover:border-primary/35 hover:bg-tint/[0.06] focus-visible:ring-2 focus-visible:ring-primary',
+      )}
+    >
+      {inner}
+    </button>
+  ) : (
+    <div className={box}>{inner}</div>
   );
 }
 
-function Row({ dot, label, value, pct }: { dot: string; label: string; value: number; pct?: number }) {
+function Row({
+  dot,
+  label,
+  value,
+  pct,
+  onOpen,
+}: {
+  dot: string;
+  label: string;
+  value: number;
+  pct?: number;
+  onOpen?: () => void;
+}) {
   return (
     <>
       <span className={cn('size-2.5 rounded-full', dot)} />
       <dt className="text-ink-2">{label}</dt>
       <dd className="text-right font-bold text-ink tabular-nums">
-        {value}
+        <NumberButton label={label} value={value} onOpen={onOpen} />
         {pct !== undefined && <span className="ml-1.5 text-[11px] font-medium text-mute">{pct}%</span>}
       </dd>
     </>
+  );
+}
+
+function Stat({
+  label,
+  shown,
+  tone = 'text-ink',
+  onOpen,
+}: {
+  label: string;
+  /** What is displayed (an average, a count); the list behind it is what it is computed over. */
+  shown: string;
+  /** How many tickets the list behind it has (used by the caller to decide whether it opens). */
+  value: number;
+  tone?: string;
+  onOpen?: () => void;
+}) {
+  return (
+    <div className="flex flex-col justify-between">
+      <div className="leading-tight text-mute">{label}</div>
+      <div className={cn('mt-1 text-base font-bold', tone)}>
+        <NumberButton label={label} value={shown} onOpen={onOpen}>
+          {shown}
+        </NumberButton>
+      </div>
+    </div>
   );
 }

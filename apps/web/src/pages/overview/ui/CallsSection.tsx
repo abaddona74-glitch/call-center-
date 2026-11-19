@@ -9,6 +9,9 @@ import { Skeleton } from '@/shared/ui/skeleton';
 import { CallDynamicsChart, KpiCard } from '@/widgets/call-stats';
 import '../i18n';
 
+/** A calls card that opens its list. */
+export type CallCard = 'total' | 'answered' | 'unanswered' | 'wait';
+
 /**
  * Calls of the period from the PBX CDR — the statistics page's numbers (METRICS.md): totals, answered,
  * unanswered, waiting and talk time, and the dynamics chart. Not filtered by region (calls have none).
@@ -20,6 +23,7 @@ export function CallsSection({
   onScope,
   regionSelected,
   rangeKey,
+  onOpen,
 }: {
   data: OverviewCalls | undefined;
   error: unknown;
@@ -28,6 +32,8 @@ export function CallsSection({
   regionSelected: boolean;
   /** Resets the chart's day/hour view when the period changes. */
   rangeKey: string;
+  /** Opens the calls behind a card's number. */
+  onOpen?: (card: CallCard) => void;
 }) {
   const { t, i18n } = useTranslation('overviewPage');
   const n = (v: number) => formatNumber(v, i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ');
@@ -75,6 +81,7 @@ export function CallsSection({
               value={n(s.totalCalls)}
               unit={t('calls.ta')}
               sub={t('calls.split', { inbound: n(s.inbound.offered), outbound: n(s.outbound.connected) })}
+              onOpen={onOpen && s.totalCalls > 0 ? () => onOpen('total') : undefined}
             />
             <KpiCard
               accent="green"
@@ -84,6 +91,7 @@ export function CallsSection({
               unit={t('calls.ta')}
               badge={`${s.inbound.answerRate}%`}
               sub={t('calls.ofInbound', { n: n(s.inbound.offered) })}
+              onOpen={onOpen && s.inbound.answered > 0 ? () => onOpen('answered') : undefined}
             />
             <KpiCard
               accent="red"
@@ -96,6 +104,7 @@ export function CallsSection({
                 ivr: n(s.inbound.ivr),
                 after: n(s.inbound.afterHours),
               })}
+              onOpen={onOpen && s.inbound.offered > s.inbound.answered ? () => onOpen('unanswered') : undefined}
             />
             <KpiCard
               accent="amber"
@@ -103,6 +112,7 @@ export function CallsSection({
               label={t('calls.wait')}
               value={formatDuration(s.inbound.avgWaitSec)}
               sub={t('calls.avgTalk', { v: formatDuration(s.talk.avgSec) })}
+              onOpen={onOpen && s.inbound.answered > 0 ? () => onOpen('wait') : undefined}
             />
           </div>
           {data && <CallDynamicsChart key={rangeKey} hourly={data.hourly} daily={data.daily} />}

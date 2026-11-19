@@ -11,5 +11,6 @@ export {
 export type { CallListDialogProps, CallListFilter, CallListView } from './model/call-list-view';
 export { formatDuration, formatHoursMinutes, formatNumber, formatPhone } from './lib/format';
 export { calendarLabels } from './lib/calendar-labels';
+export { type CallListQueryOptions, asCallListQuery } from './model/call-list-view';
 export { businessToday, monthEnd, monthStart, type RangePresetId, rangePresets, shiftDate } from './lib/today';
 export { CallDirectionBadge, CallStatusBadge, DirectionMark, Pill, type PillTone } from './ui/CallBadges';

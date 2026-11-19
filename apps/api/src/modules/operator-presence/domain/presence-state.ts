@@ -1,7 +1,7 @@
 import type { LiveOperator } from '@cc/shared';
 
 /**
- * What the presence log records about an operator phone (docs/rewrite/METRICS.md §10.1). Pure: no Nest, no DB.
+ * What the presence log records about an operator phone (docs/rewrite/METRICS.md §11.1). Pure: no Nest, no DB.
  *  - offline: the phone is not registered (SIP);
  *  - online: registered and taking queue calls (idle, ringing or talking);
  *  - paused: registered and paused in the queue (talking during a pause stays `paused`).

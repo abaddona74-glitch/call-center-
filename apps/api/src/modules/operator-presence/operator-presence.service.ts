@@ -25,7 +25,7 @@ const HEARTBEAT_MS = 60_000;
 const SETTLE_MS = 5_000;
 
 /**
- * The presence log (owner, 19.11.2026; docs/rewrite/METRICS.md §10.1): online / pause intervals of operator phones for
+ * The presence log (owner, 19.11.2026; docs/rewrite/METRICS.md §11.1): online / pause intervals of operator phones for
  * the staff KPI page. Reads the live board's state (LiveService + the pure `projectOperators`, the same projection the
  * board shows) — it does not change the live module — and writes a row whenever an operator's state or pause reason
  * changes. While AMI is disconnected or the API is down nothing is known, so no interval covers that time.

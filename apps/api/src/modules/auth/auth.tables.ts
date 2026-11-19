@@ -12,8 +12,6 @@ export interface UsersTable {
   isActive: Generated<boolean>;
   createdAt: Generated<Date>;
   updatedAt: Generated<Date>;
-  /** operator_groups.id (users module) */
-  groupId: number | null;
   /** WebAuthn user handle (uuid). Legacy-compatible: the handle bytes are the UTF-8 of this string. */
   webauthnUserId: Generated<string>;
   lastLoginAt: Date | null;

@@ -49,8 +49,8 @@ describe('ticket access', () => {
     expect(Object.values(ticketCapabilities({ role: 'nobody' })).some(Boolean)).toBe(false);
   });
 
-  it("follows the session's own permission list (operator groups, future custom roles)", () => {
-    // an operator whose group cannot call back
+  it("follows the session's own permission list (future custom roles)", () => {
+    // an operator session without the callback permission
     expect(ticketCapabilities({ role: 'operator', permissions: ['tickets.create'] })).toMatchObject({
       create: true,
       callback: false,

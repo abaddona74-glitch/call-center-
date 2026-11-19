@@ -278,7 +278,7 @@ describe('access', () => {
 
   it('observer: the overview dashboard and the KPI page, nothing else', async () => {
     const me = (await observer.get('/auth/me')).body.user;
-    expect(me.permissions).toEqual(['overview.view', 'kpi.view']);
+    expect(me.permissions).toEqual(['situation.view', 'overview.view', 'kpi.view']);
     for (const path of [
       `/stats/operators?${DAY}`,
       `/call-analysis/stats?${DAY}`,

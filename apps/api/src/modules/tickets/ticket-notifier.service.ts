@@ -1,5 +1,7 @@
 import { type CallAttemptStatus, type TicketChangeAction, ticketCapabilities, ticketCode } from '@cc/shared';
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { type TicketChangedEvent, TicketEvents } from '../../common/events/domain-events.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { type TicketActor, ticketActor, ticketAudience } from './domain/ticket-workflow.js';
 import { ticketFacts } from './ticket-presenter.service.js';
@@ -20,6 +22,7 @@ export class TicketNotifier {
   constructor(
     private readonly repo: TicketsRepository,
     private readonly realtime: RealtimeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   private async actors(): Promise<TicketActor[]> {
@@ -34,6 +37,18 @@ export class TicketNotifier {
     actor: { userId: number | null; label: string },
     extra: { attemptStatus?: CallAttemptStatus } = {},
   ): Promise<void> {
+    const changedId = (after ?? before)?.id;
+    if (changedId !== undefined) {
+      try {
+        this.events.emit(TicketEvents.Changed, {
+          ticketId: changedId,
+          action,
+          at: new Date().toISOString(),
+        } satisfies TicketChangedEvent);
+      } catch (err) {
+        this.logger.warn(`${TicketEvents.Changed} subscriber failed: ${(err as Error).message}`);
+      }
+    }
     try {
       const actors = await this.actors();
       const audience = ticketAudience(actors, before && ticketFacts(before), after && ticketFacts(after));

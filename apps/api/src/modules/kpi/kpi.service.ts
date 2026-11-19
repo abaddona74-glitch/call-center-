@@ -28,7 +28,7 @@ import { KpiRepository } from './kpi.repository.js';
 const MAX_TICKET_DAYS = 366;
 
 /**
- * «KPI xodimlar» (owner, 19.11.2026; docs/rewrite/METRICS.md §10). Read-only joins of what other modules already
+ * «KPI xodimlar» (owner, 19.11.2026; docs/rewrite/METRICS.md §11). Read-only joins of what other modules already
  * compute, so each number equals its home page:
  *  - calls and client ratings: the CDR through PbxCallsService and the statistics page's functions (= /api/stats);
  *  - AI quality: the «Tahlil» aggregates over the current prompt version (CallAnalysisService + aggregateAnalyses);

@@ -1,3 +1,4 @@
+import { ROLE_PERMISSIONS } from '@cc/shared';
 import { Client, createE2eApp, createUser, type E2eApp, loginAs, ROOT, auditActions } from './support/e2e-app.js';
 
 let e2e: E2eApp;
@@ -39,8 +40,6 @@ describe('permissions by role', () => {
       expect((await c.patch(`/users/${opId}`, { email: 'a@b.uz' })).status, name).toBe(403);
       expect((await c.post(`/users/${opId}/password`, { password: 'Strong-Pass-123' })).status, name).toBe(403);
       expect((await c.delete(`/users/${opId}`)).status, name).toBe(403);
-      expect((await c.get('/operator-groups')).status, name).toBe(403);
-      expect((await c.post('/operator-groups', { name: 'X1', permissions: {} })).status, name).toBe(403);
       expect((await c.get(`/users/${opId}/passkeys`)).status, name).toBe(403);
       expect((await c.post('/auth/impersonation', { userId: opId })).status, name).toBe(403);
     }
@@ -246,63 +245,14 @@ describe('forced password change', () => {
   });
 });
 
-describe('operator groups and permissions', () => {
-  it('seeds the legacy groups; a group removes permissions from operators only', async () => {
-    const groups = (await root.get('/operator-groups')).body.items;
-    const zangiota = groups.find((g: { name: string }) => g.name === 'Zangiota');
-    expect(zangiota.permissions.canSeeContacts).toBe(false);
-    expect((await op.get('/auth/me')).body.user.permissions).toContain('contacts.view');
-
-    expect((await root.patch(`/users/${opId}`, { groupId: zangiota.id })).status).toBe(200);
-    const fresh = await loginAs(e2e, 'op101', 'Oper-Pass-1234');
-    const me = (await fresh.get('/auth/me')).body.user;
-    expect(me.groupId).toBe(zangiota.id);
-    for (const p of ['contacts.view', 'contacts.manage', 'remoteDesktop.use', 'help.request', 'tools.use']) {
-      expect(me.permissions).not.toContain(p);
-    }
-    expect(me.permissions).toContain('tickets.create');
-
-    expect((await root.patch(`/users/${execId}`, { groupId: zangiota.id })).status).toBe(200);
-    expect((await exec.get('/auth/me')).body.user.permissions).toEqual(['tickets.process']); // groups touch operators only
-  });
-
-  it('creates, updates and deletes groups; members fall back to no group', async () => {
-    const created = await root.post('/operator-groups', {
-      name: 'Night shift',
-      description: 'after hours',
-      permissions: {
-        canSeeContacts: true,
-        canEditContacts: false,
-        canUseRemoteDesktop: false,
-        canRequestHelp: true,
-        canUseTools: true,
-      },
-    });
-    expect(created.status).toBe(201);
-    expect((await root.post('/operator-groups', { name: 'night SHIFT', permissions: {} })).status).toBe(409);
-    expect((await root.post('/operator-groups', { name: 'x', permissions: {} })).status).toBe(400);
-
-    const id = created.body.id;
-    const upd = await root.patch(`/operator-groups/${id}`, {
-      permissions: { ...created.body.permissions, canEditContacts: true },
-    });
-    expect(upd.body.permissions.canEditContacts).toBe(true);
-
-    const member = await createUser(root, {
-      username: 'night-op',
-      password: 'Night-Pass-123',
-      extension: '141',
-      groupId: id,
-    });
-    expect((await root.get('/operator-groups')).body.items.find((g: { id: number }) => g.id === id).memberCount).toBe(
-      1,
-    );
-    expect((await root.delete(`/operator-groups/${id}`)).status).toBe(204);
-    expect((await root.get(`/users/${member}`)).body.groupId).toBeNull();
-    expect((await root.patch(`/users/${member}`, { groupId: 99999 })).status).toBe(400);
-    expect(await auditActions(e2e.db)).toEqual(
-      expect.arrayContaining(['groups.create', 'groups.update', 'groups.delete']),
-    );
+describe('no operator groups (owner decision 19.11.2026)', () => {
+  it('has no /operator-groups API; a 200+ operator gets the full operator set', async () => {
+    expect((await root.get('/operator-groups')).status).toBe(404);
+    const id = await createUser(root, { username: 'op230', password: 'Oper-Pass-1234', extension: '230' });
+    const me = (await (await loginAs(e2e, 'op230', 'Oper-Pass-1234')).get('/auth/me')).body.user;
+    expect(me.permissions).toEqual([...ROLE_PERMISSIONS.operator]);
+    expect(me).not.toHaveProperty('groupId');
+    expect((await root.get(`/users/${id}`)).body).not.toHaveProperty('groupId');
   });
 });
 

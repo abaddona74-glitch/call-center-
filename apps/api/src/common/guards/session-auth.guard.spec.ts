@@ -30,7 +30,6 @@ const operator = (over: Partial<SessionUser> = {}): SessionUser => ({
   role: 'operator',
   extension: '205',
   email: null,
-  groupId: 2,
   permissions: ROLE_PERMISSIONS.operator.filter((p) => p !== 'contacts.view'),
   ...over,
 });

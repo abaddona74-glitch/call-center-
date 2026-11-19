@@ -20,3 +20,18 @@ export function lateBy(dueAt: string, now: Date): { unit: 'days' | 'hours'; n: n
 export function deadlineSplit(t: OverviewTicketTotals): { onTime: number; late: number; stillOverdue: number } {
   return { onTime: Math.max(0, t.done + t.rejected - t.overdueLate), late: t.overdueLate, stillOverdue: t.overdueOpen };
 }
+
+/** "DD.MM.YYYY HH:mm" in Asia/Tashkent; "—" without a value. */
+export function listDateTime(iso: string | null, toWall: (iso: string) => string): string {
+  if (!iso) return '—';
+  const w = toWall(iso); // "YYYY-MM-DD HH:mm:ss"
+  return `${w.slice(8, 10)}.${w.slice(5, 7)}.${w.slice(0, 4)} ${w.slice(11, 16)}`;
+}
+
+/** How late, from hours past the due date: whole days from one day on, else whole hours (at least 1). */
+export function overdueParts(hours: number | null): { unit: 'days' | 'hours'; n: number } | null {
+  if (hours === null) return null;
+  return hours >= 24
+    ? { unit: 'days', n: Math.floor(hours / 24) }
+    : { unit: 'hours', n: Math.max(1, Math.floor(hours)) };
+}

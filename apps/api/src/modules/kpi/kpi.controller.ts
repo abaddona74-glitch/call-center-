@@ -14,7 +14,7 @@ import { KpiService } from './kpi.service.js';
 
 /**
  * The staff KPI page «KPI xodimlar» (owner, 19.11.2026): observers and the superuser (`kpi.view` on every endpoint).
- * Figures only (docs/rewrite/METRICS.md §10); the records behind them are the overview dashboard's detail endpoints.
+ * Figures only (docs/rewrite/METRICS.md §11); the records behind them are the overview dashboard's detail endpoints.
  */
 @Controller('kpi')
 @RequirePermission('kpi.view')
