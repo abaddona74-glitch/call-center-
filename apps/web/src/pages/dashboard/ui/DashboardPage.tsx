@@ -1,5 +1,5 @@
 import { CDR_ACCESS } from '@cc/shared';
-import { usePermission } from '@/entities/session';
+import { usePermission, useSessionUser } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { ActiveCalls } from '@/widgets/active-calls';
@@ -24,13 +24,15 @@ export function DashboardPage() {
   const open = monitor === 'open';
   const canSeeCallbacks = usePermission('callbacks.view');
   const canSeeRecent = usePermission(CDR_ACCESS['history.page']);
+  // Operators get the legacy operator-portal cards (Diamond / Gold / Silver), staff the dashboard cards.
+  const isOperator = useSessionUser().role === 'operator';
   return (
     <div className="grid items-start gap-6">
       <div className="flex min-w-0 flex-col gap-6">
         <MyPhone />
         <TicketCallbackQueue />
         <LiveCounters />
-        <OperatorsBoard />
+        <OperatorsBoard variant={isOperator ? 'mockup' : 'classic'} />
         {canSeeRecent && <RecentCallsPanel />}
       </div>
       {open ? (

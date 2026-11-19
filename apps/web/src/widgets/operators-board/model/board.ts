@@ -12,6 +12,58 @@ export function ranks(ops: LiveOperator[]): Map<string, number> {
 }
 
 /**
+ * Operator-portal leaderboard (legacy viewer `sortedByScore`): every operator with calls today,
+ * across all groups, busiest first, then longer total talk, then lower extension.
+ */
+export function leaderboard(ops: LiveOperator[]): Map<string, number> {
+  const sorted = ops
+    .filter((o) => grandTotal(o) > 0)
+    .sort(
+      (a, b) =>
+        grandTotal(b) - grandTotal(a) ||
+        b.today.talkSeconds - a.today.talkSeconds ||
+        Number(a.extension) - Number(b.extension),
+    );
+  return new Map(sorted.map((o, i) => [o.extension, i]));
+}
+
+export type Tier = 'diamond' | 'gold' | 'silver';
+
+/** Legacy viewer card tiers: #1 Diamond (MVP), #2 Gold, #3 and #4 Silver. */
+export function tierOf(rank: number | undefined): Tier | null {
+  if (rank === 0) return 'diamond';
+  if (rank === 1) return 'gold';
+  if (rank === 2 || rank === 3) return 'silver';
+  return null;
+}
+
+/** Calls needed for 1…5 stars (legacy `generateStarRatingHtml`). */
+export const STAR_THRESHOLDS = [1, 10, 20, 30, 40] as const;
+
+/** Star level for today's total and how many calls are left to the next star (0 at the top). */
+export function starLevel(total: number): { level: number; toNext: number } {
+  const level = STAR_THRESHOLDS.filter((n) => total >= n).length;
+  const next = STAR_THRESHOLDS[level];
+  return { level, toNext: next === undefined ? 0 : next - total };
+}
+
+/** Today's post-call survey of one operator (asteriskcdrdb.operator_baho via GET /api/stats/operators). */
+export interface SurveyScore {
+  /** Average rating 1–5, null without ratings. */
+  avg: number | null;
+  count: number;
+}
+
+/**
+ * "Samaradorlik" = the clients' average rating as a share of 5 (owner, 19.11): 4.6 → 92 %, 1 → 20 %.
+ * null without ratings.
+ */
+export function surveyPercent(avg: number | null | undefined): number | null {
+  if (avg === null || avg === undefined) return null;
+  return Math.min(100, Math.max(0, Math.round((avg / 5) * 100)));
+}
+
+/**
  * Predicted next operator for the queue ("fewestcalls"): a free, unpaused operator with the
  * fewest calls taken. Display hint only, like legacy.
  */
