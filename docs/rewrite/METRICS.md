@@ -145,7 +145,7 @@
 
 ## 6. Доступ
 
-Все правила доступа S2 — в одном месте: `CDR_ACCESS` в `packages/shared/src/cdr-access.ts` (API-гварды и веб берут их оттуда). Каждой возможности сопоставлено разрешение (`monitor.view`, `reports.view`, `recordings.listen`; роли → разрешения — `ROLE_PERMISSIONS`): оператор видит списки звонков и таблицу операторов (без записей); экраны «История» и «Статистика», сводка, топ клиентов и Excel — `reports.view` (executive, observer, superuser).
+Все правила доступа S2 — в одном месте: `CDR_ACCESS` в `packages/shared/src/cdr-access.ts` (API-гварды и веб берут их оттуда). Каждой возможности сопоставлено разрешение (`monitor.view`, `reports.view`, `recordings.listen`; роли → разрешения — `ROLE_PERMISSIONS`): оператор видит списки звонков и таблицу операторов (без записей); экраны «История» и «Статистика», сводка, топ клиентов и Excel — `reports.view` (executive, superuser). Observer (с 19.11.2026) видит только дашборд §8.
 
 Темы звонков (раздел «Statistika» в legacy) **не переносятся** (решение владельца): экран «Статистика» показывает только показатели из CDR.
 
@@ -167,3 +167,42 @@
    (Только плечи очереди; переводы на номер, не взятые адресатом, добавятся к «не взял».)
 3. Формы строк для: ответ из очереди, брошенный в очереди, обрыв в IVR, нерабочее время, перевод (слепой/с консультацией, 2–3 шага), исходящий — сверить с `infra/dev-pbx/seed/generate-cdr-seed.mjs`.
 4. Часовой пояс `calldate` (`SELECT @@global.time_zone, NOW()`) — ожидается Asia/Tashkent.
+
+## 8. Дашборд «Umumiy ko‘rinish» (`GET /api/overview/*`, решение владельца 19.11.2026)
+
+Единственная страница наблюдателя (`observer`), superuser её тоже видит, executive — нет (карта только наблюдателю). Разрешение `overview.view`; только агрегаты, без текстов тикетов, номеров граждан и списков звонков. Код: `apps/api/src/modules/overview` (`domain/ticket-overview.ts` — чистые функции и тесты).
+
+**Период** — как на странице статистики: «Bugun», «7 kun» (сегодня и 6 дней до), «Shu oy» (с 1-го числа по сегодня; по умолчанию), «Oraliq» (до 366 дней). Дни — Asia/Tashkent.
+
+### 8.1 Тикеты (`/api/overview/tickets?from&to[&region]`)
+
+Две части, обе с теми же правилами сроков, что отчёты по тикетам (`tickets/domain/sla.ts`: `isOverdue`, `isCallbackOverdue`), поэтому цифры совпадают с «Ticket hisobotlari» за тот же период.
+
+**За период** = тикеты, **созданные** в периоде (одна когорта, у всех долей один знаменатель), каждый в своём текущем состоянии:
+
+| Поле | Определение |
+|---|---|
+| `received` («Kelib tushgan») | создан в периоде |
+| `taken` | хоть раз взят executive (событие `assigned` в ленте; для перенесённых без событий — есть исполнитель или решивший) |
+| `done` / `rejected` | итог executive (`resolution`) |
+| `closed` («Yopilgan») | статус `closed` (гражданину перезвонили) |
+| `open` | не `closed` |
+| `overdue` («Muddati o‘tgan») | `overdueOpen` + `overdueLate` |
+| `overdueOpen` | всё ещё в области (`new` / `assigned` / `in_progress`) после `due_at` |
+| `overdueLate` | `done` / `rejected` позже `due_at` |
+| `callbackOverdue` | закрыт позже `callback_due_at` или ещё ждёт перезвона после него |
+| `avgResolutionHours` / `avgCloseHours` | среднее от создания до `done`/`rejected` / до `closed`, календарные часы, 1 знак |
+
+Доля просроченных на карте = `overdue / received` (нет тикетов — «нет данных»). «Muddatida hal qilingan» = `done + rejected − overdueLate`.
+
+**Сейчас** (не зависит от периода, фильтр области действует): незакрытые тикеты по статусам; `overdue` — в области после `due_at` (любая дата создания); `callbackOverdue` — ждут перезвона после `callback_due_at`; 10 самых давно просроченных (номер `TK-…`, область, у кого или «в очереди», на сколько просрочен).
+
+**Области** — все 14 из справочника (+ отключённые, если у них есть тикеты, + «Hududsiz», если есть тикеты без области): те же поля за период, плюс `executives` (активные ответственные области) и `overdueNow`. Фильтр области (`region` = код или `none`) сужает всё, кроме списка областей (он кормит карту).
+
+**Mas’ul shaxslar (executive)** — все, кто привязан к областям (`ticket_executive_regions`), и все, кто брал/решал тикеты периода (например, superuser): `taken` — тикеты периода, которые он брал (по событиям; после «вернуть в очередь» и взятия другим считается у обоих); `done` / `rejected` — решённые им; `overdue` — просроченные среди тех, что он решил или держит (как в отчётах: решивший, иначе исполнитель); `avgResolutionHours` — по решённым им; `holdingNow` / `overdueNow` — сейчас у него (`assigned` / `in_progress`) и из них просроченные.
+
+**Карта**: цвет по одной метрике (поступило / закрыто / доля просроченных), один оттенок от светлого к насыщенному. Для количеств — 5 ступеней по квинтилям областей с тикетами (иначе Ташкент один «съедает» шкалу), для доли — фиксированные ступени 0 / ≤10 / ≤20 / ≤35 / >35 %, чтобы цвет значил одно и то же в любой период. Границы — Natural Earth admin-1 (public domain), упрощены и вшиты в приложение (`widgets/region-map/model/uz-regions.json`, генератор `apps/web/scripts/build-uz-regions.mjs`), без внешних тайлов.
+
+### 8.2 Звонки (`/api/overview/calls?from&to&scope`)
+
+Те же `summary` и ряды, что `GET /api/stats/summary` и `/api/stats/series` за тот же период и `scope` (§2, §4): одни функции (`stats/domain/metrics.ts`), один источник (`PbxCallsService`). На дашборде: «Jami» (`totalCalls`), «Javob berilgan» (`inbound.answered`, доля `answerRate`), «Javobsiz» = `offered − answered` (= `unanswered` живых счётчиков §5a; рядом разбивка: ушли из очереди / IVR / нерабочее время), «O‘rtacha kutish» (`avgWaitSec`) и средний разговор (`talk.avgSec`). Звонки не делятся по областям — фильтр области на них не действует.
