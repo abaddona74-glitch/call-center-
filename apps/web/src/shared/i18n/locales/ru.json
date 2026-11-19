@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "Главная",
     "settings": "Настройки",
+    "systemSettings": "Системные настройки",
     "profile": "Профиль",
     "explorer": "Аудио записи",
     "tickets": "Тикеты",

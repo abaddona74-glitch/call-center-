@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "Bosh sahifa",
     "settings": "Sozlamalar",
+    "systemSettings": "Tizim sozlamalari",
     "profile": "Profil",
     "explorer": "Audio Explorer",
     "tickets": "Ticketlar",
