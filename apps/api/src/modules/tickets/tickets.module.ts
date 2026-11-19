@@ -64,5 +64,7 @@ import { TicketsService } from './tickets.service.js';
     TicketReportsService,
     TicketFilesStore,
   ],
+  // The overview dashboard's read-only ticket card (detail, attachments, recordings in the `overview` scope).
+  exports: [TicketsService, TicketRecordingsService],
 })
 export class TicketsModule {}

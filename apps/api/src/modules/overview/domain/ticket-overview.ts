@@ -35,6 +35,8 @@ export interface OverviewTicketFact {
   resolvedAt: Date | null;
   callbackDueAt: Date | null;
   closedAt: Date | null;
+  /** Snapshot of the organization's name (search in the details list). */
+  organizationName: string | null;
 }
 
 export interface OverviewRegionRef {
@@ -93,6 +95,11 @@ export function isOverdueNow(t: OverviewTicketFact, now: Date): boolean {
 }
 
 /** Waiting for the operator's callback after `callback_due_at`, right now. */
+/** Users who took the ticket (see `takersOf`). */
+export function ticketTakers(t: OverviewTicketFact, takers: ReadonlyMap<number, readonly number[]>): Set<number> {
+  return takersOf(t, takers);
+}
+
 export function isCallbackOverdueNow(t: OverviewTicketFact, now: Date): boolean {
   return t.status !== 'closed' && t.closedAt === null && isCallbackOverdue(t, now);
 }

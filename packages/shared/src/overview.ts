@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { CallAnalysisStatsSchema } from './call-analysis.js';
+import { CallAnalysisStatsSchema, CallOutcomeSchema, RedFlagCodeSchema, SentimentSchema } from './call-analysis.js';
+import { CallScopeSchema } from './cdr.js';
 import { IsoDateSchema } from './common.js';
 import { DailyPointSchema, HourlyPointSchema, StatsQuerySchema, StatsSummarySchema } from './stats.js';
 import { TicketStatusSchema } from './tickets.js';
@@ -213,3 +214,169 @@ export const OverviewQualitySchema = z.object({
   sentimentEnd: statsShape.sentiment.shape.end,
 });
 export type OverviewQuality = z.infer<typeof OverviewQualitySchema>;
+
+// --- details: the records behind each number (owner, 19.11.2026) ---------------------------------------------
+// Every number on the page opens the list it is made of; the list total equals the number for the same filters.
+
+const pageParams = {
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+  search: z
+    .string()
+    .trim()
+    .max(100)
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+};
+
+/**
+ * Ticket numbers of the page (METRICS.md §9.1):
+ *  - the period (tickets created in it): received … callbackOverdue = the totals' fields; `resolved` / `closeTimed` =
+ *    the tickets the average resolution / close time is over; `onTime` = resolved by the due date;
+ *  - now (not closed, any creation date): `nowOpen`, `nowStatus` (+ `status`), `nowOverdue`, `nowCallbackOverdue`;
+ *  - one Mas'ul (+ `executive`): `exTaken`, `exDone`, `exRejected`, `exOverdue`, `exResolved` (the period),
+ *    `exHolding`, `exOverdueNow` (now).
+ * The region filter applies to all of them.
+ */
+export const OVERVIEW_TICKET_METRICS = [
+  'received',
+  'taken',
+  'done',
+  'rejected',
+  'closed',
+  'open',
+  'overdue',
+  'overdueOpen',
+  'overdueLate',
+  'callbackOverdue',
+  'resolved',
+  'closeTimed',
+  'onTime',
+  'nowOpen',
+  'nowStatus',
+  'nowOverdue',
+  'nowCallbackOverdue',
+  'exTaken',
+  'exDone',
+  'exRejected',
+  'exOverdue',
+  'exResolved',
+  'exHolding',
+  'exOverdueNow',
+] as const;
+export const OverviewTicketMetricSchema = z.enum(OVERVIEW_TICKET_METRICS);
+export type OverviewTicketMetric = z.infer<typeof OverviewTicketMetricSchema>;
+
+export const OverviewTicketListQuerySchema = z
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    region: RegionFilterSchema.optional(),
+    metric: OverviewTicketMetricSchema,
+    /** `nowStatus` only. */
+    status: TicketStatusSchema.optional(),
+    /** `ex*` metrics only: the Mas'ul's user id. */
+    executive: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(2 ** 31)
+      .optional(),
+    ...pageParams,
+  })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] })
+  .refine((q) => q.metric !== 'nowStatus' || q.status !== undefined, {
+    message: '`status` is required',
+    path: ['status'],
+  })
+  .refine((q) => !q.metric.startsWith('ex') || q.executive !== undefined, {
+    message: '`executive` is required',
+    path: ['executive'],
+  });
+export type OverviewTicketListQuery = z.infer<typeof OverviewTicketListQuerySchema>;
+
+export const OverviewTicketListItemSchema = z.object({
+  id: z.number().int(),
+  code: z.string(),
+  createdAt: z.string(),
+  regionCode: z.string().nullable(),
+  regionNameUz: z.string(),
+  regionNameRu: z.string(),
+  /** Who resolved it, else who holds it; null = still in the region queue. */
+  executive: z.string().nullable(),
+  status: TicketStatusSchema,
+  dueAt: z.string().nullable(),
+  /** Hours past the due date: resolved late (at resolution) or still with the region (now); null when in time. */
+  overdueHours: z.number().nonnegative().nullable(),
+  closedAt: z.string().nullable(),
+  organization: z.string().nullable(),
+});
+export type OverviewTicketListItem = z.infer<typeof OverviewTicketListItemSchema>;
+
+export const OverviewTicketListSchema = z.object({
+  items: z.array(OverviewTicketListItemSchema),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+  total: z.number().int(),
+});
+export type OverviewTicketList = z.infer<typeof OverviewTicketListSchema>;
+
+/**
+ * Call numbers (METRICS.md §2, the summary): `total` = inbound + connected outbound ("Jami"), `inbound`, `outbound`
+ * (connected), `answered`, `unanswered` (= abandoned + ivr + afterHours), `abandoned`, `ivr`, `afterHours`; `talked`
+ * = answered inbound + connected outbound (the average talk time is over them). The average wait is over `answered`.
+ */
+export const OVERVIEW_CALL_METRICS = [
+  'total',
+  'inbound',
+  'outbound',
+  'answered',
+  'unanswered',
+  'abandoned',
+  'ivr',
+  'afterHours',
+  'talked',
+] as const;
+export const OverviewCallMetricSchema = z.enum(OVERVIEW_CALL_METRICS);
+export type OverviewCallMetric = z.infer<typeof OverviewCallMetricSchema>;
+
+export const OverviewCallListQuerySchema = z
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    scope: CallScopeSchema.default('working'),
+    metric: OverviewCallMetricSchema,
+    ...pageParams,
+  })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] });
+export type OverviewCallListQuery = z.infer<typeof OverviewCallListQuerySchema>;
+
+/**
+ * Call-quality numbers (METRICS.md §9.3): the analysed calls (current prompt version) behind them — `analyzed` (also
+ * the average score), `handled`, `flagged`, one red `flag`, one `outcome`, one end `sentiment`.
+ */
+export const OVERVIEW_QUALITY_METRICS = ['analyzed', 'handled', 'flagged', 'flag', 'outcome', 'sentiment'] as const;
+export const OverviewQualityMetricSchema = z.enum(OVERVIEW_QUALITY_METRICS);
+export type OverviewQualityMetric = z.infer<typeof OverviewQualityMetricSchema>;
+
+export const OverviewQualityListQuerySchema = z
+  .object({
+    from: IsoDateSchema,
+    to: IsoDateSchema,
+    metric: OverviewQualityMetricSchema,
+    flag: RedFlagCodeSchema.optional(),
+    outcome: CallOutcomeSchema.optional(),
+    sentiment: SentimentSchema.optional(),
+    ...pageParams,
+  })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] })
+  .refine((q) => q.metric !== 'flag' || q.flag !== undefined, { message: '`flag` is required', path: ['flag'] })
+  .refine((q) => q.metric !== 'outcome' || q.outcome !== undefined, {
+    message: '`outcome` is required',
+    path: ['outcome'],
+  })
+  .refine((q) => q.metric !== 'sentiment' || q.sentiment !== undefined, {
+    message: '`sentiment` is required',
+    path: ['sentiment'],
+  });
+export type OverviewQualityListQuery = z.infer<typeof OverviewQualityListQuerySchema>;

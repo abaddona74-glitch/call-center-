@@ -15,6 +15,9 @@ import { ATTEMPT_STALE_MS } from './domain/ticket-callback.js';
 import { type TicketActor, type TicketFacts, isUnread, ticketActions, ticketActor } from './domain/ticket-workflow.js';
 import { TicketDirectoriesRepository } from './ticket-directories.repository.js';
 import { TicketsRepository } from './tickets.repository.js';
+
+/** Whose rights a ticket read uses: the session user's, or the overview dashboard's read-only view of every ticket. */
+export type TicketAccessScope = 'session' | 'overview';
 import type {
   TicketAttachmentRow,
   TicketCallRow,
@@ -89,6 +92,21 @@ export class TicketPresenter {
   async actorFor(user: Pick<SessionUser, 'id' | 'role' | 'extension'>): Promise<TicketActor> {
     const regionIds = ticketActorKind(user) === 'executive' ? await this.repo.regionIdsOf(user.id) : [];
     return ticketActor(user, regionIds);
+  }
+
+  /**
+   * The actor for a scope: the session's own rights, or — for the overview dashboard's read-only ticket card (owner,
+   * 19.11.2026; the caller checks `overview.view`) — a viewer of every ticket who may do nothing.
+   */
+  async actorIn(user: Pick<SessionUser, 'id' | 'role' | 'extension'>, scope: TicketAccessScope): Promise<TicketActor> {
+    if (scope === 'session') return this.actorFor(user);
+    const viewer = {
+      id: user.id,
+      role: 'observer',
+      extension: user.extension,
+      permissions: ['tickets.viewAll' as const],
+    };
+    return ticketActor(viewer);
   }
 
   async refs(): Promise<DirectoryRefs> {

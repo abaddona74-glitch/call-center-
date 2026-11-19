@@ -1,4 +1,12 @@
+import type { OverviewTicketMetric } from '@cc/shared';
 import { describe, expect, it } from 'vitest';
+import {
+  type TicketMetricContext,
+  matchesTicketMetric,
+  matchesTicketSearch,
+  ticketMetricSource,
+  toTicketListItem,
+} from './ticket-list.js';
 import {
   buildOverviewTickets,
   isCallbackOverdueNow,
@@ -40,6 +48,7 @@ const t = (over: Partial<OverviewTicketFact>): OverviewTicketFact => ({
   resolvedAt: null,
   callbackDueAt: null,
   closedAt: null,
+  organizationName: null,
   ...over,
 });
 
@@ -266,5 +275,84 @@ describe('regionFilterOf', () => {
     expect(regionFilterOf('none', regions)).toEqual({ ok: true, filter: null });
     expect(regionFilterOf('samarqand', regions)).toEqual({ ok: true, filter: SAM });
     expect(regionFilterOf('atlantida', regions)).toEqual({ ok: false });
+  });
+});
+
+describe('ticket lists behind the numbers (list total == the number)', () => {
+  const r = build();
+  const ctx = (over: Partial<TicketMetricContext> = {}): TicketMetricContext => ({ now, takers, ...over });
+  const count = (metric: OverviewTicketMetric, over: Partial<TicketMetricContext> = {}, region?: number | null) => {
+    const source = ticketMetricSource(metric) === 'now' ? open : cohort;
+    return source.filter(
+      (x) => (region === undefined || x.regionId === region) && matchesTicketMetric(x, metric, ctx(over)),
+    ).length;
+  };
+
+  it('period totals', () => {
+    const totals = r.totals;
+    for (const m of [
+      'received',
+      'taken',
+      'done',
+      'rejected',
+      'closed',
+      'open',
+      'overdue',
+      'overdueOpen',
+      'overdueLate',
+      'callbackOverdue',
+    ] as const) {
+      expect(count(m), m).toBe(totals[m]);
+    }
+    expect(count('resolved')).toBe(2); // the average resolution time is over these
+    expect(count('closeTimed')).toBe(1);
+    expect(count('onTime')).toBe(totals.done + totals.rejected - totals.overdueLate);
+  });
+
+  it('now: backlog by status, overdue, callback overdue', () => {
+    expect(count('nowOpen')).toBe(r.now.byStatus.reduce((s, x) => s + x.count, 0));
+    for (const s of r.now.byStatus) expect(count('nowStatus', { status: s.status }), s.status).toBe(s.count);
+    expect(count('nowOverdue')).toBe(r.now.overdue);
+    expect(count('nowCallbackOverdue')).toBe(r.now.callbackOverdue);
+  });
+
+  it('regions (map and table) with the region filter', () => {
+    for (const row of r.regions) {
+      expect(count('received', {}, row.regionId)).toBe(row.received);
+      expect(count('closed', {}, row.regionId)).toBe(row.closed);
+      expect(count('overdue', {}, row.regionId)).toBe(row.overdue);
+      expect(count('nowOverdue', {}, row.regionId)).toBe(row.overdueNow);
+    }
+  });
+
+  it('Mas’ul rows', () => {
+    for (const e of r.executives) {
+      const ex = { executive: e.userId };
+      expect(count('exTaken', ex), e.name).toBe(e.taken);
+      expect(count('exDone', ex), e.name).toBe(e.done);
+      expect(count('exRejected', ex), e.name).toBe(e.rejected);
+      expect(count('exOverdue', ex), e.name).toBe(e.overdue);
+      expect(count('exHolding', ex), e.name).toBe(e.holdingNow);
+      expect(count('exOverdueNow', ex), e.name).toBe(e.overdueNow);
+    }
+    expect(count('exResolved', { executive: 6 })).toBe(1);
+  });
+
+  it('list rows: overdue hours, who, search', () => {
+    const byId = new Map(regions.map((x) => [x.id, x]));
+    const late = toTicketListItem(rejectedLate, byId, now);
+    expect(late).toMatchObject({
+      code: `TK-${rejectedLate.id}`,
+      executive: 'Vali',
+      overdueHours: 24,
+      regionCode: 'toshkent-shahri',
+    });
+    expect(toTicketListItem(heldOverdue, byId, now).overdueHours).toBe(98); // 26.11 10:00 → 30.11 12:00
+    expect(toTicketListItem(queuedInTime, byId, now)).toMatchObject({ overdueHours: null, executive: null });
+    expect(toTicketListItem(noRegion, byId, now)).toMatchObject({ regionCode: null, regionNameUz: 'Hududsiz' });
+    expect(matchesTicketSearch(late, `tk-${rejectedLate.id}`)).toBe(true);
+    expect(matchesTicketSearch(late, String(rejectedLate.id))).toBe(true);
+    expect(matchesTicketSearch(late, 'vali')).toBe(true);
+    expect(matchesTicketSearch(late, 'samarqand')).toBe(false);
   });
 });

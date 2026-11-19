@@ -16,6 +16,7 @@ const FACT_COLUMNS = [
   'resolvedAt',
   'callbackDueAt',
   'closedAt',
+  'organizationName',
 ] as const;
 
 /**

@@ -54,7 +54,7 @@ import { TicketDirectoriesRepository } from './ticket-directories.repository.js'
 import { TicketFilesStore } from './ticket-files.store.js';
 import { TicketNotifier } from './ticket-notifier.service.js';
 import { TicketOrganizationsRepository } from './ticket-organizations.repository.js';
-import { TicketPresenter, ticketFacts } from './ticket-presenter.service.js';
+import { type TicketAccessScope, TicketPresenter, ticketFacts } from './ticket-presenter.service.js';
 import { TicketsRepository } from './tickets.repository.js';
 import type { TicketAttachmentRow, TicketEventsTable, TicketRow, TicketsTable } from './tickets.tables.js';
 
@@ -227,6 +227,12 @@ export class TicketsService {
       await this.notifier.pushUnread([actor]);
     }
     return this.presenter.detail(row, actor);
+  }
+
+  /** The overview dashboard's read-only ticket card: any ticket, no actions, nothing marked read. */
+  async overviewDetail(user: SessionUser, id: number): Promise<TicketDetail> {
+    const actor = await this.presenter.actorIn(user, 'overview');
+    return this.presenter.detail(await this.visibleRow(id, actor), actor);
   }
 
   async detailFor(user: SessionUser, row: TicketRow): Promise<TicketDetail> {
@@ -626,8 +632,9 @@ export class TicketsService {
     user: SessionUser,
     ticketId: number,
     attachmentId: number,
+    scope: TicketAccessScope = 'session',
   ): Promise<{ row: TicketAttachmentRow; path: string }> {
-    const actor = await this.presenter.actorFor(user);
+    const actor = await this.presenter.actorIn(user, scope);
     await this.visibleRow(ticketId, actor);
     const row = await this.repo.findAttachment(ticketId, attachmentId);
     if (!row) throw new NotFoundException('Attachment not found');
@@ -643,8 +650,13 @@ export class TicketsService {
   }
 
   /** DOCX → HTML on the server (mammoth), then sanitized with a strict allow-list. */
-  async docPreview(user: SessionUser, ticketId: number, attachmentId: number): Promise<{ html: string }> {
-    const { row } = await this.attachment(user, ticketId, attachmentId);
+  async docPreview(
+    user: SessionUser,
+    ticketId: number,
+    attachmentId: number,
+    scope: TicketAccessScope = 'session',
+  ): Promise<{ html: string }> {
+    const { row } = await this.attachment(user, ticketId, attachmentId, scope);
     if (row.kind !== 'docx') throw new BadRequestException('Only DOCX attachments have a preview');
     const cached = this.previews.get(row.id);
     if (cached !== undefined) return { html: cached };

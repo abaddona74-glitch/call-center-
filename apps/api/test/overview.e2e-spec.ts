@@ -1,5 +1,12 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { CALL_ANALYSIS_PROMPT_VERSION } from '@cc/shared';
 import '../src/modules/call-analysis/call-analysis.tables.js';
+import type { CdrRecordingRow } from '../src/modules/recordings/domain/cdr-recording.js';
+import { RecordingsRepository } from '../src/modules/recordings/recordings.repository.js';
+import { LocalRecordingStorage } from '../src/modules/recordings/storage/local-recording-storage.js';
+import { RECORDING_STORAGE } from '../src/modules/recordings/storage/recording-storage.port.js';
 import { CdrRepository } from '../src/pbx/calls/cdr.repository.js';
 import { inbound, outbound } from '../src/pbx/calls/testing/cdr-fixtures.js';
 import { FakeCdrRepository } from './cdr/fake-cdr-repository.js';
@@ -27,13 +34,54 @@ const cdr = [
   outbound({ at: '2026-11-16 11:00:00', ext: '101', number: '935551122', disposition: 'ANSWERED', talk: 60 }),
 ].flat();
 
+const ANSWERED_ID = (() => {
+  const leg = cdr.find((r) => r.recordingfile)!;
+  return leg.linkedid || leg.uniqueid;
+})();
+
+/** Recording lookup over the fixture CDR (the real repository reads the PBX). */
+class FakeRecordingsRepository {
+  async rowsForCall(uid: string): Promise<CdrRecordingRow[]> {
+    return cdr
+      .filter((r) => r.uniqueid === uid || r.linkedid === uid)
+      .map((r) => ({
+        calldate: r.calldate,
+        uniqueid: r.uniqueid,
+        linkedid: r.linkedid ?? '',
+        src: r.src,
+        dst: r.dst,
+        cnum: '',
+        channel: r.channel,
+        dstchannel: r.dstchannel,
+        recordingfile: r.recordingfile,
+      }));
+  }
+  async recordedCallsInRange(): Promise<CdrRecordingRow[]> {
+    return [];
+  }
+}
+let monitor: string;
+
 const PERIOD = 'from=2026-11-01&to=2026-11-10';
 /** Tashkent wall time → Date (UTC+5, no DST). */
 const tk = (wall: string) => new Date(`${wall}+05:00`);
 
 beforeAll(async () => {
+  process.env.SFTP_HOST = '';
+  monitor = await mkdtemp(path.join(tmpdir(), 'cc-overview-monitor-'));
+  for (const leg of cdr.filter((r) => r.recordingfile)) {
+    const day = leg.calldate.slice(0, 10).replace(/-/g, '/');
+    await mkdir(path.join(monitor, day), { recursive: true });
+    await writeFile(path.join(monitor, day, leg.recordingfile), Buffer.alloc(16_044, 7));
+  }
   e2e = await createE2eApp((b) =>
-    b.overrideProvider(CdrRepository).useValue(new FakeCdrRepository(cdr, [{ extension: '101', name: 'Aziza' }])),
+    b
+      .overrideProvider(CdrRepository)
+      .useValue(new FakeCdrRepository(cdr, [{ extension: '101', name: 'Aziza' }]))
+      .overrideProvider(RECORDING_STORAGE)
+      .useValue(new LocalRecordingStorage(monitor))
+      .overrideProvider(RecordingsRepository)
+      .useValue(new FakeRecordingsRepository()),
   );
   root = await loginAs(e2e, ROOT.username, ROOT.password);
   anon = new Client(e2e);
@@ -117,7 +165,7 @@ beforeAll(async () => {
   // AI analyses of 2026-11-16: two of the current prompt version, one of an older one (never mixed in).
   const analyses: Array<[id: string, version: string, overall: number, outcome: string, flags: string[], end: string]> =
     [
-      ['ov-a1', CALL_ANALYSIS_PROMPT_VERSION, 9, 'resolved', [], 'positive'],
+      [ANSWERED_ID, CALL_ANALYSIS_PROMPT_VERSION, 9, 'resolved', [], 'positive'],
       ['ov-a2', CALL_ANALYSIS_PROMPT_VERSION, 4, 'unresolved', ['rudeness'], 'negative'],
       ['ov-a3', 'v1-old', 2, 'resolved', [], 'neutral'],
     ];
@@ -171,6 +219,7 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await e2e?.close();
+  if (monitor) await rm(monitor, { recursive: true, force: true });
 });
 
 describe('access', () => {
@@ -391,5 +440,208 @@ describe('call quality (AI analysis)', () => {
   it('validates the query', async () => {
     expect((await observer.get('/overview/quality?from=2026-11-10&to=2026-11-01')).status).toBe(400);
     expect((await observer.get('/overview/quality?from=x&to=2026-11-01')).status).toBe(400);
+  });
+});
+
+describe('details: the records behind each number (list total == the number)', () => {
+  const total = async (c: Client, query: string) => {
+    const r = await c.get(query);
+    expect(r.status, query).toBe(200);
+    return r.body.total as number;
+  };
+
+  it('tickets: period totals, now, regions and Mas’ul rows', async () => {
+    const o = (await observer.get(`/overview/tickets?${PERIOD}`)).body;
+    for (const m of [
+      'received',
+      'taken',
+      'done',
+      'rejected',
+      'closed',
+      'open',
+      'overdue',
+      'overdueOpen',
+      'overdueLate',
+      'callbackOverdue',
+    ]) {
+      expect(await total(observer, `/overview/tickets/list?${PERIOD}&metric=${m}`), m).toBe(o.totals[m]);
+    }
+    expect(await total(observer, `/overview/tickets/list?${PERIOD}&metric=nowOverdue`)).toBe(o.now.overdue);
+    expect(await total(observer, `/overview/tickets/list?${PERIOD}&metric=nowCallbackOverdue`)).toBe(
+      o.now.callbackOverdue,
+    );
+    for (const s of o.now.byStatus) {
+      expect(
+        await total(observer, `/overview/tickets/list?${PERIOD}&metric=nowStatus&status=${s.status}`),
+        s.status,
+      ).toBe(s.count);
+    }
+    for (const row of o.regions) {
+      const region = row.code ?? 'none';
+      const q = `/overview/tickets/list?${PERIOD}&region=${region}`;
+      expect(await total(observer, `${q}&metric=received`), region).toBe(row.received);
+      expect(await total(observer, `${q}&metric=closed`), region).toBe(row.closed);
+      expect(await total(observer, `${q}&metric=overdue`), region).toBe(row.overdue);
+      expect(await total(observer, `${q}&metric=nowOverdue`), region).toBe(row.overdueNow);
+    }
+    for (const e of o.executives) {
+      const q = `/overview/tickets/list?${PERIOD}&executive=${e.userId}`;
+      expect(await total(observer, `${q}&metric=exTaken`), e.name).toBe(e.taken);
+      expect(await total(observer, `${q}&metric=exDone`), e.name).toBe(e.done);
+      expect(await total(observer, `${q}&metric=exRejected`), e.name).toBe(e.rejected);
+      expect(await total(observer, `${q}&metric=exOverdue`), e.name).toBe(e.overdue);
+      expect(await total(observer, `${q}&metric=exHolding`), e.name).toBe(e.holdingNow);
+      expect(await total(observer, `${q}&metric=exOverdueNow`), e.name).toBe(e.overdueNow);
+    }
+    // with a region filter, the Mas’ul numbers of that region
+    const sam = (await observer.get(`/overview/tickets?${PERIOD}&region=samarqand`)).body;
+    expect(await total(observer, `/overview/tickets/list?${PERIOD}&region=samarqand&metric=received`)).toBe(
+      sam.totals.received,
+    );
+  });
+
+  it('tickets: list rows, search, pages, validation', async () => {
+    const r = (await observer.get(`/overview/tickets/list?${PERIOD}&metric=received&pageSize=2`)).body;
+    expect(r).toMatchObject({ total: 4, page: 1, pageSize: 2 });
+    expect(r.items).toHaveLength(2);
+    expect(Object.keys(r.items[0]).sort()).toEqual(
+      [
+        'closedAt',
+        'code',
+        'createdAt',
+        'dueAt',
+        'executive',
+        'id',
+        'organization',
+        'overdueHours',
+        'regionCode',
+        'regionNameRu',
+        'regionNameUz',
+        'status',
+      ].sort(),
+    );
+    const held = (await observer.get(`/overview/tickets/list?${PERIOD}&metric=received&search=TK-${ids.held}`)).body;
+    expect(held.items.map((x: { id: number }) => x.id)).toEqual([ids.held]);
+    expect(held.items[0]).toMatchObject({
+      executive: 'Masul Toshkent',
+      status: 'in_progress',
+      regionCode: 'toshkent-shahri',
+    });
+    expect(held.items[0].overdueHours).toBeGreaterThan(24);
+    const masul = (await observer.get(`/overview/tickets/list?${PERIOD}&metric=received&search=samarqand`)).body;
+    expect(masul.total).toBe(1);
+    expect((await observer.get(`/overview/tickets/list?${PERIOD}&metric=exTaken`)).status).toBe(400); // no executive
+    expect((await observer.get(`/overview/tickets/list?${PERIOD}&metric=nowStatus`)).status).toBe(400); // no status
+    expect((await observer.get(`/overview/tickets/list?${PERIOD}&metric=everything`)).status).toBe(400);
+    expect((await executive.get(`/overview/tickets/list?${PERIOD}&metric=received`)).status).toBe(403);
+    expect((await operator.get(`/overview/tickets/list?${PERIOD}&metric=received`)).status).toBe(403);
+  });
+
+  it('calls: every summary number, both scopes', async () => {
+    for (const scope of ['working', 'all']) {
+      const q = `from=2026-11-16&to=2026-11-16&scope=${scope}`;
+      const s = (await observer.get(`/overview/calls?${q}`)).body.summary;
+      const expected: Record<string, number> = {
+        total: s.totalCalls,
+        inbound: s.inbound.offered,
+        outbound: s.outbound.connected,
+        answered: s.inbound.answered,
+        unanswered: s.inbound.offered - s.inbound.answered,
+        abandoned: s.inbound.abandoned,
+        ivr: s.inbound.ivr,
+        afterHours: s.inbound.afterHours,
+        talked: s.inbound.answered + s.outbound.connected,
+      };
+      for (const [metric, n] of Object.entries(expected)) {
+        expect(await total(observer, `/overview/calls/list?${q}&metric=${metric}`), `${scope} ${metric}`).toBe(n);
+      }
+    }
+    const list = (await observer.get('/overview/calls/list?from=2026-11-16&to=2026-11-16&metric=answered')).body;
+    expect(list.items[0]).toMatchObject({
+      id: ANSWERED_ID,
+      clientNumber: '901234567',
+      hasRecording: true,
+      recordingFile: null,
+    });
+    const found = (
+      await observer.get('/overview/calls/list?from=2026-11-16&to=2026-11-16&metric=total&search=901234567')
+    ).body;
+    expect(found.total).toBe(1);
+  });
+
+  it('quality: every number, the analysed calls of the current version', async () => {
+    const q = 'from=2026-11-16&to=2026-11-16';
+    const quality = (await observer.get(`/overview/quality?${q}`)).body;
+    expect(await total(observer, `/overview/quality/list?${q}&metric=analyzed`)).toBe(quality.analyzed);
+    expect(await total(observer, `/overview/quality/list?${q}&metric=flagged`)).toBe(quality.redFlagCalls);
+    for (const f of quality.redFlags)
+      expect(await total(observer, `/overview/quality/list?${q}&metric=flag&flag=${f.code}`), f.code).toBe(f.count);
+    for (const o of quality.outcomes)
+      expect(await total(observer, `/overview/quality/list?${q}&metric=outcome&outcome=${o.outcome}`), o.outcome).toBe(
+        o.count,
+      );
+    for (const [s, n] of Object.entries(quality.sentimentEnd))
+      expect(await total(observer, `/overview/quality/list?${q}&metric=sentiment&sentiment=${s}`), s).toBe(n);
+    // the real CDR call comes with its client number; an analysed call the CDR lacks still makes a row
+    const all = (await observer.get(`/overview/quality/list?${q}&metric=analyzed`)).body;
+    expect(all.items.map((x: { id: string }) => x.id).sort()).toEqual([ANSWERED_ID, 'ov-a2'].sort());
+    expect(all.items.find((x: { id: string }) => x.id === ANSWERED_ID).clientNumber).toBe('901234567');
+    expect((await observer.get(`/overview/quality/list?${q}&metric=flag`)).status).toBe(400);
+  });
+});
+
+describe('details: read-only cards', () => {
+  it('a ticket card for the observer: any ticket, no actions, nothing changes', async () => {
+    const d = await observer.get(`/overview/tickets/${ids.rejected}`);
+    expect(d.status).toBe(200);
+    expect(d.body).toMatchObject({ id: ids.rejected, code: `TK-${ids.rejected}`, status: 'callback_pending' });
+    expect(Object.values(d.body.actions).some(Boolean)).toBe(false);
+    expect((await observer.get('/overview/tickets/999999')).status).toBe(404);
+    // the tickets API itself stays closed
+    expect((await observer.get(`/tickets/${ids.rejected}`)).status).toBe(404);
+    expect((await executive.get(`/overview/tickets/${ids.rejected}`)).status).toBe(403);
+  });
+
+  it('a call card, its analysis and its recording; every play is audited', async () => {
+    const d = await observer.get(`/overview/calls/${ANSWERED_ID}`);
+    expect(d.status).toBe(200);
+    expect(d.body.call).toMatchObject({ id: ANSWERED_ID, hasRecording: true, recordingFile: null });
+    expect(d.body.legs.length).toBeGreaterThan(0);
+    const a = await observer.get(`/overview/calls/${ANSWERED_ID}/analysis`);
+    expect(a.status).toBe(200);
+    expect(a.body.analysis).toMatchObject({ overall: 9, outcome: 'resolved' });
+    const rec = await observer.get(`/overview/calls/${ANSWERED_ID}/recording`);
+    expect(rec.status).toBe(200);
+    expect(rec.body.file.size).toBe(16_044);
+
+    await e2e.db.deleteFrom('auditLog').where('action', 'like', 'recordings.%').execute();
+    const stream = await observer.get(`/overview/calls/${ANSWERED_ID}/recording/stream`).set('Range', 'bytes=0-99');
+    expect(stream.status).toBe(206);
+    const download = await observer.get(`/overview/calls/${ANSWERED_ID}/recording/stream?download=1`);
+    expect(download.status).toBe(200);
+    const audit = await e2e.db
+      .selectFrom('auditLog')
+      .select(['action', 'target', 'actorUserId'])
+      .where('action', 'like', 'recordings.%')
+      .orderBy('id')
+      .execute();
+    expect(audit).toEqual([
+      { action: 'recordings.play', target: `call:${ANSWERED_ID}`, actorUserId: ids.observer },
+      { action: 'recordings.download', target: `call:${ANSWERED_ID}`, actorUserId: ids.observer },
+    ]);
+    // the recordings, history and analysis APIs stay closed to observers
+    expect((await observer.get(`/recordings/calls/${ANSWERED_ID}/stream`)).status).toBe(403);
+    expect((await observer.get(`/cdr/calls/${ANSWERED_ID}`)).status).toBe(403);
+    expect((await observer.get(`/call-analysis/calls/${ANSWERED_ID}`)).status).toBe(403);
+    for (const c of [executive, operator]) {
+      expect((await c.get(`/overview/calls/${ANSWERED_ID}`)).status).toBe(403);
+      expect((await c.get(`/overview/calls/${ANSWERED_ID}/recording/stream`)).status).toBe(403);
+    }
+  });
+
+  it('the superuser keeps working as before (both the overview and the regular APIs)', async () => {
+    expect((await root.get(`/overview/calls/${ANSWERED_ID}`)).status).toBe(200);
+    expect((await root.get(`/cdr/calls/${ANSWERED_ID}`)).body.call.recordingFile).toMatch(/\.wav$/);
+    expect((await root.get(`/tickets/${ids.rejected}`)).status).toBe(200);
   });
 });
