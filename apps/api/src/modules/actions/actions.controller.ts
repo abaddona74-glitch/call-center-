@@ -13,11 +13,15 @@ import {
 } from '@cc/shared';
 import { Body, Controller, HttpCode, Post, SerializeOptions } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { CurrentUser } from '../../common/decorators/auth.decorators.js';
+import { CurrentUser, RequirePermission } from '../../common/decorators/auth.decorators.js';
 import { ActionsService } from './actions.service.js';
 
-/** Telephony actions. Any logged-in user; operators are limited to their own extension/calls in the service. */
+/**
+ * Telephony actions. Whoever sees the live monitor (`monitor.view`: operators, executives, superuser; not
+ * observers, who see only the overview dashboard); operators are limited to their own extension/calls in the service.
+ */
 @Controller('telephony')
+@RequirePermission('monitor.view')
 export class ActionsController {
   constructor(private readonly actions: ActionsService) {}
 

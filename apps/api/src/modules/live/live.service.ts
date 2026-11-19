@@ -5,6 +5,7 @@ import {
   type LiveQueue,
   type LiveSnapshot,
   type SessionUser,
+  hasPermission,
 } from '@cc/shared';
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
@@ -248,10 +249,14 @@ export function toViewer(user: Pick<SessionUser, 'role' | 'extension' | 'permiss
   return { role: user.role, extension: user.extension, permissions: user.permissions };
 }
 
-/** Same projection for every privileged viewer / per operator extension (one JSON serialization per group). */
-function memo<T>(fn: (v: Viewer) => T): (user: SessionUser) => T {
+/**
+ * Same projection for every privileged viewer / per operator extension (one JSON serialization per group).
+ * Nothing for sessions without `monitor.view` (observers: overview dashboard only), as GET /live/snapshot.
+ */
+function memo<T>(fn: (v: Viewer) => T): (user: SessionUser) => T | undefined {
   const cache = new Map<string, T>();
   return (user) => {
+    if (!hasPermission(user, 'monitor.view')) return undefined;
     const viewer = toViewer(user);
     const key = isPrivileged(viewer) ? 'all' : `op:${viewer.extension ?? ''}`;
     let v = cache.get(key);

@@ -96,7 +96,12 @@ describe('live call events (synthetic, as published by the AMI module)', () => {
       missedCount: 1,
       firstMissedAt: '2026-11-17T05:00:00.000Z', // start of the call, not the abandon moment
     });
-    expect(broadcast).toHaveBeenCalledWith('callbacks.updated', { items: [expect.objectContaining({ id: cb.id })] });
+    // only to sessions that may see callbacks (not observers: overview dashboard only)
+    expect(broadcast).toHaveBeenCalledWith(
+      'callbacks.updated',
+      { items: [expect.objectContaining({ id: cb.id })] },
+      { permission: 'callbacks.view' },
+    );
   });
 
   it('the same call reported again (call.ended after call.abandoned) is not counted twice', async () => {

@@ -33,10 +33,12 @@ import { CallbacksReconciler } from './callbacks.reconciler.js';
 import { CallbacksService } from './callbacks.service.js';
 
 /**
- * Citizens to call back. Every role can see the list and log notes (operators do the calling);
- * closing callbacks by hand, bulk actions, settings and the CDR re-check are admin only.
+ * Citizens to call back. Whoever has `callbacks.view` (operators, executives, superuser; not observers, who see
+ * only the overview dashboard) can see the list and log notes (operators do the calling); closing callbacks by
+ * hand, bulk actions, settings and the CDR re-check are admin only (method-level permissions override this one).
  */
 @Controller('callbacks')
+@RequirePermission('callbacks.view')
 export class CallbacksController {
   constructor(
     private readonly callbacks: CallbacksService,
