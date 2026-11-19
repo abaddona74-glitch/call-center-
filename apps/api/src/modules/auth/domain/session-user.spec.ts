@@ -25,7 +25,14 @@ describe('role permissions', () => {
     for (const p of ROLE_PERMISSIONS.observer) expect(p).toMatch(/\.(view|viewAll|listen)$/);
   });
 
-  it('tickets: operators create and call back, executives process, observers read all, superuser manages directories', () => {
+  it('the overview dashboard: observer sees only it, the superuser too, executives and operators not (owner, 19.11.2026)', () => {
+    expect(ROLE_PERMISSIONS.observer).toEqual(['overview.view']);
+    expect(can({ role: 'superuser' }, 'overview.view')).toBe(true);
+    expect(can({ role: 'executive' }, 'overview.view')).toBe(false);
+    expect(can({ role: 'operator' }, 'overview.view')).toBe(false);
+  });
+
+  it('tickets: operators create and call back, executives process, observers nothing, superuser manages directories', () => {
     const op = { role: 'operator' as const };
     const exec = { role: 'executive' as const };
     const obs = { role: 'observer' as const };
@@ -41,7 +48,7 @@ describe('role permissions', () => {
       false,
     ]);
     expect([can(obs, 'tickets.viewAll'), can(obs, 'tickets.process'), can(obs, 'tickets.callback')]).toEqual([
-      true,
+      false,
       false,
       false,
     ]);

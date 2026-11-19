@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { contactAccessFor } from './contact-access.js';
 
 describe('contactAccessFor', () => {
-  it('role map: executives and superusers have full access; observers read only', () => {
+  it('role map: executives and superusers have full access; observers (overview dashboard only) none', () => {
     expect(contactAccessFor({ role: 'executive' })).toEqual({ canView: true, canEdit: true });
     expect(contactAccessFor({ role: 'superuser' })).toEqual({ canView: true, canEdit: true });
-    expect(contactAccessFor({ role: 'observer' })).toEqual({ canView: true, canEdit: false });
+    expect(contactAccessFor({ role: 'observer' })).toEqual({ canView: false, canEdit: false });
+    expect(contactAccessFor({ role: 'observer', permissions: ['contacts.view'] })).toEqual({
+      canView: true,
+      canEdit: false,
+    });
     expect(contactAccessFor({ role: 'operator' })).toEqual({ canView: true, canEdit: true });
   });
 

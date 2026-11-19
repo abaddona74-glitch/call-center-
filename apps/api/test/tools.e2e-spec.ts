@@ -8,7 +8,7 @@ import { ConverterService } from '../src/modules/tools/converter.service.js';
 import { Client, createE2eApp, createUser, type E2eApp, loginAs, ROOT } from './support/e2e-app.js';
 
 /**
- * Tools API (session S8): access by permission (tools.view / tools.use, the Zangiota group flag),
+ * Tools API (session S8): access by permission (tools.view / tools.use, the Zangiota group flag; observers none),
  * config, Uzcrypto (lookup off: no internet in tests), downloads, the managers directory, and the
  * document converter end to end (real worker threads).
  *   E2E_DATABASE_URL=postgres://callcenter:callcenter@127.0.0.1:54320/callcenter_s8_test pnpm --filter @cc/api test:e2e tools
@@ -97,15 +97,17 @@ describe('access', () => {
     expect((await convert(anon, Buffer.from('salom'), 'a.txt', 'pdf')).status).toBe(401);
   });
 
-  it('the tools page is open to operators (both groups) and observers; the converter is not', async () => {
+  it('the tools page is open to operators (both groups); the converter is not', async () => {
     for (const [name, c] of [
       ['operator', op],
       ['zangiota', zangiota],
-      ['observer', observer],
     ] as const) {
       expect((await c.get('/tools/config')).status, name).toBe(200);
       expect((await c.get('/tools/managers')).status, name).toBe(200);
     }
+    // observers see only the overview dashboard (owner, 19.11.2026)
+    expect((await observer.get('/tools/config')).status).toBe(403);
+    expect((await observer.get('/tools/managers')).status).toBe(403);
     const me = (await zangiota.get('/auth/me')).body.user;
     expect(me.permissions).toContain('tools.view');
     expect(me.permissions).not.toContain('tools.use'); // legacy hid the converter from the 200 group

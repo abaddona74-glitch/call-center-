@@ -18,7 +18,11 @@ const TASHKENT = 1;
 const SAMARQAND = 11;
 
 const superuser = ticketActor({ id: 1, role: 'superuser', extension: '100' });
-const observer = ticketActor({ id: 2, role: 'observer', extension: null });
+// A read-only "every region" actor (tickets.viewAll without tickets.process). Since observers became
+// overview-dashboard-only (owner, 19.11.2026) no role has this by default; the actor kind stays supported.
+const readAllUser = { id: 2, role: 'observer', extension: null, permissions: ['tickets.viewAll' as const] };
+const observer = ticketActor(readAllUser);
+const overviewOnly = ticketActor({ id: 9, role: 'observer', extension: null });
 const exec = ticketActor({ id: 3, role: 'executive', extension: null }, [TASHKENT]);
 const execOther = ticketActor({ id: 4, role: 'executive', extension: null }, [TASHKENT]);
 const execSam = ticketActor({ id: 5, role: 'executive', extension: null }, [SAMARQAND]);
@@ -128,6 +132,12 @@ describe('visibility', () => {
     expect(canViewTicket(observer, ticket({ regionId: null, status: 'closed', creatorUserId: 99 }))).toBe(true);
     expect(canComment(observer, ticket())).toBe(false);
     expect(decideAction(observer, ticket(), 'assign')).toMatchObject({ ok: false, code: 'forbidden' });
+  });
+
+  it('the observer role (overview dashboard only) sees no ticket at all', () => {
+    expect(overviewOnly.kind).toBe('none');
+    expect(canViewTicket(overviewOnly, ticket())).toBe(false);
+    expect(canViewTicket(overviewOnly, ticket({ status: 'callback_pending' }))).toBe(false);
   });
 
   it('observer can change nothing, in any status', () => {

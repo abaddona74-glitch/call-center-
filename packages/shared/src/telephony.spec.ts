@@ -18,10 +18,14 @@ describe('telephonyAccess', () => {
   it('operators see masked numbers and act on their own extension only', () => {
     expect(telephonyAccess({ role: 'operator' })).toEqual({ seeAll: false, manageAll: false });
   });
-  it('executives and superusers see and manage everything; observers only see', () => {
+  it('executives and superusers see and manage everything; observers (overview dashboard only) nothing', () => {
     expect(telephonyAccess({ role: 'executive' })).toEqual({ seeAll: true, manageAll: true });
     expect(telephonyAccess({ role: 'superuser' })).toEqual({ seeAll: true, manageAll: true });
-    expect(telephonyAccess({ role: 'observer' })).toEqual({ seeAll: true, manageAll: false });
+    expect(telephonyAccess({ role: 'observer' })).toEqual({ seeAll: false, manageAll: false });
+    expect(telephonyAccess({ role: 'observer', permissions: ['monitor.view', 'monitor.viewAll'] })).toEqual({
+      seeAll: true,
+      manageAll: false,
+    });
   });
   it('follows the permissions the session carries', () => {
     expect(telephonyAccess({ role: 'operator', permissions: ['monitor.view', 'monitor.viewAll'] })).toEqual({

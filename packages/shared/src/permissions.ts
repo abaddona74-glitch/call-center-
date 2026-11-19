@@ -16,6 +16,11 @@ export const PERMISSIONS = [
   'monitor.viewAll',
   /** Call history, statistics, reports and exports. */
   'reports.view',
+  /**
+   * The overview dashboard (owner, 19.11.2026): call-center totals, the regions map, tickets by executives
+   * ("Mas'ul shaxslar"), deadlines and call figures — aggregates only, no ticket or call details.
+   */
+  'overview.view',
   /** Listen to / download recordings and transcripts. */
   'recordings.listen',
   'callbacks.view',
@@ -69,7 +74,7 @@ const without = (...excluded: Permission[]) => ALL.filter((p) => !excluded.inclu
  *  - superuser: everything;
  *  - executive: everything except user/role/session/security management, impersonation and the ticket
  *    directories; tickets: processes those of its regions (no creating / calling back — operators do that);
- *  - observer: read-only (sees all tickets, cannot change them);
+ *  - observer: the overview dashboard only (owner, 19.11.2026): aggregated numbers, no other page or API;
  *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
@@ -79,22 +84,16 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'sessions.manage',
     'security.manage',
     'impersonate',
+    // The overview dashboard and its regions map are for observers and the superuser (owner, 19.11.2026).
+    'overview.view',
     'tickets.create',
     'tickets.callback',
     'tickets.viewAll',
     'tickets.directories.manage',
     'tickets.administer',
   ),
-  observer: [
-    'monitor.view',
-    'monitor.viewAll',
-    'reports.view',
-    'recordings.listen',
-    'callbacks.view',
-    'contacts.view',
-    'tickets.viewAll',
-    'tools.view',
-  ],
+  // The overview dashboard and nothing else (owner, 19.11.2026): no live monitor, history, tickets or tools.
+  observer: ['overview.view'],
   operator: [
     'monitor.view',
     'callbacks.view',

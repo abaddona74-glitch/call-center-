@@ -1220,7 +1220,7 @@ describe('tickets workflow (e2e)', () => {
       });
     });
 
-    describe('observer: everything, read-only', () => {
+    describe('observer: the overview dashboard only, no ticket access (owner, 19.11.2026)', () => {
       let observer: TestUser;
 
       beforeAll(async () => {
@@ -1231,7 +1231,7 @@ describe('tickets workflow (e2e)', () => {
         await t.db.updateTable('users').set({ isActive: false }).where('id', '=', observer.id).execute();
       });
 
-      it('sees every region: lists, cards, timeline, attachments, recordings, reports; no counter', async () => {
+      it('sees no ticket: lists, cards, attachments, recordings and reports are closed; no WS notices', async () => {
         findCall.mockResolvedValue(pastCall({ id: '1763370000.31' }));
         const tash = (await create(op, { ...base(), callId: '1763370000.31' }, [[PNG_1PX, 'a.png']]).expect(201))
           .body as TicketDetail;
@@ -1243,31 +1243,19 @@ describe('tickets workflow (e2e)', () => {
         await t.app.get(TicketRecordingsService).linkDue(new Date());
         broadcast.mockClear();
         const sam = await newTicket(op, { regionId: samarqand });
-        // WS: the observer gets the notices (lists refresh) but never the unread counter
-        expect(sentTo('tickets.changed')).toContain(observer.id);
+        expect(sentTo('tickets.changed')).not.toContain(observer.id);
         expect(sentTo('tickets.unread')).not.toContain(observer.id);
 
         const ctx = await get(observer, '/api/tickets/context').expect(200);
-        expect(ctx.body).toMatchObject({
-          kind: 'observer',
-          unread: 0,
-          capabilities: { viewAll: true, reports: true, create: false, work: false, callback: false, comment: false },
-        });
+        expect(ctx.body).toMatchObject({ kind: 'none', unread: 0 });
+        expect(Object.values(ctx.body.capabilities).some(Boolean)).toBe(false);
         expect((await get(observer, '/api/tickets/unread').expect(200)).body.count).toBe(0);
-        const all = await get(observer, '/api/tickets?view=all').expect(200);
-        expect(ids(all.body.items)).toEqual(expect.arrayContaining([tash.id, sam.id]));
-        expect(all.body.items.every((i: Ticket) => !i.unread && !Object.values(i.actions).some(Boolean))).toBe(true);
-
-        const d = await get(observer, `/api/tickets/${sam.id}`).expect(200);
-        expect(d.body.events[0]).toMatchObject({ kind: 'created' });
-        const reads = await t.db.selectFrom('ticketReads').selectAll().where('userId', '=', observer.id).execute();
-        expect(reads).toEqual([]);
-        await get(observer, `/api/tickets/${tash.id}/attachments/${tash.attachments[0].id}`).expect(200);
-        await get(observer, `/api/tickets/${tash.id}/calls/${tash.calls[0].id}/recording`).expect(200);
-
+        await get(observer, '/api/tickets?view=all').expect(403);
+        await get(observer, `/api/tickets/${sam.id}`).expect(404);
+        await get(observer, `/api/tickets/${tash.id}/attachments/${tash.attachments[0].id}`).expect(404);
+        await get(observer, `/api/tickets/${tash.id}/calls/${tash.calls[0].id}/recording`).expect(404);
         const today = new Date().toISOString().slice(0, 10);
-        const r = await get(observer, `/api/tickets/reports?from=${today}&to=${today}`).expect(200);
-        expect(r.body.byRegion.map((x: { id: number }) => x.id)).toEqual(expect.arrayContaining([tashkent, samarqand]));
+        await get(observer, `/api/tickets/reports?from=${today}&to=${today}`).expect(403);
       });
 
       it('cannot change anything', async () => {
@@ -1284,22 +1272,22 @@ describe('tickets workflow (e2e)', () => {
           .execute();
 
         await create(observer, base()).expect(403);
-        await post(observer, `/api/tickets/${fresh.id}/assign`).expect(403);
-        await post(observer, `/api/tickets/${fresh.id}/forward`, { regionId: samarqand, note: 'xx' }).expect(403);
-        await post(observer, `/api/tickets/${working.id}/start`).expect(409); // already started
-        await post(observer, `/api/tickets/${working.id}/resolve`, { note: 'xx' }).expect(403);
-        await post(observer, `/api/tickets/${working.id}/reject`, { note: 'xx' }).expect(403);
-        await post(observer, `/api/tickets/${working.id}/release`, { note: 'xx' }).expect(403);
-        await post(observer, `/api/tickets/${working.id}/forward`, { regionId: samarqand, note: 'xx' }).expect(403);
+        // Tickets it cannot see answer 404 (like any invisible ticket), so nothing about them leaks.
+        await post(observer, `/api/tickets/${fresh.id}/assign`).expect(404);
+        await post(observer, `/api/tickets/${fresh.id}/forward`, { regionId: samarqand, note: 'xx' }).expect(404);
+        await post(observer, `/api/tickets/${working.id}/start`).expect(404);
+        await post(observer, `/api/tickets/${working.id}/resolve`, { note: 'xx' }).expect(404);
+        await post(observer, `/api/tickets/${working.id}/reject`, { note: 'xx' }).expect(404);
+        await post(observer, `/api/tickets/${working.id}/release`, { note: 'xx' }).expect(404);
         await http()
           .post(`/api/tickets/${fresh.id}/comments`)
           .set('Authorization', observer.auth)
           .field('body', 'Kuzatuvchi')
-          .expect(403);
-        await post(observer, `/api/tickets/${inQueue.id}/callback/call`).expect(403);
-        await post(observer, `/api/tickets/${inQueue.id}/callback/outcome`, { outcome: 'informed' }).expect(403);
-        await post(observer, `/api/tickets/${inQueue.id}/close`, { note: 'Yopilsin' }).expect(403);
-        await http().delete(`/api/tickets/${fresh.id}`).set('Authorization', observer.auth).expect(403);
+          .expect(404);
+        await post(observer, `/api/tickets/${inQueue.id}/callback/call`).expect(404);
+        await post(observer, `/api/tickets/${inQueue.id}/callback/outcome`, { outcome: 'informed' }).expect(404);
+        await post(observer, `/api/tickets/${inQueue.id}/close`, { note: 'Yopilsin' }).expect(404);
+        await http().delete(`/api/tickets/${fresh.id}`).set('Authorization', observer.auth).expect(404);
         await post(observer, '/api/tickets/directories/categories', { nameUz: 'Kuzatuv', nameRu: 'Наблюдение' }).expect(
           403,
         );
