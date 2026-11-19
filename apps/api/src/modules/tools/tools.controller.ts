@@ -62,7 +62,8 @@ export class ToolsController {
   @Get('config')
   @SerializeOptions({ schema: ToolsConfigSchema })
   toolsConfig(): ToolsConfig {
-    return { telegramFormUrl: this.config.get('TOOLS_TELEGRAM_FORM_URL') ?? null };
+    // `||`, not `??`: a blank value means "not configured", never an invalid URL in the answer.
+    return { telegramFormUrl: this.config.get('TOOLS_TELEGRAM_FORM_URL') || null };
   }
 
   @Get('uzcrypto')
