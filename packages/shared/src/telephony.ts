@@ -193,11 +193,16 @@ export type LiveSnapshot = z.infer<typeof LiveSnapshotSchema>;
 // ---------------------------------------------------------------------------------------------
 // Actions (POST /api/telephony/*). Operators may act only on their own extension / own calls.
 
+/**
+ * Free text sent to Asterisk as the QueuePause `Reason` (AMI header, queue_log). Uzbek words need
+ * apostrophes ("Yig'ilish", "Ta'til"), typed as ' ` ‘ ’ (ʻ ʼ are letters already). Still no CR/LF
+ * (AMI header injection) and no `|` (queue_log field separator).
+ */
 const PauseReasonSchema = z
   .string()
   .trim()
   .max(64)
-  .regex(/^[\p{L}\p{N} _.,:()-]*$/u, 'Only letters, digits, spaces and _ . , : ( ) -');
+  .regex(/^[\p{L}\p{N} _.,:()'`‘’-]*$/u, "Only letters, digits, spaces and _ . , : ( ) ' -");
 
 export const PauseOperatorRequestSchema = z.object({
   /** Admins: any operator. Operators: omitted or their own extension. */
