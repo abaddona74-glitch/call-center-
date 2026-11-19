@@ -636,7 +636,7 @@ describe('projection — operators see only their own numbers', () => {
           const queues = projectQueues(s);
           const own = { role: 'operator' as const, extension: '101' };
           const other = { role: 'operator' as const, extension: '103' };
-          const admin = { role: 'executive' as const, extension: null };
+          const admin = { role: 'superuser' as const, extension: null };
           expect(operatorsFor(own, ops).find((o) => o.extension === '101')!.call!.phone).toBe('901234567');
           expect(operatorsFor(other, ops).find((o) => o.extension === '101')!.call!.phone).toBe('90 ••• •• 67');
           expect(callsFor(other, calls)[0].phone).toBe('90 ••• •• 67');

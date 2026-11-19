@@ -51,7 +51,7 @@ afterAll(() => ctx?.close());
 it('shows the column and per-operator ratings', async () => {
   const res = await request(ctx.app.getHttpServer())
     .get('/api/stats/operators?from=2026-11-16&to=2026-11-16&scope=all')
-    .set('Cookie', ctx.cookies.executive)
+    .set('Cookie', ctx.cookies.observer)
     .expect(200);
   expect(res.body.surveyAvailable).toBe(true);
   const by = Object.fromEntries(res.body.operators.map((r: { ext: string }) => [r.ext, r]));

@@ -82,7 +82,7 @@ describe('recordings (e2e)', () => {
         .overrideProvider(RecordingsRepository)
         .useValue(new FakeCdrRepository()),
     );
-    admin = await t.createUser('executive', null);
+    admin = await t.createUser('superuser', null);
     admin2 = await t.createUser('superuser', null);
     op101 = await t.createUser('operator', '101');
     op103 = await t.createUser('operator', '103');

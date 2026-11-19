@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { type ManualTab, OperatorManualPage, manualSearchSchema } from '@/pages/guide';
+import { requirePermission } from '../../../lib/require-role';
 
-/** Operator manual (legacy viewer modal), `?tab=` picks the tab. Every signed-in user, like `/guide`. */
+/** Operator manual (legacy viewer modal), `?tab=` picks the tab. `guide.view`, like `/guide`. */
 export const Route = createFileRoute('/_app/guide/manual')({
+  beforeLoad: ({ context }) => requirePermission(context.user, 'guide.view'),
   validateSearch: manualSearchSchema,
   component: ManualRoute,
 });
