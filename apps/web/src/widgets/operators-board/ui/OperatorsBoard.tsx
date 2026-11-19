@@ -1,17 +1,23 @@
 import type { LiveOperator } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
-import { type CSSProperties, type ReactNode, useRef } from 'react';
+import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { businessToday, operatorStatsQuery } from '@/entities/call';
+import { useContactAccess, useContactLookup } from '@/entities/contact';
 import { type OperatorGroupFilter, inGroup } from '@/entities/operator';
 import { liveSnapshotQuery } from '@/entities/telephony';
+import { ContactDialog } from '@/features/contacts/edit-contact';
 import { PauseOperatorButton } from '@/features/telephony/pause-operator';
+import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
-import { groupForBoard, nextInLine, ranks } from '../model/board';
+import { type SurveyScore, groupForBoard, leaderboard, nextInLine, ranks } from '../model/board';
 import { useFlip } from '../model/use-flip';
 import { OperatorCard } from './OperatorCard';
+import { type MockupContactTarget, OperatorMockupCard } from './OperatorMockupCard';
 import '../i18n';
 import './operators-board.css';
+import './operator-mockup.css';
 
 const GROUPS = ['main', 'secondary', 'all'] as const;
 const DENSITY = ['full', 'compact'] as const;
@@ -59,8 +65,17 @@ function Divider({
  * Operators section of the dashboard (legacy "Operatorlar" panel): group tabs, live summary,
  * density toggle, operator cards, offline operators as compact rows.
  * `controls` adds pause/unpause on every card (admins); `sortable` adds the A–Z toggle.
+ * `variant="mockup"` draws the operator-portal cards (legacy viewer: Diamond / Gold / Silver ranks).
  */
-export function OperatorsBoard({ controls = false, sortable = false }: { controls?: boolean; sortable?: boolean }) {
+export function OperatorsBoard({
+  controls = false,
+  sortable = false,
+  variant = 'classic',
+}: {
+  controls?: boolean;
+  sortable?: boolean;
+  variant?: 'classic' | 'mockup';
+}) {
   const { t } = useTranslation('operatorsBoard');
   const { t: tp } = useTranslation('operator');
   const { data: operators, isPending } = useQuery({ ...liveSnapshotQuery, select: (s) => s.operators });
@@ -69,9 +84,26 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
   const [sort, setSort] = usePersistedState('tabOperatorSortMode', 'state', SORT);
   const [offlineView, setOfflineView] = usePersistedState('dashboard_offline_view', 'rows', OFFLINE_VIEW);
 
+  const contactOf = useContactLookup();
+  const { canEdit: canEditContacts } = useContactAccess();
+  const [contactForm, setContactForm] = useState<MockupContactTarget | null>(null);
+  const mockup = variant === 'mockup';
+  // "Samaradorlik" on the portal cards = today's client ratings (PBX operator_baho), refreshed like legacy (~25 s).
+  const today = businessToday();
+  const { data: stats, isError: statsFailed } = useQuery({
+    ...operatorStatsQuery({ from: today, to: today, scope: 'all' }),
+    enabled: mockup,
+    refetchInterval: 30_000,
+  });
+  const surveyOf = new Map<string, SurveyScore>(
+    (stats?.operators ?? []).map((r) => [r.ext, { avg: r.surveyAvg, count: r.surveyCount }]),
+  );
+  const surveyAvailable = !statsFailed && (stats?.surveyAvailable ?? true);
+
   const all = operators ?? [];
   const visible = all.filter((o) => inGroup(o.extension, group));
-  const rankMap = ranks(visible);
+  // The portal ranks the whole call center (legacy viewer), the dashboard ranks the open group.
+  const rankMap = mockup ? leaderboard(all) : ranks(visible);
   const next = nextInLine(visible);
   const groups =
     sort === 'alpha'
@@ -84,19 +116,31 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
   const gridRef = useRef<HTMLDivElement>(null);
   const order = [...groups.talking, ...groups.ready, ...groups.offline].map((o) => o.extension).join(',');
   useFlip(gridRef, `${order}|${density}|${offlineView}`);
-  const card = (op: LiveOperator) => (
-    <OperatorCard
-      key={op.extension}
-      op={op}
-      rank={rankMap.get(op.extension)}
-      next={op.extension === next}
-      actions={
-        controls ? (
-          <PauseOperatorButton extension={op.extension} paused={op.paused} compact className="px-2 py-1" />
-        ) : undefined
-      }
-    />
-  );
+  const card = (op: LiveOperator) =>
+    mockup ? (
+      <OperatorMockupCard
+        key={op.extension}
+        op={op}
+        rank={rankMap.get(op.extension)}
+        survey={surveyOf.get(op.extension)}
+        surveyAvailable={surveyAvailable}
+        next={op.extension === next}
+        contact={contactOf(op.call?.phone)}
+        onContact={canEditContacts ? setContactForm : undefined}
+      />
+    ) : (
+      <OperatorCard
+        key={op.extension}
+        op={op}
+        rank={rankMap.get(op.extension)}
+        next={op.extension === next}
+        actions={
+          controls ? (
+            <PauseOperatorButton extension={op.extension} paused={op.paused} compact className="px-2 py-1" />
+          ) : undefined
+        }
+      />
+    );
   const count = (p: LiveOperator['presence'][]) => visible.filter((o) => p.includes(o.presence)).length;
 
   return (
@@ -153,19 +197,21 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
               A–Z
             </button>
           )}
-          <button
-            type="button"
-            className="ob-tool"
-            aria-pressed={density === 'compact'}
-            onClick={() => setDensity(density === 'compact' ? 'full' : 'compact')}
-          >
-            <Icon name="setting-4" className="size-3.5" />
-            {t('density')}
-          </button>
+          {!mockup && (
+            <button
+              type="button"
+              className="ob-tool"
+              aria-pressed={density === 'compact'}
+              onClick={() => setDensity(density === 'compact' ? 'full' : 'compact')}
+            >
+              <Icon name="setting-4" className="size-3.5" />
+              {t('density')}
+            </button>
+          )}
         </div>
       </div>
 
-      <div ref={gridRef} className={density === 'compact' ? 'ob-grid compact' : 'ob-grid'}>
+      <div ref={gridRef} className={cn('ob-grid', mockup ? 'mockup' : density === 'compact' && 'compact')}>
         {isPending && Array.from({ length: 4 }, (_, i) => <div key={i} className="ob-skeleton" />)}
         {!isPending && visible.length === 0 && <div className="ob-empty">{t('empty')}</div>}
         {groups.talking.map(card)}
@@ -202,6 +248,14 @@ export function OperatorsBoard({ controls = false, sortable = false }: { control
               </div>
             )}
       </div>
+      {contactForm && (
+        <ContactDialog
+          open
+          onOpenChange={(open) => !open && setContactForm(null)}
+          contact={contactForm.contact}
+          presetPhone={contactForm.phone}
+        />
+      )}
     </section>
   );
 }
