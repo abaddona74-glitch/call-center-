@@ -5,7 +5,12 @@ import { cn } from '@/shared/lib/cn';
 /**
  * Data table on TanStack Table v9 with the legacy looks:
  *  - `boxed` (default): "sessions-table" — framed, uppercase muted header on a darker strip;
- *  - `plain`: "settings-users-table" — no frame, normal-case header, roomier rows.
+ *  - `plain`: "settings-users-table" — no frame, normal-case header, roomier rows;
+ *  - `data`: the dashboard/statistics `.data-table` — framed, bold uppercase header on slate, figures centred
+ *    (first column left);
+ *  - `compact`: the same, denser (side panels).
+ * `onRowClick` makes the whole row clickable with the mouse (put a real button in a cell for the keyboard);
+ * `isRowActive` highlights the selected row.
  *
  *   const col = dataTableColumns<User>();
  *   const columns = [col.accessor('username', { header: 'Login' }), col.display({ id: 'actions', cell: ... })];
@@ -31,7 +36,11 @@ export interface DataTableProps<T extends RowData> {
   empty?: ReactNode;
   rowClassName?: (row: T) => string | undefined;
   className?: string;
-  variant?: 'boxed' | 'plain';
+  variant?: 'boxed' | 'plain' | 'data' | 'compact';
+  /** Row click (mouse convenience; the row must also hold a focusable control for the same action). */
+  onRowClick?: (row: T) => void;
+  /** The selected row of an interactive table. */
+  isRowActive?: (row: T) => boolean;
 }
 
 const LOOK = {
@@ -47,7 +56,21 @@ const LOOK = {
     th: 'border-b border-tint/8 px-2.5 py-2 text-xs font-semibold',
     td: 'border-b border-tint/5 px-2.5 py-2.5',
   },
+  data: {
+    wrap: 'rounded-xl border border-tint/8',
+    table: 'text-center text-[13px] [&_td:first-child]:text-left [&_th:first-child]:text-left',
+    th: 'sticky top-0 z-[1] border-b border-tint/8 bg-secondary px-2.5 py-2.5 text-[10.5px] leading-tight font-bold tracking-[0.5px] text-muted-foreground uppercase',
+    td: 'border-b border-tint/5 px-2.5 py-2 whitespace-nowrap tabular-nums text-foreground',
+  },
+  compact: {
+    wrap: 'rounded-xl border border-tint/8',
+    table: 'text-center text-[12.5px] [&_td:first-child]:text-left [&_th:first-child]:text-left',
+    th: 'sticky top-0 z-[1] bg-secondary px-2 py-2 text-[10px] leading-tight font-bold tracking-[0.4px] text-muted-foreground uppercase',
+    td: 'border-b border-tint/5 px-2 py-[7px] whitespace-nowrap tabular-nums text-foreground',
+  },
 } as const;
+/** The legacy looks align by column; `boxed` / `plain` keep the last column right-aligned. */
+const LEGACY_EDGE = { boxed: 'last:text-right', plain: 'last:text-right', data: '', compact: '' } as const;
 
 export function DataTable<T extends RowData>({
   columns,
@@ -58,6 +81,8 @@ export function DataTable<T extends RowData>({
   rowClassName,
   className,
   variant = 'boxed',
+  onRowClick,
+  isRowActive,
 }: DataTableProps<T>) {
   const look = LOOK[variant];
   const table = useTable({
@@ -69,13 +94,20 @@ export function DataTable<T extends RowData>({
   const rows = table.getRowModel().rows;
 
   return (
-    <div className={cn('overflow-x-auto', look.wrap, className)}>
+    <div className={cn('scrollbar-visible overflow-x-auto', look.wrap, className)}>
       <table className={cn('w-full border-collapse text-left', look.table)}>
         <thead>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
               {group.headers.map((header) => (
-                <th key={header.id} className={cn('whitespace-nowrap text-mute last:text-right', look.th)}>
+                <th
+                  key={header.id}
+                  className={cn(
+                    variant === 'data' || variant === 'compact' ? '' : 'whitespace-nowrap text-mute',
+                    LEGACY_EDGE[variant],
+                    look.th,
+                  )}
+                >
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </th>
               ))}
@@ -83,15 +115,39 @@ export function DataTable<T extends RowData>({
           ))}
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id} className={cn('transition-colors hover:bg-tint/[0.03]', rowClassName?.(row.original))}>
-              {row.getAllCells().map((cell) => (
-                <td key={cell.id} className={cn('align-middle text-ink-2 last:text-right', look.td)}>
-                  <table.FlexRender cell={cell} />
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const active = isRowActive?.(row.original) ?? false;
+            // Mouse convenience only: keyboard and screen-reader users act through a real control in the row
+            // (a <tr> has no button semantics and `aria-selected` is valid only in grids).
+            const interactive = onRowClick ? { onClick: () => onRowClick(row.original) } : {};
+            return (
+              <tr
+                key={row.id}
+                {...interactive}
+                className={cn(
+                  'transition-colors hover:bg-tint/[0.03]',
+                  onRowClick &&
+                    'cursor-pointer outline-none hover:bg-tint/[0.05] focus-visible:bg-tint/[0.08] focus-visible:shadow-[inset_3px_0_0_var(--primary)]',
+                  active && 'bg-primary/14 shadow-[inset_3px_0_0_var(--primary)] hover:bg-primary/18',
+                  rowClassName?.(row.original),
+                )}
+              >
+                {row.getAllCells().map((cell) => (
+                  <td
+                    key={cell.id}
+                    className={cn(
+                      'align-middle',
+                      variant === 'data' || variant === 'compact' ? '' : 'text-ink-2',
+                      LEGACY_EDGE[variant],
+                      look.td,
+                    )}
+                  >
+                    <table.FlexRender cell={cell} />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
           {rows.length === 0 && (
             <tr>
               <td colSpan={columns.length} className="px-4 py-6 text-center text-xs text-mute">

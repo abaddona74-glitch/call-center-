@@ -4,7 +4,6 @@ export type SettingsPath =
   | '/settings/security'
   | '/settings/exclude'
   | '/settings/users'
-  | '/settings/groups'
   | '/settings/sessions'
   | '/settings/calendar'
   | '/settings/audit';
@@ -14,7 +13,6 @@ export const SETTINGS_TABS: { to: SettingsPath; key: string; permission: Permiss
   { to: '/settings/security', key: 'security', permission: 'security.manage' },
   { to: '/settings/exclude', key: 'exclude', permission: 'settings.manage' },
   { to: '/settings/users', key: 'users', permission: 'users.manage' },
-  { to: '/settings/groups', key: 'groups', permission: 'users.manage' },
   { to: '/settings/sessions', key: 'sessions', permission: 'sessions.manage' },
   { to: '/settings/calendar', key: 'calendar', permission: 'settings.manage' },
   { to: '/settings/audit', key: 'audit', permission: 'audit.view' },

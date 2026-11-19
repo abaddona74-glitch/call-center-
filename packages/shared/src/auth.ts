@@ -34,9 +34,7 @@ export const SessionUserSchema = z.object({
   role: RoleSchema,
   extension: z.string().nullable(),
   email: z.string().nullable(),
-  /** Operator group (null = no group). Always filled by the API; optional for older literals. */
-  groupId: z.number().int().nullable().optional(),
-  /** Effective permissions (role set minus group restrictions). Always filled by the API; read with `hasPermission`. */
+  /** The role's permissions. Always filled by the API; read with `hasPermission`. */
   permissions: z.array(PermissionSchema).optional(),
   /** The user must change the password before anything else (only /auth/me, /auth/password, logout work). */
   mustChangePassword: z.boolean().optional(),

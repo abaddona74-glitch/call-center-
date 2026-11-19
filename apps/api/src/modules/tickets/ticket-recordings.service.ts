@@ -7,7 +7,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { recordingFileCandidates } from '../recordings/domain/cdr-recording.js';
 import { type PreparedStream, RecordingsService } from '../recordings/recordings.service.js';
 import { type RecordingCheckResult, afterCheck } from './domain/recording-link.js';
-import { TicketPresenter } from './ticket-presenter.service.js';
+import { type TicketAccessScope, TicketPresenter } from './ticket-presenter.service.js';
 import { TicketsRepository } from './tickets.repository.js';
 import { TicketsService } from './tickets.service.js';
 import type { TicketCallRow } from './tickets.tables.js';
@@ -104,8 +104,9 @@ export class TicketRecordingsService {
     callRowId: number,
     range: string | undefined,
     download: boolean,
+    scope: TicketAccessScope = 'session',
   ): Promise<PreparedStream> {
-    const actor = await this.presenter.actorFor(user);
+    const actor = await this.presenter.actorIn(user, scope);
     await this.tickets.visibleRow(ticketId, actor);
     const row = await this.repo.findCall(ticketId, callRowId);
     if (!row) throw new NotFoundException('Call not found');

@@ -12,4 +12,10 @@ export default defineConfig([
     // Early stage: many slices are used once. Re-enable when pages are in place.
     rules: { 'fsd/insignificant-slice': 'off' },
   },
+  {
+    // One page slice per screen (route): 21 screens after call-analysis + overview (19.11.2026). Grouping screens
+    // would only add folders; the limit stays on for widgets, features and entities.
+    files: ['./src/pages/**'],
+    rules: { 'fsd/excessive-slicing': 'off' },
+  },
 ]);

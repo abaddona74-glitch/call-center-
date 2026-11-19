@@ -12,6 +12,7 @@ import {
 } from '@cc/shared';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
+import type { ApiScope } from '@/shared/lib/api-scope';
 
 /** Query params as sent to the API (optional fields may be omitted). */
 export type CallHistoryParams = Partial<CallHistoryQuery>;
@@ -35,10 +36,15 @@ export const callHistoryQuery = (p: CallHistoryParams) =>
     placeholderData: keepPreviousData,
   });
 
-export const callDetailsQuery = (id: string) =>
+/** One call with its CDR legs; in the `overview` scope through the overview dashboard's read-only endpoint. */
+export const callDetailsQuery = (id: string, scope: ApiScope = 'default') =>
   queryOptions({
-    queryKey: callKeys.details(id),
-    queryFn: ({ signal }) => api(`/cdr/calls/${encodeURIComponent(id)}`, { schema: CallDetailsResponseSchema, signal }),
+    queryKey: [...callKeys.details(id), scope],
+    queryFn: ({ signal }) =>
+      api(scope === 'overview' ? `/overview/calls/${encodeURIComponent(id)}` : `/cdr/calls/${encodeURIComponent(id)}`, {
+        schema: CallDetailsResponseSchema,
+        signal,
+      }),
     staleTime: 60_000,
   });
 

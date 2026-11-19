@@ -96,6 +96,7 @@ describe('live call events (synthetic, as published by the AMI module)', () => {
       missedCount: 1,
       firstMissedAt: '2026-11-17T05:00:00.000Z', // start of the call, not the abandon moment
     });
+    // only to sessions that may see callbacks (not executives or observers)
     expect(broadcast).toHaveBeenCalledWith(
       'callbacks.updated',
       { items: [expect.objectContaining({ id: cb.id })] },

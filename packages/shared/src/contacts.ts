@@ -70,7 +70,7 @@ export const ContactListResponseSchema = z.object({
 });
 export type ContactListResponse = z.infer<typeof ContactListResponseSchema>;
 
-/** What the current user may do with contacts (decided on the server by operator group). */
+/** What the current user may do with contacts (decided on the server from the session's permissions). */
 export const ContactAccessSchema = z.object({ canView: z.boolean(), canEdit: z.boolean() });
 export type ContactAccess = z.infer<typeof ContactAccessSchema>;
 

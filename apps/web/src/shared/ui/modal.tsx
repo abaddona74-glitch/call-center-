@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import type * as React from 'react';
 import { cn } from '@/shared/lib/cn';
+import { useReturnFocus } from '@/shared/lib/use-return-focus';
 import { Icon } from './icon';
 
 /**
@@ -20,11 +21,13 @@ export function Modal({
   className?: string;
   children: React.ReactNode;
 }) {
+  const returnFocus = useReturnFocus();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[16px] backdrop-brightness-[.28] light:bg-black/35 light:backdrop-brightness-[.85] data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-[280ms]" />
         <DialogPrimitive.Content
+          {...returnFocus}
           aria-describedby={undefined}
           className={cn(
             'fixed top-1/2 left-1/2 z-50 max-h-[92svh] w-[calc(100%-2rem)] max-w-[520px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[20px] border bg-sidebar/95 px-6 pt-6 pb-6 shadow-[0_25px_60px_color-mix(in_srgb,var(--shadow-color)_80%,transparent)] backdrop-blur-[16px] outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-[.96] data-[state=open]:slide-in-from-bottom-3 data-[state=open]:duration-[280ms] data-[state=open]:ease-[var(--ease-out)]',

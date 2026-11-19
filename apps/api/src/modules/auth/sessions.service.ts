@@ -66,7 +66,6 @@ export class SessionsService {
     const row = await this.txHost.tx
       .selectFrom('sessions as s')
       .innerJoin('users as u', 'u.id', 's.userId')
-      .leftJoin('operatorGroups as g', 'g.id', 'u.groupId')
       .leftJoin('users as iu', 'iu.id', 's.impersonatorUserId')
       .leftJoin('sessions as ps', 'ps.id', 's.parentSessionId')
       .select([
@@ -80,9 +79,7 @@ export class SessionsService {
         'u.role',
         'u.extension',
         'u.email',
-        'u.groupId',
         'u.mustChangePassword',
-        'g.permissions as groupPermissions',
       ])
       .where('s.id', '=', sessionId)
       .where('s.expiresAt', '>', sql<Date>`now()`)

@@ -8,18 +8,19 @@ import { type Permission, hasPermission } from './permissions.js';
  * Everything is derived from S1's permissions (packages/shared/src/permissions.ts), never from role names:
  *   tickets.create / tickets.callback       — operators: open tickets, call citizens back and close;
  *   tickets.process                         — regional work (executives: only their regions);
- *   tickets.viewAll                         — every region (superuser, observer);
+ *   tickets.viewAll                         — every region (superuser; observers lost it on 19.11.2026);
  *   tickets.directories.manage              — regions, cities, categories, executive ↔ regions;
  *   tickets.administer                      — close without a confirmed call, delete, triage.
  * The actor kind decides the scope: an executive (process without viewAll) is limited to its regions;
  * an operator sees tickets it opened, the shared callback queue and closed tickets it called back on;
- * an observer (viewAll without process) sees everything read-only.
+ * an "observer" actor (viewAll without process) sees everything read-only — no role has that by default any more:
+ * the observer role sees only the overview dashboard (aggregates, permission `overview.view`).
  */
 
 export type TicketActorKind = 'superuser' | 'executive' | 'observer' | 'operator' | 'none';
 
 export interface TicketCapabilities {
-  /** Sees every ticket (superuser, observer). */
+  /** Sees every ticket (superuser). */
   viewAll: boolean;
   /** Opens tickets (from a call, from the history). */
   create: boolean;

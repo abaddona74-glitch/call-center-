@@ -20,5 +20,7 @@ import { WorkerTokenGuard } from './worker-token.guard.js';
     CallAnalysisEnqueuer,
     WorkerTokenGuard,
   ],
+  // The overview dashboard reuses the aggregates (same numbers and prompt-version rule as the «Tahlil» page).
+  exports: [CallAnalysisService],
 })
 export class CallAnalysisModule {}

@@ -11,6 +11,7 @@ import {
 import { Skeleton } from '@/shared/ui/skeleton';
 import { useRecordingSeek } from '../model/use-recording-seek';
 import '../i18n';
+import { useApiScope } from '@/shared/lib/api-scope';
 
 const isSkipReason = (v: string | null): v is SkipReason => SKIP_REASONS.includes(v as SkipReason);
 
@@ -30,7 +31,7 @@ export function CallConversation({
 }) {
   const { t } = useTranslation('callConversation');
   const { t: ta } = useTranslation('callAnalysis');
-  const query = useQuery(callAnalysisQuery(callId));
+  const query = useQuery(callAnalysisQuery(callId, useApiScope()));
   const { seek, position } = useRecordingSeek(callId, recordingTitle);
   const onSeek = canListen ? (s: number) => void seek(s) : null;
 

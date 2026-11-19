@@ -36,7 +36,8 @@ const names = [
 ];
 
 let ctx: E2eContext;
-const get = (path: string, role: keyof E2eContext['cookies'] | null = 'observer') => {
+// The superuser reads everything here: observers see only the overview dashboard, "Mas'ul" only tickets (19.11.2026).
+const get = (path: string, role: keyof E2eContext['cookies'] | null = 'superuser') => {
   const req = request(ctx.app.getHttpServer()).get(path);
   return role ? req.set('Cookie', ctx.cookies[role]) : req;
 };
@@ -77,13 +78,21 @@ describe('access by role', () => {
     }
   });
 
-  it('observers and superusers see recordings', async () => {
-    for (const role of ['observer', 'superuser'] as const) {
-      const res = await get(
-        '/api/cdr/calls?from=2026-11-16&to=2026-11-16&status=answered&direction=inbound',
-        role,
-      ).expect(200);
-      expect(res.body.items[0].recordingFile).toMatch(/\.wav$/);
+  it('the superuser sees recordings', async () => {
+    const res = await get('/api/cdr/calls?from=2026-11-16&to=2026-11-16&status=answered&direction=inbound').expect(200);
+    expect(res.body.items[0].recordingFile).toMatch(/\.wav$/);
+  });
+
+  it('observers (overview dashboard only) and "Mas’ul" (tickets only): no history, statistics or export', async () => {
+    for (const role of ['observer', 'executive'] as const) {
+      for (const path of [
+        '/api/cdr/calls?from=2026-11-16&to=2026-11-17',
+        '/api/stats/summary?from=2026-11-16&to=2026-11-17',
+        '/api/stats/operators?from=2026-11-16&to=2026-11-17',
+        '/api/export/excel?from=2026-11-16&to=2026-11-17',
+      ]) {
+        await get(path, role).expect(403);
+      }
     }
   });
 });
@@ -284,12 +293,12 @@ describe('PBX not configured', () => {
   it('returns 503 "PBX unavailable"', async () => {
     const res = await request(off.app.getHttpServer())
       .get('/api/cdr/calls')
-      .set('Cookie', off.cookies.observer)
+      .set('Cookie', off.cookies.superuser)
       .expect(503);
     expect(res.body.message).toMatch(/PBX/);
     await request(off.app.getHttpServer())
       .get('/api/stats/summary?from=2026-11-16&to=2026-11-17')
-      .set('Cookie', off.cookies.observer)
+      .set('Cookie', off.cookies.superuser)
       .expect(503);
   });
 });

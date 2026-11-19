@@ -1,8 +1,7 @@
-import type { OperatorGroup, GroupFlags, Role, UserListQuery } from '@cc/shared';
+import type { Role, UserListQuery } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { type DbHost, InjectDb } from '../../database/db.js';
-import { parseGroupFlags } from '../auth/domain/session-user.js';
 
 export interface UserRow {
   id: number;
@@ -10,8 +9,6 @@ export interface UserRow {
   role: Role;
   extension: string | null;
   email: string | null;
-  groupId: number | null;
-  groupName: string | null;
   isActive: boolean;
   mustChangePassword: boolean;
   createdAt: Date;
@@ -26,7 +23,6 @@ export interface UserPatch {
   role?: Role;
   extension?: string | null;
   email?: string | null;
-  groupId?: number | null;
   isActive?: boolean;
   mustChangePassword?: boolean;
 }
@@ -36,34 +32,29 @@ export class UsersRepository {
   constructor(@InjectDb() private readonly txHost: DbHost) {}
 
   private baseQuery() {
-    return this.txHost.tx
-      .selectFrom('users as u')
-      .leftJoin('operatorGroups as g', 'g.id', 'u.groupId')
-      .select((eb) => [
-        'u.id',
-        'u.username',
-        'u.role',
-        'u.extension',
-        'u.email',
-        'u.groupId',
-        'g.name as groupName',
-        'u.isActive',
-        'u.mustChangePassword',
-        'u.createdAt',
-        'u.updatedAt',
-        'u.lastLoginAt',
-        eb
-          .selectFrom('passkeys as p')
-          .select((e) => e.fn.countAll<number>().as('n'))
-          .whereRef('p.userId', '=', 'u.id')
-          .as('passkeyCount'),
-        eb
-          .selectFrom('sessions as s')
-          .select((e) => e.fn.countAll<number>().as('n'))
-          .whereRef('s.userId', '=', 'u.id')
-          .where('s.expiresAt', '>', sql<Date>`now()`)
-          .as('activeSessions'),
-      ]);
+    return this.txHost.tx.selectFrom('users as u').select((eb) => [
+      'u.id',
+      'u.username',
+      'u.role',
+      'u.extension',
+      'u.email',
+      'u.isActive',
+      'u.mustChangePassword',
+      'u.createdAt',
+      'u.updatedAt',
+      'u.lastLoginAt',
+      eb
+        .selectFrom('passkeys as p')
+        .select((e) => e.fn.countAll<number>().as('n'))
+        .whereRef('p.userId', '=', 'u.id')
+        .as('passkeyCount'),
+      eb
+        .selectFrom('sessions as s')
+        .select((e) => e.fn.countAll<number>().as('n'))
+        .whereRef('s.userId', '=', 'u.id')
+        .where('s.expiresAt', '>', sql<Date>`now()`)
+        .as('activeSessions'),
+    ]);
   }
 
   async list(query: UserListQuery): Promise<UserRow[]> {
@@ -109,7 +100,6 @@ export class UsersRepository {
     role: Role;
     extension: string | null;
     email: string | null;
-    groupId: number | null;
     mustChangePassword: boolean;
   }): Promise<number> {
     const row = await this.txHost.tx.insertInto('users').values(values).returning('id').executeTakeFirstOrThrow();
@@ -135,93 +125,9 @@ export class UsersRepository {
   async delete(id: number): Promise<void> {
     await this.txHost.tx.deleteFrom('users').where('id', '=', id).execute();
   }
-
-  // --- groups ----------------------------------------------------------------------------
-
-  async listGroups(): Promise<OperatorGroup[]> {
-    const rows = await this.groupQuery()
-      .orderBy(sql`lower(g.name)`)
-      .execute();
-    return rows.map(toGroup);
-  }
-
-  async findGroup(id: number): Promise<OperatorGroup | undefined> {
-    const row = await this.groupQuery().where('g.id', '=', id).executeTakeFirst();
-    return row ? toGroup(row) : undefined;
-  }
-
-  async insertGroup(values: { name: string; description: string | null; permissions: GroupFlags }): Promise<number> {
-    const row = await this.txHost.tx
-      .insertInto('operatorGroups')
-      .values({ ...values, permissions: JSON.stringify(values.permissions) })
-      .returning('id')
-      .executeTakeFirstOrThrow();
-    return row.id;
-  }
-
-  async updateGroup(
-    id: number,
-    patch: { name?: string; description?: string | null; permissions?: GroupFlags },
-  ): Promise<void> {
-    const { permissions, ...rest } = patch;
-    await this.txHost.tx
-      .updateTable('operatorGroups')
-      .set({
-        ...rest,
-        ...(permissions ? { permissions: JSON.stringify(permissions) } : {}),
-        updatedAt: sql`now()`,
-      })
-      .where('id', '=', id)
-      .execute();
-  }
-
-  async deleteGroup(id: number): Promise<void> {
-    await this.txHost.tx.deleteFrom('operatorGroups').where('id', '=', id).execute();
-  }
-
-  async groupMemberIds(groupId: number): Promise<number[]> {
-    const rows = await this.txHost.tx.selectFrom('users').select('id').where('groupId', '=', groupId).execute();
-    return rows.map((r) => r.id);
-  }
-
-  private groupQuery() {
-    return this.txHost.tx.selectFrom('operatorGroups as g').select((eb) => [
-      'g.id',
-      'g.name',
-      'g.description',
-      'g.permissions',
-      'g.createdAt',
-      'g.updatedAt',
-      eb
-        .selectFrom('users as u')
-        .select((e) => e.fn.countAll<number>().as('n'))
-        .whereRef('u.groupId', '=', 'g.id')
-        .as('memberCount'),
-    ]);
-  }
 }
 
 function normalizeCounts<T extends { passkeyCount: unknown; activeSessions: unknown }>(row: T): T & UserRow {
   return { ...row, passkeyCount: Number(row.passkeyCount ?? 0), activeSessions: Number(row.activeSessions ?? 0) } as T &
     UserRow;
-}
-
-function toGroup(row: {
-  id: number;
-  name: string;
-  description: string | null;
-  permissions: unknown;
-  createdAt: Date;
-  updatedAt: Date;
-  memberCount: number | null;
-}): OperatorGroup {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    permissions: parseGroupFlags(row.permissions),
-    memberCount: Number(row.memberCount ?? 0),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
 }

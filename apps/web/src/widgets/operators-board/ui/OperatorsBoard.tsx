@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { businessToday, operatorStatsQuery } from '@/entities/call';
 import { useContactAccess, useContactLookup } from '@/entities/contact';
 import { type OperatorGroupFilter, inGroup } from '@/entities/operator';
-import { liveSnapshotQuery } from '@/entities/telephony';
+import { useLiveSnapshot } from '@/entities/telephony';
 import { ContactDialog } from '@/features/contacts/edit-contact';
 import { PauseOperatorButton } from '@/features/telephony/pause-operator';
 import { cn } from '@/shared/lib/cn';
@@ -78,7 +78,7 @@ export function OperatorsBoard({
 }) {
   const { t } = useTranslation('operatorsBoard');
   const { t: tp } = useTranslation('operator');
-  const { data: operators, isPending } = useQuery({ ...liveSnapshotQuery, select: (s) => s.operators });
+  const { data: operators, isPending } = useLiveSnapshot((s) => s.operators);
   const [group, setGroup] = usePersistedState<OperatorGroupFilter>('callcenter_op_group', 'main', GROUPS);
   const [density, setDensity] = usePersistedState('dashboard_op_density', 'full', DENSITY);
   const [sort, setSort] = usePersistedState('tabOperatorSortMode', 'state', SORT);

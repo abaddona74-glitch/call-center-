@@ -1,4 +1,4 @@
-import { CreateUserSchema, type OperatorGroup, ROLES, type Role } from '@cc/shared';
+import { CreateUserSchema, ROLES, type Role } from '@cc/shared';
 import { useForm } from '@tanstack/react-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -24,7 +24,6 @@ type Values = {
   role: Role;
   extension: string;
   email: string;
-  groupId: number | null;
   mustChangePassword: boolean;
 };
 
@@ -34,13 +33,12 @@ const EMPTY: Values = {
   role: 'operator',
   extension: '',
   email: '',
-  groupId: null,
   // the admin picks a temporary password; the person sets their own at first login
   mustChangePassword: true,
 };
 
 /** Legacy "Yangi foydalanuvchi qo'shish" inline form. Only roles the current admin may grant are offered. */
-export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups: OperatorGroup[] }) {
+export function CreateUserCard({ actorRole }: { actorRole: Role }) {
   const { t } = useTranslation('settings');
   const { t: tu } = useTranslation('user');
   const queryClient = useQueryClient();
@@ -54,7 +52,6 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
       toast.success(`${t('users.created')}: ${user.username}`);
       form.reset();
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
-      void queryClient.invalidateQueries({ queryKey: userKeys.groups });
     },
     onError: (err) => setServerError(userErrorText(err, t)),
   });
@@ -139,31 +136,6 @@ export function CreateUserCard({ actorRole, groups }: { actorRole: Role; groups:
           </form.Field>
           {text('extension', t('users.extension'), { inputMode: 'numeric', placeholder: '101' })}
           {text('email', t('users.email'), { type: 'email', placeholder: t('users.emailPlaceholder') })}
-          <form.Subscribe selector={(s) => s.values.role}>
-            {(role) =>
-              role === 'operator' && (
-                <form.Field name="groupId">
-                  {(field) => (
-                    <div className="flex flex-col gap-1.5">
-                      <FieldLabel htmlFor="new-group">{t('users.group')}</FieldLabel>
-                      <SettingsSelect
-                        id="new-group"
-                        value={field.state.value ?? ''}
-                        onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)}
-                      >
-                        <option value="">{tu('noGroup')}</option>
-                        {groups.map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.name}
-                          </option>
-                        ))}
-                      </SettingsSelect>
-                    </div>
-                  )}
-                </form.Field>
-              )
-            }
-          </form.Subscribe>
         </div>
 
         <form.Field name="mustChangePassword">

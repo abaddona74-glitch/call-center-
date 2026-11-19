@@ -109,6 +109,7 @@ describe('LiveStore — recorded simulator scenarios', () => {
       unanswered: 0,
       clientHangups: 1,
       talkSeconds: 95,
+      avgWaitSec: 4, // queue join 3.3 s → pickup 7.8 s
     });
     expect(op(store, '101', now)).toMatchObject({
       presence: 'idle',
@@ -154,6 +155,7 @@ describe('LiveStore — recorded simulator scenarios', () => {
       operatorMissedNoAnswer: 2,
       operatorMissedRejected: 0,
       answerRate: 0,
+      avgWaitSec: 0, // waited 20 s but never answered: not in the answered calls' average
     });
     expect(op(store, '101', T0 + 60_000).today).toMatchObject({ missed: 1, missedNoAnswer: 1, missedRejected: 0 });
   });
@@ -168,7 +170,8 @@ describe('LiveStore — recorded simulator scenarios', () => {
     const answered = events.filter((e) => e.name === CallEvents.Answered).map((e) => e.payload);
     expect(answered.map((a) => a.extension)).toEqual(['106']);
     expect(ended(events)[0]).toMatchObject({ answered: true, extension: '106', hangupParty: 'client' });
-    expect(projectCounters(store)).toMatchObject({ operatorMissed: 2, answered: 1 });
+    // the wait runs from the queue entry through both missed rings to the answer (METRICS.md §1.4)
+    expect(projectCounters(store)).toMatchObject({ operatorMissed: 2, answered: 1, avgWaitSec: 28 });
   });
 
   it('queue timeout without QueueCallerAbandon is unanswered, not credited to the last rung operator (B10)', () => {
@@ -191,7 +194,8 @@ describe('LiveStore — recorded simulator scenarios', () => {
     const now = T0 + 300_000;
     expect(op(store, '101', now).today).toMatchObject({ answered: 1, transfersOut: 1, transfersIn: 0 });
     expect(op(store, '106', now).today).toMatchObject({ answered: 0, transfersIn: 1 });
-    expect(projectCounters(store)).toMatchObject({ inbound: 1, answered: 1 });
+    // the transfer adds no wait: only the first answer counts
+    expect(projectCounters(store)).toMatchObject({ inbound: 1, answered: 1, avgWaitSec: 4 });
   });
 
   it('outbound answered from the phone: one call, one answer, operator hung up', () => {
@@ -747,7 +751,16 @@ describe('LiveStore — live counting boundary and the CDR seed', () => {
     store.drainChanged();
     const applied = store.applySeed(
       seedOf(
-        { inbound: 9, answered: 6, abandoned: 2, ivrOnly: 1, unanswered: 3, talkSeconds: 600, unknownHangups: 6 },
+        {
+          inbound: 9,
+          answered: 6,
+          abandoned: 2,
+          ivrOnly: 1,
+          unanswered: 3,
+          talkSeconds: 600,
+          unknownHangups: 6,
+          waitSeconds: 75,
+        },
         { '101': { answered: 4, talkSeconds: 400 } },
       ),
     );
@@ -765,6 +778,7 @@ describe('LiveStore — live counting boundary and the CDR seed', () => {
       talkSeconds: 600,
       clientHangups: 0,
       unknownHangups: 6,
+      avgWaitSec: 13, // 75 s over 6 answered calls
     });
     expect(op(store, '101', T0 + 5_000).today).toMatchObject({ answered: 4, talkSeconds: 400 });
     // a seed of another day is ignored

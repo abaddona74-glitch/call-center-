@@ -17,7 +17,7 @@ export const contactKeys = {
   topActive: (q: Partial<TopActiveQuery>) => ['contacts', 'top-active', q] as const,
 };
 
-/** What the current user may do (decided by the server from the operator group). */
+/** What the current user may do (decided by the server from the session's permissions). */
 export const contactAccessQuery = queryOptions({
   queryKey: contactKeys.access,
   queryFn: ({ signal }) => api('/contacts/access', { schema: ContactAccessSchema, signal }),
