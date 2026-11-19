@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 
 const STORAGE_KEY = 'cc.history.columns';
 
-/** Columns hidden by default (no data in CDR yet). */
-export const DEFAULT_HIDDEN: Record<string, boolean> = { host: false };
+/** Columns hidden by default (host: no data in CDR yet; missedBy: opt-in detail). */
+export const DEFAULT_HIDDEN: Record<string, boolean> = { host: false, missedBy: false };
 
 function load(): Record<string, boolean> {
   try {

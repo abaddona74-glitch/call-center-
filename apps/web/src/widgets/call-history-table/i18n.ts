@@ -11,6 +11,7 @@ registerTranslations('callHistory', {
       duration: 'Davomiyligi',
       wait: 'Navbatda kutish',
       status: 'Holati',
+      missedBy: "O'tkazib yuborgan",
       hangup: 'Kim tugatdi?',
       host: 'Kompyuter (Host)',
       action: 'Audio / Amal',
@@ -58,6 +59,7 @@ registerTranslations('callHistory', {
       duration: 'Длительность',
       wait: 'Ожидание в очереди',
       status: 'Статус',
+      missedBy: 'Пропустил',
       hangup: 'Кто завершил?',
       host: 'Компьютер (Host)',
       action: 'Аудио / Действие',
@@ -109,5 +111,22 @@ registerTranslations('recentCalls', {
     segment: { all: 'Все', missed: 'Без ответа', abandoned: 'Вышли из очереди', transfer: 'Перевод' },
     searchPlaceholder: 'Номер или оператор…',
     total: 'Всего: {{total}}',
+  },
+});
+
+registerTranslations('callList', {
+  uz: {
+    subtitle: "Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti",
+    search: 'Qidirish',
+    searchPlaceholder: 'Raqam yoki operator…',
+    allOperators: 'Barcha operatorlar',
+    total: "Jami: {{total}} ta qo'ng'iroq",
+  },
+  ru: {
+    subtitle: 'Детали звонков за сегодня с выбранным фильтром',
+    search: 'Поиск',
+    searchPlaceholder: 'Номер или оператор…',
+    allOperators: 'Все операторы',
+    total: 'Всего звонков: {{total}}',
   },
 });

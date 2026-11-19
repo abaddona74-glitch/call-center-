@@ -54,6 +54,42 @@ describe('matchesFilter', () => {
     expect(run({ status: 'busy' })).toEqual(['11:00:00']);
     expect(run({ scope: 'working', status: 'missed' })).toEqual(['09:30:00', '11:00:00']);
   });
+
+  it('"external" is inbound + outbound, without internal calls', () => {
+    const internal = { ...day[0], id: 'internal-1', time: '12:00:00', direction: 'internal' as const };
+    const all = [...day, internal];
+    const times = all
+      .filter((c) => matchesFilter(c, { scope: 'all', search: { kind: 'none' }, direction: 'external' }, names))
+      .map((c) => c.time);
+    expect(times).toEqual(['09:00:00', '09:30:00', '10:00:00', '11:00:00', '22:00:00']);
+  });
+
+  it('operator miss: any reason, one reason, and only the given operator`s misses', () => {
+    // 09:30 rang 103 (no answer); 09:00 was answered by 101 after 103 rang and 106 declined.
+    const withMisses = day.map((c) =>
+      c.time === '09:00:00'
+        ? {
+            ...c,
+            missedBy: [
+              { ext: '103', reason: 'no_answer' as const },
+              { ext: '106', reason: 'rejected' as const },
+            ],
+          }
+        : c,
+    );
+    const runMiss = (f: Partial<Parameters<typeof matchesFilter>[1]>) =>
+      withMisses
+        .filter((c) => matchesFilter(c, { scope: 'all', search: { kind: 'none' }, ...f }, names))
+        .map((c) => c.time);
+    expect(runMiss({ operatorMiss: 'any' })).toEqual(['09:00:00', '09:30:00']);
+    expect(runMiss({ operatorMiss: 'rejected' })).toEqual(['09:00:00']);
+    expect(runMiss({ operatorMiss: 'no_answer' })).toEqual(['09:00:00', '09:30:00']);
+    expect(runMiss({ operatorMiss: 'any', operator: '106' })).toEqual(['09:00:00']);
+    expect(runMiss({ operatorMiss: 'no_answer', operator: '106' })).toEqual([]);
+    // 101 took the 09:00 call but missed nothing.
+    expect(runMiss({ operatorMiss: 'any', operator: '101' })).toEqual([]);
+    expect(runMiss({ operator: '101' })).toEqual(['09:00:00']);
+  });
 });
 
 describe('paginate and map', () => {
