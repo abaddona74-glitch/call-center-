@@ -7,7 +7,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { type WorkerResult } from '@cc/shared';
+import { CALL_ANALYSIS_PROMPT_VERSION, type WorkerResult } from '@cc/shared';
 import { sql } from 'kysely';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -87,21 +87,22 @@ function result(over: Partial<WorkerResult> = {}): WorkerResult {
       ],
     },
     analysis: {
-      topicCode: 'eri_key',
+      topic: { uz: 'ERI kaliti', ru: 'Ключ ЭЦП' },
       subtopic: { uz: 'Kalit', ru: 'Ключ' },
       problem: { uz: 'Kalit ishlamaydi', ru: 'Не работает ключ ЭЦП' },
       summary: { uz: 'Hal qilindi', ru: 'Решено' },
       outcome: 'ticket_opened',
-      scores: { greeting: 5, politeness: 4, understanding: 4, solution: 3, closing: 5 },
+      scores: { greeting: null, politeness: 4, understanding: 4, solution: 3, closing: 5 },
       overall: 8,
       redFlags: [{ code: 'interrupting', note: 'Перебивал', at: 4 }],
+      greetingPhrase: 'Assalomu alaykum, Unicon, 101-operator, eshitaman',
       sentimentStart: 'negative',
       sentimentEnd: 'positive',
       language: 'uz',
       recommendation: { uz: 'Tinglang', ru: 'Дослушивать' },
     },
     meta: {
-      promptVersion: 'v1-test',
+      promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
       sttStrategy: 'turns',
       sttModel: 'whisper-uz',
       llmModel: 'deepseek',
@@ -244,7 +245,7 @@ describe('worker flow', () => {
     const a = await lease('w1').expect(200);
     expect(a.body.jobs.map((j: { callId: string }) => j.callId)).toEqual([ID4]);
     expect(a.body.jobs[0]).toMatchObject({ direction: 'inbound', operatorExt: '103', attempts: 1, talkSec: 120 });
-    expect(a.body.topics.map((t: { code: string }) => t.code)).toContain('other');
+    expect(a.body.topicHints).toEqual([]); // nothing analysed with the current prompt version yet
     const b = await lease('w2', 5).expect(200);
     expect(b.body.jobs.map((j: { callId: string }) => j.callId)).toEqual([ID3, ID1]);
     expect((await lease('w3', 5).expect(200)).body.jobs).toEqual([]);
@@ -261,14 +262,14 @@ describe('worker flow', () => {
     await worker().post(`/jobs/${ID4}/fail`, { workerId: 'w2', error: 'x', retryable: true }).expect(409);
   });
 
-  it('rejects invalid results and unknown topics; accepts large results posted with the result content type', async () => {
+  it('rejects invalid results; accepts large results posted with the result content type', async () => {
     const bad = await worker()
       .post(`/jobs/${ID4}/result`, { ...result(), analysis: { ...result().analysis, overall: 42 } })
       .expect(400);
     expect(JSON.stringify(bad.body)).toContain('analysis.overall');
     await worker()
-      .post(`/jobs/${ID4}/result`, { ...result(), analysis: { ...result().analysis, topicCode: 'no_such_topic' } })
-      .expect(422);
+      .post(`/jobs/${ID4}/result`, { ...result(), analysis: { ...result().analysis, topic: { uz: '', ru: '' } } })
+      .expect(400);
     expect((await jobRow(ID4)).status).toBe('processing');
 
     const segments = Array.from({ length: 1500 }, (_, i) => ({
@@ -321,6 +322,8 @@ describe('worker flow', () => {
       .execute();
     const again = await lease('w1').expect(200);
     expect(again.body.jobs[0]).toMatchObject({ callId: ID3, attempts: 2 });
+    // topics already written with this prompt version come back as wording hints
+    expect(again.body.topicHints).toEqual([{ uz: 'ERI kaliti', ru: 'Ключ ЭЦП' }]);
     const last = await worker().post(`/jobs/${ID3}/fail`, { workerId: 'w1', error: 'LLM timeout', retryable: true });
     expect(last.body.status).toBe('failed'); // CALL_ANALYSIS_MAX_ATTEMPTS = 2
 
@@ -374,12 +377,12 @@ describe('reads', () => {
     expect(d.body.transcript.segments).toHaveLength(2);
     expect(d.body.transcript.segments[0]).toMatchObject({ role: 'operator', start: 0 });
     expect(d.body.analysis).toMatchObject({
-      topicCode: 'eri_key',
-      topicName: { ru: 'Ключ ЭЦП (E-imzo), Uzcrypto' },
+      topic: { uz: 'ERI kaliti', ru: 'Ключ ЭЦП' },
+      greetingPhrase: 'Assalomu alaykum, Unicon, 101-operator, eshitaman',
       outcome: 'ticket_opened',
       overall: 8,
-      promptVersion: 'v1-test',
-      scores: { greeting: 5, politeness: 4, understanding: 4, solution: 3, closing: 5 },
+      promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
+      scores: { greeting: null, politeness: 4, understanding: 4, solution: 3, closing: 5 },
     });
     expect(d.body.tickets).toHaveLength(1);
     const none = await observer.get('/call-analysis/calls/1700000000.1').expect(200);
@@ -392,7 +395,7 @@ describe('reads', () => {
     expect(s.body.items.find((i: { callId: string }) => i.callId === ID1)).toMatchObject({
       status: 'done',
       overall: 8,
-      topicCode: 'eri_key',
+      topic: { uz: 'ERI kaliti', ru: 'Ключ ЭЦП' },
       redFlags: 1,
     });
   });
@@ -411,7 +414,12 @@ describe('reads', () => {
       ['101', 'Aziza'],
       ['103', null],
     ]);
-    expect(s.body.topics[0]).toMatchObject({ code: 'eri_key', count: 2 });
+    expect(s.body.topics[0]).toMatchObject({ key: 'ключ эцп', ru: 'Ключ ЭЦП', count: 2 });
+    expect(s.body).toMatchObject({
+      promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
+      versions: [{ version: CALL_ANALYSIS_PROMPT_VERSION, count: 2 }],
+    });
+    expect(s.body.totals.avgScores.greeting).toBeNull();
     const one = await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&operator=101').expect(200);
     expect(one.body.totals.analyzed).toBe(1);
     const other = await executive.get('/call-analysis/stats?from=2026-11-16&to=2026-11-16').expect(200);
@@ -452,6 +460,21 @@ describe('re-analysis with a new prompt version (llm_only)', () => {
     const d = await observer.get(`/call-analysis/calls/${ID1}`).expect(200);
     expect(d.body.analysis).toMatchObject({ promptVersion: 'v2-test', overall: 6 });
     expect(d.body.transcript.segments).toHaveLength(2);
+  });
+
+  it('statistics never mix prompt versions', async () => {
+    const s = await executive.get('/call-analysis/stats?from=2026-11-17&to=2026-11-17').expect(200);
+    expect(s.body.totals.analyzed).toBe(1); // ID1 is now 'v2-test'
+    expect(s.body.versions).toEqual(
+      expect.arrayContaining([
+        { version: CALL_ANALYSIS_PROMPT_VERSION, count: 1 },
+        { version: 'v2-test', count: 1 },
+      ]),
+    );
+    const old = await executive
+      .get('/call-analysis/stats?from=2026-11-17&to=2026-11-17&promptVersion=v2-test')
+      .expect(200);
+    expect(old.body).toMatchObject({ promptVersion: 'v2-test', totals: { analyzed: 1, avgOverall: 6 } });
   });
 
   it('a period re-scores every analysed call of it', async () => {

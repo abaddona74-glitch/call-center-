@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ACTIVE_RED_FLAGS,
   CallAnalysisBackfillRequestSchema,
   CallAnalysisSchema,
   CallAnalysisStatsQuerySchema,
@@ -11,22 +12,24 @@ import {
   WorkerTranscriptSchema,
   WorkerLeaseRequestSchema,
   WorkerResultSchema,
+  topicKey,
 } from './call-analysis.js';
 import { CDR_ACCESS, canAccessCdr } from './cdr-access.js';
 
 const analysis: CallAnalysis = {
-  topicCode: 'eri_key',
+  topic: { uz: 'ERI kaliti', ru: 'Ключ ЭЦП' },
   subtopic: { uz: 'Kalit muddati', ru: 'Срок ключа' },
   problem: { uz: 'Kalit ishlamayapti', ru: 'Ключ не работает' },
   summary: { uz: 'Qisqa', ru: 'Кратко' },
   outcome: 'resolved',
-  scores: { greeting: 5, politeness: 4, understanding: 4, solution: 3, closing: 5 },
+  scores: { greeting: null, politeness: 4, understanding: 4, solution: 3, closing: 5 },
   overall: 8,
   redFlags: [{ code: 'interrupting', note: 'Перебил дважды', at: 31.5 }],
   sentimentStart: 'negative',
   sentimentEnd: 'positive',
   language: 'uz',
   recommendation: { uz: 'Tinglang', ru: 'Дослушивать клиента' },
+  greetingPhrase: 'Assalomu alaykum, Unicon, 114-operator, eshitaman',
 };
 
 const result = {
@@ -60,18 +63,33 @@ describe('CallAnalysisSchema', () => {
 
   it('rejects scores outside the scales and unknown enums', () => {
     const bad: unknown[] = [
-      { ...analysis, scores: { ...analysis.scores, greeting: 0 } },
+      { ...analysis, scores: { ...analysis.scores, politeness: 0 } },
       { ...analysis, scores: { ...analysis.scores, closing: 6 } },
       { ...analysis, scores: { ...analysis.scores, solution: 3.5 } },
       { ...analysis, overall: 11 },
       { ...analysis, outcome: 'escalated' },
       { ...analysis, sentimentEnd: 'angry' },
       { ...analysis, redFlags: [{ code: 'swearing', note: '', at: null }] },
-      { ...analysis, topicCode: 'Bad Code' },
+      { ...analysis, topic: { uz: '', ru: '' } },
+      { ...analysis, topic: { uz: 'x', ru: 'x'.repeat(81) } },
+      { ...analysis, greetingPhrase: undefined },
       { ...analysis, problem: { uz: 'x' } },
       { ...analysis, summary: { uz: 'x'.repeat(1201), ru: '' } },
     ];
     for (const b of bad) expect(CallAnalysisSchema.safeParse(b).success).toBe(false);
+  });
+});
+
+describe('topics are free text', () => {
+  it('a v3 row keeps its greeting score; the key groups wording variants', () => {
+    expect(CallAnalysisSchema.safeParse({ ...analysis, scores: { ...analysis.scores, greeting: 4 } }).success).toBe(
+      true,
+    );
+    expect(topicKey({ uz: 'ERI', ru: ' Ключ  ЭЦП.' })).toBe('ключ эцп');
+    expect(topicKey({ uz: 'ERI', ru: '«Ключ ЭЦП»' })).toBe('ключ эцп');
+    expect(topicKey({ uz: 'Tizimga kirish', ru: '' })).toBe('tizimga kirish');
+    expect(topicKey({ uz: '', ru: 'Учётная запись' })).toBe('учетная запись');
+    expect(ACTIVE_RED_FLAGS).not.toContain('no_greeting');
   });
 });
 

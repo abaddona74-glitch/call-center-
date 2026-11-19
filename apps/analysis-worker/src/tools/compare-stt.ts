@@ -18,22 +18,6 @@ import { HttpSttClient } from '../stt/stt-client.js';
 import { transcribeCall } from '../stt/transcribe.js';
 import { parseWav } from '../wav.js';
 
-const TOPICS = [
-  ['edo', 'ЭДО (ijro.uz): документооборот', 'EDO (ijro.uz): hujjat aylanishi'],
-  ['ijro_discipline', 'Исполнительская дисциплина: отчёты и сроки', 'Ijro intizomi: hisobotlar va muddatlar'],
-  ['e_huquqshunos', 'E-Huquqshunos: юридические услуги', 'E-Huquqshunos: yuridik xizmatlar'],
-  ['eri_key', 'Ключ ЭЦП (E-imzo), Uzcrypto', 'ERI kaliti (E-imzo), Uzcrypto'],
-  ['login_access', 'Вход в систему, пароль, учётная запись', 'Tizimga kirish, parol, akkaunt'],
-  ['system_error', 'Ошибка или сбой системы', 'Tizim xatosi, ishlamayapti'],
-  ['pc_setup', 'Настройка компьютера и браузера', 'Kompyuter va brauzer sozlamalari'],
-  ['consultation', 'Консультация по работе в системе', 'Foydalanish bo‘yicha maslahat'],
-  ['contract_payment', 'Договор и оплата', 'Shartnoma va to‘lov'],
-  ['request_status', 'Статус обращения', 'Murojaat holati'],
-  ['complaint', 'Жалоба', 'Shikoyat'],
-  ['wrong_call', 'Ошибочный или прерванный звонок', 'Noto‘g‘ri qo‘ng‘iroq yoki aloqa uzildi'],
-  ['other', 'Другое', 'Boshqa'],
-].map(([code, nameRu, nameUz]) => ({ code, nameRu, nameUz }));
-
 const CallsSchema = z.object({
   calls: z.array(
     z.object({
@@ -127,7 +111,7 @@ async function main(): Promise<void> {
           const res = await analyzeTranscript(llm, {
             segments: run.segments,
             letters,
-            topics: TOPICS,
+            topicHints: [],
             direction: call.direction,
             audioSec: wav.durationSec,
             thinking,
@@ -135,7 +119,7 @@ async function main(): Promise<void> {
           row[`${key}_llmMs`] = res.ms;
           row[`${key}_llmAttempts`] = res.attempts;
           row[`${key}_overall`] = res.analysis.overall;
-          row[`${key}_topic`] = res.analysis.topicCode;
+          row[`${key}_topic`] = res.analysis.topic.ru;
           row[`${key}_outcome`] = res.analysis.outcome;
           row[`${key}_roles`] = JSON.stringify(res.roles);
           row[`${key}_tokens`] = `${res.promptTokens}/${res.completionTokens}`;

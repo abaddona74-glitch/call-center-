@@ -1,4 +1,11 @@
-import { type CallAnalysisStats, type CallTopic, KPI_CRITERIA, SENTIMENTS, type Sentiment } from '@cc/shared';
+import {
+  type CallAnalysisStats,
+  KPI_CRITERIA,
+  type KpiCriterion,
+  LEGACY_KPI_CRITERIA,
+  SENTIMENTS,
+  type Sentiment,
+} from '@cc/shared';
 import { useTranslation } from 'react-i18next';
 import { OutcomeBadge, RedFlagBadge, ScorePill, formatAvg, pickText, scoreTone } from '@/entities/call-analysis';
 import { cn } from '@/shared/lib/cn';
@@ -84,6 +91,10 @@ export function BarList({ rows, max, empty }: { rows: BarRow[]; max?: number; em
 
 const pct = (n: number, total: number) => (total > 0 ? Math.round((n / total) * 1000) / 10 : 0);
 
+/** Criteria shown for these figures: the greeting only for prompt versions that scored it (v1–v3). */
+const criteriaOf = (stats: CallAnalysisStats): KpiCriterion[] =>
+  stats.totals.avgScores.greeting === null ? [...KPI_CRITERIA] : [...LEGACY_KPI_CRITERIA, ...KPI_CRITERIA];
+
 export function CriteriaPanel({ stats }: { stats: CallAnalysisStats }) {
   const { t } = useTranslation('analysisPage');
   const { t: ta } = useTranslation('callAnalysis');
@@ -95,7 +106,7 @@ export function CriteriaPanel({ stats }: { stats: CallAnalysisStats }) {
       <BarList
         empty={t('noRows')}
         max={5}
-        rows={KPI_CRITERIA.map((c) => {
+        rows={criteriaOf(stats).map((c) => {
           const v = stats.totals.avgScores[c];
           return {
             key: c,
@@ -193,7 +204,7 @@ export function TopicsPanel({
 }: {
   stats: CallAnalysisStats;
   activeTopic: string | undefined;
-  onTopic: (code: string | undefined) => void;
+  onTopic: (key: string | undefined) => void;
 }) {
   const { t, i18n } = useTranslation('analysisPage');
   const total = stats.topics.reduce((s, x) => s + x.count, 0);
@@ -207,15 +218,15 @@ export function TopicsPanel({
       <BarList
         empty={t('noRows')}
         rows={rows.map((x) => {
-          const name = pickText({ uz: x.nameUz, ru: x.nameRu }, i18n.language);
+          const name = pickText(x, i18n.language);
           return {
-            key: x.code,
+            key: x.key,
             label: name,
             value: x.count,
             display: t('share', { n: x.count, p: pct(x.count, total) }),
             title: `${name}: ${x.count} · ${formatAvg(x.avgOverall)} / 10`,
-            active: activeTopic === x.code,
-            onClick: () => onTopic(activeTopic === x.code ? undefined : x.code),
+            active: activeTopic === x.key,
+            onClick: () => onTopic(activeTopic === x.key ? undefined : x.key),
           };
         })}
       />
@@ -259,6 +270,7 @@ export function OperatorsTable({
   const { t } = useTranslation('analysisPage');
   const { t: ta } = useTranslation('callAnalysis');
   const rows = [...stats.operators].sort((a, b) => b.analyzed - a.analyzed);
+  const criteria = criteriaOf(stats);
   return (
     <Panel>
       <PanelHeader>
@@ -272,7 +284,7 @@ export function OperatorsTable({
               <th className={cn(DT.th, 'text-left')}>{t('col.operator')}</th>
               <th className={DT.th}>{t('col.analysed')}</th>
               <th className={DT.th}>{t('col.overall')}</th>
-              {KPI_CRITERIA.map((c) => (
+              {criteria.map((c) => (
                 <th key={c} className={DT.th}>
                   {ta(`criterion.${c}`)}
                 </th>
@@ -284,7 +296,7 @@ export function OperatorsTable({
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className={cn(DT.td, 'py-6 text-muted-foreground')}>
+                <td colSpan={criteria.length + 5} className={cn(DT.td, 'py-6 text-muted-foreground')}>
                   {t('noRows')}
                 </td>
               </tr>
@@ -305,7 +317,7 @@ export function OperatorsTable({
                   <td className={DT.td}>
                     <ScorePill value={r.avgOverall} max={10} average />
                   </td>
-                  {KPI_CRITERIA.map((c) => (
+                  {criteria.map((c) => (
                     <td key={c} className={DT.td}>
                       <ScorePill value={r.avgScores[c]} max={5} average />
                     </td>
@@ -355,23 +367,21 @@ function CallRowButton({
 
 export function ProblemsPanel({
   stats,
-  topics,
   activeTopic,
   onClearTopic,
   onOpenCall,
   openingCallId,
 }: {
   stats: CallAnalysisStats;
-  topics: Map<string, Pick<CallTopic, 'nameUz' | 'nameRu'>>;
   activeTopic: string | undefined;
   onClearTopic: () => void;
   onOpenCall: (callId: string) => void;
   openingCallId: string | null;
 }) {
   const { t, i18n } = useTranslation('analysisPage');
-  const topicName = (code: string) => {
-    const x = topics.get(code);
-    return x ? pickText({ uz: x.nameUz, ru: x.nameRu }, i18n.language) : code;
+  const topicName = (key: string) => {
+    const x = stats.topics.find((tp) => tp.key === key);
+    return x ? pickText(x, i18n.language) : key;
   };
   return (
     <Panel className="flex flex-col">
@@ -397,7 +407,7 @@ export function ProblemsPanel({
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
                 <span className="font-mono">{formatDateTime(p.startedAt)}</span>
                 {p.operatorExt && <span>· {p.operatorExt}</span>}
-                <span className="font-semibold text-shade-chart-4">· {topicName(p.topicCode)}</span>
+                <span className="font-semibold text-shade-chart-4">· {pickText(p.topic, i18n.language)}</span>
                 {pickText(p.subtopic, i18n.language) && <span>· {pickText(p.subtopic, i18n.language)}</span>}
                 <OutcomeBadge outcome={p.outcome} className="ml-auto px-2 py-0.5" />
               </div>

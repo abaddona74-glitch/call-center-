@@ -2,8 +2,8 @@ import {
   CALL_OUTCOMES,
   type CallAnalysisStats,
   type CallOutcome,
-  type CallTopic,
   KPI_CRITERIA,
+  LEGACY_KPI_CRITERIA,
   type KpiScores,
   type LocalizedText,
   RED_FLAGS,
@@ -17,7 +17,9 @@ export interface AnalysisFacts {
   /** ISO-8601. */
   startedAt: string;
   operatorExt: string | null;
-  topicCode: string;
+  topic: LocalizedText;
+  /** topicKey(topic) from @cc/shared: the grouping key. */
+  topicKey: string;
   subtopic: LocalizedText;
   problem: LocalizedText;
   summary: LocalizedText;
@@ -37,50 +39,59 @@ export const HANDLED_OUTCOMES: readonly CallOutcome[] = ['resolved', 'info_only'
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const mean = (values: number[]) => (values.length ? round2(values.reduce((a, b) => a + b, 0) / values.length) : null);
 
+/** Averages per criterion over the rows that have the score (the greeting is scored only in v1–v3 rows). */
 function avgScores(rows: readonly AnalysisFacts[]): CallAnalysisStats['totals']['avgScores'] {
   return Object.fromEntries(
-    KPI_CRITERIA.map((k) => [k, mean(rows.map((r) => r.scores[k]))]),
+    [...LEGACY_KPI_CRITERIA, ...KPI_CRITERIA].map((k) => [
+      k,
+      mean(rows.map((r) => r.scores[k]).filter((v): v is number => v !== null)),
+    ]),
   ) as CallAnalysisStats['totals']['avgScores'];
 }
 
+/** The most frequent wording in a topic group. */
+function labelOf(list: readonly AnalysisFacts[]): LocalizedText {
+  const counts = new Map<string, { topic: LocalizedText; n: number }>();
+  for (const r of list) {
+    const key = `${r.topic.uz}\n${r.topic.ru}`;
+    const c = counts.get(key) ?? { topic: r.topic, n: 0 };
+    c.n++;
+    counts.set(key, c);
+  }
+  return [...counts.values()].sort((a, b) => b.n - a.n)[0].topic;
+}
+
 /**
- * Aggregates of the "Tahlil" page (definitions: docs/rewrite/METRICS.md §8). `topicFilter` narrows only the problems
- * list (the page filters it by clicking a topic); every other figure covers the whole period/operator selection.
+ * Aggregates of the "Tahlil" page (definitions: docs/rewrite/METRICS.md §8), over rows of ONE prompt version (the
+ * caller filters). Topics are free text grouped by their key; `topicFilter` (a key) narrows only the problems list (the
+ * page filters it by clicking a topic); every other figure covers the whole period/operator selection.
  */
 export function aggregateAnalyses(
   rows: readonly AnalysisFacts[],
   opts: {
-    topics: readonly Pick<CallTopic, 'code' | 'nameUz' | 'nameRu' | 'sort'>[];
     names: ReadonlyMap<string, string>;
     topicFilter?: string;
     problemsLimit?: number;
     flaggedLimit?: number;
   },
-): Omit<CallAnalysisStats, 'range'> {
+): Omit<CallAnalysisStats, 'range' | 'promptVersion' | 'versions'> {
   const flagged = rows.filter((r) => r.redFlagCodes.length > 0);
   const claimed = rows.filter((r) => r.outcome === 'ticket_opened');
 
-  const topicMeta = new Map(opts.topics.map((t) => [t.code, t]));
   const byTopic = new Map<string, AnalysisFacts[]>();
   for (const r of rows) {
-    const list = byTopic.get(r.topicCode) ?? [];
+    const list = byTopic.get(r.topicKey) ?? [];
     list.push(r);
-    byTopic.set(r.topicCode, list);
+    byTopic.set(r.topicKey, list);
   }
   const topics = [...byTopic.entries()]
-    .map(([code, list]) => {
-      const meta = topicMeta.get(code);
-      return {
-        code,
-        nameUz: meta?.nameUz ?? code,
-        nameRu: meta?.nameRu ?? code,
-        count: list.length,
-        avgOverall: mean(list.map((r) => r.overall)),
-        sort: meta?.sort ?? 10_000,
-      };
-    })
-    .sort((a, b) => b.count - a.count || a.sort - b.sort)
-    .map(({ sort: _sort, ...t }) => t);
+    .map(([key, list]) => ({
+      key,
+      ...labelOf(list),
+      count: list.length,
+      avgOverall: mean(list.map((r) => r.overall)),
+    }))
+    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 
   const countSentiment = (pick: (r: AnalysisFacts) => Sentiment) => ({
     positive: rows.filter((r) => pick(r) === 'positive').length,
@@ -109,7 +120,7 @@ export function aggregateAnalyses(
 
   const newestFirst = (a: AnalysisFacts, b: AnalysisFacts) => b.startedAt.localeCompare(a.startedAt);
   const problems = rows
-    .filter((r) => !opts.topicFilter || r.topicCode === opts.topicFilter)
+    .filter((r) => !opts.topicFilter || r.topicKey === opts.topicFilter)
     .filter((r) => r.problem.ru || r.problem.uz)
     .sort(newestFirst)
     .slice(0, opts.problemsLimit ?? 100)
@@ -117,7 +128,8 @@ export function aggregateAnalyses(
       callId: r.callId,
       startedAt: r.startedAt,
       operatorExt: r.operatorExt,
-      topicCode: r.topicCode,
+      topicKey: r.topicKey,
+      topic: r.topic,
       subtopic: r.subtopic,
       problem: r.problem,
       outcome: r.outcome,

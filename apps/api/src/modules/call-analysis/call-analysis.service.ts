@@ -3,9 +3,8 @@ import type {
   CallAnalysisStats,
   CallAnalysisStatsQuery,
   CallAnalysisStatusResponse,
-  CallTopicList,
 } from '@cc/shared';
-import { CALL_ANALYSIS_MAX_DAYS } from '@cc/shared';
+import { CALL_ANALYSIS_MAX_DAYS, CALL_ANALYSIS_PROMPT_VERSION, topicKey } from '@cc/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
 import { CallAnalysisRepository } from './call-analysis.repository.js';
@@ -21,19 +20,13 @@ export class CallAnalysisService {
     private readonly calls: PbxCallsService,
   ) {}
 
-  async topics(): Promise<CallTopicList> {
-    return { items: await this.repo.topics(false) };
-  }
-
   async details(callId: string): Promise<CallAnalysisDetails> {
-    const [job, transcript, analysis, tickets, topics] = await Promise.all([
+    const [job, transcript, analysis, tickets] = await Promise.all([
       this.repo.job(callId),
       this.repo.transcript(callId),
       this.repo.analysis(callId),
       this.repo.ticketsForCalls([callId]),
-      this.repo.topics(false),
     ]);
-    const topic = analysis ? topics.find((t) => t.code === analysis.topicCode) : undefined;
     return {
       callId,
       job: job
@@ -55,8 +48,8 @@ export class CallAnalysisService {
         : null,
       analysis: analysis
         ? {
-            topicCode: analysis.topicCode,
-            topicName: { uz: topic?.nameUz ?? analysis.topicCode, ru: topic?.nameRu ?? analysis.topicCode },
+            topic: analysis.topic,
+            greetingPhrase: analysis.greetingPhrase,
             subtopic: analysis.subtopic,
             problem: analysis.problem,
             summary: analysis.summary,
@@ -90,25 +83,30 @@ export class CallAnalysisService {
         callId: r.callId,
         status: r.status,
         overall: r.overall ?? null,
-        topicCode: r.topicCode ?? null,
+        topic: r.topic ?? null,
         redFlags: r.redFlagCodes?.length ?? 0,
       })),
     };
   }
 
+  /** Aggregates for one prompt version (scores of different versions are not comparable), the current by default. */
   async stats(q: CallAnalysisStatsQuery): Promise<CallAnalysisStats> {
     this.calls.assertRange(q.from, q.to, CALL_ANALYSIS_MAX_DAYS);
-    const [rows, topics, names] = await Promise.all([
-      this.repo.analysesInRange(q.from, q.to, q.operator),
-      this.repo.topics(false),
+    const promptVersion = q.promptVersion ?? CALL_ANALYSIS_PROMPT_VERSION;
+    const [rows, versions, names] = await Promise.all([
+      this.repo.analysesInRange(q.from, q.to, promptVersion, q.operator),
+      this.repo.versionsInRange(q.from, q.to, q.operator),
       this.operatorNames(),
     ]);
     const withTicket = await this.repo.callsWithTickets(rows.map((r) => r.callId));
     return {
       range: { from: q.from, to: q.to },
+      promptVersion,
+      versions,
       ...aggregateAnalyses(
         rows.map((r) => ({ ...r, hasTicket: withTicket.has(r.callId) })),
-        { topics, names, topicFilter: q.topic },
+        // the filter is a key; a hand-typed wording is normalised the same way
+        { names, topicFilter: q.topic ? topicKey({ uz: '', ru: q.topic }) : undefined },
       ),
     };
   }

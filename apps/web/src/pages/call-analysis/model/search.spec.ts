@@ -10,12 +10,16 @@ describe('analysis page search', () => {
 
   it('keeps a valid range and filters', () => {
     expect(
-      analysisQueryFrom({ from: '2026-11-01', to: '2026-11-10', operator: '101', topic: 'eri_key' }, TODAY),
+      analysisQueryFrom(
+        { from: '2026-11-01', to: '2026-11-10', operator: '101', topic: 'ключ эцп', version: 'v3-2026-11-19' },
+        TODAY,
+      ),
     ).toEqual({
       from: '2026-11-01',
       to: '2026-11-10',
       operator: '101',
-      topic: 'eri_key',
+      topic: 'ключ эцп',
+      promptVersion: 'v3-2026-11-19',
     });
   });
 
@@ -28,10 +32,13 @@ describe('analysis page search', () => {
   });
 
   it('drops invalid URL values', () => {
-    expect(analysisSearchSchema.parse({ from: 'x', operator: '1a', topic: 'Bad Topic' })).toEqual({
+    expect(analysisSearchSchema.parse({ from: 'x', operator: '1a', topic: '   ', version: 'x'.repeat(41) })).toEqual({
       from: undefined,
       operator: undefined,
       topic: undefined,
+      version: undefined,
     });
+    // topics are free text: any wording is a valid key
+    expect(analysisSearchSchema.parse({ topic: 'Ключ ЭЦП' }).topic).toBe('Ключ ЭЦП');
   });
 });

@@ -68,7 +68,7 @@ async function main(): Promise<void> {
       count(
         await processJob(
           job,
-          lease.topics,
+          lease.topicHints,
           { api, stt, llm },
           {
             workerId: cfg.CC_WORKER_ID,

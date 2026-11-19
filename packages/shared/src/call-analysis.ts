@@ -20,13 +20,13 @@ import { TicketStatusSchema } from './tickets.js';
  * Version of the prompt + rubric the worker used. Bump it whenever the prompt, the topic list semantics,
  * the scores or the flags change; every stored result keeps the version it was made with.
  */
-export const CALL_ANALYSIS_PROMPT_VERSION = 'v4-draft-2026-11-19';
+export const CALL_ANALYSIS_PROMPT_VERSION = 'v4-2026-11-19';
 /**
  * Versions: v1 — first pilot rubric; v2 — scores anchored on the operator manual standard, calibrated overall;
  * v3 — v2 + the model corrects the role of single transcript lines that diarization gave to the wrong side;
- * v4-draft — v3 + the owner's approved fixes (19.11): announced remote work is not long_hold, no greeting penalty or
- *   no_greeting flag for transferred calls / recordings that start mid-conversation, no diarization letters in texts.
- *   Topics and the greeting standard are still open: the final v4 adds them; pilot results stay v3 until then.
+ * v4 — owner decisions 19.11: topic in the model's own words (no fixed list, frequent topics as hints); the greeting is
+ *   not scored — the operator's greeting phrase is stored, overall ignores it, no `no_greeting` flag; announced remote
+ *   work is not long_hold; no diarization letters in texts.
  */
 
 export const CALL_ANALYSIS_JOB_STATUSES = ['queued', 'processing', 'done', 'failed', 'skipped'] as const;
@@ -57,16 +57,22 @@ export const SENTIMENTS = ['positive', 'neutral', 'negative'] as const;
 export const SentimentSchema = z.enum(SENTIMENTS);
 export type Sentiment = z.infer<typeof SentimentSchema>;
 
-/** The five rubric criteria, each scored 1–5 (definitions: docs/rewrite/METRICS.md §8). */
-export const KPI_CRITERIA = ['greeting', 'politeness', 'understanding', 'solution', 'closing'] as const;
-export type KpiCriterion = (typeof KPI_CRITERIA)[number];
+/**
+ * The rubric criteria scored 1–5 (definitions: docs/rewrite/METRICS.md §8). Since v4 the greeting is not scored (owner
+ * decision 2026-11-19: the operator's actual greeting phrase is stored instead); rows made with v1–v3 keep their
+ * greeting score, see LEGACY_KPI_CRITERIA.
+ */
+export const KPI_CRITERIA = ['politeness', 'understanding', 'solution', 'closing'] as const;
+/** Scored only by prompt versions before v4; null in newer rows. */
+export const LEGACY_KPI_CRITERIA = ['greeting'] as const;
+export type KpiCriterion = (typeof KPI_CRITERIA)[number] | (typeof LEGACY_KPI_CRITERIA)[number];
 
 /**
  * Operator red flags:
  *  rudeness          — rude, irritated or dismissive tone;
  *  wrong_information — told the client something wrong;
  *  interrupting      — repeatedly cut the client off;
- *  no_greeting       — no greeting / did not name the call center;
+ *  no_greeting       — no greeting (v1–v3 only: since v4 the greeting is not judged);
  *  long_hold         — left the client waiting in silence without explaining;
  *  refused_help      — refused to help without redirecting the client;
  *  unprofessional    — slang, profanity, personal talk, eating, etc.
@@ -98,7 +104,8 @@ export type SttStrategy = z.infer<typeof SttStrategySchema>;
 
 const score5 = z.number().int().min(1).max(5);
 export const KpiScoresSchema = z.object({
-  greeting: score5,
+  /** v1–v3 only; null since v4. */
+  greeting: score5.nullable(),
   politeness: score5,
   understanding: score5,
   solution: score5,
@@ -111,16 +118,31 @@ const localized = (max: number) => z.object({ uz: z.string().trim().max(max), ru
 export const LocalizedTextSchema = localized(1000);
 export type LocalizedText = z.infer<typeof LocalizedTextSchema>;
 
-export const TopicCodeSchema = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/, 'Invalid topic code');
+/** Red flags the current prompt may set (`no_greeting` is kept in RED_FLAGS for v1–v3 rows only). */
+export const ACTIVE_RED_FLAGS = [
+  'rudeness',
+  'wrong_information',
+  'interrupting',
+  'long_hold',
+  'refused_help',
+  'unprofessional',
+] as const satisfies readonly RedFlagCode[];
 
-export const CallTopicSchema = z.object({
-  code: TopicCodeSchema,
-  nameUz: z.string(),
-  nameRu: z.string(),
-  active: z.boolean(),
-  sort: z.number().int(),
-});
-export type CallTopic = z.infer<typeof CallTopicSchema>;
+/**
+ * Topics are free text written by the model (owner decision 2026-11-19: no fixed list). Statistics group them by this
+ * key: the Russian text (or the Uzbek one when empty), lower-cased, ё → е, quotes and edge punctuation removed,
+ * whitespace collapsed.
+ */
+export function topicKey(topic: { uz: string; ru: string }): string {
+  const text = (topic.ru.trim() || topic.uz.trim()).toLowerCase().replace(/ё/g, 'е');
+  return text
+    .replace(/[«»"“”„'`‘’ʻʼ]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.,;:!?\-–—()]+|[\s.,;:!?\-–—()]+$/g, '')
+    .slice(0, 120);
+}
+
+export const TopicKeySchema = z.string().trim().min(1).max(120);
 
 export const RedFlagSchema = z.object({
   code: RedFlagCodeSchema,
@@ -133,7 +155,8 @@ export type RedFlag = z.infer<typeof RedFlagSchema>;
 
 /** The rubric filled for one call. Free texts must not carry card, passport or phone numbers (worker masks digits). */
 export const CallAnalysisSchema = z.object({
-  topicCode: TopicCodeSchema,
+  /** The topic in the model's own words (short). */
+  topic: localized(80).refine((t) => Boolean(t.uz || t.ru), { message: 'topic is empty' }),
   subtopic: localized(160),
   /** The client's problem in one sentence: what statistics list as "problems". */
   problem: localized(400),
@@ -148,6 +171,8 @@ export const CallAnalysisSchema = z.object({
   language: AnalysisLanguageSchema,
   /** One concrete tip for the operator. */
   recommendation: localized(400),
+  /** The operator's opening words as recognised; empty when the opening is not in the recording (v4+). */
+  greetingPhrase: z.string().trim().max(300),
 });
 export type CallAnalysis = z.infer<typeof CallAnalysisSchema>;
 
@@ -200,8 +225,8 @@ export type WorkerJob = z.infer<typeof WorkerJobSchema>;
 
 export const WorkerLeaseResponseSchema = z.object({
   jobs: z.array(WorkerJobSchema),
-  /** Active topics for the prompt. */
-  topics: z.array(CallTopicSchema.pick({ code: true, nameUz: true, nameRu: true })),
+  /** The most frequent topics of the current prompt version: non-binding hints so the model reuses wording. */
+  topicHints: z.array(z.object({ uz: z.string(), ru: z.string() })).max(50),
 });
 export type WorkerLeaseResponse = z.infer<typeof WorkerLeaseResponseSchema>;
 
@@ -284,7 +309,8 @@ export const CallAnalysisDetailsSchema = z.object({
     })
     .nullable(),
   analysis: CallAnalysisSchema.extend({
-    topicName: z.object({ uz: z.string(), ru: z.string() }),
+    /** Null in rows made before v4. */
+    greetingPhrase: z.string().nullable(),
     promptVersion: z.string(),
     llmModel: z.string(),
     createdAt: z.string(),
@@ -315,7 +341,7 @@ export const CallAnalysisStatusItemSchema = z.object({
   callId: z.string(),
   status: CallAnalysisJobStatusSchema,
   overall: z.number().int().nullable(),
-  topicCode: z.string().nullable(),
+  topic: z.object({ uz: z.string(), ru: z.string() }).nullable(),
   redFlags: z.number().int(),
 });
 export const CallAnalysisStatusResponseSchema = z.object({ items: z.array(CallAnalysisStatusItemSchema) });
@@ -332,7 +358,10 @@ export const CallAnalysisStatsQuerySchema = z
       .string()
       .regex(/^[0-9]{2,6}$/)
       .optional(),
-    topic: TopicCodeSchema.optional(),
+    /** A topic key from `topics[].key`: narrows the problems list. */
+    topic: TopicKeySchema.optional(),
+    /** Statistics are made for ONE prompt version (scores of different versions are not comparable); default: the current. */
+    promptVersion: z.string().trim().min(1).max(40).optional(),
   })
   .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] });
 export type CallAnalysisStatsQuery = z.infer<typeof CallAnalysisStatsQuerySchema>;
@@ -348,6 +377,10 @@ const sentimentCounts = z.object({ positive: z.number().int(), neutral: z.number
 
 export const CallAnalysisStatsSchema = z.object({
   range: z.object({ from: IsoDateSchema, to: IsoDateSchema }),
+  /** The prompt version these figures are made of. */
+  promptVersion: z.string(),
+  /** Every prompt version present in the period (and operator filter), with its number of analysed calls. */
+  versions: z.array(z.object({ version: z.string(), count: z.number().int() })),
   totals: z.object({
     analyzed: z.number().int(),
     avgOverall: z.number().nullable(),
@@ -359,11 +392,12 @@ export const CallAnalysisStatsSchema = z.object({
     /** Calls with a real ticket the model did not call `ticket_opened`. */
     ticketMissed: z.number().int(),
   }),
+  /** Grouped by `topicKey`; the label is the most frequent wording of the group. */
   topics: z.array(
     z.object({
-      code: z.string(),
-      nameUz: z.string(),
-      nameRu: z.string(),
+      key: z.string(),
+      uz: z.string(),
+      ru: z.string(),
       count: z.number().int(),
       avgOverall: z.number().nullable(),
     }),
@@ -389,7 +423,8 @@ export const CallAnalysisStatsSchema = z.object({
       callId: z.string(),
       startedAt: z.string(),
       operatorExt: z.string().nullable(),
-      topicCode: z.string(),
+      topicKey: z.string(),
+      topic: z.object({ uz: z.string(), ru: z.string() }),
       subtopic: z.object({ uz: z.string(), ru: z.string() }),
       problem: z.object({ uz: z.string(), ru: z.string() }),
       outcome: CallOutcomeSchema,
@@ -465,6 +500,3 @@ export const CallAnalysisRetryResponseSchema = z.object({ requeued: z.number().i
 export const CallAnalysisReanalyzeRequestSchema = CallAnalysisBackfillRequestSchema;
 export type CallAnalysisReanalyzeRequest = CallAnalysisBackfillRequest;
 export type CallAnalysisRetryResponse = z.infer<typeof CallAnalysisRetryResponseSchema>;
-
-export const CallTopicListSchema = z.object({ items: z.array(CallTopicSchema) });
-export type CallTopicList = z.infer<typeof CallTopicListSchema>;

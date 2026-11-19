@@ -20,8 +20,6 @@ import {
   CallAnalysisStatusQuerySchema,
   type CallAnalysisStatusResponse,
   CallAnalysisStatusResponseSchema,
-  type CallTopicList,
-  CallTopicListSchema,
   CdrCallIdSchema,
 } from '@cc/shared';
 import { Body, Controller, Get, HttpCode, Param, Post, Query, SerializeOptions } from '@nestjs/common';
@@ -62,13 +60,6 @@ export class CallAnalysisController {
   @SerializeOptions({ schema: CallAnalysisStatsSchema })
   stats(@Query({ schema: CallAnalysisStatsQuerySchema }) q: CallAnalysisStatsQuery): Promise<CallAnalysisStats> {
     return this.analysis.stats(q);
-  }
-
-  @Get('topics')
-  @RequirePermission(CDR_ACCESS['analysis.stats'])
-  @SerializeOptions({ schema: CallTopicListSchema })
-  topics(): Promise<CallTopicList> {
-    return this.analysis.topics();
   }
 
   @Get('queue')

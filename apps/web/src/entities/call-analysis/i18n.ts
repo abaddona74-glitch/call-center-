@@ -48,6 +48,8 @@ registerTranslations('callAnalysis', {
     role: { operator: 'Operator', client: 'Mijoz', unknown: "Noma'lum" },
     card: {
       topic: 'Mavzu',
+      greeting: 'Operator salomlashuvi',
+      greetingNone: 'Yozuvda salomlashish yo‘q (suhbat o‘rtasidan boshlangan yoki o‘tkazilgan)',
       problem: 'Mijoz muammosi',
       summary: 'Qisqacha mazmun',
       outcome: 'Natija',
@@ -118,6 +120,8 @@ registerTranslations('callAnalysis', {
     role: { operator: 'Оператор', client: 'Клиент', unknown: 'Неизвестно' },
     card: {
       topic: 'Тема',
+      greeting: 'Приветствие оператора',
+      greetingNone: 'В записи нет приветствия (запись с середины разговора или перевод)',
       problem: 'Проблема клиента',
       summary: 'Краткое содержание',
       outcome: 'Итог',

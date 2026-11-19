@@ -8,7 +8,6 @@ export {
   callAnalysisQueueQuery,
   callAnalysisStatsQuery,
   callAnalysisStatusQuery,
-  callTopicsQuery,
   reanalyzeCallAnalysis,
   retryFailedCallAnalysis,
 } from './api/call-analysis.api';

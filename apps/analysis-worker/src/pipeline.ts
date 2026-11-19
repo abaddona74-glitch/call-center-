@@ -9,7 +9,7 @@ import { type LlmRun, LlmOutputError, analyzeTranscript } from './analyze.js';
 import type { ApiClient } from './api-client.js';
 import type { LlmClient } from './llm/llm-client.js';
 import { toTranscript } from './llm/output.js';
-import { type Topic, speakerLetters } from './llm/prompt.js';
+import { type TopicHint, speakerLetters } from './llm/prompt.js';
 import { log } from './log.js';
 import { ServiceError, type SpeakerOptions, type SttClient } from './stt/stt-client.js';
 import { type SttRun, dropEchoedTurns, transcribeCall } from './stt/transcribe.js';
@@ -90,7 +90,7 @@ export function buildResult(input: {
  */
 export async function processJob(
   job: WorkerJob,
-  topics: readonly Topic[],
+  topicHints: readonly TopicHint[],
   deps: PipelineDeps,
   opts: PipelineOptions,
 ): Promise<JobOutcome> {
@@ -149,7 +149,7 @@ export async function processJob(
     const llm = await analyzeTranscript(deps.llm, {
       segments: stt.segments,
       letters,
-      topics,
+      topicHints,
       direction: job.direction,
       audioSec,
       thinking: opts.thinking,

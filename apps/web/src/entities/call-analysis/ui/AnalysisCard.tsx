@@ -1,4 +1,4 @@
-import { type CallAnalysisDetails, KPI_CRITERIA } from '@cc/shared';
+import { type CallAnalysisDetails, KPI_CRITERIA, LEGACY_KPI_CRITERIA } from '@cc/shared';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
@@ -63,7 +63,7 @@ export function AnalysisCard({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Label>{t('card.topic')}</Label>
-            <div className="text-sm font-semibold text-ink">{text(a.topicName)}</div>
+            <div className="text-sm font-semibold text-ink">{text(a.topic)}</div>
             {text(a.subtopic) && <div className="text-xs text-muted-foreground">{text(a.subtopic)}</div>}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -74,6 +74,19 @@ export function AnalysisCard({
           </div>
         </div>
       </Block>
+
+      {a.greetingPhrase !== null && (
+        <Block>
+          <Label>{t('card.greeting')}</Label>
+          <p className="text-[13px] leading-snug text-foreground italic">
+            {a.greetingPhrase ? (
+              `«${a.greetingPhrase}»`
+            ) : (
+              <span className="not-italic text-muted-foreground">{t('card.greetingNone')}</span>
+            )}
+          </p>
+        </Block>
+      )}
 
       <Block>
         <Label>{t('card.problem')}</Label>
@@ -110,12 +123,16 @@ export function AnalysisCard({
       <Block>
         <Label>{t('card.scores')}</Label>
         <div className="flex flex-col gap-1">
-          {KPI_CRITERIA.map((c) => (
-            <div key={c} className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="text-foreground/85">{t(`criterion.${c}`)}</span>
-              <ScoreMeter value={a.scores[c]} />
-            </div>
-          ))}
+          {[...LEGACY_KPI_CRITERIA, ...KPI_CRITERIA].map((c) => {
+            const v = a.scores[c];
+            // the greeting is scored only by prompt versions before v4
+            return v === null ? null : (
+              <div key={c} className="flex items-center justify-between gap-3 text-[13px]">
+                <span className="text-foreground/85">{t(`criterion.${c}`)}</span>
+                <ScoreMeter value={v} />
+              </div>
+            );
+          })}
         </div>
       </Block>
 

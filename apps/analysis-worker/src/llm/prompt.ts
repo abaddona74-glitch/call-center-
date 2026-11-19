@@ -1,11 +1,11 @@
 import {
+  ACTIVE_RED_FLAGS,
   CALL_OUTCOMES,
   type CallDirection,
   KPI_CRITERIA,
-  RED_FLAGS,
+  type LocalizedText,
   SENTIMENTS,
   TRANSCRIPT_ROLES,
-  type WorkerLeaseResponse,
 } from '@cc/shared';
 import type { RawSegment } from '../stt/transcribe.js';
 
@@ -13,13 +13,15 @@ import type { RawSegment } from '../stt/transcribe.js';
  * The prompt and the rubric. Any change here that can change results → bump CALL_ANALYSIS_PROMPT_VERSION in
  * @cc/shared (stored with every result) and update docs/rewrite/CALL-ANALYSIS.md.
  */
-export type Topic = WorkerLeaseResponse['topics'][number];
+/** A topic already used with this prompt version (lease `topicHints`): offered to the model for reuse. */
+export type TopicHint = LocalizedText;
 
 export const SYSTEM_PROMPT = `You are a quality analyst of the Uniconsoft call center in Uzbekistan. The call center supports
 government organisations that use the company's systems: EDO / ijro.uz (electronic document flow), Ijro intizomi
 (execution discipline, reports and deadlines), E-Huquqshunos (legal services), ERI / E-imzo signature keys and Uzcrypto,
-and the computers and browsers they run on. Operators answer with the call-center introduction
-(e.g. "Assalomu alaykum, Unicon call-markaz…"), ask how they can help, explain, connect remotely, open requests.
+and the computers and browsers they run on. Operators answer with the call-center introduction (the company is
+Uniconsoft / "Unicon"; recognition often garbles it: "yunukon", "konsult", "microsoft"), ask how they can help, explain,
+connect remotely, open requests.
 
 You get an automatic transcript of ONE phone call. Speech recognition makes many mistakes (mostly Uzbek in Latin
 script, some Russian). Each line is "[<line number> <speaker letter> mm:ss] text". Speaker letters come from
@@ -35,8 +37,16 @@ Return ONE JSON object with exactly these fields:
 - role_fixes: list (usually empty) of { line, role } for single lines whose real speaker contradicts the role of their
   letter — only when the content makes it clear (e.g. "… operator, eshitaman" under the client's letter).
 - language: "uz", "ru" or "mixed" — the language mostly spoken.
-- topic: one code from the topic list below; "other" only when nothing fits.
+- topic_uz, topic_ru: what the client called about, in your own words, 2–4 words: the kind of request and, when it
+  matters, the system (e.g. "Привязка ключа ЭЦП", "Вход в систему", "Добавление сотрудника", "Снятие задачи с
+  контроля", "Оплата и задолженность", "Номера телефонов"). General enough that the same kind of request in another
+  call gets the same words; the specifics go to the subtopic. If a topic already used (listed in the message) is the
+  same kind of request, copy it exactly; never stretch a listed topic to a different request — write a new one.
 - subtopic_uz, subtopic_ru: a few words naming the specific issue.
+- greeting_phrase: the operator's opening words exactly as they are in the transcript (the first operator line up to
+  "eshitaman" / the offer of help, at most ~25 words). Empty string when the opening is not in the recording (it starts
+  in the middle of the conversation or the call came by transfer) or the operator says no greeting. The greeting is
+  recorded, not judged.
 - problem_uz, problem_ru: the client's problem or request in one short sentence.
 - summary_uz, summary_ru: 2–4 sentences: what the client wanted, what the operator did, how the call ended.
 - outcome: one of
@@ -46,13 +56,7 @@ Return ONE JSON object with exactly these fields:
     transferred — the call was transferred to another extension or department;
     unresolved — the problem stayed unsolved and nothing was promised;
     info_only — the client only needed information or advice.
-- scores: integers 1–5 for the OPERATOR, measured against the call-center standard below:
-    greeting — 5: the full standard greeting (greeting + service name + own name or number + offer of help);
-      4: one element missing; 3: only "assalomu alaykum" and a name or "eshitaman"; 2: barely a greeting; 1: none.
-      Outbound call: greets, says who is calling from where and why.
-      No penalty when the opening is not in the recording: the recording starts in the middle of the conversation
-      (the first lines continue a topic, nobody opens the call) or the call came to this operator by transfer —
-      then greeting is 5 and the greeting part of the standard does not count against overall.
+- scores: integers 1–5 for the OPERATOR, measured against the call-center standard below (the greeting is not scored):
     politeness — 5: polite words ("iltimos", "rahmat", "marhamat", "hurmatli mijoz"), patient, calm throughout;
       3: dry, hurried or somewhat impatient; 1: rude or dismissive.
     understanding — 5: let the client finish, asked clarifying questions, confirmed the problem back;
@@ -61,16 +65,14 @@ Return ONE JSON object with exactly these fields:
       act, with what happens next); 3: partial or vague next step; 1: no help, wrong help or "bilmayman".
     closing — 5: confirmed the result, asked whether anything else is needed, thanked and said goodbye;
       3: only a short goodbye; 1: abrupt end or hung up on the client.
-- overall: integer 1–10, the operator's overall quality in this call. Calibrate: 10 — the standard is followed
-  completely and the problem is solved, rare; 8 — good call with small gaps; 6 — noticeable gaps (no proper greeting
-  or closing, weak clarification); 4 — the client was not helped or was treated badly; 1–2 — unacceptable.
-  Do not give 9–10 when any part of the standard is missing.
+- overall: integer 1–10, the operator's overall quality in this call; the greeting does not count. Calibrate:
+  10 — the standard below is followed completely and the problem is solved, rare; 8 — good call with small gaps;
+  6 — noticeable gaps (weak clarification, vague next step, no proper closing); 4 — the client was not helped or was
+  treated badly; 1–2 — unacceptable. Do not give 9–10 when any part of the standard below is missing.
 - red_flags: list (empty when nothing happened) of { code, note_ru, at_sec } with code one of
     rudeness — rude, irritated, raised voice, dismissive;
     wrong_information — told the client something clearly wrong;
     interrupting — repeatedly cut the client off;
-    no_greeting — the call opens in the recording and the operator does not greet at all (never for a recording that
-      starts mid-conversation or a transferred call);
     long_hold — left the client waiting in silence (a gap over ~30 s between lines) without asking to wait. Not a
       hold: silence after the operator said they are working on the client's computer remotely (AnyDesk, RustDesk,
       "ulanaman", "kompyuteringizga kiryapman") or checking something they announced — that is announced work;
@@ -82,8 +84,6 @@ Return ONE JSON object with exactly these fields:
 - recommendation_uz, recommendation_ru: one concrete tip for the operator (or what they did well).
 
 The call-center standard (operator manual):
-- Greeting within the first seconds: "Assalomu alaykum! Call Center xizmati, operator [ism] sizni eshitmoqda. Qanday
-  yordam bera olaman?" (the company is Uniconsoft / "Unicon"; recognition often garbles it: "yunukon", "konsult").
 - Do not interrupt; clarify the problem ("Tushunarli, demak sizda … qiyinchilik tug'ildi, to'g'rimi?"); use polite words.
 - Before a hold: "Iltimos, 1 daqiqa liniyada kuting, ma'lumotingizni tekshirib beraman." — never leave the client in
   silence.
@@ -101,8 +101,8 @@ Rules:
 - Speaker letters and line numbers exist only for this transcript: NEVER write them into any text field ("оператор B",
   "speaker A", "mijoz A", "line 12"). Write "оператор", "клиент", "второй оператор" / "operator", "mijoz",
   "ikkinchi operator".
-- If the call is too short or unintelligible to judge, still return the object: topic "wrong_call" or "other",
-  scores 3, overall 5, and say so in the summary.`;
+- If the call is too short or unintelligible to judge, still return the object: topic "Ошибочный или прерванный звонок"
+  / "Noto'g'ri yoki uzilgan qo'ng'iroq" when nothing was discussed, scores 3, overall 5, and say so in the summary.`;
 
 /** Speaker labels → short letters in order of first appearance (SPEAKER_01 → A …). */
 export function speakerLetters(segments: readonly RawSegment[]): Map<string, string> {
@@ -127,14 +127,20 @@ export function transcriptForPrompt(segments: readonly RawSegment[], letters: Re
 export function buildMessages(input: {
   segments: readonly RawSegment[];
   letters: ReadonlyMap<string, string>;
-  topics: readonly Topic[];
+  topicHints: readonly TopicHint[];
   direction: CallDirection;
   audioSec: number;
 }): Array<{ role: 'system' | 'user'; content: string }> {
-  const topics = input.topics.map((t) => `${t.code} — ${t.nameRu} / ${t.nameUz}`).join('\n');
   const letters = [...input.letters.values()];
+  const hints = input.topicHints.filter((t) => t.ru || t.uz);
   const user = [
-    `Topic list (code — ru / uz):\n${topics}`,
+    ...(hints.length
+      ? [
+          `Topics already used (ru / uz) — copy one exactly if it is the same kind of request, otherwise write a new one:\n${hints
+            .map((t) => `- ${t.ru} / ${t.uz}`)
+            .join('\n')}`,
+        ]
+      : []),
     `Call: ${input.direction === 'outbound' ? 'outbound (the operator called the client)' : 'inbound (the client called the call center)'}, ` +
       `recording ${Math.round(input.audioSec)} s, speakers: ${letters.length ? letters.join(', ') : 'unknown'}.`,
     `Transcript:\n${transcriptForPrompt(input.segments, input.letters)}`,
@@ -146,11 +152,7 @@ export function buildMessages(input: {
 }
 
 /** JSON schema for `response_format` (constrained decoding on the server); zod re-validates the answer. */
-export function responseJsonSchema(
-  letters: readonly string[],
-  topicCodes: readonly string[],
-  lineCount = 5000,
-): Record<string, unknown> {
+export function responseJsonSchema(letters: readonly string[], lineCount = 5000): Record<string, unknown> {
   // limits = the contract limits (CallAnalysisSchema): the server's constrained decoding enforces them, so a looping
   // generation ends instead of running into max_tokens
   const str = (maxLength: number) => ({ type: 'string', maxLength });
@@ -164,7 +166,8 @@ export function responseJsonSchema(
       'speaker_roles',
       'role_fixes',
       'language',
-      'topic',
+      'topic_uz',
+      'topic_ru',
       'subtopic_uz',
       'subtopic_ru',
       'problem_uz',
@@ -179,6 +182,7 @@ export function responseJsonSchema(
       'sentiment_end',
       'recommendation_uz',
       'recommendation_ru',
+      'greeting_phrase',
     ],
     properties: {
       speaker_roles: {
@@ -198,7 +202,8 @@ export function responseJsonSchema(
         },
       },
       language: enumOf(['uz', 'ru', 'mixed']),
-      topic: enumOf(topicCodes),
+      topic_uz: str(80),
+      topic_ru: str(80),
       subtopic_uz: str(160),
       subtopic_ru: str(160),
       problem_uz: str(400),
@@ -220,13 +225,14 @@ export function responseJsonSchema(
           type: 'object',
           additionalProperties: false,
           required: ['code', 'note_ru', 'at_sec'],
-          properties: { code: enumOf(RED_FLAGS), note_ru: str(300), at_sec: { type: ['number', 'null'] } },
+          properties: { code: enumOf(ACTIVE_RED_FLAGS), note_ru: str(300), at_sec: { type: ['number', 'null'] } },
         },
       },
       sentiment_start: enumOf(SENTIMENTS),
       sentiment_end: enumOf(SENTIMENTS),
       recommendation_uz: str(400),
       recommendation_ru: str(400),
+      greeting_phrase: str(300),
     },
   };
 }

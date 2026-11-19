@@ -1,16 +1,18 @@
-import type {
-  CallAnalysisBackfillRequest,
-  CallAnalysisJobStatus,
-  SkipReason,
-  TicketStatus,
-  WorkerResult,
+import {
+  type CallAnalysisBackfillRequest,
+  type CallAnalysisJobStatus,
+  type LocalizedText,
+  type SkipReason,
+  type TicketStatus,
+  type WorkerResult,
+  topicKey,
 } from '@cc/shared';
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { type DbHost, InjectDb } from '../../database/db.js';
 import '../tickets/tickets.tables.js';
 import './call-analysis.tables.js';
-import type { CallAnalysisJobRow, CallAnalysisRow, CallTopicRow, CallTranscriptRow } from './call-analysis.tables.js';
+import type { CallAnalysisJobRow, CallAnalysisRow, CallTranscriptRow } from './call-analysis.tables.js';
 import type { AnalysisFacts } from './domain/aggregate.js';
 import type { NewJob } from './domain/job-policy.js';
 
@@ -30,10 +32,19 @@ export class CallAnalysisRepository {
 
   // --- topics ---
 
-  topics(onlyActive: boolean): Promise<CallTopicRow[]> {
-    let q = this.db.selectFrom('callTopics').selectAll().orderBy('sort').orderBy('code');
-    if (onlyActive) q = q.where('active', '=', true);
-    return q.execute();
+  /**
+   * The most frequent topics written with this prompt version (last 90 days), each in its latest wording: hints for the
+   * model so it reuses wording instead of inventing a variant. Not a list it must pick from.
+   */
+  async topicHints(promptVersion: string, limit: number): Promise<LocalizedText[]> {
+    const { rows } = await sql<{ topic: LocalizedText }>`
+      select (array_agg(topic order by updated_at desc))[1] as topic
+        from call_analyses
+       where prompt_version = ${promptVersion} and updated_at > now() - interval '90 days'
+       group by topic_key
+       order by count(*) desc, max(updated_at) desc
+       limit ${limit}`.execute(this.db);
+    return rows.map((r) => r.topic);
   }
 
   // --- queue ---
@@ -182,7 +193,9 @@ export class CallAnalysisRepository {
       thinking: r.meta.thinking,
       llmMs: r.meta.llmMs,
       llmAttempts: r.meta.llmAttempts,
-      topicCode: a.topicCode,
+      topic: JSON.stringify(a.topic),
+      topicKey: topicKey(a.topic),
+      greetingPhrase: a.greetingPhrase,
       subtopic: JSON.stringify(a.subtopic),
       problem: JSON.stringify(a.problem),
       summary: JSON.stringify(a.summary),
@@ -296,13 +309,36 @@ export class CallAnalysisRepository {
     return this.db
       .selectFrom('callAnalysisJobs as j')
       .leftJoin('callAnalyses as a', 'a.callId', 'j.callId')
-      .select(['j.callId', 'j.status', 'a.overall', 'a.topicCode', 'a.redFlagCodes'])
+      .select(['j.callId', 'j.status', 'a.overall', 'a.topic', 'a.redFlagCodes'])
       .where('j.callId', 'in', callIds)
       .execute();
   }
 
-  /** Analysed calls of a period (Asia/Tashkent dates), optionally of one operator. */
-  async analysesInRange(from: string, to: string, operator?: string): Promise<Omit<AnalysisFacts, 'hasTicket'>[]> {
+  /** Prompt versions of the analysed calls of a period (and operator), most calls first. */
+  async versionsInRange(
+    from: string,
+    to: string,
+    operator?: string,
+  ): Promise<Array<{ version: string; count: number }>> {
+    let q = this.db
+      .selectFrom('callAnalyses as a')
+      .innerJoin('callAnalysisJobs as j', 'j.callId', 'a.callId')
+      .select(['a.promptVersion as version', (eb) => eb.fn.countAll<number>().as('count')])
+      .where('j.callDate', '>=', sql<Date>`${from}::date`)
+      .where('j.callDate', '<=', sql<Date>`${to}::date`)
+      .groupBy('a.promptVersion')
+      .orderBy('count', 'desc');
+    if (operator) q = q.where('j.operatorExt', '=', operator);
+    return (await q.execute()).map((r) => ({ version: r.version, count: Number(r.count) }));
+  }
+
+  /** Analysed calls of a period (Asia/Tashkent dates) made with one prompt version, optionally of one operator. */
+  async analysesInRange(
+    from: string,
+    to: string,
+    promptVersion: string,
+    operator?: string,
+  ): Promise<Omit<AnalysisFacts, 'hasTicket'>[]> {
     let q = this.db
       .selectFrom('callAnalyses as a')
       .innerJoin('callAnalysisJobs as j', 'j.callId', 'a.callId')
@@ -310,7 +346,8 @@ export class CallAnalysisRepository {
         'a.callId',
         'j.callStartedAt',
         'j.operatorExt',
-        'a.topicCode',
+        'a.topic',
+        'a.topicKey',
         'a.subtopic',
         'a.problem',
         'a.summary',
@@ -326,14 +363,16 @@ export class CallAnalysisRepository {
         'a.sentimentEnd',
       ])
       .where('j.callDate', '>=', sql<Date>`${from}::date`)
-      .where('j.callDate', '<=', sql<Date>`${to}::date`);
+      .where('j.callDate', '<=', sql<Date>`${to}::date`)
+      .where('a.promptVersion', '=', promptVersion);
     if (operator) q = q.where('j.operatorExt', '=', operator);
     const rows = await q.execute();
     return rows.map((r) => ({
       callId: r.callId,
       startedAt: r.callStartedAt.toISOString(),
       operatorExt: r.operatorExt,
-      topicCode: r.topicCode,
+      topic: r.topic,
+      topicKey: r.topicKey,
       subtopic: r.subtopic,
       problem: r.problem,
       summary: r.summary,

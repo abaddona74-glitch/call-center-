@@ -9,21 +9,19 @@ import {
   type CallAnalysisStatsQuery,
   CallAnalysisStatsSchema,
   CallAnalysisStatusResponseSchema,
-  CallTopicListSchema,
 } from '@cc/shared';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
 
 /** Query params as sent to the API (optional filters may be omitted). */
 export type CallAnalysisStatsParams = Pick<CallAnalysisStatsQuery, 'from' | 'to'> &
-  Partial<Pick<CallAnalysisStatsQuery, 'operator' | 'topic'>>;
+  Partial<Pick<CallAnalysisStatsQuery, 'operator' | 'topic' | 'promptVersion'>>;
 
 export const callAnalysisKeys = {
   all: ['call-analysis'] as const,
   call: (callId: string) => ['call-analysis', 'call', callId] as const,
   status: (ids: readonly string[]) => ['call-analysis', 'status', ids] as const,
   stats: (q: CallAnalysisStatsParams) => ['call-analysis', 'stats', q] as const,
-  topics: ['call-analysis', 'topics'] as const,
   queue: ['call-analysis', 'queue'] as const,
 };
 
@@ -58,12 +56,6 @@ export const callAnalysisStatsQuery = (q: CallAnalysisStatsParams) =>
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
-
-export const callTopicsQuery = queryOptions({
-  queryKey: callAnalysisKeys.topics,
-  queryFn: ({ signal }) => api('/call-analysis/topics', { schema: CallTopicListSchema, signal }),
-  staleTime: 5 * 60_000,
-});
 
 /** Queue progress (`analysis.manage`), refreshed while the page is open. */
 export const callAnalysisQueueQuery = queryOptions({

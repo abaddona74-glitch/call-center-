@@ -1,4 +1,4 @@
-import { IsoDateSchema, TopicCodeSchema } from '@cc/shared';
+import { IsoDateSchema, TopicKeySchema } from '@cc/shared';
 import { z } from 'zod';
 import { shiftDate } from '@/entities/call';
 import type { CallAnalysisStatsParams } from '@/entities/call-analysis';
@@ -12,7 +12,10 @@ export const analysisSearchSchema = z.object({
     .regex(/^[0-9]{2,6}$/)
     .optional()
     .catch(undefined),
-  topic: TopicCodeSchema.optional().catch(undefined),
+  /** A topic key (`stats.topics[].key`): narrows the problems list. */
+  topic: TopicKeySchema.optional().catch(undefined),
+  /** Prompt version the figures are made of; empty = the current one. */
+  version: z.string().trim().min(1).max(40).optional().catch(undefined),
 });
 export type AnalysisSearch = z.infer<typeof analysisSearchSchema>;
 
@@ -26,5 +29,6 @@ export function analysisQueryFrom(s: AnalysisSearch, today: string): CallAnalysi
   const q: CallAnalysisStatsParams = { from, to };
   if (s.operator) q.operator = s.operator;
   if (s.topic) q.topic = s.topic;
+  if (s.version) q.promptVersion = s.version;
   return q;
 }

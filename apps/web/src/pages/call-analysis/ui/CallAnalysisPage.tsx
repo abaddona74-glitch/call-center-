@@ -1,7 +1,7 @@
-import { canAccessCdr } from '@cc/shared';
+import { CALL_ANALYSIS_PROMPT_VERSION, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -12,7 +12,7 @@ import {
   rangePresets,
   shiftDate,
 } from '@/entities/call';
-import { callAnalysisStatsQuery, callTopicsQuery, formatAvg, pickText } from '@/entities/call-analysis';
+import { callAnalysisStatsQuery, formatAvg, pickText } from '@/entities/call-analysis';
 import { useSessionUser } from '@/entities/session';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';
 import { Icon } from '@/shared/ui/icon';
@@ -57,9 +57,13 @@ export function CallAnalysisPage() {
 
   const stats = useQuery(callAnalysisStatsQuery(q));
   // Operator options: everyone analysed in the period (same request as the page when no filter is set).
-  const unfiltered = useQuery(callAnalysisStatsQuery({ from: q.from, to: q.to }));
-  const topics = useQuery(callTopicsQuery);
-  const topicMap = useMemo(() => new Map((topics.data?.items ?? []).map((x) => [x.code, x])), [topics.data]);
+  const unfiltered = useQuery(
+    callAnalysisStatsQuery(
+      q.promptVersion ? { from: q.from, to: q.to, promptVersion: q.promptVersion } : { from: q.from, to: q.to },
+    ),
+  );
+  // Topic options: the free-text topics of the period, grouped by key (also from the unfiltered request).
+  const topicOptions = unfiltered.data?.topics ?? [];
 
   // A call from a list → its CDR item → the shared call details dialog.
   const [openingCallId, setOpeningCallId] = useState<string | null>(null);
@@ -77,6 +81,8 @@ export function CallAnalysisPage() {
   const cal = calendarLabels(i18n.language);
   const operators = [...(unfiltered.data?.operators ?? [])].sort((a, b) => a.ext.localeCompare(b.ext));
   const s = stats.data;
+  // Scores of different prompt versions are not comparable: the page shows one version, others are selectable.
+  const otherVersions = (s?.versions ?? []).filter((v) => v.version !== CALL_ANALYSIS_PROMPT_VERSION);
   const n = (v: number) => new Intl.NumberFormat(i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ').format(v);
 
   return (
@@ -130,12 +136,29 @@ export function CallAnalysisPage() {
             onChange={(e) => set({ topic: e.target.value || undefined })}
           >
             <option value="">{t('topicAll')}</option>
-            {(topics.data?.items ?? []).map((x) => (
-              <option key={x.code} value={x.code}>
-                {pickText({ uz: x.nameUz, ru: x.nameRu }, i18n.language)}
+            {q.topic && !topicOptions.some((x) => x.key === q.topic) && <option value={q.topic}>{q.topic}</option>}
+            {topicOptions.map((x) => (
+              <option key={x.key} value={x.key}>
+                {pickText(x, i18n.language)} ({x.count})
               </option>
             ))}
           </NativeSelect>
+          {otherVersions.length > 0 && (
+            <NativeSelect
+              aria-label={t('version')}
+              title={t('versionHint')}
+              className="h-9 px-3 text-[13px] font-semibold"
+              value={q.promptVersion ?? ''}
+              onChange={(e) => set({ version: e.target.value || undefined })}
+            >
+              <option value="">{t('versionCurrent', { v: CALL_ANALYSIS_PROMPT_VERSION })}</option>
+              {otherVersions.map((v) => (
+                <option key={v.version} value={v.version}>
+                  {t('versionOption', { v: v.version, n: v.count })}
+                </option>
+              ))}
+            </NativeSelect>
+          )}
           <button
             type="button"
             onClick={() => void stats.refetch()}
@@ -144,6 +167,14 @@ export function CallAnalysisPage() {
             <Icon name="refresh" className={stats.isFetching ? 'size-4 animate-spin' : 'size-4'} /> {t('refresh')}
           </button>
         </div>
+        {s && otherVersions.some((v) => v.version !== s.promptVersion) && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t('versionsNote', {
+              v: s.promptVersion,
+              n: otherVersions.filter((v) => v.version !== s.promptVersion).reduce((sum, v) => sum + v.count, 0),
+            })}
+          </p>
+        )}
       </Panel>
 
       {canManage && (
@@ -221,7 +252,6 @@ export function CallAnalysisPage() {
               <div className="grid grid-cols-1 gap-5 xl:grid-cols-2 [&>*]:min-w-0">
                 <ProblemsPanel
                   stats={s}
-                  topics={topicMap}
                   activeTopic={q.topic}
                   onClearTopic={() => set({ topic: undefined })}
                   onOpenCall={setOpeningCallId}

@@ -17,16 +17,6 @@ import type { ColumnType, Generated, Selectable } from 'kysely';
 /** jsonb: written as a JSON string, read as the parsed value. */
 type Json<T> = ColumnType<T, string, string>;
 
-export interface CallTopicsTable {
-  code: string;
-  nameUz: string;
-  nameRu: string;
-  active: Generated<boolean>;
-  sort: Generated<number>;
-  createdAt: Generated<Date>;
-  updatedAt: Generated<Date>;
-}
-
 export interface CallAnalysisJobsTable {
   callId: string;
   callStartedAt: Date;
@@ -77,13 +67,18 @@ export interface CallAnalysesTable {
   thinking: boolean;
   llmMs: number;
   llmAttempts: number;
-  topicCode: string;
+  /** Free text in the model's words; statistics group by topicKey (topicKey() in @cc/shared). */
+  topic: Json<LocalizedText>;
+  topicKey: string;
   subtopic: Json<LocalizedText>;
   problem: Json<LocalizedText>;
   summary: Json<LocalizedText>;
   recommendation: Json<LocalizedText>;
   outcome: CallOutcome;
-  scoreGreeting: number;
+  /** v1–v3 only (null since v4: the greeting is not scored). */
+  scoreGreeting: number | null;
+  /** The operator's greeting phrase (v4+; null in older rows, '' when the opening is not in the recording). */
+  greetingPhrase: string | null;
   scorePoliteness: number;
   scoreUnderstanding: number;
   scoreSolution: number;
@@ -101,11 +96,9 @@ export interface CallAnalysesTable {
 export type CallAnalysisJobRow = Selectable<CallAnalysisJobsTable>;
 export type CallAnalysisRow = Selectable<CallAnalysesTable>;
 export type CallTranscriptRow = Selectable<CallTranscriptsTable>;
-export type CallTopicRow = Selectable<CallTopicsTable>;
 
 declare module '../../database/db.js' {
   interface DB {
-    callTopics: CallTopicsTable;
     callAnalysisJobs: CallAnalysisJobsTable;
     callAnalysisWorkers: CallAnalysisWorkersTable;
     callTranscripts: CallTranscriptsTable;

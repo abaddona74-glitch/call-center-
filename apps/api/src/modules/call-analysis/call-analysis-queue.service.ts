@@ -1,4 +1,5 @@
 import {
+  CALL_ANALYSIS_PROMPT_VERSION,
   type CallAnalysisBackfillRequest,
   type CallAnalysisBackfillResponse,
   type CallAnalysisQueue,
@@ -12,7 +13,7 @@ import {
   type WorkerSkipRequest,
 } from '@cc/shared';
 import { Transactional } from '@nestjs-cls/transactional';
-import { ConflictException, Injectable, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { wallToIso } from '../../common/time/business-time.js';
 import { AppConfig } from '../../config/app-config.js';
 import type { AssembledCall } from '../../pbx/calls/call-assembler.js';
@@ -20,6 +21,9 @@ import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { CallAnalysisRepository } from './call-analysis.repository.js';
 import { afterFailure, isAnalyzable, jobOf, sanitizeError } from './domain/job-policy.js';
+
+/** How many frequent topics are offered to the model as wording hints. */
+const TOPIC_HINTS = 30;
 
 /**
  * The analysis job queue: what gets queued (enqueuer, backfill), and the worker side (lease, result, failure).
@@ -112,7 +116,7 @@ export class CallAnalysisQueueService {
     await this.repo.touchWorker(req.workerId);
     await this.repo.failExhausted(this.maxAttempts);
     const rows = await this.repo.lease(req.workerId, req.limit, req.leaseSec, this.maxAttempts);
-    const topics = rows.length ? await this.repo.topics(true) : [];
+    const topicHints = rows.length ? await this.repo.topicHints(CALL_ANALYSIS_PROMPT_VERSION, TOPIC_HINTS) : [];
     if (rows.length) this.logger.log(`worker ${req.workerId} leased ${rows.length} job(s)`);
     return {
       jobs: rows.map((r) => ({
@@ -125,7 +129,7 @@ export class CallAnalysisQueueService {
         attempts: r.attempts,
         leaseUntil: (r.leaseUntil ?? new Date()).toISOString(),
       })),
-      topics: topics.map((t) => ({ code: t.code, nameUz: t.nameUz, nameRu: t.nameRu })),
+      topicHints,
     };
   }
 
@@ -157,10 +161,6 @@ export class CallAnalysisQueueService {
   async submit(callId: string, result: WorkerResult): Promise<WorkerAck> {
     const job = await this.repo.leasedJob(callId, result.workerId);
     if (!job) throw new ConflictException('This worker does not hold the lease of the job');
-    const topics = new Set((await this.repo.topics(false)).map((t) => t.code));
-    if (!topics.has(result.analysis.topicCode)) {
-      throw new UnprocessableEntityException(`Unknown topic "${result.analysis.topicCode}"`);
-    }
     await this.repo.saveResult(callId, result);
     await this.repo.finishJob(callId, { status: 'done' });
     await this.repo.touchWorker(result.workerId);

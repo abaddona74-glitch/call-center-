@@ -23,15 +23,18 @@ const job: WorkerJob = {
   attempts: 1,
   leaseUntil: '2026-11-13T10:00:00Z',
 };
+/** Topics already used with this prompt version (lease topicHints). */
 const topics = [
-  { code: 'eri_key', nameUz: 'ERI', nameRu: 'ЭЦП' },
-  { code: 'other', nameUz: 'Boshqa', nameRu: 'Другое' },
+  { uz: 'ERI kaliti', ru: 'Ключ ЭЦП' },
+  { uz: 'Tizimga kirish', ru: 'Вход в систему' },
 ];
 
 const llmAnswer = {
   speaker_roles: { A: 'operator', B: 'client' },
   language: 'uz',
-  topic: 'eri_key',
+  topic_uz: 'ERI kaliti',
+  topic_ru: 'Ключ ЭЦП',
+  greeting_phrase: 'Assalomu alaykum, Unicon call-markaz, eshitaman',
   subtopic_uz: 'Kalit',
   subtopic_ru: 'Ключ',
   problem_uz: 'Kalit ishlamaydi',
@@ -39,7 +42,7 @@ const llmAnswer = {
   summary_uz: 'Operator yordam berdi',
   summary_ru: 'Оператор помог, паспорт AA 1234567, телефон +998 90 123 45 67',
   outcome: 'resolved',
-  scores: { greeting: 5, politeness: 5, understanding: 4, solution: 4, closing: 3 },
+  scores: { politeness: 5, understanding: 4, solution: 4, closing: 3 },
   overall: 8,
   red_flags: [{ code: 'interrupting', note_ru: 'Перебил', at_sec: 12 }],
   sentiment_start: 'neutral',
@@ -140,7 +143,10 @@ describe('processJob', () => {
       ['client', 'SPEAKER_00', 4.5],
       ['operator', 'SPEAKER_01', 10],
     ]);
-    expect(r.analysis.topicCode).toBe('eri_key');
+    expect(r.analysis.topic).toEqual({ uz: 'ERI kaliti', ru: 'Ключ ЭЦП' });
+    // the greeting is recorded, not scored
+    expect(r.analysis.scores.greeting).toBeNull();
+    expect(r.analysis.greetingPhrase).toBe('Assalomu alaykum, Unicon call-markaz, eshitaman');
     expect(r.analysis.problem.ru).not.toMatch(/8600|1234 5678/);
     expect(r.analysis.summary.ru).not.toMatch(/1234567|90 123/);
     expect(r.analysis.redFlags).toEqual([{ code: 'interrupting', note: 'Перебил', at: 12 }]);
@@ -158,6 +164,13 @@ describe('processJob', () => {
     expect(req.messages[1].content).toContain('[1 A 00:00] Assalomu alaykum');
     expect(req.messages[1].content).toContain('[2 B 00:04] Kalitim ishlamayapti');
     expect(JSON.stringify(req.jsonSchema)).toContain('"required":["A","B"]');
+    // used topics are offered for reuse; the schema has no greeting score and no no_greeting flag
+    expect(req.messages[1].content).toContain('Topics already used');
+    expect(req.messages[1].content).toContain('- Ключ ЭЦП / ERI kaliti');
+    expect(JSON.stringify(req.jsonSchema)).not.toContain('no_greeting');
+    expect(JSON.stringify((req.jsonSchema as { properties: { scores: unknown } }).properties.scores)).not.toContain(
+      'greeting',
+    );
     expect(api.fail).not.toHaveBeenCalled();
   });
 
@@ -177,20 +190,23 @@ describe('processJob', () => {
     expect(r.transcript.segments.map((x) => x.role)).toEqual(['operator', 'client', 'client']);
   });
 
-  it('retries the LLM once with the validation errors, then succeeds; unknown topic → other', async () => {
+  it('retries the LLM once with the validation errors, then succeeds; a new topic is kept as written', async () => {
     const api = fakeApi();
     const llm = fakeLlm([
-      JSON.stringify({ ...llmAnswer, overall: 15 }),
-      '```json\n' + JSON.stringify({ ...llmAnswer, topic: 'made_up' }) + '\n```',
+      JSON.stringify({ ...llmAnswer, overall: 15, red_flags: [{ code: 'no_greeting', note_ru: 'x', at_sec: 0 }] }),
+      '```json\n' +
+        JSON.stringify({ ...llmAnswer, topic_uz: 'Xodim qo‘shish', topic_ru: 'Добавление сотрудника' }) +
+        '\n```',
     ]);
     const out = await processJob(job, topics, { api, stt: fakeStt(), llm }, opts);
     expect(out.kind).toBe('done');
     expect(llm.chat).toHaveBeenCalledTimes(2);
     const retry = (llm.chat.mock.calls[1][0] as ChatRequest).messages.at(-1)!.content;
     expect(retry).toContain('overall');
+    expect(retry).toContain('red_flags.0.code'); // no_greeting is not a flag any more
     const r = WorkerResultSchema.parse(api.submit.mock.calls[0][1]);
     expect(r.meta.llmAttempts).toBe(2);
-    expect(r.analysis.topicCode).toBe('other');
+    expect(r.analysis.topic).toEqual({ uz: 'Xodim qo‘shish', ru: 'Добавление сотрудника' });
   });
 
   it('a second invalid answer is a retryable failure (no values in the error)', async () => {
@@ -319,5 +335,21 @@ describe('maskPersonalData', () => {
     expect(maskPersonalData('AB1234567 pasport')).toBe('*** pasport');
     expect(maskPersonalData('a.b@mail.uz')).toBe('***');
     expect(maskPersonalData('464-bog‘cha, 2 ta kalit, 2026 yil')).toBe('464-bog‘cha, 2 ta kalit, 2026 yil');
+  });
+});
+
+describe('topic hints', () => {
+  it('no hints yet: the message has no topic list', async () => {
+    const api = fakeApi();
+    const llm = fakeLlm([JSON.stringify(llmAnswer)]);
+    await processJob(job, [], { api, stt: fakeStt(), llm }, opts);
+    expect((llm.chat.mock.calls[0][0] as ChatRequest).messages[1].content).not.toContain('Topics already used');
+  });
+
+  it('an empty topic is invalid and retried', async () => {
+    const api = fakeApi();
+    const llm = fakeLlm([JSON.stringify({ ...llmAnswer, topic_uz: '', topic_ru: '' }), JSON.stringify(llmAnswer)]);
+    await processJob(job, topics, { api, stt: fakeStt(), llm }, opts);
+    expect(llm.chat).toHaveBeenCalledTimes(2);
   });
 });

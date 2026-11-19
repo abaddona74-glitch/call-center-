@@ -1,7 +1,7 @@
 import { type CallAnalysis, type CallDirection, type TranscriptRole } from '@cc/shared';
 import type { ChatMessage, LlmClient } from './llm/llm-client.js';
 import { LlmOutputSchema, extractJson, issuesOf, toAnalysis } from './llm/output.js';
-import { type Topic, buildMessages, responseJsonSchema } from './llm/prompt.js';
+import { type TopicHint, buildMessages, responseJsonSchema } from './llm/prompt.js';
 import type { RawSegment } from './stt/transcribe.js';
 
 export class LlmOutputError extends Error {
@@ -33,7 +33,7 @@ export async function analyzeTranscript(
   input: {
     segments: readonly RawSegment[];
     letters: ReadonlyMap<string, string>;
-    topics: readonly Topic[];
+    topicHints: readonly TopicHint[];
     direction: CallDirection;
     audioSec: number;
     thinking: boolean;
@@ -43,10 +43,8 @@ export async function analyzeTranscript(
 ): Promise<LlmRun> {
   const started = Date.now();
   const letterList = [...input.letters.values()];
-  const topicCodes = input.topics.map((t) => t.code);
   const messages: ChatMessage[] = buildMessages(input);
-  const schema =
-    input.useJsonSchema === false ? undefined : responseJsonSchema(letterList, topicCodes, input.segments.length);
+  const schema = input.useJsonSchema === false ? undefined : responseJsonSchema(letterList, input.segments.length);
   let promptTokens: number | null = null;
   let completionTokens: number | null = null;
 
@@ -68,7 +66,7 @@ export async function analyzeTranscript(
         const roleFixes = new Map<number, TranscriptRole>();
         for (const f of parsed.data.role_fixes) if (f.line <= input.segments.length) roleFixes.set(f.line - 1, f.role);
         return {
-          analysis: toAnalysis(parsed.data, new Set(topicCodes)),
+          analysis: toAnalysis(parsed.data),
           roles,
           roleFixes,
           attempts: attempt,
