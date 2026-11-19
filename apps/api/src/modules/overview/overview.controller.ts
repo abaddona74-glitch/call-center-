@@ -3,6 +3,10 @@ import {
   type OverviewCallsQuery,
   OverviewCallsQuerySchema,
   OverviewCallsSchema,
+  type OverviewQuality,
+  type OverviewQualityQuery,
+  OverviewQualityQuerySchema,
+  OverviewQualitySchema,
   type OverviewTickets,
   type OverviewTicketsQuery,
   OverviewTicketsQuerySchema,
@@ -31,5 +35,12 @@ export class OverviewController {
   @SerializeOptions({ schema: OverviewCallsSchema })
   calls(@Query({ schema: OverviewCallsQuerySchema }) q: OverviewCallsQuery): Promise<OverviewCalls> {
     return this.overview.calls(q);
+  }
+
+  /** AI call quality of the period (current prompt version, aggregates only). Calls have no region: no region filter. */
+  @Get('quality')
+  @SerializeOptions({ schema: OverviewQualitySchema })
+  quality(@Query({ schema: OverviewQualityQuerySchema }) q: OverviewQualityQuery): Promise<OverviewQuality> {
+    return this.overview.quality(q);
   }
 }

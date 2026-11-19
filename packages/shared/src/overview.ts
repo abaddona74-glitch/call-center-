@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CallAnalysisStatsSchema } from './call-analysis.js';
 import { IsoDateSchema } from './common.js';
 import { DailyPointSchema, HourlyPointSchema, StatsQuerySchema, StatsSummarySchema } from './stats.js';
 import { TicketStatusSchema } from './tickets.js';
@@ -175,3 +176,40 @@ export const OverviewCallsSchema = z.object({
   daily: z.array(DailyPointSchema),
 });
 export type OverviewCalls = z.infer<typeof OverviewCallsSchema>;
+
+// --- call quality (AI analysis) ------------------------------------------------------------
+
+/** Calls have no region: the page's region filter does not apply here. */
+export const OverviewQualityQuerySchema = z
+  .object({ from: IsoDateSchema, to: IsoDateSchema })
+  .refine((q) => q.from <= q.to, { message: '`from` must not be after `to`', path: ['from'] });
+export type OverviewQualityQuery = z.infer<typeof OverviewQualityQuerySchema>;
+
+const statsShape = CallAnalysisStatsSchema.shape;
+
+/**
+ * AI call-quality aggregates of the period — the «Tahlil» page's numbers for the CURRENT prompt version only
+ * (scores of different versions are never mixed; METRICS.md §8). Aggregates only: no transcripts, no texts, no numbers.
+ */
+export const OverviewQualitySchema = z.object({
+  range: z.object({ from: IsoDateSchema, to: IsoDateSchema }),
+  promptVersion: z.string(),
+  /** Analysed calls of this prompt version (0 while the analysis is off). */
+  analyzed: count,
+  /** Answered inbound + connected outbound calls of the period, any hour; null when the PBX is unavailable. */
+  answeredCalls: count.nullable(),
+  /** analyzed / answeredCalls, percent with one decimal; null without answered calls or PBX. */
+  analyzedShare: z.number().nonnegative().nullable(),
+  /** Average overall score, 1–10; null without analysed calls. */
+  avgOverall: z.number().nullable(),
+  avgScores: statsShape.totals.shape.avgScores,
+  /** Calls with at least one red flag. */
+  redFlagCalls: count,
+  redFlags: statsShape.redFlags,
+  outcomes: statsShape.outcomes,
+  /** Handled in the call (resolved + info_only + ticket_opened), percent of analysed; null without calls. */
+  handledRate: z.number().nullable(),
+  /** Client sentiment at the end of the call. */
+  sentimentEnd: statsShape.sentiment.shape.end,
+});
+export type OverviewQuality = z.infer<typeof OverviewQualitySchema>;

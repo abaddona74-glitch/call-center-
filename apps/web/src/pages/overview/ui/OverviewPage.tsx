@@ -4,7 +4,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { businessToday, calendarLabels, type RangePresetId, rangePresets } from '@/entities/call';
-import { overviewCallsQuery, overviewTicketsQuery } from '@/entities/overview';
+import { overviewCallsQuery, overviewQualityQuery, overviewTicketsQuery } from '@/entities/overview';
 import { cn } from '@/shared/lib/cn';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';
 import { Icon } from '@/shared/ui/icon';
@@ -16,6 +16,7 @@ import { MAP_METRICS, RegionMap } from '@/widgets/region-map';
 import { DeadlinesPanel, ExecutivesTable, RegionsTable } from '@/widgets/ticket-overview';
 import { OVERVIEW_PERIODS, type OverviewSearch, overviewStateFrom } from '../model/search';
 import { CallsSection } from './CallsSection';
+import { QualitySection } from './QualitySection';
 import { TicketTotals } from './TicketTotals';
 import '../i18n';
 
@@ -42,11 +43,13 @@ export function OverviewPage() {
     overviewTicketsQuery({ from: state.from, to: state.to, ...(state.region ? { region: state.region } : {}) }),
   );
   const calls = useQuery(overviewCallsQuery({ from: state.from, to: state.to, scope: state.scope }));
+  const quality = useQuery(overviewQualityQuery({ from: state.from, to: state.to }));
   const data = tickets.data;
-  const fetching = tickets.isFetching || calls.isFetching;
+  const fetching = tickets.isFetching || calls.isFetching || quality.isFetching;
   const refresh = () => {
     void tickets.refetch();
     void calls.refetch();
+    void quality.refetch();
   };
 
   const regionRow = data?.regions.find((r) => (r.code ?? OVERVIEW_NO_REGION) === state.region);
@@ -187,6 +190,8 @@ export function OverviewPage() {
         regionSelected={state.region !== null}
         rangeKey={`${state.from}_${state.to}`}
       />
+
+      <QualitySection data={quality.data} error={quality.isError ? quality.error : null} />
 
       <DateRangeModal
         open={rangeOpen}

@@ -1,3 +1,5 @@
+import { CALL_ANALYSIS_PROMPT_VERSION } from '@cc/shared';
+import '../src/modules/call-analysis/call-analysis.tables.js';
 import { CdrRepository } from '../src/pbx/calls/cdr.repository.js';
 import { inbound, outbound } from '../src/pbx/calls/testing/cdr-fixtures.js';
 import { FakeCdrRepository } from './cdr/fake-cdr-repository.js';
@@ -111,6 +113,61 @@ beforeAll(async () => {
       { ticketId: ids.rejected, kind: 'assigned', actorUserId: ids.e2 },
     ])
     .execute();
+
+  // AI analyses of 2026-11-16: two of the current prompt version, one of an older one (never mixed in).
+  const analyses: Array<[id: string, version: string, overall: number, outcome: string, flags: string[], end: string]> =
+    [
+      ['ov-a1', CALL_ANALYSIS_PROMPT_VERSION, 9, 'resolved', [], 'positive'],
+      ['ov-a2', CALL_ANALYSIS_PROMPT_VERSION, 4, 'unresolved', ['rudeness'], 'negative'],
+      ['ov-a3', 'v1-old', 2, 'resolved', [], 'neutral'],
+    ];
+  const text = (ru: string) => JSON.stringify({ uz: ru, ru });
+  for (const [callId, promptVersion, overall, outcome, flags, end] of analyses) {
+    await e2e.db
+      .insertInto('callAnalysisJobs')
+      .values({
+        callId,
+        callStartedAt: tk('2026-11-16T09:00:00'),
+        callDate: '2026-11-16',
+        direction: 'inbound',
+        operatorExt: '101',
+        talkSec: 100,
+        recordingFile: 'fake.wav',
+        source: 'manual',
+        status: 'done',
+      } as never)
+      .execute();
+    await e2e.db
+      .insertInto('callAnalyses')
+      .values({
+        callId,
+        promptVersion,
+        llmModel: 'e2e',
+        thinking: false,
+        llmMs: 1,
+        llmAttempts: 1,
+        topic: text('Ключ ЭЦП'),
+        topicKey: 'ключ эцп',
+        subtopic: text('срок'),
+        problem: text('секретная проблема'),
+        summary: text('секретный итог'),
+        recommendation: text('совет'),
+        outcome,
+        scoreGreeting: null,
+        greetingPhrase: null,
+        scorePoliteness: 4,
+        scoreUnderstanding: 4,
+        scoreSolution: 4,
+        scoreClosing: 4,
+        overall,
+        redFlags: JSON.stringify(flags.map((code) => ({ code, note: 'x', at: null }))),
+        redFlagCodes: flags,
+        sentimentStart: 'neutral',
+        sentimentEnd: end,
+        language: 'uz',
+      } as never)
+      .execute();
+  }
 });
 afterAll(async () => {
   await e2e?.close();
@@ -120,6 +177,7 @@ describe('access', () => {
   it('needs a session', async () => {
     expect((await anon.get(`/overview/tickets?${PERIOD}`)).status).toBe(401);
     expect((await anon.get(`/overview/calls?${PERIOD}`)).status).toBe(401);
+    expect((await anon.get(`/overview/quality?${PERIOD}`)).status).toBe(401);
   });
 
   it('observer and superuser see the overview; executives ("Mas\'ul shaxslar") and operators do not', async () => {
@@ -131,6 +189,7 @@ describe('access', () => {
     ] as const) {
       expect((await c.get(`/overview/tickets?${PERIOD}`)).status, name).toBe(status);
       expect((await c.get('/overview/calls?from=2026-11-16&to=2026-11-16')).status, name).toBe(status);
+      expect((await c.get('/overview/quality?from=2026-11-16&to=2026-11-16')).status, name).toBe(status);
     }
   });
 
@@ -160,6 +219,8 @@ describe('access', () => {
       '/tools/config',
       '/users',
       '/audit',
+      '/call-analysis/stats?from=2026-11-16&to=2026-11-16',
+      '/call-analysis/calls/ov-a1',
     ];
     for (const path of forbidden) expect((await observer.get(path)).status, path).toBe(403);
     expect((await observer.get(`/tickets/${ids.held}`)).status).toBe(404);
@@ -294,5 +355,38 @@ describe('calls', () => {
     const all = (await observer.get(`/overview/calls?${q}&scope=all`)).body;
     expect(all.summary.range.scope).toBe('all');
     expect(all.hourly).toHaveLength(24);
+  });
+});
+
+describe('call quality (AI analysis)', () => {
+  it('the «Tahlil» totals of the current prompt version, the share of answered calls, no texts', async () => {
+    const q = '?from=2026-11-16&to=2026-11-16';
+    const overview = (await observer.get(`/overview/quality${q}`)).body;
+    const tahlil = (await root.get(`/call-analysis/stats${q}`)).body;
+    expect(overview).toMatchObject({
+      promptVersion: CALL_ANALYSIS_PROMPT_VERSION,
+      analyzed: 2, // the v1-old row is left out
+      answeredCalls: 2, // fixture: 1 answered inbound + 1 connected outbound
+      analyzedShare: 100,
+      avgOverall: 6.5,
+      redFlagCalls: 1,
+      handledRate: 50,
+      sentimentEnd: { positive: 1, neutral: 0, negative: 1 },
+    });
+    expect(overview.avgOverall).toBe(tahlil.totals.avgOverall);
+    expect(overview.outcomes).toEqual(tahlil.outcomes);
+    expect(overview.redFlags).toEqual(tahlil.redFlags);
+    expect(JSON.stringify(overview)).not.toMatch(/секрет|ov-a1|Ключ/);
+  });
+
+  it('a period without analysed calls (analysis off) is an empty, valid answer', async () => {
+    const r = await observer.get('/overview/quality?from=2026-11-01&to=2026-11-10');
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ analyzed: 0, avgOverall: null, handledRate: null, redFlagCalls: 0 });
+  });
+
+  it('validates the query', async () => {
+    expect((await observer.get('/overview/quality?from=2026-11-10&to=2026-11-01')).status).toBe(400);
+    expect((await observer.get('/overview/quality?from=x&to=2026-11-01')).status).toBe(400);
   });
 });

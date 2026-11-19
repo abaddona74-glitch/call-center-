@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { businessToday } from '@/entities/call';
-import { overviewCallsQuery, overviewTicketsQuery } from '@/entities/overview';
+import { overviewCallsQuery, overviewQualityQuery, overviewTicketsQuery } from '@/entities/overview';
 import { OverviewPage, overviewSearchSchema, overviewStateFrom } from '@/pages/overview';
 import { requirePermission } from '../../lib/require-role';
 
@@ -17,6 +17,7 @@ export const Route = createFileRoute('/_app/overview')({
         overviewTicketsQuery({ from: s.from, to: s.to, ...(s.region ? { region: s.region } : {}) }),
       ),
       queryClient.ensureQueryData(overviewCallsQuery({ from: s.from, to: s.to, scope: s.scope })),
+      queryClient.ensureQueryData(overviewQualityQuery({ from: s.from, to: s.to })),
     ]).catch(() => undefined);
   },
   component: OverviewPage,

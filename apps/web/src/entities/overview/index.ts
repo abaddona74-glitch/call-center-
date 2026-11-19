@@ -1,1 +1,1 @@
-export { overviewCallsQuery, overviewKeys, overviewTicketsQuery } from './api/overview.queries';
+export { overviewCallsQuery, overviewKeys, overviewQualityQuery, overviewTicketsQuery } from './api/overview.queries';
