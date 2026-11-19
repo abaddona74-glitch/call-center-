@@ -139,13 +139,13 @@
 - при **первом** подключении к AMI фиксируется граница (целая секунда); звонок относится к ней по эпохе в своём Asterisk-id (`<epoch>.<n>`: AMI Linkedid = `linkedid` CDR, а без этой колонки — `uniqueid` канала клиента);
 - звонки дня **до границы** берутся из CDR и считаются функциями этого файла (`summarize`, `operatorStats`), звонки **после** — из AMI. Звонок, шедший в момент запуска, вживую не считается: когда он закончится, его строки CDR дочитываются (окно от его начала) и он добавляется один раз;
 - CDR читается часовыми срезами, не больше 50 000 строк на срез; без `linkedid` строки собственных попыток вызова участников очереди отсекаются в SQL (как в сверке перезвонов);
-- соответствие: `inbound`=offered, `answered`, `abandoned`, `ivrOnly`=`ivr`, `unanswered`=offered−answered (вместе с нерабочим временем), `outbound`=attempts, `outboundAnswered`=connected, `operatorMissed`=Σ`missed` (и отдельно `operatorMissedNoAnswer` / `operatorMissedRejected`), `talkSeconds`=`talk.totalSec`; у операторов — `answered`, `transfersIn/Out`, `outbound(Attempts)`, `missed` (+ `missedNoAnswer` / `missedRejected`), `talkSec` из §3;
+- соответствие: `inbound`=offered, `answered`, `abandoned`, `ivrOnly`=`ivr`, `unanswered`=offered−answered (вместе с нерабочим временем), `outbound`=attempts, `outboundAnswered`=connected, `operatorMissed`=Σ`missed` (и отдельно `operatorMissedNoAnswer` / `operatorMissedRejected`), `talkSeconds`=`talk.totalSec`, `avgWaitSec`=`inbound.avgWaitSec` (19.11.2026: хранится сумма ожиданий отвеченных входящих — из CDR Σ`waitSec`, вживую от входа в очередь до первого ответа, без очереди 0 — и делится на `answered`); у операторов — `answered`, `transfersIn/Out`, `outbound(Attempts)`, `missed` (+ `missedNoAnswer` / `missedRejected`), `talkSec` из §3;
 - **только вживую:** кто положил трубку (`clientHangups`, `operatorHangups`) — в CDR этого нет, отвеченные звонки из CDR идут в `unknownHangups`. Подпись под карточками говорит, до какого времени цифры из CDR;
 - если АТС-база недоступна, счётчики живые с момента запуска (прежняя подпись «с ЧЧ:ММ»). После полуночи новый день считается вживую с начала.
 
 ## 6. Доступ
 
-Все правила доступа S2 — в одном месте: `CDR_ACCESS` в `packages/shared/src/cdr-access.ts` (API-гварды и веб берут их оттуда). Каждой возможности сопоставлено разрешение (`monitor.view`, `reports.view`, `recordings.listen`; роли → разрешения — `ROLE_PERMISSIONS`): оператор видит списки звонков и таблицу операторов (без записей); экраны «История» и «Статистика», сводка, топ клиентов и Excel — `reports.view` (superuser). С 19.11.2026 observer видит только дашборд §9, а «Mas’ul» (executive) — только тикеты.
+Все правила доступа S2 — в одном месте: `CDR_ACCESS` в `packages/shared/src/cdr-access.ts` (API-гварды и веб берут их оттуда). Каждой возможности сопоставлено разрешение (`monitor.view`, `reports.view`, `recordings.listen`; роли → разрешения — `ROLE_PERMISSIONS`): оператор видит списки звонков и таблицу операторов (без записей); экраны «История» и «Статистика», сводка, топ клиентов и Excel — `reports.view` (superuser). С 19.11.2026 observer видит только дашборд §9 и живую доску §10, а «Mas’ul» (executive) — только тикеты.
 
 Темы звонков (раздел «Statistika» в legacy) **не переносятся** (решение владельца): экран «Статистика» показывает только показатели из CDR.
 
@@ -185,7 +185,7 @@
 
 ## 9. Дашборд «Umumiy ko‘rinish» (`GET /api/overview/*`, решение владельца 19.11.2026)
 
-Единственная страница наблюдателя (`observer`), superuser её тоже видит, executive — нет (карта только наблюдателю). Разрешение `overview.view`; только агрегаты, без текстов тикетов, номеров граждан и списков звонков. Код: `apps/api/src/modules/overview` (`domain/ticket-overview.ts` — чистые функции и тесты).
+Страница наблюдателя (`observer`; вторая его страница — живая доска §10), superuser её тоже видит, executive — нет (карта только наблюдателю). Разрешение `overview.view`; только агрегаты, без текстов тикетов, номеров граждан и списков звонков. Код: `apps/api/src/modules/overview` (`domain/ticket-overview.ts` — чистые функции и тесты).
 
 **Период** — как на странице статистики: «Bugun», «7 kun» (сегодня и 6 дней до), «Shu oy» (с 1-го числа по сегодня; по умолчанию), «Oraliq» (до 366 дней). Дни — Asia/Tashkent.
 
@@ -236,3 +236,31 @@
 
 Звонки не делятся по областям — фильтр области на этот блок не действует. Пока ИИ-анализ выключен (на проде — до запуска программы анализа), проанализированных звонков нет: блок показывает пояснение, а не нули.
 
+## 10. Живая доска «Hozirgi holat» (`GET /api/situation` + WS `situation.*`, решение владельца 19.11.2026)
+
+Доска наблюдателя (`observer`, право `situation.view`; superuser тоже) — «что сейчас». Только чтение. Код: `apps/api/src/modules/situation` (`domain/telephony-situation.ts`, `domain/ticket-situation.ts` — чистые функции с тестами), страница `apps/web/src/pages/situation` (`model/now.ts`).
+
+**Обновление.** `GET /api/situation` — начальное состояние; дальше `situation.telephony` (не чаще раза в секунду и только если что-то изменилось; секундомеры идут в браузере от ISO-времён по часам сервера) и `situation.tickets` (через 1 с после любого изменения тикета — доменное событие `ticket.changed` — и каждые 30 с, потому что сроки истекают без событий). Пока на сайте нет ни одного пользователя с `situation.view`, сервер ничего не считает. Индикатор «Jonli · yangilandi ЧЧ:ММ:СС»: время последних данных; «Yangilanish kechikmoqda», если соединение открыто, а данных нет больше 90 с; после переподключения снимок перечитывается.
+
+### 10.1 Телефония сейчас
+Те же проекции `LiveStore`, что у монитора (`modules/live/domain/projection.ts`), но **без маскировки**: номера граждан полностью. IP телефонов операторов и текст ошибки AMI не передаются. Исключённые операторы (настройка) не показываются, как на дашборде.
+
+| Показатель | Определение |
+|---|---|
+| «Liniyada operatorlar» | операторы, кроме `offline`, из всех известных (`/ N`); рядом: в разговоре (`talking` + `ringing`), свободны (`idle`), на паузе (`paused`) |
+| «Navbatda kutayotganlar» | ожидающие во всех очередях; «eng uzoq kutish» — от входа в очередь самого давнего. Цвет плитки: никого — спокойный, кто-то ждёт — жёлтый, кто-то ждёт ≥ 3 мин — красный |
+| «Hozir suhbatda» | звонки с гражданами в состоянии `talking` (входящие + исходящие, внутренние между операторами не считаются); рядом — звонит/набирает (`ringing` + `dialing`) |
+| Операторы, очередь, «Faol suhbatlar» | те же виджеты, что на дашборде (действий нет: у observer нет ни своего номера, ни `actions.call`) |
+| «Bugun» — звонки | живые счётчики дашборда (§5a): «Kiruvchi» = `inbound`, «Javob berilgan» = `answered` (доля `answerRate`), «Navbatdan chiqdi» = `abandoned` (доля от `inbound`), «O‘tkazib yuborilgan» = `operatorMissed` (§1.2.1), «O‘rtacha kutish» = `avgWaitSec` (= `inbound.avgWaitSec` статистики за сегодня, §2) |
+| Рабочее время | из общего календаря: «hozir ish vaqti» / «ish vaqtidan tashqari» / «bugun dam olish kuni» (интервал [начало, конец)) |
+
+### 10.2 Тикеты сейчас
+Правила сроков — из модуля тикетов (`tickets/domain/sla.ts`) по сохранённым `due_at` / `callback_due_at`, поэтому «просрочено» — те же тикеты, что подсвечены в списках и посчитаны в «Umumiy ko‘rinish → hozir». Только номера `TK-…` и время: без описаний, номеров граждан и организаций.
+
+| Показатель | Определение |
+|---|---|
+| «Ochiq ticketlar» | не `closed`, по статусам: `new`, `assigned`, `in_progress`, `callback_pending` |
+| «Muddati o‘tgan ticketlar» | в области (`new` / `assigned` / `in_progress`) после `due_at` (`isOverdue`); рядом: «bugun muddati tugaydi» — в области, ещё не просрочены, `due_at` до конца сегодняшнего дня (Ташкент); «qayta qo‘ng‘iroq kechikkan» — `callback_pending` после `callback_due_at` (`isCallbackOverdue`) |
+| «Bugun» — тикеты | создано сегодня (`created_at`), решено ответственными сегодня (`resolved_at`: done/rejected), закрыто сегодня (`closed_at`) |
+| «Olinishini kutmoqda» | `new` по областям (и «Hududsiz»); «eng uzoq» — с `region_changed_at` самого давнего (создан, переслан сюда или возвращён в очередь); сколько из них просрочено; «Mas’ul biriktirilmagan», если у области нет активного ответственного. Порядок — дольше всех ждущая область первой |
+| «Ticketlar ustida ishlayotganlar» | все активные ответственные с областями (`ticket_executive_regions`) и любой другой, у кого сейчас есть тикеты (например, superuser): «Hozir ishda» = `assigned` + `in_progress` у него, из них просрочено; тикеты — от самого давно взятого (`assigned_at`, у перенесённых без него — `created_at`), не больше 10 в списке; «Bugun hal qildi» — его done/rejected за сегодня. Порядок: больше тикетов — выше, затем кто дольше держит тикет |
