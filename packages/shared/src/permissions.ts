@@ -3,8 +3,8 @@ import { z } from 'zod';
 import type { Role } from './auth.js';
 
 /**
- * Permission-based access (owner decision 2026-11-17: roles superuser / executive / observer / operator,
- * executive and observer logic to be described later). Code checks PERMISSIONS, never role names:
+ * Permission-based access (owner decision 2026-11-17: roles superuser / executive / observer / operator).
+ * Code checks PERMISSIONS, never role names:
  *   server: `@RequirePermission('users.manage')` (apps/api common/decorators)
  *   web:    `usePermission('users.manage')`, `requirePermission(context.user, 'users.manage')`
  * Which role has which permission lives ONLY in ROLE_PERMISSIONS below.
@@ -57,34 +57,26 @@ export const PERMISSIONS = [
   'security.manage',
   /** "Log in as another user" (time-limited, audited). */
   'impersonate',
+  /** The static guide pages ("Yo'riqnoma": the systems/roles tree, the manual, the softphone guide). */
+  'guide.view',
 ] as const;
 export const PermissionSchema = z.enum(PERMISSIONS);
 export type Permission = z.infer<typeof PermissionSchema>;
 
 const ALL: readonly Permission[] = PERMISSIONS;
-const without = (...excluded: Permission[]) => ALL.filter((p) => !excluded.includes(p));
 
 /**
- * THE role → permissions map. Interim sets until the owner describes executive/observer:
+ * THE role → permissions map:
  *  - superuser: everything;
- *  - executive: everything except user/role/session/security management, impersonation and the ticket
- *    directories; tickets: processes those of its regions (no creating / calling back — operators do that);
+ *  - executive ("Mas'ul" in the UI, owner decision 2026-11-19): ONLY processes the tickets of its regions —
+ *    the tickets board, the ticket reports and its own profile; no monitoring, calls, contacts, tools or
+ *    settings (the owner adds more later if needed);
  *  - observer: read-only (sees all tickets, cannot change them);
  *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   superuser: ALL,
-  executive: without(
-    'users.manage',
-    'sessions.manage',
-    'security.manage',
-    'impersonate',
-    'tickets.create',
-    'tickets.callback',
-    'tickets.viewAll',
-    'tickets.directories.manage',
-    'tickets.administer',
-  ),
+  executive: ['tickets.process'],
   observer: [
     'monitor.view',
     'monitor.viewAll',
@@ -94,6 +86,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'contacts.view',
     'tickets.viewAll',
     'tools.view',
+    'guide.view',
   ],
   operator: [
     'monitor.view',
@@ -106,6 +99,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
     'tools.use',
     'remoteDesktop.use',
     'help.request',
+    'guide.view',
   ],
 };
 

@@ -430,7 +430,7 @@ export class CallbacksService {
     try {
       for (let i = 0; i < unique.length; i += 200) {
         const items = await this.repo.getMany(unique.slice(i, i + 200), this.todayWindow());
-        this.realtime.broadcast('callbacks.updated', { items });
+        this.realtime.broadcast('callbacks.updated', { items }, { permission: 'callbacks.view' });
       }
     } catch (err) {
       this.logger.warn(`callbacks.updated broadcast failed: ${String(err)}`);
@@ -440,7 +440,7 @@ export class CallbacksService {
   private async publishOne(id: number): Promise<Callback> {
     const [cb] = await this.repo.getMany([id], this.todayWindow());
     if (!cb) throw new NotFoundException('Callback not found');
-    this.realtime.broadcast('callbacks.updated', { items: [cb] });
+    this.realtime.broadcast('callbacks.updated', { items: [cb] }, { permission: 'callbacks.view' });
     return cb;
   }
 }

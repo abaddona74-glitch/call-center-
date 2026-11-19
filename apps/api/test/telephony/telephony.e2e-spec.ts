@@ -140,7 +140,7 @@ beforeAll(async () => {
     .values([
       { username: 'op101', passwordHash: hash, role: 'operator', extension: '101' },
       { username: 'op103', passwordHash: hash, role: 'operator', extension: '103' },
-      { username: 'admin1', passwordHash: hash, role: 'executive', extension: null },
+      { username: 'admin1', passwordHash: hash, role: 'superuser', extension: null },
     ])
     .execute();
   cookies.super = await login('superuser', superPassword);

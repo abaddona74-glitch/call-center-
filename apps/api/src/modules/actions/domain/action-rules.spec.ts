@@ -3,7 +3,7 @@ import { canControlCall, resolveDialTarget, resolveExtension, validateTransferTa
 
 const OP = /^[0-9]{2,4}$/;
 const ALLOWED = [/^(33|50|55|77|88|90|91|93|94|95|97|98|99|20|61|62|65|66|67|69|70|71|72|73|74|75|76|78|79)[0-9]{7}$/];
-const admin = { role: 'executive' as const, extension: null };
+const admin = { role: 'superuser' as const, extension: null };
 const operator = { role: 'operator' as const, extension: '101' };
 
 describe('resolveExtension', () => {

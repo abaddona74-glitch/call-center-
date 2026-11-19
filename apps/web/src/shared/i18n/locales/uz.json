@@ -27,5 +27,5 @@
   },
   "realtime": { "open": "Onlayn", "connecting": "Ulanmoqda…", "closed": "Aloqa uzildi", "idle": "—" },
   "common": { "error": "Xatolik yuz berdi", "loading": "Yuklanmoqda…", "comingSoon": "Tez orada" },
-  "roles": { "operator": "Operator", "observer": "Kuzatuvchi", "executive": "Rahbar", "superuser": "Superuser" }
+  "roles": { "operator": "Operator", "observer": "Kuzatuvchi", "executive": "Mas'ul", "superuser": "Superuser" }
 }
