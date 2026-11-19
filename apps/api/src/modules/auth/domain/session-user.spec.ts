@@ -28,11 +28,13 @@ describe('role permissions', () => {
     for (const p of ROLE_PERMISSIONS.observer) expect(p).toMatch(/\.(view|viewAll|listen)$/);
   });
 
-  it('the overview dashboard: observer sees only it, the superuser too, executives and operators not (owner, 19.11.2026)', () => {
-    expect(ROLE_PERMISSIONS.observer).toEqual(['overview.view']);
-    expect(can({ role: 'superuser' }, 'overview.view')).toBe(true);
-    expect(can({ role: 'executive' }, 'overview.view')).toBe(false);
-    expect(can({ role: 'operator' }, 'overview.view')).toBe(false);
+  it('the overview dashboard and the staff KPI page: observer sees only them, the superuser too, executives and operators not (owner, 19.11.2026)', () => {
+    expect(ROLE_PERMISSIONS.observer).toEqual(['overview.view', 'kpi.view']);
+    for (const p of ['overview.view', 'kpi.view'] as const) {
+      expect(can({ role: 'superuser' }, p)).toBe(true);
+      expect(can({ role: 'executive' }, p)).toBe(false);
+      expect(can({ role: 'operator' }, p)).toBe(false);
+    }
   });
 
   it('tickets: operators create and call back, executives process, observers nothing, superuser manages directories', () => {

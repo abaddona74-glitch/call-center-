@@ -244,7 +244,8 @@ describe('access', () => {
 
   it('observer: the overview permission and nothing else', async () => {
     const me = (await observer.get('/auth/me')).body.user;
-    expect(me.permissions).toEqual(['overview.view']);
+    // + the staff KPI page (kpi.e2e-spec.ts), owner 19.11.2026
+    expect(me.permissions).toEqual(['overview.view', 'kpi.view']);
   });
 
   it('observer: every other API answers 403 (or 404 for tickets it cannot see)', async () => {

@@ -30,6 +30,8 @@ import { HealthModule } from './modules/health/health.module.js';
 import { LiveModule } from './modules/live/live.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { OverviewModule } from './modules/overview/overview.module.js';
+import { KpiModule } from './modules/kpi/kpi.module.js';
+import { OperatorPresenceModule } from './modules/operator-presence/operator-presence.module.js';
 import { PasskeysModule } from './modules/passkeys/passkeys.module.js';
 import { PresenceModule } from './modules/presence/presence.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
@@ -136,6 +138,8 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     ToolsModule,
     OverviewModule,
     CallAnalysisModule,
+    OperatorPresenceModule,
+    KpiModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

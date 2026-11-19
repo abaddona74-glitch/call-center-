@@ -21,6 +21,11 @@ export const PERMISSIONS = [
    * ("Mas'ul shaxslar"), deadlines and call figures — aggregates only, no ticket or call details.
    */
   'overview.view',
+  /**
+   * The staff KPI page «KPI xodimlar» (owner, 19.11.2026): per-operator calls, client ratings, tickets, AI call quality
+   * and online/pause time; per-"Mas'ul" ticket processing by region. Figures only (docs/rewrite/METRICS.md §10).
+   */
+  'kpi.view',
   /** Listen to / download recordings and transcripts. */
   'recordings.listen',
   /** AI call analysis: the queue, backfill and retries (docs/rewrite/CALL-ANALYSIS.md). */
@@ -78,14 +83,16 @@ const ALL: readonly Permission[] = PERMISSIONS;
  *  - executive ("Mas'ul" in the UI, owner decision 2026-11-19): ONLY processes the tickets of its regions —
  *    the tickets board, the ticket reports and its own profile; no monitoring, calls, contacts, tools or
  *    settings (the owner adds more later if needed);
- *  - observer: the overview dashboard only (owner, 19.11.2026): aggregated numbers, no other page or API;
+ *  - observer: the overview dashboard and the staff KPI page (owner, 19.11.2026): aggregated numbers, no other page
+ *    or API;
  *  - operator: the operator portal (legacy 3005) + creating tickets and calling citizens back.
  */
 export const ROLE_PERMISSIONS: Readonly<Record<Role, readonly Permission[]>> = {
   superuser: ALL,
   executive: ['tickets.process'],
-  // The overview dashboard and nothing else (owner, 19.11.2026): no live monitor, history, tickets, tools or guide.
-  observer: ['overview.view'],
+  // The overview dashboard and the staff KPI page, nothing else (owner, 19.11.2026): no live monitor, history,
+  // tickets, tools or guide.
+  observer: ['overview.view', 'kpi.view'],
   operator: [
     'monitor.view',
     'callbacks.view',
