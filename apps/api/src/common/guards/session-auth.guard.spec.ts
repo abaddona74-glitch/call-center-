@@ -58,7 +58,8 @@ describe('SessionAuthGuard', () => {
     await expect(run(operator(), { [PERMISSION_KEY]: 'tickets.create' })).resolves.toBe(true);
     await expect(run(operator(), { [PERMISSION_KEY]: 'users.manage' })).rejects.toBeInstanceOf(ForbiddenException);
     const exec = operator({ role: 'executive', permissions: [...ROLE_PERMISSIONS.executive] });
-    await expect(run(exec, { [PERMISSION_KEY]: 'settings.manage' })).resolves.toBe(true);
+    await expect(run(exec, { [PERMISSION_KEY]: 'tickets.process' })).resolves.toBe(true);
+    await expect(run(exec, { [PERMISSION_KEY]: 'monitor.view' })).rejects.toBeInstanceOf(ForbiddenException);
     await expect(run(exec, { [PERMISSION_KEY]: 'users.manage' })).rejects.toBeInstanceOf(ForbiddenException);
     // objects without `permissions` fall back to the role's set
     const bare: SessionUser = { id: 1, username: 'x', role: 'operator', extension: '101', email: null };

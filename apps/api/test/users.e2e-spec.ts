@@ -47,19 +47,38 @@ describe('permissions by role', () => {
   });
 
   it('/auth/me carries the effective permissions', async () => {
-    const e = (await exec.get('/auth/me')).body.user;
-    expect(e.permissions).toEqual(expect.arrayContaining(['settings.manage', 'audit.view', 'actions.call']));
-    expect(e.permissions).not.toContain('users.manage');
-    expect(e.permissions).not.toContain('impersonate');
+    // executive ("Mas'ul", owner decision 2026-11-19): the tickets of its regions only
+    expect((await exec.get('/auth/me')).body.user.permissions).toEqual(['tickets.process']);
     const o = (await obs.get('/auth/me')).body.user;
     expect(o.permissions.every((p: string) => /\.(view|viewAll|listen)$/.test(p))).toBe(true);
   });
 
-  it('audit log needs audit.view: superuser and executive yes, observer and operator no', async () => {
+  it('audit log needs audit.view: superuser yes; executive, observer and operator no', async () => {
     expect((await root.get('/audit')).status).toBe(200);
-    expect((await exec.get('/audit')).status).toBe(200);
+    expect((await exec.get('/audit')).status).toBe(403);
     expect((await obs.get('/audit')).status).toBe(403);
     expect((await op.get('/audit')).status).toBe(403);
+  });
+
+  it('the executive reaches tickets but no monitoring, calls, callbacks, contacts, tools or settings', async () => {
+    expect((await exec.get('/tickets/context')).status).toBe(200);
+    for (const path of [
+      '/live/snapshot',
+      '/cdr/calls',
+      '/stats/summary',
+      '/callbacks',
+      '/contacts',
+      '/recordings/status',
+      '/tools/config',
+      '/callbacks/settings',
+      '/blacklist',
+      '/presence/online',
+    ]) {
+      expect((await exec.get(path)).status, path).toBe(403);
+    }
+    // operators keep the live board and the callbacks list
+    expect((await op.get('/live/snapshot')).status).toBe(200);
+    expect((await op.get('/callbacks')).status).toBe(200);
   });
 });
 
@@ -244,7 +263,7 @@ describe('operator groups and permissions', () => {
     expect(me.permissions).toContain('tickets.create');
 
     expect((await root.patch(`/users/${execId}`, { groupId: zangiota.id })).status).toBe(200);
-    expect((await exec.get('/auth/me')).body.user.permissions).toContain('contacts.view');
+    expect((await exec.get('/auth/me')).body.user.permissions).toEqual(['tickets.process']); // groups touch operators only
   });
 
   it('creates, updates and deletes groups; members fall back to no group', async () => {
@@ -289,30 +308,30 @@ describe('operator groups and permissions', () => {
 
 describe('audit log viewer', () => {
   it('filters by action prefix, actor and date, with pagination', async () => {
-    const all = await exec.get('/audit?pageSize=5');
+    const all = await root.get('/audit?pageSize=5');
     expect(all.status).toBe(200);
     expect(all.body.items).toHaveLength(5);
     expect(all.body.total).toBeGreaterThan(5);
-    const page2 = await exec.get('/audit?pageSize=5&page=2');
+    const page2 = await root.get('/audit?pageSize=5&page=2');
     expect(page2.body.items[0].id).toBeLessThan(all.body.items[4].id);
 
-    const users = await exec.get('/audit?action=users.&pageSize=200');
+    const users = await root.get('/audit?action=users.&pageSize=200');
     expect(users.body.items.length).toBeGreaterThan(0);
     expect(users.body.items.every((e: { action: string }) => e.action.startsWith('users.'))).toBe(true);
-    const exact = await exec.get('/audit?action=users.create&pageSize=200');
+    const exact = await root.get('/audit?action=users.create&pageSize=200');
     expect(exact.body.items.every((e: { action: string }) => e.action === 'users.create')).toBe(true);
-    const star = await exec.get('/audit?action=groups*');
+    const star = await root.get('/audit?action=groups*');
     expect(star.body.items.every((e: { action: string }) => e.action.startsWith('groups'))).toBe(true);
 
-    const byActor = await exec.get('/audit?actor=roo&pageSize=200');
+    const byActor = await root.get('/audit?actor=roo&pageSize=200');
     expect(byActor.body.items.length).toBeGreaterThan(0);
     expect(byActor.body.items.every((e: { actorLabel: string }) => e.actorLabel === 'root')).toBe(true);
 
-    expect((await exec.get('/audit?from=2099-01-01')).body.total).toBe(0);
+    expect((await root.get('/audit?from=2099-01-01')).body.total).toBe(0);
     const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tashkent' });
-    expect((await exec.get(`/audit?from=${today}&to=${today}`)).body.total).toBe(all.body.total);
-    expect((await exec.get('/audit?from=17-11-2026')).status).toBe(400);
-    expect((await exec.get('/audit/actions')).body.items).toEqual(
+    expect((await root.get(`/audit?from=${today}&to=${today}`)).body.total).toBe(all.body.total);
+    expect((await root.get('/audit?from=17-11-2026')).status).toBe(400);
+    expect((await root.get('/audit/actions')).body.items).toEqual(
       expect.arrayContaining(['auth.login', 'users.create']),
     );
   });

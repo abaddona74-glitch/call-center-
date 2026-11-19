@@ -7,6 +7,7 @@ import {
   type CallScope,
   type CallStatusFilter,
   digitsOnly,
+  type OperatorMissFilter,
 } from '@cc/shared';
 import type { AssembledCall } from '../../../pbx/calls/call-assembler.js';
 import { isExtension, normalizeClientNumber, type PbxDialplan } from '../../../pbx/calls/dialplan.js';
@@ -74,6 +75,8 @@ export function matchesSearch(call: AssembledCall, search: ParsedSearch, names: 
 export interface CallFilter {
   direction?: CallDirectionFilter;
   status?: CallStatusFilter;
+  /** With `operator`: the calls that operator missed, instead of the calls they took part in. */
+  operatorMiss?: OperatorMissFilter;
   operator?: string;
   scope: CallScope;
   search: ParsedSearch;
@@ -83,11 +86,19 @@ export function matchesFilter(call: AssembledCall, f: CallFilter, names: Readonl
   if (f.scope === 'working' && !call.inWorkingHours) return false;
   if (f.direction === 'transfer') {
     if (call.transfers.length === 0) return false;
+  } else if (f.direction === 'external') {
+    if (call.direction === 'internal') return false;
   } else if (f.direction && call.direction !== f.direction) return false;
   if (f.status === 'missed') {
     if (call.status === 'answered') return false;
   } else if (f.status && call.status !== f.status) return false;
-  if (f.operator && !involvesOperator(call, f.operator)) return false;
+  if (f.operatorMiss) {
+    const kind = f.operatorMiss;
+    const missed = call.missedBy.some(
+      (m) => (!f.operator || m.ext === f.operator) && (kind === 'any' || m.reason === kind),
+    );
+    if (!missed) return false;
+  } else if (f.operator && !involvesOperator(call, f.operator)) return false;
   return matchesSearch(call, f.search, names);
 }
 

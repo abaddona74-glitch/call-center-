@@ -141,6 +141,20 @@ export class RecordingsService {
       }
     }
 
+    return this.locate(uniqueid, rows);
+  }
+
+  /**
+   * The recording of one call for a trusted server-side caller (the call analysis worker API, which checks its own
+   * service token and lease): no user permission check here — callers must do their own.
+   */
+  async forCallTrusted(uniqueid: string): Promise<CallRecording> {
+    const rows = await this.repo.rowsForCall(uniqueid);
+    if (rows.length === 0) throw new NotFoundException('Call not found');
+    return this.locate(uniqueid, rows);
+  }
+
+  private async locate(uniqueid: string, rows: Awaited<ReturnType<RecordingsRepository['rowsForCall']>>) {
     const row = pickRecordingRow(rows, uniqueid);
     if (!row) throw new NotFoundException('This call has no recording');
     const candidates = recordingFileCandidates(row.recordingfile, row.calldate, this.monitorRoots());

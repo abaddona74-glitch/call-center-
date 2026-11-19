@@ -11,6 +11,7 @@ registerTranslations('callHistory', {
       duration: 'Davomiyligi',
       wait: 'Navbatda kutish',
       status: 'Holati',
+      missedBy: "O'tkazib yuborgan",
       hangup: 'Kim tugatdi?',
       host: 'Kompyuter (Host)',
       action: 'Audio / Amal',
@@ -20,6 +21,7 @@ registerTranslations('callHistory', {
     columnsAll: 'Barchasi',
     listen: 'Tinglash',
     detail: 'Detal',
+    aiScore: 'AI bahosi: {{n}}/10 · qizil bayroqlar: {{flags}}',
     noAudio: "Audio yo'q",
     noAudioTitle: "Suhbat bo'lmagan (ovoz yozuvi mavjud emas)",
     queue: 'Navbat',
@@ -46,6 +48,7 @@ registerTranslations('callHistory', {
       legs: 'CDR yozuvlari',
       notAnswered: "ko'tarilmadi",
       recording: 'Yozuv',
+      tabs: { conversation: 'Suhbat va tahlil', legs: 'CDR yozuvlari' },
     },
   },
   ru: {
@@ -58,6 +61,7 @@ registerTranslations('callHistory', {
       duration: 'Длительность',
       wait: 'Ожидание в очереди',
       status: 'Статус',
+      missedBy: 'Пропустил',
       hangup: 'Кто завершил?',
       host: 'Компьютер (Host)',
       action: 'Аудио / Действие',
@@ -67,6 +71,7 @@ registerTranslations('callHistory', {
     columnsAll: 'Все',
     listen: 'Слушать',
     detail: 'Детали',
+    aiScore: 'Оценка AI: {{n}}/10 · красных флагов: {{flags}}',
     noAudio: 'Нет аудио',
     noAudioTitle: 'Разговора не было (нет записи)',
     queue: 'Очередь',
@@ -93,6 +98,7 @@ registerTranslations('callHistory', {
       legs: 'Записи CDR',
       notAnswered: 'не ответил',
       recording: 'Запись',
+      tabs: { conversation: 'Диалог и анализ', legs: 'Записи CDR' },
     },
   },
 });
@@ -109,5 +115,22 @@ registerTranslations('recentCalls', {
     segment: { all: 'Все', missed: 'Без ответа', abandoned: 'Вышли из очереди', transfer: 'Перевод' },
     searchPlaceholder: 'Номер или оператор…',
     total: 'Всего: {{total}}',
+  },
+});
+
+registerTranslations('callList', {
+  uz: {
+    subtitle: "Bugungi kun bo'yicha saralangan qo'ng'iroqlar tafsiloti",
+    search: 'Qidirish',
+    searchPlaceholder: 'Raqam yoki operator…',
+    allOperators: 'Barcha operatorlar',
+    total: "Jami: {{total}} ta qo'ng'iroq",
+  },
+  ru: {
+    subtitle: 'Детали звонков за сегодня с выбранным фильтром',
+    search: 'Поиск',
+    searchPlaceholder: 'Номер или оператор…',
+    allOperators: 'Все операторы',
+    total: 'Всего звонков: {{total}}',
   },
 });

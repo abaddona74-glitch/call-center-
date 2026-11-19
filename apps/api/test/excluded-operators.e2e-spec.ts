@@ -32,7 +32,7 @@ const RANGE = 'from=2026-11-16&to=2026-11-17';
 
 let e2e: E2eApp;
 let root: Client;
-let executive: Client;
+let admin: Client;
 let observer: Client;
 let operator: Client;
 
@@ -40,13 +40,13 @@ beforeAll(async () => {
   e2e = await createE2eApp((b) => b.overrideProvider(CdrRepository).useValue(new FakeCdrRepository(rows, names)));
   root = await loginAs(e2e, ROOT.username, ROOT.password);
   for (const [username, role, extension] of [
-    ['s11_exec', 'executive', null],
+    ['s11_admin', 'superuser', null],
     ['s11_obs', 'observer', null],
     ['s11_op', 'operator', '101'],
   ] as const) {
     await createUser(root, { username, role, extension, password: 'Strong-Pass-123' });
   }
-  executive = await loginAs(e2e, 's11_exec', 'Strong-Pass-123');
+  admin = await loginAs(e2e, 's11_admin', 'Strong-Pass-123');
   observer = await loginAs(e2e, 's11_obs', 'Strong-Pass-123');
   operator = await loginAs(e2e, 's11_op', 'Strong-Pass-123');
   // The live board's operators: normally from asterisk.users and AMI peers.
@@ -85,14 +85,14 @@ function frames(ws: WebSocket) {
 }
 
 describe('access', () => {
-  it('needs a session and settings.manage (superuser, executive)', async () => {
+  it('needs a session and settings.manage (superuser)', async () => {
     const anonymous = new Client(e2e);
     await anonymous.get('/excluded-operators').expect(401);
     for (const c of [operator, observer]) {
       await c.get('/excluded-operators').expect(403);
       await put(c, ['118']).expect(403);
     }
-    await executive.get('/excluded-operators').expect(200);
+    await admin.get('/excluded-operators').expect(200);
     expect(
       (await e2e.db.selectFrom('excludedOperators').select('extensions').executeTakeFirstOrThrow()).extensions,
     ).toEqual([]);
@@ -146,7 +146,7 @@ describe('PUT /api/excluded-operators', () => {
       { extension: '101', name: 'Aziza' },
     ]);
     try {
-      const res = await executive.get('/excluded-operators').expect(200);
+      const res = await admin.get('/excluded-operators').expect(200);
       expect(res.body).toMatchObject({
         extensions: ['118', '1111'],
         directoryAvailable: true,
@@ -166,15 +166,15 @@ describe('PUT /api/excluded-operators', () => {
 describe('live operators board', () => {
   it('hides excluded operators from everyone and pushes the board again on every change', async () => {
     await put(root, []).expect(200);
-    expect(await boardOf(executive)).toEqual(['101', '118', '1111']);
+    expect(await boardOf(admin)).toEqual(['101', '118', '1111']);
 
-    const watcher = await executive.openSocket();
+    const watcher = await admin.openSocket();
     const opSocket = await operator.openSocket();
     const exec = frames(watcher.ws);
     const op = frames(opSocket.ws);
     try {
       await put(root, ['118', '1111']).expect(200);
-      expect(await boardOf(executive)).toEqual(['101']);
+      expect(await boardOf(admin)).toEqual(['101']);
       expect(await boardOf(operator)).toEqual(['101']);
       const pushed = (await exec.next('telephony.operators')) as { extension: string }[];
       expect(pushed.map((o) => o.extension)).toEqual(['101']);
@@ -198,20 +198,20 @@ describe('live operators board', () => {
       .set({ extensions: sql<string[]>`${sql.val(['101'])}::text[]` })
       .where('id', '=', 1)
       .execute();
-    expect(await boardOf(executive)).toEqual(['101', '118']); // still the list in memory
+    expect(await boardOf(admin)).toEqual(['101', '118']); // still the list in memory
     expect((await root.get('/excluded-operators').expect(200)).body.extensions).toEqual(['101']);
-    expect(await boardOf(executive)).toEqual(['118', '1111']);
+    expect(await boardOf(admin)).toEqual(['118', '1111']);
   });
 });
 
 describe('statistics and the Excel report', () => {
   const statsRows = async () =>
-    ((await executive.get(`/stats/operators?${RANGE}`).expect(200)).body.operators as { ext: string }[]).map(
+    ((await admin.get(`/stats/operators?${RANGE}`).expect(200)).body.operators as { ext: string }[]).map(
       (r) => r.ext,
     );
 
   async function excelHeader(): Promise<unknown[]> {
-    const res = await executive
+    const res = await admin
       .get(`/export/excel?${RANGE}&group=main&lang=uz`)
       .buffer(true)
       .parse((r, cb) => {
@@ -229,17 +229,17 @@ describe('statistics and the Excel report', () => {
     await put(root, []).expect(200);
     expect(await statsRows()).toEqual(['101', '103', '118']);
     expect(await excelHeader()).toEqual(expect.arrayContaining(['Aziza', 'Bobur', 'Rahbar']));
-    const before = (await executive.get(`/stats/summary?${RANGE}`).expect(200)).body;
+    const before = (await admin.get(`/stats/summary?${RANGE}`).expect(200)).body;
 
-    await put(executive, ['118']).expect(200);
+    await put(admin, ['118']).expect(200);
     expect(await statsRows()).toEqual(['101', '103']);
     expect(await excelHeader()).not.toContain('Rahbar');
-    expect((await executive.get(`/stats/summary?${RANGE}`).expect(200)).body).toEqual(before);
+    expect((await admin.get(`/stats/summary?${RANGE}`).expect(200)).body).toEqual(before);
     // the call history is not filtered either (legacy)
-    const history = await executive.get(`/cdr/calls?${RANGE}&operator=118`).expect(200);
+    const history = await admin.get(`/cdr/calls?${RANGE}&operator=118`).expect(200);
     expect(history.body.total).toBe(1);
 
-    await put(executive, []).expect(200);
+    await put(admin, []).expect(200);
     expect(await statsRows()).toEqual(['101', '103', '118']);
   });
 });

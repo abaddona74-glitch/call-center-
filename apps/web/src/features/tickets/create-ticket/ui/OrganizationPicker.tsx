@@ -10,6 +10,7 @@ const DEBOUNCE_MS = 250;
 /**
  * The citizen's organization: search the registry (~47 000 rows) by name words or INN — the ticket's
  * region ranks first — or, when it is not there, keep the typed name. Arrow keys + Enter choose.
+ * A registry pick also hands over the registry row (region, district) so the form can fill its place.
  */
 export function OrganizationPicker({
   id,
@@ -20,7 +21,7 @@ export function OrganizationPicker({
   id: string;
   regionId: number | null;
   value: TicketOrganizationRef | null;
-  onChange: (value: TicketOrganizationRef | null) => void;
+  onChange: (value: TicketOrganizationRef | null, registry?: TicketOrganization) => void;
 }) {
   const { t } = useTranslation('ticket');
   const listId = useId();
@@ -46,7 +47,7 @@ export function OrganizationPicker({
 
   const choose = (index: number) => {
     const org = items[index];
-    if (org) onChange({ id: org.id, name: org.name, tin: org.tin });
+    if (org) onChange({ id: org.id, name: org.name, tin: org.tin }, org);
     else if (typed.length >= 2) onChange({ id: null, name: typed.slice(0, TICKET_ORGANIZATION_NAME_MAX), tin: null });
     else return;
     setOpen(false);

@@ -11,14 +11,17 @@ const restricted = {
 };
 
 describe('role permissions', () => {
-  it('superuser has everything; executive everything except user/session/security management', () => {
+  it('superuser has everything; executive ("Mas’ul") only processes the tickets of its regions', () => {
     expect([...ROLE_PERMISSIONS.superuser].sort()).toEqual([...PERMISSIONS].sort());
-    for (const p of ['users.manage', 'sessions.manage', 'security.manage', 'impersonate'] as const) {
-      expect(ROLE_PERMISSIONS.executive).not.toContain(p);
-    }
-    expect(ROLE_PERMISSIONS.executive).toEqual(
-      expect.arrayContaining(['settings.manage', 'actions.call', 'reports.view']),
-    );
+    // owner decision 2026-11-19: tickets, ticket reports and the profile — nothing else
+    expect(ROLE_PERMISSIONS.executive).toEqual(['tickets.process']);
+  });
+
+  it('the guide is for every role except the executive', () => {
+    expect(can({ role: 'operator' }, 'guide.view')).toBe(true);
+    expect(can({ role: 'observer' }, 'guide.view')).toBe(true);
+    expect(can({ role: 'superuser' }, 'guide.view')).toBe(true);
+    expect(can({ role: 'executive' }, 'guide.view')).toBe(false);
   });
 
   it('observer is read-only', () => {

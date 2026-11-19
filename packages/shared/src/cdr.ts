@@ -24,8 +24,11 @@ export type CallStatus = z.infer<typeof CallStatusSchema>;
 export const CallStatusFilterSchema = z.enum([...CALL_STATUSES, 'missed']);
 export type CallStatusFilter = z.infer<typeof CallStatusFilterSchema>;
 
-/** History filter: a direction, or "transfer" = calls that were transferred between operators. */
-export const CallDirectionFilterSchema = z.enum([...CALL_DIRECTIONS, 'transfer']);
+/**
+ * History filter: a direction, "transfer" = calls that were transferred between operators, or
+ * "external" = inbound + outbound (no internal calls; the dashboard's "Jami" card).
+ */
+export const CallDirectionFilterSchema = z.enum([...CALL_DIRECTIONS, 'transfer', 'external']);
 export type CallDirectionFilter = z.infer<typeof CallDirectionFilterSchema>;
 
 /** "working" = only calls that started inside the working calendar (Mon–Fri 08:00–21:00 by default). */
@@ -52,6 +55,10 @@ export type MissReason = z.infer<typeof MissReasonSchema>;
 /** One operator who missed a call: once per call, `rejected` when they both let it ring out and declined it. */
 export const CallMissSchema = z.object({ ext: z.string(), reason: MissReasonSchema });
 export type CallMiss = z.infer<typeof CallMissSchema>;
+
+/** History filter: calls an operator missed (`missedBy` not empty) for any reason, or for one reason. */
+export const OperatorMissFilterSchema = z.enum(['any', ...MissReasonSchema.options]);
+export type OperatorMissFilter = z.infer<typeof OperatorMissFilterSchema>;
 
 export const CallTransferSchema = z.object({
   from: z.string().nullable(),
@@ -115,6 +122,8 @@ export const CallHistoryQuerySchema = z
     pageSize: z.coerce.number().int().min(1).max(200).default(20),
     direction: CallDirectionFilterSchema.optional(),
     status: CallStatusFilterSchema.optional(),
+    /** Calls an operator missed; together with `operator`, the calls THAT operator missed (not the ones they took). */
+    operatorMiss: OperatorMissFilterSchema.optional(),
     operator: ExtSchema.optional(),
     /** Phone in any format, an extension, or (part of) an operator name. */
     search: optionalString(100),
