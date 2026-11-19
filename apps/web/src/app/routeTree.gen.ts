@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAnalysisRouteImport } from './routes/_app/analysis'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
@@ -58,6 +59,11 @@ const LoginRoute = LoginRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalysisRoute = AppAnalysisRouteImport.update({
+  id: '/analysis',
+  path: '/analysis',
   getParentRoute: () => AppRoute,
 } as any)
 const AppClientsRoute = AppClientsRouteImport.update({
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/analysis': typeof AppAnalysisRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/analysis': typeof AppAnalysisRoute
   '/clients': typeof AppClientsRoute
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
@@ -264,6 +272,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/_app/analysis': typeof AppAnalysisRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/history': typeof AppHistoryRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/analysis'
     | '/clients'
     | '/explorer'
     | '/history'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
   to:
     | '/change-password'
     | '/login'
+    | '/analysis'
     | '/clients'
     | '/explorer'
     | '/history'
@@ -362,6 +373,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/change-password'
     | '/login'
+    | '/_app/analysis'
     | '/_app/clients'
     | '/_app/explorer'
     | '/_app/history'
@@ -426,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analysis': {
+      id: '/_app/analysis'
+      path: '/analysis'
+      fullPath: '/analysis'
+      preLoaderRoute: typeof AppAnalysisRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/clients': {
@@ -647,6 +666,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAnalysisRoute: typeof AppAnalysisRoute
   AppClientsRoute: typeof AppClientsRoute
   AppExplorerRoute: typeof AppExplorerRoute
   AppHistoryRoute: typeof AppHistoryRoute
@@ -670,6 +690,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAnalysisRoute: AppAnalysisRoute,
   AppClientsRoute: AppClientsRoute,
   AppExplorerRoute: AppExplorerRoute,
   AppHistoryRoute: AppHistoryRoute,

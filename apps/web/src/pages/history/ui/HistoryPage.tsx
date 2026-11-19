@@ -1,9 +1,10 @@
 import { CALL_STATUSES, type CallListItem, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { businessToday, calendarLabels, callHistoryQuery, type RangePresetId, rangePresets } from '@/entities/call';
+import { callAnalysisStatusQuery } from '@/entities/call-analysis';
 import { useSessionUser } from '@/entities/session';
 import { isHttpError } from '@/shared/api';
 import { useZipExport } from '@/features/recordings/zip-export';
@@ -71,6 +72,18 @@ export function HistoryPage() {
   );
 
   const data = query.data;
+  // AI analysis scores of the answered, recorded calls on this page (whoever may read one call's analysis).
+  const canAnalyse = canAccessCdr(user, 'analysis.call');
+  const analysedIds = useMemo(
+    () =>
+      canAnalyse ? (data?.items ?? []).filter((c) => c.hasRecording && c.status === 'answered').map((c) => c.id) : [],
+    [canAnalyse, data],
+  );
+  const analysisStatus = useQuery(callAnalysisStatusQuery(analysedIds));
+  const analysis = useMemo(
+    () => new Map((analysisStatus.data?.items ?? []).map((i) => [i.callId, i])),
+    [analysisStatus.data],
+  );
   const totalPages = data ? Math.max(1, Math.ceil(data.total / HISTORY_PAGE_SIZE)) : 1;
   const showDate = Boolean(data && (data.range.allDays || data.range.from !== data.range.to));
 
@@ -213,6 +226,7 @@ export function HistoryPage() {
           onColumnVisibilityChange={setColumns}
           onOpenDetails={setSelected}
           canListen={canListen}
+          analysis={analysis}
           placeholder={placeholder}
         />
         {data && data.total > 0 && (

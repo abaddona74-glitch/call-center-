@@ -6,7 +6,7 @@ import { TicketStatusSchema } from './tickets.js';
 /**
  * The overview dashboard (permission `overview.view`: observers and the superuser, owner decision 19.11.2026):
  * call-center totals, the regions map, tickets by executives ("Mas'ul shaxslar"), deadlines and calls.
- * Aggregates only — no ticket contents, citizen numbers or call lists. Definitions: docs/rewrite/METRICS.md §8.
+ * Aggregates only — no ticket contents, citizen numbers or call lists. Definitions: docs/rewrite/METRICS.md §9.
  */
 
 /** `region` value for tickets without a region ("Hududsiz"). */

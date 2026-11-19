@@ -14,7 +14,7 @@ import { OverviewService } from './overview.service.js';
 
 /**
  * The overview dashboard (owner, 19.11.2026): observers see only this; the superuser sees it too.
- * Aggregates only (docs/rewrite/METRICS.md §8). Every endpoint needs `overview.view`.
+ * Aggregates only (docs/rewrite/METRICS.md §9). Every endpoint needs `overview.view`.
  */
 @Controller('overview')
 @RequirePermission('overview.view')

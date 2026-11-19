@@ -1,5 +1,5 @@
 /**
- * Ticket figures of the overview dashboard (docs/rewrite/METRICS.md §8). Pure: no Nest, no DB.
+ * Ticket figures of the overview dashboard (docs/rewrite/METRICS.md §9). Pure: no Nest, no DB.
  *
  * Two views:
  *  - the period: tickets CREATED in it (one cohort, like the ticket reports), each in its current state;
