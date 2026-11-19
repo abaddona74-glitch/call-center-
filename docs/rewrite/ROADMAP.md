@@ -21,6 +21,7 @@
 | S10 | Перенос данных legacy (этап 3) | `scripts/migrate-legacy/**` (кроме нового маппера исключённых операторов) | — | — / — | `callcenter_s10` |
 | S11 | Исключённые операторы (этап 3) | настройка списка, фильтры в `modules/{live,stats,cdr,callbacks}`, маппер `excluded-operators` | раздел в `pages/settings*`, `features/excluded-operators/*` | 3011 / 5184 | `callcenter_s11` |
 | S13 | Дашборд наблюдателя «Umumiy ko‘rinish» (19.11.2026) | `modules/overview` (только чтение: тикеты, CDR через `PbxCallsService`, итоги ИИ-анализа через `CallAnalysisService`), разрешение `overview.view` | `pages/overview`, `widgets/{region-map,ticket-overview}`, `entities/overview` | 3014 / 5187 | `callcenter_ov` |
+| S14 | «KPI xodimlar» (19.11.2026) | `modules/kpi` (только чтение: CDR через `PbxCallsService` + функции статистики, тикеты и лента событий, итоги ИИ-анализа), `modules/operator-presence` (журнал онлайн/пауз `operator_presence_log`), разрешение `kpi.view` | `pages/staff-kpi`, `widgets/staff-kpi`, `entities/staff-kpi` | 3016 / 5189 | `callcenter_kpi` |
 | AI | ИИ-анализ записей (после перехода, `CALL-ANALYSIS.md`) | `modules/call-analysis`, `apps/analysis-worker` | `pages/call-analysis`, `entities/call-analysis`, `features/call-analysis/*`, вкладка в `widgets/call-history-table` | 3000 / 5173 | `callcenter_ca` |
 
 ### Контракты между сессиями
