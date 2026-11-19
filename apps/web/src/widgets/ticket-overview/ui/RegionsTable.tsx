@@ -1,9 +1,11 @@
 import { OVERVIEW_NO_REGION, type OverviewRegionRow } from '@cc/shared';
 import { useMemo } from 'react';
+import type { TicketListRequest } from '@/entities/overview';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Icon } from '@/shared/ui/icon';
+import { NumberButton } from '@/shared/ui/number-button';
 import { percentOf } from '../model/format';
 import '../i18n';
 
@@ -21,10 +23,13 @@ export function RegionsTable({
   rows,
   selected,
   onSelect,
+  onOpenList,
 }: {
   rows: readonly OverviewRegionRow[];
   selected: string | null;
   onSelect: (key: string | null) => void;
+  /** Opens the tickets behind a cell's number (the row's region). */
+  onOpenList?: (request: TicketListRequest) => void;
 }) {
   const { t, i18n } = useTranslation('ticketOverview');
   const ru = i18n.language === 'ru';
@@ -63,11 +68,11 @@ export function RegionsTable({
       }),
       col.accessor('received', {
         header: () => t('regions.received'),
-        cell: ({ getValue }) => <span className="font-bold text-ink">{getValue()}</span>,
+        cell: ({ row }) => num(row.original, 'received', row.original.received, 'font-bold text-ink'),
       }),
       col.accessor('closed', {
         header: () => <span className="max-sm:hidden">{t('regions.closed')}</span>,
-        cell: ({ getValue }) => <span className="text-positive max-sm:hidden">{getValue()}</span>,
+        cell: ({ row }) => num(row.original, 'closed', row.original.closed, 'text-positive max-sm:hidden'),
       }),
       col.accessor('overdue', {
         header: () => <span title={t('regions.overdueHint')}>{t('regions.overdue')}</span>,
@@ -75,7 +80,7 @@ export function RegionsTable({
           const r = row.original;
           return (
             <span className={r.overdue ? 'text-danger' : 'text-mute'}>
-              {r.overdue}
+              {num(r, 'overdue', r.overdue)}
               {r.received > 0 && (
                 <span className="ml-1 inline-block w-[30px] text-left text-[10.5px] text-mute max-sm:hidden">
                   {percentOf(r.overdue, r.received)}%
@@ -87,13 +92,37 @@ export function RegionsTable({
       }),
       col.accessor('overdueNow', {
         header: () => <span title={t('regions.nowHint')}>{t('regions.now')}</span>,
-        cell: ({ getValue }) => (
-          <span className={cn('font-bold', getValue() ? 'text-danger' : 'text-mute')}>{getValue()}</span>
-        ),
+        cell: ({ row }) =>
+          num(
+            row.original,
+            'nowOverdue',
+            row.original.overdueNow,
+            cn('font-bold', row.original.overdueNow ? 'text-danger' : 'text-mute'),
+          ),
       }),
     ],
-    [t, ru, selected, onSelect],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `num` reads the props listed here
+    [t, ru, selected, onSelect, onOpenList],
   );
+
+  /** A cell's number: opens the region's tickets behind it (zero stays plain). */
+  function num(
+    row: OverviewRegionRow,
+    metric: 'received' | 'closed' | 'overdue' | 'nowOverdue',
+    value: number,
+    className?: string,
+  ) {
+    const name = row.code === null ? t('regions.noRegion') : ru ? row.nameRu : row.nameUz;
+    const label = `${name} — ${t(`regions.${metric === 'nowOverdue' ? 'nowHint' : metric}`)}`;
+    return (
+      <NumberButton
+        label={label}
+        value={value}
+        className={className}
+        onOpen={onOpenList && value > 0 ? () => onOpenList({ metric, region: regionKey(row), value }) : undefined}
+      />
+    );
+  }
 
   return (
     <DataTable

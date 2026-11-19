@@ -1,6 +1,6 @@
 import type { OverviewTicketTotals } from '@cc/shared';
 import { describe, expect, it } from 'vitest';
-import { deadlineSplit, lateBy, percentOf } from './format';
+import { deadlineSplit, lateBy, listDateTime, overdueParts, percentOf } from './format';
 
 describe('ticket overview format', () => {
   it('percentOf', () => {
@@ -20,5 +20,15 @@ describe('ticket overview format', () => {
   it('deadlineSplit: in time = resolved − resolved late; still overdue = open after due', () => {
     const t = { done: 10, rejected: 2, overdueLate: 3, overdueOpen: 4 } as OverviewTicketTotals;
     expect(deadlineSplit(t)).toEqual({ onTime: 9, late: 3, stillOverdue: 4 });
+  });
+
+  it('listDateTime and overdueParts', () => {
+    const wall = () => '2026-11-19 09:05:07';
+    expect(listDateTime('2026-11-19T04:05:07Z', wall)).toBe('19.11.2026 09:05');
+    expect(listDateTime(null, wall)).toBe('—');
+    expect(overdueParts(null)).toBeNull();
+    expect(overdueParts(98)).toEqual({ unit: 'days', n: 4 });
+    expect(overdueParts(5.5)).toEqual({ unit: 'hours', n: 5 });
+    expect(overdueParts(0.2)).toEqual({ unit: 'hours', n: 1 });
   });
 });

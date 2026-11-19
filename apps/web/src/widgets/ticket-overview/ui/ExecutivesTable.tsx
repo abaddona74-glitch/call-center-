@@ -1,9 +1,12 @@
 import type { OverviewExecutiveRow } from '@cc/shared';
+import type * as React from 'react';
 import { useMemo } from 'react';
+import type { TicketListRequest } from '@/entities/overview';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Icon } from '@/shared/ui/icon';
+import { NumberButton } from '@/shared/ui/number-button';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import '../i18n';
 
@@ -17,19 +20,47 @@ export function ExecutivesTable({
   rows,
   regionName,
   loading,
+  onOpenList,
 }: {
   rows: readonly OverviewExecutiveRow[] | undefined;
   /** Region code → display name. */
   regionName: (code: string) => string;
   loading?: boolean;
+  /** Opens the tickets behind a cell's number (this Mas'ul, the page's region filter). */
+  onOpenList?: (request: TicketListRequest) => void;
 }) {
   const { t } = useTranslation('ticketOverview');
   const columns = useMemo<DataTableColumn<OverviewExecutiveRow>[]>(() => {
     const hours = (n: number | null) => (n === null ? t('executives.none') : t('executives.hours', { n }));
+    const METRIC = { taken: 'exTaken', done: 'exDone', rejected: 'exRejected', overdue: 'exOverdue' } as const;
+    /** A number that opens this Mas'ul's tickets behind it (zero stays plain). */
+    const open = (
+      r: OverviewExecutiveRow,
+      metric: TicketListRequest['metric'],
+      value: number,
+      label: string,
+      className: string,
+      shown?: React.ReactNode,
+    ) => (
+      <NumberButton
+        label={`${r.name} — ${label}`}
+        // Read out what is shown (an average is not the count of its tickets).
+        value={typeof shown === 'string' ? shown : value}
+        className={className}
+        onOpen={
+          onOpenList && value > 0
+            ? () => onOpenList({ metric, executive: r.userId, executiveName: r.name, value })
+            : undefined
+        }
+      >
+        {shown}
+      </NumberButton>
+    );
     const count = (key: 'taken' | 'done' | 'rejected' | 'overdue', tone: (v: number) => string) =>
       col.accessor(key, {
         header: () => t(`executives.${key}`),
-        cell: ({ getValue }) => <span className={tone(getValue())}>{getValue()}</span>,
+        cell: ({ row }) =>
+          open(row.original, METRIC[key], row.original[key], t(`executives.${key}`), tone(row.original[key])),
       });
     return [
       col.accessor('name', {
@@ -52,23 +83,39 @@ export function ExecutivesTable({
       count('overdue', (v) => (v ? 'font-semibold text-danger' : 'text-mute')),
       col.accessor('avgResolutionHours', {
         header: () => t('executives.avg'),
-        cell: ({ getValue }) => <span className="font-mono text-xs text-ink-2">{hours(getValue())}</span>,
+        cell: ({ row }) =>
+          open(
+            row.original,
+            'exResolved',
+            row.original.done + row.original.rejected,
+            t('executives.avg'),
+            'font-mono text-xs text-ink-2',
+            hours(row.original.avgResolutionHours),
+          ),
       }),
       col.accessor('holdingNow', {
         header: () => <span title={t('executives.holdingHint')}>{t('executives.holding')}</span>,
         cell: ({ row }) => (
           <span className="font-bold text-ink">
-            {row.original.holdingNow}
+            {open(row.original, 'exHolding', row.original.holdingNow, t('executives.holding'), 'font-bold text-ink')}
             {row.original.overdueNow > 0 && (
               <span className="ml-1 text-xs font-semibold text-danger" title={t('executives.overdueNowHint')}>
-                ({row.original.overdueNow})
+                (
+                {open(
+                  row.original,
+                  'exOverdueNow',
+                  row.original.overdueNow,
+                  t('executives.overdueNowHint'),
+                  'text-danger',
+                )}
+                )
               </span>
             )}
           </span>
         ),
       }),
     ];
-  }, [t, regionName]);
+  }, [t, regionName, onOpenList]);
 
   return (
     <Panel>

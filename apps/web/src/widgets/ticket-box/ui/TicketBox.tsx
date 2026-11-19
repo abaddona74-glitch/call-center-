@@ -30,6 +30,7 @@ import { CallbackCallButton, CallbackOutcomeModal, ForceCloseModal } from '@/fea
 import { ForwardTicketModal } from '@/features/tickets/forward-ticket';
 import { ReleaseTicketModal } from '@/features/tickets/release-ticket';
 import { ResolveTicketModal } from '@/features/tickets/resolve-ticket';
+import { useApiScope } from '@/shared/lib/api-scope';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import {
@@ -53,7 +54,9 @@ export function TicketBox({
   onClose: () => void;
 }) {
   const { t } = useTranslation('ticket');
-  const query = useQuery({ ...ticketQuery(ticketId ?? 0), enabled: ticketId !== null });
+  // `overview` scope (the overview dashboard): the read-only card — the server sends no actions.
+  const scope = useApiScope();
+  const query = useQuery({ ...ticketQuery(ticketId ?? 0, scope), enabled: ticketId !== null });
   const ticket = ticketId !== null ? query.data : undefined;
 
   return (
@@ -96,6 +99,8 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [forceOpen, setForceOpen] = useState(false);
   const a = ticket.actions;
+  // The overview dashboard's card: no actions; say so instead of an empty footer.
+  const readOnly = useApiScope() === 'overview';
   const dialogs = resolveMode !== null || forwardOpen || releaseOpen || outcomeOpen || forceOpen || viewer !== null;
 
   usePasteTarget(!dialogs && a.comment, (pasted) => setFiles((cur) => acceptFiles(cur, pasted, maxFileMb, t)));
@@ -355,7 +360,13 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
               {t('box.outcome')}
             </KdsAction>
           )}
-          {workingByOther && ticket.assignee && (
+          {readOnly && ticket.status !== 'closed' && (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-mute">
+              <Icon name="eye" className="size-4" />
+              {t('box.readOnly')}
+            </span>
+          )}
+          {!readOnly && workingByOther && ticket.assignee && (
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(245,158,11,0.3)] bg-[rgba(245,158,11,0.12)] px-3 py-1.5 text-xs font-semibold text-shade-[#f59e0b]">
               <LegacyIcon name="lock" className="size-3.5" />
               {t('box.lockedBy', { name: personName(ticket.assignee) })}
@@ -437,6 +448,7 @@ function ResolutionBanner({ ticket }: { ticket: TicketDetail }) {
 }
 
 function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
+  const scope = useApiScope();
   const { t } = useTranslation('ticket');
   const tone =
     call.attemptStatus === 'connected'
@@ -460,7 +472,12 @@ function CallRow({ ticketId, call }: { ticketId: number; call: TicketCall }) {
       <span className="ml-auto">
         {call.recording.status === 'found' ? (
           // oxlint-disable-next-line jsx-a11y/media-has-caption -- phone recordings have no captions
-          <audio controls preload="none" src={recordingUrl(ticketId, call.id)} className="h-8 w-[260px]" />
+          <audio
+            controls
+            preload="none"
+            src={recordingUrl(ticketId, call.id, false, scope)}
+            className="h-8 w-[260px]"
+          />
         ) : (
           <span className="text-[11.5px] text-dim">{t(`box.recording.${call.recording.status}`)}</span>
         )}

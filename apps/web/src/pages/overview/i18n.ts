@@ -75,6 +75,125 @@ registerTranslations('overviewPage', {
       emptyText:
         'AI-tahlil ishga tushirilgach (tahlil dasturi yozuvlarni qayta ishlay boshlaganda), bu yerda o‘rtacha baho, qoidabuzarliklar, natijalar va mijoz kayfiyati paydo bo‘ladi.',
     },
+    details: {
+      scopeWorking: 'Faqat ish vaqtida boshlangan qo‘ng‘iroqlar.',
+      scopeAll: 'Barcha vaqt: ish vaqtidan tashqari boshlanganlari ham.',
+      callSubtitle: 'Shu raqamni tashkil etgan qo‘ng‘iroqlar · {{range}}',
+      qualitySubtitle: 'Shu raqamni tashkil etgan tahlil qilingan qo‘ng‘iroqlar · {{range}}',
+      regionTitle: '{{region}}: {{title}}',
+      executiveTitle: '{{name}}: {{title}}',
+      ticket: {
+        received: { title: 'Kelib tushgan murojaatlar', def: 'Tanlangan davrda yaratilgan murojaatlar.' },
+        closed: {
+          title: 'Yopilgan murojaatlar',
+          def: 'Davrda kelganlardan yopilganlari: fuqaroga qayta qo‘ng‘iroq qilingan (holat «Yopilgan»).',
+        },
+        overdue: {
+          title: 'Muddati o‘tgan murojaatlar',
+          def: 'Davrda kelganlardan muddati ({{sla}} ish kuni) o‘tganlari: muddatdan keyin ham hududda turganlari va muddatdan keyin hal qilinganlari.',
+        },
+        overdueOpen: {
+          title: 'Hal qilinmagan, muddati o‘tgan',
+          def: 'Davrda kelganlardan muddatdan keyin ham hududda (yangi, olingan yoki jarayonda) turganlari.',
+        },
+        overdueLate: {
+          title: 'Kechikib hal qilingan',
+          def: 'Davrda kelganlardan muddatdan keyin bajarilgan yoki rad etilganlari.',
+        },
+        onTime: {
+          title: 'Muddatida hal qilingan',
+          def: 'Davrda kelganlardan muddatida bajarilgan yoki rad etilganlari.',
+        },
+        callbackOverdue: {
+          title: 'Qayta qo‘ng‘iroq kechikkan',
+          def: 'Davrda kelganlardan qayta qo‘ng‘iroq muddati ({{cb}} ish kuni) o‘tganlari: kech yopilgan yoki hali kutilayotganlari.',
+        },
+        resolved: {
+          title: 'O‘rtacha hal qilish vaqti',
+          def: 'Davrda kelganlardan hal qilinganlari (bajarilgan yoki rad etilgan); o‘rtacha vaqt — yaratilishdan hal qilinishgacha, shular bo‘yicha.',
+        },
+        closeTimed: {
+          title: 'O‘rtacha yopish vaqti',
+          def: 'Davrda kelganlardan yopilganlari; o‘rtacha vaqt — yaratilishdan yopilishgacha, shular bo‘yicha.',
+        },
+        nowOpen: {
+          title: 'Yopilmagan murojaatlar',
+          def: 'Hozir yopilmagan barcha murojaatlar, yaratilgan sanasidan qat’i nazar.',
+        },
+        nowStatus: {
+          title: '«{{status}}» holatidagi murojaatlar',
+          def: 'Hozir «{{status}}» holatidagi barcha murojaatlar.',
+        },
+        nowOverdue: {
+          title: 'Hozir muddati o‘tgan',
+          def: 'Hozir hududda (yangi, olingan yoki jarayonda) va muddati o‘tgan murojaatlar, yaratilgan sanasidan qat’i nazar.',
+        },
+        nowCallbackOverdue: {
+          title: 'Qayta qo‘ng‘iroq kechikkan (hozir)',
+          def: 'Hozir qayta qo‘ng‘iroqni kutayotgan va uning muddati o‘tgan murojaatlar.',
+        },
+        exTaken: { title: 'Olgan', def: '{{name}} navbatdan o‘ziga olgan murojaatlar (davrda kelganlardan).' },
+        exDone: { title: 'Bajargan', def: '{{name}} bajargan murojaatlar (davrda kelganlardan).' },
+        exRejected: { title: 'Rad etgan', def: '{{name}} rad etgan murojaatlar (davrda kelganlardan).' },
+        exOverdue: {
+          title: 'Muddati o‘tgan',
+          def: '{{name}} hal qilgan yoki qo‘lida turgan, muddati o‘tgan murojaatlar (davrda kelganlardan).',
+        },
+        exResolved: {
+          title: 'O‘rtacha vaqt',
+          def: '{{name}} hal qilgan murojaatlar; o‘rtacha vaqt — yaratilishdan hal qilinishgacha, shular bo‘yicha.',
+        },
+        exHolding: { title: 'Hozir ishda', def: 'Hozir {{name}} qo‘lida (olingan yoki jarayonda) turgan murojaatlar.' },
+        exOverdueNow: {
+          title: 'Hozir muddati o‘tgan',
+          def: 'Hozir {{name}} qo‘lida turgan va muddati o‘tgan murojaatlar.',
+        },
+      },
+      call: {
+        total: {
+          title: 'Jami qo‘ng‘iroqlar',
+          def: 'Jami = kiruvchi qo‘ng‘iroqlar + ulangan chiquvchilar (ichki qo‘ng‘iroqlarsiz).',
+        },
+        inbound: { title: 'Kiruvchi', def: 'Kiruvchi qo‘ng‘iroqlar: har biri bir marta, o‘tkazmalar bilan birga.' },
+        outbound: { title: 'Chiquvchi (ulangan)', def: 'Javob berilgan chiquvchi qo‘ng‘iroqlar.' },
+        answered: { title: 'Javob berilgan', def: 'Kiruvchilardan operator gaplashganlari.' },
+        wait: {
+          title: 'O‘rtacha kutish',
+          def: 'O‘rtacha kutish shu qo‘ng‘iroqlar bo‘yicha: navbatga kirishdan operator javobigacha.',
+        },
+        unanswered: {
+          title: 'Javobsiz',
+          def: 'Kiruvchilardan javob berilmaganlari = navbatdan chiqqan + IVR’da tugagan + ish vaqtidan tashqari.',
+        },
+        abandoned: { title: 'Navbatdan chiqdi', def: 'Navbatga kirib, javobni kutmasdan chiqib ketgan qo‘ng‘iroqlar.' },
+        ivr: { title: 'IVR', def: 'Navbatga yetmasdan IVR’da tugagan qo‘ng‘iroqlar.' },
+        afterHours: {
+          title: 'Ish vaqtidan tashqari',
+          def: 'Ish vaqtidan tashqari kelgan, javob berilmagan qo‘ng‘iroqlar.',
+        },
+        talked: { title: 'Gaplashilgan', def: 'Javob berilgan kiruvchi + ulangan chiquvchi qo‘ng‘iroqlar.' },
+      },
+      quality: {
+        analyzed: {
+          title: 'Tahlil qilingan qo‘ng‘iroqlar',
+          def: 'Davrda AI tahlil qilgan qo‘ng‘iroqlar (prompt {{v}}). O‘rtacha baho (1–10) shular bo‘yicha.',
+        },
+        handled: {
+          title: 'Murojaat hal qilingan',
+          def: 'Natijasi «Hal qilindi», «Ma’lumot berildi» yoki «Ariza ochildi» bo‘lgan tahlil qilingan qo‘ng‘iroqlar.',
+        },
+        flagged: {
+          title: 'Qoidabuzarlik bor',
+          def: 'Kamida bitta qoidabuzarlik topilgan tahlil qilingan qo‘ng‘iroqlar.',
+        },
+        flag: { title: '«{{flag}}»', def: '«{{flag}}» qoidabuzarligi topilgan tahlil qilingan qo‘ng‘iroqlar.' },
+        outcome: { title: '«{{outcome}}»', def: 'Natijasi «{{outcome}}» bo‘lgan tahlil qilingan qo‘ng‘iroqlar.' },
+        sentiment: {
+          title: 'Mijoz kayfiyati: {{sentiment}}',
+          def: 'Suhbat oxirida mijoz kayfiyati «{{sentiment}}» bo‘lgan tahlil qilingan qo‘ng‘iroqlar.',
+        },
+      },
+    },
   },
   ru: {
     title: 'Общая картина',
@@ -148,6 +267,110 @@ registerTranslations('overviewPage', {
       emptyTitle: 'За этот период проанализированных звонков нет',
       emptyText:
         'Когда ИИ-анализ включат (программа анализа начнёт обрабатывать записи), здесь появятся средняя оценка, нарушения, итоги и настроение клиентов.',
+    },
+    details: {
+      scopeWorking: 'Только звонки, начавшиеся в рабочее время.',
+      scopeAll: 'Всё время: включая звонки вне рабочего времени.',
+      callSubtitle: 'Звонки, из которых сложилось это число · {{range}}',
+      qualitySubtitle: 'Проанализированные звонки, из которых сложилось это число · {{range}}',
+      regionTitle: '{{region}}: {{title}}',
+      executiveTitle: '{{name}}: {{title}}',
+      ticket: {
+        received: { title: 'Поступившие обращения', def: 'Обращения, созданные за выбранный период.' },
+        closed: {
+          title: 'Закрытые обращения',
+          def: 'Из поступивших за период — закрытые: гражданину перезвонили (статус «Закрыт»).',
+        },
+        overdue: {
+          title: 'Просроченные обращения',
+          def: 'Из поступивших за период — нарушившие срок ({{sla}} раб. дн.): остались в регионе после срока или решены позже срока.',
+        },
+        overdueOpen: {
+          title: 'Не решены, срок прошёл',
+          def: 'Из поступивших за период — всё ещё в регионе (новые, взятые, в работе) после срока.',
+        },
+        overdueLate: {
+          title: 'Решены с опозданием',
+          def: 'Из поступивших за период — выполнены или отклонены после срока.',
+        },
+        onTime: { title: 'Решены в срок', def: 'Из поступивших за период — выполнены или отклонены в срок.' },
+        callbackOverdue: {
+          title: 'Просрочен перезвон',
+          def: 'Из поступивших за период — с нарушенным сроком перезвона ({{cb}} раб. дн.): закрыты поздно или всё ещё ждут.',
+        },
+        resolved: {
+          title: 'Среднее время решения',
+          def: 'Из поступивших за период — решённые (выполнены или отклонены); среднее время от создания до решения — по ним.',
+        },
+        closeTimed: {
+          title: 'Среднее время закрытия',
+          def: 'Из поступивших за период — закрытые; среднее время от создания до закрытия — по ним.',
+        },
+        nowOpen: {
+          title: 'Незакрытые обращения',
+          def: 'Все незакрытые сейчас обращения, независимо от даты создания.',
+        },
+        nowStatus: {
+          title: 'Обращения в статусе «{{status}}»',
+          def: 'Все обращения, которые сейчас в статусе «{{status}}».',
+        },
+        nowOverdue: {
+          title: 'Просрочено сейчас',
+          def: 'Сейчас в регионе (новые, взятые, в работе) и с прошедшим сроком, независимо от даты создания.',
+        },
+        nowCallbackOverdue: {
+          title: 'Просрочен перезвон (сейчас)',
+          def: 'Сейчас ждут перезвона, и срок перезвона прошёл.',
+        },
+        exTaken: { title: 'Взято', def: '{{name}} — обращения, взятые из очереди (из поступивших за период).' },
+        exDone: { title: 'Выполнено', def: '{{name}} — выполненные обращения (из поступивших за период).' },
+        exRejected: { title: 'Отклонено', def: '{{name}} — отклонённые обращения (из поступивших за период).' },
+        exOverdue: {
+          title: 'Просрочено',
+          def: '{{name}} — решённые или находящиеся на руках обращения с нарушенным сроком (из поступивших за период).',
+        },
+        exResolved: {
+          title: 'Среднее время',
+          def: '{{name}} — решённые обращения; среднее время от создания до решения — по ним.',
+        },
+        exHolding: { title: 'Сейчас в работе', def: '{{name}} — обращения на руках сейчас (взяты или в работе).' },
+        exOverdueNow: { title: 'Просрочено сейчас', def: '{{name}} — обращения на руках сейчас с прошедшим сроком.' },
+      },
+      call: {
+        total: { title: 'Всего звонков', def: 'Всего = входящие + соединённые исходящие (без внутренних).' },
+        inbound: { title: 'Входящие', def: 'Входящие звонки: каждый один раз, вместе с переводами.' },
+        outbound: { title: 'Исходящие (соединённые)', def: 'Исходящие звонки, на которые ответили.' },
+        answered: { title: 'Отвечено', def: 'Входящие, в которых оператор поговорил с клиентом.' },
+        wait: {
+          title: 'Среднее ожидание',
+          def: 'Среднее ожидание — по этим звонкам: от входа в очередь до ответа оператора.',
+        },
+        unanswered: {
+          title: 'Без ответа',
+          def: 'Входящие без ответа = ушли из очереди + закончились в IVR + в нерабочее время.',
+        },
+        abandoned: { title: 'Ушли из очереди', def: 'Дошли до очереди и не дождались ответа.' },
+        ivr: { title: 'IVR', def: 'Закончились в IVR, не дойдя до очереди.' },
+        afterHours: { title: 'Нерабочее время', def: 'Поступили в нерабочее время и остались без ответа.' },
+        talked: { title: 'С разговором', def: 'Отвеченные входящие + соединённые исходящие.' },
+      },
+      quality: {
+        analyzed: {
+          title: 'Проанализированные звонки',
+          def: 'Звонки периода, проанализированные ИИ (промпт {{v}}). Средняя оценка (1–10) — по ним.',
+        },
+        handled: {
+          title: 'Обращение решено',
+          def: 'Проанализированные звонки с итогом «Решено», «Только информация» или «Открыта заявка».',
+        },
+        flagged: { title: 'С нарушениями', def: 'Проанализированные звонки хотя бы с одним нарушением.' },
+        flag: { title: '«{{flag}}»', def: 'Проанализированные звонки с нарушением «{{flag}}».' },
+        outcome: { title: '«{{outcome}}»', def: 'Проанализированные звонки с итогом «{{outcome}}».' },
+        sentiment: {
+          title: 'Настроение клиента: {{sentiment}}',
+          def: 'Проанализированные звонки, где в конце разговора настроение клиента «{{sentiment}}».',
+        },
+      },
     },
   },
 });

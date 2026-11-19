@@ -1,8 +1,9 @@
-import type { OverviewQuality } from '@cc/shared';
+import type { CallOutcome, OverviewQuality, OverviewQualityMetric, RedFlagCode, Sentiment } from '@cc/shared';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '@/entities/call';
 import { OutcomeBadge, RedFlagBadge, SentimentBadge, formatAvg } from '@/entities/call-analysis';
 import { Icon } from '@/shared/ui/icon';
+import { NumberButton } from '@/shared/ui/number-button';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { KpiCard } from '@/widgets/call-stats';
@@ -16,10 +17,29 @@ const SENTIMENT_BAR = { positive: 'bg-chart-2', neutral: 'bg-mute/60', negative:
  * texts or numbers). Calls have no region, so the page's region filter does not apply. Before the analysis worker
  * runs there is nothing analysed: an explanatory empty state instead of zero cards.
  */
-export function QualitySection({ data, error }: { data: OverviewQuality | undefined; error: unknown }) {
+/** A quality number that opens the analysed calls behind it. */
+export interface QualityRequest {
+  metric: OverviewQualityMetric;
+  flag?: RedFlagCode;
+  outcome?: CallOutcome;
+  sentiment?: Sentiment;
+  /** The number clicked. */
+  value: number;
+}
+
+export function QualitySection({
+  data,
+  error,
+  onOpen,
+}: {
+  data: OverviewQuality | undefined;
+  error: unknown;
+  onOpen?: (request: QualityRequest) => void;
+}) {
   const { t, i18n } = useTranslation('overviewPage');
   const n = (v: number) => formatNumber(v, i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ');
   const view = data ? qualityView(data) : null;
+  const open = (request: QualityRequest) => (onOpen && request.value > 0 ? () => onOpen(request) : undefined);
 
   return (
     <section className="flex flex-col gap-4">
@@ -71,6 +91,7 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
               value={formatAvg(data.avgOverall)}
               unit="/ 10"
               sub={data.handledRate === null ? undefined : t('quality.handled', { n: data.handledRate })}
+              onOpen={open({ metric: 'analyzed', value: data.analyzed })}
             />
             <KpiCard
               accent="purple"
@@ -82,6 +103,7 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
               sub={
                 data.answeredCalls === null ? t('quality.noPbx') : t('quality.ofAnswered', { n: n(data.answeredCalls) })
               }
+              onOpen={open({ metric: 'analyzed', value: data.analyzed })}
             />
             <KpiCard
               accent="red"
@@ -95,6 +117,7 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
                   ? t('quality.topFlag', { flag: t(`flag.${view.topFlag}`, { ns: 'callAnalysis' }) })
                   : undefined
               }
+              onOpen={open({ metric: 'flagged', value: data.redFlagCalls })}
             />
             <KpiCard
               accent="green"
@@ -106,6 +129,7 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
                 neutral: n(data.sentimentEnd.neutral),
                 negative: n(data.sentimentEnd.negative),
               })}
+              onOpen={open({ metric: 'sentiment', sentiment: 'positive', value: data.sentimentEnd.positive })}
             />
           </div>
 
@@ -119,7 +143,14 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
                     <div className="h-full rounded-full bg-chart-1" style={{ width: `${o.share}%` }} />
                   </div>
                   <span className="font-bold text-ink tabular-nums">
-                    {n(o.count)} <span className="font-medium text-mute">{o.share}%</span>
+                    <NumberButton
+                      label={t(`outcome.${o.outcome}`, { ns: 'callAnalysis' })}
+                      value={o.count}
+                      onOpen={open({ metric: 'outcome', outcome: o.outcome, value: o.count })}
+                    >
+                      {n(o.count)}
+                    </NumberButton>{' '}
+                    <span className="font-medium text-mute">{o.share}%</span>
                   </span>
                 </div>
               ))}
@@ -144,7 +175,14 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
                   <div key={s.sentiment} className="flex items-center justify-between text-xs">
                     <SentimentBadge sentiment={s.sentiment} />
                     <span className="font-bold text-ink tabular-nums">
-                      {n(s.count)} <span className="font-medium text-mute">{s.share}%</span>
+                      <NumberButton
+                        label={`${t('quality.sentimentEnd')} — ${t(`sentiment.${s.sentiment}`, { ns: 'callAnalysis' })}`}
+                        value={s.count}
+                        onOpen={open({ metric: 'sentiment', sentiment: s.sentiment, value: s.count })}
+                      >
+                        {n(s.count)}
+                      </NumberButton>{' '}
+                      <span className="font-medium text-mute">{s.share}%</span>
                     </span>
                   </div>
                 ))}
@@ -158,7 +196,14 @@ export function QualitySection({ data, error }: { data: OverviewQuality | undefi
                 view.flags.map((f) => (
                   <div key={f.code} className="flex items-center justify-between text-xs">
                     <RedFlagBadge code={f.code} />
-                    <span className="font-bold text-ink tabular-nums">{n(f.count)}</span>
+                    <NumberButton
+                      label={t(`flag.${f.code}`, { ns: 'callAnalysis' })}
+                      value={f.count}
+                      className="font-bold text-ink"
+                      onOpen={open({ metric: 'flag', flag: f.code, value: f.count })}
+                    >
+                      {n(f.count)}
+                    </NumberButton>
                   </div>
                 ))
               )}

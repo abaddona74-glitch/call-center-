@@ -3,9 +3,25 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { businessToday, calendarLabels, type RangePresetId, rangePresets } from '@/entities/call';
-import { overviewCallsQuery, overviewQualityQuery, overviewTicketsQuery } from '@/entities/overview';
+import {
+  type CallListView,
+  asCallListQuery,
+  businessToday,
+  calendarLabels,
+  type RangePresetId,
+  rangePresets,
+} from '@/entities/call';
+import {
+  type TicketListRequest,
+  overviewCallListQuery,
+  overviewCallsQuery,
+  overviewQualityListQuery,
+  overviewQualityQuery,
+  overviewTicketsQuery,
+} from '@/entities/overview';
+import { ApiScopeProvider } from '@/shared/lib/api-scope';
 import { cn } from '@/shared/lib/cn';
+import { useStableCallback } from '@/shared/lib/use-stable-callback';
 import { DateRangeModal } from '@/shared/ui/date-range-modal';
 import { Icon } from '@/shared/ui/icon';
 import { ModalButton } from '@/shared/ui/modal';
@@ -13,10 +29,19 @@ import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
 import { toDmy } from '@/shared/ui/range-calendar';
 import { Segmented } from '@/shared/ui/segmented';
 import { MAP_METRICS, RegionMap } from '@/widgets/region-map';
-import { DeadlinesPanel, ExecutivesTable, RegionsTable } from '@/widgets/ticket-overview';
+import { CallListDialog } from '@/widgets/call-history-table';
+import { TicketBox } from '@/widgets/ticket-box';
+import {
+  DeadlinesPanel,
+  ExecutivesTable,
+  RegionsTable,
+  TicketListDialog,
+  type TicketListDialogView,
+} from '@/widgets/ticket-overview';
+import { listId, ticketListParams } from '../model/details';
 import { OVERVIEW_PERIODS, type OverviewSearch, overviewStateFrom } from '../model/search';
-import { CallsSection } from './CallsSection';
-import { QualitySection } from './QualitySection';
+import { type CallCard, CallsSection } from './CallsSection';
+import { type QualityRequest, QualitySection } from './QualitySection';
 import { TicketTotals } from './TicketTotals';
 import '../i18n';
 
@@ -65,10 +90,124 @@ export function OverviewPage() {
           ? regionRow.nameRu
           : regionRow.nameUz
         : state.region;
-  const selectRegion = (key: string | null) => set({ region: key ?? undefined });
+  const selectRegion = useStableCallback((key: string | null) => set({ region: key ?? undefined }));
   const cal = calendarLabels(i18n.language);
   const presets = rangePresets(today);
   const updated = data ? new Date(data.generatedAt) : null;
+
+  // --- details: every number opens the records behind it (owner, 19.11.2026) ---
+  const { t: tt } = useTranslation('ticket');
+  const { t: ta } = useTranslation('callAnalysis');
+  const [ticketView, setTicketView] = useState<TicketListDialogView | null>(null);
+  const [ticketId, setTicketId] = useState<number | null>(null);
+  const [callView, setCallView] = useState<CallListView | null>(null);
+  const range = state.from === state.to ? toDmy(state.from) : `${toDmy(state.from)} — ${toDmy(state.to)}`;
+
+  // Stable: the regions and Mas'ul tables keep their cells (and the focused number) while dialogs open and close.
+  const openTickets = useStableCallback((request: TicketListRequest) => {
+    const params = ticketListParams(request, state);
+    const vars = {
+      sla: data?.slaWorkingDays ?? 3,
+      cb: data?.callbackSlaWorkingDays ?? 1,
+      name: request.executiveName ?? '',
+      status: request.status ? tt(`status.${request.status}`) : '',
+    };
+    let title = t(`details.ticket.${request.metric}.title`, vars);
+    if (request.executiveName) title = t('details.executiveTitle', { name: request.executiveName, title });
+    const regionKey = params.region;
+    if (regionKey) {
+      const name =
+        regionKey === OVERVIEW_NO_REGION
+          ? t('noRegion')
+          : (data?.regions.find((r) => r.code === regionKey)?.[ru ? 'nameRu' : 'nameUz'] ?? regionKey);
+      title = t('details.regionTitle', { region: name, title });
+    }
+    setTicketView({
+      id: listId(params),
+      title,
+      definition: `${t(`details.ticket.${request.metric}.def`, vars)} ${range}`,
+      value: request.value,
+      params,
+    });
+  });
+
+  const scopeNote = state.scope === 'working' ? t('details.scopeWorking') : t('details.scopeAll');
+  const callTabs: Record<
+    CallCard,
+    ('total' | 'inbound' | 'outbound' | 'answered' | 'unanswered' | 'abandoned' | 'ivr' | 'afterHours')[]
+  > = {
+    total: ['total', 'inbound', 'outbound'],
+    answered: ['answered'],
+    unanswered: ['unanswered', 'abandoned', 'ivr', 'afterHours'],
+    wait: ['answered'],
+  };
+  const openCalls = (card: CallCard) => {
+    const s = calls.data?.summary;
+    const count = {
+      total: s?.totalCalls,
+      inbound: s?.inbound.offered,
+      outbound: s?.outbound.connected,
+      answered: s?.inbound.answered,
+      unanswered: s ? s.inbound.offered - s.inbound.answered : undefined,
+      abandoned: s?.inbound.abandoned,
+      ivr: s?.inbound.ivr,
+      afterHours: s?.inbound.afterHours,
+    };
+    const tabs = callTabs[card];
+    setCallView({
+      id: `calls:${card}:${state.from}:${state.to}:${state.scope}`,
+      title: t(`details.call.${card}.title`),
+      // The average wait is not a count: its list (answered calls) shows each call's wait.
+      value: card === 'wait' ? undefined : count[card],
+      icon: 'call',
+      subtitle: t('details.callSubtitle', { range }),
+      note: `${t(`details.call.${card}.def`)} ${scopeNote}`,
+      showDate: state.from !== state.to,
+      tabs: tabs.map((m) => ({ id: m, label: t(`details.call.${m}.title`), count: count[m], filter: {} })),
+      list: (tab, p) =>
+        asCallListQuery(
+          overviewCallListQuery({
+            from: state.from,
+            to: state.to,
+            scope: state.scope,
+            metric: tab as (typeof tabs)[number],
+            ...p,
+          }),
+        ),
+    });
+  };
+
+  const openQuality = (request: QualityRequest) => {
+    const vars = {
+      v: quality.data?.promptVersion ?? '',
+      flag: request.flag ? ta(`flag.${request.flag}`) : '',
+      outcome: request.outcome ? ta(`outcome.${request.outcome}`) : '',
+      sentiment: request.sentiment ? ta(`sentiment.${request.sentiment}`) : '',
+    };
+    const filter = { flag: request.flag, outcome: request.outcome, sentiment: request.sentiment };
+    setCallView({
+      id: `quality:${listId({ ...filter, metric: request.metric, from: state.from, to: state.to })}`,
+      title: t(`details.quality.${request.metric}.title`, vars),
+      value: request.value,
+      icon: 'magic-star',
+      subtitle: t('details.qualitySubtitle', { range }),
+      note: t(`details.quality.${request.metric}.def`, vars),
+      showDate: state.from !== state.to,
+      tabs: [{ id: request.metric, label: t(`details.quality.${request.metric}.title`, vars), filter: {} }],
+      list: (_tab, p) =>
+        asCallListQuery(
+          overviewQualityListQuery({
+            from: state.from,
+            to: state.to,
+            metric: request.metric,
+            ...(request.flag ? { flag: request.flag } : {}),
+            ...(request.outcome ? { outcome: request.outcome } : {}),
+            ...(request.sentiment ? { sentiment: request.sentiment } : {}),
+            ...p,
+          }),
+        ),
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,7 +278,7 @@ export function OverviewPage() {
         <Panel className="text-center text-sm text-destructive">{t('error')}</Panel>
       ) : (
         <>
-          <TicketTotals data={data} />
+          <TicketTotals data={data} onOpen={openTickets} />
 
           <Panel>
             <PanelHeader>
@@ -171,13 +310,25 @@ export function OverviewPage() {
                   />
                 )}
               </div>
-              {data && <RegionsTable rows={data.regions} selected={state.region} onSelect={selectRegion} />}
+              {data && (
+                <RegionsTable
+                  rows={data.regions}
+                  selected={state.region}
+                  onSelect={selectRegion}
+                  onOpenList={openTickets}
+                />
+              )}
             </div>
           </Panel>
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-            <ExecutivesTable rows={data?.executives} regionName={regionName} loading={tickets.isFetching} />
-            <DeadlinesPanel data={data} />
+            <ExecutivesTable
+              rows={data?.executives}
+              regionName={regionName}
+              loading={tickets.isFetching}
+              onOpenList={openTickets}
+            />
+            <DeadlinesPanel data={data} onOpenList={openTickets} onOpenTicket={setTicketId} />
           </div>
         </>
       )}
@@ -189,9 +340,17 @@ export function OverviewPage() {
         onScope={(scope) => set({ scope: scope === 'working' ? undefined : scope })}
         regionSelected={state.region !== null}
         rangeKey={`${state.from}_${state.to}`}
+        onOpen={openCalls}
       />
 
-      <QualitySection data={quality.data} error={quality.isError ? quality.error : null} />
+      <QualitySection data={quality.data} error={quality.isError ? quality.error : null} onOpen={openQuality} />
+
+      <TicketListDialog view={ticketView} onClose={() => setTicketView(null)} onOpenTicket={setTicketId} />
+      {/* The observer has no history / recordings / tickets permissions: cards go through /api/overview/*. */}
+      <ApiScopeProvider scope="overview">
+        <CallListDialog view={callView} onClose={() => setCallView(null)} />
+        <TicketBox ticketId={ticketId} maxFileMb={10} onClose={() => setTicketId(null)} />
+      </ApiScopeProvider>
 
       <DateRangeModal
         open={rangeOpen}

@@ -6,6 +6,7 @@ import { audioPlayer, callRecordingQuery, callRecordingStreamUrl, useAudioPlayer
 import { isHttpError } from '@/shared/api';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { useApiScope } from '@/shared/lib/api-scope';
 
 /**
  * Inline "Tinglash / To'xtatish / Davom ettirish" button for call rows (history, dashboard).
@@ -17,6 +18,8 @@ export function CallRecordingButton({ uniqueid, label, disabled }: { uniqueid: s
   const queryClient = useQueryClient();
   const player = useAudioPlayer();
   const [searching, setSearching] = useState(false);
+  // `overview` scope: the overview dashboard's audited endpoint (observers have no recordings permission).
+  const scope = useApiScope();
   const key = `call:${uniqueid}`;
   const isMine = player.track?.key === key;
   const playing = isMine && (player.status === 'playing' || player.status === 'loading');
@@ -41,12 +44,12 @@ export function CallRecordingButton({ uniqueid, label, disabled }: { uniqueid: s
     }
     setSearching(true);
     try {
-      const rec = await queryClient.fetchQuery(callRecordingQuery(uniqueid));
+      const rec = await queryClient.fetchQuery(callRecordingQuery(uniqueid, scope));
       audioPlayer.play({
         key,
         title: label,
-        src: callRecordingStreamUrl(uniqueid),
-        downloadUrl: callRecordingStreamUrl(uniqueid, true),
+        src: callRecordingStreamUrl(uniqueid, false, scope),
+        downloadUrl: callRecordingStreamUrl(uniqueid, true, scope),
         size: rec.file.size,
       });
     } catch (err) {

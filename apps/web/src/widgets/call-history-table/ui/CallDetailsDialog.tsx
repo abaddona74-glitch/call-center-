@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/shared/ui/skeleton';
 import { recordingLabel } from './CallHistoryTable';
 import '../i18n';
+import { useApiScope } from '@/shared/lib/api-scope';
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -41,11 +42,13 @@ export function CallDetailsDialog({
 }) {
   const { t } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
-  const canAnalyse = canAccessCdr(useSessionUser(), 'analysis.call');
+  // `overview` scope (the overview dashboard): its read-only endpoints serve the details, analysis and recording.
+  const scope = useApiScope();
+  const canAnalyse = scope === 'overview' || canAccessCdr(useSessionUser(), 'analysis.call');
   const [tab, setTab] = useState<DetailsTab>('conversation');
   useEffect(() => setTab('conversation'), [call?.id]);
-  const details = useQuery({ ...callDetailsQuery(call?.id ?? ''), enabled: Boolean(call) });
-  const analysis = useQuery({ ...callAnalysisQuery(call?.id ?? ''), enabled: Boolean(call) && canAnalyse });
+  const details = useQuery({ ...callDetailsQuery(call?.id ?? '', scope), enabled: Boolean(call) });
+  const analysis = useQuery({ ...callAnalysisQuery(call?.id ?? '', scope), enabled: Boolean(call) && canAnalyse });
   const overall = analysis.data?.analysis?.overall;
   const shownTab: DetailsTab = canAnalyse ? tab : 'legs';
   const c = details.data?.call ?? call;

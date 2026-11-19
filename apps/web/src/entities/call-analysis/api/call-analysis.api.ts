@@ -12,6 +12,7 @@ import {
 } from '@cc/shared';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
+import type { ApiScope } from '@/shared/lib/api-scope';
 
 /** Query params as sent to the API (optional filters may be omitted). */
 export type CallAnalysisStatsParams = Pick<CallAnalysisStatsQuery, 'from' | 'to'> &
@@ -25,12 +26,20 @@ export const callAnalysisKeys = {
   queue: ['call-analysis', 'queue'] as const,
 };
 
-/** Transcript + rubric of one call (`CDR_ACCESS['analysis.call']`). Polls while the job is queued or running. */
-export const callAnalysisQuery = (callId: string) =>
+/**
+ * Transcript + rubric of one call (`CDR_ACCESS['analysis.call']`; in the `overview` scope through the overview
+ * dashboard's read-only endpoint). Polls while the job is queued or running.
+ */
+export const callAnalysisQuery = (callId: string, scope: ApiScope = 'default') =>
   queryOptions({
-    queryKey: callAnalysisKeys.call(callId),
+    queryKey: [...callAnalysisKeys.call(callId), scope],
     queryFn: ({ signal }) =>
-      api(`/call-analysis/calls/${encodeURIComponent(callId)}`, { schema: CallAnalysisDetailsSchema, signal }),
+      api(
+        scope === 'overview'
+          ? `/overview/calls/${encodeURIComponent(callId)}/analysis`
+          : `/call-analysis/calls/${encodeURIComponent(callId)}`,
+        { schema: CallAnalysisDetailsSchema, signal },
+      ),
     staleTime: 30_000,
     refetchInterval: (q) => {
       const status = q.state.data?.job?.status;
