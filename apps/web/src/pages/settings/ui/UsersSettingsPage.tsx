@@ -4,7 +4,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { startImpersonation, useSessionUser } from '@/entities/session';
-import { RoleBadge, deleteUser, operatorGroupsQuery, userKeys, usersQuery } from '@/entities/user';
+import { RoleBadge, deleteUser, userKeys, usersQuery } from '@/entities/user';
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Pill, SettingsButton, SettingsCard, SettingsCardHeader, SettingsInput } from '@/shared/ui/settings-panel';
@@ -21,7 +21,6 @@ const formatDate = (iso: string) => new Date(iso).toLocaleDateString('ru-RU', { 
 /** Legacy "Foydalanuvchilar (RBAC)" tab: inline create form + users table with Parol / O'chirish. */
 export function UsersSettingsPage() {
   const { t } = useTranslation('settings');
-  const { t: tu } = useTranslation('user');
   const me = useSessionUser();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -30,7 +29,6 @@ export function UsersSettingsPage() {
   const { data: users, isLoading } = useQuery(
     usersQuery({ search: deferredSearch || undefined, active: onlyActive ? true : undefined }),
   );
-  const { data: groups = [] } = useQuery(operatorGroupsQuery);
 
   const [editing, setEditing] = useState<User | null>(null);
   const [resetting, setResetting] = useState<User | null>(null);
@@ -81,17 +79,6 @@ export function UsersSettingsPage() {
         header: () => t('users.colExtension'),
         cell: ({ getValue }) =>
           getValue() ? <b className="text-ink">{getValue()}</b> : <span className="text-dim">{t('users.none')}</span>,
-      }),
-      col.accessor('groupName', {
-        header: () => t('users.colGroup'),
-        cell: ({ row }) =>
-          row.original.role !== 'operator' ? (
-            <span className="text-dim">—</span>
-          ) : row.original.groupName ? (
-            <Pill tone="purple">{row.original.groupName}</Pill>
-          ) : (
-            <span className="text-dim">{tu('noGroup')}</span>
-          ),
       }),
       col.accessor('email', {
         header: () => t('users.colEmail'),
@@ -151,12 +138,12 @@ export function UsersSettingsPage() {
         },
       }),
     ],
-    [t, tu, me.id, impersonate],
+    [t, me.id, impersonate],
   );
 
   return (
     <div className="flex flex-col gap-4">
-      <CreateUserCard actorRole={me.role} groups={groups} />
+      <CreateUserCard actorRole={me.role} />
 
       <SettingsCard>
         <SettingsCardHeader
@@ -193,7 +180,6 @@ export function UsersSettingsPage() {
         onOpenChange={(open) => !open && setEditing(null)}
         user={editing}
         actorRole={me.role}
-        groups={groups}
       />
       <ResetPasswordDialog user={resetting} onClose={() => setResetting(null)} />
       <ConfirmDialog

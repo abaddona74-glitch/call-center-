@@ -8,7 +8,7 @@ const user = (role: Role): SessionUser => ({
   role,
   extension: null,
   email: null,
-  permissions: permissionsFor(role, null),
+  permissions: permissionsFor(role),
 });
 
 const paths = (role: Role) => visibleNavItems(user(role)).map((item) => item.to);

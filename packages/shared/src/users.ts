@@ -1,15 +1,13 @@
 import { z } from 'zod';
 import { ExtensionSchema, PasswordSchema, RoleSchema, UsernameSchema } from './auth.js';
-import { GroupFlagsSchema } from './permissions.js';
 
 /**
- * User administration (permission `users.manage`) and operator groups. Base paths /api/users, /api/operator-groups.
+ * User administration (permission `users.manage`). Base path /api/users.
  * Only a superuser manages superusers or grants the superuser role; the last active superuser cannot be
  * removed, demoted or deactivated.
  */
 
 export const UserIdParamSchema = z.coerce.number().int().positive();
-export const GroupIdParamSchema = UserIdParamSchema;
 
 const optionalEmail = z.preprocess(
   (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
@@ -26,8 +24,6 @@ export const UserSchema = z.object({
   role: RoleSchema,
   extension: z.string().nullable(),
   email: z.string().nullable(),
-  groupId: z.number().int().nullable(),
-  groupName: z.string().nullable(),
   isActive: z.boolean(),
   mustChangePassword: z.boolean(),
   createdAt: z.iso.datetime(),
@@ -59,7 +55,6 @@ export const CreateUserSchema = z
     role: RoleSchema.default('operator'),
     extension: optionalExtension.default(null),
     email: optionalEmail.default(null),
-    groupId: z.number().int().positive().nullable().default(null),
     /** Ask for a new password at first login. */
     mustChangePassword: z.boolean().default(false),
   })
@@ -75,7 +70,6 @@ export const UpdateUserSchema = z
     role: RoleSchema,
     extension: optionalExtension,
     email: optionalEmail,
-    groupId: z.number().int().positive().nullable(),
     isActive: z.boolean(),
     mustChangePassword: z.boolean(),
   })
@@ -98,42 +92,3 @@ export const ResetUserPasswordResultSchema = z.object({
   revokedPasskeys: z.number().int(),
 });
 export type ResetUserPasswordResult = z.infer<typeof ResetUserPasswordResultSchema>;
-
-// --- Operator groups ---------------------------------------------------------------------
-
-export const OperatorGroupSchema = z.object({
-  id: z.number().int(),
-  name: z.string(),
-  description: z.string().nullable(),
-  permissions: GroupFlagsSchema,
-  memberCount: z.number().int(),
-  createdAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
-});
-export type OperatorGroup = z.infer<typeof OperatorGroupSchema>;
-
-export const OperatorGroupListSchema = z.object({ items: z.array(OperatorGroupSchema) });
-export type OperatorGroupList = z.infer<typeof OperatorGroupListSchema>;
-
-const groupName = z.string().trim().min(2).max(60);
-const groupDescription = z.preprocess(
-  (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
-  z.string().trim().max(300).nullable(),
-);
-
-export const CreateOperatorGroupSchema = z.object({
-  name: groupName,
-  description: groupDescription.default(null),
-  permissions: GroupFlagsSchema,
-});
-export type CreateOperatorGroup = z.input<typeof CreateOperatorGroupSchema>;
-
-export const UpdateOperatorGroupSchema = z
-  .object({
-    name: groupName,
-    description: groupDescription,
-    permissions: GroupFlagsSchema,
-  })
-  .partial()
-  .refine((g) => Object.keys(g).length > 0, { message: 'Nothing to update' });
-export type UpdateOperatorGroup = z.input<typeof UpdateOperatorGroupSchema>;

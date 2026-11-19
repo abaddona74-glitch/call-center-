@@ -1,15 +1,10 @@
 import {
-  type CreateOperatorGroup,
   type CreateUser,
-  type OperatorGroup,
-  OperatorGroupListSchema,
-  OperatorGroupSchema,
   type PasskeyList,
   PasskeyListSchema,
   type ResetUserPassword,
   type ResetUserPasswordResult,
   ResetUserPasswordResultSchema,
-  type UpdateOperatorGroup,
   type UpdateUser,
   type User,
   type UserListQuery,
@@ -19,12 +14,11 @@ import {
 import { queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
 
-/** Users administration and operator groups (admin+). */
+/** Users administration (admin+). */
 export const userKeys = {
   all: ['users'] as const,
   list: (q: UserListQuery) => ['users', 'list', q] as const,
   passkeys: (userId: number) => ['users', userId, 'passkeys'] as const,
-  groups: ['operator-groups'] as const,
 };
 
 export const usersQuery = (q: UserListQuery = {}) =>
@@ -39,11 +33,6 @@ export const usersQuery = (q: UserListQuery = {}) =>
         })
       ).items,
   });
-
-export const operatorGroupsQuery = queryOptions({
-  queryKey: userKeys.groups,
-  queryFn: async ({ signal }) => (await api('/operator-groups', { schema: OperatorGroupListSchema, signal })).items,
-});
 
 export const userPasskeysQuery = (userId: number) =>
   queryOptions({
@@ -70,16 +59,4 @@ export function deleteUser(id: number): Promise<void> {
 
 export function deleteUserPasskey(userId: number, passkeyId: string): Promise<void> {
   return api(`/users/${userId}/passkeys/${encodeURIComponent(passkeyId)}`, { method: 'DELETE' });
-}
-
-export function createOperatorGroup(body: CreateOperatorGroup): Promise<OperatorGroup> {
-  return api('/operator-groups', { body, schema: OperatorGroupSchema });
-}
-
-export function updateOperatorGroup(id: number, body: UpdateOperatorGroup): Promise<OperatorGroup> {
-  return api(`/operator-groups/${id}`, { method: 'PATCH', body, schema: OperatorGroupSchema });
-}
-
-export function deleteOperatorGroup(id: number): Promise<void> {
-  return api(`/operator-groups/${id}`, { method: 'DELETE' });
 }

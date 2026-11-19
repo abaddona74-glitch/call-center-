@@ -15,7 +15,6 @@ import {
   planUsers,
   type TransformResult,
   transformLegacyUser,
-  transformLegacyUserWith,
   type UserValues,
   type UsersRepository,
 } from './users.mapper.js';
@@ -76,10 +75,6 @@ class InMemoryUsersRepository implements UsersRepository {
 
   async listExisting(): Promise<ExistingUser[]> {
     return this.rows.map(({ createdAt: _c, ...u }) => ({ ...u }));
-  }
-
-  async groupIdByName(): Promise<number | null> {
-    return null;
   }
 
   async insertIfAbsent(v: UserValues): Promise<number | null> {
@@ -366,16 +361,10 @@ describe('users mapper', () => {
       expect(repo.inserts).toBe(0);
     });
 
-    it('keeps the legacy passkey handle and puts operators 200+ into the restricted group', () => {
+    it('keeps the legacy passkey handle', () => {
       const legacyRow = rows().find((r) => r.username === 'operator205')!;
-      const r = transformLegacyUserWith(legacyRow, { restrictedGroupId: 2 });
+      const r = transformLegacyUser(legacyRow);
       expect(r.ok && r.values.webauthnUserId).toBe(String(legacyRow.webauthn_user_id));
-      expect(r.ok && r.values.groupId).toBe(2);
-      const op101 = transformLegacyUserWith(
-        rows().find((x) => x.username === 'op101')!,
-        { restrictedGroupId: 2 },
-      );
-      expect(op101.ok && op101.values.groupId).toBeUndefined();
       const bad = transformLegacyUser({ ...legacyRow, webauthn_user_id: 'not-a-uuid' });
       expect(bad.ok && bad.values.webauthnUserId).toBeUndefined();
       expect(bad.ok && bad.warnings.some((w) => w.startsWith('webauthn_user_id is not a UUID'))).toBe(true);

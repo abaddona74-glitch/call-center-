@@ -1,14 +1,10 @@
 import './i18n';
 
 export {
-  createOperatorGroup,
   createUser,
-  deleteOperatorGroup,
   deleteUser,
   deleteUserPasskey,
-  operatorGroupsQuery,
   resetUserPassword,
-  updateOperatorGroup,
   updateUser,
   userKeys,
   userPasskeysQuery,

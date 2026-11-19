@@ -30,7 +30,6 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/ind
 import { Route as AppSettingsAuditRouteImport } from './routes/_app/settings/audit'
 import { Route as AppSettingsCalendarRouteImport } from './routes/_app/settings/calendar'
 import { Route as AppSettingsExcludeRouteImport } from './routes/_app/settings/exclude'
-import { Route as AppSettingsGroupsRouteImport } from './routes/_app/settings/groups'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsSessionsRouteImport } from './routes/_app/settings/sessions'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app/settings/users'
@@ -145,11 +144,6 @@ const AppSettingsExcludeRoute = AppSettingsExcludeRouteImport.update({
   path: '/exclude',
   getParentRoute: () => AppSettingsRoute,
 } as any)
-const AppSettingsGroupsRoute = AppSettingsGroupsRouteImport.update({
-  id: '/groups',
-  path: '/groups',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
   id: '/security',
   path: '/security',
@@ -215,7 +209,6 @@ export interface FileRoutesByFullPath {
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/exclude': typeof AppSettingsExcludeRoute
-  '/settings/groups': typeof AppSettingsGroupsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/sessions': typeof AppSettingsSessionsRoute
   '/settings/users': typeof AppSettingsUsersRoute
@@ -246,7 +239,6 @@ export interface FileRoutesByTo {
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/exclude': typeof AppSettingsExcludeRoute
-  '/settings/groups': typeof AppSettingsGroupsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/sessions': typeof AppSettingsSessionsRoute
   '/settings/users': typeof AppSettingsUsersRoute
@@ -280,7 +272,6 @@ export interface FileRoutesById {
   '/_app/settings/audit': typeof AppSettingsAuditRoute
   '/_app/settings/calendar': typeof AppSettingsCalendarRoute
   '/_app/settings/exclude': typeof AppSettingsExcludeRoute
-  '/_app/settings/groups': typeof AppSettingsGroupsRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/sessions': typeof AppSettingsSessionsRoute
   '/_app/settings/users': typeof AppSettingsUsersRoute
@@ -314,7 +305,6 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/exclude'
-    | '/settings/groups'
     | '/settings/security'
     | '/settings/sessions'
     | '/settings/users'
@@ -345,7 +335,6 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/exclude'
-    | '/settings/groups'
     | '/settings/security'
     | '/settings/sessions'
     | '/settings/users'
@@ -378,7 +367,6 @@ export interface FileRouteTypes {
     | '/_app/settings/audit'
     | '/_app/settings/calendar'
     | '/_app/settings/exclude'
-    | '/_app/settings/groups'
     | '/_app/settings/security'
     | '/_app/settings/sessions'
     | '/_app/settings/users'
@@ -547,13 +535,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsExcludeRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/groups': {
-      id: '/_app/settings/groups'
-      path: '/groups'
-      fullPath: '/settings/groups'
-      preLoaderRoute: typeof AppSettingsGroupsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/security'
@@ -624,7 +605,6 @@ interface AppSettingsRouteChildren {
   AppSettingsAuditRoute: typeof AppSettingsAuditRoute
   AppSettingsCalendarRoute: typeof AppSettingsCalendarRoute
   AppSettingsExcludeRoute: typeof AppSettingsExcludeRoute
-  AppSettingsGroupsRoute: typeof AppSettingsGroupsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppSettingsSessionsRoute: typeof AppSettingsSessionsRoute
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
@@ -635,7 +615,6 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAuditRoute: AppSettingsAuditRoute,
   AppSettingsCalendarRoute: AppSettingsCalendarRoute,
   AppSettingsExcludeRoute: AppSettingsExcludeRoute,
-  AppSettingsGroupsRoute: AppSettingsGroupsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppSettingsSessionsRoute: AppSettingsSessionsRoute,
   AppSettingsUsersRoute: AppSettingsUsersRoute,

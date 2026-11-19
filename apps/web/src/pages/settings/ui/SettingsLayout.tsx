@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
 import { Icon } from '@/shared/ui/icon';
-import { IconKey, IconPeople, IconUser } from '@/shared/ui/inline-icons';
+import { IconKey, IconUser } from '@/shared/ui/inline-icons';
 import '../i18n';
 import { SETTINGS_TABS } from '../model/tabs';
 
@@ -12,7 +12,6 @@ const ICONS: Record<string, ReactNode> = {
   security: <Icon name="timer" />,
   exclude: <Icon name="document-text" />,
   users: <IconUser size={16} />,
-  groups: <IconPeople size={16} />,
   sessions: <IconKey size={16} />,
   audit: <Icon name="document-text" />,
 };

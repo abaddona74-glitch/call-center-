@@ -203,7 +203,6 @@ export interface NewUser {
   mustChangePassword?: boolean;
   extension?: string | null;
   email?: string | null;
-  groupId?: number | null;
 }
 
 /** Create a user through the API as `by` and return its id. */
@@ -215,7 +214,6 @@ export async function createUser(by: Client, u: NewUser): Promise<number> {
     role,
     extension: u.extension === undefined ? (role === 'operator' ? '101' : null) : u.extension,
     email: u.email ?? null,
-    groupId: u.groupId ?? null,
     mustChangePassword: u.mustChangePassword ?? false,
   });
   if (res.status !== 201) throw new Error(`create ${u.username} failed: ${res.status} ${JSON.stringify(res.body)}`);

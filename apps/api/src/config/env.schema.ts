@@ -105,7 +105,7 @@ export const EnvSchema = z.object({
   CDR_HISTORY_MAX_DAYS: z.coerce.number().int().min(1).max(366).default(93),
   STATS_MAX_DAYS: z.coerce.number().int().min(1).max(1100).default(366),
 
-  /** Operator groups by extension range until the groups model exists, e.g. "main:100-199;secondary:200-299". */
+  /** Operator groups (board tabs, statistics, exports) by extension range, e.g. "main:100-199;secondary:200-299". */
   OPERATOR_GROUPS: z
     .string()
     .default('main:100-199;secondary:200-299')
