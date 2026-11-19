@@ -1,4 +1,4 @@
-import { type TicketOrganizationRef, formatUzPhone } from '@cc/shared';
+import { type TicketOrganization, type TicketOrganizationRef, formatUzPhone } from '@cc/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -33,6 +33,7 @@ import {
   KdsModalHeader,
 } from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
+import { organizationPlace } from '../model/organization-place';
 import { OrganizationPicker } from './OrganizationPicker';
 
 /** Stable default: a fresh `[]` per render would re-run the "load initial files" effect forever. */
@@ -41,7 +42,8 @@ const NO_FILES: File[] = [];
 /**
  * New ticket: region + city/district + organization + category + description + attachments. With `callId` (a call in
  * progress, or a call picked in the history) the number comes from the call on the server; the form only
- * shows it. Ctrl+V adds screenshots while open.
+ * shows it. Picking an organization from the registry fills its region and city/district (both stay
+ * editable). Ctrl+V adds screenshots while open.
  */
 export function CreateTicketModal({
   open,
@@ -127,6 +129,19 @@ export function CreateTicketModal({
   const close = (o: boolean) => {
     if (!o) reset();
     onOpenChange(o);
+  };
+
+  // A registry organization knows its region and district: fill them in. A typed one, a republic-level
+  // one or a district with no matching city leaves what the operator chose.
+  const pickOrganization = (ref: TicketOrganizationRef | null, registry?: TicketOrganization) => {
+    setOrganization(ref);
+    const place = registry ? organizationPlace(registry, dirs.data?.regions ?? []) : null;
+    if (!place) return;
+    const region = String(place.regionId);
+    if (region !== regionId) {
+      setRegionId(region);
+      setCityId(place.cityId === null ? '' : String(place.cityId));
+    } else if (place.cityId !== null) setCityId(String(place.cityId));
   };
 
   const regions = (dirs.data?.regions ?? []).filter((r) => r.isActive);
@@ -261,7 +276,7 @@ export function CreateTicketModal({
               id="kds-new-organization"
               regionId={regionId ? Number(regionId) : null}
               value={organization}
-              onChange={setOrganization}
+              onChange={pickOrganization}
             />
           </KdsField>
           <KdsField
