@@ -1,6 +1,7 @@
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import type { ReactNode } from 'react';
 import { cn } from '@/shared/lib/cn';
+import { useReturnFocus } from '@/shared/lib/use-return-focus';
 import './kds-modal.css';
 
 /**
@@ -31,6 +32,7 @@ export function KdsModal({
   overlayClassName?: string;
   children: ReactNode;
 }) {
+  const returnFocus = useReturnFocus();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -44,6 +46,7 @@ export function KdsModal({
         />
         <div className="pointer-events-none fixed inset-0 z-[1100] flex items-center justify-center p-5">
           <DialogPrimitive.Content
+            {...returnFocus}
             onPointerDownOutside={(e) => {
               if (!closeOnBackdrop) e.preventDefault();
             }}

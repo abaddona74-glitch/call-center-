@@ -33,7 +33,6 @@ export class AuthRepository {
   private userQuery() {
     return this.txHost.tx
       .selectFrom('users as u')
-      .leftJoin('operatorGroups as g', 'g.id', 'u.groupId')
       .select([
         'u.id',
         'u.username',
@@ -42,11 +41,9 @@ export class AuthRepository {
         'u.extension',
         'u.email',
         'u.isActive',
-        'u.groupId',
         'u.lastLoginIp',
         'u.webauthnUserId',
         'u.mustChangePassword',
-        'g.permissions as groupPermissions',
       ]);
   }
 

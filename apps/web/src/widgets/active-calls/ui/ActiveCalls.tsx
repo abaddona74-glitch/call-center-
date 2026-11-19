@@ -1,9 +1,8 @@
 import { type LiveCall, telephonyAccess } from '@cc/shared';
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
-import { LiveTimer, carrierOf, displayPhone, liveSnapshotQuery } from '@/entities/telephony';
+import { LiveTimer, carrierOf, displayPhone, useLiveSnapshot } from '@/entities/telephony';
 import { HangupCallButton } from '@/features/telephony/hangup-call';
 import { TransferCallButton } from '@/features/telephony/transfer-call';
 import { cn } from '@/shared/lib/cn';
@@ -21,7 +20,9 @@ export function ActiveCalls() {
   const { t: tt } = useTranslation('telephony');
   const user = useSessionUser();
   const isAdmin = telephonyAccess(user).manageAll;
-  const { data } = useQuery({ ...liveSnapshotQuery, select: (s) => ({ calls: s.calls, operators: s.operators }) });
+  // Nobody to act as (no extension, no admin rights — the situation board's observers): plain rows, no drawer.
+  const viewOnly = !isAdmin && user.extension === null;
+  const { data } = useLiveSnapshot((s) => ({ calls: s.calls, operators: s.operators }));
   const [openId, setOpenId] = useState<string | null>(null);
   const calls = useLeaving((data?.calls ?? []).filter((c) => SHOWN.has(c.state)));
   const operators = data?.operators ?? [];
@@ -60,12 +61,7 @@ export function ActiveCalls() {
             data-call-id={call.id}
             data-state={call.state}
           >
-            <button
-              type="button"
-              className="cc-call-main"
-              onClick={() => setOpenId(open ? null : call.id)}
-              aria-expanded={open}
-            >
+            <ActiveCallMain viewOnly={viewOnly} open={open} onToggle={() => setOpenId(open ? null : call.id)}>
               <span className={cn('cc-icon', iconCls)} title={tag[1]}>
                 <Icon name={outbound ? 'call' : 'call-incoming'} />
               </span>
@@ -89,34 +85,56 @@ export function ActiveCalls() {
                   </span>
                 </span>
               </span>
-              <svg
-                className="cc-chev"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
-            <div className="cc-actions">
-              <div className="cc-actions-inner">
-                {canControl && !call.leaving ? (
-                  <>
-                    <TransferCallButton call={call} operators={operators} className="cc-btn cc-btn-switch" />
-                    <HangupCallButton callId={call.id} className="cc-btn cc-btn-end" />
-                  </>
-                ) : (
-                  <span className="cc-readonly">{t('readonly')}</span>
-                )}
+            </ActiveCallMain>
+            {!viewOnly && (
+              <div className="cc-actions">
+                <div className="cc-actions-inner">
+                  {canControl && !call.leaving ? (
+                    <>
+                      <TransferCallButton call={call} operators={operators} className="cc-btn cc-btn-switch" />
+                      <HangupCallButton callId={call.id} className="cc-btn cc-btn-end" />
+                    </>
+                  ) : (
+                    <span className="cc-readonly">{t('readonly')}</span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** The call row: a toggle for the actions drawer, or plain content for view-only users. */
+function ActiveCallMain({
+  viewOnly,
+  open,
+  onToggle,
+  children,
+}: {
+  viewOnly: boolean;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  if (viewOnly) return <div className="cc-call-main">{children}</div>;
+  return (
+    <button type="button" className="cc-call-main" onClick={onToggle} aria-expanded={open}>
+      {children}
+      <svg
+        className="cc-chev"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M6 9l6 6 6-6" />
+      </svg>
+    </button>
   );
 }

@@ -18,8 +18,10 @@ import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppExplorerRouteImport } from './routes/_app/explorer'
 import { Route as AppHistoryRouteImport } from './routes/_app/history'
 import { Route as AppOperatorsRouteImport } from './routes/_app/operators'
+import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppSituationRouteImport } from './routes/_app/situation'
 import { Route as AppStatisticsRouteImport } from './routes/_app/statistics'
 import { Route as AppTicketsRouteImport } from './routes/_app/tickets'
 import { Route as AppToolsRouteImport } from './routes/_app/tools'
@@ -30,7 +32,6 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/ind
 import { Route as AppSettingsAuditRouteImport } from './routes/_app/settings/audit'
 import { Route as AppSettingsCalendarRouteImport } from './routes/_app/settings/calendar'
 import { Route as AppSettingsExcludeRouteImport } from './routes/_app/settings/exclude'
-import { Route as AppSettingsGroupsRouteImport } from './routes/_app/settings/groups'
 import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
 import { Route as AppSettingsSessionsRouteImport } from './routes/_app/settings/sessions'
 import { Route as AppSettingsUsersRouteImport } from './routes/_app/settings/users'
@@ -85,6 +86,11 @@ const AppOperatorsRoute = AppOperatorsRouteImport.update({
   path: '/operators',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOverviewRoute = AppOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProfileRoute = AppProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -93,6 +99,11 @@ const AppProfileRoute = AppProfileRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSituationRoute = AppSituationRouteImport.update({
+  id: '/situation',
+  path: '/situation',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStatisticsRoute = AppStatisticsRouteImport.update({
@@ -143,11 +154,6 @@ const AppSettingsCalendarRoute = AppSettingsCalendarRouteImport.update({
 const AppSettingsExcludeRoute = AppSettingsExcludeRouteImport.update({
   id: '/exclude',
   path: '/exclude',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsGroupsRoute = AppSettingsGroupsRouteImport.update({
-  id: '/groups',
-  path: '/groups',
   getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
@@ -205,8 +211,10 @@ export interface FileRoutesByFullPath {
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
+  '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
   '/settings': typeof AppSettingsRouteWithChildren
+  '/situation': typeof AppSituationRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
   '/tools': typeof AppToolsRoute
@@ -215,7 +223,6 @@ export interface FileRoutesByFullPath {
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/exclude': typeof AppSettingsExcludeRoute
-  '/settings/groups': typeof AppSettingsGroupsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/sessions': typeof AppSettingsSessionsRoute
   '/settings/users': typeof AppSettingsUsersRoute
@@ -236,7 +243,9 @@ export interface FileRoutesByTo {
   '/explorer': typeof AppExplorerRoute
   '/history': typeof AppHistoryRoute
   '/operators': typeof AppOperatorsRoute
+  '/overview': typeof AppOverviewRoute
   '/profile': typeof AppProfileRoute
+  '/situation': typeof AppSituationRoute
   '/statistics': typeof AppStatisticsRoute
   '/tickets': typeof AppTicketsRoute
   '/tools': typeof AppToolsRoute
@@ -246,7 +255,6 @@ export interface FileRoutesByTo {
   '/settings/audit': typeof AppSettingsAuditRoute
   '/settings/calendar': typeof AppSettingsCalendarRoute
   '/settings/exclude': typeof AppSettingsExcludeRoute
-  '/settings/groups': typeof AppSettingsGroupsRoute
   '/settings/security': typeof AppSettingsSecurityRoute
   '/settings/sessions': typeof AppSettingsSessionsRoute
   '/settings/users': typeof AppSettingsUsersRoute
@@ -269,8 +277,10 @@ export interface FileRoutesById {
   '/_app/explorer': typeof AppExplorerRoute
   '/_app/history': typeof AppHistoryRoute
   '/_app/operators': typeof AppOperatorsRoute
+  '/_app/overview': typeof AppOverviewRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_app/situation': typeof AppSituationRoute
   '/_app/statistics': typeof AppStatisticsRoute
   '/_app/tickets': typeof AppTicketsRoute
   '/_app/tools': typeof AppToolsRoute
@@ -280,7 +290,6 @@ export interface FileRoutesById {
   '/_app/settings/audit': typeof AppSettingsAuditRoute
   '/_app/settings/calendar': typeof AppSettingsCalendarRoute
   '/_app/settings/exclude': typeof AppSettingsExcludeRoute
-  '/_app/settings/groups': typeof AppSettingsGroupsRoute
   '/_app/settings/security': typeof AppSettingsSecurityRoute
   '/_app/settings/sessions': typeof AppSettingsSessionsRoute
   '/_app/settings/users': typeof AppSettingsUsersRoute
@@ -304,8 +313,10 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/history'
     | '/operators'
+    | '/overview'
     | '/profile'
     | '/settings'
+    | '/situation'
     | '/statistics'
     | '/tickets'
     | '/tools'
@@ -314,7 +325,6 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/exclude'
-    | '/settings/groups'
     | '/settings/security'
     | '/settings/sessions'
     | '/settings/users'
@@ -335,7 +345,9 @@ export interface FileRouteTypes {
     | '/explorer'
     | '/history'
     | '/operators'
+    | '/overview'
     | '/profile'
+    | '/situation'
     | '/statistics'
     | '/tickets'
     | '/tools'
@@ -345,7 +357,6 @@ export interface FileRouteTypes {
     | '/settings/audit'
     | '/settings/calendar'
     | '/settings/exclude'
-    | '/settings/groups'
     | '/settings/security'
     | '/settings/sessions'
     | '/settings/users'
@@ -367,8 +378,10 @@ export interface FileRouteTypes {
     | '/_app/explorer'
     | '/_app/history'
     | '/_app/operators'
+    | '/_app/overview'
     | '/_app/profile'
     | '/_app/settings'
+    | '/_app/situation'
     | '/_app/statistics'
     | '/_app/tickets'
     | '/_app/tools'
@@ -378,7 +391,6 @@ export interface FileRouteTypes {
     | '/_app/settings/audit'
     | '/_app/settings/calendar'
     | '/_app/settings/exclude'
-    | '/_app/settings/groups'
     | '/_app/settings/security'
     | '/_app/settings/sessions'
     | '/_app/settings/users'
@@ -463,6 +475,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOperatorsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/overview': {
+      id: '/_app/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof AppOverviewRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/profile': {
       id: '/_app/profile'
       path: '/profile'
@@ -475,6 +494,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/situation': {
+      id: '/_app/situation'
+      path: '/situation'
+      fullPath: '/situation'
+      preLoaderRoute: typeof AppSituationRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/statistics': {
@@ -547,13 +573,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsExcludeRouteImport
       parentRoute: typeof AppSettingsRoute
     }
-    '/_app/settings/groups': {
-      id: '/_app/settings/groups'
-      path: '/groups'
-      fullPath: '/settings/groups'
-      preLoaderRoute: typeof AppSettingsGroupsRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
     '/_app/settings/security': {
       id: '/_app/settings/security'
       path: '/security'
@@ -624,7 +643,6 @@ interface AppSettingsRouteChildren {
   AppSettingsAuditRoute: typeof AppSettingsAuditRoute
   AppSettingsCalendarRoute: typeof AppSettingsCalendarRoute
   AppSettingsExcludeRoute: typeof AppSettingsExcludeRoute
-  AppSettingsGroupsRoute: typeof AppSettingsGroupsRoute
   AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
   AppSettingsSessionsRoute: typeof AppSettingsSessionsRoute
   AppSettingsUsersRoute: typeof AppSettingsUsersRoute
@@ -635,7 +653,6 @@ const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAuditRoute: AppSettingsAuditRoute,
   AppSettingsCalendarRoute: AppSettingsCalendarRoute,
   AppSettingsExcludeRoute: AppSettingsExcludeRoute,
-  AppSettingsGroupsRoute: AppSettingsGroupsRoute,
   AppSettingsSecurityRoute: AppSettingsSecurityRoute,
   AppSettingsSessionsRoute: AppSettingsSessionsRoute,
   AppSettingsUsersRoute: AppSettingsUsersRoute,
@@ -652,8 +669,10 @@ interface AppRouteChildren {
   AppExplorerRoute: typeof AppExplorerRoute
   AppHistoryRoute: typeof AppHistoryRoute
   AppOperatorsRoute: typeof AppOperatorsRoute
+  AppOverviewRoute: typeof AppOverviewRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppSituationRoute: typeof AppSituationRoute
   AppStatisticsRoute: typeof AppStatisticsRoute
   AppTicketsRoute: typeof AppTicketsRoute
   AppToolsRoute: typeof AppToolsRoute
@@ -675,8 +694,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppExplorerRoute: AppExplorerRoute,
   AppHistoryRoute: AppHistoryRoute,
   AppOperatorsRoute: AppOperatorsRoute,
+  AppOverviewRoute: AppOverviewRoute,
   AppProfileRoute: AppProfileRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppSituationRoute: AppSituationRoute,
   AppStatisticsRoute: AppStatisticsRoute,
   AppTicketsRoute: AppTicketsRoute,
   AppToolsRoute: AppToolsRoute,

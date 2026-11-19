@@ -8,7 +8,7 @@ import { CALL_ANALYSIS_MAX_DAYS, CALL_ANALYSIS_PROMPT_VERSION, topicKey } from '
 import { Injectable, Logger } from '@nestjs/common';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
 import { CallAnalysisRepository } from './call-analysis.repository.js';
-import { aggregateAnalyses } from './domain/aggregate.js';
+import { type AnalysisFacts, aggregateAnalyses } from './domain/aggregate.js';
 
 /** Reads: one call's transcript and analysis, statuses for a history page, the aggregates of the "Tahlil" page. */
 @Injectable()
@@ -87,6 +87,15 @@ export class CallAnalysisService {
         redFlags: r.redFlagCodes?.length ?? 0,
       })),
     };
+  }
+
+  /**
+   * The analysed calls of a period for the current prompt version — the rows `stats()` aggregates by default (the
+   * overview dashboard lists the calls behind its quality numbers from them).
+   */
+  analysesForPeriod(from: string, to: string): Promise<Omit<AnalysisFacts, 'hasTicket'>[]> {
+    this.calls.assertRange(from, to, CALL_ANALYSIS_MAX_DAYS);
+    return this.repo.analysesInRange(from, to, CALL_ANALYSIS_PROMPT_VERSION);
   }
 
   /** Aggregates for one prompt version (scores of different versions are not comparable), the current by default. */

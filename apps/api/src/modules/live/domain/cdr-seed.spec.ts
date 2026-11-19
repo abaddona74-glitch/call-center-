@@ -83,7 +83,13 @@ describe('addCallsToSeed', () => {
       operatorMissedRejected: 0,
       talkSeconds: s.talk.totalSec,
       unknownHangups: s.inbound.answered + s.outbound.connected,
+      waitSeconds: morning
+        .filter((c) => c.direction === 'inbound' && c.status === 'answered')
+        .reduce((n, c) => n + (c.waitSec ?? 0), 0),
     });
+    // the dashboard's average wait = the statistics page's
+    expect(Math.round(seed.counters.waitSeconds / seed.counters.answered)).toBe(s.inbound.avgWaitSec);
+    expect(seed.counters.waitSeconds).toBeGreaterThan(0);
     expect(seed.counters).toMatchObject({
       inbound: 5,
       answered: 2,

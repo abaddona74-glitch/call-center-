@@ -2,11 +2,19 @@ import { type CallListItem, canAccessCdr } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CallListDialogProps, type CallListView, businessToday, callHistoryQuery } from '@/entities/call';
+import {
+  type CallListDialogProps,
+  type CallListQueryOptions,
+  type CallListView,
+  businessToday,
+  callHistoryQuery,
+} from '@/entities/call';
 import { useSessionUser } from '@/entities/session';
 import { isHttpError } from '@/shared/api';
+import { useApiScope } from '@/shared/lib/api-scope';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
+import { MetricNote, TitleValue } from '@/shared/ui/metric-note';
 import { Modal, ModalHeader } from '@/shared/ui/modal';
 import { Pagination } from '@/shared/ui/pagination';
 import { SearchBox } from '@/shared/ui/search-box';
@@ -43,7 +51,9 @@ function CallListBody({ view }: { view: CallListView }) {
   const { t } = useTranslation('callList');
   const { t: th } = useTranslation('callHistory');
   const user = useSessionUser();
-  const canListen = canAccessCdr(user, 'calls.recordings');
+  // `overview` scope: the overview dashboard's endpoints serve the call card and the (audited) recording.
+  const scope = useApiScope();
+  const canListen = scope === 'overview' || canAccessCdr(user, 'calls.recordings');
   const [tabId, setTabId] = useState(view.tabs[0]?.id ?? '');
   const [operator, setOperator] = useState<string | null>(null);
   const [term, setTerm] = useState('');
@@ -65,18 +75,21 @@ function CallListBody({ view }: { view: CallListView }) {
   };
   const tab = view.tabs.find((x) => x.id === tabId) ?? view.tabs[0];
   const today = businessToday();
-  const query = useQuery({
-    ...callHistoryQuery({
-      from: today,
-      to: today,
-      page,
-      pageSize: PAGE_SIZE,
-      search: search || undefined,
-      ...tab?.filter,
-      ...(operator ? { operator } : {}),
-    }),
-    refetchInterval: page === 1 ? 15_000 : false,
-  });
+  const options: CallListQueryOptions = view.list
+    ? view.list(tab?.id ?? '', { page, pageSize: PAGE_SIZE, search: search || undefined })
+    : ({
+        ...callHistoryQuery({
+          from: today,
+          to: today,
+          page,
+          pageSize: PAGE_SIZE,
+          search: search || undefined,
+          ...tab?.filter,
+          ...(operator ? { operator } : {}),
+        }),
+        refetchInterval: page === 1 ? 15_000 : false,
+      } as unknown as CallListQueryOptions);
+  const query = useQuery(options);
   const data = query.data;
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
   const columns: ColumnVisibility = { missedBy: Boolean(view.showMissedBy), hangup: false, host: false };
@@ -93,9 +106,12 @@ function CallListBody({ view }: { view: CallListView }) {
     <>
       <ModalHeader
         icon={<Icon name={view.icon} className="size-5 text-primary" />}
-        title={view.title}
-        subtitle={t('subtitle')}
+        title={view.value !== undefined ? <TitleValue title={view.title} value={view.value} /> : view.title}
+        subtitle={view.subtitle ?? t('subtitle')}
       />
+
+      {/* What the numbers mean / how the number is calculated: first, before the list. */}
+      {view.note && <MetricNote>{view.note}</MetricNote>}
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         {view.tabs.length > 1 ? (
@@ -129,8 +145,6 @@ function CallListBody({ view }: { view: CallListView }) {
         />
       </div>
 
-      {view.note && <p className="mb-3 text-xs text-mute">{view.note}</p>}
-
       {view.operators && view.operators.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label={th('col.operator')}>
           <Chip active={operator === null} onClick={() => pickOperator(null)}>
@@ -152,7 +166,7 @@ function CallListBody({ view }: { view: CallListView }) {
       <CallHistoryTable
         calls={data?.items ?? EMPTY}
         firstRowNumber={(page - 1) * PAGE_SIZE + 1}
-        showDate={false}
+        showDate={Boolean(view.showDate)}
         columnVisibility={columns}
         onColumnVisibilityChange={noop}
         onOpenDetails={setSelected}

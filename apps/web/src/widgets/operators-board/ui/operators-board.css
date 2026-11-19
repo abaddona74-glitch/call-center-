@@ -533,6 +533,19 @@
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c) 60%, transparent));
   flex-shrink: 0;
 }
+/* Phones: the label (with the "show offline" toggle) may be wider than the screen — let it wrap, not scroll the page. */
+@media (max-width: 639px) {
+  .ob-div .glow {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .ob-div-label {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 4px;
+    padding: 6px 12px;
+  }
+}
 .ob-div-label {
   display: inline-flex;
   align-items: center;

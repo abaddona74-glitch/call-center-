@@ -10,6 +10,7 @@ import { KdsModal } from '@/shared/ui/kds-modal';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 import { type LocalKind, localKind } from './picker';
 import './viewer.css';
+import { useApiScope } from '@/shared/lib/api-scope';
 
 export type ViewerSource =
   { kind: 'remote'; ticketId: number; attachment: TicketAttachment } | { kind: 'local'; file: File };
@@ -34,9 +35,10 @@ const ICON_STYLE: Record<ViewKind, string> = {
  */
 export function DocViewer({ source, onClose }: { source: ViewerSource | null; onClose: () => void }) {
   const { t } = useTranslation('ticket');
+  const scope = useApiScope();
   const kind = source ? sourceKind(source) : null;
   const name = source ? (source.kind === 'remote' ? source.attachment.fileName : source.file.name) : '';
-  const download = source?.kind === 'remote' ? attachmentUrl(source.ticketId, source.attachment.id) : null;
+  const download = source?.kind === 'remote' ? attachmentUrl(source.ticketId, source.attachment.id, scope) : null;
   const [url, setUrl] = useState<string | null>(null);
   const [html, setHtml] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -55,9 +57,9 @@ export function DocViewer({ source, onClose }: { source: ViewerSource | null; on
         setUrl(objectUrl);
       }
     } else if (kind === 'image') {
-      setUrl(attachmentUrl(source.ticketId, source.attachment.id));
+      setUrl(attachmentUrl(source.ticketId, source.attachment.id, scope));
     } else if (kind === 'pdf') {
-      fetch(attachmentUrl(source.ticketId, source.attachment.id), { credentials: 'same-origin' })
+      fetch(attachmentUrl(source.ticketId, source.attachment.id, scope), { credentials: 'same-origin' })
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
         .then((buf) => {
           if (cancelled) return;
@@ -66,7 +68,7 @@ export function DocViewer({ source, onClose }: { source: ViewerSource | null; on
         })
         .catch(() => !cancelled && setFailed(true));
     } else {
-      fetchDocPreview(source.ticketId, source.attachment.id)
+      fetchDocPreview(source.ticketId, source.attachment.id, scope)
         .then((r) => !cancelled && setHtml(DOMPurify.sanitize(r.html, { USE_PROFILES: { html: true } })))
         .catch(() => !cancelled && setFailed(true));
     }
@@ -210,6 +212,7 @@ export function AttachmentGallery({
   onOpen: (source: ViewerSource) => void;
 }) {
   const { t } = useTranslation('ticket');
+  const scope = useApiScope();
   const images = attachments.filter((a) => a.kind === 'image');
   const docs = attachments.filter((a) => a.kind !== 'image');
   if (attachments.length === 0) return null;
@@ -228,7 +231,7 @@ export function AttachmentGallery({
               )}
             >
               <img
-                src={attachmentUrl(ticketId, a.id)}
+                src={attachmentUrl(ticketId, a.id, scope)}
                 alt={a.fileName}
                 loading="lazy"
                 className="size-full object-cover"
@@ -308,7 +311,7 @@ export function AttachmentGallery({
                     {t('doc.view')}
                   </button>
                   <a
-                    href={attachmentUrl(ticketId, a.id)}
+                    href={attachmentUrl(ticketId, a.id, scope)}
                     title={t('doc.download')}
                     className={cn(
                       'inline-flex items-center justify-center rounded-md border border-tint/10 bg-tint/5 text-ink-2 transition-all duration-150 hover:border-[rgba(56,189,248,0.4)] hover:bg-[rgba(56,189,248,0.2)] hover:text-info',

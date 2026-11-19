@@ -15,6 +15,7 @@ import type { CallbacksServerEvents } from './realtime/callbacks.js';
 import type { PresenceServerEvents } from './realtime/presence.js';
 import type { TelephonyServerEvents } from './realtime/telephony.js';
 import type { SettingsServerEvents } from './realtime/settings.js';
+import type { SituationServerEvents } from './realtime/situation.js';
 
 interface CoreServerEvents {
   /** Sent once right after the connection is authenticated. */
@@ -29,13 +30,15 @@ interface CoreClientEvents {
 }
 
 export interface ServerEvents
-  extends CoreServerEvents,
+  extends
+    CoreServerEvents,
     RecordingsServerEvents,
     TicketsServerEvents,
     CallbacksServerEvents,
     TelephonyServerEvents,
     PresenceServerEvents,
-    SettingsServerEvents {}
+    SettingsServerEvents,
+    SituationServerEvents {}
 
 export interface ClientEvents extends CoreClientEvents {}
 

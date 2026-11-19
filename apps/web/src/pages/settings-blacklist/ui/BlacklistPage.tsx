@@ -63,7 +63,7 @@ export function BlacklistPage() {
   const exts = data?.operatorExtensions ?? [];
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col overflow-hidden rounded-2xl border border-red-500/30 bg-sidebar shadow-[0_30px_80px_color-mix(in_srgb,var(--shadow-color)_50%,transparent),0_0_50px_rgba(239,68,68,0.1)]">
+    <div className="mx-auto flex w-full max-w-[1600px] flex-col overflow-hidden rounded-2xl border border-red-500/30 bg-sidebar shadow-[0_30px_80px_color-mix(in_srgb,var(--shadow-color)_50%,transparent),0_0_50px_rgba(239,68,68,0.1)]">
       <div className="flex items-center justify-between gap-3 border-b border-tint/[0.08] bg-[linear-gradient(90deg,rgba(239,68,68,0.15)_0%,color-mix(in_srgb,var(--glass)_80%,transparent)_100%)] px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#ef4444_0%,#b91c1c_100%)] shadow-[0_4px_12px_rgba(239,68,68,0.3)]">
@@ -124,7 +124,7 @@ export function BlacklistPage() {
         <span className="text-xs text-mute">{q ? t('found', { n: filtered.length }) : ''}</span>
       </div>
 
-      <div className="max-h-[60vh] flex-1 overflow-y-auto">
+      <div className="scrollbar-visible max-h-[60vh] flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="px-5 py-10 text-center text-dim">
             <Icon name="timer" className="mx-auto mb-2.5 size-8" />

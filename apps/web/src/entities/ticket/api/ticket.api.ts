@@ -32,6 +32,7 @@ import {
 import { queryOptions } from '@tanstack/react-query';
 import { z } from 'zod';
 import { HttpError, api } from '@/shared/api';
+import type { ApiScope } from '@/shared/lib/api-scope';
 
 /** List filters as the UI holds them (the API schema coerces query strings). */
 export interface TicketListParams {
@@ -77,10 +78,15 @@ export const ticketListQuery = (q: TicketListParams) =>
     staleTime: 30_000,
   });
 
-export const ticketQuery = (id: number) =>
+/** `overview` scope: the overview dashboard's read-only card (any ticket, no actions). */
+const ticketBase = (scope: ApiScope) => (scope === 'overview' ? '/overview/tickets' : '/tickets');
+
+export const ticketQuery = (id: number, scope: ApiScope = 'default') =>
   queryOptions({
-    queryKey: ticketKeys.detail(id),
-    queryFn: ({ signal }): Promise<TicketDetail> => api(`/tickets/${id}`, { schema: TicketDetailSchema, signal }),
+    // The regular key stays as it is (mutations update it); the overview card has its own.
+    queryKey: scope === 'overview' ? [...ticketKeys.detail(id), 'overview'] : ticketKeys.detail(id),
+    queryFn: ({ signal }): Promise<TicketDetail> =>
+      api(`${ticketBase(scope)}/${id}`, { schema: TicketDetailSchema, signal }),
   });
 
 export const ticketContextQuery = queryOptions({
@@ -196,16 +202,27 @@ export function addTicketComment(id: number, body: string, files: File[]): Promi
   return upload(`/tickets/${id}/comments`, { body }, files);
 }
 
-export function attachmentUrl(ticketId: number, attachmentId: number): string {
-  return `/api/tickets/${ticketId}/attachments/${attachmentId}`;
+export function attachmentUrl(ticketId: number, attachmentId: number, scope: ApiScope = 'default'): string {
+  return `/api${ticketBase(scope)}/${ticketId}/attachments/${attachmentId}`;
 }
 
-export function recordingUrl(ticketId: number, callRowId: number, download = false): string {
-  return `/api/tickets/${ticketId}/calls/${callRowId}/recording${download ? '?download=1' : ''}`;
+export function recordingUrl(
+  ticketId: number,
+  callRowId: number,
+  download = false,
+  scope: ApiScope = 'default',
+): string {
+  return `/api${ticketBase(scope)}/${ticketId}/calls/${callRowId}/recording${download ? '?download=1' : ''}`;
 }
 
-export function fetchDocPreview(ticketId: number, attachmentId: number): Promise<{ html: string }> {
-  return api(`/tickets/${ticketId}/attachments/${attachmentId}/preview`, { schema: TicketDocPreviewSchema });
+export function fetchDocPreview(
+  ticketId: number,
+  attachmentId: number,
+  scope: ApiScope = 'default',
+): Promise<{ html: string }> {
+  return api(`${ticketBase(scope)}/${ticketId}/attachments/${attachmentId}/preview`, {
+    schema: TicketDocPreviewSchema,
+  });
 }
 
 /** Superuser: ticket directories. */

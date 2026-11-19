@@ -48,7 +48,7 @@ const FILE_TYPES: Record<ToolFileName, string> = {
 
 /**
  * Tools section (legacy viewer tools zones + /api/converter + /api/tools/uzcrypto/*).
- * Everything needs `tools.view`; the converter needs `tools.use` (off for restricted operator groups).
+ * Everything needs `tools.view`; the converter needs `tools.use` (every operator and superuser).
  */
 @Controller('tools')
 @RequirePermission('tools.view')

@@ -50,6 +50,8 @@ export function KpiCard({
   badge,
   sub,
   title,
+  onOpen,
+  className,
 }: {
   accent: Accent;
   image?: string;
@@ -60,14 +62,37 @@ export function KpiCard({
   badge?: string;
   sub?: React.ReactNode;
   title?: string;
+  /** Opens the records behind the number (a details dialog); the card becomes a button named "<label>: <value>". */
+  onOpen?: () => void;
+  /** Layout from the parent grid (e.g. a column span). */
+  className?: string;
 }) {
   const a = ACCENTS[accent];
+  const clickable = onOpen
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `${label}: ${typeof value === 'string' || typeof value === 'number' ? value : ''}${unit ? ` ${unit}` : ''}`,
+        'aria-haspopup': 'dialog' as const,
+        onClick: onOpen,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onOpen();
+          }
+        },
+      }
+    : {};
   return (
     <div
       title={title}
+      {...clickable}
       className={cn(
         'group relative flex min-h-[145px] items-center gap-3.5 overflow-hidden rounded-2xl border border-t-[3px] border-tint/8 bg-muted px-[22px] py-5 transition-[transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30',
+        onOpen &&
+          'cursor-pointer outline-none focus-visible:border-primary/60 focus-visible:ring-2 focus-visible:ring-primary/50',
         a.border,
+        className,
       )}
     >
       <div className="flex size-[54px] min-w-[54px] items-center justify-center rounded-xl 2xl:size-[62px] 2xl:min-w-[62px]">

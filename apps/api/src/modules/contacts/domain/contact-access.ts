@@ -1,9 +1,8 @@
 import { type ContactAccess, type Permission, type Role, hasPermission } from '@cc/shared';
 
 /**
- * Who may see / edit the phonebook: the `contacts.view` / `contacts.manage` permissions (role map + the
- * operator group's canSeeContacts / canEditContacts flags, see @cc/shared permissions). The legacy
- * "extension >= 200" rule now lives in the seeded `Zangiota` operator group.
+ * Who may see / edit the phonebook: the `contacts.view` / `contacts.manage` permissions of the session
+ * (the role map in @cc/shared permissions). The legacy "extension >= 200" restriction is gone (owner, 19.11.2026).
  */
 export interface ContactAccessUser {
   role: Role;

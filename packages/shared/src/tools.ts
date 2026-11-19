@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * "Tools" section (legacy viewer tools zones): links, installers, the managers directory and the
  * universal file converter. Page access: `tools.view`; the converter (and other extra tools that
- * legacy hid from the "200" group): `tools.use`, switched off per operator group by `canUseTools`.
+ * legacy hid from the "200" group): `tools.use`.
  */
 
 // --- converter ----------------------------------------------------------------------------------

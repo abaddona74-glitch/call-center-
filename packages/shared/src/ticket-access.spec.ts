@@ -6,7 +6,8 @@ describe('ticket access', () => {
     expect(ticketActorKind({ role: 'superuser' })).toBe('superuser');
     expect(ticketActorKind({ role: 'admin' })).toBe('none'); // the old name has no permissions any more
     expect(ticketActorKind({ role: 'executive' })).toBe('executive');
-    expect(ticketActorKind({ role: 'observer' })).toBe('observer');
+    // observers see only the overview dashboard (owner, 19.11.2026): aggregates, no ticket access
+    expect(ticketActorKind({ role: 'observer' })).toBe('none');
     expect(ticketActorKind({ role: 'operator' })).toBe('operator');
     expect(ticketActorKind({ role: 'guest' })).toBe('none');
     expect(ticketActorKind(null)).toBe('none');
@@ -26,7 +27,11 @@ describe('ticket access', () => {
       reports: true,
       regionAlerts: true,
     });
-    expect(ticketCapabilities({ role: 'observer' })).toMatchObject({
+    expect(Object.values(ticketCapabilities({ role: 'observer' })).some(Boolean)).toBe(false);
+    // "observer" actor = sees every region without processing (no role has that by default any more)
+    const readAll = { role: 'observer', permissions: ['tickets.viewAll' as const] };
+    expect(ticketActorKind(readAll)).toBe('observer');
+    expect(ticketCapabilities(readAll)).toMatchObject({
       viewAll: true,
       comment: false,
       work: false,
@@ -44,8 +49,8 @@ describe('ticket access', () => {
     expect(Object.values(ticketCapabilities({ role: 'nobody' })).some(Boolean)).toBe(false);
   });
 
-  it("follows the session's own permission list (operator groups, future custom roles)", () => {
-    // an operator whose group cannot call back
+  it("follows the session's own permission list (future custom roles)", () => {
+    // an operator session without the callback permission
     expect(ticketCapabilities({ role: 'operator', permissions: ['tickets.create'] })).toMatchObject({
       create: true,
       callback: false,

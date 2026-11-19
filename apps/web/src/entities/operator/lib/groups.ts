@@ -1,6 +1,6 @@
 /**
- * Operator groups of the board tabs: "Asosiy" (100–199) and "Zangiota" (200+), as in legacy.
- * TODO(S1): replace with the operator-groups model from the session/users API once merged.
+ * Operator groups of the board tabs: "Asosiy" (100–199) and "Zangiota" (200+), as in legacy — by extension
+ * range only (there is no operator-group model since 19.11.2026).
  */
 export type OperatorGroup = 'main' | 'secondary';
 export type OperatorGroupFilter = OperatorGroup | 'all';

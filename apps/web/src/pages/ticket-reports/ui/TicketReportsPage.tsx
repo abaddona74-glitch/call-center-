@@ -176,7 +176,7 @@ function ReportTable({ rows, lang }: { rows: TicketReportRow[]; lang: string }) 
   const { t } = useTranslation('ticketReports');
   const max = Math.max(1, ...rows.map((r) => r.total));
   return (
-    <div className="overflow-x-auto">
+    <div className="scrollbar-visible overflow-x-auto">
       <table className="w-full min-w-[560px] border-collapse text-[13px]">
         <thead>
           <tr className="text-[11px] tracking-[0.5px] text-mute uppercase">

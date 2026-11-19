@@ -258,7 +258,7 @@ describe('legacy migration (users + passkeys mappers)', () => {
     const byPassword = await new Client(e2e).login('zangiota230', 'Legacy-Pa55');
     expect(byPassword.status).toBe(200);
     expect(byPassword.body.user).toMatchObject({ role: 'operator', extension: '230' });
-    expect(byPassword.body.user.permissions).not.toContain('contacts.view'); // legacy "200 group" -> Zangiota
+    expect(byPassword.body.user.permissions).toContain('contacts.view'); // no "200 group" restrictions (19.11.2026)
 
     const { c, res } = await passkeyLogin(key);
     expect(res.status).toBe(200);

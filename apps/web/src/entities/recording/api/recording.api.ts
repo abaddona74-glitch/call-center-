@@ -10,6 +10,7 @@ import {
 } from '@cc/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { api } from '@/shared/api';
+import type { ApiScope } from '@/shared/lib/api-scope';
 
 export const recordingKeys = {
   all: ['recordings'] as const,
@@ -33,12 +34,17 @@ export const recordingsStatusQuery = queryOptions({
   staleTime: 30_000,
 });
 
-/** The exact recording of a call (by CDR uniqueid). */
-export const callRecordingQuery = (uniqueid: string) =>
+/** The exact recording of a call (by CDR uniqueid); `overview` scope: the overview dashboard's endpoint. */
+export const callRecordingQuery = (uniqueid: string, scope: ApiScope = 'default') =>
   queryOptions({
-    queryKey: recordingKeys.call(uniqueid),
+    queryKey: [...recordingKeys.call(uniqueid), scope],
     queryFn: ({ signal }): Promise<CallRecording> =>
-      api(`/recordings/calls/${encodeURIComponent(uniqueid)}`, { schema: CallRecordingSchema, signal }),
+      api(
+        scope === 'overview'
+          ? `/overview/calls/${encodeURIComponent(uniqueid)}/recording`
+          : `/recordings/calls/${encodeURIComponent(uniqueid)}`,
+        { schema: CallRecordingSchema, signal },
+      ),
     staleTime: 5 * 60_000,
   });
 
@@ -46,8 +52,12 @@ export function recordingStreamUrl(path: string, download = false): string {
   return `/api/recordings/stream?path=${encodeURIComponent(path)}${download ? '&download=1' : ''}`;
 }
 
-export function callRecordingStreamUrl(uniqueid: string, download = false): string {
-  return `/api/recordings/calls/${encodeURIComponent(uniqueid)}/stream${download ? '?download=1' : ''}`;
+export function callRecordingStreamUrl(uniqueid: string, download = false, scope: ApiScope = 'default'): string {
+  const base =
+    scope === 'overview'
+      ? `/api/overview/calls/${encodeURIComponent(uniqueid)}/recording/stream`
+      : `/api/recordings/calls/${encodeURIComponent(uniqueid)}/stream`;
+  return `${base}${download ? '?download=1' : ''}`;
 }
 
 export function createZipJob(body: CreateZipJobRequest): Promise<ZipJob> {

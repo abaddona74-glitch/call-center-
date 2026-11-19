@@ -1,4 +1,4 @@
-import { CreateUserSchema, type OperatorGroup, ROLES, type Role, UpdateUserSchema, type User } from '@cc/shared';
+import { CreateUserSchema, ROLES, type Role, UpdateUserSchema, type User } from '@cc/shared';
 import { useForm } from '@tanstack/react-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -26,34 +26,22 @@ export function UserDialog({
   onOpenChange,
   user,
   actorRole,
-  groups,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: User | null;
   actorRole: Role;
-  groups: OperatorGroup[];
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={dialogClass}>
-        {open && <UserForm user={user} actorRole={actorRole} groups={groups} onDone={() => onOpenChange(false)} />}
+        {open && <UserForm user={user} actorRole={actorRole} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function UserForm({
-  user,
-  actorRole,
-  groups,
-  onDone,
-}: {
-  user: User | null;
-  actorRole: Role;
-  groups: OperatorGroup[];
-  onDone: () => void;
-}) {
+function UserForm({ user, actorRole, onDone }: { user: User | null; actorRole: Role; onDone: () => void }) {
   const { t } = useTranslation('settings');
   const { t: tu } = useTranslation('user');
   const queryClient = useQueryClient();
@@ -63,14 +51,13 @@ function UserForm({
   const mutation = useMutation({
     mutationFn: async (value: Values) => {
       if (!user) {
-        return createUser({ ...value, groupId: value.groupId });
+        return createUser(value);
       }
       const patch: Record<string, unknown> = {};
       if (value.username !== user.username) patch.username = value.username;
       if (value.role !== user.role) patch.role = value.role;
       if ((value.extension || null) !== user.extension) patch.extension = value.extension;
       if ((value.email.trim().toLowerCase() || null) !== user.email) patch.email = value.email;
-      if (value.groupId !== user.groupId) patch.groupId = value.groupId;
       if (value.isActive !== user.isActive) patch.isActive = value.isActive;
       if (value.mustChangePassword !== user.mustChangePassword) patch.mustChangePassword = value.mustChangePassword;
       if (Object.keys(patch).length === 0) return user;
@@ -79,7 +66,6 @@ function UserForm({
     onSuccess: () => {
       toast.success(user ? t('users.updated') : t('users.created'));
       void queryClient.invalidateQueries({ queryKey: userKeys.all });
-      void queryClient.invalidateQueries({ queryKey: userKeys.groups });
       onDone();
     },
     onError: (err) => setServerError(userErrorText(err, t)),
@@ -91,7 +77,6 @@ function UserForm({
     role: Role;
     extension: string;
     email: string;
-    groupId: number | null;
     isActive: boolean;
     mustChangePassword: boolean;
   };
@@ -103,7 +88,6 @@ function UserForm({
       role: user?.role ?? 'operator',
       extension: user?.extension ?? '',
       email: user?.email ?? '',
-      groupId: user?.groupId ?? null,
       isActive: user?.isActive ?? true,
       mustChangePassword: user?.mustChangePassword ?? false,
     } as Values,
@@ -231,32 +215,6 @@ function UserForm({
             </div>
           )}
         </form.Field>
-
-        <form.Subscribe selector={(s) => s.values.role}>
-          {(role) =>
-            role === 'operator' && (
-              <form.Field name="groupId">
-                {(field) => (
-                  <div className="flex flex-col gap-1.5">
-                    <FieldLabel htmlFor="u-group">{t('users.group')}</FieldLabel>
-                    <SettingsSelect
-                      id="u-group"
-                      value={field.state.value ?? ''}
-                      onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)}
-                    >
-                      <option value="">{tu('noGroup')}</option>
-                      {groups.map((g) => (
-                        <option key={g.id} value={g.id}>
-                          {g.name}
-                        </option>
-                      ))}
-                    </SettingsSelect>
-                  </div>
-                )}
-              </form.Field>
-            )
-          }
-        </form.Subscribe>
       </div>
 
       {user && (

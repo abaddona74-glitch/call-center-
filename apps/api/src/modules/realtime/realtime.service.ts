@@ -103,6 +103,14 @@ export class RealtimeService {
     return sent;
   }
 
+  /** Open connections of users with this permission (live pushes skip their work while nobody would get them). */
+  audience(permission: Permission): number {
+    let n = 0;
+    for (const [socket, conn] of this.connections)
+      if (socket.readyState === WebSocket.OPEN && hasPermission(conn.user, permission)) n++;
+    return n;
+  }
+
   /** Close every socket of a revoked session / of a user (password change, deactivation). */
   terminate(match: { sessionId?: string; userId?: number }, reason: string): void {
     for (const [socket, conn] of this.connections) {
