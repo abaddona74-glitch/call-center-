@@ -3,7 +3,7 @@ import { registerTranslations } from '@/shared/i18n';
 registerTranslations('staffKpiPage', {
   uz: {
     title: 'KPI xodimlar',
-    description: 'Har bir xodimning ko‘rsatkichlari alohida — istalgan ustun bo‘yicha saralang. Umumiy ball hali yo‘q.',
+    description: 'Umumiy ball hisoblanmaydi: har bir ko‘rsatkich alohida — istalgan ustun bo‘yicha saralang.',
     views: { operators: 'Operatorlar', executives: 'Mas’ul shaxslar' },
     viewLabel: 'Kimlar bo‘yicha',
     periodLabel: 'Davr',
@@ -25,15 +25,15 @@ registerTranslations('staffKpiPage', {
       subtitle: 'Qo‘ng‘iroqlar va baholar «Statistika» sahifasidagi bilan bir xil hisoblanadi',
       scopeLabel: 'Qo‘ng‘iroqlar va onlayn vaqt',
       scope: { working: 'Ish vaqti', all: 'Barcha vaqt' },
-      groupLabel: 'Ko‘rinish',
+      groupLabel: 'Ustunlar',
       pbxDown:
         'ATS bazasi javob bermayapti: qo‘ng‘iroqlar, mijoz baholari va suhbat ulushi ko‘rsatilmadi. Birozdan so‘ng «Yangilash»ni bosing.',
       qualityNone:
         'AI-sifat: bu davrda tahlil qilingan qo‘ng‘iroq yo‘q, shuning uchun bu ustunlar bo‘sh. Hozircha AI faqat ayrim kunlarni tahlil qiladi.',
       quality:
-        'AI-sifat ustunlari faqat tahlil qilingan qo‘ng‘iroqlar bo‘yicha: {{n}} ta, javob berilganlarning {{share}}. Tahlil bor kunlar: {{days}}.',
+        'AI-sifat — faqat AI tahlil qilgan qo‘ng‘iroqlar bo‘yicha: {{n}} ta (javob berilganlarning {{share}}). Tahlil qilingan kunlar: {{days}}.',
       qualityNoShare:
-        'AI-sifat ustunlari faqat tahlil qilingan qo‘ng‘iroqlar bo‘yicha: {{n}} ta. Tahlil bor kunlar: {{days}}.',
+        'AI-sifat — faqat AI tahlil qilgan qo‘ng‘iroqlar bo‘yicha: {{n}} ta. Tahlil qilingan kunlar: {{days}}.',
       daysMore: '{{list}} va yana {{n}} kun',
       version: 'Prompt: {{v}}',
       presenceNone: 'Onlayn va pauza vaqti hali yozilmagan: tarix bu funksiya ishga tushgan paytdan boshlanadi.',
@@ -43,12 +43,12 @@ registerTranslations('staffKpiPage', {
     executives: {
       title: 'Mas’ul shaxslar',
       subtitle:
-        'Ticket tarixi bo‘yicha: kim olgan, hal qilgan, qaytargan yoki boshqa hududga yuborgan — o‘sha paytdagi hudud bilan. Muddat — {{n}} ish kuni. Hududlarni ko‘rish uchun ism yonidagi tugmani bosing.',
+        'Ticket tarixidagi harakatlar bo‘yicha: kim olgan, hal qilgan, qaytargan yoki boshqa hududga yuborgan — o‘sha paytdagi hududiga yoziladi. Muddat — {{n}} ish kuni. Hududlarni ko‘rish uchun ism yonidagi tugmani bosing.',
     },
   },
   ru: {
     title: 'KPI сотрудников',
-    description: 'Каждый показатель отдельно — сортируйте по любому столбцу. Общего балла пока нет.',
+    description: 'Общий балл не считается: каждый показатель отдельно — сортируйте по любому столбцу.',
     views: { operators: 'Операторы', executives: 'Ответственные' },
     viewLabel: 'По кому',
     periodLabel: 'Период',
@@ -76,14 +76,14 @@ registerTranslations('staffKpiPage', {
       subtitle: 'Звонки и оценки считаются так же, как на странице «Статистика»',
       scopeLabel: 'Звонки и время онлайн',
       scope: { working: 'Рабочее время', all: 'Всё время' },
-      groupLabel: 'Показать',
+      groupLabel: 'Столбцы',
       pbxDown:
         'База АТС не отвечает: звонки, оценки клиентов и доля разговора не показаны. Нажмите «Обновить» чуть позже.',
       qualityNone:
         'ИИ-качество: за этот период нет проанализированных звонков, поэтому столбцы пустые. Пока ИИ анализирует только отдельные дни.',
       quality:
-        'Столбцы ИИ-качества — только по проанализированным звонкам: {{n}}, это {{share}} отвеченных. Дни с анализом: {{days}}.',
-      qualityNoShare: 'Столбцы ИИ-качества — только по проанализированным звонкам: {{n}}. Дни с анализом: {{days}}.',
+        'ИИ-качество — только по звонкам, которые проанализировал ИИ: {{n}} ({{share}} отвеченных). Дни с анализом: {{days}}.',
+      qualityNoShare: 'ИИ-качество — только по звонкам, которые проанализировал ИИ: {{n}}. Дни с анализом: {{days}}.',
       daysMore: '{{list}} и ещё {{n}} дн.',
       version: 'Промпт: {{v}}',
       presenceNone: 'Время онлайн и пауз ещё не записывалось: история начинается с запуска этой функции.',
