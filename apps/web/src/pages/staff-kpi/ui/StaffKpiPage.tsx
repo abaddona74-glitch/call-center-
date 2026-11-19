@@ -19,6 +19,16 @@ import '../i18n';
 const route = getRouteApi('/_app/kpi');
 /** Pill switches with many options scroll sideways on a phone instead of breaking their labels. */
 const SCROLLING_PILLS = 'max-w-full overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap';
+/**
+ * The selected pill in a deeper shade of the same hue with light text, so its label keeps 4.5:1 in both themes
+ * (the shared Segmented's sky / blue / indigo pills measure 2.7–4.3:1 at 12 px).
+ */
+const ACTIVE_PILL = {
+  indigo:
+    '[&>[aria-checked=true]]:bg-none [&>[aria-checked=true]]:bg-[color-mix(in_oklab,var(--primary)_78%,black)] [&>[aria-checked=true]]:text-primary-foreground',
+  sky: '[&>[aria-checked=true]]:bg-none [&>[aria-checked=true]]:bg-[color-mix(in_oklab,var(--chart-4)_52%,black)] [&>[aria-checked=true]]:text-primary-foreground',
+  blue: '[&>[aria-checked=true]]:bg-none [&>[aria-checked=true]]:bg-[color-mix(in_oklab,var(--chart-6)_72%,black)] [&>[aria-checked=true]]:text-primary-foreground',
+} as const;
 const PRESETS: RangePresetId[] = ['today', 'yesterday', 'week', 'month', 'prevMonth'];
 /** More days than this are summarised as "… and N more days". */
 const MAX_DAYS_LISTED = 5;
@@ -69,7 +79,7 @@ export function StaffKpiPage() {
         <div className="flex flex-wrap items-center gap-2.5">
           <Labeled label={t('viewLabel')} value={state.view}>
             <Segmented
-              className={SCROLLING_PILLS}
+              className={cn(SCROLLING_PILLS, ACTIVE_PILL.indigo)}
               tone="indigo"
               value={state.view}
               onChange={(v) => set({ view: v === 'operators' ? undefined : v })}
@@ -78,7 +88,7 @@ export function StaffKpiPage() {
           </Labeled>
           <Labeled label={t('periodLabel')} value={state.period}>
             <Segmented
-              className={SCROLLING_PILLS}
+              className={cn(SCROLLING_PILLS, ACTIVE_PILL.sky)}
               tone="sky"
               value={state.period}
               onChange={(p) =>
@@ -137,7 +147,7 @@ export function StaffKpiPage() {
             <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">
               <Labeled label={t('operators.scopeLabel')} value={state.scope}>
                 <Segmented
-                  className={SCROLLING_PILLS}
+                  className={cn(SCROLLING_PILLS, ACTIVE_PILL.blue)}
                   size="xs"
                   value={state.scope}
                   onChange={(s) => set({ scope: s === 'working' ? undefined : s })}
@@ -239,7 +249,7 @@ function GroupFilter({
   return (
     <Labeled label={tp('operators.groupLabel')} value={value}>
       <Segmented
-        className={SCROLLING_PILLS}
+        className={cn(SCROLLING_PILLS, ACTIVE_PILL.indigo)}
         size="xs"
         tone="indigo"
         value={value}
@@ -290,7 +300,7 @@ function OperatorNotices({ data }: { data: KpiOperatorsResponse }) {
               : t('operators.qualityNoShare', { n: q.analysed, days: daysText })
         }
         aside={
-          <span className="rounded-md border border-tint/10 bg-tint/5 px-1.5 py-0.5 font-mono text-[11px] text-mute">
+          <span className="rounded-md border border-tint/10 bg-tint/5 px-1.5 py-0.5 font-mono text-[11px] text-ink-2">
             {t('operators.version', { v: q.promptVersion })}
           </span>
         }

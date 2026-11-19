@@ -2,9 +2,17 @@ import type { KpiOperatorRow } from '@cc/shared';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDuration } from '@/entities/call';
-import { ScorePill } from '@/entities/call-analysis';
 import { cn } from '@/shared/lib/cn';
-import { type KpiGroup, hoursMinutes, orLast, percentText, shareTone, surveyTone } from '../model/format';
+import {
+  DANGER_TEXT,
+  type KpiGroup,
+  hoursAndMinutes,
+  orLast,
+  percentText,
+  scoreClass,
+  shareTone,
+  surveyTone,
+} from '../model/format';
 import { type KpiColumn, type KpiGroupHeader, KpiTable, kpiColumns } from './KpiTable';
 import '../i18n';
 
@@ -18,6 +26,19 @@ const FILTER_OF: Record<string, KpiGroup> = {
   quality: 'quality',
   presence: 'presence',
 };
+
+/** An average score (1–`max`), coloured like «Tahlil»; one decimal. */
+function Score({ value, max }: { value: number; max: number }) {
+  const { i18n } = useTranslation();
+  return (
+    <span className={cn('font-mono font-semibold', scoreClass(value, max))}>
+      {value.toLocaleString(i18n.language === 'ru' ? 'ru-RU' : 'uz-UZ', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}
+    </span>
+  );
+}
 
 const Muted = ({ children }: { children?: React.ReactNode }) => <span className="text-mute">{children ?? '—'}</span>;
 
@@ -53,6 +74,7 @@ export function OperatorsKpiTable({
 
   const columns = useMemo(() => {
     const reasonName = (r: string | null) => r ?? t('op.noReason');
+    const hm = (sec: number) => t('op.hm', hoursAndMinutes(sec));
     const num = (
       id: string,
       groupId: string,
@@ -81,10 +103,10 @@ export function OperatorsKpiTable({
         id: 'operator',
         header: () => t('op.operator'),
         sortFn: 'alphanumeric',
-        meta: { sticky: true },
+        meta: { sticky: true, title: t('op.operator') },
         cell: ({ row }) => (
           <div className="flex max-w-[150px] items-center gap-2 sm:max-w-[220px]">
-            <span className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 px-1 text-[11px] font-bold text-primary">
+            <span className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15 px-1 text-[11px] font-bold text-ink">
               {row.original.ext}
             </span>
             <span className="truncate font-semibold text-ink" title={row.original.name ?? undefined}>
@@ -136,13 +158,15 @@ export function OperatorsKpiTable({
         'talk',
         'calls',
         (r) => r.calls?.talkSec,
-        (v) => <span className={cn('font-mono', !v && 'text-mute')}>{formatDuration(v)}</span>,
+        (v) => <span className={cn('font-mono', !v && 'text-mute')}>{v ? formatDuration(v) : '0:00'}</span>,
       ),
       num(
         'avgTalk',
         'calls',
         (r) => r.calls?.avgTalkSec,
-        (v) => <span className={cn('font-mono', v ? 'text-ink-2' : 'text-mute')}>{formatDuration(v)}</span>,
+        (v) => (
+          <span className={cn('font-mono', v ? 'text-ink-2' : 'text-mute')}>{v ? formatDuration(v) : '0:00'}</span>
+        ),
       ),
       // --- client rating
       num(
@@ -170,7 +194,7 @@ export function OperatorsKpiTable({
         'closedLate',
         'tickets',
         (r) => r.tickets.closedLate,
-        count(() => 'font-semibold text-danger'),
+        count(() => `font-semibold ${DANGER_TEXT}`),
       ),
       // --- AI quality (current prompt version)
       num('analysed', 'quality', (r) => r.quality?.analysed, count(), { groupStart: true }),
@@ -178,21 +202,21 @@ export function OperatorsKpiTable({
         'overall',
         'quality',
         (r) => r.quality?.avgOverall,
-        (v) => <ScorePill value={v} max={10} average />,
+        (v) => <Score value={v} max={10} />,
       ),
       ...(['politeness', 'understanding', 'solution', 'closing'] as const).map((k) =>
         num(
           k,
           'quality',
           (r) => r.quality?.avgScores[k],
-          (v) => <ScorePill value={v} max={5} average />,
+          (v) => <Score value={v} max={5} />,
         ),
       ),
       num(
         'redFlags',
         'quality',
         (r) => r.quality?.redFlagCalls,
-        count(() => 'font-semibold text-danger'),
+        count(() => `font-semibold ${DANGER_TEXT}`),
       ),
       num(
         'handled',
@@ -205,7 +229,7 @@ export function OperatorsKpiTable({
         'online',
         'presence',
         (r) => r.presence.onlineSec,
-        (v) => <span className={cn('font-mono', v ? 'font-semibold text-ink' : 'text-mute')}>{hoursMinutes(v)}</span>,
+        (v) => <span className={cn(v ? 'font-semibold text-ink' : 'text-mute')}>{hm(v)}</span>,
         { groupStart: true },
       ),
       num(
@@ -214,10 +238,10 @@ export function OperatorsKpiTable({
         (r) => r.presence.pauseSec,
         (v, r) => {
           const top = r.presence.pauses[0];
-          const list = r.presence.pauses.map((p) => `${reasonName(p.reason)} ${hoursMinutes(p.sec)}`).join(', ');
+          const list = r.presence.pauses.map((p) => `${reasonName(p.reason)} ${hm(p.sec)}`).join(', ');
           return (
             <div className="flex flex-col items-center leading-tight" title={list || undefined}>
-              <span className={cn('font-mono', v ? 'text-ink-2' : 'text-mute')}>{hoursMinutes(v)}</span>
+              <span className={cn(v ? 'text-ink-2' : 'text-mute')}>{hm(v)}</span>
               {group !== 'presence' && top && (
                 <span className="max-w-[140px] truncate text-[11px] text-mute">
                   {reasonName(top.reason)}
@@ -248,7 +272,7 @@ export function OperatorsKpiTable({
                         key={p.reason ?? ''}
                         className="rounded-md border border-tint/10 bg-tint/5 px-1.5 py-0.5 text-[11px] text-ink-2"
                       >
-                        {reasonName(p.reason)} <span className="font-mono text-mute">{hoursMinutes(p.sec)}</span>
+                        {reasonName(p.reason)} <span className="text-mute">{hm(p.sec)}</span>
                       </li>
                     ))}
                   </ul>

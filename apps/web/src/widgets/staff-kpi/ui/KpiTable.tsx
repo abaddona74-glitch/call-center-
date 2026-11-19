@@ -53,7 +53,7 @@ export interface KpiGroupHeader {
 }
 
 const TH =
-  'border-b border-tint/8 bg-secondary px-2.5 py-2 text-[10.5px] leading-tight font-bold tracking-[0.4px] text-muted-foreground uppercase';
+  'border-b border-tint/8 bg-secondary px-2.5 py-2 text-[10.5px] leading-tight font-bold tracking-[0.4px] text-muted-foreground uppercase light:text-ink-2';
 const TD = 'border-b border-tint/5 px-2.5 py-2 whitespace-nowrap tabular-nums text-foreground';
 const STICKY = 'sticky left-0 z-[2] bg-muted shadow-[1px_0_0_var(--border)]';
 const SEPARATOR = 'border-l border-l-tint/10';
@@ -153,7 +153,15 @@ export function KpiTable<T extends RowData>({
             {leafHeaders.map((h) => {
               const meta = h.column.columnDef.meta;
               const sorted = h.column.getIsSorted();
-              const next = h.column.getNextSortingOrder();
+              // Figures sort descending first (`sortDescFirst`), then the order flips on each press.
+              const next =
+                sorted === 'desc'
+                  ? 'asc'
+                  : sorted === 'asc'
+                    ? 'desc'
+                    : h.column.columnDef.sortDescFirst
+                      ? 'desc'
+                      : 'asc';
               return (
                 <th
                   key={h.id}
@@ -182,7 +190,7 @@ export function KpiTable<T extends RowData>({
                       </span>
                       <Icon
                         name={sorted === 'asc' ? 'arrow-up' : 'arrow-down'}
-                        className={cn('size-3 shrink-0', sorted ? 'text-primary' : 'opacity-0')}
+                        className={cn('size-3 shrink-0', sorted ? 'text-primary' : 'opacity-35')}
                       />
                     </button>
                   ) : (

@@ -4,10 +4,10 @@
 export const KPI_GROUPS = ['calls', 'tickets', 'quality', 'presence'] as const;
 export type KpiGroup = (typeof KPI_GROUPS)[number];
 
-/** "12:05" hours:minutes for online / pause time; "0:00" for nothing. */
-export function hoursMinutes(sec: number): string {
+/** Online / pause time split for display: whole hours and minutes ("50 s 51 daq" / "50 ч 51 мин"). */
+export function hoursAndMinutes(sec: number): { h: number; m: number } {
   const s = Math.max(0, Math.round(sec));
-  return `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`;
+  return { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60) };
 }
 
 /** "92%" / "92.5%", one decimal at most; null → null. */
@@ -39,3 +39,18 @@ export function surveyTone(avg: number): string {
 
 /** Sort value: null (no data) → undefined, which the table always sorts last. */
 export const orLast = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v);
+
+/**
+ * Text colour of an average score (1–`max`, same thresholds as «Tahlil»'s scoreTone) that keeps 4.5:1 on the table
+ * in both themes (the light theme needs the deeper variants).
+ */
+export function scoreClass(value: number, max: number): string {
+  const r = value / max;
+  if (r >= 0.8) return 'text-positive';
+  if (r >= 0.6) return 'text-info light:text-link';
+  if (r >= 0.4) return 'text-caution';
+  return 'text-danger light:text-danger-soft';
+}
+
+/** Red figures (late, overdue, red flags): the light theme's red needs the deeper shade at 13 px. */
+export const DANGER_TEXT = 'text-danger light:text-danger-soft';

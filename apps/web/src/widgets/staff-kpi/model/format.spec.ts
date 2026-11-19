@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { hoursMinutes, hoursText, orLast, percentText, shareTone, surveyTone } from './format';
+import { hoursAndMinutes, hoursText, scoreClass, orLast, percentText, shareTone, surveyTone } from './format';
 
 describe('KPI formatting', () => {
-  it('hours:minutes', () => {
-    expect(hoursMinutes(0)).toBe('0:00');
-    expect(hoursMinutes(13 * 3600 + 5 * 60 + 40)).toBe('13:05');
-    expect(hoursMinutes(59)).toBe('0:00');
+  it('hours and minutes', () => {
+    expect(hoursAndMinutes(0)).toEqual({ h: 0, m: 0 });
+    expect(hoursAndMinutes(13 * 3600 + 5 * 60 + 40)).toEqual({ h: 13, m: 5 });
+    expect(hoursAndMinutes(59)).toEqual({ h: 0, m: 0 });
   });
 
   it('percent and hours: one decimal at most, null stays null', () => {
@@ -23,6 +23,13 @@ describe('KPI formatting', () => {
     expect(shareTone(null)).toBe('text-mute');
     expect(surveyTone(4.6)).toBe('text-positive');
     expect(surveyTone(2)).toBe('text-danger');
+  });
+
+  it('score colours follow the «Tahlil» thresholds', () => {
+    expect(scoreClass(9, 10)).toBe('text-positive');
+    expect(scoreClass(3.4, 5)).toContain('text-info');
+    expect(scoreClass(2, 5)).toBe('text-caution');
+    expect(scoreClass(1.5, 5)).toContain('text-danger');
   });
 
   it('missing values sort last', () => {

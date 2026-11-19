@@ -2,7 +2,7 @@ import type { KpiExecutiveFigures, KpiExecutiveRow } from '@cc/shared';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/shared/lib/cn';
-import { hoursText, orLast, percentText, shareTone } from '../model/format';
+import { DANGER_TEXT, hoursText, orLast, percentText, shareTone } from '../model/format';
 import { ExpandButton, type KpiColumn, type KpiGroupHeader, KpiTable, kpiColumns, rowDomId } from './KpiTable';
 import '../i18n';
 
@@ -90,7 +90,7 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
         id: 'name',
         header: () => t('ex.name'),
         sortFn: 'alphanumeric',
-        meta: { sticky: true },
+        meta: { sticky: true, title: t('ex.name') },
         cell: ({ row }) => {
           const r = row.original;
           if (r.kind === 'region')
@@ -136,7 +136,7 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
       num('rejected', 'period', (f) => f.rejected, count('text-caution')),
       num('released', 'period', (f) => f.released, count('text-ink-2')),
       num('forwarded', 'period', (f) => f.forwarded, count('text-ink-2')),
-      num('late', 'period', (f) => f.late, count('font-semibold text-danger')),
+      num('late', 'period', (f) => f.late, count(`font-semibold ${DANGER_TEXT}`)),
       num(
         'onTime',
         'period',
@@ -153,7 +153,10 @@ export function ExecutivesKpiTable({ rows, loading }: { rows: KpiExecutiveRow[] 
           <span className={cn(v ? 'font-bold text-ink' : 'text-mute')}>
             {v}
             {f.overdueNow > 0 && (
-              <span className="ml-1 text-xs font-semibold text-danger" title={t('ex.overdueNow', { n: f.overdueNow })}>
+              <span
+                className={cn('ml-1 text-xs font-semibold', DANGER_TEXT)}
+                title={t('ex.overdueNow', { n: f.overdueNow })}
+              >
                 ({f.overdueNow})
               </span>
             )}
