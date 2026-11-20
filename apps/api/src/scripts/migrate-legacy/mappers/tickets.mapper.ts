@@ -456,9 +456,7 @@ export function createTicketsMapper(
 
       if (!ctx.dryRun && report.inserted > 0) {
         // New tickets continue after the highest legacy number (never reusing one).
-        await sql`select setval(pg_get_serial_sequence('tickets', 'id'), (select greatest(coalesce(max(id), 0), 1000) from tickets))`.execute(
-          db,
-        );
+        await sql`select setval(pg_get_serial_sequence('tickets', 'id'), max(id)) from tickets`.execute(db);
       }
       report.notes.push(`${fileCount} attachment file(s) ${ctx.dryRun ? 'would be' : 'were'} copied`);
       report.notes.push('completed/rejected legacy tickets are imported as closed (kept for history and reports)');
