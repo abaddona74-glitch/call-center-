@@ -1,13 +1,16 @@
 /* Legacy tickets.css keyframes */
-@keyframes tkUrgentPulse { 0%, 100% { box-shadow: 0 0 4px rgba(239, 68, 68, 0.4); } 50% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.9); } }
+/* --tk-glow scales the pulse/glow alpha: 1 in dark (legacy values), lower on the white light theme. */
+:root { --tk-glow: 0.5; }
+.dark { --tk-glow: 1; }
+@keyframes tkUrgentPulse { 0%, 100% { box-shadow: 0 0 4px rgba(239, 68, 68, calc(0.4 * var(--tk-glow))); } 50% { box-shadow: 0 0 14px rgba(239, 68, 68, calc(0.9 * var(--tk-glow))); } }
 @keyframes tkUrgentGlow {
   0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7), inset 0 0 0 1px rgba(245, 158, 11, 0.9); border-color: #f59e0b; }
-  50% { box-shadow: 0 0 22px 4px rgba(245, 158, 11, 0.45), inset 0 0 12px rgba(245, 158, 11, 0.25); border-color: var(--caution); }
+  50% { box-shadow: 0 0 22px 4px rgba(245, 158, 11, calc(0.45 * var(--tk-glow))), inset 0 0 12px rgba(245, 158, 11, 0.25); border-color: var(--caution); }
   100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0), inset 0 0 0 1px rgba(245, 158, 11, 0.4); border-color: #f59e0b; }
 }
 @keyframes tkNewGlow {
-  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7), inset 0 0 0 1px rgba(56, 189, 248, 0.8); border-color: var(--info); }
-  50% { box-shadow: 0 0 18px 3px rgba(56, 189, 248, 0.4), inset 0 0 10px rgba(56, 189, 248, 0.2); border-color: var(--link); }
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, calc(0.7 * var(--tk-glow))), inset 0 0 0 1px rgba(56, 189, 248, 0.8); border-color: var(--info); }
+  50% { box-shadow: 0 0 18px 3px rgba(56, 189, 248, calc(0.4 * var(--tk-glow))), inset 0 0 10px rgba(56, 189, 248, 0.2); border-color: var(--link); }
   100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0), inset 0 0 0 1px rgba(56, 189, 248, 0.4); border-color: var(--info); }
 }
 @keyframes tkSpin { to { transform: rotate(360deg); } }

@@ -102,20 +102,27 @@
   pointer-events: none;
   z-index: 2;
 }
+/* glow strength of the tier pulse (outer low/high, inset low/high); the light theme turns it down */
+.obm {
+  --glow-1: 40%;
+  --glow-2: 60%;
+  --glow-in-1: 10%;
+  --glow-in-2: 18%;
+}
 @keyframes obmTierPulse {
   0%,
   100% {
     box-shadow:
-      0 0 26px color-mix(in srgb, var(--t) 40%, transparent),
+      0 0 26px color-mix(in srgb, var(--t) var(--glow-1), transparent),
       0 10px 32px var(--obm-black),
-      inset 0 0 16px color-mix(in srgb, var(--t) 10%, transparent);
+      inset 0 0 16px color-mix(in srgb, var(--t) var(--glow-in-1), transparent);
     border-color: var(--t);
   }
   50% {
     box-shadow:
-      0 0 38px color-mix(in srgb, var(--t) 60%, transparent),
+      0 0 38px color-mix(in srgb, var(--t) var(--glow-2), transparent),
       0 12px 36px var(--obm-black),
-      inset 0 0 22px color-mix(in srgb, var(--t) 18%, transparent);
+      inset 0 0 22px color-mix(in srgb, var(--t) var(--glow-in-2), transparent);
     border-color: var(--t2);
   }
 }
@@ -1133,6 +1140,142 @@
 }
 .obm-rating-tip .desc {
   font-size: 10px;
+}
+
+/*
+ * Light theme. The legacy tier palette is neon made for a navy card (#00f2fe, #facc15 with 40–95% glows);
+ * on white it glares and the gold reads lemon-green. Here the tiers take deeper hues, the glows drop to a
+ * soft halo and text glows go away. The dark theme above keeps the legacy values.
+ */
+:root:not(.dark) .obm {
+  --glow-1: 14%;
+  --glow-2: 22%;
+  --glow-in-1: 4%;
+  --glow-in-2: 7%;
+  --tg: 9%;
+}
+:root:not(.dark) .obm.tier-diamond {
+  --t: #06b6d4;
+  --t2: #38bdf8;
+}
+:root:not(.dark) .obm.tier-gold {
+  --t: #f59e0b;
+  --t2: #fbbf24;
+}
+:root:not(.dark) .obm.tier-silver {
+  --t: #94a3b8;
+  --t2: #cbd5e1;
+  --tg: 7%;
+}
+:root:not(.dark) .obm[class*='tier-']::before {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--t) 45%, transparent);
+}
+:root:not(.dark) .obm-avatar[class*='ring-']:not(.ring-regular) {
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--t) 35%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--t) 18%, transparent);
+}
+:root:not(.dark) .obm-crown.crown-diamond {
+  filter: drop-shadow(0 3px 6px rgba(6, 182, 212, 0.35)) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+}
+:root:not(.dark) .obm-crown.crown-gold {
+  filter: drop-shadow(0 3px 6px rgba(245, 158, 11, 0.35)) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+}
+:root:not(.dark) .obm-crown.crown-silver {
+  filter: drop-shadow(0 3px 6px rgba(100, 116, 139, 0.35)) drop-shadow(0 1px 2px rgba(15, 23, 42, 0.25));
+}
+:root:not(.dark) .obm-pill.pill-diamond {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.1);
+  box-shadow: none;
+}
+:root:not(.dark) .obm-pill.pill-diamond .bottom {
+  color: #0e7490;
+  text-shadow: none;
+}
+:root:not(.dark) .obm-pill.pill-gold {
+  border-color: #f59e0b;
+  background: linear-gradient(180deg, #fde68a 0%, #fbbf24 55%, #f59e0b 100%);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+:root:not(.dark) .obm-pill.pill-silver {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+:root:not(.dark) .obm-tier-icon.icon-diamond,
+:root:not(.dark) .obm-tier-icon.icon-gold,
+:root:not(.dark) .obm-tier-icon.icon-silver {
+  filter: none;
+}
+:root:not(.dark) .obm[class*='tier-'] .val-calls,
+:root:not(.dark) .obm[class*='tier-'] .val-score {
+  text-shadow: none;
+}
+:root:not(.dark) .obm.tier-diamond .val-calls,
+:root:not(.dark) .obm.tier-diamond .val-score {
+  color: #0e7490;
+}
+:root:not(.dark) .obm.tier-gold .val-calls,
+:root:not(.dark) .obm.tier-gold .val-score {
+  color: #b45309;
+}
+:root:not(.dark) .obm.tier-silver .val-calls,
+:root:not(.dark) .obm.tier-silver .val-score {
+  color: var(--ink-2);
+}
+:root:not(.dark) .obm-fill.fill-diamond {
+  background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+  box-shadow: none;
+}
+:root:not(.dark) .obm-fill.fill-gold {
+  background: linear-gradient(90deg, #fbbf24, #f59e0b);
+  box-shadow: none;
+}
+:root:not(.dark) .obm-fill.fill-silver {
+  background: linear-gradient(90deg, #94a3b8, #64748b);
+  box-shadow: none;
+}
+:root:not(.dark) .obm-fill.fill-emerald {
+  box-shadow: none;
+}
+:root:not(.dark) .obm[class*='tier-'] .obm-eq i,
+:root:not(.dark) .obm.tier-gold .obm-eq i {
+  box-shadow: none;
+}
+:root:not(.dark) .obm.tier-gold .obm-eq i {
+  background: #f59e0b;
+}
+:root:not(.dark) .obm-strip.ringing {
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+}
+:root:not(.dark) .obm-strip.outbound-ringing,
+:root:not(.dark) .obm-strip.talking {
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.35);
+}
+:root:not(.dark) .obm.call-ringing::after {
+  box-shadow:
+    0 0 14px 1px rgba(245, 158, 11, 0.22),
+    inset 0 0 12px rgba(245, 158, 11, 0.08);
+}
+:root:not(.dark) .obm.call-outbound-ringing::after {
+  box-shadow:
+    0 0 14px 1px rgba(14, 165, 233, 0.25),
+    inset 0 0 12px rgba(14, 165, 233, 0.1);
+}
+:root:not(.dark) .obm.call-talking::after {
+  box-shadow:
+    0 0 12px 1px rgba(14, 165, 233, 0.16),
+    inset 0 0 10px rgba(14, 165, 233, 0.06);
+}
+:root:not(.dark) .obm-next {
+  filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4));
+}
+:root:not(.dark) .obm-stars.n5 .diamond {
+  filter: drop-shadow(0 0 2px rgba(14, 165, 233, 0.6));
+}
+:root:not(.dark) .obm-dot.online,
+:root:not(.dark) .obm-pulse {
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

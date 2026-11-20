@@ -141,11 +141,11 @@
 @keyframes tl-card-moved {
   0% {
     transform: scale(0.96);
-    box-shadow: 0 0 25px rgba(56, 189, 248, 0.7);
+    box-shadow: 0 0 25px rgba(56, 189, 248, var(--tl-moved-a1, 0.7));
   }
   50% {
     transform: scale(1.02);
-    box-shadow: 0 0 35px rgba(56, 189, 248, 0.9);
+    box-shadow: 0 0 35px rgba(56, 189, 248, var(--tl-moved-a2, 0.9));
   }
   100% {
     transform: scale(1);
@@ -353,4 +353,13 @@
     padding: 16px;
     gap: 12px;
   }
+}
+
+/* Light theme: the gradient tiles keep white glyphs (--ink is navy here), and the "moved" flash is calmer. */
+:root:not(.dark) .tl-icon {
+  color: #fff;
+}
+:root:not(.dark) .tl-card {
+  --tl-moved-a1: 0.3;
+  --tl-moved-a2: 0.4;
 }

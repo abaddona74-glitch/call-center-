@@ -27,7 +27,14 @@ function surveyTone(avg: number): string {
 export function OperatorsSection({ data }: { data: OperatorStatsResponse | undefined }) {
   const { t } = useTranslation('callStats');
   const [group, setGroup] = useState<string>('all');
-  const rows = (data?.operators ?? []).filter((r) => group === 'all' || r.group === group);
+  // Busiest operators first: by accepted calls (answered + transferred in), then by extension.
+  const rows = (data?.operators ?? [])
+    .filter((r) => group === 'all' || r.group === group)
+    .sort(
+      (a, b) =>
+        b.answered + b.transferredIn - (a.answered + a.transferredIn) ||
+        a.ext.localeCompare(b.ext, undefined, { numeric: true }),
+    );
   const groups = data?.groups ?? [];
   const columns = [
     ...(['operator', 'answered', 'transfer', 'outbound', 'missed', 'total', 'talk', 'avg'] as const),

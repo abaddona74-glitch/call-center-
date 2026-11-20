@@ -894,3 +894,13 @@
 :root:not(.dark) .lg-warning {
   color: var(--caution);
 }
+/* Idle submit: a mid slate instead of the dark slab; loading/success glows calmer on the light card. */
+:root:not(.dark) .lg-submit:not(.is-ready) {
+  background: linear-gradient(135deg, #64748b, #94a3b8);
+}
+:root:not(.dark) .lg-submit.is-loading {
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.35) !important;
+}
+:root:not(.dark) .lg-submit.is-success {
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.35) !important;
+}

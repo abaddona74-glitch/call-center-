@@ -23,6 +23,7 @@
 .studio .info strong { display: block; font-size: 18px; font-weight: 600; color: var(--tx); font-variant-numeric: tabular-nums; line-height: 1.3; overflow-wrap: anywhere; }
 .studio .info small { display: block; color: var(--mu); font-size: 12px; margin-top: 2px; }
 .studio .info small.err { color: #f87171; }
+:root:not(.dark) .studio .info small.err { color: var(--danger); }
 .studio .btn { border: 1px solid var(--line); background: var(--p2); color: var(--tx); font: inherit; font-weight: 500; padding: 7px 14px;
   border-radius: 9px; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; font-size: 14px; }
 .studio .btn:hover { border-color: var(--op); color: var(--op); background: rgba(62, 166, 255, 0.1); }
@@ -54,6 +55,11 @@
 .studio .spd button { border: 0; background: none; color: var(--mu); font: inherit; font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 7px; cursor: pointer; transition: all 0.15s ease; }
 .studio .spd button:hover { color: var(--tx); }
 .studio .spd button[aria-pressed='true'] { background: var(--op); color: #fff; }
+/* Inside the call details dialog: the dialog gives the spacing and the close button. */
+.studio.embedded { margin: 0; padding: 16px 20px 14px; box-shadow: none; }
+.studio.embedded .wave { margin-top: 14px; }
+.studio.embedded .ctl { margin-top: 12px; }
+.studio .keys { margin: 10px 0 0; text-align: center; font-size: 11px; color: var(--mu); }
 @media (max-width: 700px) {
   .studio { padding: 16px; }
   .studio .ctl { grid-template-columns: 1fr; justify-items: center; }

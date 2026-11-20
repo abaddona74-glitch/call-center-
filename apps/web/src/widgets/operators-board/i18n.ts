@@ -10,6 +10,7 @@ registerTranslations('operatorsBoard', {
     offlineFull: "To'liq statistika",
     offlineCompact: 'Ixcham qatorlar',
     sum: { talking: 'suhbatda', waiting: 'kutmoqda', offline: 'oflayn' },
+    detail: { all: 'Hammasi', open: "Bugungi qo'ng'iroqlarini ko'rish" },
     card: {
       talkingWith: 'Suhbatdagi raqam',
       incoming: 'Kiruvchi chaqiruv...',
@@ -89,6 +90,7 @@ registerTranslations('operatorsBoard', {
     offlineFull: 'Полная статистика',
     offlineCompact: 'Компактные строки',
     sum: { talking: 'в разговоре', waiting: 'ожидают', offline: 'офлайн' },
+    detail: { all: 'Все', open: 'Показать звонки за сегодня' },
     card: {
       talkingWith: 'Номер собеседника',
       incoming: 'Входящий вызов...',

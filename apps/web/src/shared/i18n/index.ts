@@ -1,5 +1,7 @@
 import i18n from 'i18next';
+import { flushSync } from 'react-dom';
 import { initReactI18next } from 'react-i18next';
+import { withPageTransition } from '@/shared/lib/page-transition';
 import ru from './locales/ru.json';
 import uz from './locales/uz.json';
 
@@ -25,8 +27,16 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false }, // React escapes already
 });
 
+/** Switches the interface language with a short whole-page crossfade (see withPageTransition). */
 export function setLanguage(lang: Language): void {
-  void i18n.changeLanguage(lang);
+  if (i18n.language === lang) return;
+  // The resources are bundled, so changeLanguage re-renders synchronously inside flushSync and the
+  // transition captures the translated page.
+  withPageTransition(() =>
+    flushSync(() => {
+      void i18n.changeLanguage(lang);
+    }),
+  );
   try {
     localStorage.setItem(STORAGE_KEY, lang);
   } catch {

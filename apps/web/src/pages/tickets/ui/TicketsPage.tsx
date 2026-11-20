@@ -1,6 +1,16 @@
 import { TICKET_STATUSES, type TicketContext, type TicketStatus, type TicketView } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import {
+  AlarmClock,
+  Inbox,
+  LayoutGrid,
+  MapPinOff,
+  PenLine,
+  PhoneCall,
+  UserRoundCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,7 +28,6 @@ import { CreateTicketModal } from '@/features/tickets/create-ticket';
 import { SoundToggle, stopTitleFlash, useTicketLive } from '@/features/tickets/notifications';
 import { TicketBox } from '@/widgets/ticket-box';
 import { cn } from '@/shared/lib/cn';
-import { accentText } from '@/shared/lib/theme';
 import { Icon } from '@/shared/ui/icon';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
@@ -42,8 +51,16 @@ const VIEW_COLOR: Record<TicketView, string> = {
   all: 'var(--foreground)',
   mine: 'var(--info)',
   queue: 'var(--info)',
-  callback: accentText('#5eead4'),
+  callback: 'color-mix(in oklab, #5eead4, var(--ink) var(--shade-strong))', // pale teal: the strong mix on white
   triage: 'var(--caution)',
+};
+
+const VIEW_ICON: Record<TicketView, LucideIcon> = {
+  all: LayoutGrid,
+  mine: UserRoundCheck,
+  queue: Inbox,
+  callback: PhoneCall,
+  triage: MapPinOff,
 };
 
 /**
@@ -156,7 +173,9 @@ export function TicketsPage({
                 setPasted([]);
                 setCreateOpen(true);
               }}
-              className="inline-flex min-w-56 items-center justify-center gap-2 rounded-[10px] border border-[rgba(16,185,129,0.4)] bg-[linear-gradient(135deg,#10b981_0%,#059669_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#059669_0%,#047857_100%)] hover:shadow-[0_6px_18px_rgba(16,185,129,0.5)] active:scale-[0.96]"
+              // The app's primary action color (indigo, like the other primary buttons): white text reads
+              // at ~4.5–6:1 on it, where the legacy emerald (#10b981) gave ~2.5:1 and washed the label out.
+              className="inline-flex min-w-56 cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-[rgba(129,140,248,0.45)] bg-[linear-gradient(135deg,#6366f1_0%,#4f46e5_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(79,70,229,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#4f46e5_0%,#4338ca_100%)] hover:shadow-[0_6px_18px_rgba(79,70,229,0.5)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.96]"
             >
               <LegacyIcon name="add" strokeWidth={2} />
               {t('create')}
@@ -177,6 +196,8 @@ export function TicketsPage({
               {views.map((v) => {
                 const active = view === v;
                 const n = counts ? counts[v] : 0;
+                // An operator's "mine" is the tickets they wrote; everyone else's is the work they took.
+                const ViewIcon = v === 'mine' && c?.kind === 'operator' ? PenLine : VIEW_ICON[v];
                 return (
                   <button
                     key={v}
@@ -189,7 +210,13 @@ export function TicketsPage({
                       active && 'border-info bg-[linear-gradient(135deg,#0284c7_0%,#0369a1_100%)] text-white',
                     )}
                   >
-                    <span style={!active ? { color: VIEW_COLOR[v] } : undefined}>{viewLabel(v)}</span>
+                    <span
+                      className="inline-flex items-center gap-[7px]"
+                      style={!active ? { color: VIEW_COLOR[v] } : undefined}
+                    >
+                      <ViewIcon className="size-[15px] shrink-0" strokeWidth={2.2} aria-hidden />
+                      {viewLabel(v)}
+                    </span>
                     <span
                       className={cn(
                         'rounded-[10px] px-[7px] py-px text-[11px] font-extrabold',
@@ -225,7 +252,7 @@ export function TicketsPage({
                     : 'border-tint/8 bg-glass-2/60 text-danger hover:bg-tint/10',
                 )}
               >
-                <Icon name="timer" className="size-4" />
+                <AlarmClock className="size-[15px] shrink-0" strokeWidth={2.2} aria-hidden />
                 {t('filter.overdue')}
                 <span className="rounded-[10px] bg-tint/12 px-[7px] py-px text-[11px] font-extrabold">
                   {counts?.overdue ?? 0}

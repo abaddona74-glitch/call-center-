@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { withPageTransition } from './page-transition';
 
 /**
  * Color theme of the app: a class on <html> (`dark` | `light`) that switches the design tokens in
@@ -18,7 +19,7 @@ function readTheme(): Theme {
 
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;
-  // Switch instantly: without this every `transition: all` in the legacy CSS would fade colors one by one.
+  // Recolor in one step: without this every `transition: all` in the legacy CSS would fade colors one by one.
   root.classList.add('theme-switching');
   root.classList.toggle('dark', theme === 'dark');
   root.classList.toggle('light', theme === 'light');
@@ -26,8 +27,10 @@ function applyTheme(theme: Theme): void {
   for (const listener of listeners) listener();
 }
 
+/** Switches the theme with a short whole-page crossfade (see withPageTransition). */
 export function setTheme(theme: Theme): void {
-  applyTheme(theme);
+  if (theme === readTheme()) return;
+  withPageTransition(() => applyTheme(theme));
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
