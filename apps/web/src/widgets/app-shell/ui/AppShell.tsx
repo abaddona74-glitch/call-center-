@@ -31,7 +31,10 @@ export function AppShell() {
         <header className="flex h-14 items-center justify-end gap-2 border-b px-3 sm:gap-3 md:px-6">
           {/* Phones: no sidebar, the title goes to the header and the menu below it. */}
           <div className="mr-auto truncate font-semibold md:hidden">{t('app.title')}</div>
-          <OnlineUsers />
+          {/* Phones: no room next to the title (the superuser's pill squeezed it to one letter). */}
+          <div className="hidden sm:contents">
+            <OnlineUsers />
+          </div>
           <TicketAlerts meId={user.id} />
           <Badge
             variant="outline"
