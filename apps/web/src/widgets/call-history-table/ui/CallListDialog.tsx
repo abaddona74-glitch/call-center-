@@ -167,6 +167,7 @@ function CallListBody({ view }: { view: CallListView }) {
         calls={data?.items ?? EMPTY}
         firstRowNumber={(page - 1) * PAGE_SIZE + 1}
         showDate={Boolean(view.showDate)}
+        showRating={view.showRating}
         columnVisibility={columns}
         onColumnVisibilityChange={noop}
         onOpenDetails={setSelected}

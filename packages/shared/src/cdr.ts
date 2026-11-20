@@ -102,6 +102,8 @@ export const CallListItemSchema = z.object({
   hasRecording: z.boolean(),
   /** Recording file name; null for operators (legacy never exposed recordings to them). */
   recordingFile: z.string().nullable(),
+  /** The client's post-call survey score (1–5); only in lists of rated calls (KPI «rated»). */
+  clientRating: z.number().int().min(1).max(5).optional(),
 });
 export type CallListItem = z.infer<typeof CallListItemSchema>;
 

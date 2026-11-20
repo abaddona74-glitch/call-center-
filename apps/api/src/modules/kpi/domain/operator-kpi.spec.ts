@@ -6,7 +6,7 @@ import {
   buildOperatorKpi,
   matchesOperatorCall,
   operatorTicketIds,
-  ratedCallIds,
+  ratedCallScores,
   type OperatorKpiInput,
   type OperatorTicketFact,
   qualityByOperator,
@@ -277,7 +277,11 @@ describe('the calls behind each call number', () => {
     for (const scope of ['working', 'all'] as const) {
       const totals = surveyByOperator(ratings, day, scope);
       for (const ext of ['101', '103']) {
-        expect(ratedCallIds(ratings, day, scope, ext).size, `${ext} ${scope}`).toBe(totals.get(ext)?.count ?? 0);
+        const scores = ratedCallScores(ratings, day, scope, ext);
+        expect(scores.size, `${ext} ${scope}`).toBe(totals.get(ext)?.count ?? 0);
+        // Each call carries the score the client pressed, and they add up to the operator's total.
+        expect([...scores.values()].reduce((a, b) => a + b, 0), `${ext} ${scope}`).toBe(totals.get(ext)?.sum ?? 0);
+        for (const [id, score] of scores) expect(score).toBe(ratings.find((r) => r.linkedid === id)?.score);
       }
     }
   });
