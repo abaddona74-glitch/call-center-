@@ -11,6 +11,7 @@ import {
   type OverviewTicketFact,
   isCallbackOverdueNow,
   isOverdueNow,
+  isWithRegion,
   ticketTakers,
 } from './ticket-overview.js';
 
@@ -58,6 +59,8 @@ export function matchesTicketMetric(
       return resolvedLate;
     case 'callbackOverdue':
       return isCallbackOverdue(t, now);
+    case 'inWork':
+      return isWithRegion(t);
     case 'resolved':
       return t.resolvedAt !== null;
     case 'closeTimed':
@@ -89,6 +92,31 @@ export function matchesTicketMetric(
   }
 }
 
+/** Lists of overdue tickets: the longest past the due date first. */
+const BY_OVERDUE: ReadonlySet<OverviewTicketMetric> = new Set([
+  'overdue',
+  'overdueOpen',
+  'overdueLate',
+  'nowOverdue',
+  'exOverdue',
+  'exOverdueNow',
+]);
+
+/**
+ * Order of a list: overdue lists by how long past the due date (most first: resolved late — at resolution, still with
+ * the region — until now), every other list newest first.
+ */
+export function ticketListOrder(
+  metric: OverviewTicketMetric,
+  now: Date,
+): (a: OverviewTicketFact, b: OverviewTicketFact) => number {
+  const newest = (a: OverviewTicketFact, b: OverviewTicketFact) =>
+    b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id;
+  if (!BY_OVERDUE.has(metric)) return newest;
+  const late = (t: OverviewTicketFact) => (t.dueAt ? (t.resolvedAt ?? now).getTime() - t.dueAt.getTime() : 0);
+  return (a, b) => late(b) - late(a) || newest(a, b);
+}
+
 /** Hours past the due date: resolved late (at resolution) or still with the region (now); null when in time. */
 export function overdueHoursOf(t: OverviewTicketFact, now: Date): number | null {
   if (!t.dueAt) return null;
@@ -113,6 +141,7 @@ export function toTicketListItem(
     status: t.status,
     dueAt: t.dueAt?.toISOString() ?? null,
     overdueHours: overdueHoursOf(t, now),
+    resolvedAt: t.resolvedAt?.toISOString() ?? null,
     closedAt: t.closedAt?.toISOString() ?? null,
     organization: t.organizationName,
   };

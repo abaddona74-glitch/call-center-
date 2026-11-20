@@ -305,6 +305,7 @@ describe('tickets', () => {
         rejected: 1,
         closed: 1,
         open: 3,
+        inWork: 2, // received = inWork + done + rejected
         overdue: 3,
         overdueOpen: 2,
         overdueLate: 1,
@@ -464,6 +465,7 @@ describe('details: the records behind each number (list total == the number)', (
       'overdueOpen',
       'overdueLate',
       'callbackOverdue',
+      'inWork',
     ]) {
       expect(await total(observer, `/overview/tickets/list?${PERIOD}&metric=${m}`), m).toBe(o.totals[m]);
     }
@@ -481,6 +483,9 @@ describe('details: the records behind each number (list total == the number)', (
       const region = row.code ?? 'none';
       const q = `/overview/tickets/list?${PERIOD}&region=${region}`;
       expect(await total(observer, `${q}&metric=received`), region).toBe(row.received);
+      expect(await total(observer, `${q}&metric=inWork`), region).toBe(row.inWork);
+      expect(await total(observer, `${q}&metric=done`), region).toBe(row.done);
+      expect(await total(observer, `${q}&metric=rejected`), region).toBe(row.rejected);
       expect(await total(observer, `${q}&metric=closed`), region).toBe(row.closed);
       expect(await total(observer, `${q}&metric=overdue`), region).toBe(row.overdue);
       expect(await total(observer, `${q}&metric=nowOverdue`), region).toBe(row.overdueNow);
@@ -518,9 +523,17 @@ describe('details: the records behind each number (list total == the number)', (
         'regionCode',
         'regionNameRu',
         'regionNameUz',
+        'resolvedAt',
         'status',
       ].sort(),
     );
+    // Overdue lists: the longest past the due date first.
+    const late = (await observer.get(`/overview/tickets/list?${PERIOD}&metric=overdue`)).body.items as {
+      overdueHours: number;
+    }[];
+    expect(late.length).toBeGreaterThan(1);
+    const hours = late.map((x) => x.overdueHours);
+    expect(hours).toEqual([...hours].sort((a, b) => b - a));
     const held = (await observer.get(`/overview/tickets/list?${PERIOD}&metric=received&search=TK-${ids.held}`)).body;
     expect(held.items.map((x: { id: number }) => x.id)).toEqual([ids.held]);
     expect(held.items[0]).toMatchObject({

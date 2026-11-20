@@ -235,11 +235,12 @@ function TipRows({ row }: { row: OverviewRegionRow }) {
   const { t } = useTranslation('regionMap');
   const share = metricValue(row, 'overdueShare');
   const items: [string, string, string?][] = [
+    // The regions table's columns (owner, 20.11.2026), then the region's Mas'ul count and average time.
     [t('tooltip.received'), String(row.received)],
-    [t('tooltip.closed'), String(row.closed)],
-    [t('tooltip.open'), String(row.open)],
+    [t('tooltip.inWork'), String(row.inWork)],
+    [t('tooltip.done'), String(row.done)],
+    [t('tooltip.rejected'), String(row.rejected)],
     [t('tooltip.overdue'), `${row.overdue}${share === null ? '' : ` · ${share}%`}`, row.overdue ? 'text-danger' : ''],
-    [t('tooltip.overdueNow'), String(row.overdueNow), row.overdueNow ? 'text-danger' : ''],
     [t('tooltip.executives'), String(row.executives)],
     [
       t('tooltip.avgResolution'),

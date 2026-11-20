@@ -3,19 +3,21 @@ import { binFill, binLabels, binOf, metricValue, thresholdsFor } from './scale';
 
 describe('region map scale', () => {
   it('metric values: counts as they are, overdue share in percent of received', () => {
-    const row = { received: 8, closed: 5, overdue: 3 };
+    const row = { received: 8, inWork: 2, done: 5, rejected: 1, overdue: 3 };
     expect(metricValue(row, 'received')).toBe(8);
-    expect(metricValue(row, 'closed')).toBe(5);
+    expect(metricValue(row, 'inWork')).toBe(2);
+    expect(metricValue(row, 'done')).toBe(5);
+    expect(metricValue(row, 'rejected')).toBe(1);
     expect(metricValue(row, 'overdueShare')).toBe(37.5);
-    expect(metricValue({ received: 0, closed: 0, overdue: 0 }, 'overdueShare')).toBeNull();
+    expect(metricValue({ received: 0, inWork: 0, done: 0, rejected: 0, overdue: 0 }, 'overdueShare')).toBeNull();
   });
 
   it('count thresholds: quintile breaks of the regions with tickets', () => {
     const received = [46, 19, 16, 16, 14, 14, 11, 9, 8, 8, 8, 7, 6, 1, 0, null];
     expect(thresholdsFor('received', received)).toEqual([7, 8, 14, 16]);
-    expect(thresholdsFor('closed', [3, 3, 3, 1])).toEqual([1]); // repeated values: fewer bins
-    expect(thresholdsFor('closed', [5])).toEqual([]); // one value: one bin
-    expect(thresholdsFor('closed', [0, 0])).toEqual([1, 2, 3, 4]);
+    expect(thresholdsFor('done', [3, 3, 3, 1])).toEqual([1]); // repeated values: fewer bins
+    expect(thresholdsFor('done', [5])).toEqual([]); // one value: one bin
+    expect(thresholdsFor('done', [0, 0])).toEqual([1, 2, 3, 4]);
     expect(thresholdsFor('overdueShare', [90, 1])).toEqual([0, 10, 20, 35]);
   });
 
@@ -40,6 +42,6 @@ describe('region map scale', () => {
     expect(binFill('received', 1, 2)).toContain('var(--chart-6) 96%');
     expect(binFill('received', 1, 3)).toContain('var(--chart-6) 60%');
     expect(binFill('received', 0, 1)).toContain('var(--chart-6) 96%');
-    expect(binFill('closed', null)).toBe('color-mix(in oklab, var(--tint) 10%, var(--muted))');
+    expect(binFill('done', null)).toBe('color-mix(in oklab, var(--tint) 10%, var(--muted))');
   });
 });

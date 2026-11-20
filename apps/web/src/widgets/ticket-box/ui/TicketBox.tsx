@@ -11,6 +11,7 @@ import {
   KdsAction,
   KdsTextarea,
   OverdueBadge,
+  OverdueFor,
   PreviewStrip,
   TicketStatusBadge,
   type ViewerSource,
@@ -193,6 +194,10 @@ function BoxContent({ ticket, maxFileMb, onClose }: { ticket: TicketDetail; maxF
           </Meta>
           <Meta label={t('box.metaDue')} color={ticket.overdue ? 'var(--danger)' : undefined}>
             {ticket.dueAt ? dateTime(ticket.dueAt) : t('box.noValue')}
+            {/* How long past it: live while still with the region, fixed at the resolution when resolved late. */}
+            {ticket.overdue && (
+              <OverdueFor dueAt={ticket.dueAt} resolvedAt={ticket.resolvedAt} className="block text-[11.5px]" />
+            )}
           </Meta>
           {ticket.callbackDueAt && (
             <Meta label={t('box.metaCallbackDue')} color={ticket.callbackOverdue ? 'var(--danger)' : undefined}>

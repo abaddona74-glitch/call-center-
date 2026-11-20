@@ -51,6 +51,16 @@ const uz = {
     search: 'TK-raqam, telefon yoki matn',
   },
   ago: { seconds: '{{n}} soniya oldin', minutes: '{{n}} daqiqa oldin', hours: '{{n}} soat oldin' },
+  /** How long past the due date. */
+  late: {
+    d: '{{d}} kun',
+    dh: '{{d}} kun {{h}} soat',
+    h: '{{h}} soat',
+    hm: '{{h}} soat {{m}} daqiqa',
+    m: '{{m}} daqiqa',
+    running: 'Muddatdan beri o‘tgan vaqt — hali hal qilinmagan, vaqt davom etmoqda',
+    resolved: 'Muddatdan shuncha kech hal qilingan',
+  },
   sound: {
     on: "Bildirishnoma ovozi YOQILGAN (O'chirish uchun bosing)",
     off: "Bildirishnoma ovozi O'CHIRILGAN (Yoqish uchun bosing)",
@@ -334,6 +344,15 @@ const ru: Dict = {
     search: 'TK-номер, телефон или текст',
   },
   ago: { seconds: '{{n}} сек. назад', minutes: '{{n}} мин. назад', hours: '{{n}} ч. назад' },
+  late: {
+    d: '{{d}} дн.',
+    dh: '{{d}} дн. {{h}} ч',
+    h: '{{h}} ч',
+    hm: '{{h}} ч {{m}} мин',
+    m: '{{m}} мин',
+    running: 'Сколько прошло после срока — ещё не решено, время идёт',
+    resolved: 'Насколько позже срока решено',
+  },
   sound: {
     on: 'Звук уведомлений ВКЛЮЧЁН (нажмите, чтобы выключить)',
     off: 'Звук уведомлений ВЫКЛЮЧЕН (нажмите, чтобы включить)',

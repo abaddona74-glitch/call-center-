@@ -14,10 +14,20 @@ export const regionKey = (row: Pick<OverviewRegionRow, 'code'>) => row.code ?? O
 
 const col = dataTableColumns<OverviewRegionRow>();
 
+/** The count columns (owner, 20.11.2026), in order; each opens the region's tickets behind it. */
+type CountMetric = 'received' | 'inWork' | 'done' | 'rejected' | 'overdue';
+/** Colour of a non-zero count — the same hue as the map metric of that column (zero stays muted). */
+const TONE: Record<Exclude<CountMetric, 'received' | 'overdue'>, string> = {
+  inWork: 'text-caution',
+  done: 'text-positive',
+  rejected: 'text-lilac',
+};
+
 /**
  * The map as a table (every region and "Hududsiz"): what the map colours, with names, for keyboard and screen
- * readers and for the regions too small to click on the map. A row click filters the page like a map
- * click; keyboard and screen readers use the region-name button. Phones: the "closed" column is left out.
+ * readers and for the regions too small to click on the map. A row click filters the page like a map click;
+ * keyboard and screen readers use the region-name button. Columns (owner, 20.11.2026): received, in work (still
+ * with the region), done, rejected, overdue with its share. On phones the share is left out.
  */
 export function RegionsTable({
   rows,
@@ -36,8 +46,7 @@ export function RegionsTable({
   const sorted = useMemo(
     () =>
       [...rows].sort(
-        (a, b) =>
-          Number(a.code === null) - Number(b.code === null) || b.received - a.received || b.overdueNow - a.overdueNow,
+        (a, b) => Number(a.code === null) - Number(b.code === null) || b.received - a.received || b.overdue - a.overdue,
       ),
     [rows],
   );
@@ -58,7 +67,7 @@ export function RegionsTable({
                 e.stopPropagation();
                 onSelect(active ? null : regionKey(r));
               }}
-              className="block max-w-[112px] cursor-pointer truncate rounded-sm text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary sm:max-w-[150px]"
+              className="block max-w-[112px] cursor-pointer truncate rounded-sm text-left font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary sm:max-w-[128px]"
             >
               {r.code === null && <Icon name="location" className="mr-1 inline size-3 text-caution" />}
               {name}
@@ -67,22 +76,24 @@ export function RegionsTable({
         },
       }),
       col.accessor('received', {
-        header: () => t('regions.received'),
-        cell: ({ row }) => num(row.original, 'received', row.original.received, 'font-bold text-ink'),
+        header: () => <span title={t('regions.receivedHint')}>{t('regions.received')}</span>,
+        cell: ({ row }) => num(row.original, 'received', 'font-bold text-ink'),
       }),
-      col.accessor('closed', {
-        header: () => <span className="max-sm:hidden">{t('regions.closed')}</span>,
-        cell: ({ row }) => num(row.original, 'closed', row.original.closed, 'text-positive max-sm:hidden'),
-      }),
+      ...(['inWork', 'done', 'rejected'] as const).map((m) =>
+        col.accessor(m, {
+          header: () => <span title={t(`regions.${m}Hint`)}>{t(`regions.${m}`)}</span>,
+          cell: ({ row }) => num(row.original, m, row.original[m] ? TONE[m] : 'text-mute'),
+        }),
+      ),
       col.accessor('overdue', {
         header: () => <span title={t('regions.overdueHint')}>{t('regions.overdue')}</span>,
         cell: ({ row }) => {
           const r = row.original;
           return (
-            <span className={r.overdue ? 'text-danger' : 'text-mute'}>
-              {num(r, 'overdue', r.overdue)}
+            <span className={r.overdue ? 'font-bold text-danger' : 'text-mute'}>
+              {num(r, 'overdue')}
               {r.received > 0 && (
-                <span className="ml-1 inline-block w-[30px] text-left text-[10.5px] text-mute max-sm:hidden">
+                <span className="ml-1 inline-block w-[30px] text-left text-[10.5px] font-normal text-mute max-sm:hidden">
                   {percentOf(r.overdue, r.received)}%
                 </span>
               )}
@@ -90,35 +101,20 @@ export function RegionsTable({
           );
         },
       }),
-      col.accessor('overdueNow', {
-        header: () => <span title={t('regions.nowHint')}>{t('regions.now')}</span>,
-        cell: ({ row }) =>
-          num(
-            row.original,
-            'nowOverdue',
-            row.original.overdueNow,
-            cn('font-bold', row.original.overdueNow ? 'text-danger' : 'text-mute'),
-          ),
-      }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `num` reads the props listed here
     [t, ru, selected, onSelect, onOpenList],
   );
 
   /** A cell's number: opens the region's tickets behind it (zero stays plain). */
-  function num(
-    row: OverviewRegionRow,
-    metric: 'received' | 'closed' | 'overdue' | 'nowOverdue',
-    value: number,
-    className?: string,
-  ) {
+  function num(row: OverviewRegionRow, metric: CountMetric, className?: string) {
+    const value = row[metric];
     const name = row.code === null ? t('regions.noRegion') : ru ? row.nameRu : row.nameUz;
-    const label = `${name} — ${t(`regions.${metric === 'nowOverdue' ? 'nowHint' : metric}`)}`;
     return (
       <NumberButton
-        label={label}
+        label={`${name} — ${t(`regions.${metric}`)}`}
         value={value}
-        className={className}
+        className={cn(className)}
         onOpen={onOpenList && value > 0 ? () => onOpenList({ metric, region: regionKey(row), value }) : undefined}
       />
     );
@@ -132,7 +128,7 @@ export function RegionsTable({
       getRowId={regionKey}
       onRowClick={(r) => onSelect(selected === regionKey(r) ? null : regionKey(r))}
       isRowActive={(r) => selected === regionKey(r)}
-      className="max-h-[520px] overflow-y-auto xl:max-h-none"
+      className="max-h-[520px] overflow-y-auto 2xl:max-h-none"
     />
   );
 }
