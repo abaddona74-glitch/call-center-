@@ -189,6 +189,12 @@ describe('the snapshot', () => {
     expect(tickets.open).toEqual({ total: 4, new: 2, assigned: 0, inProgress: 1, callbackPending: 1 });
     expect(tickets).toMatchObject({ overdue: 2, callbackOverdue: 1, slaWorkingDays: 3, callbackSlaWorkingDays: 1 });
     expect(tickets.today).toMatchObject({ opened: 2 }); // the two created a few minutes ago
+    expect(tickets.callbacks).toEqual({
+      total: expect.any(Number),
+      pending: expect.any(Number),
+      resolved: expect.any(Number),
+    });
+    expect(tickets.callbacks.total).toBe(tickets.callbacks.pending + tickets.callbacks.resolved);
     expect(
       tickets.waiting.map((w: { code: string; waiting: number; overdue: number }) => [w.code, w.waiting, w.overdue]),
     ).toEqual([

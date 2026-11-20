@@ -4,6 +4,7 @@ import {
   type TicketMetricContext,
   matchesTicketMetric,
   matchesTicketSearch,
+  ticketListOrder,
   ticketMetricSource,
   toTicketListItem,
 } from './ticket-list.js';
@@ -115,6 +116,7 @@ describe('ticketTotals', () => {
       rejected: 1,
       closed: 1,
       open: 4,
+      inWork: 3, // held, queued, no region — received = inWork + done + rejected
       overdue: 2,
       overdueOpen: 1, // held after due
       overdueLate: 1, // rejected after due
@@ -301,6 +303,7 @@ describe('ticket lists behind the numbers (list total == the number)', () => {
       'overdueOpen',
       'overdueLate',
       'callbackOverdue',
+      'inWork',
     ] as const) {
       expect(count(m), m).toBe(totals[m]);
     }
@@ -319,6 +322,9 @@ describe('ticket lists behind the numbers (list total == the number)', () => {
   it('regions (map and table) with the region filter', () => {
     for (const row of r.regions) {
       expect(count('received', {}, row.regionId)).toBe(row.received);
+      expect(count('inWork', {}, row.regionId)).toBe(row.inWork);
+      expect(count('done', {}, row.regionId)).toBe(row.done);
+      expect(count('rejected', {}, row.regionId)).toBe(row.rejected);
       expect(count('closed', {}, row.regionId)).toBe(row.closed);
       expect(count('overdue', {}, row.regionId)).toBe(row.overdue);
       expect(count('nowOverdue', {}, row.regionId)).toBe(row.overdueNow);
@@ -345,14 +351,29 @@ describe('ticket lists behind the numbers (list total == the number)', () => {
       code: `TK-${rejectedLate.id}`,
       executive: 'Vali',
       overdueHours: 24,
+      resolvedAt: '2026-11-27T10:00:00.000Z', // the overdue time stops here
       regionCode: 'toshkent-shahri',
     });
-    expect(toTicketListItem(heldOverdue, byId, now).overdueHours).toBe(98); // 26.11 10:00 → 30.11 12:00
+    // Still with the region: no resolution time, the overdue time runs to now.
+    expect(toTicketListItem(heldOverdue, byId, now)).toMatchObject({ overdueHours: 98, resolvedAt: null }); // 26.11 10:00 → 30.11 12:00
     expect(toTicketListItem(queuedInTime, byId, now)).toMatchObject({ overdueHours: null, executive: null });
     expect(toTicketListItem(noRegion, byId, now)).toMatchObject({ regionCode: null, regionNameUz: 'Hududsiz' });
     expect(matchesTicketSearch(late, `tk-${rejectedLate.id}`)).toBe(true);
     expect(matchesTicketSearch(late, String(rejectedLate.id))).toBe(true);
     expect(matchesTicketSearch(late, 'vali')).toBe(true);
     expect(matchesTicketSearch(late, 'samarqand')).toBe(false);
+  });
+
+  it('overdue lists: the longest past the due date first; other lists newest first', () => {
+    const ids = (metric: OverviewTicketMetric, rows: readonly OverviewTicketFact[]) =>
+      rows
+        .filter((x) => matchesTicketMetric(x, metric, ctx()))
+        .sort(ticketListOrder(metric, now))
+        .map((x) => x.id);
+    // 98 h still with the region before 24 h resolved late.
+    expect(ids('overdue', cohort)).toEqual([heldOverdue.id, rejectedLate.id]);
+    // Due 13.11, 14.11, 26.11.
+    expect(ids('nowOverdue', open)).toEqual([olderQueued.id, olderHeld.id, heldOverdue.id]);
+    expect(ids('received', cohort)).toEqual(cohort.map((x) => x.id).sort((a, b) => b - a));
   });
 });

@@ -302,7 +302,8 @@ export function OverviewPage() {
                 options={MAP_METRICS.map((m) => ({ value: m, label: <MetricLabel metric={m} /> }))}
               />
             </PanelHeader>
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            {/* The table (five count columns, owner 20.11.2026) needs ~530 px: beside the map only from 2xl. */}
+            <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <div className={cn('min-w-0', !data && 'min-h-[300px] animate-pulse rounded-xl bg-tint/5')}>
                 {data && (
                   <RegionMap

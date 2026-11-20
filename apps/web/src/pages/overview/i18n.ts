@@ -84,13 +84,19 @@ registerTranslations('overviewPage', {
       executiveTitle: '{{name}}: {{title}}',
       ticket: {
         received: { title: 'Kelib tushgan murojaatlar', def: 'Tanlangan davrda yaratilgan murojaatlar.' },
+        inWork: {
+          title: 'Bajarilmoqda',
+          def: 'Davrda kelganlardan hali hududda turganlari: yangi (olinmagan), biriktirilgan yoki jarayonda.',
+        },
+        done: { title: 'Bajarilgan murojaatlar', def: 'Davrda kelganlardan Mas’ul «Bajarildi» deb hal qilganlari.' },
+        rejected: { title: 'Rad etilgan murojaatlar', def: 'Davrda kelganlardan Mas’ul rad etganlari.' },
         closed: {
           title: 'Yopilgan murojaatlar',
           def: 'Davrda kelganlardan yopilganlari: fuqaroga qayta qo‘ng‘iroq qilingan (holat «Yopilgan»).',
         },
         overdue: {
           title: 'Muddati o‘tgan murojaatlar',
-          def: 'Davrda kelganlardan muddati ({{sla}} ish kuni) o‘tganlari: muddatdan keyin ham hududda turganlari va muddatdan keyin hal qilinganlari.',
+          def: 'Davrda kelganlardan muddati ({{sla}} ish kuni) o‘tganlari: muddatdan keyin ham hududda turganlari va muddatdan keyin hal qilinganlari. «Kechikish» — muddatdan qancha o‘tgani (hal qilinmaganlarda hozirgacha, hal qilinganlarda hal qilingan paytgacha); eng ko‘p kechikkanlari yuqorida.',
         },
         overdueOpen: {
           title: 'Hal qilinmagan, muddati o‘tgan',
@@ -283,13 +289,19 @@ registerTranslations('overviewPage', {
       executiveTitle: '{{name}}: {{title}}',
       ticket: {
         received: { title: 'Поступившие обращения', def: 'Обращения, созданные за выбранный период.' },
+        inWork: {
+          title: 'В работе',
+          def: 'Из поступивших за период — всё ещё в регионе: новые (не взяты), назначенные или в работе.',
+        },
+        done: { title: 'Выполненные обращения', def: 'Из поступивших за период — решённые ответственным как «Выполнено».' },
+        rejected: { title: 'Отклонённые обращения', def: 'Из поступивших за период — отклонённые ответственным.' },
         closed: {
           title: 'Закрытые обращения',
           def: 'Из поступивших за период — закрытые: гражданину перезвонили (статус «Закрыт»).',
         },
         overdue: {
           title: 'Просроченные обращения',
-          def: 'Из поступивших за период — нарушившие срок ({{sla}} раб. дн.): остались в регионе после срока или решены позже срока.',
+          def: 'Из поступивших за период — нарушившие срок ({{sla}} раб. дн.): остались в регионе после срока или решены позже срока. «Просрочка» — сколько прошло после срока (у нерешённых — до сейчас, у решённых — до решения); самые просроченные сверху.',
         },
         overdueOpen: {
           title: 'Не решены, срок прошёл',

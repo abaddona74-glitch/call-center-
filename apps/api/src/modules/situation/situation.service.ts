@@ -8,7 +8,7 @@ import {
 import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { DateTime } from 'luxon';
-import { TicketEvents } from '../../common/events/domain-events.js';
+import { CallEvents, TicketEvents } from '../../common/events/domain-events.js';
 import { AppConfig } from '../../config/app-config.js';
 import { AmiService } from '../ami/ami.service.js';
 import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
@@ -77,9 +77,11 @@ export class SituationService implements OnApplicationBootstrap, OnApplicationSh
   async tickets(now = new Date()): Promise<SituationTickets> {
     const day = DateTime.fromJSDate(now, { zone: BUSINESS_TIMEZONE }).startOf('day');
     const dayStart = day.toJSDate();
-    const [open, today, resolvedTodayBy, regions, executives] = await Promise.all([
+    const dayEnd = day.plus({ days: 1 }).toJSDate();
+    const [open, today, callbacks, resolvedTodayBy, regions, executives] = await Promise.all([
       this.repo.notClosed(),
       this.repo.countsSince(dayStart),
+      this.repo.callbacksBetween(dayStart, dayEnd),
       this.repo.resolvedSinceBy(dayStart),
       this.repo.regions(),
       this.repo.executives(),
@@ -91,12 +93,13 @@ export class SituationService implements OnApplicationBootstrap, OnApplicationSh
     return buildSituationTickets({
       open,
       today,
+      callbacks,
       resolvedTodayBy,
       regions,
       executives,
       usernames: await this.repo.usernames(holders),
       now,
-      dayEnd: day.plus({ days: 1 }).toJSDate(),
+      dayEnd,
       slaWorkingDays: this.config.get('TICKETS_SLA_WORKING_DAYS'),
       callbackSlaWorkingDays: this.config.get('TICKETS_CALLBACK_SLA_WORKING_DAYS'),
     });
@@ -108,6 +111,17 @@ export class SituationService implements OnApplicationBootstrap, OnApplicationSh
   @OnEvent(TicketEvents.Changed)
   onTicketChanged(): void {
     this.scheduleTickets(TICKETS_DEBOUNCE_MS);
+  }
+
+  /**
+   * A call event that may open or resolve a callback (callbacks module): refresh today's callbacks with the tickets
+   * part. The debounce gives the callbacks listener time to write first; the 30 s refresh catches anything later.
+   */
+  @OnEvent(CallEvents.Abandoned)
+  @OnEvent(CallEvents.OperatorMissed)
+  @OnEvent(CallEvents.Ended)
+  onCallChanged(): void {
+    if (this.hasAudience()) this.scheduleTickets(TICKETS_DEBOUNCE_MS);
   }
 
   private hasAudience(): boolean {

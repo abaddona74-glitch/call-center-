@@ -89,17 +89,22 @@ const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b
 
 const matches = (t: OverviewTicketFact, region: RegionFilter) => region === undefined || t.regionId === region;
 
-/** Still with the region after `due_at`, right now. */
-export function isOverdueNow(t: OverviewTicketFact, now: Date): boolean {
-  return WITH_REGION.has(t.status) && t.dueAt !== null && now.getTime() > t.dueAt.getTime();
+/** Still with the region (new / assigned / in_progress): «Bajarilmoqda». */
+export function isWithRegion(t: Pick<OverviewTicketFact, 'status'>): boolean {
+  return WITH_REGION.has(t.status);
 }
 
-/** Waiting for the operator's callback after `callback_due_at`, right now. */
+/** Still with the region after `due_at`, right now. */
+export function isOverdueNow(t: OverviewTicketFact, now: Date): boolean {
+  return isWithRegion(t) && t.dueAt !== null && now.getTime() > t.dueAt.getTime();
+}
+
 /** Users who took the ticket (see `takersOf`). */
 export function ticketTakers(t: OverviewTicketFact, takers: ReadonlyMap<number, readonly number[]>): Set<number> {
   return takersOf(t, takers);
 }
 
+/** Waiting for the operator's callback after `callback_due_at`, right now. */
 export function isCallbackOverdueNow(t: OverviewTicketFact, now: Date): boolean {
   return t.status !== 'closed' && t.closedAt === null && isCallbackOverdue(t, now);
 }
@@ -125,6 +130,7 @@ export function ticketTotals(
     rejected: 0,
     closed: 0,
     open: 0,
+    inWork: 0,
     overdue: 0,
     overdueOpen: 0,
     overdueLate: 0,
@@ -140,6 +146,7 @@ export function ticketTotals(
     if (t.resolution === 'rejected') totals.rejected++;
     if (t.status === 'closed') totals.closed++;
     else totals.open++;
+    if (isWithRegion(t)) totals.inWork++;
     if (isOverdue(t, now)) {
       totals.overdue++;
       if (t.resolvedAt) totals.overdueLate++;

@@ -1,18 +1,21 @@
 import type { OverviewRegionRow } from '@cc/shared';
 
-/** What colours the map (owner, 19.11.2026: received / closed / overdue share). */
-export const MAP_METRICS = ['received', 'closed', 'overdueShare'] as const;
+/**
+ * What colours the map — the regions table's columns (owner, 20.11.2026): received / in work (still with the region) /
+ * done / rejected / overdue share. Was received / closed / overdue share (19.11.2026).
+ */
+export const MAP_METRICS = ['received', 'inWork', 'done', 'rejected', 'overdueShare'] as const;
 export type MapMetric = (typeof MAP_METRICS)[number];
 
 /** Most colour steps; bin 0 is the lightest. */
 export const BIN_COUNT = 5;
 
 /**
- * The value a region is coloured by: received / closed are counts; overdue share is the percent (one decimal)
- * of the region's received tickets that missed the SLA, null when it received none.
+ * The value a region is coloured by: received / in work / done / rejected are counts; overdue share is the percent
+ * (one decimal) of the region's received tickets that missed the SLA, null when it received none.
  */
 export function metricValue(
-  row: Pick<OverviewRegionRow, 'received' | 'closed' | 'overdue'>,
+  row: Pick<OverviewRegionRow, 'received' | 'inWork' | 'done' | 'rejected' | 'overdue'>,
   metric: MapMetric,
 ): number | null {
   if (metric === 'overdueShare') return row.received > 0 ? Math.round((row.overdue / row.received) * 1000) / 10 : null;
@@ -62,7 +65,9 @@ export function binLabels(metric: MapMetric, thresholds: readonly number[]): str
 /** Hue per metric (one hue, light → strong); the steps are mixed into the panel surface, so both themes work. */
 export const METRIC_HUE: Record<MapMetric, string> = {
   received: 'var(--chart-6)',
-  closed: 'var(--chart-2)',
+  inWork: 'var(--chart-5)',
+  done: 'var(--chart-2)',
+  rejected: 'var(--chart-3)',
   overdueShare: 'var(--chart-8)',
 };
 const STEP_MIX = [24, 42, 60, 78, 96];

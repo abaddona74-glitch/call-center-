@@ -3,7 +3,7 @@ import { type QueryKey, type UseQueryOptions, useQuery } from '@tanstack/react-q
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type TicketListParams, overviewTicketListQuery } from '@/entities/overview';
-import { TicketStatusBadge } from '@/entities/ticket';
+import { OverdueFor, TicketStatusBadge } from '@/entities/ticket';
 import { tashkentDateTime } from '@/shared/lib/tashkent-time';
 import { DataTable, type DataTableColumn, dataTableColumns } from '@/shared/ui/data-table';
 import { Icon } from '@/shared/ui/icon';
@@ -11,7 +11,7 @@ import { MetricNote, TitleValue } from '@/shared/ui/metric-note';
 import { Modal, ModalHeader } from '@/shared/ui/modal';
 import { Pagination } from '@/shared/ui/pagination';
 import { SearchBox } from '@/shared/ui/search-box';
-import { listDateTime, overdueParts } from '../model/format';
+import { listDateTime } from '../model/format';
 import '../i18n';
 
 const PAGE_SIZE = 25;
@@ -95,15 +95,6 @@ function Body({ view, onOpenTicket }: { view: TicketListDialogView; onOpenTicket
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
   const columns = useMemo<DataTableColumn<OverviewTicketListItem>[]>(() => {
-    const late = (hours: number | null) => {
-      const p = overdueParts(hours);
-      if (!p) return <span className="text-mute">—</span>;
-      return (
-        <span className="font-semibold text-danger">
-          +{p.unit === 'days' ? t('list.days', { n: p.n }) : t('list.hours', { n: p.n })}
-        </span>
-      );
-    };
     return [
       col.accessor('code', {
         header: () => t('list.code'),
@@ -147,9 +138,15 @@ function Body({ view, onOpenTicket }: { view: TicketListDialogView; onOpenTicket
         header: () => t('list.due'),
         cell: ({ getValue }) => <span className="text-xs">{listDateTime(getValue(), tashkentDateTime)}</span>,
       }),
+      // Exact time past the due date: still with the region — a live clock to now; resolved late — at resolution.
       col.accessor('overdueHours', {
         header: () => t('list.overdueBy'),
-        cell: ({ getValue }) => late(getValue()),
+        cell: ({ row }) =>
+          row.original.overdueHours === null ? (
+            <span className="text-mute">—</span>
+          ) : (
+            <OverdueFor dueAt={row.original.dueAt} resolvedAt={row.original.resolvedAt} />
+          ),
       }),
       col.accessor('closedAt', {
         header: () => t('list.closed'),

@@ -35,6 +35,7 @@ import { buildOverviewQuality } from './domain/quality-overview.js';
 import {
   matchesTicketMetric,
   matchesTicketSearch,
+  ticketListOrder,
   ticketMetricSource,
   toTicketListItem,
 } from './domain/ticket-list.js';
@@ -118,7 +119,7 @@ export class OverviewService {
       .filter(
         (t) => (region.filter === undefined || t.regionId === region.filter) && matchesTicketMetric(t, q.metric, ctx),
       )
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id)
+      .sort(ticketListOrder(q.metric, now))
       .map((t) => toTicketListItem(t, regionsById, now))
       .filter((item) => matchesTicketSearch(item, q.search));
     return {

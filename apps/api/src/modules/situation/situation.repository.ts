@@ -3,7 +3,8 @@ import { type DbHost, InjectDb } from '../../database/db.js';
 import type { SituationExecutive, SituationRegion, SituationTicketFact } from './domain/ticket-situation.js';
 
 /**
- * Read-only queries over the tickets module's tables (types: tickets.tables.ts) for the live situation board.
+ * Read-only queries over the tickets module's tables (types: tickets.tables.ts) and the callbacks table
+ * (callbacks.tables.ts, today's counts only) for the live situation board.
  * Only the columns the board needs: no descriptions, citizen numbers or organizations leave the database.
  */
 @Injectable()
@@ -47,6 +48,27 @@ export class SituationRepository {
       .where((eb) => eb.or([eb('createdAt', '>=', from), eb('resolvedAt', '>=', from), eb('closedAt', '>=', from)]))
       .executeTakeFirst();
     return { opened: Number(row?.opened ?? 0), resolved: Number(row?.resolved ?? 0), closed: Number(row?.closed ?? 0) };
+  }
+
+  /**
+   * Callbacks of the day [from, to) — the callbacks list's «Bugun» window (callbacks.repository `dateFilter`): pending
+   * ones whose latest missed call is in it, resolved ones closed in it. Dismissed ones are not counted.
+   */
+  async callbacksBetween(from: Date, to: Date): Promise<{ pending: number; resolved: number }> {
+    const row = await this.db
+      .selectFrom('callbacks')
+      .select((eb) => [
+        eb.fn.countAll<string>().filterWhere('status', '=', 'pending').as('pending'),
+        eb.fn.countAll<string>().filterWhere('status', '=', 'resolved').as('resolved'),
+      ])
+      .where((eb) =>
+        eb.or([
+          eb.and([eb('status', '=', 'pending'), eb('lastMissedAt', '>=', from), eb('lastMissedAt', '<', to)]),
+          eb.and([eb('status', '=', 'resolved'), eb('closedAt', '>=', from), eb('closedAt', '<', to)]),
+        ]),
+      )
+      .executeTakeFirst();
+    return { pending: Number(row?.pending ?? 0), resolved: Number(row?.resolved ?? 0) };
   }
 
   /** userId → tickets that user finished (done / rejected) since `from`. */

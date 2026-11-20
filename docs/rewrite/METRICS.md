@@ -199,7 +199,8 @@
 |---|---|
 | `received` («Kelib tushgan») | создан в периоде |
 | `taken` | хоть раз взят executive (событие `assigned` в ленте; для перенесённых без событий — есть исполнитель или решивший) |
-| `done` / `rejected` | итог executive (`resolution`) |
+| `done` («Bajarilgan») / `rejected` («Rad etilgan») | итог executive (`resolution`) |
+| `inWork` («Bajarilmoqda», решение владельца 20.11.2026) | всё ещё в области: `new` / `assigned` / `in_progress`. `received` = `inWork` + `done` + `rejected` (кроме перенесённых закрытых без итога) |
 | `closed` («Yopilgan») | статус `closed` (гражданину перезвонили) |
 | `open` | не `closed` |
 | `overdue` («Muddati o‘tgan») | `overdueOpen` + `overdueLate` |
@@ -212,11 +213,11 @@
 
 **Сейчас** (не зависит от периода, фильтр области действует): незакрытые тикеты по статусам; `overdue` — в области после `due_at` (любая дата создания); `callbackOverdue` — ждут перезвона после `callback_due_at`; 10 самых давно просроченных (номер `TK-…`, область, у кого или «в очереди», на сколько просрочен).
 
-**Области** — все 14 из справочника (+ отключённые, если у них есть тикеты, + «Hududsiz», если есть тикеты без области): те же поля за период, плюс `executives` (активные ответственные области) и `overdueNow`. Фильтр области (`region` = код или `none`) сужает всё, кроме списка областей (он кормит карту).
+**Области** — все 14 из справочника (+ отключённые, если у них есть тикеты, + «Hududsiz», если есть тикеты без области): те же поля за период, плюс `executives` (активные ответственные области) и `overdueNow`. Фильтр области (`region` = код или `none`) сужает всё, кроме списка областей (он кормит карту). **Таблица областей** рядом с картой (решение владельца 20.11.2026): «Kelib tushgan» (`received`), «Bajarilmoqda» (`inWork`), «Bajarilgan» (`done`), «Rad etilgan» (`rejected`), «Muddati o‘tgan» (`overdue`, рядом доля от `received`); «Yopilgan» и «Hozir» (`overdueNow`) из таблицы убраны (в API остались: `overdueNow` — в блоке сроков).
 
 **Mas’ul shaxslar (executive)** — все, кто привязан к областям (`ticket_executive_regions`), и все, кто брал/решал тикеты периода (например, superuser): `taken` — тикеты периода, которые он брал (по событиям; после «вернуть в очередь» и взятия другим считается у обоих); `done` / `rejected` — решённые им; `overdue` — просроченные среди тех, что он решил или держит (как в отчётах: решивший, иначе исполнитель); `avgResolutionHours` — по решённым им; `holdingNow` / `overdueNow` — сейчас у него (`assigned` / `in_progress`) и из них просроченные.
 
-**Карта**: цвет по одной метрике (поступило / закрыто / доля просроченных), один оттенок от светлого к насыщенному. Для количеств — 5 ступеней по квинтилям областей с тикетами (иначе Ташкент один «съедает» шкалу), для доли — фиксированные ступени 0 / ≤10 / ≤20 / ≤35 / >35 %, чтобы цвет значил одно и то же в любой период. Границы — Natural Earth admin-1 (public domain), упрощены и вшиты в приложение (`widgets/region-map/model/uz-regions.json`, генератор `apps/web/scripts/build-uz-regions.mjs`), без внешних тайлов.
+**Карта**: цвет по одной метрике — те же, что столбцы таблицы (решение владельца 20.11.2026): поступило / в работе / выполнено / отклонено / доля просроченных (было: поступило / закрыто / доля просроченных), один оттенок от светлого к насыщенному. Для количеств — 5 ступеней по квинтилям областей с тикетами (иначе Ташкент один «съедает» шкалу), для доли — фиксированные ступени 0 / ≤10 / ≤20 / ≤35 / >35 %, чтобы цвет значил одно и то же в любой период. Границы — Natural Earth admin-1 (public domain), упрощены и вшиты в приложение (`widgets/region-map/model/uz-regions.json`, генератор `apps/web/scripts/build-uz-regions.mjs`), без внешних тайлов.
 
 ### 9.2 Звонки (`/api/overview/calls?from&to&scope`)
 
@@ -242,11 +243,11 @@
 
 | Цифры | Эндпоинт | Метрики (`metric`) |
 |---|---|---|
-| Тикеты: карточки итогов, карта/таблица областей, Mas’ul shaxslar, блок сроков | `GET /api/overview/tickets/list?from&to&metric[&region][&status][&executive]&page&pageSize[&search]` | за период: `received`, `taken`, `done`, `rejected`, `closed`, `open`, `overdue`, `overdueOpen`, `overdueLate`, `callbackOverdue`, `resolved` (основа среднего времени решения), `closeTimed` (основа среднего времени закрытия), `onTime`; сейчас: `nowOpen`, `nowStatus` (+`status`), `nowOverdue`, `nowCallbackOverdue`; Mas’ul (+`executive`): `exTaken`, `exDone`, `exRejected`, `exOverdue`, `exResolved`, `exHolding`, `exOverdueNow` |
+| Тикеты: карточки итогов, карта/таблица областей, Mas’ul shaxslar, блок сроков | `GET /api/overview/tickets/list?from&to&metric[&region][&status][&executive]&page&pageSize[&search]` | за период: `received`, `taken`, `done`, `rejected`, `inWork`, `closed`, `open`, `overdue`, `overdueOpen`, `overdueLate`, `callbackOverdue`, `resolved` (основа среднего времени решения), `closeTimed` (основа среднего времени закрытия), `onTime`; сейчас: `nowOpen`, `nowStatus` (+`status`), `nowOverdue`, `nowCallbackOverdue`; Mas’ul (+`executive`): `exTaken`, `exDone`, `exRejected`, `exOverdue`, `exResolved`, `exHolding`, `exOverdueNow` |
 | Звонки | `GET /api/overview/calls/list?from&to&scope&metric&page&pageSize[&search]` | `total`, `inbound`, `outbound`, `answered` (и для «O‘rtacha kutish» — по ним считается среднее), `unanswered`, `abandoned`, `ivr`, `afterHours`, `talked` |
 | Качество звонков | `GET /api/overview/quality/list?from&to&metric[&flag\|outcome\|sentiment]&page&pageSize[&search]` | `analyzed`, `handled`, `flagged`, `flag`, `outcome`, `sentiment` (конец разговора); только текущая версия промпта |
 
-Список тикетов: номер, создан, область, Mas’ul (или «в очереди»), статус, срок, на сколько просрочен (для незакрытых — до сейчас, для решённых — на момент решения), закрыт; поиск по номеру, Mas’ul, организации, области; по 25 на страницу. Номер открывает **карточку тикета только для чтения** (`GET /api/overview/tickets/:id`: описание, лента, комментарии, звонки с записями, вложения) — без действий, сервер не отдаёт их.
+Список тикетов: номер, создан, область, Mas’ul (или «в очереди»), статус, срок, на сколько просрочен (для незакрытых — до сейчас, для решённых — на момент решения), закрыт; поиск по номеру, Mas’ul, организации, области; по 25 на страницу. **На сколько просрочен** (решение владельца 20.11.2026) — точно, две старшие единицы: «2 kun 5 soat», «5 soat 12 daqiqa», «12 daqiqa»; у тикетов, ещё не решённых областью, время идёт вживую (браузер считает от `dueAt` до сейчас), у решённых с опозданием — фиксировано до `resolvedAt` (поле строки списка). Списки просроченных (`overdue`, `overdueOpen`, `overdueLate`, `nowOverdue`, `exOverdue`, `exOverdueNow`) отсортированы по просрочке — самые просроченные сверху; остальные — новые сверху. То же время — в карточке тикета под «Muddat (SLA)» и в блоке «Eng uzoq kechikayotganlar». Номер открывает **карточку тикета только для чтения** (`GET /api/overview/tickets/:id`: описание, лента, комментарии, звонки с записями, вложения) — без действий, сервер не отдаёт их.
 
 Список звонков — та же таблица, что в истории звонков: время, номер клиента полностью, оператор, направление, статус, ожидание, разговор, кто пропустил. Строка открывает карточку звонка (`/api/overview/calls/:id`) с вкладкой «Suhbat va tahlil» (`/api/overview/calls/:id/analysis`, если звонок проанализирован) и запись (`/api/overview/calls/:id/recording/stream`). **Каждое прослушивание и скачивание пишется в аудит** (`recordings.play` / `recordings.download`: кто, какой звонок), как на странице записей; записи звонков тикета — через аудит модуля тикетов.
 
@@ -267,7 +268,7 @@
 | «Navbatda kutayotganlar» | ожидающие во всех очередях; «eng uzoq kutish» — от входа в очередь самого давнего. Цвет плитки: никого — спокойный, кто-то ждёт — жёлтый, кто-то ждёт ≥ 3 мин — красный |
 | «Hozir suhbatda» | звонки с гражданами в состоянии `talking` (входящие + исходящие, внутренние между операторами не считаются); рядом — звонит/набирает (`ringing` + `dialing`) |
 | Операторы, очередь, «Faol suhbatlar» | те же виджеты, что на дашборде (действий нет: у observer нет ни своего номера, ни `actions.call`) |
-| «Bugun» — звонки | живые счётчики дашборда (§5a): «Kiruvchi» = `inbound`, «Javob berilgan» = `answered` (доля `answerRate`), «Navbatdan chiqdi» = `abandoned` (доля от `inbound`), «O‘tkazib yuborilgan» = `operatorMissed` (§1.2.1), «O‘rtacha kutish» = `avgWaitSec` (= `inbound.avgWaitSec` статистики за сегодня, §2) |
+| «Bugungi qo‘ng‘iroqlar» (отдельная панель слева от тикетов) | живые счётчики дашборда (§5a): «Kiruvchi» = `inbound`, «Javob berilgan» = `answered` (доля `answerRate`), «Navbatdan chiqdi» = `abandoned` (доля от `inbound`), «O‘tkazib yuborilgan» = `operatorMissed` (§1.2.1); «Qayta qo‘ng‘iroqlar» — перезвоны за сегодня из таблицы `callbacks` в окне «Bugun» списка перезвонов: `pending` с последним пропуском сегодня + `resolved`, закрытые сегодня (`dismissed` не считаются), рядом — сколько ещё ждут (`pending`). Обновляется вместе с тикетами (каждые 30 с, при изменении тикета и после звонковых событий `abandoned` / `operator_missed` / `ended`). «O‘rtacha kutish» с доски убрано (решение владельца 20.11.2026) |
 | Рабочее время | из общего календаря: «hozir ish vaqti» / «ish vaqtidan tashqari» / «bugun dam olish kuni» (интервал [начало, конец)) |
 
 ### 10.2 Тикеты сейчас
@@ -277,7 +278,7 @@
 |---|---|
 | «Ochiq ticketlar» | не `closed`, по статусам: `new`, `assigned`, `in_progress`, `callback_pending` |
 | «Muddati o‘tgan ticketlar» | в области (`new` / `assigned` / `in_progress`) после `due_at` (`isOverdue`); рядом: «bugun muddati tugaydi» — в области, ещё не просрочены, `due_at` до конца сегодняшнего дня (Ташкент); «qayta qo‘ng‘iroq kechikkan» — `callback_pending` после `callback_due_at` (`isCallbackOverdue`) |
-| «Bugun» — тикеты | создано сегодня (`created_at`), решено ответственными сегодня (`resolved_at`: done/rejected), закрыто сегодня (`closed_at`) |
+| «Bugungi ticketlar» (отдельная панель) | «Ochildi» — создано сегодня (`created_at`), «Mas’ul hal qildi» — решено ответственными сегодня (`resolved_at`: done/rejected), «Masala hal qilindi» — закрыто сегодня (`closed_at`, гражданину перезвонили) |
 | «Olinishini kutmoqda» | `new` по областям (и «Hududsiz»); «eng uzoq» — с `region_changed_at` самого давнего (создан, переслан сюда или возвращён в очередь); сколько из них просрочено; «Mas’ul biriktirilmagan», если у области нет активного ответственного. Порядок — дольше всех ждущая область первой |
 | «Ticketlar ustida ishlayotganlar» | все активные ответственные с областями (`ticket_executive_regions`) и любой другой, у кого сейчас есть тикеты (например, superuser): «Hozir ishda» = `assigned` + `in_progress` у него, из них просрочено; тикеты — от самого давно взятого (`assigned_at`, у перенесённых без него — `created_at`), не больше 10 в списке; «Bugun hal qildi» — его done/rejected за сегодня. Порядок: больше тикетов — выше, затем кто дольше держит тикет |
 
