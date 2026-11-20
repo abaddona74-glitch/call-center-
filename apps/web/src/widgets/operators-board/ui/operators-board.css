@@ -704,3 +704,14 @@
 :root:not(.dark) .ob-div-label .count {
   background: color-mix(in srgb, var(--c) 20%, #ffffff);
 }
+/* Light theme: --tint is navy here, so the divider shine would sweep as a dark streak; small neon glows are softened. */
+:root:not(.dark) .ob-div-line .shine {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 60%, transparent), transparent);
+}
+:root:not(.dark) .ob-div-line::after,
+:root:not(.dark) .ob-div-label .diamond {
+  box-shadow: 0 0 5px color-mix(in srgb, var(--c) 45%, transparent);
+}
+:root:not(.dark) .opc .ring-dot {
+  box-shadow: 0 0 5px rgba(236, 72, 153, 0.45);
+}

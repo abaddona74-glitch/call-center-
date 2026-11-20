@@ -1,8 +1,8 @@
 /* "Tizimlar va Rollar Daraxti" page — ported from legacy `public/guide.html` (colors and sizes are the legacy ones). */
 .guide-page {
-  /* Full-bleed inside the shell like the legacy full-screen page: cancel <main>'s p-6, fill below the h-14 header. */
+  /* Full-bleed inside the shell like the legacy full-screen page: cancel <main>'s p-6, fill the viewport height. */
   margin: -1.5rem;
-  height: calc(100svh - 3.5rem);
+  height: 100svh;
   display: flex;
   flex-direction: column;
   overflow: hidden;

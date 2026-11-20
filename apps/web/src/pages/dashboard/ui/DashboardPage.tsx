@@ -1,4 +1,5 @@
 import { CDR_ACCESS } from '@cc/shared';
+import { useEffect, useRef, useState } from 'react';
 import { usePermission, useSessionUser } from '@/entities/session';
 import { useLiveTelephonySync } from '@/entities/telephony';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
@@ -13,6 +14,9 @@ import { QueueWaiters } from '@/widgets/queues';
 import { TicketCallbackQueue } from '@/widgets/ticket-callback-queue';
 
 const MONITOR = ['open', 'collapsed'] as const;
+/** Slide of the "Jonli Monitor" dock; keep in sync with `duration-300` in LiveMonitor and AppShell. */
+const DOCK_MS = 300;
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /**
  * Live dashboard (legacy "/"): KPI cards, operators board and the collapsible "Jonli Monitor" sidebar.
@@ -22,6 +26,28 @@ export function DashboardPage() {
   useLiveTelephonySync();
   const [monitor, setMonitor] = usePersistedState('cc_sidebar_collapsed', 'open', MONITOR);
   const open = monitor === 'open';
+  // The dock slides out before it unmounts (and in after a click), so closing is not an instant jump.
+  const [motion, setMotion] = useState<'enter' | 'exit' | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const after = (fn: () => void) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(fn, DOCK_MS);
+  };
+  const collapse = () => {
+    if (reducedMotion()) return setMonitor('collapsed');
+    setMotion('exit');
+    after(() => {
+      setMonitor('collapsed');
+      setMotion(null);
+    });
+  };
+  const expand = () => {
+    setMonitor('open');
+    if (reducedMotion()) return;
+    setMotion('enter');
+    after(() => setMotion(null));
+  };
   const canSeeCallbacks = usePermission('callbacks.view');
   const canSeeRecent = usePermission(CDR_ACCESS['history.page']);
   const canReadCalls = usePermission(CDR_ACCESS['calls.read']);
@@ -38,13 +64,13 @@ export function DashboardPage() {
         {canSeeRecent && <RecentCallsPanel />}
       </div>
       {open ? (
-        <LiveMonitor onCollapse={() => setMonitor('collapsed')}>
+        <LiveMonitor onCollapse={collapse} motion={motion ?? undefined}>
           <QueueWaiters />
           <ActiveCalls />
           {canSeeCallbacks && <CallbacksPanel />}
         </LiveMonitor>
       ) : (
-        <LiveMonitorReopen onClick={() => setMonitor('open')} />
+        <LiveMonitorReopen onClick={expand} />
       )}
     </div>
   );

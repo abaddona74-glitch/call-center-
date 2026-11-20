@@ -1,6 +1,16 @@
 import { TICKET_STATUSES, type TicketContext, type TicketStatus, type TicketView } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import {
+  AlarmClock,
+  Inbox,
+  LayoutGrid,
+  MapPinOff,
+  PenLine,
+  PhoneCall,
+  UserRoundCheck,
+  type LucideIcon,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -18,7 +28,6 @@ import { CreateTicketModal } from '@/features/tickets/create-ticket';
 import { SoundToggle, stopTitleFlash, useTicketLive } from '@/features/tickets/notifications';
 import { TicketBox } from '@/widgets/ticket-box';
 import { cn } from '@/shared/lib/cn';
-import { accentText } from '@/shared/lib/theme';
 import { Icon } from '@/shared/ui/icon';
 import { LegacyIcon } from '@/shared/ui/legacy-icon';
 
@@ -42,8 +51,16 @@ const VIEW_COLOR: Record<TicketView, string> = {
   all: 'var(--foreground)',
   mine: 'var(--info)',
   queue: 'var(--info)',
-  callback: accentText('#5eead4'),
+  callback: 'color-mix(in oklab, #5eead4, var(--ink) var(--shade-strong))', // pale teal: the strong mix on white
   triage: 'var(--caution)',
+};
+
+const VIEW_ICON: Record<TicketView, LucideIcon> = {
+  all: LayoutGrid,
+  mine: UserRoundCheck,
+  queue: Inbox,
+  callback: PhoneCall,
+  triage: MapPinOff,
 };
 
 /**
@@ -177,6 +194,8 @@ export function TicketsPage({
               {views.map((v) => {
                 const active = view === v;
                 const n = counts ? counts[v] : 0;
+                // An operator's "mine" is the tickets they wrote; everyone else's is the work they took.
+                const ViewIcon = v === 'mine' && c?.kind === 'operator' ? PenLine : VIEW_ICON[v];
                 return (
                   <button
                     key={v}
@@ -189,7 +208,13 @@ export function TicketsPage({
                       active && 'border-info bg-[linear-gradient(135deg,#0284c7_0%,#0369a1_100%)] text-white',
                     )}
                   >
-                    <span style={!active ? { color: VIEW_COLOR[v] } : undefined}>{viewLabel(v)}</span>
+                    <span
+                      className="inline-flex items-center gap-[7px]"
+                      style={!active ? { color: VIEW_COLOR[v] } : undefined}
+                    >
+                      <ViewIcon className="size-[15px] shrink-0" strokeWidth={2.2} aria-hidden />
+                      {viewLabel(v)}
+                    </span>
                     <span
                       className={cn(
                         'rounded-[10px] px-[7px] py-px text-[11px] font-extrabold',
@@ -225,7 +250,7 @@ export function TicketsPage({
                     : 'border-tint/8 bg-glass-2/60 text-danger hover:bg-tint/10',
                 )}
               >
-                <Icon name="timer" className="size-4" />
+                <AlarmClock className="size-[15px] shrink-0" strokeWidth={2.2} aria-hidden />
                 {t('filter.overdue')}
                 <span className="rounded-[10px] bg-tint/12 px-[7px] py-px text-[11px] font-extrabold">
                   {counts?.overdue ?? 0}

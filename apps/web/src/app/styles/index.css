@@ -225,6 +225,12 @@
 .theme-switching * {
   transition: none !important;
 }
+/* ...and the switch itself is a crossfade of the whole page (shared/lib/theme: startViewTransition). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.4s;
+  animation-timing-function: ease-in-out;
+}
 
 @layer base {
   * {

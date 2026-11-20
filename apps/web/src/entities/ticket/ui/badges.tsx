@@ -10,7 +10,7 @@ const STATUS_BADGE: Record<TicketStatus, string> = {
   in_progress: 'border-[rgba(245,158,11,0.35)] bg-[rgba(245,158,11,0.18)] text-caution',
   done: 'border-[rgba(16,185,129,0.35)] bg-[rgba(16,185,129,0.18)] text-positive',
   rejected: 'border-[rgba(239,68,68,0.35)] bg-[rgba(239,68,68,0.18)] text-danger',
-  callback_pending: 'border-[rgba(45,212,191,0.35)] bg-[rgba(20,184,166,0.18)] text-shade-[#5eead4]',
+  callback_pending: 'border-[rgba(45,212,191,0.35)] bg-[rgba(20,184,166,0.18)] text-[#5eead4] light:text-[#0f766e]',
   closed: 'border-mute/30 bg-mute/14 text-mute',
 };
 

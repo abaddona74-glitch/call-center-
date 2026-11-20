@@ -18,7 +18,7 @@ function readTheme(): Theme {
 
 function applyTheme(theme: Theme): void {
   const root = document.documentElement;
-  // Switch instantly: without this every `transition: all` in the legacy CSS would fade colors one by one.
+  // Recolor in one step: without this every `transition: all` in the legacy CSS would fade colors one by one.
   root.classList.add('theme-switching');
   root.classList.toggle('dark', theme === 'dark');
   root.classList.toggle('light', theme === 'light');
@@ -26,8 +26,23 @@ function applyTheme(theme: Theme): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Applies the theme with a short crossfade of the whole page (View Transitions API: the browser snapshots the
+ * old look and fades it into the new one, so everything changes together). Falls back to an instant switch
+ * where the API is missing or the user prefers reduced motion.
+ */
+function applyThemeSmoothly(theme: Theme): void {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced || typeof document.startViewTransition !== 'function') {
+    applyTheme(theme);
+    return;
+  }
+  document.startViewTransition(() => applyTheme(theme));
+}
+
 export function setTheme(theme: Theme): void {
-  applyTheme(theme);
+  if (theme === readTheme()) return;
+  applyThemeSmoothly(theme);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {

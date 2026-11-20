@@ -5,6 +5,7 @@ build/
 coverage/
 .turbo/
 .vite/
+.tanstack/
 *.tsbuildinfo
 .next/
 out/
