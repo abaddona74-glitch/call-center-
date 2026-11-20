@@ -12,6 +12,7 @@ import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { SettingsEvents } from '../../common/events/domain-events.js';
 import { AppConfig } from '../../config/app-config.js';
 import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
+import { OperatorPhotosService } from '../operator-photos/operator-photos.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { AmiService } from '../ami/ami.service.js';
 import { PbxCallsService } from '../../pbx/calls/pbx-calls.service.js';
@@ -58,6 +59,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly repo: LiveRepository,
     private readonly config: AppConfig,
     private readonly excluded: ExcludedOperatorsService,
+    private readonly photos: OperatorPhotosService,
     pbxCalls: PbxCallsService,
   ) {
     this.store = new LiveStore(
@@ -108,7 +110,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     const now = Date.now();
     const viewer = toViewer(user);
     return {
-      operators: operatorsFor(viewer, projectOperators(this.store, now, this.excluded.extensions())),
+      operators: operatorsFor(viewer, projectOperators(this.store, now, this.excluded.extensions(), this.photos.urls())),
       calls: callsFor(viewer, projectCalls(this.store, now)),
       queues: queuesFor(viewer, projectQueues(this.store)),
       counters: isPrivileged(viewer) ? projectCounters(this.store) : null,
@@ -132,11 +134,12 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   operator(ext: string): LiveOperator | undefined {
-    return projectOperators(this.store, Date.now()).find((o) => o.extension === ext);
+    return projectOperators(this.store, Date.now(), undefined, this.photos.urls()).find((o) => o.extension === ext);
   }
 
-  /** The excluded operators list changed: push the board again without (or with) them. */
+  /** The excluded operators list or an operator photo changed: push the board again. */
   @OnEvent(SettingsEvents.ExcludedOperatorsChanged)
+  @OnEvent(SettingsEvents.OperatorPhotosChanged)
   onExcludedOperatorsChanged(): void {
     this.dirty.add('operators');
     if (!this.publishTimer) this.publishTimer = setTimeout(() => this.publish(), PUBLISH_DEBOUNCE_MS);
@@ -166,7 +169,7 @@ export class LiveService implements OnApplicationBootstrap, OnApplicationShutdow
     const sections = new Set(this.dirty);
     this.dirty.clear();
     if (sections.has('operators')) {
-      const list = projectOperators(this.store, now, this.excluded.extensions());
+      const list = projectOperators(this.store, now, this.excluded.extensions(), this.photos.urls());
       this.realtime.broadcastEach(
         'telephony.operators',
         memo((v) => operatorsFor(v, list)),

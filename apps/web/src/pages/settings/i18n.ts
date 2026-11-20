@@ -12,6 +12,11 @@ registerTranslations('settings', {
       calendar: 'Ish vaqti',
       audit: 'Audit jurnali',
       exclude: 'Statistika & Exclude List',
+      photos: 'Operator rasmlari',
+    },
+    photos: {
+      title: 'Operator rasmlari',
+      description: 'Operator kartochkalarida ko‘rinadigan rasmlar. Rasm serverda saqlanadi va yangilanishlardan keyin ham qoladi.',
     },
     exclude: {
       title: 'Statistikadan chiqarilgan operatorlar (Exclude List)',
@@ -170,6 +175,11 @@ registerTranslations('settings', {
       calendar: 'Рабочее время',
       audit: 'Журнал аудита',
       exclude: 'Исключённые операторы',
+      photos: 'Фото операторов',
+    },
+    photos: {
+      title: 'Фото операторов',
+      description: 'Фото в карточках операторов. Хранятся на сервере и сохраняются после обновлений.',
     },
     exclude: {
       title: 'Операторы, исключённые из статистики',

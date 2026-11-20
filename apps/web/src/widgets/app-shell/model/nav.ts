@@ -11,6 +11,7 @@ import {
   ChartColumn,
   Headset,
   History,
+  Image as ImageIcon,
   LayoutDashboard,
   type LucideIcon,
   Map as MapIcon,
@@ -91,6 +92,7 @@ export const NAV_ENTRIES: NavEntry[] = [
       // The "Tizim sozlamalari" tabs, each its own item (owner, 20.11.2026): same order and permissions as SETTINGS_TABS
       { to: '/settings/security', label: 'nav.securitySettings', icon: ShieldCheck, permission: 'security.manage' },
       { to: '/settings/exclude', label: 'nav.excludeSettings', icon: EyeOff, permission: 'settings.manage' },
+      { to: '/settings/photos', label: 'nav.operatorPhotos', icon: ImageIcon, permission: 'settings.manage' },
       { to: '/settings/users', label: 'nav.users', icon: UserCog, permission: 'users.manage' },
       { to: '/settings/sessions', label: 'nav.sessions', icon: MonitorSmartphone, permission: 'sessions.manage' },
       { to: '/settings/calendar', label: 'nav.callbackSettings', icon: CalendarClock, permission: 'settings.manage' },

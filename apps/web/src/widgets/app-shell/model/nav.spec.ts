@@ -46,6 +46,7 @@ describe('"Sozlamalar" group', () => {
     expect(group && isNavGroup(group) ? group.children.map((item) => item.to) : null).toEqual([
       '/settings/security',
       '/settings/exclude',
+      '/settings/photos',
       '/settings/users',
       '/settings/sessions',
       '/settings/calendar',

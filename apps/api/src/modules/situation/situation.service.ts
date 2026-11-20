@@ -12,6 +12,7 @@ import { CallEvents, TicketEvents } from '../../common/events/domain-events.js';
 import { AppConfig } from '../../config/app-config.js';
 import { AmiService } from '../ami/ami.service.js';
 import { ExcludedOperatorsService } from '../excluded-operators/excluded-operators.service.js';
+import { OperatorPhotosService } from '../operator-photos/operator-photos.service.js';
 import { LiveService } from '../live/live.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
 import { WorkingCalendarService } from '../working-calendar/working-calendar.service.js';
@@ -45,6 +46,7 @@ export class SituationService implements OnApplicationBootstrap, OnApplicationSh
     private readonly live: LiveService,
     private readonly ami: AmiService,
     private readonly excluded: ExcludedOperatorsService,
+    private readonly photos: OperatorPhotosService,
     private readonly calendar: WorkingCalendarService,
     private readonly repo: SituationRepository,
     private readonly realtime: RealtimeService,
@@ -184,6 +186,7 @@ export class SituationService implements OnApplicationBootstrap, OnApplicationSh
       store: this.live.store,
       now,
       hidden: this.excluded.extensions(),
+      photos: this.photos.urls(),
       ami: this.ami.status(),
       workday: this.workday(now),
     });
