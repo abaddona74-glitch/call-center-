@@ -1,6 +1,7 @@
 import type { Permission, SessionUser } from '@cc/shared';
 import { CDR_ACCESS, hasPermission } from '@cc/shared';
 import {
+  Award,
   AudioLines,
   BookOpen,
   CalendarClock,
@@ -57,6 +58,8 @@ export const NAV_ENTRIES: NavEntry[] = [
   { to: '/situation', label: 'nav.situation', icon: Activity, permission: 'situation.view' },
   // Overview dashboard: observers' only page, the superuser too (owner, 19.11.2026)
   { to: '/overview', label: 'nav.overview', icon: MapIcon, permission: 'overview.view' },
+  // Staff KPI: observers and the superuser (owner, 19.11.2026)
+  { to: '/kpi', label: 'nav.kpi', icon: Award, permission: 'kpi.view' },
   { to: '/explorer', label: 'nav.explorer', icon: AudioLines, permission: 'recordings.listen' },
   {
     to: '/tickets',

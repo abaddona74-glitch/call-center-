@@ -3,6 +3,7 @@
   "nav": {
     "situation": "Текущая ситуация",
     "overview": "Общая картина",
+    "kpi": "KPI сотрудников",
     "dashboard": "Главная",
     "settings": "Настройки",
     "systemSettings": "Системные настройки",

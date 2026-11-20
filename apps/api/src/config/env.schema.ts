@@ -246,6 +246,10 @@ export const EnvSchema = z.object({
   /** Extensions with a personal AstDB block list `blacklist_<ext>` read by the PBX dialplan (legacy: 114). */
   BLACKLIST_OPERATOR_EXTENSIONS: csvWithDefault('114').pipe(z.array(z.string().regex(/^\d{2,6}$/))),
 
+  // --- Operator presence log (online / pause time on the KPI page, docs/rewrite/METRICS.md §11.1) ---
+  /** Presence intervals that ended longer ago than this are deleted every night. */
+  PRESENCE_LOG_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(400),
+
   // --- Tools (docs: packages/shared/src/tools.ts) ---
   /** Telegram Form dashboard link on the tools page (a separate app). Unset = the card says "not configured". */
   TOOLS_TELEGRAM_FORM_URL: z.url({ protocol: /^https?$/ }).optional(),
