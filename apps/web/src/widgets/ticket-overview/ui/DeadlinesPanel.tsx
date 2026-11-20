@@ -1,12 +1,12 @@
 import type { OverviewTickets } from '@cc/shared';
 import { useTranslation } from 'react-i18next';
 import type { TicketListRequest } from '@/entities/overview';
-import { STATUS_STRIPE, TicketStatusBadge } from '@/entities/ticket';
+import { OverdueFor, STATUS_STRIPE, TicketStatusBadge, overdueMs, overdueText } from '@/entities/ticket';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import { NumberButton } from '@/shared/ui/number-button';
 import { Panel, PanelHeader, PanelTitle } from '@/shared/ui/panel';
-import { deadlineSplit, lateBy, percentOf } from '../model/format';
+import { deadlineSplit, percentOf } from '../model/format';
 import '../i18n';
 
 /**
@@ -170,9 +170,8 @@ export function DeadlinesPanel({
         ) : (
           <ul className="flex flex-col divide-y divide-tint/6 rounded-xl border border-tint/8">
             {current.oldestOverdue.map((x) => {
-              const late = lateBy(x.dueAt, now);
-              const lateText =
-                late.unit === 'days' ? t('deadlines.lateBy', { n: late.n }) : t('deadlines.lateByHours', { n: late.n });
+              // Still with the region: the time past the due date keeps running (live on screen).
+              const lateText = overdueText(overdueMs(x.dueAt, null, now.getTime()) ?? 0, tt);
               const body = (
                 <>
                   <span className="font-mono font-bold text-ink">{x.code}</span>
@@ -180,7 +179,7 @@ export function DeadlinesPanel({
                     {ru ? x.regionNameRu : x.regionNameUz}
                     <span className="text-mute"> · {x.executive ?? t('deadlines.queue')}</span>
                   </span>
-                  <span className="shrink-0 font-bold whitespace-nowrap text-danger">+{lateText}</span>
+                  <OverdueFor dueAt={x.dueAt} resolvedAt={null} className="shrink-0 font-bold" />
                 </>
               );
               return (

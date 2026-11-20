@@ -70,6 +70,8 @@ export const OverviewTicketTotalsSchema = z.object({
   closed: count,
   /** Not closed yet. */
   open: count,
+  /** Still with the region (new / assigned / in_progress): «Bajarilmoqda» (owner, 20.11.2026). */
+  inWork: count,
   /** Missed the SLA (`due_at`): overdueOpen + overdueLate. */
   overdue: count,
   /** Still with the region (new / assigned / in_progress) after `due_at`. */
@@ -231,7 +233,7 @@ const pageParams = {
 
 /**
  * Ticket numbers of the page (METRICS.md §9.1):
- *  - the period (tickets created in it): received … callbackOverdue = the totals' fields; `resolved` / `closeTimed` =
+ *  - the period (tickets created in it): received … callbackOverdue, inWork = the totals' fields; `resolved` / `closeTimed` =
  *    the tickets the average resolution / close time is over; `onTime` = resolved by the due date;
  *  - now (not closed, any creation date): `nowOpen`, `nowStatus` (+ `status`), `nowOverdue`, `nowCallbackOverdue`;
  *  - one Mas'ul (+ `executive`): `exTaken`, `exDone`, `exRejected`, `exOverdue`, `exResolved` (the period),
@@ -249,6 +251,7 @@ export const OVERVIEW_TICKET_METRICS = [
   'overdueOpen',
   'overdueLate',
   'callbackOverdue',
+  'inWork',
   'resolved',
   'closeTimed',
   'onTime',
@@ -308,6 +311,8 @@ export const OverviewTicketListItemSchema = z.object({
   dueAt: z.string().nullable(),
   /** Hours past the due date: resolved late (at resolution) or still with the region (now); null when in time. */
   overdueHours: z.number().nonnegative().nullable(),
+  /** Done / rejected at: the overdue time runs to it; null = still with the region, it runs to now. */
+  resolvedAt: z.string().nullable(),
   closedAt: z.string().nullable(),
   organization: z.string().nullable(),
 });

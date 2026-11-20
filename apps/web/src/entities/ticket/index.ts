@@ -22,7 +22,9 @@ export {
   ticketUnreadQuery,
 } from './api/ticket.api';
 export { STATUS_STRIPE, dateTime, fileSize, refName, timeAgo } from './lib/format';
+export { overdueMs, overdueText } from './lib/overdue';
 export { OverdueBadge, RegionBadge, TicketStatusBadge, personName } from './ui/badges';
+export { OverdueFor } from './ui/OverdueFor';
 export { TicketMiniCard } from './ui/TicketMiniCard';
 export { type ActionVariant, KdsAction, KdsField, KdsInput, KdsSelect, KdsTextarea } from './ui/kds-ui';
 export {
