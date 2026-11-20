@@ -41,12 +41,17 @@ describe('sidebar by role', () => {
 describe('"Sozlamalar" group', () => {
   const settings = (u: SessionUser) => visibleNavEntries(u).find((e) => isNavGroup(e) && e.id === 'settings');
 
-  it('the superuser gets the four settings pages folded under one header', () => {
+  it('the superuser gets every settings tab and page folded under one header', () => {
     const group = settings(user('superuser'));
     expect(group && isNavGroup(group) ? group.children.map((item) => item.to) : null).toEqual([
-      '/settings',
-      '/settings/blacklist',
+      '/settings/security',
+      '/settings/exclude',
+      '/settings/photos',
+      '/settings/users',
+      '/settings/sessions',
       '/settings/calendar',
+      '/settings/audit',
+      '/settings/blacklist',
       '/settings/tickets',
     ]);
   });
@@ -74,7 +79,7 @@ describe('activeNavPath', () => {
   it('lights only the most specific item', () => {
     expect(activeNavPath(all, '/settings/blacklist')).toBe('/settings/blacklist');
     expect(activeNavPath(all, '/settings/calendar')).toBe('/settings/calendar');
-    expect(activeNavPath(all, '/settings/users')).toBe('/settings');
+    expect(activeNavPath(all, '/settings/users')).toBe('/settings/users');
     expect(activeNavPath(all, '/tickets/reports')).toBe('/tickets/reports');
     expect(activeNavPath(all, '/tickets/42')).toBe('/tickets');
   });

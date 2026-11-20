@@ -1,0 +1,58 @@
+/*
+ * "Ready to call" pulse of the click-to-call button (owner, 20.11.2026): once a whole number is typed, two light
+ * rings spread out from the button and fade, then a pause — like a phone calling out — and the handset icon gives
+ * a short ring-wiggle on each beat. The rings are box-shadows, so they grow by the same few pixels on every side
+ * of the wide button (a scale() would stretch them sideways).
+ */
+.call-ready {
+  position: relative;
+  isolation: isolate;
+}
+.call-ready::before,
+.call-ready::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: call-ready-ring 2.2s ease-out infinite;
+}
+.call-ready::after {
+  animation-delay: 0.35s;
+}
+@keyframes call-ready-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--positive) 55%, transparent);
+  }
+  55%,
+  100% {
+    box-shadow: 0 0 0 11px color-mix(in srgb, var(--positive) 0%, transparent);
+  }
+}
+.call-ready .call-ready-icon {
+  animation: call-ready-wiggle 2.2s ease-in-out infinite;
+  transform-origin: 50% 60%;
+}
+@keyframes call-ready-wiggle {
+  0%,
+  24%,
+  100% {
+    transform: rotate(0);
+  }
+  4%,
+  12% {
+    transform: rotate(-14deg);
+  }
+  8%,
+  16% {
+    transform: rotate(14deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .call-ready::before,
+  .call-ready::after,
+  .call-ready .call-ready-icon {
+    animation: none;
+  }
+}

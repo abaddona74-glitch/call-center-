@@ -36,7 +36,7 @@ export function TicketCallbackQueue() {
 
   const items = list.data?.items ?? [];
   return (
-    <section className="rounded-2xl border border-tint/8 bg-muted px-5 py-4" aria-label={t('callback.queueTitle')}>
+    <section className="rounded-2xl border border-tint/8 bg-card px-5 py-4 shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_55%,transparent)]" aria-label={t('callback.queueTitle')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="m-0 flex items-center gap-2 text-[15px] font-bold text-ink">

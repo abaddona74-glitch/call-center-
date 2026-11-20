@@ -365,7 +365,7 @@ export function CallHistoryTable(props: CallHistoryTableProps) {
               <tr
                 key={row.id}
                 onDoubleClick={() => props.onOpenDetails(row.original)}
-                className={cn('transition-colors [&>td]:hover:bg-tint/[0.035]', ROW_TONES[rowTone(row.original)])}
+                className={cn('transition-colors hover:[&>td]:bg-tint/[0.035]', ROW_TONES[rowTone(row.original)])}
               >
                 {row.getVisibleCells().map((cell) => (
                   <td

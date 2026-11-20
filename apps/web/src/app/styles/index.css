@@ -229,10 +229,23 @@
   transition: none !important;
 }
 /* ...and the switch itself is a crossfade of the whole page (shared/lib/page-transition: theme and language). */
+:root {
+  /* One timing for the theme crossfade and the theme switch's knob, so they start and end together. */
+  --theme-fade: 0.4s;
+  --theme-fade-ease: ease-in-out;
+}
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.4s;
-  animation-timing-function: ease-in-out;
+  animation-duration: var(--theme-fade);
+  animation-timing-function: var(--theme-fade-ease);
+}
+/* The theme switch's knob (features/theme-switch): slides from the old side to the new one while its sun/moon
+   cross-fade, on the same clock as the page above. */
+::view-transition-group(*.theme-knob),
+::view-transition-old(*.theme-knob),
+::view-transition-new(*.theme-knob) {
+  animation-duration: var(--theme-fade);
+  animation-timing-function: var(--theme-fade-ease);
 }
 
 @layer base {

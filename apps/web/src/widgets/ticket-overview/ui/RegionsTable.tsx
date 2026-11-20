@@ -128,7 +128,7 @@ export function RegionsTable({
       getRowId={regionKey}
       onRowClick={(r) => onSelect(selected === regionKey(r) ? null : regionKey(r))}
       isRowActive={(r) => selected === regionKey(r)}
-      className="max-h-[520px] overflow-y-auto 2xl:max-h-none"
+      className="max-h-[520px] overflow-y-auto bg-card 2xl:max-h-none"
     />
   );
 }

@@ -207,21 +207,47 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 14px 16px 10px;
+  padding: 14px 16px 12px;
 }
+/* Photo slot: round, ringed in the state colour, status dot bottom-right; initials until there is a photo. */
 .opc .av {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  border-radius: 12px;
+  position: relative;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 50%;
+  padding: 2px;
+  border: 2px solid color-mix(in oklab, var(--c, var(--op-line)) 75%, transparent);
+  background: var(--op-panel);
+}
+.opc .av img,
+.opc .av span {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.opc .av img {
+  display: block;
+  object-fit: cover;
+}
+.opc .av span {
   display: grid;
   place-items: center;
-  font-weight: 700;
-  font-size: 15px;
   background: var(--op-panel2);
-  border: 1px solid var(--op-line);
-  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.5px;
   color: color-mix(in oklab, var(--c, var(--op-mu)), var(--ink) var(--shade));
+}
+.opc .av .dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--c, var(--op-mu));
+  border: 2.5px solid var(--op-panel);
 }
 .opc .who {
   flex: 1;
@@ -243,6 +269,9 @@
   font-size: 12px;
   display: block;
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .opc .rank {
   font-size: 11px;
@@ -256,9 +285,16 @@
   background: rgba(0, 242, 254, 0.15);
   color: color-mix(in oklab, #00f2fe, var(--ink) var(--shade));
 }
+/* State pill under the name: off the name row, so a narrow card keeps the name and extension whole. */
 .opc .st {
-  font-size: 12px;
+  display: inline-block;
+  margin-top: 5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 600;
+  line-height: 18px;
+  background: color-mix(in srgb, var(--c, var(--op-mu)) 14%, transparent);
   color: color-mix(in oklab, var(--c), var(--ink) var(--shade));
   white-space: nowrap;
 }
@@ -391,7 +427,8 @@
 }
 .opc .stats {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  /* minmax(0, …): a long label wraps instead of pushing the third column out of the card */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   background: var(--op-line);
   margin: 14px 0 0;
@@ -399,12 +436,13 @@
 }
 .opc .stats div {
   background: var(--op-panel);
-  padding: 8px 12px;
+  padding: 8px 10px;
+  min-width: 0;
 }
 .opc .stats dt {
   font-size: 11px;
+  line-height: 1.25;
   color: var(--op-mu);
-  white-space: nowrap;
 }
 .opc .stats dd {
   margin: 2px 0 0;

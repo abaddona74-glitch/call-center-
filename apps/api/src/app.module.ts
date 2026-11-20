@@ -19,6 +19,7 @@ import { AmiModule } from './modules/ami/ami.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { WorkingCalendarModule } from './modules/working-calendar/working-calendar.module.js';
 import { ExcludedOperatorsModule } from './modules/excluded-operators/excluded-operators.module.js';
+import { OperatorPhotosModule } from './modules/operator-photos/operator-photos.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BlacklistModule } from './modules/blacklist/blacklist.module.js';
 import { CallAnalysisModule } from './modules/call-analysis/call-analysis.module.js';
@@ -117,6 +118,7 @@ const requestUrl = (req: { url?: string }) => (req as { originalUrl?: string }).
     AuditModule,
     WorkingCalendarModule,
     ExcludedOperatorsModule,
+    OperatorPhotosModule,
     AuthModule,
     RealtimeModule,
     HealthModule,

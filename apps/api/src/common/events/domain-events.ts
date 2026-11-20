@@ -75,7 +75,14 @@ export interface CallOperatorMissedEvent extends CallEventBase {
 export const SettingsEvents = {
   /** The excluded operators list changed (settings screen or a restart after migrate-legacy). */
   ExcludedOperatorsChanged: 'settings.excluded_operators_changed',
+  /** An operator photo was set, replaced or removed (Settings → "Operator rasmlari"). */
+  OperatorPhotosChanged: 'settings.operator_photos_changed',
 } as const;
+
+export interface OperatorPhotosChangedEvent {
+  /** Extensions that have a photo now. */
+  extensions: string[];
+}
 
 export interface ExcludedOperatorsChangedEvent {
   /** The new list, sorted by number. */

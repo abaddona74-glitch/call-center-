@@ -3,6 +3,7 @@ import { type Permission, type SessionUser, hasPermission } from '@cc/shared';
 export type SettingsPath =
   | '/settings/security'
   | '/settings/exclude'
+  | '/settings/photos'
   | '/settings/users'
   | '/settings/sessions'
   | '/settings/calendar'
@@ -12,6 +13,7 @@ export type SettingsPath =
 export const SETTINGS_TABS: { to: SettingsPath; key: string; permission: Permission }[] = [
   { to: '/settings/security', key: 'security', permission: 'security.manage' },
   { to: '/settings/exclude', key: 'exclude', permission: 'settings.manage' },
+  { to: '/settings/photos', key: 'photos', permission: 'settings.manage' },
   { to: '/settings/users', key: 'users', permission: 'users.manage' },
   { to: '/settings/sessions', key: 'sessions', permission: 'sessions.manage' },
   { to: '/settings/calendar', key: 'calendar', permission: 'settings.manage' },
