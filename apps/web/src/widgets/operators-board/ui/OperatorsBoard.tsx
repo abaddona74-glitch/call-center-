@@ -1,8 +1,8 @@
 import type { LiveOperator } from '@cc/shared';
 import { useQuery } from '@tanstack/react-query';
-import { type CSSProperties, type ReactNode, useRef, useState } from 'react';
+import { type CSSProperties, type ComponentType, type ReactNode, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { businessToday, operatorStatsQuery } from '@/entities/call';
+import { type CallListDialogProps, businessToday, operatorStatsQuery } from '@/entities/call';
 import { useContactAccess, useContactLookup } from '@/entities/contact';
 import { type OperatorGroupFilter, inGroup } from '@/entities/operator';
 import { useLiveSnapshot } from '@/entities/telephony';
@@ -12,8 +12,9 @@ import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { type SurveyScore, groupForBoard, leaderboard, nextInLine, ranks } from '../model/board';
+import { operatorCallsView } from '../model/operator-calls';
 import { useFlip } from '../model/use-flip';
-import { OperatorCard } from './OperatorCard';
+import { OperatorCard, cardOpenProps } from './OperatorCard';
 import { type MockupContactTarget, OperatorMockupCard } from './OperatorMockupCard';
 import '../i18n';
 import './operators-board.css';
@@ -66,15 +67,18 @@ function Divider({
  * density toggle, operator cards, offline operators as compact rows.
  * `controls` adds pause/unpause on every card (admins); `sortable` adds the A–Z toggle.
  * `variant="mockup"` draws the operator-portal cards (legacy viewer: Diamond / Gold / Silver ranks).
+ * `CallListDialog` (given by the page, like the KPI cards) makes the classic cards open the operator's calls today.
  */
 export function OperatorsBoard({
   controls = false,
   sortable = false,
   variant = 'classic',
+  CallListDialog,
 }: {
   controls?: boolean;
   sortable?: boolean;
   variant?: 'classic' | 'mockup';
+  CallListDialog?: ComponentType<CallListDialogProps>;
 }) {
   const { t } = useTranslation('operatorsBoard');
   const { t: tp } = useTranslation('operator');
@@ -88,6 +92,8 @@ export function OperatorsBoard({
   const { canEdit: canEditContacts } = useContactAccess();
   const [contactForm, setContactForm] = useState<MockupContactTarget | null>(null);
   const mockup = variant === 'mockup';
+  const [callsOf, setCallsOf] = useState<LiveOperator | null>(null);
+  const openCalls = CallListDialog && !mockup ? (op: LiveOperator) => () => setCallsOf(op) : undefined;
   // "Samaradorlik" on the portal cards = today's client ratings (PBX operator_baho), refreshed like legacy (~25 s).
   const today = businessToday();
   const { data: stats, isError: statsFailed } = useQuery({
@@ -134,6 +140,7 @@ export function OperatorsBoard({
         op={op}
         rank={rankMap.get(op.extension)}
         next={op.extension === next}
+        onOpen={openCalls?.(op)}
         actions={
           controls ? (
             <PauseOperatorButton extension={op.extension} paused={op.paused} compact className="px-2 py-1" />
@@ -234,7 +241,13 @@ export function OperatorsBoard({
           : groups.offline.length > 0 && (
               <div className="ob-offs">
                 {groups.offline.map((op) => (
-                  <div key={op.extension} className="row" data-ext={op.extension} data-flip-id={op.extension}>
+                  <div
+                    key={op.extension}
+                    className={cn('row', openCalls && 'clickable')}
+                    data-ext={op.extension}
+                    data-flip-id={op.extension}
+                    {...cardOpenProps(openCalls?.(op), t('detail.open'))}
+                  >
                     <div className="av">{op.extension}</div>
                     <div className="who">
                       <strong>{op.name}</strong>
@@ -248,6 +261,9 @@ export function OperatorsBoard({
               </div>
             )}
       </div>
+      {CallListDialog && (
+        <CallListDialog view={callsOf ? operatorCallsView(callsOf, t) : null} onClose={() => setCallsOf(null)} />
+      )}
       {contactForm && (
         <ContactDialog
           open

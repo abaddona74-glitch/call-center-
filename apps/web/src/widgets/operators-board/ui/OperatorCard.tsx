@@ -1,5 +1,5 @@
 import type { LiveOperator } from '@cc/shared';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRESENCE_CLASS } from '@/entities/operator';
 import { LiveTimer, displayPhone, formatSeconds } from '@/entities/telephony';
@@ -7,17 +7,42 @@ import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import { grandTotal } from '../model/board';
 
+/**
+ * Clicking a card (or Enter/Space on it) opens the operator's calls; clicks on the card's own buttons
+ * (pause) stay with those buttons.
+ */
+export function cardOpenProps(onOpen: (() => void) | undefined, label: string) {
+  if (!onOpen) return {};
+  return {
+    tabIndex: 0,
+    title: label,
+    'aria-haspopup': 'dialog' as const,
+    onClick: (e: MouseEvent<HTMLElement>) => {
+      if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+      onOpen();
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      onOpen();
+    },
+  };
+}
+
 /** Legacy "op-redesign" operator card: state bar, live call strip with stopwatch, today's numbers. */
 export function OperatorCard({
   op,
   rank,
   next,
   actions,
+  onOpen,
 }: {
   op: LiveOperator;
   rank?: number;
   next?: boolean;
   actions?: ReactNode;
+  /** Opens today's calls of this operator; without it the card is not clickable. */
+  onOpen?: () => void;
 }) {
   const { t } = useTranslation('operatorsBoard');
   const { t: tp } = useTranslation('operator');
@@ -82,10 +107,11 @@ export function OperatorCard({
 
   return (
     <article
-      className={cn('opc', PRESENCE_CLASS[op.presence], next && 'next')}
+      className={cn('opc', PRESENCE_CLASS[op.presence], next && 'next', onOpen && 'clickable')}
       data-ext={op.extension}
       data-presence={op.presence}
       data-flip-id={op.extension}
+      {...cardOpenProps(onOpen, t('detail.open'))}
     >
       <div className="head">
         <div className="av">{op.extension}</div>
