@@ -41,7 +41,7 @@ import {
   matchesOperatorCall,
   operatorTicketIds,
   qualityByOperator,
-  ratedCallIds,
+  ratedCallScores,
   talkWhileOnline,
   ticketsByOperator,
 } from './domain/operator-kpi.js';
@@ -164,7 +164,7 @@ export class KpiService {
       metric === 'rated' ? this.pbxCalls.surveyRatingsForRange(q.from, q.to) : Promise.resolve(null),
     ]);
     const search = parseSearch(q.search, this.pbxCalls.dialplan);
-    const rated = metric === 'rated' ? ratedCallIds(ratings ?? [], calls, q.scope, q.ext) : null;
+    const rated = metric === 'rated' ? ratedCallScores(ratings ?? [], calls, q.scope, q.ext) : null;
     const matching = calls.filter(
       (c) =>
         (rated ? rated.has(c.id) : metric !== 'rated' && matchesOperatorCall(c, q.ext, metric, q.scope)) &&
@@ -173,7 +173,11 @@ export class KpiService {
     const page = paginate(matching, q.page, q.pageSize);
     return {
       // Like the overview lists: whether there is a recording, not its file name.
-      items: page.items.map((c) => toCallListItem(c, names, { includeRecording: false, toIso: wallToIso })),
+      items: page.items.map((c) => {
+        const item = toCallListItem(c, names, { includeRecording: false, toIso: wallToIso });
+        const score = rated?.get(c.id);
+        return score === undefined ? item : { ...item, clientRating: score };
+      }),
       page: q.page,
       pageSize: q.pageSize,
       total: page.total,

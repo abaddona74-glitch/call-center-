@@ -42,6 +42,14 @@ const ROW_TONES: Record<string, string> = {
   xfer: 'bg-primary/[0.06] [&>td:first-child]:shadow-[inset_3px_0_0_var(--primary)]',
 };
 
+/** A client's 1–5 rating: 5 green, 4 plain, 3 amber, 1–2 red (the KPI table's average tones). */
+function ratingTone(score: number): string {
+  if (score >= 5) return 'text-positive';
+  if (score >= 4) return 'text-ink';
+  if (score >= 3) return 'text-caution';
+  return 'text-danger';
+}
+
 /** Legacy `.recent-calls-table .btn` / `.btn.p`. */
 export function TableButton({ primary, className, ...props }: React.ComponentProps<'button'> & { primary?: boolean }) {
   return (
@@ -86,6 +94,8 @@ export interface CallHistoryTableProps {
   firstRowNumber: number;
   /** Show the date above the time (range or all-days search). */
   showDate: boolean;
+  /** Adds the client's post-call rating column (`clientRating`), right after the status. */
+  showRating?: boolean;
   columnVisibility: ColumnVisibility;
   onColumnVisibilityChange: (v: ColumnVisibility | ((prev: ColumnVisibility) => ColumnVisibility)) => void;
   onOpenDetails: (call: CallListItem) => void;
@@ -118,7 +128,7 @@ export const TOGGLEABLE_COLUMNS = HISTORY_COLUMNS.filter((c) => c !== 'num' && c
 function useCallHistoryTable(props: CallHistoryTableProps) {
   const { t, i18n } = useTranslation('callHistory');
   const { t: tc } = useTranslation('call');
-  const { firstRowNumber, showDate, onOpenDetails, canListen, analysis, operatorNames } = props;
+  const { firstRowNumber, showDate, showRating, onOpenDetails, canListen, analysis, operatorNames } = props;
 
   const columns = useMemo(
     () =>
@@ -207,6 +217,26 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
           header: () => t('col.status'),
           cell: ({ row }) => <CallStatusBadge call={row.original} />,
         }),
+        ...(showRating
+          ? [
+              helper.display({
+                id: 'rating',
+                header: () => t('col.rating'),
+                cell: ({ row: { original: c } }) =>
+                  c.clientRating === undefined ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <span
+                      className={cn('font-semibold whitespace-nowrap', ratingTone(c.clientRating))}
+                      title={t('ratingTitle', { n: c.clientRating })}
+                    >
+                      ★ {c.clientRating}
+                      <span className="text-[11px] font-normal text-muted-foreground"> / 5</span>
+                    </span>
+                  ),
+              }),
+            ]
+          : []),
         helper.display({
           id: 'missedBy',
           header: () => t('col.missedBy'),
@@ -287,7 +317,7 @@ function useCallHistoryTable(props: CallHistoryTableProps) {
       ]),
     // i18n.language: re-render headers on language switch
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-    [t, tc, i18n.language, firstRowNumber, showDate, onOpenDetails, canListen, analysis, operatorNames],
+    [t, tc, i18n.language, firstRowNumber, showDate, showRating, onOpenDetails, canListen, analysis, operatorNames],
   );
 
   return useTable({

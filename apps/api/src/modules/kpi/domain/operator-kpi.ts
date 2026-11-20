@@ -146,19 +146,19 @@ export function matchesOperatorCall(
 }
 
 /**
- * Ids of the calls whose client rating is credited to `ext` — the attribution of `surveyByOperator` (the operator who
- * talked last; one rating per inbound in-scope call; scores 1–5 only).
+ * The calls whose client rating is credited to `ext`, call id → score — the attribution of `surveyByOperator` (the
+ * operator who talked last; one rating per inbound in-scope call; scores 1–5 only).
  */
-export function ratedCallIds(
+export function ratedCallScores(
   ratings: readonly SurveyRating[],
   allCalls: readonly AssembledCall[],
   scope: CallScope,
   ext: string,
-): Set<string> {
+): Map<string, number> {
   const byId = new Map<string, AssembledCall>();
   for (const c of allCalls) if (c.direction === 'inbound' && inScope(c, scope)) byId.set(c.id, c);
   const rated = new Set<string>();
-  const out = new Set<string>();
+  const out = new Map<string, number>();
   for (const r of ratings) {
     if (!Number.isInteger(r.score) || r.score < 1 || r.score > 5) continue;
     const call = byId.get(r.linkedid) ?? byId.get(r.uniqueid);
@@ -167,7 +167,7 @@ export function ratedCallIds(
     const who = transferred ? call.finalOperator : r.operatorExt || call.finalOperator;
     if (!who) continue;
     rated.add(call.id);
-    if (who === ext) out.add(call.id);
+    if (who === ext) out.set(call.id, r.score);
   }
   return out;
 }
