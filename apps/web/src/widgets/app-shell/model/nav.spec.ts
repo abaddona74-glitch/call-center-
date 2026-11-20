@@ -33,9 +33,8 @@ describe('sidebar by role', () => {
     for (const role of ['executive', 'operator'] as const) {
       for (const page of ['/situation', '/overview', '/kpi']) expect(paths(role)).not.toContain(page);
     }
-    expect(paths('superuser')).toEqual(expect.arrayContaining(['/overview', '/kpi']));
-    // the superuser keeps the live dashboard on `/` and gets the board as its next item
-    expect(paths('superuser').slice(0, 3)).toEqual(['/', '/situation', '/overview']);
+    // the superuser keeps the live dashboard on `/`, then the board, the overview and the staff KPI page
+    expect(paths('superuser').slice(0, 4)).toEqual(['/', '/situation', '/overview', '/kpi']);
   });
 });
 
