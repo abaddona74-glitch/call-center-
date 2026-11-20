@@ -23,7 +23,10 @@ export function CallRecordingButton({ uniqueid, label, disabled }: { uniqueid: s
   const key = `call:${uniqueid}`;
   const isMine = player.track?.key === key;
   const playing = isMine && (player.status === 'playing' || player.status === 'loading');
-  const paused = isMine && (player.status === 'paused' || player.status === 'ended');
+  // Loaded but stopped. Only a track that was actually played is "paused" for the label: one the details dialog
+  // merely loaded (not started) still reads «Tinglash».
+  const stopped = isMine && (player.status === 'paused' || player.status === 'ended');
+  const paused = stopped && player.started;
 
   const base =
     'inline-flex items-center gap-[5px] whitespace-nowrap rounded-lg border px-[11px] py-[5px] text-xs leading-[1.4] font-semibold transition-all duration-150';
@@ -38,7 +41,7 @@ export function CallRecordingButton({ uniqueid, label, disabled }: { uniqueid: s
   }
 
   const onClick = async () => {
-    if (isMine && (playing || paused)) {
+    if (isMine && (playing || stopped)) {
       audioPlayer.toggle();
       return;
     }
