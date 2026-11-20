@@ -28,7 +28,7 @@ export function AppShell() {
       {/* A docked right panel ([data-right-dock], e.g. "Jonli Monitor") is fixed to the viewport
           edge from xl up; reserve its width so the page stops where it starts. While the panel slides
           in or out ([data-dock-motion]) the page widens/narrows with it instead of jumping. */}
-      <div className="flex min-w-0 flex-1 flex-col ease-out has-[[data-dock-motion]]:transition-[padding] has-[[data-dock-motion]]:duration-300 xl:has-[[data-right-dock]]:pr-(--right-dock-width)">
+      <div className="flex min-w-0 flex-1 flex-col ease-dock has-[[data-dock-motion]]:transition-[padding] has-[[data-dock-motion]]:duration-320 xl:has-[[data-right-dock]]:pr-(--right-dock-width)">
         {!desktop && (
           <>
             <PhoneHeader />

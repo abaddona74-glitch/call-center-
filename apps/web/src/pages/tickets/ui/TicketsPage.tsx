@@ -173,7 +173,9 @@ export function TicketsPage({
                 setPasted([]);
                 setCreateOpen(true);
               }}
-              className="inline-flex min-w-56 items-center justify-center gap-2 rounded-[10px] border border-[rgba(16,185,129,0.4)] bg-[linear-gradient(135deg,#10b981_0%,#059669_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#059669_0%,#047857_100%)] hover:shadow-[0_6px_18px_rgba(16,185,129,0.5)] active:scale-[0.96]"
+              // The app's primary action color (indigo, like the other primary buttons): white text reads
+              // at ~4.5–6:1 on it, where the legacy emerald (#10b981) gave ~2.5:1 and washed the label out.
+              className="inline-flex min-w-56 cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-[rgba(129,140,248,0.45)] bg-[linear-gradient(135deg,#6366f1_0%,#4f46e5_100%)] px-[18px] py-[9px] text-[13px] font-bold text-white shadow-[0_4px_14px_rgba(79,70,229,0.35)] transition-[transform,background-color,box-shadow] duration-[140ms] hover:-translate-y-px hover:bg-[linear-gradient(135deg,#4f46e5_0%,#4338ca_100%)] hover:shadow-[0_6px_18px_rgba(79,70,229,0.5)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-[0.96]"
             >
               <LegacyIcon name="add" strokeWidth={2} />
               {t('create')}

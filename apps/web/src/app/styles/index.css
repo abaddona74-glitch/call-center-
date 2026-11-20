@@ -207,6 +207,9 @@
   --color-chart-8: var(--chart-8);
   --font-sans: "Golos Text", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* The "Jonli Monitor" slide: the panel and the page's right padding use this same curve (and 320 ms),
+     so the page edge follows the panel edge exactly instead of snapping ahead of it. */
+  --ease-dock: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Accent-colored text that stays readable in both themes: text-shade-[#f59e0b], text-shade-chart-5. */
@@ -225,7 +228,7 @@
 .theme-switching * {
   transition: none !important;
 }
-/* ...and the switch itself is a crossfade of the whole page (shared/lib/theme: startViewTransition). */
+/* ...and the switch itself is a crossfade of the whole page (shared/lib/page-transition: theme and language). */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 0.4s;

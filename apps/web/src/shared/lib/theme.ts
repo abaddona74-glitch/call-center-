@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { withPageTransition } from './page-transition';
 
 /**
  * Color theme of the app: a class on <html> (`dark` | `light`) that switches the design tokens in
@@ -26,23 +27,10 @@ function applyTheme(theme: Theme): void {
   for (const listener of listeners) listener();
 }
 
-/**
- * Applies the theme with a short crossfade of the whole page (View Transitions API: the browser snapshots the
- * old look and fades it into the new one, so everything changes together). Falls back to an instant switch
- * where the API is missing or the user prefers reduced motion.
- */
-function applyThemeSmoothly(theme: Theme): void {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduced || typeof document.startViewTransition !== 'function') {
-    applyTheme(theme);
-    return;
-  }
-  document.startViewTransition(() => applyTheme(theme));
-}
-
+/** Switches the theme with a short whole-page crossfade (see withPageTransition). */
 export function setTheme(theme: Theme): void {
   if (theme === readTheme()) return;
-  applyThemeSmoothly(theme);
+  withPageTransition(() => applyTheme(theme));
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
