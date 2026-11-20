@@ -4,10 +4,15 @@ import { cn } from '@/shared/lib/cn';
 import { Button } from '@/shared/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/ui/tooltip';
 import { useSidebarCollapsed } from '../model/sidebar-state';
+import { SidebarFooter } from './SidebarFooter';
 import { SidebarNav } from './SidebarNav';
 
-/** The left menu. Folds to an icon rail (names move into tooltips); each browser keeps its choice. */
-export function Sidebar() {
+/**
+ * The left menu. Folds to an icon rail (names move into tooltips); each browser keeps its choice.
+ * `footer`: mount the controls at its foot (online, alerts, theme, user). Off on phones, where this sidebar
+ * is hidden and the shell's header has them instead.
+ */
+export function Sidebar({ footer = true }: { footer?: boolean }) {
   const { t } = useTranslation();
   const { collapsed, toggle } = useSidebarCollapsed();
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
@@ -46,6 +51,7 @@ export function Sidebar() {
           </Tooltip>
         </div>
         <SidebarNav collapsed={collapsed} />
+        {footer && <SidebarFooter collapsed={collapsed} />}
       </TooltipProvider>
     </aside>
   );

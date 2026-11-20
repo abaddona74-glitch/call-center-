@@ -8,7 +8,7 @@ import { cn } from '@/shared/lib/cn';
 import { usePersistedState } from '@/shared/lib/use-persisted-state';
 import { Icon } from '@/shared/ui/icon';
 import { ActiveCalls } from '@/widgets/active-calls';
-import { LiveMonitor, LiveMonitorReopen } from '@/widgets/live-monitor';
+import { LiveMonitor, LiveMonitorReopen, useLiveMonitorDock } from '@/widgets/live-monitor';
 import { MyPhone } from '@/widgets/my-phone';
 import { QueueWaiters } from '@/widgets/queues';
 import { medals } from '../model/rating';
@@ -18,7 +18,6 @@ import './operators-page.css';
 
 const SORT = ['total', 'alpha'] as const;
 const DENSITY = ['full', 'compact'] as const;
-const MONITOR = ['open', 'collapsed'] as const;
 const totalOf = (o: LiveOperator) => o.today.answered + o.today.outbound + o.today.transfersIn;
 
 /**
@@ -34,7 +33,7 @@ export function OperatorsPage() {
   const { data: operators } = useQuery({ ...liveSnapshotQuery, select: (s) => s.operators });
   const [sort, setSort] = usePersistedState('tabOperatorSortMode', 'total', SORT);
   const [density, setDensity] = usePersistedState('operators_tab_density', 'full', DENSITY);
-  const [monitor, setMonitor] = usePersistedState('cc_sidebar_collapsed', 'open', MONITOR);
+  const { open, motion, collapse, expand } = useLiveMonitorDock();
   const list = [...(operators ?? [])].sort(
     sort === 'alpha'
       ? (a, b) => a.name.localeCompare(b.name)
@@ -43,7 +42,6 @@ export function OperatorsPage() {
           totalOf(b) - totalOf(a) ||
           Number(a.extension) - Number(b.extension),
   );
-  const open = monitor === 'open';
   const medalOf = medals(list.map((o) => ({ extension: o.extension, total: totalOf(o) })));
 
   return (
@@ -91,12 +89,12 @@ export function OperatorsPage() {
         </section>
       </div>
       {open ? (
-        <LiveMonitor onCollapse={() => setMonitor('collapsed')}>
+        <LiveMonitor onCollapse={collapse} motion={motion}>
           <QueueWaiters />
           <ActiveCalls />
         </LiveMonitor>
       ) : (
-        <LiveMonitorReopen onClick={() => setMonitor('open')} />
+        <LiveMonitorReopen onClick={expand} />
       )}
     </div>
   );

@@ -42,7 +42,7 @@ export function TicketCallbackQueue() {
           <h2 className="m-0 flex items-center gap-2 text-[15px] font-bold text-ink">
             <Icon name="call" className="size-4 text-shade-[#2dd4bf]" />
             {t('callback.queueTitle')}
-            <span className="rounded-[10px] bg-[rgba(45,212,191,0.18)] px-[7px] py-px text-[11px] font-extrabold text-shade-[#5eead4]">
+            <span className="rounded-[10px] bg-[rgba(45,212,191,0.18)] px-[7px] py-px text-[11px] font-extrabold text-[#5eead4] light:text-[#0f766e]">
               {list.data?.counts.callback ?? 0}
             </span>
             {(list.data?.counts.callbackOverdue ?? 0) > 0 && (

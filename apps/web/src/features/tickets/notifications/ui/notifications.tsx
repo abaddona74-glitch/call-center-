@@ -249,11 +249,12 @@ export function useTicketLive({
 }
 
 /**
- * Header element (one line in the app shell): for executives (`regionAlerts`), the unread counter of new
+ * Sidebar-foot element (one line in the app shell): for executives (`regionAlerts`), the unread counter of new
  * tickets in their regions + chime, toast and title flash when a ticket arrives or is released back to the
  * queue — on every page. Nothing for other roles (the superuser and observers see every region).
+ * `compact` shows only the icon and the count.
  */
-export function TicketAlerts({ meId }: { meId: number }) {
+export function TicketAlerts({ meId, compact = false }: { meId: number; compact?: boolean }) {
   const { t } = useTranslation('ticket');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -284,17 +285,19 @@ export function TicketAlerts({ meId }: { meId: number }) {
   return (
     <button
       type="button"
-      title={t('unreadTitle')}
+      title={compact ? `${t('unreadTitle')}: ${count}` : t('unreadTitle')}
+      aria-label={compact ? `${t('unreadTitle')}: ${count}` : undefined}
       onClick={() => void navigate({ to: '/tickets', search: { view: 'queue' } })}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition-colors',
+        'inline-flex cursor-pointer items-center gap-1.5 rounded-lg border py-1 text-xs font-bold transition-colors',
+        compact ? 'px-2' : 'px-2.5',
         count > 0
           ? 'animate-[tkNewGlow_2.2s_ease-in-out_infinite] border-[rgba(56,189,248,0.55)] bg-[rgba(56,189,248,0.18)] text-info'
           : 'border-tint/10 bg-tint/5 text-muted-foreground',
       )}
     >
       <Icon name="clipboard-text" className="size-3.5" />
-      {t('unread', { n: count })}
+      {compact ? count : t('unread', { n: count })}
     </button>
   );
 }

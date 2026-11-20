@@ -228,3 +228,21 @@
     0 0 0 2.5px color-mix(in srgb, var(--ink-2) 80%, transparent),
     0 0 14px color-mix(in srgb, var(--mute) 40%, transparent);
 }
+
+/* Light theme: no dark slate disc for offline operators, and the MVP rings/star glow are toned down for white. */
+:root:not(.dark) .opp-card.offline .opp-av {
+  background: var(--mute);
+}
+:root:not(.dark) .opp-stars {
+  text-shadow: none;
+}
+:root:not(.dark) .opp-card.mvp-diamond .opp-av {
+  box-shadow:
+    0 0 0 2.5px rgba(8, 145, 178, 0.55),
+    0 0 8px rgba(8, 145, 178, 0.2);
+}
+:root:not(.dark) .opp-card.mvp-gold .opp-av {
+  box-shadow:
+    0 0 0 2.5px rgba(217, 119, 6, 0.55),
+    0 0 8px rgba(217, 119, 6, 0.2);
+}
