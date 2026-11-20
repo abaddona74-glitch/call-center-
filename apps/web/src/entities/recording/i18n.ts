@@ -57,6 +57,7 @@ const uz = {
     fwd10: '10 soniya oldinga',
     loop: 'Takroriy ijro (Loop)',
     speed: 'Tezlik',
+    keysHint: 'Probel — ijro / pauza · ← → — 5 soniya (Shift bilan — 10) · ↑ ↓ — ovoz balandligi',
   },
   call: {
     listen: 'Tinglash',
@@ -138,6 +139,7 @@ const ru: typeof uz = {
     fwd10: 'Вперёд на 10 секунд',
     loop: 'Повтор (Loop)',
     speed: 'Скорость',
+    keysHint: 'Пробел — пуск / пауза · ← → — 5 секунд (с Shift — 10) · ↑ ↓ — громкость',
   },
   call: {
     listen: 'Слушать',

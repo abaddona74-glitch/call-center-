@@ -24,3 +24,4 @@ export {
 export { makeWaveform, WAVEFORM_BARS, type Waveform } from './lib/waveform';
 export { audioPlayer, useAudioPlayer, type PlayerState, type PlayerStatus, type PlayerTrack } from './model/player';
 export { InfoPill, RecordingKindBadge } from './ui/RecordingKindBadge';
+export { SkipToast, StudioPlayer, type StudioPlayerProps } from './ui/StudioPlayer';
