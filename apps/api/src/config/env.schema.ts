@@ -199,6 +199,8 @@ export const EnvSchema = z.object({
   // --- Tickets ---
   /** Attachments live here (a volume outside the web root); served only through the API. */
   TICKETS_UPLOAD_DIR: z.string().default('.data/ticket-uploads'),
+  /** Operator photos (Settings → "Operator rasmlari"): a volume outside the web root, served only through the API. */
+  OPERATOR_PHOTOS_DIR: z.string().default('.data/operator-photos'),
   TICKETS_MAX_FILE_MB: z.coerce.number().int().positive().max(50).default(10),
   /** SLA: working days (Mon–Fri minus WORKING_HOLIDAYS, Asia/Tashkent) from creation to done/rejected. */
   TICKETS_SLA_WORKING_DAYS: z.coerce.number().int().min(1).max(60).default(3),

@@ -99,6 +99,7 @@ export function StaffKpiPage() {
           ? t(`details.calls.${r.metric}.def`)
           : `${t(`details.calls.${r.metric}.def`)} ${t(state.scope === 'working' ? 'details.scopeWorking' : 'details.scopeAll')}`,
         showDate: state.from !== state.to,
+        showRating: r.metric === 'rated',
         tabs: tabs.map((m) => ({
           id: m,
           label: t(`details.calls.${m}.title`),

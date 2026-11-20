@@ -7,6 +7,10 @@ import { telephonyActions } from '@/entities/telephony';
 import { cn } from '@/shared/lib/cn';
 import { Icon } from '@/shared/ui/icon';
 import '../i18n';
+import './call-ready.css';
+
+/** Digits of a whole Uzbek number (90 123 45 67); from here the button pulses "ready to call". */
+const FULL_NUMBER_DIGITS = 9;
 
 /**
  * Click-to-call: rings the operator's own phone first, then dials the number (async Originate).
@@ -36,6 +40,7 @@ export function ClickToCallForm({
     e.preventDefault();
     if (to.trim()) mutation.mutate();
   };
+  const ready = !mutation.isPending && to.replace(/\D/g, '').length >= FULL_NUMBER_DIGITS;
   const field =
     'h-9 rounded-lg border border-tint/10 bg-sidebar/75 px-3 text-sm text-foreground outline-none focus:border-[#6366f1]/60';
 
@@ -71,9 +76,12 @@ export function ClickToCallForm({
       <button
         type="submit"
         disabled={mutation.isPending || !to.trim()}
-        className="inline-flex h-9 items-center gap-2 rounded-lg border border-positive/40 bg-positive/12 px-3 text-sm font-semibold text-positive transition-[filter] hover:brightness-125 disabled:opacity-50"
+        className={cn(
+          'inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg bg-positive px-3 text-sm font-semibold text-white shadow-sm dark:text-[#052e1f] transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70',
+          ready && 'call-ready',
+        )}
       >
-        <Icon name="call" className="size-4" />
+        <Icon name="call" className="call-ready-icon size-4" />
         {t('call.button')}
       </button>
     </form>

@@ -48,7 +48,12 @@ describe('audio player: play vs load', () => {
 
   it('load shows the track paused at 0:00 and never starts it (call details dialog)', () => {
     audioPlayer.load(track('call:1'));
-    expect(audioPlayer.getState()).toMatchObject({ track: { key: 'call:1' }, status: 'paused', currentTime: 0 });
+    expect(audioPlayer.getState()).toMatchObject({
+      track: { key: 'call:1' },
+      status: 'paused',
+      started: false,
+      currentTime: 0,
+    });
     expect(FakeAudio.last?.src).toBe('/rec/call:1');
     expect(FakeAudio.last?.play).not.toHaveBeenCalled();
   });
@@ -56,12 +61,18 @@ describe('audio player: play vs load', () => {
   it('play after load starts the loaded track', () => {
     audioPlayer.toggle();
     expect(FakeAudio.last?.play).toHaveBeenCalledTimes(1);
+    expect(audioPlayer.getState().started).toBe(true);
   });
 
   it('play starts at once (row «Tinglash», Audio Explorer)', () => {
     audioPlayer.play(track('call:2'));
-    expect(audioPlayer.getState()).toMatchObject({ track: { key: 'call:2' }, status: 'loading' });
+    expect(audioPlayer.getState()).toMatchObject({ track: { key: 'call:2' }, status: 'loading', started: true });
     expect(FakeAudio.last?.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('loading another track paused resets "started" (the row offers «Tinglash», not «Davom ettirish»)', () => {
+    audioPlayer.load(track('call:3'));
+    expect(audioPlayer.getState()).toMatchObject({ track: { key: 'call:3' }, status: 'paused', started: false });
   });
 
   it('close unloads the track, so nothing is left for the global shortcuts', () => {

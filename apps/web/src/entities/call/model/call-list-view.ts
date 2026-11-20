@@ -30,6 +30,8 @@ export interface CallListView {
   subtitle?: string;
   /** Show the date column (lists longer than a day). */
   showDate?: boolean;
+  /** Show the client's post-call rating of each call (`clientRating`; the KPI «rated» list). */
+  showRating?: boolean;
   /**
    * Where a tab's page comes from; default: GET /cdr/calls for today with the tab's `filter` (the dashboard). The
    * overview dashboard passes its own read-only lists (`/overview/calls/list`, `/overview/quality/list`).

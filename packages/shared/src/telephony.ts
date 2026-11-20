@@ -84,6 +84,8 @@ export const LiveOperatorSchema = z.object({
    * live only since `counters.since` when there was no CDR seed. Hangup sides are live-only.
    */
   today: OperatorTodaySchema,
+  /** The operator photo (Settings → "Operator rasmlari"), versioned URL; null/absent: none, the card shows initials. */
+  photoUrl: z.string().nullable().optional(),
 });
 export type LiveOperator = z.infer<typeof LiveOperatorSchema>;
 

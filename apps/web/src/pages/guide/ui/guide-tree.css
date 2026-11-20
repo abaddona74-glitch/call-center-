@@ -16,9 +16,11 @@
   flex-shrink: 0;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  height: 64px;
-  padding: 0 24px;
+  /* Wraps instead of overlapping: the content width (window minus sidebar) is what runs out, not the viewport. */
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  min-height: 64px;
+  padding: 12px 24px;
   background: color-mix(in srgb, var(--glass) 94%, transparent);
   border-bottom: 1px solid rgba(59, 130, 246, 0.25);
   backdrop-filter: blur(16px);
@@ -28,8 +30,9 @@
 }
 .guide-header-left {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 10px 16px;
   min-width: 0;
 }
 .guide-back-btn {
@@ -57,6 +60,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 .guide-icon-badge {
   width: 38px;
@@ -93,8 +97,9 @@
 }
 .guide-header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px 10px;
 }
 .guide-action-btn {
   display: inline-flex;
@@ -225,8 +230,6 @@
 
 @media (max-width: 900px) {
   .guide-header {
-    height: auto;
-    flex-wrap: wrap;
     padding: 10px 16px;
   }
   .guide-helper-pill {

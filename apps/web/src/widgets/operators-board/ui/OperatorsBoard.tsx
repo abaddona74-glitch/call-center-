@@ -138,6 +138,7 @@ export function OperatorsBoard({
       <OperatorCard
         key={op.extension}
         op={op}
+        photo={op.photoUrl}
         rank={rankMap.get(op.extension)}
         next={op.extension === next}
         onOpen={openCalls?.(op)}

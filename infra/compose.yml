@@ -34,8 +34,12 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-callcenter}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-callcenter}
       DB_MIGRATE_ON_START: "true"
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
+      # Pinned here, not only in .env: an older server .env without it would put photos inside the container,
+      # where every deploy would lose them.
+      OPERATOR_PHOTOS_DIR: /data/operator-photos
     volumes:
-      # ticket attachments (/data/tickets) and temporary recording ZIPs (/data/recording-zips)
+      # ticket attachments (/data/tickets), operator photos (/data/operator-photos)
+      # and temporary recording ZIPs (/data/recording-zips)
       - api-data:/data
 
   web:

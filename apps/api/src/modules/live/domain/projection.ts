@@ -30,11 +30,15 @@ export const isPrivileged = (v: Viewer) => telephonyAccess(v).seeAll;
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
-/** `hidden`: excluded operators (settings) — left off the board, as legacy getOperatorList did. */
+/**
+ * `hidden`: excluded operators (settings) — left off the board, as legacy getOperatorList did.
+ * `photos`: extension → photo URL (Settings → "Operator rasmlari"); operators without one get `photoUrl: null`.
+ */
 export function projectOperators(
   store: LiveStore,
   now: number,
   hidden: ReadonlySet<string> = new Set(),
+  photos: ReadonlyMap<string, string> = new Map(),
 ): LiveOperator[] {
   const list: LiveOperator[] = [];
   const seeded = store.todaySeed?.operators;
@@ -69,6 +73,7 @@ export function projectOperators(
         ? { callsTaken: op.queue.callsTaken, lastCallAt: op.queue.lastCallAt ? iso(op.queue.lastCallAt) : null }
         : null,
       today: withSeed(op.today, seeded?.get(op.ext)),
+      photoUrl: photos.get(op.ext) ?? null,
     });
   }
   return list.sort((a, b) => Number(a.extension) - Number(b.extension) || a.extension.localeCompare(b.extension));

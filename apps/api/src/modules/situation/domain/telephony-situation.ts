@@ -15,6 +15,8 @@ export interface SituationTelephonyInput {
   now: number;
   /** Excluded operators (settings): off the board, as on the live dashboard. */
   hidden: ReadonlySet<string>;
+  /** Operator photos: extension → URL. */
+  photos?: ReadonlyMap<string, string>;
   ami: AmiStatus;
   workday: SituationWorkday;
 }
@@ -25,7 +27,7 @@ export type SituationTelephonyState = Omit<SituationTelephony, 'serverTime'>;
 export function buildSituationTelephony(input: SituationTelephonyInput): SituationTelephonyState {
   const { store, now } = input;
   return {
-    operators: projectOperators(store, now, input.hidden).map((o) => ({ ...o, ip: null })),
+    operators: projectOperators(store, now, input.hidden, input.photos).map((o) => ({ ...o, ip: null })),
     calls: projectCalls(store, now),
     queues: projectQueues(store),
     counters: projectCounters(store),
