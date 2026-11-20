@@ -3,14 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { formatNumber } from '@/entities/call';
 import { SituationLiveStatus, situationQuery, useSituationSync } from '@/entities/situation';
-import {
-  AmiStatusPill,
-  LiveSnapshotProvider,
-  LiveTimer,
-  formatSeconds,
-  liveSnapshotSource,
-  useElapsed,
-} from '@/entities/telephony';
+import { AmiStatusPill, LiveSnapshotProvider, LiveTimer, liveSnapshotSource, useElapsed } from '@/entities/telephony';
 import { cn } from '@/shared/lib/cn';
 import { tashkentDateTime } from '@/shared/lib/tashkent-time';
 import { useNow } from '@/shared/lib/use-now';
@@ -226,31 +219,40 @@ function TodayStrip({ counters: c, tickets }: { counters: LiveCounters; tickets:
       badge: `${percent(c.abandoned, c.inbound)}%`,
     },
     { key: 'missed', value: n(c.operatorMissed), tone: 'text-danger-soft', hint: t('today.missedHint') },
-    { key: 'avgWait', value: formatSeconds(c.avgWaitSec), tone: 'text-brand-soft', hint: t('today.avgWaitHint') },
+    {
+      key: 'callbacks',
+      value: n(tickets.callbacks.total),
+      tone: 'text-brand-soft',
+      badge: t('today.callbacksPending', { n: n(tickets.callbacks.pending) }),
+      hint: t('today.callbacksHint'),
+    },
   ];
   const ticketItems: TodayItem[] = [
     { key: 'opened', value: n(tickets.today.opened), tone: 'text-lilac-soft' },
     { key: 'resolved', value: n(tickets.today.resolved), tone: 'text-positive' },
-    { key: 'closed', value: n(tickets.today.closed), tone: 'text-ink-2' },
+    { key: 'closed', value: n(tickets.today.closed), tone: 'text-ink-2', hint: t('today.closedHint') },
   ];
+  // Two separate panels side by side (stacked on narrow screens): calls and tickets read apart at a glance.
   return (
-    <Panel className="py-4">
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="flex items-center gap-2 text-base font-semibold">
-          <Icon name="calendar" className="size-[18px] text-primary" />
-          {t('today.title')}
-        </h3>
-        {c.seededThrough && (
-          <span className="text-[11px] text-mute">
-            {t('today.seeded', { time: tashkentDateTime(c.seededThrough).slice(11, 16) })}
-          </span>
-        )}
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
-        <TodayGroup title={t('sections.calls')} items={calls} className="grid-cols-2 sm:grid-cols-5" />
-        <TodayGroup title={t('sections.tickets')} items={ticketItems} className="grid-cols-3" />
-      </div>
-    </Panel>
+    <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,3fr)]">
+      <TodayPanel
+        icon="call"
+        iconTone="text-link-soft"
+        title={t('today.calls')}
+        note={
+          c.seededThrough ? t('today.seeded', { time: tashkentDateTime(c.seededThrough).slice(11, 16) }) : undefined
+        }
+        items={calls}
+        className="grid-cols-2 sm:grid-cols-5"
+      />
+      <TodayPanel
+        icon="clipboard-text"
+        iconTone="text-lilac-soft"
+        title={t('today.tickets')}
+        items={ticketItems}
+        className="grid-cols-3"
+      />
+    </div>
   );
 }
 
@@ -262,12 +264,32 @@ interface TodayItem {
   hint?: string;
 }
 
-function TodayGroup({ title, items, className }: { title: string; items: TodayItem[]; className: string }) {
+function TodayPanel({
+  icon,
+  iconTone,
+  title,
+  note,
+  items,
+  className,
+}: {
+  icon: string;
+  iconTone: string;
+  title: string;
+  note?: string;
+  items: TodayItem[];
+  className: string;
+}) {
   const { t } = useTranslation('situationPage');
   return (
-    <div className="min-w-0">
-      <h4 className="mb-2 text-[11px] font-semibold text-mute">{title}</h4>
-      <dl className={cn('grid gap-2.5', className)}>
+    <Panel className="flex flex-col py-4">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-base font-semibold">
+          <Icon name={icon} className={cn('size-[18px]', iconTone)} />
+          {title}
+        </h3>
+        {note && <span className="text-[11px] text-mute">{note}</span>}
+      </div>
+      <dl className={cn('grid flex-1 gap-2.5', className)}>
         {items.map((it) => (
           <div
             key={it.key}
@@ -284,6 +306,6 @@ function TodayGroup({ title, items, className }: { title: string; items: TodayIt
           </div>
         ))}
       </dl>
-    </div>
+    </Panel>
   );
 }

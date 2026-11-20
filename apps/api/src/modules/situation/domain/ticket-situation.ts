@@ -51,6 +51,8 @@ export interface SituationTicketsInput {
   open: readonly SituationTicketFact[];
   /** Counts since the start of today (Tashkent). */
   today: { opened: number; resolved: number; closed: number };
+  /** Today's callbacks (the callbacks list's «Bugun» window): still to call back / called back. */
+  callbacks: { pending: number; resolved: number };
   /** userId → tickets that user finished (done / rejected) today. */
   resolvedTodayBy: ReadonlyMap<number, number>;
   /** Every region (deactivated too: old tickets may point at them), directory order. */
@@ -96,6 +98,7 @@ export function buildSituationTickets(input: SituationTicketsInput): SituationTi
     dueToday: withRegion.filter((t) => !overdueNow(t) && t.dueAt !== null && t.dueAt <= input.dayEnd).length,
     callbackOverdue: open.filter((t) => t.status === 'callback_pending' && isCallbackOverdue(t, now)).length,
     today: { ...input.today },
+    callbacks: { total: input.callbacks.pending + input.callbacks.resolved, ...input.callbacks },
     waiting: regionQueues(input, refOf, overdueNow),
     workers: workers(input, refOf, overdueNow),
     slaWorkingDays: input.slaWorkingDays,

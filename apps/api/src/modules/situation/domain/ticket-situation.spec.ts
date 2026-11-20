@@ -47,6 +47,7 @@ function ticket(status: TicketStatus, v: Partial<SituationTicketFact> = {}): Sit
 const input = (open: SituationTicketFact[], extra: Partial<SituationTicketsInput> = {}): SituationTicketsInput => ({
   open,
   today: { opened: 4, resolved: 2, closed: 1 },
+  callbacks: { pending: 3, resolved: 5 },
   resolvedTodayBy: new Map([[10, 2]]),
   regions,
   executives,
@@ -71,6 +72,7 @@ describe('buildSituationTickets — open tickets now', () => {
     );
     expect(r.open).toEqual({ total: 5, new: 2, assigned: 1, inProgress: 1, callbackPending: 1 });
     expect(r.today).toEqual({ opened: 4, resolved: 2, closed: 1 });
+    expect(r.callbacks).toEqual({ total: 8, pending: 3, resolved: 5 });
     expect(r).toMatchObject({ slaWorkingDays: 3, callbackSlaWorkingDays: 1, generatedAt: NOW.toISOString() });
   });
 
