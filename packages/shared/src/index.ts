@@ -27,3 +27,4 @@ export * from './docx.js';
 export * from './overview.js';
 export * from './situation.js';
 export * from './call-analysis.js';
+export * from './kpi.js';
