@@ -16,6 +16,11 @@ export interface PlayerTrack {
 export interface PlayerState {
   track: PlayerTrack | null;
   status: PlayerStatus;
+  /**
+   * Playback of this track was asked for at least once. False for a track only loaded paused (call details
+   * dialog): it is "paused" for the <audio> element, but nobody listened, so rows must not offer «Davom ettirish».
+   */
+  started: boolean;
   error: PlayerError | null;
   currentTime: number;
   /** Real duration once metadata is loaded, the (size-44)/16000 estimate before. */
@@ -31,6 +36,7 @@ export interface PlayerState {
 const INITIAL: PlayerState = {
   track: null,
   status: 'idle',
+  started: false,
   error: null,
   currentTime: 0,
   duration: 0,
@@ -121,6 +127,7 @@ class AudioPlayerStore {
     this.set({
       track,
       status: autoplay ? 'loading' : 'paused',
+      started: false,
       error: null,
       currentTime: 0,
       duration: estimateSeconds(track.size),
@@ -132,6 +139,7 @@ class AudioPlayerStore {
   }
 
   private start(): void {
+    if (!this.state.started) this.set({ started: true });
     this.audio?.play().catch((err: unknown) => {
       if ((err as Error).name === 'AbortError') return;
       this.set({ status: 'error', error: 'play_failed' });
@@ -204,7 +212,7 @@ class AudioPlayerStore {
       a.removeAttribute('src');
       a.load();
     }
-    this.set({ track: null, status: 'idle', error: null, currentTime: 0, duration: 0, skip: null });
+    this.set({ track: null, status: 'idle', started: false, error: null, currentTime: 0, duration: 0, skip: null });
   }
 
   /**

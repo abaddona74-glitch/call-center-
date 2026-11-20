@@ -39,7 +39,7 @@ export const StudioPlayer = forwardRef<HTMLElement, StudioPlayerProps>(function 
     statusIsError = true;
   } else if (s.status === 'loading') {
     status = track.size > 0 ? t('player.sizeLoading', { size: formatBytes(track.size) }) : t('player.loading');
-  } else if (s.status === 'paused') status = t('player.paused');
+  } else if (s.status === 'paused') status = s.started ? t('player.paused') : t('player.cued');
   else if (s.status === 'ended') status = t('player.ended');
 
   return (
