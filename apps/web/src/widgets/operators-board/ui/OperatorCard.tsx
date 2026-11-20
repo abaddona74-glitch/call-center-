@@ -1,5 +1,5 @@
 import type { LiveOperator } from '@cc/shared';
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import { type KeyboardEvent, type MouseEvent, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRESENCE_CLASS } from '@/entities/operator';
 import { LiveTimer, displayPhone, formatSeconds } from '@/entities/telephony';
@@ -29,6 +29,26 @@ export function cardOpenProps(onOpen: (() => void) | undefined, label: string) {
   };
 }
 
+/** "Muattar Karimova" → "MK", "Muattar" → "M". */
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+/** Round photo slot ringed in the state colour, with a status dot; initials while there is no photo (or it fails). */
+function OperatorPhoto({ name, src }: { name: string; src?: string | null }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="av" aria-hidden="true">
+      {src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <span>{initials(name)}</span>}
+      <i className="dot" />
+    </div>
+  );
+}
+
 /** Legacy "op-redesign" operator card: state bar, live call strip with stopwatch, today's numbers. */
 export function OperatorCard({
   op,
@@ -36,11 +56,14 @@ export function OperatorCard({
   next,
   actions,
   onOpen,
+  photo,
 }: {
   op: LiveOperator;
   rank?: number;
   next?: boolean;
   actions?: ReactNode;
+  /** The operator's photo URL; until there is one the slot shows the name's initials. */
+  photo?: string | null;
   /** Opens today's calls of this operator; without it the card is not clickable. */
   onOpen?: () => void;
 }) {
@@ -114,7 +137,7 @@ export function OperatorCard({
       {...cardOpenProps(onOpen, t('detail.open'))}
     >
       <div className="head">
-        <div className="av">{op.extension}</div>
+        <OperatorPhoto name={op.name} src={photo} />
         <div className="who">
           <strong>
             <span className="truncate">{op.name}</span>
@@ -127,8 +150,8 @@ export function OperatorCard({
             {/* The situation board gets no addresses: a registered phone without one shows just the extension. */}
             {(op.ip || !op.registered) && ` · ${op.ip ?? '-none-'}`}
           </small>
+          <span className="st">{tp(`presence.${op.presence}`)}</span>
         </div>
-        <span className="st">{tp(`presence.${op.presence}`)}</span>
       </div>
 
       {strip}

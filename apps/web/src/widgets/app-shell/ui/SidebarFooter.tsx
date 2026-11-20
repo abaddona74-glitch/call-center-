@@ -57,7 +57,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
         <OnlineUsers compact={collapsed} />
         <TicketAlerts meId={user.id} compact />
         {!collapsed && <span className="flex-1" />}
-        <ThemeSwitch />
+        <ThemeSwitch compact={collapsed} />
         {language}
       </div>
       <div className={cn(row, !collapsed && 'gap-2.5 pl-1')}>
