@@ -2,13 +2,12 @@ import type { ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSessionUser } from '@/entities/session';
 import { LogoutButton } from '@/features/auth/logout';
+import { LanguageSwitch } from '@/features/language-switch';
 import { OnlineUsers } from '@/features/presence/online-users';
 import { ThemeSwitch } from '@/features/theme-switch';
 import { TicketAlerts } from '@/features/tickets/notifications';
 import { useRealtimeStatus } from '@/shared/api';
-import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
 import { cn } from '@/shared/lib/cn';
-import { NativeSelect } from '@/shared/ui/native-select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 /**
@@ -17,27 +16,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
  * Open sidebar: two rows. Icon rail: one centered column, names in tooltips.
  */
 export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const user = useSessionUser();
   const status = useRealtimeStatus();
   const statusText = t(`realtime.${status}`);
   const roleText = t(`roles.${user.role}`);
   const tipSide = collapsed ? 'right' : 'top';
 
-  const language = (
-    <NativeSelect
-      className={cn(collapsed && 'w-10 appearance-none px-0 text-center')}
-      value={i18n.language}
-      onChange={(e) => setLanguage(e.target.value as Language)}
-      aria-label="Language"
-    >
-      {LANGUAGES.map((l) => (
-        <option key={l} value={l}>
-          {l.toUpperCase()}
-        </option>
-      ))}
-    </NativeSelect>
-  );
+  const language = <LanguageSwitch />;
 
   const avatar = (
     <span
@@ -85,8 +71,7 @@ export function SidebarFooter({ collapsed }: { collapsed: boolean }) {
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block truncate text-sm font-medium">{user.username}</span>
               <span className="block truncate text-xs text-muted-foreground">
-                {roleText} ·{' '}
-                <span className={status === 'open' ? 'text-success' : 'text-warning'}>{statusText}</span>
+                {roleText} · <span className={status === 'open' ? 'text-success' : 'text-warning'}>{statusText}</span>
               </span>
             </span>
           </>

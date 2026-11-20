@@ -6,10 +6,9 @@ import { LogoutButton } from '@/features/auth/logout';
 import { useExcludedOperatorsSync } from '@/features/excluded-operators/edit';
 import { OnlineUsers } from '@/features/presence/online-users';
 import { TicketAlerts } from '@/features/tickets/notifications';
+import { LanguageSwitch } from '@/features/language-switch';
 import { ThemeSwitch } from '@/features/theme-switch';
-import { type Language, LANGUAGES, setLanguage } from '@/shared/i18n';
 import { useMediaQuery } from '@/shared/lib/use-media-query';
-import { NativeSelect } from '@/shared/ui/native-select';
 import { MobileNav } from './MobileNav';
 import { Sidebar } from './Sidebar';
 
@@ -47,7 +46,7 @@ export function AppShell() {
 
 /** Phones only (below `md`): the title and the sidebar-foot controls in one row. */
 function PhoneHeader() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const user = useSessionUser();
   return (
     <header className="flex h-14 items-center justify-end gap-2 border-b px-3">
@@ -58,18 +57,7 @@ function PhoneHeader() {
       </div>
       <TicketAlerts meId={user.id} compact />
       <ThemeSwitch />
-      <NativeSelect
-        className="text-sm"
-        value={i18n.language}
-        onChange={(e) => setLanguage(e.target.value as Language)}
-        aria-label="Language"
-      >
-        {LANGUAGES.map((l) => (
-          <option key={l} value={l}>
-            {l.toUpperCase()}
-          </option>
-        ))}
-      </NativeSelect>
+      <LanguageSwitch />
       <LogoutButton compact />
     </header>
   );
