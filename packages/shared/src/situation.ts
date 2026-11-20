@@ -120,6 +120,12 @@ export const SituationTicketsSchema = z.object({
   callbackOverdue: count,
   /** Today (Tashkent): created, finished by executives (done / rejected), closed after the callback. */
   today: z.object({ opened: count, resolved: count, closed: count }),
+  /**
+   * Not tickets: today's callbacks (citizens to call back, the callbacks list's «Bugun»), read in the same database
+   * pass so they ride this part's pushes. `total` = `pending` (still to call back, unreachable ones too) + `resolved`
+   * (called back today); dismissed ones are left out.
+   */
+  callbacks: z.object({ total: count, pending: count, resolved: count }),
   /** Regions with new tickets, the longest-waiting first. */
   waiting: z.array(SituationRegionQueueSchema),
   /** Executives (every active one assigned to a region) and anyone else holding tickets, busiest first. */

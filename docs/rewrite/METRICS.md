@@ -267,7 +267,7 @@
 | «Navbatda kutayotganlar» | ожидающие во всех очередях; «eng uzoq kutish» — от входа в очередь самого давнего. Цвет плитки: никого — спокойный, кто-то ждёт — жёлтый, кто-то ждёт ≥ 3 мин — красный |
 | «Hozir suhbatda» | звонки с гражданами в состоянии `talking` (входящие + исходящие, внутренние между операторами не считаются); рядом — звонит/набирает (`ringing` + `dialing`) |
 | Операторы, очередь, «Faol suhbatlar» | те же виджеты, что на дашборде (действий нет: у observer нет ни своего номера, ни `actions.call`) |
-| «Bugun» — звонки | живые счётчики дашборда (§5a): «Kiruvchi» = `inbound`, «Javob berilgan» = `answered` (доля `answerRate`), «Navbatdan chiqdi» = `abandoned` (доля от `inbound`), «O‘tkazib yuborilgan» = `operatorMissed` (§1.2.1), «O‘rtacha kutish» = `avgWaitSec` (= `inbound.avgWaitSec` статистики за сегодня, §2) |
+| «Bugungi qo‘ng‘iroqlar» (отдельная панель слева от тикетов) | живые счётчики дашборда (§5a): «Kiruvchi» = `inbound`, «Javob berilgan» = `answered` (доля `answerRate`), «Navbatdan chiqdi» = `abandoned` (доля от `inbound`), «O‘tkazib yuborilgan» = `operatorMissed` (§1.2.1); «Qayta qo‘ng‘iroqlar» — перезвоны за сегодня из таблицы `callbacks` в окне «Bugun» списка перезвонов: `pending` с последним пропуском сегодня + `resolved`, закрытые сегодня (`dismissed` не считаются), рядом — сколько ещё ждут (`pending`). Обновляется вместе с тикетами (каждые 30 с, при изменении тикета и после звонковых событий `abandoned` / `operator_missed` / `ended`). «O‘rtacha kutish» с доски убрано (решение владельца 20.11.2026) |
 | Рабочее время | из общего календаря: «hozir ish vaqti» / «ish vaqtidan tashqari» / «bugun dam olish kuni» (интервал [начало, конец)) |
 
 ### 10.2 Тикеты сейчас
@@ -277,7 +277,7 @@
 |---|---|
 | «Ochiq ticketlar» | не `closed`, по статусам: `new`, `assigned`, `in_progress`, `callback_pending` |
 | «Muddati o‘tgan ticketlar» | в области (`new` / `assigned` / `in_progress`) после `due_at` (`isOverdue`); рядом: «bugun muddati tugaydi» — в области, ещё не просрочены, `due_at` до конца сегодняшнего дня (Ташкент); «qayta qo‘ng‘iroq kechikkan» — `callback_pending` после `callback_due_at` (`isCallbackOverdue`) |
-| «Bugun» — тикеты | создано сегодня (`created_at`), решено ответственными сегодня (`resolved_at`: done/rejected), закрыто сегодня (`closed_at`) |
+| «Bugungi ticketlar» (отдельная панель) | «Ochildi» — создано сегодня (`created_at`), «Mas’ul hal qildi» — решено ответственными сегодня (`resolved_at`: done/rejected), «Masala hal qilindi» — закрыто сегодня (`closed_at`, гражданину перезвонили) |
 | «Olinishini kutmoqda» | `new` по областям (и «Hududsiz»); «eng uzoq» — с `region_changed_at` самого давнего (создан, переслан сюда или возвращён в очередь); сколько из них просрочено; «Mas’ul biriktirilmagan», если у области нет активного ответственного. Порядок — дольше всех ждущая область первой |
 | «Ticketlar ustida ishlayotganlar» | все активные ответственные с областями (`ticket_executive_regions`) и любой другой, у кого сейчас есть тикеты (например, superuser): «Hozir ishda» = `assigned` + `in_progress` у него, из них просрочено; тикеты — от самого давно взятого (`assigned_at`, у перенесённых без него — `created_at`), не больше 10 в списке; «Bugun hal qildi» — его done/rejected за сегодня. Порядок: больше тикетов — выше, затем кто дольше держит тикет |
 
