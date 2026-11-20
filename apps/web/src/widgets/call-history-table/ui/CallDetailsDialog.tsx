@@ -26,9 +26,9 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 type DetailsTab = 'conversation' | 'legs';
 
 /**
- * Call drill-down: the Studio player for the call's recording (when it has one and the user may listen; it starts
- * right here, no trip to Audio Explorer), facts, then the AI analysis («Suhbat»: rubric + dialogue, for whoever may
- * read it — `CDR_ACCESS['analysis.call']`) and the raw CDR legs (legacy call detail modal).
+ * Call drill-down: the Studio player for the call's recording (when it has one and the user may listen; it loads
+ * right here, paused until play — no trip to Audio Explorer), facts, then the AI analysis («Suhbat»: rubric +
+ * dialogue, for whoever may read it — `CDR_ACCESS['analysis.call']`) and the raw CDR legs (legacy call detail modal).
  */
 export function CallDetailsDialog({
   call,

@@ -15,9 +15,12 @@ import { Icon } from '@/shared/ui/icon';
 /**
  * The Studio player for one call, right where it is shown (call details dialog), so the recording can be
  * listened to, sought, skipped and sped up without going to Audio Explorer. Opening it loads the call's
- * recording into the shared player and starts it (same lookup as «Tinglash»: by the exact uniqueid); when this
- * call is already loaded (e.g. «Tinglash» was pressed first) it keeps its position and state.
- * Unmounting (the dialog closes) pauses it; the row button then offers «Davom ettirish».
+ * recording into the shared player PAUSED (same lookup as «Tinglash»: by the exact uniqueid) — nothing sounds
+ * until the user presses play. When this call is already loaded (e.g. «Tinglash» was pressed first) it keeps
+ * its position and state.
+ * Unmounting (the dialog closes): a recording this dialog loaded is closed, so the global player shortcuts
+ * (Space, arrows) stop acting on an invisible player; one started by «Tinglash» is only paused and its row
+ * button offers «Davom ettirish».
  */
 export function CallRecordingStudio({ uniqueid, label }: { uniqueid: string; label: string }) {
   const { t } = useTranslation('recording');
@@ -25,6 +28,8 @@ export function CallRecordingStudio({ uniqueid, label }: { uniqueid: string; lab
   const player = useAudioPlayer();
   const key = `call:${uniqueid}`;
   const [error, setError] = useState<string | null>(null);
+  /** Key of the track this dialog loaded itself (null: it was already loaded, e.g. by «Tinglash»). */
+  const loadedHere = useRef<string | null>(null);
 
   useEffect(() => {
     setError(null);
@@ -34,7 +39,8 @@ export function CallRecordingStudio({ uniqueid, label }: { uniqueid: string; lab
       .fetchQuery(callRecordingQuery(uniqueid))
       .then((rec) => {
         if (cancelled) return;
-        audioPlayer.play({
+        loadedHere.current = key;
+        audioPlayer.load({
           key,
           title: label,
           src: callRecordingStreamUrl(uniqueid),
@@ -55,14 +61,16 @@ export function CallRecordingStudio({ uniqueid, label }: { uniqueid: string; lab
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [key, uniqueid, queryClient, t]);
 
-  // Pause on a real unmount only: the check waits a tick, so StrictMode's dev remount doesn't stop playback.
+  // Release on a real unmount only: the check waits a tick, so StrictMode's dev remount keeps the track.
   const mounted = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
       setTimeout(() => {
-        if (!mounted.current && audioPlayer.getState().track?.key === key) audioPlayer.pause();
+        if (mounted.current || audioPlayer.getState().track?.key !== key) return;
+        if (loadedHere.current === key) audioPlayer.close();
+        else audioPlayer.pause();
       }, 0);
     };
   }, [key]);

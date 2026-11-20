@@ -98,7 +98,17 @@ class AudioPlayerStore {
     return a;
   }
 
+  /** Loads the track and starts it (row «Tinglash», Audio Explorer). */
   play(track: PlayerTrack): void {
+    this.open(track, true);
+  }
+
+  /** Loads the track paused at 0:00: the player shows it, nothing sounds until play (call details dialog). */
+  load(track: PlayerTrack): void {
+    this.open(track, false);
+  }
+
+  private open(track: PlayerTrack, autoplay: boolean): void {
     const a = this.element();
     a.pause();
     a.src = track.src;
@@ -110,14 +120,14 @@ class AudioPlayerStore {
     a.muted = false;
     this.set({
       track,
-      status: 'loading',
+      status: autoplay ? 'loading' : 'paused',
       error: null,
       currentTime: 0,
       duration: estimateSeconds(track.size),
       volume,
       muted: false,
     });
-    this.start();
+    if (autoplay) this.start();
     this.installKeys();
   }
 
